@@ -396,6 +396,7 @@ describe("flow command handlers", () => {
 
   test("ragequit delegates to the workflow service and renders recovery output", async () => {
     const cmd = fakeCommand({ chain: "sepolia" });
+    inputPromptMock.mockImplementationOnce(async () => "RAGEQUIT");
 
     await handleFlowRagequitCommand("wf-ragequit", undefined, cmd);
 
@@ -412,6 +413,7 @@ describe("flow command handlers", () => {
   });
 
   test("ragequit reports flow cancellation without printing an error in human mode", async () => {
+    inputPromptMock.mockImplementationOnce(async () => "RAGEQUIT");
     ragequitWorkflowMock.mockImplementationOnce(async () => {
       throw new MockFlowCancelledError("Flow cancelled.");
     });

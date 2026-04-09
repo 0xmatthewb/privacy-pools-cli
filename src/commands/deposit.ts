@@ -21,15 +21,11 @@ import {
 import { explorerTxUrl, isNativePoolAsset } from "../config/chains.js";
 import {
   spinner,
-  stageHeader,
   info,
   warn,
   verbose,
   formatAmount,
-  formatAddress,
-  formatBPS,
   deriveTokenPrice,
-  usdSuffix,
 } from "../utils/format.js";
 import { printError, CLIError, sanitizeDiagnosticText } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
@@ -74,6 +70,14 @@ import {
   maybeRenderPreviewProgressStep,
   maybeRenderPreviewScenario,
 } from "../preview/runtime.js";
+import {
+  confirmActionWithSeverity,
+  formatPoolPromptChoice,
+} from "../utils/prompts.js";
+import {
+  createNarrativeSteps,
+  renderNarrativeSteps,
+} from "../output/progress.js";
 
 const depositedEventAbi = parseAbi([
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -169,7 +173,14 @@ export async function handleDepositCommand(
       const selected = await select({
         message: "Select asset to deposit:",
         choices: pools.map((p) => ({
-          name: `${p.symbol} (${formatAddress(p.asset)})`,
+          name: formatPoolPromptChoice({
+            symbol: p.symbol,
+            chain: chainConfig.name,
+            minimumDepositAmount: p.minimumDepositAmount,
+            decimals: p.decimals,
+            totalInPoolValue: p.totalInPoolValue ?? p.acceptedDepositsValue,
+            tokenPrice: deriveTokenPrice(p),
+          }),
           value: p.asset,
         })),
       });
@@ -253,13 +264,6 @@ export async function handleDepositCommand(
     const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
     const estimatedCommitted = amount - feeAmount;
     const tokenPrice = deriveTokenPrice(pool);
-    const amountUsd = usdSuffix(amount, pool.decimals, tokenPrice);
-    const feeUsd = usdSuffix(feeAmount, pool.decimals, tokenPrice);
-    const committedUsd = usdSuffix(
-      estimatedCommitted,
-      pool.decimals,
-      tokenPrice,
-    );
     if (!skipPrompts) {
       const isErc20 = !isNativePoolAsset(chainConfig.id, pool.asset);
       process.stderr.write("\n");
@@ -278,9 +282,12 @@ export async function handleDepositCommand(
       if (await maybeRenderPreviewScenario("deposit confirm")) {
         return;
       }
-      const ok = await confirm({
-        message: "Confirm deposit?",
-        default: true,
+      const ok = await confirmActionWithSeverity({
+        severity: "standard",
+        standardMessage: "Confirm deposit?",
+        highStakesToken: "DEPOSIT",
+        highStakesWarning: "Deposit review changed while waiting for confirmation.",
+        confirm,
       });
       if (!ok) {
         info("Deposit cancelled.", silent);
@@ -472,9 +479,17 @@ export async function handleDepositCommand(
       const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
 
       // ERC20 approval
-      const depositSteps = isNative ? 1 : 2;
+      const writeDepositProgress = (activeIndex: number, note?: string) => {
+        if (silent) return;
+        const labels = isNative
+          ? ["Submit deposit"]
+          : ["Approve token", "Submit deposit"];
+        process.stderr.write(
+          `\n${renderNarrativeSteps(createNarrativeSteps(labels, activeIndex, note))}`,
+        );
+      };
       if (!isNative) {
-        stageHeader(1, depositSteps, "Approving token spend", silent);
+        writeDepositProgress(0, "Approval is only needed for ERC20 deposits.");
         const spin = spinner("Approving token spend...", silent);
         spin.start();
         try {
@@ -513,7 +528,7 @@ export async function handleDepositCommand(
       }
 
       // Deposit transaction
-      if (!isNative) stageHeader(2, depositSteps, "Submitting deposit", silent);
+      writeDepositProgress(isNative ? 0 : 1, "Submitting the public deposit.");
       const spin = spinner("Submitting deposit transaction...", silent);
       spin.start();
 

@@ -15,6 +15,7 @@ interface ElapsedSpinnerOptions {
   initialText?: string;
   /** Suffix shown after 30+ seconds (default: "still working"). */
   longRunLabel?: string;
+  phaseLabel?: (elapsedSeconds: number) => string | null;
 }
 
 async function withElapsedSpinner<T>(
@@ -29,7 +30,10 @@ async function withElapsedSpinner<T>(
 
   const interval = setInterval(() => {
     const elapsed = Math.floor((Date.now() - start) / 1000);
-    if (elapsed < 10) {
+    const phaseLabel = opts?.phaseLabel?.(elapsed);
+    if (phaseLabel) {
+      spin.text = `${label}... (${elapsed}s) - ${phaseLabel}`;
+    } else if (elapsed < 10) {
       spin.text = `${label}... (${elapsed}s)`;
     } else if (elapsed < 30) {
       spin.text = `${label}... (${elapsed}s) - this may take a moment`;
@@ -63,11 +67,29 @@ export async function withProofProgress<T>(
 ): Promise<T> {
   const isFirstRun = !firstRunMessageShown;
   firstRunMessageShown = true;
+  const phases = isFirstRun
+    ? [
+        { after: 0, label: "verify circuits if needed" },
+        { after: 8, label: "build witness" },
+        { after: 18, label: "generate proof" },
+        { after: 35, label: "finalize proof" },
+      ]
+    : [
+        { after: 0, label: "build witness" },
+        { after: 10, label: "generate proof" },
+        { after: 28, label: "finalize proof" },
+      ];
   return withElapsedSpinner(spin, label, fn, {
     initialText: isFirstRun
       ? `${label}... (first proof may verify bundled circuits)`
-      : undefined,
+      : `${label}... (building witness)`,
     longRunLabel: "almost there",
+    phaseLabel: (elapsedSeconds) => {
+      const activePhase = phases
+        .toReversed()
+        .find((phase) => elapsedSeconds >= phase.after);
+      return activePhase?.label ?? null;
+    },
   });
 }
 

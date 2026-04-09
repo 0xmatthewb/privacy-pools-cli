@@ -7,7 +7,14 @@ import {
   type FlowSnapshot,
 } from "../services/workflow.js";
 import { describeFlowPrivacyDelayDeadline } from "../utils/flow-privacy-delay.js";
-import { displayDecimals, formatAmount, formatUsdValue } from "../utils/format.js";
+import {
+  displayDecimals,
+  formatAddress,
+  formatAmount,
+  formatDenseOutcomeLine,
+  formatUsdValue,
+} from "../utils/format.js";
+import { inlineSeparator } from "../utils/terminal.js";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -26,6 +33,10 @@ import {
   formatSectionHeading,
 } from "./layout.js";
 import { formatReviewSurface } from "./review.js";
+import {
+  renderFlowRail,
+  type FlowRailStep,
+} from "./progress.js";
 
 export interface FlowStartReviewData {
   amount: bigint;
@@ -123,6 +134,30 @@ export function formatFlowStartReview(data: FlowStartReviewData): string {
 export interface FlowRenderData {
   action: "start" | "watch" | "status" | "ragequit";
   snapshot: FlowSnapshot;
+}
+
+export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
+  const amount = flowOutcomeAmount(snapshot);
+  return formatReviewSurface({
+    title: "Saved flow public recovery",
+    summaryRows: [
+      { label: "Workflow", value: snapshot.workflowId },
+      { label: "Chain", value: snapshot.chain },
+      { label: "Asset", value: snapshot.asset },
+      ...(snapshot.poolAccountId
+        ? [{ label: "Pool Account", value: snapshot.poolAccountId }]
+        : []),
+      ...(amount ? [{ label: "Amount", value: amount }] : []),
+      { label: "Destination", value: "original deposit address" },
+    ],
+    primaryCallout: {
+      kind: "danger",
+      lines: [
+        `This saved flow will return funds publicly to the original deposit address.${configuredSignerRecoverySuffix(snapshot)}`,
+        "This is a safe and expected recovery path in some cases, but privacy will not be preserved.",
+      ],
+    },
+  });
 }
 
 function formatFlowAssetAmount(
@@ -262,6 +297,119 @@ function ragequitOptionalReason(snapshot: FlowSnapshot, base: string): string {
 
 function ragequitDeclinedReason(snapshot: FlowSnapshot, base: string): string {
   return `${base}${configuredSignerRecoverySuffix(snapshot)}`;
+}
+
+function flowOutcomeAmount(snapshot: FlowSnapshot): string | null {
+  return formatFlowAssetAmount(
+    snapshot.committedValue ?? snapshot.depositAmount,
+    snapshot,
+  );
+}
+
+function buildFlowRail(snapshot: FlowSnapshot, action: FlowRenderData["action"]): FlowRailStep[] {
+  const publicRecoveryRequired = requiresPublicRecoveryBecauseRelayerMinimum(snapshot);
+  const usesRecoveryLabel =
+    action === "ragequit" ||
+    snapshot.phase === "completed_public_recovery" ||
+    snapshot.phase === "paused_declined" ||
+    publicRecoveryRequired;
+  const steps: FlowRailStep[] = [];
+
+  const addStep = (
+    label: string,
+    state: FlowRailStep["state"],
+    note?: string,
+  ) => {
+    steps.push({ label, state, ...(note ? { note } : {}) });
+  };
+
+  if (snapshot.walletMode === "new_wallet") {
+    addStep(
+      "Fund",
+      snapshot.phase === "awaiting_funding" ? "active" : "done",
+      snapshot.phase === "awaiting_funding"
+        ? formatFundingSummary(snapshot) ?? "Fund the dedicated workflow wallet first."
+        : undefined,
+    );
+  }
+
+  addStep(
+    "Deposit",
+    snapshot.phase === "depositing_publicly"
+      ? "active"
+      : snapshot.phase === "awaiting_funding"
+        ? "pending"
+        : "done",
+  );
+
+  addStep(
+    "Review",
+    snapshot.phase === "awaiting_asp"
+      ? "active"
+      : snapshot.phase === "paused_declined" || snapshot.phase === "paused_poi_required"
+        ? "blocked"
+        : snapshot.phase === "awaiting_funding" || snapshot.phase === "depositing_publicly"
+          ? "pending"
+          : "done",
+    snapshot.phase === "awaiting_asp"
+      ? "Waiting for ASP approval."
+      : snapshot.phase === "paused_declined"
+        ? "Declined by the ASP."
+        : snapshot.phase === "paused_poi_required"
+          ? "Proof of Association is required before private withdrawal can continue."
+          : undefined,
+  );
+
+  const delaySkipped = (snapshot.privacyDelayProfile ?? "off") === "off";
+  addStep(
+    "Delay",
+    delaySkipped
+      ? "skipped"
+      : snapshot.phase === "approved_waiting_privacy_delay"
+        ? "active"
+        : snapshot.phase === "approved_ready_to_withdraw" ||
+            snapshot.phase === "withdrawing" ||
+            snapshot.phase === "completed" ||
+            snapshot.phase === "completed_public_recovery"
+          ? "done"
+          : snapshot.phase === "paused_declined" || snapshot.phase === "paused_poi_required"
+            ? "pending"
+            : "pending",
+    snapshot.phase === "approved_waiting_privacy_delay"
+      ? describeFlowPrivacyDelayDeadline(snapshot.privacyDelayUntil) ??
+        "Waiting through the saved privacy delay."
+      : undefined,
+  );
+
+  addStep(
+    usesRecoveryLabel ? "Recovery" : "Withdraw",
+    action === "ragequit" || snapshot.phase === "completed_public_recovery"
+      ? "done"
+      : publicRecoveryRequired || snapshot.phase === "paused_declined"
+        ? "blocked"
+        : snapshot.phase === "paused_poi_required"
+          ? "blocked"
+          : snapshot.phase === "withdrawing" || snapshot.phase === "approved_ready_to_withdraw"
+            ? "active"
+            : snapshot.phase === "completed"
+              ? "done"
+              : "pending",
+    action === "ragequit" || snapshot.phase === "completed_public_recovery"
+      ? "Funds returned to the original deposit address."
+      : publicRecoveryRequired
+        ? "The saved full-balance withdrawal is below the relayer minimum, so public recovery is required."
+        : snapshot.phase === "paused_declined"
+          ? "Use flow ragequit to return funds to the original deposit address."
+          : snapshot.phase === "paused_poi_required"
+            ? "Complete Proof of Association to continue privately, or recover publicly instead."
+            : snapshot.phase === "approved_ready_to_withdraw"
+              ? "Ready for the relayed private withdrawal."
+              : snapshot.phase === "withdrawing"
+                ? "Withdrawal is being submitted or reconciled."
+                : undefined,
+  );
+
+  return steps;
 }
 
 function buildStoppedExternalAgentNextAction(snapshot: FlowSnapshot) {
@@ -707,6 +855,10 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     }
   }
 
+  if (!silent) {
+    process.stderr.write(`\n${renderFlowRail(buildFlowRail(data.snapshot, data.action))}`);
+  }
+
   const phase = data.snapshot.phase;
   const publicRecoveryRequired = requiresPublicRecoveryBecauseRelayerMinimum(
     data.snapshot,
@@ -749,6 +901,39 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     !inlinePrivacyWarnings;
 
   if (!silent) {
+    if (phase === "completed" && data.snapshot.recipient) {
+      process.stderr.write(
+        formatDenseOutcomeLine({
+          outcome: "withdraw",
+          message:
+            `Completed saved flow${
+              flowOutcomeAmount(data.snapshot)
+                ? `${inlineSeparator()}${flowOutcomeAmount(data.snapshot)}`
+                : ""
+            } ` +
+            `-> ${formatAddress(data.snapshot.recipient)}${inlineSeparator()}${data.snapshot.poolAccountId ?? data.snapshot.workflowId}`,
+          url: data.snapshot.withdrawExplorerUrl,
+        }),
+      );
+    } else if (
+      data.action === "ragequit" ||
+      phase === "completed_public_recovery"
+    ) {
+      process.stderr.write(
+        formatDenseOutcomeLine({
+          outcome: "recovery",
+          message:
+            `Recovered saved flow${
+              flowOutcomeAmount(data.snapshot)
+                ? `${inlineSeparator()}${flowOutcomeAmount(data.snapshot)}`
+                : ""
+            } ` +
+            `-> original deposit address${inlineSeparator()}${data.snapshot.poolAccountId ?? data.snapshot.workflowId}`,
+          url: data.snapshot.ragequitExplorerUrl,
+        }),
+      );
+    }
+
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     const summaryRows = [
       { label: "Workflow", value: data.snapshot.workflowId },
@@ -932,7 +1117,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "recovery";
         phaseCalloutLines = [
-          `This workflow was declined by the ASP. Use privacy-pools flow ragequit ${data.snapshot.workflowId} to recover publicly to the original deposit address.${configuredSignerRecoverySuffix(data.snapshot)}`,
+          `This workflow was declined by the ASP. Your funds can still return safely to the original deposit address with privacy-pools flow ragequit ${data.snapshot.workflowId}. Privacy will not be preserved.${configuredSignerRecoverySuffix(data.snapshot)}`,
         ];
         break;
       case "paused_poi_required":
@@ -946,7 +1131,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "recovery";
         phaseCalloutLines = [
-          `Complete Proof of Association at ${POA_PORTAL_URL} to continue privately, or use flow ragequit if you prefer public recovery.${configuredSignerRecoverySuffix(data.snapshot)}`,
+          `Complete Proof of Association at ${POA_PORTAL_URL} to continue privately, or use flow ragequit if you prefer the safe public recovery path back to the original deposit address.${configuredSignerRecoverySuffix(data.snapshot)}`,
         ];
         break;
       case "stopped_external":
@@ -988,7 +1173,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "warning";
         phaseCalloutLines = [
-          "The saved workflow finished on the public recovery path, so privacy was not preserved.",
+          "The saved workflow finished on the public recovery path. Funds returned safely to the original deposit address, but privacy was not preserved.",
         ];
         break;
     }

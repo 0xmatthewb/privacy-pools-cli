@@ -292,7 +292,8 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("after vetting fee");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    expect(stderr).toContain("under review");
+    expect(stderr).toContain("under ASP review");
+    expect(stderr).toContain("Deposited 0.1 ETH -> sepolia ETH pool");
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools accounts --chain sepolia --pending-only");
     expect(stderr).toContain(

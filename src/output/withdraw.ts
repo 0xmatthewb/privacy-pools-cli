@@ -19,13 +19,21 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
-import { formatAmount, formatAddress, formatTxHash, formatBPS, formatUsdValue, displayDecimals } from "../utils/format.js";
+import {
+  formatAmount,
+  formatAddress,
+  formatBPS,
+  formatDenseOutcomeLine,
+  formatTxHash,
+  formatUsdValue,
+  displayDecimals,
+} from "../utils/format.js";
+import { inlineSeparator } from "../utils/terminal.js";
 import { formatUnits } from "viem";
 import {
   formatCallout,
   formatKeyValueRows,
   formatSectionHeading,
-  type KeyValueRow,
 } from "./layout.js";
 import { formatReviewSurface } from "./review.js";
 
@@ -72,94 +80,90 @@ export function formatRelayedWithdrawalReview(
   const feeAmount = (data.amount * data.quoteFeeBPS) / 10000n;
   const netAmount = data.amount - feeAmount;
   const quoteExpiry = `${new Date(data.expirationMs).toISOString()} (in ${secondsLeft}s)`;
-  const financialRows: KeyValueRow[] = [
-    {
-      label: "Amount",
-      value: `${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`,
-    },
-    {
-      label: "Relayer fee",
-      value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`,
-      valueTone: "warning" as const,
-    },
-    ...(data.extraGasFundAmount
-      ? [
-          {
-            label: "Gas token received",
-            value: formatAmount(
-              data.extraGasFundAmount,
-              18,
-              "ETH",
-              displayDecimals(18),
-            ),
-            valueTone: "accent" as const,
-          },
-        ]
-      : data.extraGasRequested
+  return formatReviewSurface({
+    title: "Withdrawal review",
+    summaryRows: [
+      { label: "Source PA", value: data.poolAccountId },
+      {
+        label: "PA balance",
+        value: formatAmount(
+          data.poolAccountBalance,
+          data.decimals,
+          data.asset,
+          dd,
+        ),
+      },
+      {
+        label: "Recipient",
+        value: formatAddress(data.recipient),
+      },
+      { label: "Chain", value: data.chain },
+      {
+        label: "Amount",
+        value: `${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`,
+      },
+      {
+        label: "Relayer fee",
+        value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`,
+        valueTone: "warning",
+      },
+      ...(data.extraGasFundAmount
         ? [
             {
               label: "Gas token received",
-              value: "Requested with the withdrawal",
+              value: formatAmount(
+                data.extraGasFundAmount,
+                18,
+                "ETH",
+                displayDecimals(18),
+              ),
               valueTone: "accent" as const,
             },
           ]
-        : []),
-    {
-      label: "Net received",
-      value: `${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`,
-      valueTone: "success" as const,
+        : data.extraGasRequested
+          ? [
+              {
+                label: "Gas token received",
+                value: "Requested with the withdrawal",
+                valueTone: "accent" as const,
+              },
+            ]
+          : []),
+      {
+        label: "Net received",
+        value: `${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`,
+        valueTone: "success",
+      },
+      {
+        label: "Remainder",
+        value:
+          data.remainingBalance === 0n
+            ? `${data.poolAccountId} fully withdrawn`
+            : `${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`,
+        valueTone:
+          data.remainingBalance > 0n && data.remainingBelowMinAdvisory
+            ? "danger"
+            : "default",
+      },
+      {
+        label: "Quote expiry",
+        value: quoteExpiry,
+        valueTone: secondsLeft <= 20 ? "warning" : "muted",
+      },
+    ],
+    primaryCallout: {
+      kind: "privacy",
+      lines: [
+        "This uses the relayed privacy-preserving path, so the withdrawal is not tied to your signer address onchain.",
+      ],
     },
-    {
-      label: "Remainder",
-      value:
-        data.remainingBalance === 0n
-          ? `${data.poolAccountId} fully withdrawn`
-          : `${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`,
-      valueTone:
-        data.remainingBalance > 0n && data.remainingBelowMinAdvisory
-          ? ("danger" as const)
-          : ("default" as const),
-    },
-    {
-      label: "Quote expiry",
-      value: quoteExpiry,
-      valueTone: secondsLeft <= 20 ? "warning" : "muted",
-    },
-  ];
-
-  return `${formatSectionHeading("Withdrawal review", {
-    divider: true,
-    padTop: false,
-  })}${formatKeyValueRows([
-    {
-      label: "Source PA",
-      value: data.poolAccountId,
-    },
-    {
-      label: "PA balance",
-      value: formatAmount(
-        data.poolAccountBalance,
-        data.decimals,
-        data.asset,
-        dd,
-      ),
-    },
-    {
-      label: "Recipient",
-      value: formatAddress(data.recipient),
-    },
-    {
-      label: "Chain",
-      value: data.chain,
-    },
-  ])}${formatSectionHeading("Quote", {
-    divider: true,
-    padTop: false,
-  })}${formatKeyValueRows(financialRows)}${
-    data.remainingBelowMinAdvisory
-      ? formatCallout("warning", data.remainingBelowMinAdvisory)
-      : ""
-  }`;
+    secondaryCallout: data.remainingBelowMinAdvisory
+      ? {
+          kind: "warning",
+          lines: data.remainingBelowMinAdvisory,
+        }
+      : null,
+  });
 }
 
 export function formatDirectWithdrawalReview(
@@ -449,6 +453,16 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     const netAmount = feeBpsNum !== null
       ? data.amount - (data.amount * BigInt(Math.round(feeBpsNum))) / 10000n
       : null;
+    process.stderr.write(
+      formatDenseOutcomeLine({
+        outcome: data.withdrawMode === "direct" ? "success" : "withdraw",
+        message:
+          `${data.withdrawMode === "direct" ? "Withdrew" : "Withdrew privately"} ` +
+          `${formatAmount(data.amount, data.decimals, data.asset, dd)} ` +
+          `-> ${formatAddress(data.recipient)}${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
+        url: data.explorerUrl,
+      }),
+    );
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(
       formatKeyValueRows([
@@ -492,8 +506,18 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     if (data.withdrawMode === "direct") {
       process.stderr.write(
         formatCallout(
-          "privacy",
-          "Direct withdrawals are not private and link the deposit and withdrawal onchain.",
+          "danger",
+          [
+            "This was a direct public withdrawal, so privacy was not preserved.",
+            "Use relayed mode next time if you want the privacy-preserving path.",
+          ],
+        ),
+      );
+    } else {
+      process.stderr.write(
+        formatCallout(
+          "success",
+          "The relayed withdrawal path completed. Re-check accounts if you want to confirm the remaining private balance.",
         ),
       );
     }

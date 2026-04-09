@@ -34,7 +34,7 @@ describe("withProofProgress", () => {
       captured = spin.text;
       return "done";
     });
-    expect(captured).toBe("Generating...");
+    expect(captured).toBe("Generating... (building witness)");
   });
 
   test("re-throws errors from wrapped function", async () => {
@@ -129,7 +129,7 @@ describe("withProofProgress", () => {
       captured = spin2.text;
       return "ok";
     });
-    expect(captured).toBe("Second...");
+    expect(captured).toBe("Second... (building witness)");
     expect(captured).not.toContain("first proof");
   });
 });

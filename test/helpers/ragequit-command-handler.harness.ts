@@ -167,6 +167,7 @@ const toRagequitSolidityProofMock = mock(() => ({
 }));
 const printRawTransactionsMock = mock(() => undefined);
 const confirmPromptMock = mock(async () => true);
+const inputPromptMock = mock(async () => "RAGEQUIT");
 const selectPromptMock = mock(async () => 1);
 const collectLegacyMigrationCandidatesMock = mock(() => []);
 const loadDeclinedLegacyLabelsMock = mock(async () => new Set<string>());
@@ -196,6 +197,7 @@ async function loadRagequitCommandHandler(): Promise<void> {
   mock.module("@inquirer/prompts", () => ({
     ...realInquirerPrompts,
     confirm: confirmPromptMock,
+    input: inputPromptMock,
     select: selectPromptMock,
   }));
   mock.module("../../src/services/account.ts", () => ({
@@ -296,8 +298,9 @@ export function registerRagequitCommandHandlerHarness(): void {
     releaseCriticalSectionMock.mockClear();
     toRagequitSolidityProofMock.mockClear();
     printRawTransactionsMock.mockClear();
-    confirmPromptMock.mockClear();
-    selectPromptMock.mockClear();
+  confirmPromptMock.mockClear();
+  inputPromptMock.mockClear();
+  selectPromptMock.mockClear();
     buildAllPoolAccountRefsMock.mockClear();
     buildPoolAccountRefsMock.mockClear();
     collectLegacyMigrationCandidatesMock.mockClear();
@@ -305,8 +308,9 @@ export function registerRagequitCommandHandlerHarness(): void {
     describeUnavailablePoolAccountMock.mockClear();
     getUnknownPoolAccountErrorMock.mockClear();
     parsePoolAccountSelectorMock.mockClear();
-    confirmPromptMock.mockImplementation(async () => true);
-    selectPromptMock.mockImplementation(async () => 1);
+  confirmPromptMock.mockImplementation(async () => true);
+  inputPromptMock.mockImplementation(async () => "RAGEQUIT");
+  selectPromptMock.mockImplementation(async () => 1);
     saveAccountMock.mockImplementation(() => undefined);
     saveSyncMetaMock.mockImplementation(() => undefined);
     getDataServiceMock.mockImplementation(async () => ({}));
@@ -823,7 +827,7 @@ export function registerRagequitOwnershipTests(): void {
 export function registerRagequitHumanConfirmationTests(): void {
   test("lets humans select a Pool Account and cancel before public recovery", async () => {
     useIsolatedHome({ withSigner: true });
-    confirmPromptMock.mockImplementationOnce(async () => false);
+    inputPromptMock.mockImplementationOnce(async () => "");
 
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleRagequitCommand(
@@ -835,9 +839,9 @@ export function registerRagequitHumanConfirmationTests(): void {
 
     expect(stdout).toBe("");
     expect(selectPromptMock).toHaveBeenCalledTimes(1);
-    expect(confirmPromptMock).toHaveBeenCalledTimes(1);
+    expect(inputPromptMock).toHaveBeenCalledTimes(1);
     expect(stderr).toContain("Public recovery review");
-    expect(stderr).toContain("Ragequit sends funds publicly to the original deposit address.");
+    expect(stderr).toContain("Public recovery sends funds back to the original deposit address.");
     expect(stderr).toContain("Ragequit cancelled.");
     expect(ragequitMock).not.toHaveBeenCalled();
   });
@@ -851,7 +855,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     };
     buildAllPoolAccountRefsMock.mockImplementationOnce(() => [declinedPoolAccount]);
     buildPoolAccountRefsMock.mockImplementationOnce(() => [declinedPoolAccount]);
-    confirmPromptMock.mockImplementationOnce(async () => false);
+    inputPromptMock.mockImplementationOnce(async () => "");
 
     const { stderr } = await captureAsyncOutput(() =>
       handleRagequitCommand(

@@ -76,13 +76,9 @@ import {
 } from "../utils/errors.js";
 import {
   deriveTokenPrice,
-  formatAddress,
   formatAmount,
-  formatBPS,
   info,
   spinner,
-  stageHeader,
-  usdSuffix,
   verbose,
   warn,
 } from "../utils/format.js";
@@ -132,6 +128,11 @@ import {
   maybeRenderPreviewScenario,
   PreviewScenarioRenderedError,
 } from "../preview/runtime.js";
+import { confirmActionWithSeverity } from "../utils/prompts.js";
+import {
+  createNarrativeSteps,
+  renderNarrativeSteps,
+} from "../output/progress.js";
 import { assertKnownPoolRoot } from "./pool-roots.js";
 import {
   LEGACY_WORKFLOW_SECRET_RECORD_VERSIONS,
@@ -232,6 +233,18 @@ export class FlowCancelledError extends Error {
     super("Flow cancelled.");
     this.name = "FlowCancelledError";
   }
+}
+
+function writeWorkflowNarrativeProgress(
+  labels: string[],
+  activeIndex: number,
+  silent: boolean,
+  note?: string,
+): void {
+  if (silent) return;
+  process.stderr.write(
+    `\n${renderNarrativeSteps(createNarrativeSteps(labels, activeIndex, note))}`,
+  );
 }
 
 export interface FlowLastError {
@@ -1231,9 +1244,6 @@ async function confirmHumanFlowStartReview(params: {
     { estimated: true },
   );
   const tokenPrice = deriveTokenPrice(pool);
-  const amountUsd = usdSuffix(amount, pool.decimals, tokenPrice);
-  const feeUsd = usdSuffix(feeAmount, pool.decimals, tokenPrice);
-  const committedUsd = usdSuffix(estimatedCommitted, pool.decimals, tokenPrice);
   const isErc20 = !isNativePoolAsset(resolveChain(chainName).id, pool.asset);
 
   if (!silent) {
@@ -1264,9 +1274,12 @@ async function confirmHumanFlowStartReview(params: {
     throw new PreviewScenarioRenderedError();
   }
   const { confirm } = await import("@inquirer/prompts");
-  const ok = await confirm({
-    message: "Confirm flow start?",
-    default: true,
+  const ok = await confirmActionWithSeverity({
+    severity: "standard",
+    standardMessage: "Confirm flow start?",
+    highStakesToken: "FLOW",
+    highStakesWarning: "Saved flow review changed while waiting for confirmation.",
+    confirm,
   });
   if (!ok) {
     throw new FlowCancelledError();
@@ -1684,9 +1697,13 @@ async function executeDepositForFlow(params: {
       await checkHasGas(publicClient, signerAddr);
     }
 
-    const depositSteps = isNative ? 1 : 2;
     if (!isNative) {
-      stageHeader(1, depositSteps, "Approving token spend", silent);
+      writeWorkflowNarrativeProgress(
+        ["Approve token", "Submit deposit"],
+        0,
+        silent,
+        "Approval is required before the ERC20 deposit can be sent.",
+      );
       const approvalSpin = spinner("Approving token spend...", silent);
       approvalSpin.start();
       try {
@@ -1723,7 +1740,12 @@ async function executeDepositForFlow(params: {
     }
 
     if (!isNative) {
-      stageHeader(2, depositSteps, "Submitting deposit", silent);
+      writeWorkflowNarrativeProgress(
+        ["Approve token", "Submit deposit"],
+        1,
+        silent,
+        "Submitting the public deposit and saving the workflow.",
+      );
     }
     await onDepositPreparing?.({
       poolAccountNumber: nextPANumber,
@@ -2807,7 +2829,12 @@ export async function executeRelayedWithdrawalForFlow(params: {
   const withdrawalAmount = selectedPoolAccount.value;
   validatePositive(withdrawalAmount, "Flow withdrawal amount");
 
-  stageHeader(2, 3, "Requesting relayer quote", silent);
+  writeWorkflowNarrativeProgress(
+    ["ASP ready", "Request relayer quote", "Generate proof and submit withdrawal"],
+    1,
+    silent,
+    "Requesting a fresh relayer quote for the saved full-balance withdrawal.",
+  );
   const withdrawSpin = spinner("Requesting relayer quote...", silent);
   withdrawSpin.start();
 
@@ -2947,7 +2974,12 @@ export async function executeRelayedWithdrawalForFlow(params: {
     calculateContext(withdrawal, pool.scope as unknown as SDKHash),
   );
 
-  stageHeader(3, 3, "Generating proof and submitting withdrawal", silent);
+  writeWorkflowNarrativeProgress(
+    ["ASP ready", "Request relayer quote", "Generate proof and submit withdrawal"],
+    2,
+    silent,
+    "Building the withdrawal proof and handing it to the relayer.",
+  );
   await assertLatestRootUnchanged(
     "Pool state changed while preparing the workflow proof.",
     "Re-run 'privacy-pools flow watch' to generate a fresh proof.",
@@ -3343,7 +3375,12 @@ async function executeRagequitForFlow(params: {
     );
   }
 
-  stageHeader(1, 2, "Generating commitment proof", silent);
+  writeWorkflowNarrativeProgress(
+    ["Generate commitment proof", "Submit public recovery"],
+    0,
+    silent,
+    "Building the proof required for public recovery.",
+  );
   const ragequitSpin = spinner("Generating commitment proof...", silent);
   ragequitSpin.start();
   const proof = await withProofProgress(
@@ -3358,7 +3395,12 @@ async function executeRagequitForFlow(params: {
       ),
   );
 
-  stageHeader(2, 2, "Submitting ragequit", silent);
+  writeWorkflowNarrativeProgress(
+    ["Generate commitment proof", "Submit public recovery"],
+    1,
+    silent,
+    "Submitting the public recovery transaction.",
+  );
   ragequitSpin.text = "Submitting ragequit transaction...";
   const submissionPendingSnapshot = await saveWorkflowSnapshotIfChangedWithLock(
     snapshot,
@@ -3962,9 +4004,12 @@ export async function startWorkflow(
       silent,
     );
     const { confirm } = await import("@inquirer/prompts");
-    const proceed = await confirm({
-      message: "Proceed with this amount anyway?",
-      default: false,
+    const proceed = await confirmActionWithSeverity({
+      severity: "standard",
+      standardMessage: "Proceed with this amount anyway?",
+      highStakesToken: "PROCEED",
+      highStakesWarning: "Amount review changed while waiting for confirmation.",
+      confirm,
     });
     if (!proceed) {
       throw new FlowCancelledError();
@@ -4047,7 +4092,14 @@ export async function startWorkflow(
     ) {
       throw new PreviewScenarioRenderedError();
     }
-    stageHeader(1, effectiveWatch ? 2 : 1, "Submitting deposit", silent);
+    writeWorkflowNarrativeProgress(
+      effectiveWatch
+        ? ["Submit deposit", "Watch toward private withdrawal"]
+        : ["Submit deposit"],
+      0,
+      silent,
+      "Creating the saved workflow and submitting the public deposit.",
+    );
     try {
       const depositResult = await executeDepositForFlow({
         chainConfig,

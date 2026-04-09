@@ -18,7 +18,13 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
-import { formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
+import {
+  formatAmount,
+  formatDenseOutcomeLine,
+  formatTxHash,
+  displayDecimals,
+} from "../utils/format.js";
+import { inlineSeparator } from "../utils/terminal.js";
 import { isTestnetChain, POA_PORTAL_URL } from "../config/chains.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
 import { formatUnits } from "viem";
@@ -302,6 +308,15 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   const dd = displayDecimals(data.decimals);
   success(`Deposited ${formatAmount(data.amount, data.decimals, data.asset, dd)}.`, silent);
   if (!silent) {
+    process.stderr.write(
+      formatDenseOutcomeLine({
+        outcome: "deposit",
+        message:
+          `Deposited ${formatAmount(data.amount, data.decimals, data.asset, dd)} ` +
+          `-> ${data.chain} ${data.asset} pool${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
+        url: data.explorerUrl,
+      }),
+    );
     const summaryRows = [
       { label: "Chain", value: data.chain },
       { label: "Pool Account", value: data.poolAccountId },
@@ -325,7 +340,10 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     process.stderr.write(
       formatCallout(
         "warning",
-        `This deposit is now under review. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
+        [
+          "Your deposit is now under ASP review, so it is still public for the moment.",
+          `${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
+        ],
       ),
     );
   }

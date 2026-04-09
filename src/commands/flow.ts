@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import { createOutputContext } from "../output/common.js";
-import { renderFlowResult } from "../output/flow.js";
+import { formatFlowRagequitReview, renderFlowResult } from "../output/flow.js";
 import {
   FlowCancelledError,
   getWorkflowStatus,
@@ -17,6 +17,7 @@ import {
   maybeRenderPreviewScenario,
   PreviewScenarioRenderedError,
 } from "../preview/runtime.js";
+import { confirmActionWithSeverity } from "../utils/prompts.js";
 
 interface FlowStartCommandOptions {
   to?: string;
@@ -166,6 +167,31 @@ export async function handleFlowRagequitCommand(
   try {
     if (await maybeRenderPreviewScenario("flow ragequit")) {
       return;
+    }
+
+    if (!mode.skipPrompts) {
+      const snapshot = getWorkflowStatus({ workflowId });
+      process.stderr.write("\n");
+      process.stderr.write(formatFlowRagequitReview(snapshot));
+      if (
+        await maybeRenderPreviewScenario("flow ragequit", {
+          timing: "after-prompts",
+        })
+      ) {
+        return;
+      }
+      const { confirm } = await import("@inquirer/prompts");
+      const ok = await confirmActionWithSeverity({
+        severity: "high_stakes",
+        standardMessage: "Confirm public recovery?",
+        highStakesToken: "RAGEQUIT",
+        highStakesWarning:
+          "This saved flow will recover publicly to the original deposit address. Privacy will not be preserved.",
+        confirm,
+      });
+      if (!ok) {
+        throw new FlowCancelledError();
+      }
     }
 
     const snapshot = await ragequitWorkflow({

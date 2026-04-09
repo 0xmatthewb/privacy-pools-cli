@@ -41,7 +41,6 @@ import {
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
 import {
   spinner,
-  stageHeader,
   info,
   warn,
   verbose,
@@ -91,6 +90,16 @@ import {
   renderWithdrawSuccess,
   renderWithdrawQuote,
 } from "../output/withdraw.js";
+import {
+  confirmActionWithSeverity,
+  formatPoolAccountPromptChoice,
+  formatPoolPromptChoice,
+  isHighStakesWithdrawal,
+} from "../utils/prompts.js";
+import {
+  createNarrativeSteps,
+  renderNarrativeSteps,
+} from "../output/progress.js";
 import { assertKnownPoolRoot } from "../services/pool-roots.js";
 import {
   guardCriticalSection,
@@ -318,6 +327,26 @@ export async function handleWithdrawCommand(
   const fromPaRaw = opts.fromPa as string | undefined;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
+  const writeWithdrawProgress = (activeIndex: number, note?: string) => {
+    if (silent) return;
+    const labels = isDirect
+      ? [
+          "Account synced",
+          "ASP data fetched",
+          "Generate withdrawal proof",
+          "Submit withdrawal",
+        ]
+      : [
+          "Account synced",
+          "ASP data fetched",
+          "Request relayer quote",
+          "Generate withdrawal proof",
+          "Submit to relayer",
+        ];
+    process.stderr.write(
+      `\n${renderNarrativeSteps(createNarrativeSteps(labels, activeIndex, note))}`,
+    );
+  };
 
   try {
     if (fromPaRaw !== undefined && fromPaNumber === null) {
@@ -499,7 +528,14 @@ export async function handleWithdrawCommand(
       const selected = await select({
         message: "Select asset to withdraw:",
         choices: pools.map((p) => ({
-          name: `${p.symbol} (${formatAddress(p.asset)})`,
+          name: formatPoolPromptChoice({
+            symbol: p.symbol,
+            chain: chainConfig.name,
+            minimumDepositAmount: p.minimumDepositAmount,
+            decimals: p.decimals,
+            totalInPoolValue: p.totalInPoolValue ?? p.acceptedDepositsValue,
+            tokenPrice: deriveTokenPrice(p),
+          }),
           value: p.asset,
         })),
       });
@@ -666,8 +702,7 @@ export async function handleWithdrawCommand(
         globalOpts?.rpcUrl,
       );
 
-      const withdrawSteps = isDirect ? 4 : 5;
-      stageHeader(1, withdrawSteps, "Syncing account state", silent);
+      writeWithdrawProgress(0, "Refreshing the latest account state.");
       const spin = spinner("Syncing account state...", silent);
       spin.start();
 
@@ -768,12 +803,7 @@ export async function handleWithdrawCommand(
       }
 
       // Fetch ASP data
-      stageHeader(
-        2,
-        withdrawSteps,
-        "Fetching ASP data",
-        silent,
-      );
+      writeWithdrawProgress(1, "Fetching ASP approval state and Merkle data.");
       spin.text = "Fetching ASP data...";
       const activeLabels = collectActiveLabels(poolCommitments);
       const [roots, leaves, rawReviewStatuses] = await Promise.all([
@@ -966,7 +996,19 @@ export async function handleWithdrawCommand(
         const selectedPA = await select({
           message: "Select Pool Account to withdraw from:",
           choices: approvedEligiblePoolAccounts.map((pa) => ({
-            name: `${pa.paId} • ${formatAmount(pa.value, pool.decimals, pool.symbol)}`,
+            name: formatPoolAccountPromptChoice({
+              poolAccountId: pa.paId,
+              balance: pa.value,
+              decimals: pool.decimals,
+              symbol: pool.symbol,
+              status: "Approved",
+              chain: chainConfig.name,
+              usdValue: formatUsdValue(
+                pa.value,
+                pool.decimals,
+                tokenPrice ?? null,
+              ),
+            }),
             value: pa.paNumber,
           })),
         });
@@ -1178,9 +1220,13 @@ export async function handleWithdrawCommand(
           ) {
             return;
           }
-          const ok = await confirm({
-            message: "Confirm direct withdrawal?",
-            default: false,
+          const ok = await confirmActionWithSeverity({
+            severity: "high_stakes",
+            standardMessage: "Confirm direct withdrawal?",
+            highStakesToken: "WITHDRAW",
+            highStakesWarning:
+              "This direct withdrawal is public and will link the deposit and withdrawal onchain.",
+            confirm,
           });
           if (!ok) {
             info("Withdrawal cancelled.", silent);
@@ -1190,7 +1236,7 @@ export async function handleWithdrawCommand(
         }
 
         // Re-verify parity right before proving
-        stageHeader(3, withdrawSteps, "Generating ZK proof", silent);
+        writeWithdrawProgress(2, "Building the direct withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
           "Re-run the withdrawal command to generate a fresh proof.",
@@ -1276,7 +1322,7 @@ export async function handleWithdrawCommand(
           "Run 'privacy-pools sync' then retry the withdrawal.",
         );
 
-        stageHeader(4, withdrawSteps, "Submitting withdrawal", silent);
+        writeWithdrawProgress(3, "Submitting the direct withdrawal transaction.");
         spin.text = "Submitting withdrawal transaction...";
         const tx = await withdrawDirect(
           chainConfig,
@@ -1358,7 +1404,7 @@ export async function handleWithdrawCommand(
       } else {
         // --- Relayed Withdrawal ---
         // Get relayer details + quote
-        stageHeader(3, withdrawSteps, "Requesting relayer quote", silent);
+        writeWithdrawProgress(2, "Fetching a fresh relayer quote.");
         spin.text = "Requesting relayer quote...";
         const details = await getRelayerDetails(chainConfig, pool.asset);
         const relayerUrl = details.relayerUrl;
@@ -1519,9 +1565,28 @@ export async function handleWithdrawCommand(
               return;
             }
 
-            const ok = await confirm({
-              message: "Confirm withdrawal?",
-              default: false,
+            const highStakesToken = formatAmount(
+              withdrawalAmount,
+              pool.decimals,
+              pool.symbol,
+              displayDecimals(pool.decimals),
+            );
+            const ok = await confirmActionWithSeverity({
+              severity: isHighStakesWithdrawal({
+                amount: withdrawalAmount,
+                decimals: pool.decimals,
+                balance: selectedPoolAccount.value,
+                tokenPrice,
+                fullBalance: withdrawalAmount === selectedPoolAccount.value,
+              })
+                ? "high_stakes"
+                : "standard",
+              standardMessage: "Confirm withdrawal?",
+              highStakesToken,
+              highStakesWarning:
+                `This withdrawal moves ${highStakesToken} to ${formatAddress(resolvedRecipientAddress)}.` +
+                " Double-check the amount and destination before continuing.",
+              confirm,
             });
             if (!ok) {
               info("Withdrawal cancelled.", silent);
@@ -1568,7 +1633,7 @@ export async function handleWithdrawCommand(
         verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
 
         // Re-verify parity right before proving
-        stageHeader(4, withdrawSteps, "Generating ZK proof", silent);
+        writeWithdrawProgress(3, "Building the relayed withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
           "Re-run the withdrawal command to generate a fresh proof.",
@@ -1705,7 +1770,7 @@ export async function handleWithdrawCommand(
           return;
         }
 
-        stageHeader(5, withdrawSteps, "Submitting to relayer", silent);
+        writeWithdrawProgress(4, "Submitting the signed request to the relayer.");
         spin.text = "Submitting to relayer...";
         const result = await submitRelayRequest(chainConfig, {
           scope: pool.scope,

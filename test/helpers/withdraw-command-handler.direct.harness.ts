@@ -10,6 +10,7 @@ import {
   fakeCommand,
   getPublicClientMock,
   handleWithdrawCommand,
+  inputPromptMock,
   initializeAccountServiceMock,
   saveAccountMock,
   useIsolatedHome,
@@ -109,6 +110,7 @@ export function registerWithdrawDirectCompletionTests(): void {
 
   test("continues with a human direct withdrawal after the privacy confirmation", async () => {
     useIsolatedHome({ withSigner: true });
+    inputPromptMock.mockImplementationOnce(async () => "WITHDRAW");
 
     const { stderr } = await captureAsyncOutput(() =>
       handleWithdrawCommand(
@@ -121,7 +123,8 @@ export function registerWithdrawDirectCompletionTests(): void {
       ),
     );
 
-    expect(confirmPromptMock).toHaveBeenCalledTimes(1);
+    expect(confirmPromptMock).toHaveBeenCalledTimes(0);
+    expect(inputPromptMock).toHaveBeenCalledTimes(1);
     expect(withdrawDirectMock).toHaveBeenCalledTimes(1);
     expect(stderr).toContain("Direct withdrawal confirmed");
   });

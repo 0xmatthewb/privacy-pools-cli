@@ -35,13 +35,12 @@ import {
 import { explorerTxUrl, POA_PORTAL_URL } from "../config/chains.js";
 import {
   spinner,
-  stageHeader,
   info,
   warn,
   verbose,
   formatAmount,
-  formatAddress,
   deriveTokenPrice,
+  formatUsdValue,
   usdSuffix,
 } from "../utils/format.js";
 import { printError, CLIError } from "../utils/errors.js";
@@ -83,6 +82,15 @@ import {
   maybeRenderPreviewProgressStep,
   maybeRenderPreviewScenario,
 } from "../preview/runtime.js";
+import {
+  confirmActionWithSeverity,
+  formatPoolAccountPromptChoice,
+  formatPoolPromptChoice,
+} from "../utils/prompts.js";
+import {
+  createNarrativeSteps,
+  renderNarrativeSteps,
+} from "../output/progress.js";
 
 const poolDepositorAbi = [
   {
@@ -266,6 +274,16 @@ export async function handleRagequitCommand(
   const fromPaRaw = opts.fromPa as string | undefined;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
+  const writeRagequitProgress = (activeIndex: number, note?: string) => {
+    if (silent) return;
+    process.stderr.write(
+      `\n${renderNarrativeSteps(createNarrativeSteps([
+        "Account synced",
+        "Generate commitment proof",
+        "Submit public recovery",
+      ], activeIndex, note))}`,
+    );
+  };
 
   try {
     if (fromPaRaw !== undefined && fromPaNumber === null) {
@@ -342,7 +360,14 @@ export async function handleRagequitCommand(
       const selected = await select({
         message: "Select asset pool to ragequit:",
         choices: pools.map((p) => ({
-          name: `${p.symbol} (${formatAddress(p.asset)})`,
+          name: formatPoolPromptChoice({
+            symbol: p.symbol,
+            chain: chainConfig.name,
+            minimumDepositAmount: p.minimumDepositAmount,
+            decimals: p.decimals,
+            totalInPoolValue: p.totalInPoolValue ?? p.acceptedDepositsValue,
+            tokenPrice: deriveTokenPrice(p),
+          }),
           value: p.asset,
         })),
       });
@@ -443,7 +468,7 @@ export async function handleRagequitCommand(
         globalOpts?.rpcUrl,
       );
 
-      stageHeader(1, 3, "Loading account state", silent);
+      writeRagequitProgress(0, "Refreshing the latest Pool Account state.");
       const spin = spinner("Loading account...", silent);
       spin.start();
 
@@ -660,14 +685,23 @@ export async function handleRagequitCommand(
           );
         }
       } else if (!skipPrompts) {
+        const tokenPrice = deriveTokenPrice(pool);
         const selected = await select({
           message: "Select Pool Account to ragequit:",
           choices: poolAccounts.map((pa) => ({
-            name: formatRagequitPoolAccountChoice(
-              pa,
-              pool.decimals,
-              pool.symbol,
-            ),
+            name: formatPoolAccountPromptChoice({
+              poolAccountId: pa.paId,
+              balance: pa.value,
+              decimals: pool.decimals,
+              symbol: pool.symbol,
+              status: formatPoolAccountStatus(pa.status),
+              chain: chainConfig.name,
+              usdValue: formatUsdValue(
+                pa.value,
+                pool.decimals,
+                tokenPrice ?? null,
+              ),
+            }),
             value: pa.paNumber,
           })),
         });
@@ -741,9 +775,13 @@ export async function handleRagequitCommand(
         ) {
           return;
         }
-        const ok = await confirm({
-          message: "Confirm public recovery?",
-          default: false,
+        const ok = await confirmActionWithSeverity({
+          severity: "high_stakes",
+          standardMessage: "Confirm public recovery?",
+          highStakesToken: "RAGEQUIT",
+          highStakesWarning:
+            "This recovery is public and irreversible. Funds return to the original deposit address, but privacy is lost.",
+          confirm,
         });
         if (!ok) {
           info("Ragequit cancelled.", silent);
@@ -774,7 +812,10 @@ export async function handleRagequitCommand(
       }
 
       // Generate commitment proof
-      stageHeader(2, 3, "Generating commitment proof", silent);
+      writeRagequitProgress(
+        1,
+        "Building the proof required for public recovery.",
+      );
       spin.start();
 
       const proof = await withProofProgress(
@@ -844,7 +885,10 @@ export async function handleRagequitCommand(
       }
 
       // Submit ragequit
-      stageHeader(3, 3, "Submitting ragequit", silent);
+      writeRagequitProgress(
+        2,
+        "Submitting the public recovery transaction.",
+      );
       const solidityProof = toRagequitSolidityProof(proof);
       spin.text = "Submitting ragequit transaction...";
       const tx = await submitRagequit(

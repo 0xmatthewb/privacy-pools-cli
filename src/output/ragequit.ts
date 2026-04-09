@@ -17,7 +17,14 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
-import { formatAddress, formatAmount, formatTxHash, displayDecimals } from "../utils/format.js";
+import {
+  formatAddress,
+  formatAmount,
+  formatDenseOutcomeLine,
+  formatTxHash,
+  displayDecimals,
+} from "../utils/format.js";
+import { inlineSeparator } from "../utils/terminal.js";
 import {
   formatCallout,
   formatKeyValueRows,
@@ -61,8 +68,8 @@ export function formatRagequitReview(data: RagequitReviewData): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Ragequit sends funds publicly to the original deposit address.",
-        "Privacy is lost and this action cannot be undone.",
+        "Public recovery sends funds back to the original deposit address.",
+        "This is safe and expected in some cases, but privacy is lost and the action cannot be undone.",
       ],
     },
     secondaryCallout: data.advisory
@@ -250,6 +257,15 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
     silent,
   );
   if (!silent) {
+    process.stderr.write(
+      formatDenseOutcomeLine({
+        outcome: "recovery",
+        message:
+          `Recovered ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} ` +
+          `-> ${destinationLabel}${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
+        url: data.explorerUrl,
+      }),
+    );
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(
       formatKeyValueRows([
@@ -279,7 +295,10 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
     process.stderr.write(
       formatCallout(
         "recovery",
-        "Privacy was not preserved. Ragequit uses the public recovery path back to the original deposit address.",
+        [
+          "Funds are returning to the original deposit address on the public recovery path.",
+          "This can be a safe and expected outcome for declined or recovery-blocked deposits, but privacy was not preserved.",
+        ],
       ),
     );
   }
