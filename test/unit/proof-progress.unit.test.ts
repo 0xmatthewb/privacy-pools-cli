@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { withProofProgress, withSpinnerProgress, resetFirstRunMessage } from "../../src/utils/proof-progress.ts";
 
-function mockSpinner(): { text: string } {
-  return { text: "" };
+function mockSpinner(): { text: string; isSpinning: boolean; render: () => void } {
+  return {
+    text: "",
+    isSpinning: true,
+    render: () => {},
+  };
 }
 
 describe("withProofProgress", () => {
@@ -34,7 +38,7 @@ describe("withProofProgress", () => {
       captured = spin.text;
       return "done";
     });
-    expect(captured).toBe("Generating... (building witness)");
+    expect(captured).toBe("Generating... (0s) - build witness");
   });
 
   test("re-throws errors from wrapped function", async () => {
@@ -109,14 +113,14 @@ describe("withProofProgress", () => {
     jest.useRealTimers();
   });
 
-  test("first call shows bundled circuit verification message", async () => {
+  test("first call shows the initial verification phase immediately", async () => {
     const spin = mockSpinner();
     let captured = "";
     await withProofProgress(spin as any, "Generating", async () => {
       captured = spin.text;
       return "done";
     });
-    expect(captured).toBe("Generating... (first proof may verify bundled circuits)");
+    expect(captured).toBe("Generating... (0s) - verify circuits if needed");
   });
 
   test("second call omits bundled circuit verification message", async () => {
@@ -129,8 +133,8 @@ describe("withProofProgress", () => {
       captured = spin2.text;
       return "ok";
     });
-    expect(captured).toBe("Second... (building witness)");
-    expect(captured).not.toContain("first proof");
+    expect(captured).toBe("Second... (0s) - build witness");
+    expect(captured).not.toContain("verify circuits");
   });
 });
 

@@ -320,7 +320,7 @@ export async function handleWithdrawCommand(
     typeof unsignedRaw === "string" ? unsignedRaw.toLowerCase() : undefined;
   const wantsTxFormat = unsignedFormat === "tx";
   const isDryRun = opts.dryRun ?? false;
-  const silent = isQuiet || isJson || isUnsigned || isDryRun;
+  const silent = isQuiet || isJson || isUnsigned;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
   const isDirect = opts.direct ?? false;

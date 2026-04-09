@@ -27,6 +27,9 @@ async function withElapsedSpinner<T>(
   const start = Date.now();
   const longLabel = opts?.longRunLabel ?? "still working";
   spin.text = opts?.initialText ?? `${label}...`;
+  if (spin.isSpinning) {
+    spin.render();
+  }
 
   const interval = setInterval(() => {
     const elapsed = Math.floor((Date.now() - start) / 1000);
@@ -39,6 +42,9 @@ async function withElapsedSpinner<T>(
       spin.text = `${label}... (${elapsed}s) - this may take a moment`;
     } else {
       spin.text = `${label}... (${elapsed}s) - ${longLabel}`;
+    }
+    if (spin.isSpinning) {
+      spin.render();
     }
   }, 1000);
 
@@ -57,8 +63,8 @@ async function withElapsedSpinner<T>(
 /**
  * Wraps an async proof-generation call with a spinner that shows elapsed time.
  * Prevents the "frozen spinner" effect during 10-30+ second ZK proof generation.
- * On the first proof of the session, adds a brief note that bundled circuits may
- * still be verified before proving begins.
+ * Shows the first approximate proof phase immediately so the spinner stays
+ * informative even when proving blocks the event loop.
  */
 export async function withProofProgress<T>(
   spin: Ora,
@@ -81,8 +87,8 @@ export async function withProofProgress<T>(
       ];
   return withElapsedSpinner(spin, label, fn, {
     initialText: isFirstRun
-      ? `${label}... (first proof may verify bundled circuits)`
-      : `${label}... (building witness)`,
+      ? `${label}... (0s) - verify circuits if needed`
+      : `${label}... (0s) - build witness`,
     longRunLabel: "almost there",
     phaseLabel: (elapsedSeconds) => {
       const activePhase = phases

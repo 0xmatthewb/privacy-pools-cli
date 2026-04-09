@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import ora from "ora";
+import ora, { type Ora } from "ora";
 import { formatUnits } from "viem";
 import {
   accent,
@@ -216,8 +216,76 @@ function formatStackedTable(headers: string[], rows: string[][]): string {
     .join("\n\n")}\n`;
 }
 
+function createStaticSpinner(text: string, quiet: boolean): Ora {
+  let currentText = text;
+  let spinning = false;
+
+  const writeLine = (message: string) => {
+    if (quiet || message.length === 0) return;
+    process.stderr.write(`${message}\n`);
+  };
+
+  const staticSpinner = {
+    get text() {
+      return currentText;
+    },
+    set text(value: string) {
+      currentText = value;
+      if (spinning) {
+        writeLine(currentText);
+      }
+    },
+    get isSpinning() {
+      return spinning;
+    },
+    start(message?: string) {
+      if (typeof message === "string") {
+        currentText = message;
+      }
+      spinning = true;
+      writeLine(currentText);
+      return staticSpinner;
+    },
+    stop() {
+      spinning = false;
+      return staticSpinner;
+    },
+    succeed(message?: string) {
+      if (typeof message === "string") {
+        currentText = message;
+      }
+      spinning = false;
+      writeLine(currentText);
+      return staticSpinner;
+    },
+    fail(message?: string) {
+      if (typeof message === "string") {
+        currentText = message;
+      }
+      spinning = false;
+      writeLine(currentText);
+      return staticSpinner;
+    },
+    render() {
+      return staticSpinner;
+    },
+  };
+
+  return staticSpinner as unknown as Ora;
+}
+
 export function spinner(text: string, quiet: boolean = false) {
-  return ora({ text, color: spinnerColor, stream: process.stderr, isSilent: quiet });
+  if (process.env.PRIVACY_POOLS_CLI_STATIC_SPINNER === "1") {
+    return createStaticSpinner(text, quiet);
+  }
+
+  return ora({
+    text,
+    color: spinnerColor,
+    stream: process.stderr,
+    isSilent: quiet,
+    discardStdin: false,
+  });
 }
 
 export function success(message: string, quiet: boolean = false): void {
