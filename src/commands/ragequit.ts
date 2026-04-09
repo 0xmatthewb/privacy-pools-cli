@@ -821,12 +821,13 @@ export async function handleRagequitCommand(
       const proof = await withProofProgress(
         spin,
         "Generating commitment proof",
-        () =>
+        (progress) =>
           proveCommitment(
             commitment.value,
             commitment.label,
             commitment.nullifier,
             commitment.secret,
+            { progress },
           ),
       );
 

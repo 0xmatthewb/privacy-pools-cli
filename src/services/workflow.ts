@@ -2988,7 +2988,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
   const proof = await withProofProgress(
     withdrawSpin,
     "Generating ZK proof",
-    () =>
+    (progress) =>
       proveWithdrawal(selectedPoolAccount.commitment, {
         context: contextValue,
         withdrawalAmount,
@@ -3000,6 +3000,8 @@ export async function executeRelayedWithdrawalForFlow(params: {
         aspTreeDepth: 32n,
         newNullifier,
         newSecret,
+      }, {
+        progress,
       }),
   );
 
@@ -3386,12 +3388,13 @@ async function executeRagequitForFlow(params: {
   const proof = await withProofProgress(
     ragequitSpin,
     "Generating commitment proof",
-    () =>
+    (progress) =>
       proveCommitment(
         commitment.value,
         commitment.label,
         commitment.nullifier,
         commitment.secret,
+        { progress },
       ),
   );
 

@@ -1242,19 +1242,24 @@ export async function handleWithdrawCommand(
           "Re-run the withdrawal command to generate a fresh proof.",
         );
 
-        const proof = await withProofProgress(spin, "Generating ZK proof", () =>
-          proveWithdrawal(commitment, {
-            context,
-            withdrawalAmount,
-            stateMerkleProof,
-            aspMerkleProof,
-            stateRoot: stateProofRoot as unknown as SDKHash,
-            stateTreeDepth: 32n,
-            aspRoot,
-            aspTreeDepth: 32n,
-            newNullifier,
-            newSecret,
-          }),
+        const proof = await withProofProgress(
+          spin,
+          "Generating ZK proof",
+          (progress) =>
+            proveWithdrawal(commitment, {
+              context,
+              withdrawalAmount,
+              stateMerkleProof,
+              aspMerkleProof,
+              stateRoot: stateProofRoot as unknown as SDKHash,
+              stateTreeDepth: 32n,
+              aspRoot,
+              aspTreeDepth: 32n,
+              newNullifier,
+              newSecret,
+            }, {
+              progress,
+            }),
         );
         verbose(
           `Proof generated: publicSignals=${proof.publicSignals.length}`,
@@ -1639,19 +1644,24 @@ export async function handleWithdrawCommand(
           "Re-run the withdrawal command to generate a fresh proof.",
         );
 
-        const proof = await withProofProgress(spin, "Generating ZK proof", () =>
-          proveWithdrawal(commitment, {
-            context,
-            withdrawalAmount,
-            stateMerkleProof,
-            aspMerkleProof,
-            stateRoot: stateProofRoot as unknown as SDKHash,
-            stateTreeDepth: 32n,
-            aspRoot,
-            aspTreeDepth: 32n,
-            newNullifier,
-            newSecret,
-          }),
+        const proof = await withProofProgress(
+          spin,
+          "Generating ZK proof",
+          (progress) =>
+            proveWithdrawal(commitment, {
+              context,
+              withdrawalAmount,
+              stateMerkleProof,
+              aspMerkleProof,
+              stateRoot: stateProofRoot as unknown as SDKHash,
+              stateTreeDepth: 32n,
+              aspRoot,
+              aspTreeDepth: 32n,
+              newNullifier,
+              newSecret,
+            }, {
+              progress,
+            }),
         );
         verbose(
           `Proof generated: publicSignals=${proof.publicSignals.length}`,

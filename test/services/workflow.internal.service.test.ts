@@ -364,8 +364,11 @@ const proveWithdrawalMock = mock(async () => ({
   publicSignals: [1n, 2n, 3n],
 }));
 const withProofProgressMock = mock(
-  async <T>(_spin: unknown, _label: string, build: () => Promise<T>) =>
-    await build(),
+  async <T>(
+    _spin: unknown,
+    _label: string,
+    build: (_progress: unknown) => Promise<T>,
+  ) => await build({}),
 );
 const generateMerkleProofMock = mock(() => ({
   root: state.poolCurrentRoot,

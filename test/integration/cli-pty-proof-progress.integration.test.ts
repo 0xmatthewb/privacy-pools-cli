@@ -227,23 +227,11 @@ describe("proof progress PTY integration", () => {
     const normalizedOutput = sanitizeTerminalTranscript(result.stdout);
     expect(normalizedOutput).toContain("Generate withdrawal proof");
     expect(normalizedOutput).toContain("Building the relayed withdrawal proof.");
-    expect(normalizedOutput).toContain(
+    expectOrderedFragments(normalizedOutput, [
       "Generating ZK proof... (0s) - verify circuits if needed",
-    );
-
-    const expectedPhases = [
-      "verify circuits if needed",
-      "build witness",
-      "generate proof",
-      "finalize proof",
-    ];
-    const observedPhases = expectedPhases.filter((phase) =>
-      normalizedOutput.includes(phase)
-    );
-    expect(observedPhases.length).toBeGreaterThan(0);
-    expect(observedPhases[0]).toBe("verify circuits if needed");
-    if (observedPhases.length > 1) {
-      expectOrderedFragments(normalizedOutput, observedPhases);
-    }
+      "Generating ZK proof... (0s) - build witness",
+      "Generating ZK proof... (0s) - generate proof",
+      "Generating ZK proof... (0s) - finalize proof",
+    ]);
   });
 });

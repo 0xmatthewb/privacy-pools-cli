@@ -3,6 +3,14 @@ import type { Ora } from "ora";
 /** Track whether we've shown the first-run message in this process. */
 let firstRunMessageShown = false;
 
+export interface ProofProgressController {
+  readonly isFirstRun: boolean;
+  markVerificationPhase(): void;
+  markBuildWitnessPhase(): void;
+  markGenerateProofPhase(): void;
+  markFinalizeProofPhase(): void;
+}
+
 /** @internal Exported for test isolation only. */
 export function resetFirstRunMessage(): void {
   firstRunMessageShown = false;
@@ -69,7 +77,7 @@ async function withElapsedSpinner<T>(
 export async function withProofProgress<T>(
   spin: Ora,
   label: string,
-  fn: () => Promise<T>,
+  fn: (progress: ProofProgressController) => Promise<T>,
 ): Promise<T> {
   const isFirstRun = !firstRunMessageShown;
   firstRunMessageShown = true;
@@ -85,18 +93,76 @@ export async function withProofProgress<T>(
         { after: 10, label: "generate proof" },
         { after: 28, label: "finalize proof" },
       ];
-  return withElapsedSpinner(spin, label, fn, {
-    initialText: isFirstRun
-      ? `${label}... (0s) - verify circuits if needed`
-      : `${label}... (0s) - build witness`,
-    longRunLabel: "almost there",
-    phaseLabel: (elapsedSeconds) => {
-      const activePhase = phases
-        .toReversed()
-        .find((phase) => elapsedSeconds >= phase.after);
-      return activePhase?.label ?? null;
+  const start = Date.now();
+  let manualPhaseActive = false;
+  let manualPhaseLabel = isFirstRun
+    ? "verify circuits if needed"
+    : "build witness";
+
+  const currentPhaseLabel = (elapsedSeconds: number): string | null => {
+    if (manualPhaseActive) {
+      return manualPhaseLabel;
+    }
+
+    const activePhase = phases
+      .toReversed()
+      .find((phase) => elapsedSeconds >= phase.after);
+    return activePhase?.label ?? null;
+  };
+
+  const renderProgress = () => {
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    const phaseLabel = currentPhaseLabel(elapsed);
+    if (phaseLabel) {
+      spin.text = `${label}... (${elapsed}s) - ${phaseLabel}`;
+    } else if (elapsed < 10) {
+      spin.text = `${label}... (${elapsed}s)`;
+    } else if (elapsed < 30) {
+      spin.text = `${label}... (${elapsed}s) - this may take a moment`;
+    } else {
+      spin.text = `${label}... (${elapsed}s) - almost there`;
+    }
+    if (spin.isSpinning) {
+      spin.render();
+    }
+  };
+
+  const setManualPhase = (nextLabel: string, opts?: { verificationOnly?: boolean }) => {
+    if (opts?.verificationOnly && !isFirstRun) {
+      return;
+    }
+    manualPhaseActive = true;
+    manualPhaseLabel = nextLabel;
+    renderProgress();
+  };
+
+  const progress: ProofProgressController = {
+    isFirstRun,
+    markVerificationPhase() {
+      setManualPhase("verify circuits if needed", { verificationOnly: true });
     },
-  });
+    markBuildWitnessPhase() {
+      setManualPhase("build witness");
+    },
+    markGenerateProofPhase() {
+      setManualPhase("generate proof");
+    },
+    markFinalizeProofPhase() {
+      setManualPhase("finalize proof");
+    },
+  };
+
+  renderProgress();
+  const interval = setInterval(renderProgress, 1000);
+
+  try {
+    const result = await fn(progress);
+    clearInterval(interval);
+    return result;
+  } catch (error) {
+    clearInterval(interval);
+    throw error;
+  }
 }
 
 /**

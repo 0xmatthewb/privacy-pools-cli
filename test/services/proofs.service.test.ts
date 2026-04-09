@@ -9,35 +9,56 @@ let mockFullProveResult = {
   },
   publicSignals: ["100", "200", "300"],
 };
-let fullProveShouldThrow: Error | null = null;
+let witnessCalculateShouldThrow: Error | null = null;
+let groth16ProveShouldThrow: Error | null = null;
 let artifactsShouldThrow: Error | null = null;
 let proofTestsActive = false;
 
 let capturedFullProveInputs: Record<string, unknown> | null = null;
 let capturedFullProveWasm: string | null = null;
 let capturedFullProveZkey: string | null = null;
-let capturedFullProveOptions: unknown[] | null = null;
+let capturedWitnessOutput: { type: "mem" } | null = null;
+let capturedGroth16Witness: { type: "mem" } | null = null;
+let capturedGroth16Logger: unknown = null;
+let capturedGroth16Options: unknown[] | null = null;
 const terminateBn128CurveMock = mock(async () => {});
 const terminateBls12381CurveMock = mock(async () => {});
-const fullProveMock = mock(
-      async (
-        inputs: Record<string, unknown>,
-        wasm: string,
-        zkey: string,
-        ...options: unknown[]
-      ) => {
-        capturedFullProveInputs = inputs;
-        capturedFullProveWasm = wasm;
-        capturedFullProveZkey = zkey;
-        capturedFullProveOptions = options;
-        if (fullProveShouldThrow) throw fullProveShouldThrow;
-        return mockFullProveResult;
-      }
+const wtnsCalculateMock = mock(
+  async (
+    inputs: Record<string, unknown>,
+    wasm: string,
+    witness: { type: "mem" },
+  ) => {
+    capturedFullProveInputs = inputs;
+    capturedFullProveWasm = wasm;
+    capturedWitnessOutput = witness;
+    if (witnessCalculateShouldThrow) throw witnessCalculateShouldThrow;
+  },
+);
+const groth16ProveMock = mock(
+  async (
+    zkey: string,
+    witness: { type: "mem" },
+    logger?: { debug?: (message: string) => void },
+    ...options: unknown[]
+  ) => {
+    capturedFullProveZkey = zkey;
+    capturedGroth16Witness = witness;
+    capturedGroth16Logger = logger ?? null;
+    capturedGroth16Options = options;
+    logger?.debug?.("Reading Wtns");
+    logger?.debug?.("Reading C Points");
+    if (groth16ProveShouldThrow) throw groth16ProveShouldThrow;
+    return mockFullProveResult;
+  },
 );
 
 mock.module("snarkjs", () => ({
+  wtns: {
+    calculate: wtnsCalculateMock,
+  },
   groth16: {
-    fullProve: fullProveMock,
+    prove: groth16ProveMock,
   },
 }));
 
@@ -72,12 +93,17 @@ const { proveCommitment, proveWithdrawal } = await import(
 describe("proofs service", () => {
   beforeEach(() => {
     proofTestsActive = true;
-    fullProveMock.mockClear();
+    wtnsCalculateMock.mockClear();
+    groth16ProveMock.mockClear();
     capturedFullProveInputs = null;
     capturedFullProveWasm = null;
     capturedFullProveZkey = null;
-    capturedFullProveOptions = null;
-    fullProveShouldThrow = null;
+    capturedWitnessOutput = null;
+    capturedGroth16Witness = null;
+    capturedGroth16Logger = null;
+    capturedGroth16Options = null;
+    witnessCalculateShouldThrow = null;
+    groth16ProveShouldThrow = null;
     artifactsShouldThrow = null;
     terminateBn128CurveMock.mockClear();
     terminateBls12381CurveMock.mockClear();
@@ -102,8 +128,9 @@ describe("proofs service", () => {
   afterEach(() => {
     proofTestsActive = false;
     artifactsShouldThrow = null;
-    fullProveShouldThrow = null;
-    capturedFullProveOptions = null;
+    witnessCalculateShouldThrow = null;
+    groth16ProveShouldThrow = null;
+    capturedGroth16Options = null;
     (globalThis as typeof globalThis & {
       curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
       curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
@@ -115,7 +142,7 @@ describe("proofs service", () => {
   });
 
   describe("proveCommitment", () => {
-    test("calls fullProve with correct commitment inputs", async () => {
+    test("builds the witness with correct commitment inputs", async () => {
       await proveCommitment(1000000000000000000n, 42n, 123n, 456n);
 
       expect(capturedFullProveInputs).toEqual({
@@ -131,14 +158,17 @@ describe("proofs service", () => {
 
       expect(capturedFullProveWasm).toBe("/mock/artifacts/commitment.wasm");
       expect(capturedFullProveZkey).toBe("/mock/artifacts/commitment.zkey");
-      expect(capturedFullProveOptions).toEqual([]);
+      expect(capturedWitnessOutput).toEqual({ type: "mem" });
+      expect(capturedGroth16Witness).toEqual({ type: "mem" });
+      expect(capturedGroth16Options).toEqual([]);
     });
 
     test("does not force a single-thread prover override", async () => {
       await proveCommitment(1n, 2n, 3n, 4n);
 
-      expect(fullProveMock).toHaveBeenCalledTimes(1);
-      expect(fullProveMock.mock.calls[0]).toHaveLength(3);
+      expect(wtnsCalculateMock).toHaveBeenCalledTimes(1);
+      expect(groth16ProveMock).toHaveBeenCalledTimes(1);
+      expect(groth16ProveMock.mock.calls[0]).toHaveLength(3);
     });
 
     test("returns proof and publicSignals from snarkjs", async () => {
@@ -165,7 +195,7 @@ describe("proofs service", () => {
     });
 
     test("wraps snarkjs errors in CLIError with PROOF category", async () => {
-      fullProveShouldThrow = new Error("WASM execution failed");
+      groth16ProveShouldThrow = new Error("WASM execution failed");
 
       await expect(proveCommitment(1n, 2n, 3n, 4n)).rejects.toMatchObject({
         category: "PROOF",
@@ -188,11 +218,33 @@ describe("proofs service", () => {
     });
 
     test("wraps non-Error thrown values into CLIError hint", async () => {
-      fullProveShouldThrow = "string error" as unknown as Error;
+      groth16ProveShouldThrow = "string error" as unknown as Error;
 
       await expect(proveCommitment(1n, 2n, 3n, 4n)).rejects.toMatchObject({
         hint: "string error",
       });
+    });
+
+    test("reports proof phases from real checkpoints", async () => {
+      const phases: string[] = [];
+
+      await proveCommitment(1n, 2n, 3n, 4n, {
+        progress: {
+          isFirstRun: true,
+          markVerificationPhase: () => phases.push("verify circuits if needed"),
+          markBuildWitnessPhase: () => phases.push("build witness"),
+          markGenerateProofPhase: () => phases.push("generate proof"),
+          markFinalizeProofPhase: () => phases.push("finalize proof"),
+        },
+      });
+
+      expect(phases).toEqual([
+        "verify circuits if needed",
+        "build witness",
+        "generate proof",
+        "finalize proof",
+      ]);
+      expect(capturedGroth16Logger).not.toBeNull();
     });
   });
 
@@ -252,7 +304,9 @@ describe("proofs service", () => {
 
       expect(capturedFullProveWasm).toBe("/mock/artifacts/withdraw.wasm");
       expect(capturedFullProveZkey).toBe("/mock/artifacts/withdraw.zkey");
-      expect(capturedFullProveOptions).toEqual([]);
+      expect(capturedWitnessOutput).toEqual({ type: "mem" });
+      expect(capturedGroth16Witness).toEqual({ type: "mem" });
+      expect(capturedGroth16Options).toEqual([]);
     });
 
     test("uses the default snarkjs prover options for withdrawals", async () => {
@@ -261,8 +315,9 @@ describe("proofs service", () => {
         makeWithdrawalInput() as any
       );
 
-      expect(fullProveMock).toHaveBeenCalledTimes(1);
-      expect(fullProveMock.mock.calls[0]).toHaveLength(3);
+      expect(wtnsCalculateMock).toHaveBeenCalledTimes(1);
+      expect(groth16ProveMock).toHaveBeenCalledTimes(1);
+      expect(groth16ProveMock.mock.calls[0]).toHaveLength(3);
     });
 
     test("prepares input signals from AccountCommitment", async () => {
@@ -328,7 +383,7 @@ describe("proofs service", () => {
     });
 
     test("wraps snarkjs errors in CLIError with withdrawal message", async () => {
-      fullProveShouldThrow = new Error("Invalid witness");
+      groth16ProveShouldThrow = new Error("Invalid witness");
 
       await expect(
         proveWithdrawal(makeAccountCommitment() as any, makeWithdrawalInput() as any)
@@ -341,7 +396,7 @@ describe("proofs service", () => {
     });
 
     test("terminates cached snarkjs worker curves even when proving fails", async () => {
-      fullProveShouldThrow = new Error("Invalid witness");
+      groth16ProveShouldThrow = new Error("Invalid witness");
       (globalThis as typeof globalThis & {
         curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
         curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
@@ -373,6 +428,31 @@ describe("proofs service", () => {
       await expect(
         proveWithdrawal(makeAccountCommitment() as any, makeWithdrawalInput() as any)
       ).rejects.toBe(originalError);
+    });
+
+    test("reports proof phases from witness build through finalize", async () => {
+      const phases: string[] = [];
+
+      await proveWithdrawal(
+        makeAccountCommitment() as any,
+        makeWithdrawalInput() as any,
+        {
+          progress: {
+            isFirstRun: false,
+            markVerificationPhase: () => phases.push("verify circuits if needed"),
+            markBuildWitnessPhase: () => phases.push("build witness"),
+            markGenerateProofPhase: () => phases.push("generate proof"),
+            markFinalizeProofPhase: () => phases.push("finalize proof"),
+          },
+        },
+      );
+
+      expect(phases).toEqual([
+        "verify circuits if needed",
+        "build witness",
+        "generate proof",
+        "finalize proof",
+      ]);
     });
   });
 });

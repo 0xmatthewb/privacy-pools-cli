@@ -8,11 +8,87 @@ import type {
 } from "@0xbow/privacy-pools-core-sdk";
 import { getCircuitArtifactPaths } from "./circuits.js";
 import { CLIError, sanitizeDiagnosticText } from "../utils/errors.js";
+import type { ProofProgressController } from "../utils/proof-progress.js";
 
 type SnarkjsCurveCacheKey = "curve_bn128" | "curve_bls12381";
 
 interface TerminableSnarkjsCurve {
   terminate?: () => Promise<void> | void;
+}
+
+type CircuitName = "commitment" | "withdraw";
+
+type ProofOptions = {
+  progress?: ProofProgressController;
+};
+
+type SnarkjsWitnessHandle = {
+  type: "mem";
+};
+
+type SnarkjsLogger = {
+  debug: (message: string) => void;
+  info: (message: string) => void;
+  warn: (message: string) => void;
+  error: (message: string) => void;
+};
+
+function shouldAdvanceToFinalizeProof(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  return (
+    normalized.includes("reading c points") ||
+    normalized.includes("reading h points") ||
+    normalized.includes("multiexp c") ||
+    normalized.includes("multiexp h")
+  );
+}
+
+function createProofLogger(
+  onFinalizePhase: () => void,
+): SnarkjsLogger {
+  const maybeMarkFinalizePhase = (message: string) => {
+    if (!shouldAdvanceToFinalizeProof(message)) return;
+    onFinalizePhase();
+  };
+
+  return {
+    debug(message: string) {
+      maybeMarkFinalizePhase(message);
+    },
+    info(message: string) {
+      maybeMarkFinalizePhase(message);
+    },
+    warn() {},
+    error() {},
+  };
+}
+
+async function runGroth16Proof(
+  inputs: Record<string, bigint | bigint[] | string>,
+  circuit: CircuitName,
+  options?: ProofOptions,
+): Promise<{ proof: unknown; publicSignals: unknown }> {
+  options?.progress?.markVerificationPhase();
+  const { wasm, zkey } = await getCircuitArtifactPaths(circuit);
+
+  options?.progress?.markBuildWitnessPhase();
+  const witness: SnarkjsWitnessHandle = { type: "mem" };
+  await snarkjs.wtns.calculate(inputs, wasm, witness);
+
+  options?.progress?.markGenerateProofPhase();
+  let finalizePhaseShown = false;
+  const markFinalizePhase = () => {
+    if (finalizePhaseShown) return;
+    finalizePhaseShown = true;
+    options?.progress?.markFinalizeProofPhase();
+  };
+  const result = await snarkjs.groth16.prove(
+    zkey,
+    witness as unknown as Parameters<typeof snarkjs.groth16.prove>[1],
+    createProofLogger(markFinalizePhase),
+  );
+  markFinalizePhase();
+  return result as { proof: unknown; publicSignals: unknown };
 }
 
 async function cleanupSnarkjsCurveCaches(): Promise<void> {
@@ -44,16 +120,16 @@ export async function proveCommitment(
   value: bigint,
   label: bigint,
   nullifier: bigint,
-  secret: bigint
+  secret: bigint,
+  options?: ProofOptions,
 ): Promise<CommitmentProof> {
   try {
-    const { wasm, zkey } = await getCircuitArtifactPaths("commitment");
-    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+    const { proof, publicSignals } = await runGroth16Proof(
       { value, label, nullifier, secret },
-      wasm,
-      zkey
+      "commitment",
+      options,
     );
-    return { proof, publicSignals };
+    return { proof, publicSignals } as CommitmentProof;
   } catch (error) {
     if (error instanceof CLIError) throw error;
     throw new CLIError(
@@ -112,16 +188,16 @@ function prepareWithdrawalInputSignals(
 
 export async function proveWithdrawal(
   commitment: Commitment | AccountCommitment,
-  input: WithdrawalProofInput
+  input: WithdrawalProofInput,
+  options?: ProofOptions,
 ): Promise<WithdrawalProof> {
   try {
-    const { wasm, zkey } = await getCircuitArtifactPaths("withdraw");
-    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+    const { proof, publicSignals } = await runGroth16Proof(
       prepareWithdrawalInputSignals(commitment, input),
-      wasm,
-      zkey
+      "withdraw",
+      options,
     );
-    return { proof, publicSignals };
+    return { proof, publicSignals } as WithdrawalProof;
   } catch (error) {
     if (error instanceof CLIError) throw error;
     throw new CLIError(

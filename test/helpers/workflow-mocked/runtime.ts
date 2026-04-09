@@ -496,8 +496,8 @@ export async function installWorkflowMocks(): Promise<void> {
     withProofProgress: async (
       _spin: unknown,
       _label: string,
-      fn: () => Promise<unknown>,
-    ) => fn(),
+      fn: (_progress: unknown) => Promise<unknown>,
+    ) => fn({}),
   }));
 
   mock.module("../../../src/utils/pool-accounts.ts", () => ({

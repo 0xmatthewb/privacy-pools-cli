@@ -386,7 +386,8 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(cliProofs).toContain("prepareWithdrawalInputSignals");
     expect(cliProofs).toContain("stateSiblings");
     expect(cliProofs).toContain("ASPSiblings");
-    expect(cliProofs).toContain("snarkjs.groth16.fullProve");
+    expect(cliProofs).toContain("snarkjs.wtns.calculate");
+    expect(cliProofs).toContain("snarkjs.groth16.prove");
     expect(truth().upstreamWithdrawInput).toHaveProperty("stateSiblings");
     expect(truth().upstreamWithdrawInput).toHaveProperty("ASPSiblings");
   });

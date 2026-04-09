@@ -113,6 +113,30 @@ describe("withProofProgress", () => {
     jest.useRealTimers();
   });
 
+  test("manual proof checkpoints override elapsed-time guesses", async () => {
+    const spin = mockSpinner();
+    const seen: string[] = [];
+
+    await withProofProgress(spin as any, "Generating", async (progress) => {
+      progress.markVerificationPhase();
+      seen.push(spin.text);
+      progress.markBuildWitnessPhase();
+      seen.push(spin.text);
+      progress.markGenerateProofPhase();
+      seen.push(spin.text);
+      progress.markFinalizeProofPhase();
+      seen.push(spin.text);
+      return "done";
+    });
+
+    expect(seen).toEqual([
+      "Generating... (0s) - verify circuits if needed",
+      "Generating... (0s) - build witness",
+      "Generating... (0s) - generate proof",
+      "Generating... (0s) - finalize proof",
+    ]);
+  });
+
   test("first call shows the initial verification phase immediately", async () => {
     const spin = mockSpinner();
     let captured = "";
@@ -133,6 +157,22 @@ describe("withProofProgress", () => {
       captured = spin2.text;
       return "ok";
     });
+    expect(captured).toBe("Second... (0s) - build witness");
+    expect(captured).not.toContain("verify circuits");
+  });
+
+  test("manual verification checkpoints stay suppressed after the first run", async () => {
+    const warmSpin = mockSpinner();
+    await withProofProgress(warmSpin as any, "Warm", async () => "ok");
+
+    const spin = mockSpinner();
+    let captured = "";
+    await withProofProgress(spin as any, "Second", async (progress) => {
+      progress.markVerificationPhase();
+      captured = spin.text;
+      return "ok";
+    });
+
     expect(captured).toBe("Second... (0s) - build witness");
     expect(captured).not.toContain("verify circuits");
   });
