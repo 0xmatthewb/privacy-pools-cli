@@ -459,8 +459,8 @@ describe("renderRagequitSuccess parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Recovered 0.5 ETH");
-    expect(countMatches(stderr, /Recovered 0\.5 ETH/g)).toBe(1);
+    expect(stderr).toContain("Ragequit 0.5 ETH");
+    expect(countMatches(stderr, /Ragequit 0\.5 ETH/g)).toBe(1);
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("Destination:");
     expect(stderr).toContain("Tx:");

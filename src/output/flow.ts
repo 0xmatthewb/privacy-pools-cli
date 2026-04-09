@@ -139,7 +139,7 @@ export interface FlowRenderData {
 export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
   const amount = flowOutcomeAmount(snapshot);
   return formatReviewSurface({
-    title: "Saved flow public recovery",
+    title: "Saved flow ragequit",
     summaryRows: [
       { label: "Workflow", value: snapshot.workflowId },
       { label: "Chain", value: snapshot.chain },
@@ -206,7 +206,7 @@ function phaseLabel(phase: FlowPhase): string {
     case "completed":
       return "Completed";
     case "completed_public_recovery":
-      return "Completed via public recovery";
+      return "Completed via ragequit";
     case "paused_poi_required":
       return "Paused: Proof of Association required";
     case "paused_declined":
@@ -918,7 +918,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         formatDenseOutcomeLine({
           outcome: "recovery",
           message:
-            `Recovered saved flow${
+            `Ragequit saved flow${
               flowOutcomeAmount(data.snapshot)
                 ? `${inlineSeparator()}${flowOutcomeAmount(data.snapshot)}`
                 : ""
@@ -1161,10 +1161,10 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         ];
         break;
       case "completed_public_recovery":
-        phaseSectionTitle = "Completed via public recovery";
+        phaseSectionTitle = "Completed via ragequit";
         if (committedValue) {
           phaseRows.push({
-            label: "Recovered publicly",
+            label: "Ragequit amount",
             value: committedValue,
             valueTone: "warning",
           });

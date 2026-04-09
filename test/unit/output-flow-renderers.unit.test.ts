@@ -332,7 +332,7 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toContain("Recovered saved flow");
+    expect(stderr).toContain("Ragequit saved flow");
     expect(stderr).toContain("Block 12400");
     expect(stderr).toContain(
       "Public recovery destination: original deposit address",
@@ -470,7 +470,7 @@ describe("renderFlowResult", () => {
       }),
     );
 
-    expect(stderr).toContain("Recovered saved flow");
+    expect(stderr).toContain("Ragequit saved flow");
     expect(stderr).toContain("Block 12401");
     expect(stderr).toContain(
       "Any leftover funds or gas reserve remain in the dedicated workflow wallet until you move them manually.",

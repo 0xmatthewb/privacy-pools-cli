@@ -86,8 +86,8 @@ export function formatDepositReview(data: DepositReviewData): string {
     primaryCallout: {
       kind: "privacy",
       lines: [
-        "Deposits stay public until ASP review finishes.",
-        "Private withdrawal becomes available only after the deposit is approved.",
+        "Deposits are always public on-chain.",
+        "ASP approval unlocks private withdrawal via relayer.",
       ],
     },
     secondaryCallout: data.isErc20
@@ -344,7 +344,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       formatCallout(
         "warning",
         [
-          "Your deposit is now under ASP review, so it is still public for the moment.",
+          "Your deposit is now under ASP review. Private withdrawal unlocks after approval.",
           `${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
         ],
       ),

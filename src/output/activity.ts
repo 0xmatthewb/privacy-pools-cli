@@ -88,7 +88,7 @@ function renderActivityType(type: string): string {
     return `${directionWithdraw(glyph("withdraw"))} Withdraw`;
   }
   if (normalized.includes("ragequit") || normalized.includes("recovery")) {
-    return `${directionRecovery(glyph("recovery"))} Recovery`;
+    return `${directionRecovery(glyph("recovery"))} Ragequit`;
   }
   return `${chalk.dim(glyph("info"))} ${type}`;
 }

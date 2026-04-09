@@ -45,7 +45,7 @@ export interface RagequitReviewData {
 
 export function formatRagequitReview(data: RagequitReviewData): string {
   return formatReviewSurface({
-    title: "Public recovery review",
+    title: "Ragequit review",
     summaryRows: [
       { label: "Pool Account", value: data.poolAccountId },
       {
@@ -68,7 +68,7 @@ export function formatRagequitReview(data: RagequitReviewData): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Public recovery sends funds back to the original deposit address.",
+        "Ragequit sends funds back to the original deposit address.",
         "This is safe and expected in some cases, but privacy is lost and the action cannot be undone.",
       ],
     },
@@ -196,7 +196,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
     process.stderr.write(
       formatCallout(
         "danger",
-        "Once submitted onchain, this public recovery path cannot be turned back into a private withdrawal for the same Pool Account.",
+        "Once submitted onchain, this ragequit cannot be reversed into a private withdrawal for the same Pool Account.",
       ),
     );
   }
@@ -257,7 +257,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
       formatDenseOutcomeLine({
         outcome: "recovery",
         message:
-          `Recovered ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} ` +
+          `Ragequit ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} ` +
           `-> ${destinationLabel}${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
         url: data.explorerUrl,
       }),
@@ -292,8 +292,8 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
       formatCallout(
         "recovery",
         [
-          "Funds are returning to the original deposit address on the public recovery path.",
-          "This can be a safe and expected outcome for declined or recovery-blocked deposits, but privacy was not preserved.",
+          "Funds are returning to the original deposit address via ragequit.",
+          "This is safe and expected for declined deposits, but privacy is not preserved.",
         ],
       ),
     );

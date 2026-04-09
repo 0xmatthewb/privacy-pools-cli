@@ -47,7 +47,7 @@ function renderHistoryType(type: HistoryEvent["type"]): string {
     case "withdrawal":
       return `${directionWithdraw(glyph("withdraw"))} Withdraw`;
     default:
-      return `${directionRecovery(glyph("recovery"))} Recovery`;
+      return `${directionRecovery(glyph("recovery"))} Ragequit`;
   }
 }
 
@@ -98,7 +98,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
       events.map((e) => {
         const pool = poolByAddress.get(e.poolAddress);
         return [
-          e.type === "ragequit" ? "Recovery" : e.type === "withdrawal" ? "Withdraw" : e.type === "migration" ? "Migration" : "Deposit",
+          e.type === "ragequit" ? "Ragequit" : e.type === "withdrawal" ? "Withdraw" : e.type === "migration" ? "Migration" : "Deposit",
           e.paId,
           formatAmount(e.value, pool?.decimals ?? 18, e.asset, displayDecimals(pool?.decimals ?? 18)),
           e.txHash,

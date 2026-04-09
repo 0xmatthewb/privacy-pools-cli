@@ -873,7 +873,7 @@ pub fn format_activity_direction_label(event_type: &str) -> String {
             format!("{} Withdraw", styled_accent(withdraw_glyph()))
         }
         "ragequit" | "exit" | "recovery" => {
-            format!("{} Recovery", styled_notice(recovery_glyph()))
+            format!("{} Ragequit", styled_notice(recovery_glyph()))
         }
         _ => title_case_words(event_type),
     }
@@ -1156,7 +1156,7 @@ mod tests {
         assert!(withdraw.contains("↑") || withdraw.contains("^"));
 
         let recovery = format_activity_direction_label("ragequit");
-        assert!(recovery.contains("Recovery"));
+        assert!(recovery.contains("Ragequit"));
         assert!(recovery.contains("⟲") || recovery.contains("~"));
     }
 }

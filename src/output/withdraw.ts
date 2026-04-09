@@ -513,7 +513,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       process.stderr.write(
         formatCallout(
           "success",
-          "The relayed withdrawal path completed. Re-check accounts if you want to confirm the remaining private balance.",
+          "The relayed withdrawal path completed. Re-check accounts if you want to confirm the remaining balance.",
         ),
       );
     }

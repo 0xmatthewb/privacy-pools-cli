@@ -122,7 +122,7 @@ describe("shared runtime review renderers", () => {
     expect(deposit).toContain("Deposit review");
     expect(deposit).toContain("Vetting fee");
     expect(deposit).toContain("Net deposited");
-    expect(deposit).toContain("Deposits stay public until ASP review finishes.");
+    expect(deposit).toContain("Deposits are always public on-chain.");
     expect(privacy).toContain("Privacy review");
     expect(privacy).toContain("non-round amount");
   });
@@ -171,7 +171,7 @@ describe("shared runtime review renderers", () => {
 
     expect(direct).toContain("Direct withdrawal review");
     expect(direct).toContain("public onchain withdrawal");
-    expect(ragequit).toContain("Public recovery review");
+    expect(ragequit).toContain("Ragequit review");
     expect(ragequit).toContain("privacy is lost");
     expect(flow).toContain("Flow start review");
     expect(flow).toContain("Dedicated workflow wallet");
