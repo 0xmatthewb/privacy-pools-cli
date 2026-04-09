@@ -52,7 +52,7 @@ export function formatReviewSurface(data: ReviewSurfaceData): string {
     );
   }
 
-  return formatBox(blocks.join("\n\n"), {
+  return formatBox(blocks.join("\n"), {
     title: data.title,
     padTop: false,
   });

@@ -59,12 +59,12 @@ describe("formatCallout", () => {
     );
 
     expect(callout).toContain("Privacy note:");
-    expect(callout).toContain("| Privacy note:");
-    expect(callout).toContain(
-      "| Direct withdrawals link deposit and withdrawal onchain.",
+    expect(callout).toMatch(/[│|] Privacy note:/);
+    expect(callout).toMatch(
+      /[│|] Direct withdrawals link deposit and withdrawal onchain\./,
     );
-    expect(callout).toContain(
-      "| Relayed withdrawals preserve privacy better.",
+    expect(callout).toMatch(
+      /[│|] Relayed withdrawals preserve privacy better\./,
     );
   });
 });

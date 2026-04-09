@@ -99,7 +99,7 @@ describe("formatRelayedWithdrawalReview", () => {
       }
     }
 
-    expect(maxBlankRun).toBe(1);
+    expect(maxBlankRun).toBe(0);
   });
 });
 

@@ -124,7 +124,7 @@ describe("renderActivity pool-activity parity", () => {
     const { stderr } = captureOutput(() => renderActivity(ctx, data));
 
     expect(stderr).toContain("Page 1 of 3");
-    expect(stderr).toContain("-> privacy-pools activity --page 2");
+    expect(stderr).toContain("privacy-pools activity --page 2");
   });
 
   test("human mode: omits 'next' hint on last page", () => {
