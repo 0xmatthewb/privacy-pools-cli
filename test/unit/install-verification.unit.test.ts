@@ -128,7 +128,7 @@ describe("install verification env hygiene", () => {
     mkdirSync(rootPackagePath, { recursive: true });
     writeFileSync(
       join(rootPackagePath, "package.json"),
-      JSON.stringify({ name: "privacy-pools-cli", version: "1.7.0" }),
+      JSON.stringify({ name: "privacy-pools-cli", version: "2.0.0" }),
       "utf8",
     );
 
@@ -143,7 +143,7 @@ describe("install verification env hygiene", () => {
       join(hoistedNativePath, "package.json"),
       JSON.stringify({
         name: "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
-        version: "1.7.0",
+        version: "2.0.0",
       }),
       "utf8",
     );
@@ -172,14 +172,14 @@ describe("install verification env hygiene", () => {
     mkdirSync(nestedNativePath, { recursive: true });
     writeFileSync(
       join(nestedCliPath, "package.json"),
-      JSON.stringify({ name: "privacy-pools-cli", version: "1.7.0" }),
+      JSON.stringify({ name: "privacy-pools-cli", version: "2.0.0" }),
       "utf8",
     );
     writeFileSync(
       join(nestedNativePath, "package.json"),
       JSON.stringify({
         name: "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
-        version: "1.7.0",
+        version: "2.0.0",
       }),
       "utf8",
     );
@@ -199,19 +199,19 @@ describe("install verification env hygiene", () => {
     mkdirSync(installRoot, { recursive: true });
     writeFileSync(
       join(installRoot, "package.json"),
-      JSON.stringify({ name: "privacy-pools-cli", version: "1.7.0" }),
+      JSON.stringify({ name: "privacy-pools-cli", version: "2.0.0" }),
       "utf8",
     );
 
     expect(
       assertInstalledPackageVersion(
         installRoot,
-        "1.7.0",
+        "2.0.0",
         "Installed registry CLI",
       ),
     ).toMatchObject({
       name: "privacy-pools-cli",
-      version: "1.7.0",
+      version: "2.0.0",
     });
   });
 

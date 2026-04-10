@@ -159,7 +159,7 @@ describe("shared runtime review renderers", () => {
       tokenPrice: 3200,
     });
     const upgrade = formatUpgradeInstallReview({
-      currentVersion: "1.7.0",
+      currentVersion: "2.0.0",
       latestVersion: "1.8.0",
       installContext: {
         kind: "npm_global",
@@ -261,16 +261,16 @@ describe("renderUpgradeResult polished success surface", () => {
       mode: "upgrade",
       status: "upgraded",
       currentVersion: "1.6.0",
-      latestVersion: "1.7.0",
+      latestVersion: "2.0.0",
       updateAvailable: true,
       performed: true,
-      command: "npm install -g privacy-pools-cli@1.7.0",
+      command: "npm install -g privacy-pools-cli@2.0.0",
       installContext: {
         kind: "global_npm",
         supportedAutoRun: true,
         reason: "This CLI was detected as a global npm install.",
       },
-      installedVersion: "1.7.0",
+      installedVersion: "2.0.0",
     };
 
     const { stdout, stderr } = captureOutput(() =>
@@ -278,7 +278,7 @@ describe("renderUpgradeResult polished success surface", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Upgraded privacy-pools-cli to 1.7.0.");
+    expect(stderr).toContain("Upgraded privacy-pools-cli to 2.0.0.");
     expect(stderr).toContain("Previous version");
     expect(stderr).toContain("Installed version");
     expect(stderr).toContain("Success:");

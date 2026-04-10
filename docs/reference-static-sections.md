@@ -167,7 +167,7 @@ npm run test:conformance  # core conformance against npm + public 0xbow-io sourc
 npm run test:conformance:frontend # focused website/frontend parity only
 npm run test:conformance:all # full live conformance suite, including frontend parity
 npm run bench:gate        # native perf gate against the current checkout JS fallback
-npm run bench:gate:release # native perf gate against the v1.7.0 release baseline
+npm run bench:gate:release # native perf gate against the v2.0.0 release baseline
 ```
 
 Repo-only helper (source checkout only):

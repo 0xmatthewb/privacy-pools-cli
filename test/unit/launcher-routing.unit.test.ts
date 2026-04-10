@@ -31,7 +31,7 @@ import {
 } from "../helpers/module-mocks.ts";
 import { parseRootArgv } from "../../src/utils/root-argv.ts";
 
-const PKG = { version: "1.7.0" };
+const PKG = { version: "2.0.0" };
 const realStaticDiscovery = captureModuleExports(
   await import("../../src/static-discovery.ts"),
 );
@@ -60,7 +60,7 @@ function writeNativePackageJson(
   writeFileSync(
     packageJsonPath,
     JSON.stringify({
-      version: "1.7.0",
+      version: "2.0.0",
       privacyPoolsCliNative: {
         binaryPath: "bin/privacy-pools-cli-native-shell",
         bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
@@ -264,7 +264,7 @@ describe("launcher routing", () => {
     const human = await captureAsyncOutput(() =>
       launcherTestInternals.writeVersionOutput(PKG, false),
     );
-    expect(human.stdout).toBe("1.7.0\n");
+    expect(human.stdout).toBe("2.0.0\n");
     expect(human.stderr).toBe("");
 
     const structured = await captureAsyncJsonOutput(() =>
@@ -273,7 +273,7 @@ describe("launcher routing", () => {
     expect(structured.json).toMatchObject({
       success: true,
       mode: "version",
-      version: "1.7.0",
+      version: "2.0.0",
     });
     expect(structured.stderr).toBe("");
   });
@@ -283,7 +283,7 @@ describe("launcher routing", () => {
       runLauncher(PKG, ["--version"]),
     );
     expect(human.exitCode).toBe(0);
-    expect(human.stdout).toBe("1.7.0\n");
+    expect(human.stdout).toBe("2.0.0\n");
     expect(human.stderr).toBe("");
 
     const structured = await captureAsyncJsonOutputAllowExit(() =>
@@ -293,7 +293,7 @@ describe("launcher routing", () => {
     expect(structured.json).toMatchObject({
       success: true,
       mode: "version",
-      version: "1.7.0",
+      version: "2.0.0",
     });
     expect(structured.stderr).toBe("");
   });
@@ -967,7 +967,7 @@ describe("launcher routing", () => {
     writeFileSync(
       packageJsonPath,
       JSON.stringify({
-        version: "1.7.0",
+        version: "2.0.0",
         privacyPoolsCliNative: {
           binaryPath: undefined,
           bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,

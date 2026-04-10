@@ -73,8 +73,8 @@ without omitting optional dependencies.
 **JSON envelope**: Every response follows the schema:
 
 ```
-{ "schemaVersion": "1.7.0", "success": true, ...payload }
-{ "schemaVersion": "1.7.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
+{ "schemaVersion": "2.0.0", "success": true, ...payload }
+{ "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
 ```
 
 Parse `success` first. On failure, read `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
@@ -492,7 +492,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "1.7.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",

@@ -4,6 +4,8 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
+## [2.0.0]
+
 ## [1.7.0] - 2026-03-26
 
 ### Added

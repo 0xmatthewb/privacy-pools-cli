@@ -2579,8 +2579,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     ]
   },
   "runtime": {
-    "cliVersion": "1.7.0",
-    "jsonSchemaVersion": "1.7.0",
+    "cliVersion": "2.0.0",
+    "jsonSchemaVersion": "2.0.0",
     "accountFileVersion": 3,
     "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1",
@@ -2611,7 +2611,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v1.7.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json"
   }
 };
 

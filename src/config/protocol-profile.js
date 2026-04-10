@@ -2,7 +2,7 @@ import { CURRENT_RUNTIME_DESCRIPTOR } from "../runtime/runtime-contract.js";
 
 // Keep this module JS-only so both Node scripts and TS runtime code can import
 // it directly. Conformance tests lock these constants to the TS sources.
-const JSON_SCHEMA_VERSION = "1.7.0";
+const JSON_SCHEMA_VERSION = "2.0.0";
 const ACCOUNT_FILE_VERSION = 3;
 const WORKFLOW_SNAPSHOT_VERSION = "2";
 const WORKFLOW_SECRET_RECORD_VERSION = "1";

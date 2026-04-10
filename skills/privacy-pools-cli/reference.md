@@ -24,7 +24,7 @@ Flow JSON payloads share this shape:
 
 ```json
 {
-  "schemaVersion": "1.7.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "mode": "flow",
   "action": "start",
@@ -85,7 +85,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: your 
 
 ```json
 {
-  "schemaVersion": "1.7.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -169,7 +169,7 @@ The envelope format includes additional context fields depending on the operatio
 
 ## JSON output shapes by command
 
-All responses include `{ "schemaVersion": "1.7.0", "success": true, ... }` envelope.
+All responses include `{ "schemaVersion": "2.0.0", "success": true, ... }` envelope.
 
 Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field, and prefer `cliCommand` when you want the directly executable CLI string. When `runnable` is `false`, the action is a template that needs additional user input before execution.
 
@@ -469,8 +469,8 @@ Representative payload (abridged):
     "coreSdkVersion": "1.2.0"
   },
   "runtime": {
-    "cliVersion": "1.7.0",
-    "jsonSchemaVersion": "1.7.0",
+    "cliVersion": "2.0.0",
+    "jsonSchemaVersion": "2.0.0",
     "runtimeVersion": "v1",
     "workerProtocolVersion": "1",
     "manifestVersion": "1",
@@ -492,7 +492,7 @@ Representative payload (abridged):
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v1.7.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json"
   }
 }
 ```
@@ -1045,7 +1045,7 @@ All errors in JSON mode:
 
 ```json
 {
-  "schemaVersion": "1.7.0",
+  "schemaVersion": "2.0.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",

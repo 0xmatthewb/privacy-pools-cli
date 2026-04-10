@@ -1044,8 +1044,8 @@ describe("renderPoolDetail parity", () => {
 describe("renderUpgradeResult nextActions", () => {
   const baseResult: UpgradeResult = {
     status: "up_to_date",
-    currentVersion: "1.7.0",
-    latestVersion: "1.7.0",
+    currentVersion: "2.0.0",
+    latestVersion: "2.0.0",
     updateAvailable: false,
     performed: false,
     command: null,

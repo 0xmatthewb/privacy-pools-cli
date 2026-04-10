@@ -353,7 +353,7 @@ function createFlowSnapshot({
 
 function createUnsignedEnvelope(operation) {
   return {
-    schemaVersion: "1.7.0",
+    schemaVersion: "2.0.0",
     success: true,
     mode: "unsigned",
     operation,
@@ -1285,7 +1285,7 @@ function renderUpgradePreview(caseId) {
       renderUpgradeResult(CONTEXT, {
         mode: "upgrade",
         status: "manual",
-        currentVersion: "1.7.0",
+        currentVersion: "2.0.0",
         latestVersion: "1.8.0",
         updateAvailable: true,
         performed: false,
@@ -1303,8 +1303,8 @@ function renderUpgradePreview(caseId) {
       renderUpgradeResult(CONTEXT, {
         mode: "upgrade",
         status: "up_to_date",
-        currentVersion: "1.7.0",
-        latestVersion: "1.7.0",
+        currentVersion: "2.0.0",
+        latestVersion: "2.0.0",
         updateAvailable: false,
         performed: false,
         command: null,
@@ -1313,7 +1313,7 @@ function renderUpgradePreview(caseId) {
           supportedAutoRun: true,
           reason: "Global npm installation detected.",
         },
-        installedVersion: "1.7.0",
+        installedVersion: "2.0.0",
       });
       return;
     case "upgrade-ready":
@@ -1321,7 +1321,7 @@ function renderUpgradePreview(caseId) {
       renderUpgradeResult(CONTEXT, {
         mode: "upgrade",
         status: "ready",
-        currentVersion: "1.7.0",
+        currentVersion: "2.0.0",
         latestVersion: "1.8.0",
         updateAvailable: true,
         performed: false,
@@ -1338,7 +1338,7 @@ function renderUpgradePreview(caseId) {
       renderUpgradeResult(CONTEXT, {
         mode: "upgrade",
         status: "upgraded",
-        currentVersion: "1.7.0",
+        currentVersion: "2.0.0",
         latestVersion: "1.8.0",
         updateAvailable: true,
         performed: true,

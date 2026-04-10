@@ -81,7 +81,7 @@ current safety boundary.
 
 The local `bench:gate` script compares the direct native shell against the
 current checkout's JS fallback path. `bench:gate:release` is the pinned
-release-ready variant and uses the roadmap baseline tag `v1.7.0`, matching the
+release-ready variant and uses the roadmap baseline tag `v2.0.0`, matching the
 release workflow exactly.
 
 If you want to compare a different ref, pass `--base <ref>` such as `HEAD~1`,

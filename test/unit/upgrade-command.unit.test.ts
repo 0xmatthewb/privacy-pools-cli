@@ -45,14 +45,14 @@ const UPGRADE_COMMAND_RESTORES = [
 ] as const;
 
 const readCliPackageInfoMock = mock(() => ({
-  version: "1.7.0",
+  version: "2.0.0",
   packageRoot: "/tmp/privacy-pools-cli",
   packageJsonPath: "/tmp/privacy-pools-cli/package.json",
 }));
 const inspectUpgradeMock = mock(async () => ({
   mode: "upgrade" as const,
   status: "ready" as const,
-  currentVersion: "1.7.0",
+  currentVersion: "2.0.0",
   latestVersion: "1.8.0",
   updateAvailable: true,
   performed: false,
@@ -130,7 +130,7 @@ beforeEach(async () => {
   inspectUpgradeMock.mockImplementation(async () => ({
     mode: "upgrade" as const,
     status: "ready" as const,
-    currentVersion: "1.7.0",
+    currentVersion: "2.0.0",
     latestVersion: "1.8.0",
     updateAvailable: true,
     performed: false,
@@ -356,7 +356,7 @@ describe("upgrade command handler", () => {
     inspectUpgradeMock.mockImplementationOnce(async () => ({
       mode: "upgrade" as const,
       status: "manual" as const,
-      currentVersion: "1.7.0",
+      currentVersion: "2.0.0",
       latestVersion: "1.8.0",
       updateAvailable: true,
       performed: false,

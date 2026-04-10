@@ -18,7 +18,7 @@ import {
   captureAsyncJsonOutputAllowExit,
 } from "../helpers/output.ts";
 
-const PKG = { version: "1.7.0" };
+const PKG = { version: "2.0.0" };
 const ORIGINAL_BINARY_OVERRIDE = process.env.PRIVACY_POOLS_CLI_BINARY;
 const ORIGINAL_WORKER_OVERRIDE = process.env.PRIVACY_POOLS_CLI_JS_WORKER;
 const ORIGINAL_EXIT_CODE = process.exitCode ?? 0;
@@ -52,7 +52,7 @@ function writeNativePackageJson(
   writeFileSync(
     packageJsonPath,
     JSON.stringify({
-      version: "1.7.0",
+      version: "2.0.0",
       privacyPoolsCliNative: {
         binaryPath: "bin/privacy-pools-cli-native-shell",
         bridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,
@@ -300,7 +300,7 @@ describe("launcher runtime coverage", () => {
       ),
     );
     expect(versionResult.exitCode).toBe(0);
-    expect(versionResult.stdout).toBe("1.7.0\n");
+    expect(versionResult.stdout).toBe("2.0.0\n");
     expect(versionResult.stderr).toBe("");
 
     const helpResult = await captureAsyncOutputAllowExit(() =>
@@ -331,7 +331,7 @@ describe("launcher runtime coverage", () => {
           {},
         ),
       );
-      expect(versionResult.stdout).toBe("1.7.0\n");
+      expect(versionResult.stdout).toBe("2.0.0\n");
       expect(versionResult.stderr).toBe("");
 
       const helpResult = await captureAsyncOutput(() =>
@@ -475,7 +475,7 @@ describe("launcher runtime coverage", () => {
       );
 
       expect(spawnCalled).toBe(false);
-      expect(json.schemaVersion).toBe("1.7.0");
+      expect(json.schemaVersion).toBe("2.0.0");
       expect(typeof json.success).toBe("boolean");
       expect(stderr).toBe("");
     } finally {
