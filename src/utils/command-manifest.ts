@@ -111,7 +111,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "accounts",
     "aliases": [],
-    "description": "List your Pool Accounts (individual deposit lineages) with balances"
+    "description": "List your Pool Accounts with balances"
   },
   {
     "name": "migrate",
@@ -537,7 +537,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "accounts",
-      "description": "List your Pool Accounts (individual deposit lineages) with balances",
+      "description": "List your Pool Accounts with balances",
       "usage": "accounts",
       "flags": [
         "--no-sync",
@@ -1580,7 +1580,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": true,
       "agentWorkflowNotes": [
         "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.",
-        "If the deposit transaction was submitted but confirmation timed out or the CLI was interrupted afterward, run sync --chain <chain> before retrying so local state can reconcile the onchain deposit."
+        "If the deposit transaction was submitted but confirmation timed out or the CLI was interrupted afterward, run sync --chain <chain> before retrying so local state can detect the onchain deposit."
       ]
     },
     "withdraw": {
@@ -1657,7 +1657,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": true,
       "agentWorkflowNotes": [
         "If the CLI is interrupted after proof generation but before submission completes, re-run withdraw to generate a fresh proof and re-evaluate the current account state.",
-        "If a direct or relayed withdrawal transaction was submitted but confirmation timed out, run sync --chain <chain> before retrying so local state can reconcile the onchain result."
+        "If a direct or relayed withdrawal transaction was submitted but confirmation timed out, run sync --chain <chain> before retrying so local state can detect the onchain result."
       ]
     },
     "withdraw quote": {
@@ -1770,12 +1770,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": true,
       "supportsDryRun": true,
       "agentWorkflowNotes": [
-        "If the public recovery transaction was submitted but confirmation timed out, re-run ragequit or sync --chain <chain> before retrying so the CLI can reconcile the onchain result."
+        "If the public recovery transaction was submitted but confirmation timed out, re-run ragequit or sync --chain <chain> before retrying so the CLI can detect the onchain result."
       ]
     },
     "accounts": {
       "command": "accounts",
-      "description": "List your Pool Accounts (individual deposit lineages) with balances",
+      "description": "List your Pool Accounts with balances",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",

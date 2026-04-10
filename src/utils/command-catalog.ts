@@ -171,7 +171,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: "Deposit now and save a later private withdrawal workflow",
     help: {
       overview: [
-        "This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient.",
+        "This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient.",
         "With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve.",
         "The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.",
       ],
@@ -558,7 +558,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       supportsDryRun: true,
       agentWorkflowNotes: [
         `Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if needed. Always preserve the same --chain scope for both polling and confirmation.`,
-        "If the deposit transaction was submitted but confirmation timed out or the CLI was interrupted afterward, run sync --chain <chain> before retrying so local state can reconcile the onchain deposit.",
+        "If the deposit transaction was submitted but confirmation timed out or the CLI was interrupted afterward, run sync --chain <chain> before retrying so local state can detect the onchain deposit.",
       ],
     },
     capabilities: {
@@ -612,7 +612,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       supportsDryRun: true,
       agentWorkflowNotes: [
         "If the CLI is interrupted after proof generation but before submission completes, re-run withdraw to generate a fresh proof and re-evaluate the current account state.",
-        "If a direct or relayed withdrawal transaction was submitted but confirmation timed out, run sync --chain <chain> before retrying so local state can reconcile the onchain result.",
+        "If a direct or relayed withdrawal transaction was submitted but confirmation timed out, run sync --chain <chain> before retrying so local state can detect the onchain result.",
       ],
     },
     capabilities: {
@@ -688,7 +688,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
-        "If the public recovery transaction was submitted but confirmation timed out, re-run ragequit or sync --chain <chain> before retrying so the CLI can reconcile the onchain result.",
+        "If the public recovery transaction was submitted but confirmation timed out, re-run ragequit or sync --chain <chain> before retrying so the CLI can detect the onchain result.",
       ],
     },
     capabilities: {
@@ -707,7 +707,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `ragequit`",
   },
   accounts: {
-    description: "List your Pool Accounts (individual deposit lineages) with balances",
+    description: "List your Pool Accounts with balances",
     help: {
       overview: [
         "Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --all-chains to include supported testnets.",

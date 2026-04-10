@@ -86,7 +86,7 @@ Deposit now and save a later private withdrawal workflow
 
 **Usage:** `privacy-pools flow start <amount> <asset> [options]`
 
-This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient. With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve. The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.
+This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient. With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve. The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.
 
 ```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient...
@@ -381,7 +381,7 @@ privacy-pools withdraw quote 100 USDC --agent --chain mainnet
 
 ### `accounts`
 
-List your Pool Accounts (individual deposit lineages) with balances
+List your Pool Accounts with balances
 
 Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --all-chains to include supported testnets. Compact modes like --summary and --pending-only are intended for agent polling loops so they do not have to parse the full account dataset on every check.
 
