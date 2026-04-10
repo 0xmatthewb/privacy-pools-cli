@@ -6,6 +6,7 @@ import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
+  captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
 import {
   cleanupTrackedTempDirs,
@@ -521,5 +522,22 @@ describe("init command handler", () => {
     expect(readFileSync(join(home, "config.json"), "utf8")).toContain(
       '"11155111": "http://127.0.0.1:8545"',
     );
+  });
+
+  test("treats abrupt interactive prompt closure as a clean human cancellation", async () => {
+    useIsolatedHome();
+    selectPromptMock.mockImplementationOnce(async () => {
+      const error = new Error("prompt aborted") as Error & { name: string };
+      error.name = "ExitPromptError";
+      throw error;
+    });
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(exitCode).toBe(0);
+    expect(stderr).toContain("Operation cancelled.");
   });
 });

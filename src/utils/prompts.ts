@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { input } from "@inquirer/prompts";
 import { displayDecimals, formatAmount, formatUsdValue } from "./format.js";
+import { ensurePromptInteractionAvailable } from "./prompt-cancellation.js";
 import {
   amount,
   chainName,
@@ -158,6 +159,8 @@ export async function confirmActionWithSeverity(params: {
   highStakesWarning: string;
   confirm: (options: { message: string; default?: boolean }) => Promise<boolean>;
 }): Promise<boolean> {
+  ensurePromptInteractionAvailable();
+
   if (params.severity === "standard") {
     return params.confirm({
       message: params.standardMessage,

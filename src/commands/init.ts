@@ -38,10 +38,15 @@ import {
 } from "../config/chains.js";
 import { Separator } from "@inquirer/select";
 import { success, warn, info } from "../utils/format.js";
-import { printError, CLIError } from "../utils/errors.js";
+import { printError, CLIError, promptCancelledError } from "../utils/errors.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import {
+  ensurePromptInteractionAvailable,
+  isPromptCancellationError,
+  PROMPT_CANCELLATION_MESSAGE,
+} from "../utils/prompt-cancellation.js";
 import { notice } from "../utils/theme.js";
 import { createOutputContext } from "../output/common.js";
 import {
@@ -371,6 +376,7 @@ export async function handleInitCommand(
     if (hasExisting && !forceOverwrite && !skipPrompts) {
       process.stderr.write("\n");
       process.stderr.write(renderInitOverwriteReview(Boolean(mnemonicSource)));
+      ensurePromptInteractionAvailable();
       const overwrite = await confirm({
         message:
           `Existing configuration found. Reinitializing will ${mnemonicSource ? "replace your current recovery phrase with the one you provided" : "replace your current recovery phrase"} and overwrite settings. Continue?`,
@@ -403,6 +409,7 @@ export async function handleInitCommand(
       if (await maybeRenderPreviewScenario("init setup mode")) {
         return;
       }
+      ensurePromptInteractionAvailable();
       const action = await select({
         message: "How would you like to set up your wallet?",
         choices: [
@@ -415,6 +422,7 @@ export async function handleInitCommand(
         if (await maybeRenderPreviewScenario("init import recovery prompt")) {
           return;
         }
+        ensurePromptInteractionAvailable();
         const phrase = await password({
           message: "Enter your recovery phrase (12 or 24 words):",
           mask: "*",
@@ -450,6 +458,7 @@ export async function handleInitCommand(
         if (await maybeRenderPreviewScenario("init backup method")) {
           return;
         }
+        ensurePromptInteractionAvailable();
         const saveAction = await select({
           message: "How would you like to back up your recovery phrase?",
           choices: [
@@ -467,6 +476,7 @@ export async function handleInitCommand(
           if (await maybeRenderPreviewScenario("init backup path")) {
             return;
           }
+          ensurePromptInteractionAvailable();
           const filePathInput = await input({
             message: "Save location:",
             default: defaultPath,
@@ -500,6 +510,7 @@ export async function handleInitCommand(
         if (await maybeRenderPreviewScenario("init backup confirm")) {
           return;
         }
+        ensurePromptInteractionAvailable();
         const confirmed = await confirm({
           message: "I have securely backed up my recovery phrase.",
           default: false,
@@ -563,6 +574,7 @@ export async function handleInitCommand(
       if (await maybeRenderPreviewScenario("init signer key")) {
         return;
       }
+      ensurePromptInteractionAvailable();
       const keyInput = await password({
         message: "Signer key (private key, 0x..., or Enter to skip):",
         mask: "*",
@@ -594,6 +606,7 @@ export async function handleInitCommand(
       if (await maybeRenderPreviewScenario("init default chain")) {
         return;
       }
+      ensurePromptInteractionAvailable();
       defaultChain = await select({
         message: "Which network would you like to use?",
         choices: [
@@ -683,6 +696,15 @@ export async function handleInitCommand(
       warning: mnemonicWarning,
     });
   } catch (error) {
+    if (isPromptCancellationError(error)) {
+      if (isJson) {
+        printError(promptCancelledError(), true);
+      } else {
+        info(PROMPT_CANCELLATION_MESSAGE, silent);
+        process.exitCode = 0;
+      }
+      return;
+    }
     printError(error, isJson);
   }
 }

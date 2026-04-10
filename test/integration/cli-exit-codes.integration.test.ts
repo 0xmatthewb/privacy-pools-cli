@@ -73,6 +73,24 @@ describe("exit-code matrix", () => {
     expect(result.status).toBe(2);
   });
 
+  test("exit code 2 for missing subcommand arguments in human mode", () => {
+    const home = createTempHome();
+    const result = runCli(["describe"], { home });
+    expect(result.status).toBe(EXIT_CODE_MAP.INPUT);
+    expect(result.stderr).toContain("missing required argument 'command'");
+  });
+
+  test("exit code 2 for missing subcommand arguments in structured mode", () => {
+    const home = createTempHome();
+    const result = runCli(["--json", "describe"], { home });
+    expect(result.status).toBe(EXIT_CODE_MAP.INPUT);
+    const json = parseJsonOutput<{ error?: { category?: string; message?: string } }>(
+      result.stdout,
+    );
+    expect(json.error?.category).toBe("INPUT");
+    expect(json.error?.message).toContain("missing required argument 'command'");
+  });
+
   test("exit code 2 for invalid --limit value (history)", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(

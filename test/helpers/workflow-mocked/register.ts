@@ -4,6 +4,7 @@ import {
   installWorkflowMocks,
   resetWorkflowMockImplementations,
 } from "./runtime.ts";
+import { restoreTestTty, setTestTty } from "../tty.ts";
 
 export function registerWorkflowMockedHarness(): void {
   beforeAll(async () => {
@@ -21,10 +22,12 @@ export function registerWorkflowMockedHarness(): void {
   });
 
   beforeEach(() => {
+    setTestTty();
     resetWorkflowMockImplementations();
   });
 
   afterEach(() => {
+    restoreTestTty();
     cleanupWorkflowMockEnvironment();
   });
 }

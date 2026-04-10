@@ -17,6 +17,7 @@ import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "./temp.ts";
+import { restoreTestTty, setTestTty } from "./tty.ts";
 
 const realInquirerPrompts = await import("@inquirer/prompts");
 const confirmPromptMock = mock(async () => true);
@@ -84,10 +85,12 @@ export function registerInitCommandInteractiveHarness(): void {
   });
 
   beforeEach(async () => {
+    setTestTty();
     await loadInitCommandHandler();
   });
 
   afterEach(() => {
+    restoreTestTty();
     mock.restore();
     if (ORIGINAL_HOME === undefined) {
       delete process.env.PRIVACY_POOLS_HOME;

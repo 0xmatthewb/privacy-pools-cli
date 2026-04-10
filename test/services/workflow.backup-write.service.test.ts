@@ -15,9 +15,7 @@ describe("workflow backup write helper isolation", () => {
       },
     }));
 
-    const { writePrivateTextFile } = await import(
-      "../../src/services/workflow.ts?workflow-backup-write-failure"
-    );
+    const { writePrivateTextFile } = await import("../../src/services/workflow.ts");
 
     expect(() =>
       writePrivateTextFile("/tmp/workflow-wallet.txt", "secret"),

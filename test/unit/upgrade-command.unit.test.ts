@@ -10,6 +10,7 @@ import type { Command } from "commander";
 import {
   captureAsyncOutput,
 } from "../helpers/output.ts";
+import { restoreTestTty, setTestTty } from "../helpers/tty.ts";
 import {
   captureModuleExports,
   restoreModuleImplementations,
@@ -80,26 +81,12 @@ const printErrorMock = mock(() => undefined);
 
 let handleUpgradeCommand: typeof import("../../src/commands/upgrade.ts").handleUpgradeCommand;
 
-const ORIGINAL_STDIN_IS_TTY = process.stdin.isTTY;
-const ORIGINAL_STDERR_IS_TTY = process.stderr.isTTY;
-
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
     parent: {
       opts: () => globalOpts,
     },
   } as unknown as Command;
-}
-
-function setTty(stdinIsTty: boolean, stderrIsTty = stdinIsTty): void {
-  Object.defineProperty(process.stdin, "isTTY", {
-    configurable: true,
-    value: stdinIsTty,
-  });
-  Object.defineProperty(process.stderr, "isTTY", {
-    configurable: true,
-    value: stderrIsTty,
-  });
 }
 
 async function loadUpgradeCommand(): Promise<void> {
@@ -167,13 +154,13 @@ beforeEach(async () => {
     performed: false,
   }));
   confirmPromptMock.mockImplementation(async () => true);
-  setTty(true, true);
+  setTestTty();
   await loadUpgradeCommand();
 });
 
 afterEach(() => {
   restoreModuleImplementations(UPGRADE_COMMAND_RESTORES);
-  setTty(Boolean(ORIGINAL_STDIN_IS_TTY), Boolean(ORIGINAL_STDERR_IS_TTY));
+  restoreTestTty();
 });
 
 describe("upgrade command handler", () => {
@@ -330,7 +317,7 @@ describe("upgrade command handler", () => {
   });
 
   test("stays check-only when interactive prompts are unavailable", async () => {
-    setTty(false, true);
+    setTestTty({ stdin: false, stdout: true, stderr: true });
 
     await captureAsyncOutput(() =>
       handleUpgradeCommand({}, fakeCommand({})),
@@ -348,7 +335,7 @@ describe("upgrade command handler", () => {
   });
 
   test("stays check-only when stderr is not a TTY", async () => {
-    setTty(true, false);
+    setTestTty({ stdin: true, stdout: true, stderr: false });
 
     await captureAsyncOutput(() =>
       handleUpgradeCommand({}, fakeCommand({})),

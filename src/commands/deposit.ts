@@ -27,7 +27,12 @@ import {
   formatAmount,
   deriveTokenPrice,
 } from "../utils/format.js";
-import { printError, CLIError, sanitizeDiagnosticText } from "../utils/errors.js";
+import {
+  printError,
+  CLIError,
+  promptCancelledError,
+  sanitizeDiagnosticText,
+} from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
@@ -74,6 +79,11 @@ import {
   confirmActionWithSeverity,
   formatPoolPromptChoice,
 } from "../utils/prompts.js";
+import {
+  ensurePromptInteractionAvailable,
+  isPromptCancellationError,
+  PROMPT_CANCELLATION_MESSAGE,
+} from "../utils/prompt-cancellation.js";
 import {
   createNarrativeSteps,
   renderNarrativeSteps,
@@ -170,6 +180,7 @@ export async function handleDepositCommand(
         );
       }
 
+      ensurePromptInteractionAvailable();
       const selected = await select({
         message: "Select asset to deposit:",
         choices: pools.map((p) => ({
@@ -249,6 +260,7 @@ export async function handleDepositCommand(
         if (await maybeRenderPreviewScenario("deposit unique amount confirm")) {
           return;
         }
+        ensurePromptInteractionAvailable();
         const proceed = await confirm({
           message: "Proceed with this amount anyway?",
           default: false,
@@ -652,6 +664,15 @@ export async function handleDepositCommand(
       releaseLock();
     }
   } catch (error) {
+    if (isPromptCancellationError(error)) {
+      if (isJson || isUnsigned) {
+        printError(promptCancelledError(), true);
+      } else {
+        info(PROMPT_CANCELLATION_MESSAGE, silent);
+        process.exitCode = 0;
+      }
+      return;
+    }
     printError(error, isJson || isUnsigned);
   }
 }

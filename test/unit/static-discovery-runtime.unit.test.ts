@@ -859,6 +859,29 @@ describe("static discovery runtime", () => {
     expect(stderr).toBe("");
   });
 
+  test("rejects csv mode for completion queries in human mode", async () => {
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(
+      async () => {
+        const handled = await runStaticCompletionQuery([
+          "--format",
+          "csv",
+          "completion",
+          "--query",
+          "--shell",
+          "bash",
+          "--",
+          "privacy-pools",
+          "flo",
+        ]);
+        expect(handled).toBe(true);
+      },
+    );
+
+    expect(exitCode).toBe(2);
+    expect(stdout).toBe("");
+    expect(stderr).toContain("--format csv is not supported for 'completion'");
+  });
+
   test("rejects conflicting completion shell declarations and keeps empty human completions silent", async () => {
     const mismatch = await captureAsyncOutputAllowExit(async () => {
       const handled = await runStaticCompletionQuery([

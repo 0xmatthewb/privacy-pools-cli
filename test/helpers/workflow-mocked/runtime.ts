@@ -546,9 +546,7 @@ export async function installWorkflowMocks(): Promise<void> {
   }));
 
   try {
-    const workflowModule = await import(
-      "../../../src/services/workflow.ts?workflow-mocked"
-    );
+    const workflowModule = await import("../../../src/services/workflow.ts");
     ({
       getWorkflowStatus,
       loadWorkflowSnapshot,

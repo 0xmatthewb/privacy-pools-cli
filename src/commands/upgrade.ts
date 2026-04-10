@@ -11,8 +11,14 @@ import {
   performUpgrade,
 } from "../services/upgrade.js";
 import type { GlobalOptions } from "../types.js";
-import { printError } from "../utils/errors.js";
+import { printError, promptCancelledError } from "../utils/errors.js";
+import { info } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import {
+  ensurePromptInteractionAvailable,
+  isPromptCancellationError,
+  PROMPT_CANCELLATION_MESSAGE,
+} from "../utils/prompt-cancellation.js";
 import {
   PREVIEW_SCENARIO_ENV,
   maybeRenderPreviewProgressStep,
@@ -166,9 +172,10 @@ export async function handleUpgradeCommand(
       await maybeRenderPreviewScenario("upgrade confirm", {
         timing: "after-prompts",
       })
-    ) {
+      ) {
       return;
     }
+    ensurePromptInteractionAvailable();
     const confirmed = await confirm({
       message: "Install update now?",
       default: true,
@@ -190,6 +197,15 @@ export async function handleUpgradeCommand(
     result = await performUpgradeWithProgress();
     renderUpgradeResult(ctx, result);
   } catch (error) {
+    if (isPromptCancellationError(error)) {
+      if (mode.isJson) {
+        printError(promptCancelledError(), true);
+      } else {
+        info(PROMPT_CANCELLATION_MESSAGE, mode.isQuiet);
+        process.exitCode = 0;
+      }
+      return;
+    }
     printError(error, mode.isJson);
   }
 }

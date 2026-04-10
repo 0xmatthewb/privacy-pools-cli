@@ -15,6 +15,7 @@ import {
   captureAsyncOutputAllowExit,
   expectStderrOnlyContains,
 } from "../helpers/output.ts";
+import { restoreTestTty, setTestTty } from "../helpers/tty.ts";
 import {
   captureModuleExports,
   restoreModuleImplementations,
@@ -218,10 +219,12 @@ async function loadDepositCommandHandler(): Promise<void> {
 }
 
 afterEach(() => {
+  restoreTestTty();
   restoreModuleImplementations(DEPOSIT_HANDLER_MODULE_RESTORES);
 });
 
 beforeEach(() => {
+  setTestTty();
   world = createTestWorld({ prefix: "pp-deposit-handler-" });
   mock.restore();
   saveAccountMock.mockClear();

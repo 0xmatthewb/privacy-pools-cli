@@ -43,7 +43,7 @@ import {
   formatUsdValue,
   usdSuffix,
 } from "../utils/format.js";
-import { printError, CLIError } from "../utils/errors.js";
+import { printError, CLIError, promptCancelledError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { resolveOptionalAssetInput } from "../utils/positional.js";
 import { createOutputContext } from "../output/common.js";
@@ -87,6 +87,11 @@ import {
   formatPoolAccountPromptChoice,
   formatPoolPromptChoice,
 } from "../utils/prompts.js";
+import {
+  ensurePromptInteractionAvailable,
+  isPromptCancellationError,
+  PROMPT_CANCELLATION_MESSAGE,
+} from "../utils/prompt-cancellation.js";
 import {
   createNarrativeSteps,
   renderNarrativeSteps,
@@ -357,6 +362,7 @@ export async function handleRagequitCommand(
           "Run 'privacy-pools pools --chain <chain>' to see available pools.",
         );
       }
+      ensurePromptInteractionAvailable();
       const selected = await select({
         message: "Select asset pool to ragequit:",
         choices: pools.map((p) => ({
@@ -686,6 +692,7 @@ export async function handleRagequitCommand(
         }
       } else if (!skipPrompts) {
         const tokenPrice = deriveTokenPrice(pool);
+        ensurePromptInteractionAvailable();
         const selected = await select({
           message: "Select Pool Account to ragequit:",
           choices: poolAccounts.map((pa) => ({
@@ -993,6 +1000,15 @@ export async function handleRagequitCommand(
       releaseLock();
     }
   } catch (error) {
+    if (isPromptCancellationError(error)) {
+      if (isJson || isUnsigned) {
+        printError(promptCancelledError(), true);
+      } else {
+        info(PROMPT_CANCELLATION_MESSAGE, silent);
+        process.exitCode = 0;
+      }
+      return;
+    }
     printError(error, isJson || isUnsigned);
   }
 }

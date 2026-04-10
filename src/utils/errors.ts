@@ -5,6 +5,10 @@ import { dangerTone, notice } from "./theme.js";
 import { printJsonError } from "./json.js";
 import { isTransientNetworkError } from "./network.js";
 import {
+  isPromptCancellationError,
+  PROMPT_CANCELLATION_MESSAGE,
+} from "./prompt-cancellation.js";
+import {
   getTerminalColumns,
   padDisplay,
   supportsUnicodeOutput,
@@ -49,6 +53,15 @@ const DEFAULT_CODE_BY_CATEGORY: Record<ErrorCategory, string> = {
 
 export function defaultErrorCode(category: ErrorCategory): string {
   return DEFAULT_CODE_BY_CATEGORY[category];
+}
+
+export function promptCancelledError(): CLIError {
+  return new CLIError(
+    PROMPT_CANCELLATION_MESSAGE,
+    "INPUT",
+    undefined,
+    "PROMPT_CANCELLED",
+  );
 }
 
 const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s'")]+/gi;
@@ -398,6 +411,10 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
 export function classifyError(error: unknown): CLIError {
   if (error instanceof CLIError) return error;
 
+  if (isPromptCancellationError(error)) {
+    return promptCancelledError();
+  }
+
   const rawMessage =
     error instanceof Error ? error.message : String(error);
   const message = sanitizeDiagnosticText(rawMessage);
@@ -508,7 +525,7 @@ export function classifyError(error: unknown): CLIError {
   return new CLIError(
     message,
     "UNKNOWN",
-    "Try 'privacy-pools sync' to reconcile local state, then retry. If the problem persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues."
+    "Try 'privacy-pools sync' to refresh local state, then retry. If the problem persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues."
   );
 }
 

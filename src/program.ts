@@ -103,6 +103,13 @@ async function addRootCommands(
   }
 }
 
+function applyExitOverrideRecursively(command: Command): void {
+  command.exitOverride();
+  for (const subcommand of command.commands) {
+    applyExitOverrideRecursively(subcommand);
+  }
+}
+
 export interface CreateRootProgramOptions {
   argv?: string[];
   loadAllCommands?: boolean;
@@ -189,12 +196,12 @@ export async function createRootProgram(
     "after",
     styledHelp ? await rootHelpFooterStyled() : rootHelpFooterPlain(),
   );
-  program.exitOverride();
 
   const commandNames = loadAllCommands
     ? ROOT_COMMAND_NAMES
     : resolveRootCommandsForInvocation(argv);
   await addRootCommands(program, commandNames);
+  applyExitOverrideRecursively(program);
 
   return program;
 }

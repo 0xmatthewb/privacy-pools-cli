@@ -9,9 +9,14 @@ import {
   watchWorkflow,
 } from "../services/workflow.js";
 import type { GlobalOptions } from "../types.js";
-import { CLIError, printError } from "../utils/errors.js";
+import { CLIError, printError, promptCancelledError } from "../utils/errors.js";
 import { info } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import {
+  ensurePromptInteractionAvailable,
+  isPromptCancellationError,
+  PROMPT_CANCELLATION_MESSAGE,
+} from "../utils/prompt-cancellation.js";
 import { validateAddress } from "../utils/validation.js";
 import {
   maybeRenderPreviewScenario,
@@ -60,6 +65,16 @@ function handleFlowCommandError(
     return;
   }
 
+  if (isPromptCancellationError(error)) {
+    if (options.json) {
+      printError(promptCancelledError(), true);
+    } else {
+      info(PROMPT_CANCELLATION_MESSAGE, options.silent);
+      process.exitCode = 0;
+    }
+    return;
+  }
+
   if (error instanceof FlowCancelledError) {
     if (options.json) {
       printError(flowCancelledCliError(), true);
@@ -91,6 +106,7 @@ export async function handleFlowStartCommand(
     let recipient = opts.to?.trim();
     if (!recipient && !mode.skipPrompts) {
       const { input } = await import("@inquirer/prompts");
+      ensurePromptInteractionAvailable();
       const prompted = await input({
         message: "Recipient address:",
         validate: (value) => {

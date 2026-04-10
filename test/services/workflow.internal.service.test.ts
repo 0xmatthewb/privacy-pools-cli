@@ -24,6 +24,7 @@ import type { FlowSnapshot } from "../../src/services/workflow.ts";
 import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
 import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
 import { captureAsyncOutput } from "../helpers/output.ts";
+import { restoreTestTty, setTestTty } from "../helpers/tty.ts";
 import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
@@ -577,7 +578,7 @@ beforeAll(async () => {
     reconcilePendingDepositReceipt,
     reconcilePendingWithdrawalReceipt,
     reconcilePendingRagequitReceipt,
-  } = await import("../../src/services/workflow.ts?workflow-internal-tests"));
+  } = await import("../../src/services/workflow.ts"));
 
   // Restore real formatting for later imports in this Bun process.
   mock.module("../../src/utils/format.ts", () => realFormat);
@@ -594,9 +595,11 @@ afterAll(() => {
 
 afterEach(() => {
   cleanupTrackedTempDirs();
+  restoreTestTty();
 });
 
 beforeEach(() => {
+  setTestTty();
   process.env.PRIVACY_POOLS_HOME = createTrackedTempDir(
     "pp-workflow-internal-",
   );

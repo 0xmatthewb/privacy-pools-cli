@@ -222,6 +222,30 @@ afterEach(() => {
 });
 
 describe("bootstrap runtime coverage", () => {
+  test("createRootProgram resolves root command aliases for partial command loading", async () => {
+    const program = await realProgram.createRootProgram("1.2.3", {
+      argv: ["exit"],
+      loadAllCommands: false,
+      styledHelp: false,
+    });
+
+    expect(program.commands.map((command) => command.name())).toContain("ragequit");
+    expect(program.commands).toHaveLength(1);
+  });
+
+  test("createRootProgram falls back to all root commands for unknown invocations", async () => {
+    const program = await realProgram.createRootProgram("1.2.3", {
+      argv: ["definitely-not-a-command"],
+      loadAllCommands: false,
+      styledHelp: false,
+    });
+
+    const commandNames = program.commands.map((command) => command.name());
+    expect(commandNames).toContain("status");
+    expect(commandNames).toContain("ragequit");
+    expect(commandNames.length).toBeGreaterThan(5);
+  });
+
   test("runCli prints the welcome screen and banner for bare invocation", async () => {
     const program = makeProgram(() => async () => {
       throw makeCommanderExit("commander.helpDisplayed");
@@ -445,6 +469,17 @@ describe("bootstrap runtime coverage", () => {
     } finally {
       process.exit = originalExit;
     }
+  });
+
+  test("runCli normalizes real subcommand parse failures to INPUT exit code in human mode", async () => {
+    const { runCli } = await import("../../src/cli-main.ts?real-human-missing-arg-runtime");
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      runCli({ version: "1.2.3" }, ["describe"]),
+    );
+
+    expect(exitCode).toBe(2);
+    expect(stdout).toBe("");
+    expect(stderr).toContain("missing required argument 'command'");
   });
 
   test("runCli quiet welcome exits cleanly without banner or welcome output", async () => {

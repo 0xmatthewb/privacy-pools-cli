@@ -24,6 +24,7 @@ import {
   expectUnsignedTransactions,
 } from "./unsigned-assertions.ts";
 import { createTestWorld, type TestWorld } from "./test-world.ts";
+import { restoreTestTty, setTestTty } from "./tty.ts";
 
 const realAccount = captureModuleExports(
   await import("../../src/services/account.ts"),
@@ -274,11 +275,13 @@ async function loadRagequitCommandHandler(): Promise<void> {
 
 export function registerRagequitCommandHandlerHarness(): void {
   afterEach(() => {
+    restoreTestTty();
     AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
     restoreModuleImplementations(RAGEQUIT_HANDLER_MODULE_RESTORES);
   });
 
   beforeEach(() => {
+    setTestTty();
     world = createTestWorld({ prefix: "pp-ragequit-handler-" });
     mock.restore();
     AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;

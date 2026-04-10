@@ -42,7 +42,7 @@ describe("workflow backup path helper isolation", () => {
     }));
 
     const { validateWorkflowWalletBackupPath } = await import(
-      "../../src/services/workflow.ts?workflow-backup-stat-failure"
+      "../../src/services/workflow.ts"
     );
 
     expect(() =>

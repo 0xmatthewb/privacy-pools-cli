@@ -5,6 +5,7 @@ import {
   installModuleMocks,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
+import { restoreTestTty, setTestTty } from "../helpers/tty.ts";
 
 const realErrors = captureModuleExports(
   await import("../../src/utils/errors.ts"),
@@ -137,11 +138,13 @@ function clearMockCalls(fn: {
 }
 
 afterEach(() => {
+  restoreTestTty();
   restoreModuleImplementations(FLOW_MODULE_RESTORES);
 });
 
 describe("flow command handlers", () => {
   beforeEach(async () => {
+    setTestTty();
     mock.restore();
     clearMockCalls(createOutputContextMock);
     clearMockCalls(renderFlowResultMock);
@@ -219,6 +222,21 @@ describe("flow command handlers", () => {
       }),
     );
     expect(printErrorMock).not.toHaveBeenCalled();
+  });
+
+  test("start treats abrupt prompt closure as a clean human cancellation", async () => {
+    const cmd = fakeCommand({});
+    inputPromptMock.mockImplementationOnce(async () => {
+      const error = new Error("prompt aborted") as Error & { name: string };
+      error.name = "ExitPromptError";
+      throw error;
+    });
+
+    await handleFlowStartCommand("0.1", "ETH", {}, cmd);
+
+    expect(startWorkflowMock).not.toHaveBeenCalled();
+    expect(printErrorMock).not.toHaveBeenCalled();
+    expect(infoMock).toHaveBeenCalledWith("Operation cancelled.", false);
   });
 
   test("start rejects --export-new-wallet without --new-wallet before calling the service", async () => {

@@ -23,6 +23,7 @@ import {
 } from "./unsigned-assertions.ts";
 import { encodeRelayerWithdrawalData } from "./relayer-withdrawal-data.ts";
 import { createTestWorld, type TestWorld } from "./test-world.ts";
+import { restoreTestTty, setTestTty } from "./tty.ts";
 
 const realAccount = captureModuleExports(
   await import("../../src/services/account.ts"),
@@ -438,10 +439,12 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
 
 export function registerWithdrawCommandHandlerHarness(): void {
   afterEach(() => {
+    restoreTestTty();
     restoreModuleImplementations(WITHDRAW_HANDLER_MODULE_RESTORES);
   });
 
   beforeEach(() => {
+    setTestTty();
     world = createTestWorld({ prefix: "pp-withdraw-handler-" });
     mock.restore();
     initializeAccountServiceMock.mockClear();

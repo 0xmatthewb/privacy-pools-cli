@@ -55,6 +55,7 @@ import {
 import {
   printError,
   CLIError,
+  promptCancelledError,
   sanitizeDiagnosticText,
 } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
@@ -96,6 +97,11 @@ import {
   formatPoolPromptChoice,
   isHighStakesWithdrawal,
 } from "../utils/prompts.js";
+import {
+  ensurePromptInteractionAvailable,
+  isPromptCancellationError,
+  PROMPT_CANCELLATION_MESSAGE,
+} from "../utils/prompt-cancellation.js";
 import {
   createNarrativeSteps,
   renderNarrativeSteps,
@@ -525,6 +531,7 @@ export async function handleWithdrawCommand(
           "Run 'privacy-pools pools --chain <chain>' to see available pools.",
         );
       }
+      ensurePromptInteractionAvailable();
       const selected = await select({
         message: "Select asset to withdraw:",
         choices: pools.map((p) => ({
@@ -993,6 +1000,7 @@ export async function handleWithdrawCommand(
         ) {
           return;
         }
+        ensurePromptInteractionAvailable();
         const selectedPA = await select({
           message: "Select Pool Account to withdraw from:",
           choices: approvedEligiblePoolAccounts.map((pa) => ({
@@ -1089,6 +1097,7 @@ export async function handleWithdrawCommand(
         ) {
           return;
         }
+        ensurePromptInteractionAvailable();
         const prompted = await input({
           message: "Recipient address:",
           validate: (val) => {
@@ -1868,6 +1877,15 @@ export async function handleWithdrawCommand(
       releaseLock();
     }
   } catch (error) {
+    if (isPromptCancellationError(error)) {
+      if (isJson || isUnsigned) {
+        printError(promptCancelledError(), true);
+      } else {
+        info(PROMPT_CANCELLATION_MESSAGE, silent);
+        process.exitCode = 0;
+      }
+      return;
+    }
     printError(error, isJson || isUnsigned);
   }
 }

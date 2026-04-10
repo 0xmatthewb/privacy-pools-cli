@@ -103,6 +103,7 @@ import {
   FLOW_PRIVACY_DELAY_PROFILES,
   type FlowPrivacyDelayProfile,
 } from "../utils/flow-privacy-delay.js";
+import { ensurePromptInteractionAvailable } from "../utils/prompt-cancellation.js";
 import { validateAddress, parseAmount, resolveChain, validatePositive } from "../utils/validation.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import {
@@ -1274,6 +1275,7 @@ async function confirmHumanFlowStartReview(params: {
     throw new PreviewScenarioRenderedError();
   }
   const { confirm } = await import("@inquirer/prompts");
+  ensurePromptInteractionAvailable();
   const ok = await confirmActionWithSeverity({
     severity: "standard",
     standardMessage: "Confirm flow start?",
@@ -3795,6 +3797,7 @@ export async function setupNewWalletWorkflow(params: {
       ) {
         throw new PreviewScenarioRenderedError();
       }
+      ensurePromptInteractionAvailable();
       const saveAction = await select({
         message: "How would you like to back up this workflow wallet?",
         choices: [
@@ -3818,6 +3821,7 @@ export async function setupNewWalletWorkflow(params: {
         ) {
           throw new PreviewScenarioRenderedError();
         }
+        ensurePromptInteractionAvailable();
         backupPath = await input({
           message: "Save location:",
           default: defaultWorkflowWalletBackupPath(workflowId),
@@ -3864,6 +3868,7 @@ export async function setupNewWalletWorkflow(params: {
       throw new PreviewScenarioRenderedError();
     }
     const { confirm } = await import("@inquirer/prompts");
+    ensurePromptInteractionAvailable();
     const confirmed = await confirm({
       message: "I have securely backed up this workflow wallet.",
       default: false,
