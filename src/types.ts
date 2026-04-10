@@ -185,11 +185,26 @@ export interface StatusIssue {
   affects: StatusIssueAffect[];
 }
 
+export interface CapabilityExitCodeDescriptor {
+  code: number;
+  category: "SUCCESS" | "INPUT" | "RPC" | "ASP" | "RELAYER" | "PROOF" | "CONTRACT" | "UNKNOWN";
+  errorCode: string;
+  description: string;
+}
+
+export interface CapabilityEnvVarDescriptor {
+  name: string;
+  description: string;
+  aliases?: string[];
+}
+
 export interface CapabilitiesPayload {
   commands: CapabilityCommandSummary[];
   commandDetails: Record<string, DetailedCommandDescriptor>;
   executionRoutes: Record<string, CommandExecutionDescriptor>;
   globalFlags: Array<{ flag: string; description: string }>;
+  exitCodes: CapabilityExitCodeDescriptor[];
+  envVars: CapabilityEnvVarDescriptor[];
   agentWorkflow: string[];
   agentNotes?: Record<string, string>;
   schemas?: Record<string, Record<string, unknown>>;

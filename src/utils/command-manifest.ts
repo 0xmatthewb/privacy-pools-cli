@@ -1416,7 +1416,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools capabilities",
         "privacy-pools capabilities --agent"
       ],
-      "jsonFields": "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
+      "jsonFields": "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -2311,6 +2311,135 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "flag": "--no-color",
       "description": "Disable colored output (also respects NO_COLOR env var)"
+    }
+  ],
+  "exitCodes": [
+    {
+      "code": 0,
+      "category": "SUCCESS",
+      "errorCode": "SUCCESS",
+      "description": "Successful command completion."
+    },
+    {
+      "code": 1,
+      "category": "UNKNOWN",
+      "errorCode": "UNKNOWN_ERROR",
+      "description": "Unknown or general runtime failure."
+    },
+    {
+      "code": 2,
+      "category": "INPUT",
+      "errorCode": "INPUT_ERROR",
+      "description": "Invalid input, prompt cancellation in machine mode, or validation failure."
+    },
+    {
+      "code": 3,
+      "category": "RPC",
+      "errorCode": "RPC_ERROR",
+      "description": "RPC, transport, or network connectivity failure."
+    },
+    {
+      "code": 4,
+      "category": "ASP",
+      "errorCode": "ASP_ERROR",
+      "description": "ASP service failure or approval-state fetch issue."
+    },
+    {
+      "code": 5,
+      "category": "RELAYER",
+      "errorCode": "RELAYER_ERROR",
+      "description": "Relayer quote or submission failure."
+    },
+    {
+      "code": 6,
+      "category": "PROOF",
+      "errorCode": "PROOF_ERROR",
+      "description": "ZK proof generation or proof-input failure."
+    },
+    {
+      "code": 7,
+      "category": "CONTRACT",
+      "errorCode": "CONTRACT_ERROR",
+      "description": "Onchain simulation or contract revert failure."
+    }
+  ],
+  "envVars": [
+    {
+      "name": "PRIVACY_POOLS_HOME",
+      "aliases": [
+        "PRIVACY_POOLS_CONFIG_DIR"
+      ],
+      "description": "Override the CLI config directory."
+    },
+    {
+      "name": "PRIVACY_POOLS_PRIVATE_KEY",
+      "description": "Signer private key; takes precedence over the saved .signer file."
+    },
+    {
+      "name": "PRIVACY_POOLS_RPC_URL",
+      "aliases": [
+        "PP_RPC_URL"
+      ],
+      "description": "Override the RPC endpoint for all chains."
+    },
+    {
+      "name": "PRIVACY_POOLS_ASP_HOST",
+      "aliases": [
+        "PP_ASP_HOST"
+      ],
+      "description": "Override the ASP endpoint for all chains."
+    },
+    {
+      "name": "PRIVACY_POOLS_RELAYER_HOST",
+      "aliases": [
+        "PP_RELAYER_HOST"
+      ],
+      "description": "Override the relayer endpoint for all chains."
+    },
+    {
+      "name": "PRIVACY_POOLS_CIRCUITS_DIR",
+      "description": "Override the circuit artifact directory with a trusted pre-provisioned path."
+    },
+    {
+      "name": "PRIVACY_POOLS_RPC_URL_<CHAIN>",
+      "aliases": [
+        "PP_RPC_URL_<CHAIN>"
+      ],
+      "description": "Override the RPC endpoint for one chain, for example ARBITRUM or SEPOLIA."
+    },
+    {
+      "name": "PRIVACY_POOLS_ASP_HOST_<CHAIN>",
+      "aliases": [
+        "PP_ASP_HOST_<CHAIN>"
+      ],
+      "description": "Override the ASP endpoint for one chain."
+    },
+    {
+      "name": "PRIVACY_POOLS_RELAYER_HOST_<CHAIN>",
+      "aliases": [
+        "PP_RELAYER_HOST_<CHAIN>"
+      ],
+      "description": "Override the relayer endpoint for one chain."
+    },
+    {
+      "name": "PRIVACY_POOLS_CLI_DISABLE_NATIVE",
+      "description": "Set to 1 to force the pure JS runtime path."
+    },
+    {
+      "name": "PRIVACY_POOLS_CLI_BINARY",
+      "description": "Advanced maintainer override for the launcher target native-shell binary path."
+    },
+    {
+      "name": "PRIVACY_POOLS_CLI_JS_WORKER",
+      "description": "Advanced maintainer override for the packaged JS worker entrypoint."
+    },
+    {
+      "name": "NO_COLOR",
+      "description": "Disable colored output, matching --no-color."
+    },
+    {
+      "name": "PP_NO_UPDATE_CHECK",
+      "description": "Set to 1 to disable the update-available notification."
     }
   ],
   "agentWorkflow": [

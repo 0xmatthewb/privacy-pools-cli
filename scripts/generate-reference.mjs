@@ -30,9 +30,9 @@ if (!existsSync(distPath)) {
 
 const { createRootProgram } = await import(join(repoRoot, "dist", "program.js"));
 const {
+  CAPABILITY_EXIT_CODES,
   CAPABILITIES_COMMAND_ORDER,
   GLOBAL_FLAG_METADATA,
-  CAPABILITIES_SCHEMAS,
 } = await import(join(repoRoot, "dist", "utils", "command-metadata.js"));
 const { COMMAND_CATALOG } = await import(join(repoRoot, "dist", "utils", "command-catalog.js"));
 
@@ -224,28 +224,17 @@ for (const { flag, description } of GLOBAL_FLAG_METADATA) {
 
 // ── Exit Codes ──
 
-const exitCodes = CAPABILITIES_SCHEMAS?.errorCategories?.exitCodes;
-if (exitCodes) {
+if (CAPABILITY_EXIT_CODES?.length) {
   lines.push("");
   lines.push("## Exit Codes");
   lines.push("");
-  lines.push("| Code | Category | Meaning |");
-  lines.push("|------|----------|---------|");
-  lines.push("| 0 | | Success |");
+  lines.push("| Code | Category | Error Code | Meaning |");
+  lines.push("|------|----------|------------|---------|");
 
-  // Sort by exit code value
-  const entries = Object.entries(exitCodes).sort((a, b) => a[1] - b[1]);
-  for (const [category, code] of entries) {
-    const meaning = {
-      INPUT: "Invalid input or validation failure",
-      RPC: "RPC / network error",
-      ASP: "ASP service error",
-      RELAYER: "Relayer service error",
-      PROOF: "ZK proof generation error",
-      CONTRACT: "On-chain contract revert",
-      UNKNOWN: "General error",
-    }[category] || category;
-    lines.push(`| ${code} | ${category} | ${meaning} |`);
+  for (const exitCode of CAPABILITY_EXIT_CODES) {
+    lines.push(
+      `| ${exitCode.code} | ${exitCode.category} | \`${escapeMarkdownPipe(exitCode.errorCode)}\` | ${escapeMarkdownPipe(exitCode.description)} |`,
+    );
   }
 }
 

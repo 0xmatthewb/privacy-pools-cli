@@ -75,6 +75,21 @@ export function renderHumanCapabilities(
     process.stderr.write(`  ${flag.flag}: ${flag.description}\n`);
   }
 
+  process.stderr.write(formatSectionHeading("Exit codes", { divider: true }));
+  for (const exitCode of payload.exitCodes) {
+    process.stderr.write(
+      `  ${exitCode.code} ${exitCode.category} (${exitCode.errorCode}): ${exitCode.description}\n`,
+    );
+  }
+
+  process.stderr.write(formatSectionHeading("Environment variables", { divider: true }));
+  for (const envVar of payload.envVars) {
+    const aliases = envVar.aliases?.length
+      ? ` (aliases: ${envVar.aliases.join(", ")})`
+      : "";
+    process.stderr.write(`  ${envVar.name}${aliases}: ${envVar.description}\n`);
+  }
+
   process.stderr.write(
     formatSectionList("Typical agent workflow", payload.agentWorkflow, {
       divider: true,

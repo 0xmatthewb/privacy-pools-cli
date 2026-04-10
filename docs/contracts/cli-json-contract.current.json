@@ -606,6 +606,8 @@
         "commandDetails": "Record<string, DetailedCommandDescriptor>",
         "executionRoutes": "Record<string, { owner, nativeModes }>",
         "globalFlags": "Flag[]",
+        "exitCodes": "CapabilityExitCode[] ({ code, name, category, errorCode?, description })",
+        "envVars": "CapabilityEnvVar[] ({ name, aliases, category, description })",
         "agentWorkflow": "string[]",
         "protocol": "ProtocolProfile",
         "runtime": "RuntimeCompatibilityDescriptor",

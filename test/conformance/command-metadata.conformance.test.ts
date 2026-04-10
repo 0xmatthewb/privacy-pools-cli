@@ -3,6 +3,8 @@ import type { Command, Option } from "commander";
 import { createRootProgram } from "../../src/program.ts";
 import {
   buildCapabilitiesPayload,
+  CAPABILITY_ENV_VARS,
+  CAPABILITY_EXIT_CODES,
   COMMAND_PATHS,
   getCommandExecutionMetadata,
   getCommandMetadata,
@@ -69,6 +71,8 @@ describe("command metadata conformance", () => {
     expect(payload.commandDetails["withdraw"]?.requiresHumanReview).toBe(true);
     expect(payload.commandDetails["flow"]?.safeReadOnly).toBe(true);
     expect(payload.safeReadOnlyCommands).toContain("flow status");
+    expect(payload.exitCodes).toEqual(CAPABILITY_EXIT_CODES);
+    expect(payload.envVars).toEqual(CAPABILITY_ENV_VARS);
   });
 
   test("root global flags stay aligned with metadata", async () => {

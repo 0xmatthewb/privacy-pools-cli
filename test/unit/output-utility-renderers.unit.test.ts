@@ -118,6 +118,21 @@ const STUB_CAPABILITIES: CapabilitiesPayload = {
     },
   },
   globalFlags: [{ flag: "-j, --json", description: "JSON output" }],
+  exitCodes: [
+    {
+      code: 0,
+      category: "SUCCESS",
+      errorCode: "SUCCESS",
+      description: "Successful command completion.",
+    },
+  ],
+  envVars: [
+    {
+      name: "PRIVACY_POOLS_HOME",
+      aliases: ["PRIVACY_POOLS_CONFIG_DIR"],
+      description: "Override the CLI config directory.",
+    },
+  ],
   agentWorkflow: ["1. do something"],
   protocol: CLI_PROTOCOL_PROFILE,
   runtime: buildRuntimeCompatibilityDescriptor("1.7.0"),
@@ -151,6 +166,8 @@ describe("renderCapabilities parity", () => {
     expect(stderr).toContain("Commands:");
     expect(stderr).toContain("test-cmd");
     expect(stderr).toContain("Global flags:");
+    expect(stderr).toContain("Exit codes:");
+    expect(stderr).toContain("Environment variables:");
     expect(stderr).toContain("Typical agent workflow:");
     expect(stderr).toContain("Protocol profile:");
     expect(stderr).toContain("Runtime compatibility:");

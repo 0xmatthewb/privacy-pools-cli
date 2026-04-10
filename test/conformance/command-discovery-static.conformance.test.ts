@@ -105,5 +105,11 @@ describe("command discovery static conformance", () => {
     expect(pendingOnlyVariant).toBeDefined();
     expect(pendingOnlyVariant).toContain("nextActions");
     expect(pendingOnlyVariant).toContain("cliCommand");
+    expect(GENERATED_COMMAND_MANIFEST.capabilitiesPayload.exitCodes).toEqual(
+      STATIC_CAPABILITIES_PAYLOAD.exitCodes,
+    );
+    expect(GENERATED_COMMAND_MANIFEST.capabilitiesPayload.envVars).toEqual(
+      STATIC_CAPABILITIES_PAYLOAD.envVars,
+    );
   });
 });

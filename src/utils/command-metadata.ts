@@ -2,6 +2,8 @@ export {
   buildCapabilitiesPayload,
   buildCommandDescriptor,
   CAPABILITIES_COMMAND_ORDER,
+  CAPABILITY_ENV_VARS,
+  CAPABILITY_EXIT_CODES,
   CAPABILITIES_SCHEMAS,
   COMMAND_PATHS,
   getDocumentedAgentMarkers,

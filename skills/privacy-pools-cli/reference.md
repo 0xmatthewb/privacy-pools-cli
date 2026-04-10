@@ -423,6 +423,14 @@ Representative payload (abridged):
   "globalFlags": [
     { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }
   ],
+  "exitCodes": [
+    { "code": 0, "name": "SUCCESS", "category": null },
+    { "code": 2, "name": "INPUT_ERROR", "category": "INPUT" }
+  ],
+  "envVars": [
+    { "name": "PRIVACY_POOLS_PRIVATE_KEY", "aliases": [], "category": "wallet" },
+    { "name": "PP_NO_UPDATE_CHECK", "aliases": [], "category": "runtime" }
+  ],
   "agentWorkflow": [
     "1. privacy-pools status --agent",
     "2. privacy-pools init --agent --default-chain <chain> --show-recovery-phrase",
@@ -489,7 +497,7 @@ Representative payload (abridged):
 }
 ```
 
-`executionRoutes` is the canonical execution-ownership map. `commandDetails` also includes risk metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, and `preferredSafeVariant?`. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions.
+`executionRoutes` is the canonical execution-ownership map. `commandDetails` also includes risk metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, and `preferredSafeVariant?`. `exitCodes[]` describes the CLI exit contract and `envVars[]` exposes the supported runtime environment variables and aliases. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions.
 
 ### `describe`
 

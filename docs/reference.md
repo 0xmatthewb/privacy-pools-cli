@@ -574,7 +574,7 @@ privacy-pools capabilities
 privacy-pools capabilities --agent
 ```
 
-**JSON output:** `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }`
+**JSON output:** `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }`
 
 ## Global Flags
 
@@ -594,16 +594,16 @@ privacy-pools capabilities --agent
 
 ## Exit Codes
 
-| Code | Category | Meaning |
-|------|----------|---------|
-| 0 | | Success |
-| 1 | UNKNOWN | General error |
-| 2 | INPUT | Invalid input or validation failure |
-| 3 | RPC | RPC / network error |
-| 4 | ASP | ASP service error |
-| 5 | RELAYER | Relayer service error |
-| 6 | PROOF | ZK proof generation error |
-| 7 | CONTRACT | On-chain contract revert |
+| Code | Category | Error Code | Meaning |
+|------|----------|------------|---------|
+| 0 | SUCCESS | `SUCCESS` | Successful command completion. |
+| 1 | UNKNOWN | `UNKNOWN_ERROR` | Unknown or general runtime failure. |
+| 2 | INPUT | `INPUT_ERROR` | Invalid input, prompt cancellation in machine mode, or validation failure. |
+| 3 | RPC | `RPC_ERROR` | RPC, transport, or network connectivity failure. |
+| 4 | ASP | `ASP_ERROR` | ASP service failure or approval-state fetch issue. |
+| 5 | RELAYER | `RELAYER_ERROR` | Relayer quote or submission failure. |
+| 6 | PROOF | `PROOF_ERROR` | ZK proof generation or proof-input failure. |
+| 7 | CONTRACT | `CONTRACT_ERROR` | Onchain simulation or contract revert failure. |
 
 ## Unsigned Transactions
 

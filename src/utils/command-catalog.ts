@@ -471,7 +471,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools capabilities --agent",
       ],
       jsonFields:
-        "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
+        "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
     },
     capabilities: {
       flags: [],

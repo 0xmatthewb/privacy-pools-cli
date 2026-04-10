@@ -6,11 +6,14 @@ import {
 import { readCliPackageInfo } from "../package-info.js";
 import type {
   CapabilitiesPayload,
+  CapabilityEnvVarDescriptor,
+  CapabilityExitCodeDescriptor,
   CommandExecutionDescriptor,
   CommandSideEffectClass,
   DetailedCommandDescriptor,
   PreferredSafeVariant,
 } from "../types.js";
+import { EXIT_CODES, defaultErrorCode } from "./errors.js";
 import { jsonContractDocRelativePath } from "./json.js";
 import { ROOT_GLOBAL_FLAG_METADATA } from "./root-global-flags.js";
 import {
@@ -119,6 +122,123 @@ export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] =
     flag,
     description,
   }));
+
+export const CAPABILITY_EXIT_CODES: CapabilityExitCodeDescriptor[] = [
+  {
+    code: 0,
+    category: "SUCCESS",
+    errorCode: "SUCCESS",
+    description: "Successful command completion.",
+  },
+  {
+    code: EXIT_CODES.UNKNOWN,
+    category: "UNKNOWN",
+    errorCode: defaultErrorCode("UNKNOWN"),
+    description: "Unknown or general runtime failure.",
+  },
+  {
+    code: EXIT_CODES.INPUT,
+    category: "INPUT",
+    errorCode: defaultErrorCode("INPUT"),
+    description: "Invalid input, prompt cancellation in machine mode, or validation failure.",
+  },
+  {
+    code: EXIT_CODES.RPC,
+    category: "RPC",
+    errorCode: defaultErrorCode("RPC"),
+    description: "RPC, transport, or network connectivity failure.",
+  },
+  {
+    code: EXIT_CODES.ASP,
+    category: "ASP",
+    errorCode: defaultErrorCode("ASP"),
+    description: "ASP service failure or approval-state fetch issue.",
+  },
+  {
+    code: EXIT_CODES.RELAYER,
+    category: "RELAYER",
+    errorCode: defaultErrorCode("RELAYER"),
+    description: "Relayer quote or submission failure.",
+  },
+  {
+    code: EXIT_CODES.PROOF,
+    category: "PROOF",
+    errorCode: defaultErrorCode("PROOF"),
+    description: "ZK proof generation or proof-input failure.",
+  },
+  {
+    code: EXIT_CODES.CONTRACT,
+    category: "CONTRACT",
+    errorCode: defaultErrorCode("CONTRACT"),
+    description: "Onchain simulation or contract revert failure.",
+  },
+];
+
+export const CAPABILITY_ENV_VARS: CapabilityEnvVarDescriptor[] = [
+  {
+    name: "PRIVACY_POOLS_HOME",
+    aliases: ["PRIVACY_POOLS_CONFIG_DIR"],
+    description: "Override the CLI config directory.",
+  },
+  {
+    name: "PRIVACY_POOLS_PRIVATE_KEY",
+    description: "Signer private key; takes precedence over the saved .signer file.",
+  },
+  {
+    name: "PRIVACY_POOLS_RPC_URL",
+    aliases: ["PP_RPC_URL"],
+    description: "Override the RPC endpoint for all chains.",
+  },
+  {
+    name: "PRIVACY_POOLS_ASP_HOST",
+    aliases: ["PP_ASP_HOST"],
+    description: "Override the ASP endpoint for all chains.",
+  },
+  {
+    name: "PRIVACY_POOLS_RELAYER_HOST",
+    aliases: ["PP_RELAYER_HOST"],
+    description: "Override the relayer endpoint for all chains.",
+  },
+  {
+    name: "PRIVACY_POOLS_CIRCUITS_DIR",
+    description: "Override the circuit artifact directory with a trusted pre-provisioned path.",
+  },
+  {
+    name: "PRIVACY_POOLS_RPC_URL_<CHAIN>",
+    aliases: ["PP_RPC_URL_<CHAIN>"],
+    description: "Override the RPC endpoint for one chain, for example ARBITRUM or SEPOLIA.",
+  },
+  {
+    name: "PRIVACY_POOLS_ASP_HOST_<CHAIN>",
+    aliases: ["PP_ASP_HOST_<CHAIN>"],
+    description: "Override the ASP endpoint for one chain.",
+  },
+  {
+    name: "PRIVACY_POOLS_RELAYER_HOST_<CHAIN>",
+    aliases: ["PP_RELAYER_HOST_<CHAIN>"],
+    description: "Override the relayer endpoint for one chain.",
+  },
+  {
+    name: "PRIVACY_POOLS_CLI_DISABLE_NATIVE",
+    description: "Set to 1 to force the pure JS runtime path.",
+  },
+  {
+    name: "PRIVACY_POOLS_CLI_BINARY",
+    description: "Advanced maintainer override for the launcher target native-shell binary path.",
+  },
+  {
+    name: "PRIVACY_POOLS_CLI_JS_WORKER",
+    description: "Advanced maintainer override for the packaged JS worker entrypoint.",
+  },
+  {
+    name: "NO_COLOR",
+    description: "Disable colored output, matching --no-color.",
+  },
+  {
+    name: "PP_NO_UPDATE_CHECK",
+    description: "Set to 1 to disable the update-available notification.",
+  },
+];
 
 const CHAIN_GLOBAL_FLAG = "-c, --chain <name>";
 
@@ -411,6 +531,8 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       COMMAND_PATHS.map((path) => [path, getCommandExecutionMetadata(path)]),
     ),
     globalFlags: GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({ flag, description })),
+    exitCodes: CAPABILITY_EXIT_CODES,
+    envVars: CAPABILITY_ENV_VARS,
     agentWorkflow: AGENT_WORKFLOW,
     agentNotes: AGENT_NOTES,
     schemas: CAPABILITIES_SCHEMAS,
