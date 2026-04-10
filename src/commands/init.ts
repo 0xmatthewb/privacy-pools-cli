@@ -562,7 +562,7 @@ export async function handleInitCommand(
       );
       process.stderr.write(
         chalk.dim(
-          "This is separate from your recovery phrase, which keeps your deposits private.",
+          "This is separate from your recovery phrase, which enables private withdrawals.",
         ) + "\n",
       );
       process.stderr.write(
