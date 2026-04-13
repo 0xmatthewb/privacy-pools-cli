@@ -122,8 +122,7 @@ import {
 } from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
-  buildAllPoolAccountRefs,
-  buildPoolAccountRefs,
+  classifyPoolAccountRefs,
   collectActiveLabels,
   describeUnavailablePoolAccount,
   getUnknownPoolAccountError,
@@ -752,12 +751,10 @@ export async function handleWithdrawCommand(
       );
       const poolCommitments = spendable.get(pool.scope) ?? [];
 
-      const rawPoolAccounts = buildPoolAccountRefs(
-        accountService.account,
-        pool.scope,
-        poolCommitments,
-      );
-      const allKnownPoolAccounts = buildAllPoolAccountRefs(
+      const {
+        activeRefs: rawPoolAccounts,
+        allRefs: allKnownPoolAccounts,
+      } = classifyPoolAccountRefs(
         accountService.account,
         pool.scope,
         poolCommitments,
@@ -858,14 +855,10 @@ export async function handleWithdrawCommand(
       );
       const allCommitmentHashes = leaves.stateTreeLeaves.map((s) => BigInt(s));
 
-      const allPoolAccounts = buildAllPoolAccountRefs(
-        accountService.account,
-        pool.scope,
-        poolCommitments,
-        aspReviewState.approvedLabels,
-        aspReviewState.reviewStatuses,
-      );
-      const poolAccounts = buildPoolAccountRefs(
+      const {
+        allRefs: allPoolAccounts,
+        activeRefs: poolAccounts,
+      } = classifyPoolAccountRefs(
         accountService.account,
         pool.scope,
         poolCommitments,

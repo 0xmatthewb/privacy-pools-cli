@@ -91,8 +91,7 @@ import {
 import { acquireProcessLock } from "../utils/lock.js";
 import { getConfirmationTimeoutMs, type ResolvedGlobalMode } from "../utils/mode.js";
 import {
-  buildAllPoolAccountRefs,
-  buildPoolAccountRefs,
+  classifyPoolAccountRefs,
   collectActiveLabels,
   getNextPoolAccountNumber,
   poolAccountId,
@@ -2805,14 +2804,10 @@ export async function loadWorkflowPoolAccountContext(
     rootsOnchainMtRoot = BigInt(roots.onchainMtRoot);
   }
 
-  const allPoolAccounts = buildAllPoolAccountRefs(
-    accountService.account,
-    pool.scope,
-    spendableCommitments,
-    aspReviewState.approvedLabels,
-    aspReviewState.reviewStatuses,
-  );
-  const poolAccounts = buildPoolAccountRefs(
+  const {
+    allRefs: allPoolAccounts,
+    activeRefs: poolAccounts,
+  } = classifyPoolAccountRefs(
     accountService.account,
     pool.scope,
     spendableCommitments,

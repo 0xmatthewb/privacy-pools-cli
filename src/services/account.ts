@@ -187,6 +187,32 @@ function clonePoolAccountsMap(
   );
 }
 
+function resolveStoredLegacyPoolAccounts(
+  account: AccountState,
+  legacyAccount?: LegacyAccountSource,
+): StoredLegacyPoolAccounts {
+  const currentStoredLegacyPoolAccounts = getStoredLegacyPoolAccounts(account);
+  const nextLegacyPoolAccounts =
+    legacyAccount?.account?.poolAccounts as StoredLegacyPoolAccountsView | undefined;
+
+  if (nextLegacyPoolAccounts instanceof Map) {
+    if (nextLegacyPoolAccounts === currentStoredLegacyPoolAccounts) {
+      return nextLegacyPoolAccounts as StoredLegacyPoolAccounts;
+    }
+
+    return (
+      clonePoolAccountsMap(nextLegacyPoolAccounts)
+      ?? new Map<AccountScope, PoolAccount[]>()
+    );
+  }
+
+  if (currentStoredLegacyPoolAccounts instanceof Map) {
+    return currentStoredLegacyPoolAccounts as StoredLegacyPoolAccounts;
+  }
+
+  return new Map<AccountScope, PoolAccount[]>();
+}
+
 export function getStoredLegacyPoolAccounts(
   account: AccountState | null | undefined,
 ): StoredLegacyPoolAccountsView | undefined {
@@ -211,11 +237,10 @@ function withStoredLegacyPoolAccounts(
   account: AccountState,
   legacyAccount?: LegacyAccountSource,
 ): StoredAccountState {
-  const storedLegacyPoolAccounts =
-    clonePoolAccountsMap(
-      (legacyAccount?.account?.poolAccounts as StoredLegacyPoolAccountsView | undefined)
-        ?? getStoredLegacyPoolAccounts(account),
-    ) ?? new Map<AccountScope, PoolAccount[]>();
+  const storedLegacyPoolAccounts = resolveStoredLegacyPoolAccounts(
+    account,
+    legacyAccount,
+  );
 
   return {
     ...(account as StoredAccountState),

@@ -54,6 +54,10 @@ interface HistoryBuildResult {
   handledLegacyLabels: Set<string>;
 }
 
+interface LegacyHistoryBuildResult extends HistoryBuildResult {
+  declinedLegacyAccount: AccountLike | null;
+}
+
 function poolAccountLabelKey(scope: bigint, label: bigint): string {
   return `${scope.toString()}:${label.toString()}`;
 }
@@ -172,16 +176,22 @@ export function buildHistoryEventsFromAccount(
   );
 }
 
-function buildLegacyHistoryEventsFromAccountWithLookup(
+function buildLegacyHistoryFromAccountWithLookup(
   legacyAccount: AccountLike | null | undefined,
   poolLookup: PoolLookup,
-): HistoryBuildResult {
+  declinedLegacyLabels: ReadonlySet<string>,
+): LegacyHistoryBuildResult {
   const events: HistoryEvent[] = [];
   const handledLegacyLabels = new Set<string>();
+  const declinedPoolAccountsByScope = new Map<bigint, PoolAccount[]>();
   const poolAccountsMap = legacyAccount?.poolAccounts;
 
   if (!(poolAccountsMap instanceof Map)) {
-    return { events, handledLegacyLabels };
+    return {
+      events,
+      handledLegacyLabels,
+      declinedLegacyAccount: null,
+    };
   }
 
   for (const [scopeKey, poolAccountsList] of poolAccountsMap.entries()) {
@@ -201,6 +211,12 @@ function buildLegacyHistoryEventsFromAccountWithLookup(
       if (label === null) {
         paNumber++;
         continue;
+      }
+
+      if (pa.isMigrated !== true && declinedLegacyLabels.has(label.toString())) {
+        const declinedScopeAccounts = declinedPoolAccountsByScope.get(scopeKey) ?? [];
+        declinedScopeAccounts.push(pa);
+        declinedPoolAccountsByScope.set(scopeKey, declinedScopeAccounts);
       }
 
       const paId = `PA-${paNumber}`;
@@ -279,43 +295,14 @@ function buildLegacyHistoryEventsFromAccountWithLookup(
     }
   }
 
-  return { events, handledLegacyLabels };
-}
-
-function buildDeclinedLegacyHistoryAccount(
-  legacyAccount: AccountLike | null | undefined,
-  declinedLegacyLabels: ReadonlySet<string>,
-): AccountLike | null {
-  const poolAccountsMap = legacyAccount?.poolAccounts;
-  if (!(poolAccountsMap instanceof Map) || declinedLegacyLabels.size === 0) {
-    return null;
-  }
-
-  const filteredPoolAccounts = new Map<bigint, PoolAccount[]>();
-
-  for (const [scopeKey, poolAccountsList] of poolAccountsMap.entries()) {
-    if (!Array.isArray(poolAccountsList)) continue;
-
-    const filtered = (poolAccountsList as PoolAccount[]).filter((poolAccount) => {
-      if (poolAccount.isMigrated === true) {
-        return false;
-      }
-
-      const label = resolvePoolAccountLabel(poolAccount);
-      return (
-        label !== null
-        && declinedLegacyLabels.has(label.toString())
-      );
-    });
-
-    if (filtered.length > 0) {
-      filteredPoolAccounts.set(scopeKey, filtered);
-    }
-  }
-
-  return filteredPoolAccounts.size > 0
-    ? { poolAccounts: filteredPoolAccounts }
-    : null;
+  return {
+    events,
+    handledLegacyLabels,
+    declinedLegacyAccount:
+      declinedPoolAccountsByScope.size > 0
+        ? { poolAccounts: declinedPoolAccountsByScope }
+        : null,
+  };
 }
 
 export function buildHistoryEventsFromAccounts(
@@ -328,9 +315,10 @@ export function buildHistoryEventsFromAccounts(
   const {
     events: legacyEvents,
     handledLegacyLabels,
-  } = buildLegacyHistoryEventsFromAccountWithLookup(legacyAccount, poolLookup);
-  const declinedLegacyAccount = buildDeclinedLegacyHistoryAccount(
+    declinedLegacyAccount,
+  } = buildLegacyHistoryFromAccountWithLookup(
     legacyAccount,
+    poolLookup,
     declinedLegacyLabels,
   );
 

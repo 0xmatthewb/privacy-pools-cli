@@ -3,6 +3,7 @@ import type { AccountCommitment, PrivacyPoolAccount } from "@0xbow/privacy-pools
 import {
   buildAllPoolAccountRefs,
   buildPoolAccountRefs,
+  classifyPoolAccountRefs,
   describeUnavailablePoolAccount,
   getNextPoolAccountNumber,
   getUnknownPoolAccountError,
@@ -72,6 +73,50 @@ describe("pool account mapping", () => {
     const activeOnly = buildPoolAccountRefs(account, scope, [c1, orphan]);
     expect(activeOnly.map((row) => row.paId)).toEqual(["PA-1", "PA-4"]);
     expect(activeOnly.every((row) => row.status === "unknown")).toBe(true);
+  });
+
+  test("classifyPoolAccountRefs matches the compatibility wrapper outputs", () => {
+    const scope = 1001n;
+    const active = commitment(
+      1n,
+      11n,
+      100n,
+      10n,
+      "0x1111111111111111111111111111111111111111111111111111111111111111",
+    );
+    const spentDeposit = commitment(
+      2n,
+      22n,
+      200n,
+      20n,
+      "0x2222222222222222222222222222222222222222222222222222222222222222",
+    );
+    const spentChild = commitment(
+      2n,
+      222n,
+      0n,
+      21n,
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    );
+
+    const account: PrivacyPoolAccount = {
+      masterKeys: [1n as any, 2n as any],
+      poolAccounts: new Map([
+        [scope as any, [
+          { label: active.label as any, deposit: active, children: [] },
+          { label: spentDeposit.label as any, deposit: spentDeposit, children: [spentChild] },
+        ]],
+      ]) as any,
+    };
+
+    const classified = classifyPoolAccountRefs(account, scope, [active]);
+
+    expect(classified.allRefs).toEqual(
+      buildAllPoolAccountRefs(account, scope, [active]),
+    );
+    expect(classified.activeRefs).toEqual(
+      buildPoolAccountRefs(account, scope, [active]),
+    );
   });
 
   test("getNextPoolAccountNumber follows existing scope length", () => {

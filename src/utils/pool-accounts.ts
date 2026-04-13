@@ -32,6 +32,11 @@ export interface PoolAccountRef {
   txHash: string;
 }
 
+export interface PoolAccountRefClassification {
+  allRefs: PoolAccountRef[];
+  activeRefs: PoolAccountRef[];
+}
+
 type PoolAccountAction = "withdraw" | "ragequit";
 
 interface UnknownPoolAccountErrorParams {
@@ -138,14 +143,13 @@ export function buildPoolAccountRefs(
   approvedLabels?: Set<string> | null,
   reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
 ): PoolAccountRef[] {
-  return buildScopedPoolAccountRefs(
+  return classifyPoolAccountRefs(
     account,
     scope,
     spendableCommitments,
     approvedLabels,
     reviewStatuses,
-    false,
-  );
+  ).activeRefs;
 }
 
 function shouldIncludePoolAccountRef(
@@ -159,14 +163,13 @@ function shouldIncludePoolAccountRef(
   );
 }
 
-function buildScopedPoolAccountRefs(
+export function classifyPoolAccountRefs(
   account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
   scope: bigint,
   spendableCommitments: readonly AccountCommitment[],
   approvedLabels?: Set<string> | null,
   reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
-  includeInactive: boolean = true,
-): PoolAccountRef[] {
+): PoolAccountRefClassification {
   const spendableByKey = new Map<string, AccountCommitment>();
   for (const commitment of spendableCommitments) {
     spendableByKey.set(commitmentKey(commitment), commitment);
@@ -193,7 +196,8 @@ function buildScopedPoolAccountRefs(
     return approvedLabels.has(labelKey) ? "approved" : "unknown";
   }
 
-  const refs: PoolAccountRef[] = [];
+  const allRefs: PoolAccountRef[] = [];
+  const activeRefs: PoolAccountRef[] = [];
   let nextPoolAccountNumber = 1;
   const poolAccounts = getPoolAccountsForScope(account, scope);
   for (const poolAccount of poolAccounts) {
@@ -233,8 +237,9 @@ function buildScopedPoolAccountRefs(
       txHash: ragequit ? ragequit.transactionHash : commitment.txHash,
     };
 
-    if (shouldIncludePoolAccountRef(ref, includeInactive)) {
-      refs.push(ref);
+    allRefs.push(ref);
+    if (shouldIncludePoolAccountRef(ref, false)) {
+      activeRefs.push(ref);
     }
 
     if (spendable) {
@@ -261,15 +266,17 @@ function buildScopedPoolAccountRefs(
       blockNumber: commitment.blockNumber,
       txHash: commitment.txHash,
     };
-    if (shouldIncludePoolAccountRef(ref, includeInactive)) {
-      refs.push(ref);
+    allRefs.push(ref);
+    if (shouldIncludePoolAccountRef(ref, false)) {
+      activeRefs.push(ref);
     }
     spendableByKey.delete(key);
     nextPoolAccountNumber++;
   }
 
-  refs.sort((a, b) => a.paNumber - b.paNumber);
-  return refs;
+  allRefs.sort((a, b) => a.paNumber - b.paNumber);
+  activeRefs.sort((a, b) => a.paNumber - b.paNumber);
+  return { allRefs, activeRefs };
 }
 
 export function buildAllPoolAccountRefs(
@@ -279,14 +286,13 @@ export function buildAllPoolAccountRefs(
   approvedLabels?: Set<string> | null,
   reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
 ): PoolAccountRef[] {
-  return buildScopedPoolAccountRefs(
+  return classifyPoolAccountRefs(
     account,
     scope,
     spendableCommitments,
     approvedLabels,
     reviewStatuses,
-    true,
-  );
+  ).allRefs;
 }
 
 export function describeUnavailablePoolAccount(

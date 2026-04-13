@@ -331,6 +331,57 @@ describe("account persistence", () => {
     expect(stored).toBe(legacyPoolAccounts);
   });
 
+  test("fresh legacy sources are cloned before storage attachment", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    const externalLegacyAccount = makeLegacyAccount({ isMigrated: true });
+    AccountService.initializeWithEvents = (async () => ({
+      account: new AccountService({} as any, {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map(),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        } as any,
+      }),
+      legacyAccount: externalLegacyAccount,
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const result = await initializeAccountServiceWithState(
+      {} as any,
+      MNEMONIC,
+      samplePool(),
+      11155111,
+      {
+        suppressWarnings: true,
+      },
+    );
+
+    const attachedLegacyPoolAccounts = getStoredLegacyPoolAccounts(
+      result.accountService.account as any,
+    );
+    expect(attachedLegacyPoolAccounts).toBeDefined();
+    expect(attachedLegacyPoolAccounts).not.toBe(externalLegacyAccount.account.poolAccounts);
+
+    const originalStoredValue =
+      attachedLegacyPoolAccounts?.get(1n)?.[0]?.deposit.value;
+    expect(originalStoredValue).toBe(1n);
+
+    const externalLegacyPoolAccount = externalLegacyAccount.account.poolAccounts.get(1n)?.[0];
+    expect(externalLegacyPoolAccount).toBeDefined();
+    if (externalLegacyPoolAccount) {
+      externalLegacyPoolAccount.deposit.value = 99n;
+    }
+
+    expect(attachedLegacyPoolAccounts?.get(1n)?.[0]?.deposit.value).toBe(1n);
+    expect(
+      getStoredLegacyPoolAccounts(loadAccount(11155111) as any)?.get(1n)?.[0]?.deposit
+        .value,
+    ).toBe(1n);
+  });
+
   /* ---------------------------------------------------------------- */
   /*  initializeAccountService — saved-account paths                   */
   /* ---------------------------------------------------------------- */
