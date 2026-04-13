@@ -47,6 +47,8 @@ interface PoolLike {
   scope: bigint;
 }
 
+type PoolLookup = ReadonlyMap<string, PoolLike>;
+
 interface HistoryBuildResult {
   events: HistoryEvent[];
   handledLegacyLabels: Set<string>;
@@ -68,9 +70,15 @@ function resolvePoolAccountLabel(
 
 export { createHistoryCommand } from "../command-shells/history.js";
 
-export function buildHistoryEventsFromAccount(
+function buildPoolLookup(pools: readonly PoolLike[]): PoolLookup {
+  return new Map(
+    pools.map((pool) => [pool.scope.toString(), pool] as const),
+  );
+}
+
+function buildHistoryEventsFromAccountWithLookup(
   account: AccountLike | null | undefined,
-  pools: readonly PoolLike[],
+  poolLookup: PoolLookup,
   handledLegacyLabels: ReadonlySet<string> = new Set<string>(),
 ): HistoryEvent[] {
   const events: HistoryEvent[] = [];
@@ -81,7 +89,7 @@ export function buildHistoryEventsFromAccount(
   for (const [scopeKey, poolAccountsList] of poolAccountsMap.entries()) {
     if (!Array.isArray(poolAccountsList)) continue;
     const scopeStr = scopeKey.toString();
-    const pool = pools.find((p) => p.scope.toString() === scopeStr);
+    const pool = poolLookup.get(scopeStr);
     if (!pool) continue;
 
     let paNumber = 1;
@@ -152,9 +160,21 @@ export function buildHistoryEventsFromAccount(
   return events;
 }
 
-function buildLegacyHistoryEventsFromAccount(
-  legacyAccount: AccountLike | null | undefined,
+export function buildHistoryEventsFromAccount(
+  account: AccountLike | null | undefined,
   pools: readonly PoolLike[],
+  handledLegacyLabels: ReadonlySet<string> = new Set<string>(),
+): HistoryEvent[] {
+  return buildHistoryEventsFromAccountWithLookup(
+    account,
+    buildPoolLookup(pools),
+    handledLegacyLabels,
+  );
+}
+
+function buildLegacyHistoryEventsFromAccountWithLookup(
+  legacyAccount: AccountLike | null | undefined,
+  poolLookup: PoolLookup,
 ): HistoryBuildResult {
   const events: HistoryEvent[] = [];
   const handledLegacyLabels = new Set<string>();
@@ -167,7 +187,7 @@ function buildLegacyHistoryEventsFromAccount(
   for (const [scopeKey, poolAccountsList] of poolAccountsMap.entries()) {
     if (!Array.isArray(poolAccountsList)) continue;
     const scopeStr = scopeKey.toString();
-    const pool = pools.find((candidate) => candidate.scope.toString() === scopeStr);
+    const pool = poolLookup.get(scopeStr);
     if (!pool) continue;
 
     let paNumber = 1;
@@ -304,10 +324,11 @@ export function buildHistoryEventsFromAccounts(
   pools: readonly PoolLike[],
   declinedLegacyLabels: ReadonlySet<string> = new Set<string>(),
 ): HistoryEvent[] {
+  const poolLookup = buildPoolLookup(pools);
   const {
     events: legacyEvents,
     handledLegacyLabels,
-  } = buildLegacyHistoryEventsFromAccount(legacyAccount, pools);
+  } = buildLegacyHistoryEventsFromAccountWithLookup(legacyAccount, poolLookup);
   const declinedLegacyAccount = buildDeclinedLegacyHistoryAccount(
     legacyAccount,
     declinedLegacyLabels,
@@ -315,12 +336,12 @@ export function buildHistoryEventsFromAccounts(
 
   return [
     ...legacyEvents,
-    ...buildHistoryEventsFromAccount(
+    ...buildHistoryEventsFromAccountWithLookup(
       declinedLegacyAccount,
-      pools,
+      poolLookup,
       handledLegacyLabels,
     ),
-    ...buildHistoryEventsFromAccount(account, pools, handledLegacyLabels),
+    ...buildHistoryEventsFromAccountWithLookup(account, poolLookup, handledLegacyLabels),
   ];
 }
 

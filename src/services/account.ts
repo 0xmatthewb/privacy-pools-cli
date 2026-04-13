@@ -379,6 +379,7 @@ function mergeRebuiltScopes(
   scopes: AccountScope[],
 ): AccountState {
   const poolAccounts = new Map(currentAccount.poolAccounts);
+  const requestedScopes = new Set(scopes);
   for (const scope of scopes) {
     const rebuiltScopeAccounts = rebuiltAccount.poolAccounts.get(scope);
     if (Array.isArray(rebuiltScopeAccounts) && rebuiltScopeAccounts.length > 0) {
@@ -395,7 +396,7 @@ function mergeRebuiltScopes(
   }
 
   for (const [scope, accounts] of rebuiltAccount.poolAccounts.entries()) {
-    if (scopes.includes(scope as AccountScope)) {
+    if (requestedScopes.has(scope as AccountScope)) {
       continue;
     }
     poolAccounts.set(scope, accounts);
