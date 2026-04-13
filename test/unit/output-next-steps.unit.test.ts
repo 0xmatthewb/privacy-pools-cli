@@ -472,10 +472,11 @@ describe("surfaces without next steps stay quiet", () => {
   ];
 
   for (const { name, render } of cases) {
-    test(`${name}: JSON and human output omit next-step guidance`, () => {
+    test(`${name}: JSON includes nextActions, human output omits next-step section`, () => {
       const jsonResult = render(true);
       const jsonCommands = getJsonNextActionCommands(jsonResult.stdout);
-      expect(jsonCommands).toHaveLength(0);
+      // Pool detail now includes navigational nextActions in JSON for agents.
+      expect(jsonCommands.length).toBeGreaterThan(0);
 
       const humanResult = render(false);
       expect(stderrContainsNextSteps(humanResult.stderr)).toBe(false);
@@ -516,11 +517,8 @@ describe("browse surfaces can add human-only next steps", () => {
       const humanResult = render(false);
       expect(stderrContainsNextSteps(humanResult.stderr)).toBe(true);
 
-      if (name === "renderPools") {
-        expect(jsonCommands.length).toBeGreaterThan(0);
-      } else {
-        expect(jsonCommands).toHaveLength(0);
-      }
+      // All browse commands now include nextActions in JSON output.
+      expect(jsonCommands.length).toBeGreaterThan(0);
     });
   }
 });

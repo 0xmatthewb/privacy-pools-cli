@@ -113,10 +113,13 @@ export function poolToJson(
  */
 export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): void {
   if (ctx.mode.isJson) {
+    const emptyNextActions = [
+      createNextAction("status", "Check CLI and chain connectivity.", "no_pools_found", { options: { agent: true } }),
+    ];
     if (data.allChains) {
-      printJsonSuccess({ allChains: true, search: data.search, sort: data.sort, pools: [] });
+      printJsonSuccess(appendNextActions({ allChains: true, search: data.search, sort: data.sort, pools: [] }, emptyNextActions));
     } else {
-      printJsonSuccess({ chain: data.chainName, search: data.search, sort: data.sort, pools: [] });
+      printJsonSuccess(appendNextActions({ chain: data.chainName, search: data.search, sort: data.sort, pools: [] }, emptyNextActions));
     }
     return;
   }
@@ -335,13 +338,15 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       );
     }
   }
-  process.stderr.write(
-    chalk.dim(
-      "\nVetting fees are deducted on deposit.\n" +
-      "Pool Balance: current total value in the pool (accepted + pending deposits).\n" +
-      "Pending: deposits still under ASP review.\n",
-    ),
-  );
+  if (ctx.mode.verboseLevel >= 1) {
+    process.stderr.write(
+      chalk.dim(
+        "\nVetting fees are deducted on deposit.\n" +
+        "Pool Balance: current total value in the pool (accepted + pending deposits).\n" +
+        "Pending: deposits still under ASP review.\n",
+      ),
+    );
+  }
   renderNextSteps(ctx, humanNextActions);
 }
 
@@ -427,7 +432,15 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
       }));
     }
 
-    printJsonSuccess(payload, false);
+    const detailNextActions = [
+      createNextAction("deposit", `Deposit into the ${pool.symbol} pool.`, "after_pool_detail", {
+        args: [pool.symbol],
+        options: { agent: true, chain },
+        runnable: false,
+      }),
+      createNextAction("accounts", "View your Pool Account balances.", "after_pool_detail", { options: { agent: true, chain } }),
+    ];
+    printJsonSuccess(appendNextActions(payload, detailNextActions), false);
     return;
   }
 

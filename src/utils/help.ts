@@ -58,15 +58,26 @@ export function welcomeScreen(
   return lines.join("\n");
 }
 
-/**
- * Full guide content - displayed by `privacy-pools guide`.
- * Contains the quick start, workflow, automation tips, and exit codes
- * that used to live in root --help.
- */
-export function guideText(): string {
-  return [
-    accentBold("Privacy Pools: Quick Guide"),
-    "",
+// ── Guide Topics ────────────────────────────────────────────────────────────
+
+export const GUIDE_TOPICS = [
+  { name: "quickstart", description: "Install, setup, and first deposit" },
+  { name: "keys", description: "Two-key model (recovery phrase + signer key)" },
+  { name: "workflow", description: "Step-by-step workflow for deposits and withdrawals" },
+  { name: "flow-states", description: "Flow state machine and transitions" },
+  { name: "automation", description: "Global flags, env vars, and agent/CI integration" },
+  { name: "troubleshooting", description: "Common issues and fixes" },
+  { name: "exit-codes", description: "CLI exit codes by category" },
+] as const;
+
+export type GuideTopic = (typeof GUIDE_TOPICS)[number]["name"];
+
+const GUIDE_TOPIC_NAMES = GUIDE_TOPICS.map((t) => t.name);
+
+// ── Guide section builders (keyed by topic) ────────────────────────────────
+
+const guideSections: Record<string, () => string[]> = {
+  quickstart: () => [
     chalk.bold("Install & Run"),
     `  ${accent("npm i -g privacy-pools-cli")}`,
     `  ${accent("npm i -g github:0xmatthewb/privacy-pools-cli")}  ${chalk.dim("(unreleased/source builds)")}`,
@@ -95,7 +106,9 @@ export function guideText(): string {
     chalk.dim("  original deposit address. Declined saved easy-path workflows use"),
     chalk.dim("  'flow ragequit' as their canonical public recovery path, and operators can"),
     chalk.dim("  also choose it manually after the public deposit exists."),
-    "",
+  ],
+
+  keys: () => [
     chalk.bold("Two-Key Model"),
     `  Privacy Pools uses two keys:`,
     `  ${notice("Recovery phrase")}  enables private withdrawals (generated during init; sometimes called a seed phrase)`,
@@ -103,7 +116,9 @@ export function guideText(): string {
     `  These are independent. You can set the signer key later via env var.`,
     `  Note: ${notice("PRIVACY_POOLS_PRIVATE_KEY")} env var takes precedence over a saved key file.`,
     `  Exception: ${accent("flow start --new-wallet")} creates and uses a dedicated per-workflow wallet instead of the configured signer.`,
-    "",
+  ],
+
+  workflow: () => [
     chalk.bold("Workflow"),
     `  1. ${accent("init")}           Set up wallet and config (run once)`,
     `  2. ${accent("flow start")}     Easy path: deposit now and save a later private withdrawal`,
@@ -125,7 +140,9 @@ export function guideText(): string {
     chalk.dim("  'flow start --new-wallet' generates a dedicated workflow wallet and waits for funding automatically."),
     chalk.dim("  In machine mode, this path requires '--export-new-wallet <path>' so the generated key is backed up first."),
     chalk.dim("  Manual commands remain available for advanced control."),
-    "",
+  ],
+
+  "flow-states": () => [
     chalk.bold("Flow States"),
     `  ${notice("awaiting_funding")}                    Workflow wallet needs ETH/tokens to proceed.`,
     `  ${notice("depositing_publicly")}                 Deposit transaction submitted, awaiting onchain confirmation.`,
@@ -138,7 +155,9 @@ export function guideText(): string {
     `  ${notice("paused_poa_required")}                 Proof of Association needed before private withdrawal.`,
     `  ${notice("paused_declined")}                     Deposit declined; use flow ragequit for public recovery.`,
     `  ${notice("stopped_external")}                    Workflow stopped by external event.`,
-    "",
+  ],
+
+  automation: () => [
     chalk.bold("Global Options"),
     `  ${notice("-c, --chain <name>")}    Target chain (mainnet, arbitrum, optimism; testnets: sepolia, op-sepolia)`,
     `  ${notice("-r, --rpc-url <url>")}   Override RPC URL`,
@@ -181,7 +200,9 @@ export function guideText(): string {
     `  ${notice("--unsigned tx")}        Raw transaction array: [{ from, to, data, value, valueHex, chainId, description }]`,
     "             Raw format skips the envelope. Intended for direct piping to signing tools.",
     `  ${notice("--dry-run")}    Validate and generate proofs without submitting.`,
-    "",
+  ],
+
+  troubleshooting: () => [
     chalk.bold("Troubleshooting"),
     "  Stale data?      Commands auto-sync; force a full re-sync with 'privacy-pools sync'.",
     "  ASP unreachable?  Check 'privacy-pools status' (health checks run by default).",
@@ -196,7 +217,9 @@ export function guideText(): string {
     "                   publicly via ragequit.",
     "  Custom RPC?       Pass --rpc-url on any command, or save per-chain overrides in",
     `                   ~/.privacy-pools/config.json under ${chalk.dim('"rpcOverrides": { "<chainId>": "https://..." }')}.`,
-    "",
+  ],
+
+  "exit-codes": () => [
     chalk.bold("Exit Codes"),
     `  ${successTone("0")}  Success`,
     `  ${dangerTone("1")}  Unknown/general error`,
@@ -206,6 +229,12 @@ export function guideText(): string {
     `  ${dangerTone("5")}  Relayer error`,
     `  ${dangerTone("6")}  Proof generation error`,
     `  ${dangerTone("7")}  Contract revert`,
+  ],
+};
+
+// Sections included only in the full guide (no dedicated topic).
+function guideAppendixSections(): string[] {
+  return [
     "",
     chalk.bold("Using CLI with an Existing Website Account"),
     `  If you already use ${accent("privacypools.com")}, you can access the same account from the CLI:`,
@@ -240,7 +269,36 @@ export function guideText(): string {
     `  ${accent("CHANGELOG.md")}        Release history and migration notes`,
     "",
     chalk.dim("  Run privacy-pools <command> --help for command-specific details."),
-  ].join("\n");
+  ];
+}
+
+/**
+ * Return guide text for a specific topic, or the full guide if no topic given.
+ */
+export function guideText(topic?: string): string {
+  if (topic) {
+    const builder = guideSections[topic];
+    if (!builder) {
+      const available = GUIDE_TOPICS.map((t) => `  ${accent(t.name)}  ${chalk.dim(t.description)}`).join("\n");
+      return [
+        `Unknown guide topic: ${topic}`,
+        "",
+        chalk.bold("Available topics:"),
+        available,
+        "",
+        chalk.dim("Run 'privacy-pools guide' with no topic for the full guide."),
+      ].join("\n");
+    }
+    return [accentBold(`Privacy Pools: ${topic}`), "", ...builder()].join("\n");
+  }
+
+  // Full guide: all sections + appendix.
+  const allLines: string[] = [accentBold("Privacy Pools: Quick Guide"), ""];
+  for (const { name } of GUIDE_TOPICS) {
+    allLines.push(...guideSections[name](), "");
+  }
+  allLines.push(...guideAppendixSections());
+  return allLines.join("\n");
 }
 
 export type HelpExample = string | { category: string; commands: string[] };

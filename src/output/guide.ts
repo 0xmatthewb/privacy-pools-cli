@@ -10,13 +10,14 @@ import { guideText } from "../utils/help.js";
 import { renderHumanGuideText } from "./discovery.js";
 
 /**
- * Render guide output.
+ * Render guide output, optionally filtered to a single topic.
  */
-export function renderGuide(ctx: OutputContext): void {
+export function renderGuide(ctx: OutputContext, topic?: string): void {
   if (ctx.mode.isJson) {
     printJsonSuccess({
       mode: "help",
-      help: guideText(),
+      ...(topic ? { topic } : {}),
+      help: guideText(topic),
     });
     return;
   }
@@ -24,5 +25,5 @@ export function renderGuide(ctx: OutputContext): void {
   guardCsvUnsupported(ctx, "guide");
   if (isSilent(ctx)) return;
 
-  renderHumanGuideText(guideText());
+  renderHumanGuideText(guideText(topic));
 }

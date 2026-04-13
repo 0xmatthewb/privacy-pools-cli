@@ -41,7 +41,7 @@ describe("utility command handlers", () => {
 
   test("guide returns machine-readable help in JSON mode", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
-      handleGuideCommand({}, fakeCommand({ json: true })),
+      handleGuideCommand(undefined, {}, fakeCommand({ json: true })),
     );
 
     expect(json.success).toBe(true);

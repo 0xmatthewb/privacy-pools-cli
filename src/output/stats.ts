@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printCsv, printTable, isSilent, createNextAction, renderNextSteps } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { parseUsd } from "../utils/format.js";
 import type { TimeBasedStatistics } from "../types.js";
@@ -127,7 +127,10 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
     if (data.perChain) {
       payload.perChain = data.perChain;
     }
-    printJsonSuccess(payload, false);
+    const agentNextActions = [
+      createNextAction("pools", "Browse live pool balances and minimum deposits.", "after_stats"),
+    ];
+    printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;
   }
 
@@ -193,8 +196,14 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
 
 export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): void {
   if (ctx.mode.isJson) {
+    const agentNextActions = [
+      createNextAction("pools", "Open the detailed view for this pool.", "after_pool_stats", {
+        args: [data.asset],
+        options: { agent: true, chain: data.chain },
+      }),
+    ];
     printJsonSuccess(
-      {
+      appendNextActions({
         mode: data.mode,
         chain: data.chain,
         asset: data.asset,
@@ -203,7 +212,7 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
         cacheTimestamp: data.cacheTimestamp,
         allTime: data.allTime,
         last24h: data.last24h,
-      },
+      }, agentNextActions),
       false,
     );
     return;

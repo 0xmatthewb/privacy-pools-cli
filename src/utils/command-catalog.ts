@@ -15,6 +15,9 @@ export type CommandPath =
   | "config get"
   | "config set"
   | "config path"
+  | "config profile list"
+  | "config profile create"
+  | "config profile active"
   | "flow"
   | "flow start"
   | "flow watch"
@@ -276,6 +279,65 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     safeReadOnly: true,
   },
+  "config profile list": {
+    description: "List available profiles",
+    help: {
+      overview: ["Shows all named profiles and marks the currently active one."],
+      examples: [
+        "privacy-pools config profile list",
+        "privacy-pools config profile list --agent",
+      ],
+      jsonFields: "{ profiles, active }",
+      seeAlso: ["config profile create", "config profile active", "config list"],
+    },
+    capabilities: {
+      usage: "config profile list",
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+  },
+  "config profile create": {
+    description: "Create a new named profile",
+    help: {
+      overview: [
+        "Creates a new named profile with its own config directory.",
+        "Use --profile <name> on any command to operate under that profile.",
+      ],
+      examples: [
+        "privacy-pools config profile create trading",
+        "privacy-pools config profile create ops --agent",
+      ],
+      jsonFields: "{ profile, created, profileDir }",
+      seeAlso: ["config profile list", "init"],
+    },
+    capabilities: {
+      usage: "config profile create <name>",
+      agentFlags: "--agent <name>",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+  },
+  "config profile active": {
+    description: "Show the currently active profile",
+    help: {
+      overview: ["Displays the active profile name and its config directory path."],
+      examples: [
+        "privacy-pools config profile active",
+        "privacy-pools config profile active --agent",
+      ],
+      jsonFields: "{ profile, configDir }",
+      seeAlso: ["config profile list", "config profile create"],
+    },
+    capabilities: {
+      usage: "config profile active",
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+  },
   flow: {
     description: "Guided deposit-to-private-withdrawal workflow",
     help: {
@@ -514,6 +576,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   activity: {
     description: "Show public activity feed",
     help: {
+      overview: [
+        "Shows the public onchain event feed across Privacy Pools — deposits and withdrawals from all participants.",
+        "For your own private transaction history, use 'history' instead.",
+      ],
       examples: [
         { category: "Basic", commands: [
           "privacy-pools activity",
@@ -529,8 +595,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["history","stats","pools"],
     },
     capabilities: {
-      flags: ["--asset <symbol|address>", "--page <n>", "--limit <n>"],
-      agentFlags: "--agent [--asset <symbol>] [--page <n>] [--limit <n>]",
+      flags: ["[asset]", "--page <n>", "--limit <n>"],
+      agentFlags: "--agent [<asset>] [--page <n>] [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },

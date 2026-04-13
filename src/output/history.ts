@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printCsv, printTable, info, isSilent } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, info, isSilent, createNextAction, appendNextActions } from "./common.js";
 import { formatAddress, formatAmount, formatTxHash, displayDecimals, formatApproxBlockTimeAgo } from "../utils/format.js";
 import {
   accentBold,
@@ -71,7 +71,11 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
   const { chain, chainId, events, poolByAddress, explorerTxUrl, currentBlock, avgBlockTimeSec } = data;
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    const agentNextActions = [
+      createNextAction("accounts", "View current Pool Account balances and statuses.", "after_history", { options: { agent: true, chain } }),
+      createNextAction("withdraw", "Withdraw from an approved Pool Account.", "after_history", { runnable: false }),
+    ];
+    printJsonSuccess(appendNextActions({
       chain,
       events: events.map((e) => ({
         type: e.type,
@@ -84,7 +88,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
         txHash: e.txHash,
         explorerUrl: explorerTxUrl(chainId, e.txHash),
       })),
-    });
+    }, agentNextActions));
     return;
   }
 

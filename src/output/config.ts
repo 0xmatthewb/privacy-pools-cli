@@ -2,11 +2,15 @@
  * Output renderer for the `config` command.
  */
 
+import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
   guardCsvUnsupported,
   isSilent,
   printJsonSuccess,
+  success,
+  createNextAction,
+  appendNextActions,
 } from "./common.js";
 import {
   formatKeyValueRows,
@@ -29,13 +33,15 @@ export function renderConfigList(ctx: OutputContext, result: ConfigListResult): 
   guardCsvUnsupported(ctx, "config list");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       defaultChain: result.defaultChain,
       recoveryPhraseSet: result.recoveryPhraseSet,
       signerKeySet: result.signerKeySet,
       rpcOverrides: result.rpcOverrides,
       configDir: result.configDir,
-    });
+    }, [
+      createNextAction("status", "Check CLI and chain connectivity.", "after_config_list", { options: { agent: true } }),
+    ]));
     return;
   }
 
@@ -116,16 +122,19 @@ export function renderConfigSet(ctx: OutputContext, result: ConfigSetResult): vo
   guardCsvUnsupported(ctx, "config set");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       key: result.key,
       updated: true,
       summary: result.newValueSummary,
-    });
+    }, [
+      createNextAction("status", "Verify updated configuration.", "after_config_set", { options: { agent: true } }),
+    ]));
     return;
   }
 
   if (isSilent(ctx)) return;
 
+  success(`Configuration updated: ${result.key} = ${result.newValueSummary}`, false);
   process.stderr.write(
     formatKeyValueRows([
       { label: result.key, value: result.newValueSummary, valueTone: "success" as const },
@@ -144,6 +153,10 @@ export function renderConfigPath(ctx: OutputContext, configDir: string): void {
   }
 
   // Always write to stdout for scripting: `dir=$(privacy-pools config path)`
+  // Context hint on stderr so interactive users understand the stdout output.
+  if (process.stderr.isTTY && !isSilent(ctx)) {
+    process.stderr.write(`${chalk.dim("# Config directory:")}\n`);
+  }
   process.stdout.write(`${configDir}\n`);
 }
 

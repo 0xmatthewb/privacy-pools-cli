@@ -99,6 +99,10 @@ export function printJsonError(
   },
   pretty: boolean = false,
 ): void {
+  // `errorCode` and `errorMessage` are convenience aliases of `error.code` and
+  // `error.message`.  Agents should prefer the flattened top-level fields; the
+  // nested `error` object is retained for backward compatibility and carries
+  // additional fields like `hint`, `category`, and `retryable`.
   const output: Record<string, unknown> = {
     schemaVersion: JSON_SCHEMA_VERSION,
     success: false,

@@ -409,7 +409,7 @@ describe("renderAccounts parity", () => {
     expect(stderr).toContain("ETH Pool:");
     expect(stderr).not.toContain(STUB_GROUP.poolAddress);
     expect(stderr).not.toContain("Tx");
-    expect(stderr).toContain("PA = Pool Account.");
+    expect(stderr).toContain("--details for tx hashes");
   });
 
   test("JSON mode with --summary: emits counts and balances without accounts", () => {
@@ -514,7 +514,7 @@ describe("renderAccounts parity", () => {
     expect(stderr).not.toContain("Commitment");
     expect(stderr).not.toContain("Label");
     expect(stderr).not.toContain("Block");
-    expect(stderr).toContain("Use --verbose with --details");
+    expect(stderr).toContain("--verbose for troubleshooting metadata");
   });
 
   test("human mode (detail + verbose): shows troubleshooting columns", () => {
@@ -873,7 +873,8 @@ describe("renderPoolDetail parity", () => {
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.asset).toBe("ETH");
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions.length).toBeGreaterThan(0);
 
     // myFunds shape
     expect(json.myFunds).toBeDefined();
