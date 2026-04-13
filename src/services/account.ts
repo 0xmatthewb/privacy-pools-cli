@@ -131,6 +131,7 @@ const LEGACY_POOL_ACCOUNTS_FIELD = "__legacyPoolAccounts" as const;
 const LEGACY_READINESS_STATUS_FIELD =
   "__legacyMigrationReadinessStatus" as const;
 type StoredLegacyPoolAccounts = Map<AccountScope, PoolAccount[]>;
+type StoredLegacyPoolAccountsView = ReadonlyMap<AccountScope, readonly PoolAccount[]>;
 type StoredAccountState = AccountState & {
   __privacyPoolsCliAccountVersion?: number;
   [LEGACY_POOL_ACCOUNTS_FIELD]?: StoredLegacyPoolAccounts;
@@ -138,7 +139,7 @@ type StoredAccountState = AccountState & {
 };
 
 interface LegacyAccountSource {
-  account?: { poolAccounts?: Map<unknown, unknown[]> };
+  account?: { poolAccounts?: ReadonlyMap<unknown, readonly unknown[]> };
 }
 
 interface LegacyReadinessResolution {
@@ -165,7 +166,7 @@ function savedAccountNeedsLegacyRefresh(
 }
 
 function clonePoolAccountsMap(
-  poolAccounts: Map<AccountScope, PoolAccount[]> | null | undefined,
+  poolAccounts: StoredLegacyPoolAccountsView | null | undefined,
 ): StoredLegacyPoolAccounts | undefined {
   if (!(poolAccounts instanceof Map)) {
     return undefined;
@@ -178,7 +179,7 @@ function clonePoolAccountsMap(
         ? accounts.map((account) => ({
             ...account,
             deposit: { ...account.deposit },
-            children: account.children.map((child) => ({ ...child })),
+            children: account.children.map((child: PoolAccount["children"][number]) => ({ ...child })),
             ragequit: account.ragequit ? { ...account.ragequit } : account.ragequit,
           }))
         : [],
@@ -188,11 +189,13 @@ function clonePoolAccountsMap(
 
 export function getStoredLegacyPoolAccounts(
   account: AccountState | null | undefined,
-): StoredLegacyPoolAccounts | undefined {
+): StoredLegacyPoolAccountsView | undefined {
   const stored = (account as StoredAccountState | null | undefined)?.[
     LEGACY_POOL_ACCOUNTS_FIELD
   ];
-  return clonePoolAccountsMap(stored);
+  return stored instanceof Map
+    ? (stored as StoredLegacyPoolAccountsView)
+    : undefined;
 }
 
 export function getStoredLegacyReadinessStatus(
@@ -210,7 +213,7 @@ function withStoredLegacyPoolAccounts(
 ): StoredAccountState {
   const storedLegacyPoolAccounts =
     clonePoolAccountsMap(
-      (legacyAccount?.account?.poolAccounts as Map<AccountScope, PoolAccount[]> | undefined)
+      (legacyAccount?.account?.poolAccounts as StoredLegacyPoolAccountsView | undefined)
         ?? getStoredLegacyPoolAccounts(account),
     ) ?? new Map<AccountScope, PoolAccount[]>();
 

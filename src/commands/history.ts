@@ -38,7 +38,7 @@ export interface HistoryEvent {
 }
 
 interface AccountLike {
-  poolAccounts?: Map<bigint, PoolAccount[]>;
+  poolAccounts?: ReadonlyMap<bigint, readonly PoolAccount[]>;
 }
 
 interface PoolLike {

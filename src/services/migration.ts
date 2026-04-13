@@ -4,7 +4,7 @@ import { normalizeAspApprovalStatus } from "../utils/statuses.js";
 import { fetchDepositReviewStatuses } from "./asp.js";
 
 interface LegacyAccountSource {
-  account?: { poolAccounts?: Map<unknown, unknown[]> };
+  account?: { poolAccounts?: ReadonlyMap<unknown, readonly unknown[]> };
 }
 
 interface LegacyCommitmentLike {
@@ -77,7 +77,7 @@ export function collectLegacyMigrationCandidates(
 ): LegacyMigrationCandidate[] {
   const poolAccounts = (
     legacyAccount as unknown as {
-      account?: { poolAccounts?: Map<unknown, unknown[]> };
+      account?: { poolAccounts?: ReadonlyMap<unknown, readonly unknown[]> };
     }
   )?.account?.poolAccounts;
 

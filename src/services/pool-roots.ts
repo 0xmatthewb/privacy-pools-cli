@@ -33,7 +33,8 @@ const poolRootHistorySizeAbi = [
 
 const ROOT_HISTORY_SCAN_CAP = 64;
 const ROOT_HISTORY_BATCH_SIZE = 8;
-let historicalRootCache = new WeakMap<object, Map<string, Set<bigint>>>();
+const ROOT_HISTORY_BATCH_CONCURRENCY = 2;
+let historicalRootCache = new WeakMap<object, Map<string, Promise<Set<bigint>>>>();
 
 interface PoolRootReader {
   readContract(args: {
@@ -46,14 +47,14 @@ interface PoolRootReader {
 
 function getHistoricalRootCache(
   publicClient: PoolRootReader,
-): Map<string, Set<bigint>> | null {
+): Map<string, Promise<Set<bigint>>> | null {
   if (typeof publicClient !== "object" || publicClient === null) {
     return null;
   }
 
   let cache = historicalRootCache.get(publicClient);
   if (!cache) {
-    cache = new Map<string, Set<bigint>>();
+    cache = new Map<string, Promise<Set<bigint>>>();
     historicalRootCache.set(publicClient, cache);
   }
   return cache;
@@ -73,29 +74,44 @@ async function readHistoricalRoots(
   rootHistorySize: number,
 ): Promise<Set<bigint>> {
   const knownRoots = new Set<bigint>();
+  const batchStarts: number[] = [];
+
+  for (let batchStart = 0; batchStart < rootHistorySize; batchStart += ROOT_HISTORY_BATCH_SIZE) {
+    batchStarts.push(batchStart);
+  }
 
   for (
-    let batchStart = 0;
-    batchStart < rootHistorySize;
-    batchStart += ROOT_HISTORY_BATCH_SIZE
+    let groupStart = 0;
+    groupStart < batchStarts.length;
+    groupStart += ROOT_HISTORY_BATCH_CONCURRENCY
   ) {
-    const batchLength = Math.min(
-      ROOT_HISTORY_BATCH_SIZE,
-      rootHistorySize - batchStart,
+    const batchGroup = batchStarts.slice(
+      groupStart,
+      groupStart + ROOT_HISTORY_BATCH_CONCURRENCY,
     );
-    const batchRoots = await Promise.all(
-      Array.from({ length: batchLength }, (_, offset) =>
-        publicClient.readContract({
-          address: poolAddress,
-          abi: poolRootsAbi,
-          functionName: "roots",
-          args: [BigInt(batchStart + offset)],
-        }),
-      ),
+    const groupedRoots = await Promise.all(
+      batchGroup.map(async (batchStart) => {
+        const batchLength = Math.min(
+          ROOT_HISTORY_BATCH_SIZE,
+          rootHistorySize - batchStart,
+        );
+        return Promise.all(
+          Array.from({ length: batchLength }, (_, offset) =>
+            publicClient.readContract({
+              address: poolAddress,
+              abi: poolRootsAbi,
+              functionName: "roots",
+              args: [BigInt(batchStart + offset)],
+            }),
+          ),
+        );
+      }),
     );
 
-    for (const knownRoot of batchRoots) {
-      knownRoots.add(BigInt(knownRoot as bigint));
+    for (const batchRoots of groupedRoots) {
+      for (const knownRoot of batchRoots) {
+        knownRoots.add(BigInt(knownRoot as bigint));
+      }
     }
   }
 
@@ -103,7 +119,7 @@ async function readHistoricalRoots(
 }
 
 export function resetPoolRootCacheForTests(): void {
-  historicalRootCache = new WeakMap<object, Map<string, Set<bigint>>>();
+  historicalRootCache = new WeakMap<object, Map<string, Promise<Set<bigint>>>>();
 }
 
 export async function isKnownPoolRoot(
@@ -143,18 +159,25 @@ export async function isKnownPoolRoot(
 
   const cache = getHistoricalRootCache(publicClient);
   const cacheKey = historicalRootCacheKey(poolAddress, currentRoot, rootHistorySize);
-  const cachedRoots = cache?.get(cacheKey);
-  if (cachedRoots) {
-    return cachedRoots.has(root);
+  const cachedRoots =
+    cache?.get(cacheKey)
+    ?? Promise.resolve()
+      .then(async () => {
+        const historicalRoots = await readHistoricalRoots(
+          publicClient,
+          poolAddress,
+          rootHistorySize,
+        );
+        historicalRoots.add(currentRoot);
+        return historicalRoots;
+      });
+  if (!cache?.has(cacheKey)) {
+    cache?.set(cacheKey, cachedRoots);
   }
-
-  const historicalRoots = await readHistoricalRoots(
-    publicClient,
-    poolAddress,
-    rootHistorySize,
-  );
-  historicalRoots.add(currentRoot);
-  cache?.set(cacheKey, historicalRoots);
+  const historicalRoots = await cachedRoots.catch((error) => {
+    cache?.delete(cacheKey);
+    throw error;
+  });
   return historicalRoots.has(root);
 }
 

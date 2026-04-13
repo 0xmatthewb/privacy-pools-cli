@@ -87,6 +87,65 @@ describe("pool account mapping", () => {
     expect(getNextPoolAccountNumber(account, 9999n)).toBe(1);
   });
 
+  test("prefers direct scope lookups before compatibility scans", () => {
+    const scope = 2222n;
+    const live = commitment(
+      1n,
+      11n,
+      100n,
+      10n,
+      "0x1111111111111111111111111111111111111111111111111111111111111111",
+    );
+
+    class CountingMap<K, V> extends Map<K, V> {
+      getCalls = 0;
+      entriesCalls = 0;
+
+      override get(key: K): V | undefined {
+        this.getCalls += 1;
+        return super.get(key);
+      }
+
+      override entries(): IterableIterator<[K, V]> {
+        this.entriesCalls += 1;
+        return super.entries();
+      }
+    }
+
+    const poolAccounts = new CountingMap<bigint, any>([
+      [scope, [{ label: live.label as any, deposit: live, children: [] }]],
+    ]);
+    const account: PrivacyPoolAccount = {
+      masterKeys: [1n as any, 2n as any],
+      poolAccounts: poolAccounts as any,
+    };
+
+    expect(buildAllPoolAccountRefs(account, scope, [live])).toHaveLength(1);
+    expect(poolAccounts.getCalls).toBeGreaterThan(0);
+    expect(poolAccounts.entriesCalls).toBe(0);
+  });
+
+  test("keeps string-key compatibility fallback for stored legacy scope maps", () => {
+    const scope = 3333n;
+    const live = commitment(
+      2n,
+      22n,
+      200n,
+      20n,
+      "0x2222222222222222222222222222222222222222222222222222222222222222",
+    );
+    const account = {
+      poolAccounts: new Map([
+        [scope.toString() as any, [{ label: live.label as any, deposit: live, children: [] }]],
+      ]),
+    } as PrivacyPoolAccount;
+
+    const refs = buildAllPoolAccountRefs(account, scope, [live]);
+    expect(refs).toHaveLength(1);
+    expect(refs[0]?.label).toBe(live.label);
+    expect(getNextPoolAccountNumber(account, scope)).toBe(2);
+  });
+
   test("parsePoolAccountSelector accepts PA and numeric forms", () => {
     expect(parsePoolAccountSelector("PA-1")).toBe(1);
     expect(parsePoolAccountSelector("pa-12")).toBe(12);

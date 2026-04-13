@@ -152,4 +152,35 @@ describe("pool roots service", () => {
 
     expect(rootsReads).toBe(4);
   });
+
+  test("dedupes concurrent cold-miss root scans for the same client and pool", async () => {
+    const historicalRoot = 42n;
+    let rootsReads = 0;
+    const publicClient = {
+      async readContract(args: { functionName: string; args?: readonly unknown[] }) {
+        if (args.functionName === "currentRoot") {
+          return 7n;
+        }
+        if (args.functionName === "ROOT_HISTORY_SIZE") {
+          return 4;
+        }
+        if (args.functionName === "roots") {
+          rootsReads += 1;
+          await Bun.sleep(5);
+          const index = Number(args.args?.[0] ?? -1);
+          return index === 2 ? historicalRoot : 0n;
+        }
+        throw new Error(`unexpected function ${args.functionName}`);
+      },
+    };
+
+    const [first, second] = await Promise.all([
+      isKnownPoolRoot(publicClient, poolAddress, historicalRoot),
+      isKnownPoolRoot(publicClient, poolAddress, historicalRoot),
+    ]);
+
+    expect(first).toBe(true);
+    expect(second).toBe(true);
+    expect(rootsReads).toBe(4);
+  });
 });

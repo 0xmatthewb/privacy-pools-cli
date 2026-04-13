@@ -15,6 +15,7 @@ import {
   initializeAccountService,
   initializeAccountServiceWithState,
   getStoredLegacyReadinessStatus,
+  getStoredLegacyPoolAccounts,
   syncAccountEvents,
 } from "../../src/services/account.ts";
 import { CLIError } from "../../src/utils/errors.ts";
@@ -316,6 +317,18 @@ describe("account persistence", () => {
     );
 
     expect(needsLegacyAccountRebuild(11155111)).toBe(true);
+  });
+
+  test("getStoredLegacyPoolAccounts returns the stored legacy view without cloning", () => {
+    const legacyPoolAccounts = makeLegacyAccount().account.poolAccounts;
+    const stored = getStoredLegacyPoolAccounts({
+      poolAccounts: new Map(),
+      __privacyPoolsCliAccountVersion: ACCOUNT_FILE_VERSION,
+      __legacyPoolAccounts: legacyPoolAccounts,
+      __legacyMigrationReadinessStatus: "no_legacy",
+    } as any);
+
+    expect(stored).toBe(legacyPoolAccounts);
   });
 
   /* ---------------------------------------------------------------- */

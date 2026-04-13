@@ -11,8 +11,9 @@ import {
 } from "./statuses.js";
 
 interface PoolAccountLike extends Pick<PoolAccount, "deposit" | "children" | "ragequit" | "isMigrated"> {}
+type PoolAccountMap = ReadonlyMap<unknown, readonly PoolAccountLike[]>;
 interface PoolAccountSource {
-  poolAccounts?: Map<bigint, PoolAccount[]>;
+  poolAccounts?: PoolAccountMap;
 }
 
 export type { PoolAccountStatus, AspApprovalStatus } from "./statuses.js";
@@ -81,16 +82,28 @@ function isRagequitEvent(value: unknown): value is RagequitEvent {
   );
 }
 
+function asPoolAccounts(
+  value: readonly PoolAccountLike[] | unknown,
+): readonly PoolAccountLike[] | null {
+  return Array.isArray(value) ? (value as readonly PoolAccountLike[]) : null;
+}
+
 function getPoolAccountsForScope(
   account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
   scope: bigint
-): PoolAccountLike[] {
-  const map = account?.poolAccounts;
+): readonly PoolAccountLike[] {
+  const map = account?.poolAccounts as PoolAccountMap | undefined;
   if (!(map instanceof Map)) return [];
 
+  const directMatch = asPoolAccounts(map.get(scope));
+  if (directMatch) {
+    return directMatch;
+  }
+
   for (const [key, value] of map.entries()) {
-    if (key.toString() === scope.toString() && Array.isArray(value)) {
-      return value as PoolAccountLike[];
+    const compatibleMatch = asPoolAccounts(value);
+    if (key.toString() === scope.toString() && compatibleMatch) {
+      return compatibleMatch;
     }
   }
 
@@ -120,20 +133,34 @@ export function buildPoolAccountRefs(
   approvedLabels?: Set<string> | null,
   reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
 ): PoolAccountRef[] {
-  return buildAllPoolAccountRefs(account, scope, spendableCommitments, approvedLabels, reviewStatuses)
-    .filter((pa) =>
-      pa.isActionable !== false &&
-      pa.value > 0n &&
-      isActivePoolAccountStatus(pa.status)
-    );
+  return buildScopedPoolAccountRefs(
+    account,
+    scope,
+    spendableCommitments,
+    approvedLabels,
+    reviewStatuses,
+    false,
+  );
 }
 
-export function buildAllPoolAccountRefs(
+function shouldIncludePoolAccountRef(
+  ref: PoolAccountRef,
+  includeInactive: boolean,
+): boolean {
+  return includeInactive || (
+    ref.isActionable !== false &&
+    ref.value > 0n &&
+    isActivePoolAccountStatus(ref.status)
+  );
+}
+
+function buildScopedPoolAccountRefs(
   account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
   scope: bigint,
   spendableCommitments: readonly AccountCommitment[],
   approvedLabels?: Set<string> | null,
   reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
+  includeInactive: boolean = true,
 ): PoolAccountRef[] {
   const spendableByKey = new Map<string, AccountCommitment>();
   for (const commitment of spendableCommitments) {
@@ -187,7 +214,7 @@ export function buildAllPoolAccountRefs(
         ? "spent"
         : aspStatus;
 
-    refs.push({
+    const ref: PoolAccountRef = {
       paNumber: nextPoolAccountNumber,
       paId: poolAccountId(nextPoolAccountNumber),
       status,
@@ -199,7 +226,11 @@ export function buildAllPoolAccountRefs(
       value: ragequit ? 0n : commitment.value,
       blockNumber: ragequit ? ragequit.blockNumber : commitment.blockNumber,
       txHash: ragequit ? ragequit.transactionHash : commitment.txHash,
-    });
+    };
+
+    if (shouldIncludePoolAccountRef(ref, includeInactive)) {
+      refs.push(ref);
+    }
 
     if (spendable) {
       spendableByKey.delete(key);
@@ -212,7 +243,7 @@ export function buildAllPoolAccountRefs(
     const key = commitmentKey(commitment);
     if (!spendableByKey.has(key)) continue;
     const aspStatus = resolveAspStatus(commitment.label, commitment.value > 0n);
-    refs.push({
+    const ref: PoolAccountRef = {
       paNumber: nextPoolAccountNumber,
       paId: poolAccountId(nextPoolAccountNumber),
       status: commitment.value === 0n ? "spent" : aspStatus,
@@ -224,13 +255,33 @@ export function buildAllPoolAccountRefs(
       value: commitment.value,
       blockNumber: commitment.blockNumber,
       txHash: commitment.txHash,
-    });
+    };
+    if (shouldIncludePoolAccountRef(ref, includeInactive)) {
+      refs.push(ref);
+    }
     spendableByKey.delete(key);
     nextPoolAccountNumber++;
   }
 
   refs.sort((a, b) => a.paNumber - b.paNumber);
   return refs;
+}
+
+export function buildAllPoolAccountRefs(
+  account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
+  scope: bigint,
+  spendableCommitments: readonly AccountCommitment[],
+  approvedLabels?: Set<string> | null,
+  reviewStatuses?: ReadonlyMap<string, AspApprovalStatus> | null,
+): PoolAccountRef[] {
+  return buildScopedPoolAccountRefs(
+    account,
+    scope,
+    spendableCommitments,
+    approvedLabels,
+    reviewStatuses,
+    true,
+  );
 }
 
 export function describeUnavailablePoolAccount(
@@ -286,11 +337,15 @@ export function getNextPoolAccountNumber(
   account: PoolAccountSource | PrivacyPoolAccount | null | undefined,
   scope: bigint
 ): number {
-  return (
-    getPoolAccountsForScope(account, scope).filter(
-      (poolAccount) => !isHiddenMigratedPoolAccount(poolAccount),
-    ).length + 1
-  );
+  let visiblePoolAccounts = 0;
+  for (const poolAccount of getPoolAccountsForScope(account, scope)) {
+    if (isHiddenMigratedPoolAccount(poolAccount)) {
+      continue;
+    }
+    visiblePoolAccounts += 1;
+  }
+
+  return visiblePoolAccounts + 1;
 }
 
 export function buildDeclinedLegacyPoolAccountRefs(
