@@ -2,7 +2,6 @@ import type { Command } from "commander";
 import { confirm, select } from "@inquirer/prompts";
 import { type Hash as SDKHash } from "@0xbow/privacy-pools-core-sdk";
 import type { Hex, Address } from "viem";
-import { decodeEventLog, parseAbi } from "viem";
 import {
   resolveChain,
   parseAmount,
@@ -67,6 +66,7 @@ import {
   depositERC20,
   depositETH,
 } from "../services/contracts.js";
+import { decodeDepositReceiptLog } from "../services/deposit-events.js";
 import {
   getNextPoolAccountNumber,
   poolAccountId,
@@ -89,10 +89,6 @@ import {
   renderNarrativeSteps,
 } from "../output/progress.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
-
-const depositedEventAbi = parseAbi([
-  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
-]);
 
 interface DepositCommandOptions {
   asset?: string;
@@ -507,13 +503,13 @@ export async function handleDepositCommand(
         const spin = spinner("Approving token spend...", silent);
         spin.start();
         try {
-          const approveTx = await approveERC20(
+          const approveTx = await approveERC20({
             chainConfig,
-            pool.asset,
-            chainConfig.entrypoint,
+            tokenAddress: pool.asset,
+            spenderAddress: chainConfig.entrypoint,
             amount,
-            globalOpts?.rpcUrl,
-          );
+            rpcOverride: globalOpts?.rpcUrl,
+          });
           let approvalReceipt;
           try {
             approvalReceipt = await publicClient.waitForTransactionReceipt({
@@ -594,13 +590,12 @@ export async function handleDepositCommand(
             continue;
           }
           try {
-            const decoded = decodeEventLog({
-              abi: depositedEventAbi,
+            const decoded = decodeDepositReceiptLog({
               data: log.data,
               topics: log.topics,
             });
-            label = decoded.args._label;
-            committedValue = decoded.args._value;
+            label = decoded.label;
+            committedValue = decoded.value;
             break;
           } catch {
             // Not this event

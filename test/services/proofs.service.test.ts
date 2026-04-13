@@ -86,7 +86,12 @@ mock.module("../../src/services/circuits.ts", () => ({
   }),
 }));
 
-const { proveCommitment, proveWithdrawal } = await import(
+const {
+  deriveWithdrawalTreeDepths,
+  proveCommitment,
+  proveWithdrawal,
+  WITHDRAW_CIRCUIT_MAX_TREE_DEPTH,
+} = await import(
   "../../src/services/proofs.ts"
 );
 
@@ -294,6 +299,29 @@ describe("proofs service", () => {
         siblings: [4n, 5n, 6n],
         index: 7,
       },
+    });
+
+    test("derives withdrawal tree depths from the proof siblings", () => {
+      expect(
+        deriveWithdrawalTreeDepths(makeWithdrawalInput() as any),
+      ).toEqual({
+        stateTreeDepth: 3n,
+        aspTreeDepth: 3n,
+      });
+    });
+
+    test("rejects withdrawal proofs deeper than the bundled circuit max", () => {
+      const tooDeepProof = {
+        ...makeWithdrawalInput(),
+        stateMerkleProof: {
+          siblings: Array(Number(WITHDRAW_CIRCUIT_MAX_TREE_DEPTH) + 1).fill(1n),
+          index: 0,
+        },
+      };
+
+      expect(() =>
+        deriveWithdrawalTreeDepths(tooDeepProof as any),
+      ).toThrow(CLIError);
     });
 
     test("uses withdraw circuit artifacts", async () => {

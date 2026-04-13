@@ -23,6 +23,15 @@ type WithdrawalCall = {
   data: Hex;
 };
 
+type ApproveErc20Params = {
+  chainConfig: ChainConfig;
+  spenderAddress: Address;
+  tokenAddress: Address;
+  amount: bigint;
+  rpcOverride?: string;
+  privateKeyOverride?: string;
+};
+
 async function createWriteClients(
   chainConfig: ChainConfig,
   rpcOverride?: string,
@@ -81,13 +90,14 @@ async function submitContractWrite(params: {
   return { hash };
 }
 
-export async function approveERC20(
-  chainConfig: ChainConfig,
-  tokenAddress: Address,
-  spenderAddress: Address,
-  amount: bigint,
-  rpcOverride?: string,
-  privateKeyOverride?: string
+export async function approveERC20({
+  chainConfig,
+  spenderAddress,
+  tokenAddress,
+  amount,
+  rpcOverride,
+  privateKeyOverride,
+}: ApproveErc20Params
 ): Promise<TransactionResponse> {
   return submitContractWrite({
     chainConfig,

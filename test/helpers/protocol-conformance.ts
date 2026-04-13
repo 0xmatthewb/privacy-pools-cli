@@ -32,6 +32,10 @@ export const protocolCliSources = {
   ),
   contracts: readFileSync(resolve(CLI_ROOT, "src/services/contracts.ts"), "utf8"),
   deposit: readFileSync(resolve(CLI_ROOT, "src/commands/deposit.ts"), "utf8"),
+  depositEvents: readFileSync(
+    resolve(CLI_ROOT, "src/services/deposit-events.ts"),
+    "utf8",
+  ),
   installAnvilVerifier: readFileSync(
     resolve(CLI_ROOT, "scripts/verify-cli-install-anvil.mjs"),
     "utf8",
@@ -71,6 +75,7 @@ export interface ProtocolTruthSources {
     ASPSiblings: string[];
   };
   installedSdkCore: string;
+  installedSdkDataService: string;
   installedSdkIndex: string;
   installedSdkCrypto: string;
   installedSdkAccountService: string;
@@ -107,6 +112,13 @@ export async function loadProtocolTruthSources(): Promise<ProtocolTruthSources> 
     upstreamWithdrawInput: JSON.parse(rawInput),
     installedSdkCore: readFileSync(
       resolve(CLI_ROOT, "node_modules/@0xbow/privacy-pools-core-sdk/src/core/sdk.ts"),
+      "utf8",
+    ),
+    installedSdkDataService: readFileSync(
+      resolve(
+        CLI_ROOT,
+        "node_modules/@0xbow/privacy-pools-core-sdk/src/core/data.service.ts",
+      ),
       "utf8",
     ),
     installedSdkIndex: readFileSync(

@@ -17,7 +17,10 @@ import {
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
 import { getPublicClient, getDataService } from "../services/sdk.js";
-import { proveWithdrawal } from "../services/proofs.js";
+import {
+  deriveWithdrawalTreeDepths,
+  proveWithdrawal,
+} from "../services/proofs.js";
 import { withdrawDirect } from "../services/contracts.js";
 import {
   initializeAccountService,
@@ -1357,6 +1360,10 @@ export async function handleWithdrawCommand(
           "Re-run the withdrawal command to generate a fresh proof.",
         );
 
+        const { stateTreeDepth, aspTreeDepth } = deriveWithdrawalTreeDepths({
+          stateMerkleProof,
+          aspMerkleProof,
+        });
         const proof = await withProofProgress(
           spin,
           "Generating ZK proof",
@@ -1367,9 +1374,9 @@ export async function handleWithdrawCommand(
               stateMerkleProof,
               aspMerkleProof,
               stateRoot: stateProofRoot as unknown as SDKHash,
-              stateTreeDepth: 32n,
+              stateTreeDepth,
               aspRoot,
-              aspTreeDepth: 32n,
+              aspTreeDepth,
               newNullifier,
               newSecret,
             }, {
@@ -1828,6 +1835,10 @@ export async function handleWithdrawCommand(
         );
 
         const quoteValidLabel = formatRemainingTime(expirationMs);
+        const { stateTreeDepth, aspTreeDepth } = deriveWithdrawalTreeDepths({
+          stateMerkleProof,
+          aspMerkleProof,
+        });
         const proof = await withProofProgress(
           spin,
           `Generating ZK proof (quote valid for ${quoteValidLabel})`,
@@ -1838,9 +1849,9 @@ export async function handleWithdrawCommand(
               stateMerkleProof,
               aspMerkleProof,
               stateRoot: stateProofRoot as unknown as SDKHash,
-              stateTreeDepth: 32n,
+              stateTreeDepth,
               aspRoot,
-              aspTreeDepth: 32n,
+              aspTreeDepth,
               newNullifier,
               newSecret,
             }, {

@@ -275,14 +275,14 @@ describe("contracts service", () => {
     const spenderAddress =
       "0x2222222222222222222222222222222222222222" as Address;
     const amount = 1000000n;
-    const result = await approveERC20(
-      chain,
+    const result = await approveERC20({
+      chainConfig: chain,
       tokenAddress,
       spenderAddress,
       amount,
-      rpcServerUrl,
-      TEST_PRIVATE_KEY
-    );
+      rpcOverride: rpcServerUrl,
+      privateKeyOverride: TEST_PRIVATE_KEY,
+    });
 
     expect(result.hash).toBe(mockTxHash);
     expectSimulatedContractCall({
@@ -451,14 +451,14 @@ describe("contracts service", () => {
     const spenderAddress =
       "0x2222222222222222222222222222222222222222" as Address;
     const amount = 100n;
-    const result = await approveERC20(
-      chain,
+    const result = await approveERC20({
+      chainConfig: chain,
       tokenAddress,
       spenderAddress,
       amount,
-      rpcServerUrl,
-      TEST_OVERRIDE_PRIVATE_KEY
-    );
+      rpcOverride: rpcServerUrl,
+      privateKeyOverride: TEST_OVERRIDE_PRIVATE_KEY,
+    });
 
     expect(result.hash).toBe(mockTxHash);
     expect(getHealthyRpcUrlMock).toHaveBeenCalledWith(chain.id, rpcServerUrl);

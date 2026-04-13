@@ -8,14 +8,15 @@ import type { ChainConfig } from "../types.js";
 import { getRpcUrl, getRpcUrls, hasCustomRpcOverride } from "./config.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
 import { withSuppressedSdkStdout } from "./account.js";
+import {
+  CANONICAL_DEPOSIT_EVENT,
+  normalizeDepositEventArgs,
+} from "./deposit-events.js";
 
 const LOG_PROBE_ADDRESS = "0x0000000000000000000000000000000000000000";
 const LOG_PROBE_RANGE = 1_024n;
 const READ_ONLY_LATEST_BLOCK_TTL_MS = 1_000;
 
-const LOCAL_DEPOSIT_EVENT = parseAbiItem(
-  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)"
-);
 const LOCAL_WITHDRAWAL_EVENT = parseAbiItem(
   "event Withdrawn(address indexed _processooor, uint256 _value, uint256 _spentNullifier, uint256 _newCommitment)"
 );
@@ -401,39 +402,30 @@ class LocalCompatDataService {
     if (fromBlock === null) return [];
     const logs = await this.client.getLogs({
       address: pool.address,
-      event: LOCAL_DEPOSIT_EVENT,
+      event: CANONICAL_DEPOSIT_EVENT,
       fromBlock,
     });
 
     return logs.map((log) => {
-      const args = log.args as {
+      if (!log.blockNumber || !log.transactionHash) {
+        throw new Error("Malformed deposit log");
+      }
+
+      const normalized = normalizeDepositEventArgs(log.args as {
         _depositor?: string;
         _commitment?: bigint;
         _label?: bigint;
         _value?: bigint;
         _precommitmentHash?: bigint;
-      };
-
-      if (
-        !args?._depositor ||
-        args._commitment === undefined ||
-        args._commitment === null ||
-        args._label === undefined ||
-        args._label === null ||
-        !log.blockNumber ||
-        !log.transactionHash ||
-        args._precommitmentHash === undefined ||
-        args._precommitmentHash === null
-      ) {
-        throw new Error("Malformed deposit log");
-      }
+        _merkleRoot?: bigint;
+      });
 
       return {
-        depositor: args._depositor.toLowerCase(),
-        commitment: args._commitment,
-        label: args._label,
-        value: args._value ?? 0n,
-        precommitment: args._precommitmentHash,
+        depositor: normalized.depositor,
+        commitment: normalized.commitment,
+        label: normalized.label,
+        value: normalized.value,
+        precommitment: normalized.precommitment,
         blockNumber: BigInt(log.blockNumber),
         transactionHash: log.transactionHash as Hex,
       };

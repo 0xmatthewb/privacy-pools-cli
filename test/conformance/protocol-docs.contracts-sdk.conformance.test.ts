@@ -39,6 +39,7 @@ const {
   circuitAssets: cliCircuitAssets,
   contracts: cliContracts,
   deposit: cliDeposit,
+  depositEvents: cliDepositEvents,
   installAnvilVerifier: cliInstallAnvilVerifier,
   pools: cliPools,
   poolRoots: cliPoolRoots,
@@ -112,14 +113,22 @@ describe("protocol conformance: CLI ↔ upstream", () => {
     expect(truth().upstreamIState).toContain("SCOPE()");
   });
 
+  run("CLI explicitly bridges the installed SDK vs contract deposit event naming split", () => {
+    expect(truth().upstreamIPrivacyPool).toContain("_precommitmentHash");
+    expect(truth().installedSdkDataService).toContain("_merkleRoot");
+    expect(cliDepositEvents).toContain("_precommitmentHash");
+    expect(cliDepositEvents).toContain("_merkleRoot");
+  });
+
   // ---------------------------------------------------------------
   // 3. Tree depth: core circuits ↔ CLI hardcoded values
   // ---------------------------------------------------------------
 
-  run("CLI tree depth (32) matches upstream circuit config", () => {
+  run("CLI derives withdrawal tree depth from proof siblings while keeping the circuit max at 32", () => {
     expect(truth().upstreamCircuitsIndex).toContain("params: [32]");
-    expect(cliWithdraw).toContain("stateTreeDepth: 32n");
-    expect(cliWithdraw).toContain("aspTreeDepth: 32n");
+    expect(cliWithdraw).toContain("deriveWithdrawalTreeDepths");
+    expect(cliWorkflow).toContain("deriveWithdrawalTreeDepths");
+    expect(cliProofs).toContain("WITHDRAW_CIRCUIT_MAX_TREE_DEPTH = 32n");
     expect(truth().upstreamWithdrawInput.stateSiblings.length).toBe(32);
     expect(truth().upstreamWithdrawInput.ASPSiblings.length).toBe(32);
   });
@@ -196,26 +205,25 @@ describe("protocol conformance: CLI ↔ upstream", () => {
   // 9. IPrivacyPool.sol: events and structs ↔ CLI decoding
   // ---------------------------------------------------------------
 
-  run("CLI Deposited event signature shape matches upstream IPrivacyPool.sol", () => {
-    // The CLI hardcodes a parseAbi for the Deposited event in deposit.ts.
+  run("CLI canonical Deposited event signature matches upstream IPrivacyPool.sol", () => {
+    // The CLI now centralizes deposit-event decoding in deposit-events.ts.
     // If the upstream changes parameter types or indexed modifiers, the
     // CLI would silently decode events incorrectly, producing wrong account
-    // state.  This checks the full signature, not just parameter names.
-    expect(cliDeposit).toContain(DEPOSIT_EVENT_SIGNATURE);
+    // state. This checks the full signature, not just parameter names.
+    expect(cliDepositEvents).toContain(DEPOSIT_EVENT_SIGNATURE);
 
     expect(extractEventSignature(truth().upstreamIPrivacyPool, "Deposited")).toBe(
       DEPOSIT_EVENT_SIGNATURE,
     );
   });
 
-  run("all deposit event parser copies used by sync and install remain aligned with upstream", () => {
+  run("all canonical deposit event parser copies remain aligned with upstream", () => {
     expect(extractEventSignature(truth().upstreamIPrivacyPool, "Deposited")).toBe(
       DEPOSIT_EVENT_SIGNATURE,
     );
 
     for (const source of [
-      cliDeposit,
-      cliWorkflow,
+      cliDepositEvents,
       cliInstallAnvilVerifier,
       syncGateRpcServer,
     ]) {

@@ -1,9 +1,16 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import type { Address } from "viem";
-import { isKnownPoolRoot } from "../../src/services/pool-roots.ts";
+import {
+  isKnownPoolRoot,
+  resetPoolRootCacheForTests,
+} from "../../src/services/pool-roots.ts";
 
 describe("pool roots service", () => {
   const poolAddress = "0x0000000000000000000000000000000000000001" as Address;
+
+  afterEach(() => {
+    resetPoolRootCacheForTests();
+  });
 
   test("rejects zero root even when currentRoot is zero", async () => {
     let readCount = 0;
@@ -114,5 +121,35 @@ describe("pool roots service", () => {
       isKnownPoolRoot(publicClient, poolAddress, historicalRoot),
     ).resolves.toBe(true);
     expect(rootsIndices).toEqual([0, 1, 2]);
+  });
+
+  test("reuses the cached root history window for repeated checks on the same client", async () => {
+    const historicalRoot = 42n;
+    let rootsReads = 0;
+    const publicClient = {
+      async readContract(args: { functionName: string; args?: readonly unknown[] }) {
+        if (args.functionName === "currentRoot") {
+          return 7n;
+        }
+        if (args.functionName === "ROOT_HISTORY_SIZE") {
+          return 4;
+        }
+        if (args.functionName === "roots") {
+          rootsReads += 1;
+          const index = Number(args.args?.[0] ?? -1);
+          return index === 2 ? historicalRoot : 0n;
+        }
+        throw new Error(`unexpected function ${args.functionName}`);
+      },
+    };
+
+    await expect(
+      isKnownPoolRoot(publicClient, poolAddress, historicalRoot),
+    ).resolves.toBe(true);
+    await expect(
+      isKnownPoolRoot(publicClient, poolAddress, historicalRoot),
+    ).resolves.toBe(true);
+
+    expect(rootsReads).toBe(4);
   });
 });

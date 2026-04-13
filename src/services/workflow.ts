@@ -19,9 +19,7 @@ import {
 } from "@0xbow/privacy-pools-core-sdk";
 import type { Address, Hex } from "viem";
 import {
-  decodeEventLog,
   erc20Abi,
-  parseAbi,
   TransactionReceiptNotFoundError,
 } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
@@ -52,7 +50,12 @@ import {
   writePrivateFileAtomic,
 } from "./config.js";
 import { resolvePool } from "./pools.js";
-import { proveCommitment, proveWithdrawal } from "./proofs.js";
+import {
+  deriveWithdrawalTreeDepths,
+  proveCommitment,
+  proveWithdrawal,
+} from "./proofs.js";
+import { decodeDepositReceiptLog } from "./deposit-events.js";
 import {
   decodeValidatedRelayerWithdrawalData,
   getRelayerDetails,
@@ -144,10 +147,6 @@ import {
   WORKFLOW_SECRET_RECORD_VERSION,
   WORKFLOW_SNAPSHOT_VERSION,
 } from "./workflow-storage-version.js";
-
-const depositedEventAbi = parseAbi([
-  "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
-]);
 
 const entrypointLatestRootAbi = [
   {
@@ -1746,14 +1745,14 @@ async function executeDepositForFlow(params: {
       const approvalSpin = spinner("Approving token spend...", silent);
       approvalSpin.start();
       try {
-        const approveTx = await approveERC20(
+        const approveTx = await approveERC20({
           chainConfig,
-          pool.asset,
-          chainConfig.entrypoint,
+          tokenAddress: pool.asset,
+          spenderAddress: chainConfig.entrypoint,
           amount,
-          globalOpts?.rpcUrl,
-          privateKey,
-        );
+          rpcOverride: globalOpts?.rpcUrl,
+          privateKeyOverride: privateKey,
+        });
         const approvalReceipt = await publicClient.waitForTransactionReceipt({
           hash: approveTx.hash as `0x${string}`,
           timeout: getConfirmationTimeoutMs(),
@@ -1842,13 +1841,12 @@ async function executeDepositForFlow(params: {
     for (const log of receipt.logs) {
       if (log.address.toLowerCase() !== pool.pool.toLowerCase()) continue;
       try {
-        const decoded = decodeEventLog({
-          abi: depositedEventAbi,
+        const decoded = decodeDepositReceiptLog({
           data: log.data,
           topics: log.topics,
         });
-        label = decoded.args._label;
-        committedValue = decoded.args._value;
+        label = decoded.label;
+        committedValue = decoded.value;
         break;
       } catch {
         // Ignore unrelated logs.
@@ -2273,13 +2271,12 @@ export async function reconcilePendingDepositReceipt(params: {
   for (const log of receipt.logs) {
     if (log.address.toLowerCase() !== pool.pool.toLowerCase()) continue;
     try {
-      const decoded = decodeEventLog({
-        abi: depositedEventAbi,
+      const decoded = decodeDepositReceiptLog({
         data: log.data,
         topics: log.topics,
       });
-      depositLabel = decoded.args._label;
-      committedValue = decoded.args._value;
+      depositLabel = decoded.label;
+      committedValue = decoded.value;
       break;
     } catch {
       // Ignore unrelated logs.
@@ -3024,6 +3021,10 @@ export async function executeRelayedWithdrawalForFlow(params: {
     "Re-run 'privacy-pools flow watch' to generate a fresh proof.",
   );
 
+  const { stateTreeDepth, aspTreeDepth } = deriveWithdrawalTreeDepths({
+    stateMerkleProof,
+    aspMerkleProof,
+  });
   const proof = await withProofProgress(
     withdrawSpin,
     "Generating ZK proof",
@@ -3034,9 +3035,9 @@ export async function executeRelayedWithdrawalForFlow(params: {
         stateMerkleProof,
         aspMerkleProof,
         stateRoot: stateProofRoot as unknown as SDKHash,
-        stateTreeDepth: 32n,
+        stateTreeDepth,
         aspRoot: context.aspRoot,
-        aspTreeDepth: 32n,
+        aspTreeDepth,
         newNullifier,
         newSecret,
       }, {

@@ -22,6 +22,8 @@ type ProofOptions = {
   progress?: ProofProgressController;
 };
 
+export const WITHDRAW_CIRCUIT_MAX_TREE_DEPTH = 32n;
+
 type SnarkjsWitnessHandle = {
   type: "mem";
 };
@@ -183,6 +185,38 @@ function prepareWithdrawalInputSignals(
     stateIndex: BigInt(input.stateMerkleProof.index),
     ASPSiblings: input.aspMerkleProof.siblings,
     ASPIndex: BigInt(input.aspMerkleProof.index),
+  };
+}
+
+function deriveTreeDepthFromSiblings(
+  siblings: readonly bigint[],
+  label: "state" | "ASP",
+): bigint {
+  const depth = BigInt(siblings.length);
+  if (depth > WITHDRAW_CIRCUIT_MAX_TREE_DEPTH) {
+    throw new CLIError(
+      `Cannot build a withdrawal proof with ${label} tree depth ${depth}.`,
+      "PROOF",
+      `The bundled circuit supports up to ${WITHDRAW_CIRCUIT_MAX_TREE_DEPTH} levels.`,
+      "PROOF_GENERATION_FAILED",
+    );
+  }
+  return depth;
+}
+
+export function deriveWithdrawalTreeDepths(input: Pick<
+  WithdrawalProofInput,
+  "stateMerkleProof" | "aspMerkleProof"
+>): Pick<WithdrawalProofInput, "stateTreeDepth" | "aspTreeDepth"> {
+  return {
+    stateTreeDepth: deriveTreeDepthFromSiblings(
+      input.stateMerkleProof.siblings,
+      "state",
+    ),
+    aspTreeDepth: deriveTreeDepthFromSiblings(
+      input.aspMerkleProof.siblings,
+      "ASP",
+    ),
   };
 }
 

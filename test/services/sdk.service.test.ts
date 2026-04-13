@@ -692,6 +692,41 @@ describe("sdk service", () => {
       }]);
     });
 
+    test("local compatibility data service accepts the installed sdk deposit field naming", async () => {
+      const ds = await getDataService(
+        CHAINS.sepolia,
+        poolAddress,
+        "http://127.0.0.1:8545",
+      );
+
+      (ds as any).client = {
+        getBlockNumber: async () => 1_000n,
+        getLogs: async () => [{
+          args: {
+            _depositor: "0xAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaaAAaa",
+            _commitment: 11n,
+            _label: 22n,
+            _value: 33n,
+            _merkleRoot: 44n,
+          },
+          blockNumber: 55n,
+          transactionHash:
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        }],
+      };
+
+      await expect((ds as any).getDeposits(poolInfo)).resolves.toEqual([{
+        depositor: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        commitment: 11n,
+        label: 22n,
+        value: 33n,
+        precommitment: 44n,
+        blockNumber: 55n,
+        transactionHash:
+          "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      }]);
+    });
+
     test("local compatibility data service returns no logs when deployment block is still in the future", async () => {
       const ds = await getDataService(
         CHAINS.sepolia,

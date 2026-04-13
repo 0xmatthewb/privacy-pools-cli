@@ -137,17 +137,20 @@ describe("sdk dependency conformance", () => {
     expect(walletService).not.toContain("bytesToBigInt");
   });
 
-  test("local sdk compatibility parser mirrors the installed deposit event field naming", () => {
-    const sdkCompatSource = readFileSync(
-      `${CLI_ROOT}/src/services/sdk.ts`,
+  test("cli deposit compatibility adapter accepts both installed sdk and contract field naming", () => {
+    const depositEventCompatSource = readFileSync(
+      `${CLI_ROOT}/src/services/deposit-events.ts`,
       "utf8"
     );
-
-    expect(sdkCompatSource).toContain(
-      'event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)'
+    const installedDataService = readFileSync(
+      `${CLI_ROOT}/node_modules/@0xbow/privacy-pools-core-sdk/src/core/data.service.ts`,
+      "utf8",
     );
-    expect(sdkCompatSource).toContain("_precommitmentHash?: bigint");
-    expect(sdkCompatSource).toContain("precommitment: args._precommitmentHash");
+
+    expect(installedDataService).toContain("_merkleRoot");
+    expect(depositEventCompatSource).toContain("_precommitmentHash");
+    expect(depositEventCompatSource).toContain("_merkleRoot");
+    expect(depositEventCompatSource).toContain("normalizeDepositEventArgs");
   });
 
   test("cli source tree does not reimplement mnemonic master-key derivation or import local SDK copies", () => {
