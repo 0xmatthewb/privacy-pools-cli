@@ -26,11 +26,23 @@ const distRootFlagsModulePath = join(
   "utils",
   "root-global-flags.js",
 );
+const distCompletionShellModulePath = join(
+  repoRoot,
+  "dist",
+  "utils",
+  "completion-shell.js",
+);
 const sourceRootFlagsModulePath = join(
   repoRoot,
   "src",
   "utils",
   "root-global-flags.ts",
+);
+const sourceCompletionShellModulePath = join(
+  repoRoot,
+  "src",
+  "utils",
+  "completion-shell.ts",
 );
 const distJsonUtilsModulePath = join(
   repoRoot,
@@ -86,6 +98,13 @@ const nativeRootFlagsPath = join(
   "generated",
   "root-flags.json",
 );
+const nativeCompletionShellPath = join(
+  repoRoot,
+  "native",
+  "shell",
+  "generated",
+  "completion-shell.json",
+);
 
 const packageJsonPath = join(repoRoot, "package.json");
 
@@ -95,6 +114,9 @@ const metadataModulePath = existsSync(distModulePath)
 const rootFlagsModulePath = existsSync(distRootFlagsModulePath)
   ? distRootFlagsModulePath
   : sourceRootFlagsModulePath;
+const completionShellModulePath = existsSync(distCompletionShellModulePath)
+  ? distCompletionShellModulePath
+  : sourceCompletionShellModulePath;
 const jsonUtilsModulePath = existsSync(distJsonUtilsModulePath)
   ? distJsonUtilsModulePath
   : sourceJsonUtilsModulePath;
@@ -115,6 +137,9 @@ const {
 );
 const { ROOT_GLOBAL_FLAG_METADATA } = await import(
   pathToFileURL(rootFlagsModulePath).href
+);
+const { COMPLETION_SHELL_CONTRACT, SUPPORTED_COMPLETION_SHELLS } = await import(
+  pathToFileURL(completionShellModulePath).href
 );
 const { JSON_SCHEMA_VERSION } = await import(
   pathToFileURL(jsonUtilsModulePath).href
@@ -228,7 +253,6 @@ async function buildNativeShellManifest() {
 
   const {
     STATIC_COMPLETION_SPEC,
-    SUPPORTED_COMPLETION_SHELLS,
   } = await import(
     pathToFileURL(join(repoRoot, "dist", "utils", "completion-query.js")).href
   );
@@ -411,6 +435,11 @@ writeFileSync(
 writeFileSync(
   nativeRootFlagsPath,
   `${JSON.stringify(ROOT_GLOBAL_FLAG_METADATA, null, 2)}\n`,
+  "utf8",
+);
+writeFileSync(
+  nativeCompletionShellPath,
+  `${JSON.stringify(COMPLETION_SHELL_CONTRACT, null, 2)}\n`,
   "utf8",
 );
 

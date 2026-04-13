@@ -1,6 +1,39 @@
 use crate::root_argv::root_option_takes_value;
 use crate::CliError;
+use serde::Deserialize;
 use std::env;
+use std::sync::OnceLock;
+
+#[derive(Debug, Deserialize)]
+struct GeneratedCompletionShellRule {
+    shell: String,
+    matchers: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeneratedCompletionShellContract {
+    #[serde(rename = "supportedShells")]
+    supported_shells: Vec<String>,
+    #[serde(rename = "detectionRules")]
+    detection_rules: Vec<GeneratedCompletionShellRule>,
+    #[serde(rename = "windowsFallback")]
+    windows_fallback: String,
+    #[serde(rename = "defaultFallback")]
+    default_fallback: String,
+}
+
+static COMPLETION_SHELL_CONTRACT: OnceLock<GeneratedCompletionShellContract> = OnceLock::new();
+
+fn completion_shell_contract() -> &'static GeneratedCompletionShellContract {
+    COMPLETION_SHELL_CONTRACT.get_or_init(|| {
+        serde_json::from_str(include_str!("../generated/completion-shell.json"))
+            .expect("native shell completion contract must deserialize")
+    })
+}
+
+fn completion_shell_choices_text() -> String {
+    completion_shell_contract().supported_shells.join(", ")
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct CompletionQuerySpec {
@@ -244,12 +277,20 @@ pub(crate) fn parse_completion_script_spec(
 }
 
 pub(crate) fn parse_completion_shell(value: &str) -> Result<String, CliError> {
-    match value {
-        "bash" | "zsh" | "fish" | "powershell" => Ok(value.to_string()),
-        _ => Err(CliError::input(
+    if completion_shell_contract()
+        .supported_shells
+        .iter()
+        .any(|shell| shell == value)
+    {
+        Ok(value.to_string())
+    } else {
+        Err(CliError::input(
             format!("Unsupported shell '{value}'."),
-            Some("Supported shells: bash, zsh, fish, powershell".to_string()),
-        )),
+            Some(format!(
+                "Supported shells: {}",
+                completion_shell_choices_text()
+            )),
+        ))
     }
 }
 
@@ -264,18 +305,16 @@ fn detect_completion_shell_from_value(shell: &str) -> String {
 
 fn detect_completion_shell_from_value_for_platform(shell: &str, is_windows: bool) -> String {
     let shell = shell.to_lowercase();
-    if shell.contains("zsh") {
-        "zsh".to_string()
-    } else if shell.contains("fish") {
-        "fish".to_string()
-    } else if shell.contains("pwsh") || shell.contains("powershell") {
-        "powershell".to_string()
-    } else if shell.contains("bash") {
-        "bash".to_string()
-    } else if is_windows {
-        "powershell".to_string()
+    for rule in &completion_shell_contract().detection_rules {
+        if rule.matchers.iter().any(|matcher| shell.contains(matcher)) {
+            return rule.shell.clone();
+        }
+    }
+
+    if is_windows {
+        completion_shell_contract().windows_fallback.clone()
     } else {
-        "bash".to_string()
+        completion_shell_contract().default_fallback.clone()
     }
 }
 
@@ -508,6 +547,14 @@ mod tests {
         assert_eq!(
             detect_completion_shell_from_value_for_platform("", true),
             "powershell"
+        );
+    }
+
+    #[test]
+    fn completion_shell_choices_are_loaded_from_generated_contract() {
+        assert_eq!(
+            completion_shell_choices_text(),
+            "bash, zsh, fish, powershell"
         );
     }
 }

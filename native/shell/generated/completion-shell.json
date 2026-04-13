@@ -1,0 +1,37 @@
+{
+  "supportedShells": [
+    "bash",
+    "zsh",
+    "fish",
+    "powershell"
+  ],
+  "detectionRules": [
+    {
+      "shell": "zsh",
+      "matchers": [
+        "zsh"
+      ]
+    },
+    {
+      "shell": "fish",
+      "matchers": [
+        "fish"
+      ]
+    },
+    {
+      "shell": "powershell",
+      "matchers": [
+        "pwsh",
+        "powershell"
+      ]
+    },
+    {
+      "shell": "bash",
+      "matchers": [
+        "bash"
+      ]
+    }
+  ],
+  "windowsFallback": "powershell",
+  "defaultFallback": "bash"
+}
