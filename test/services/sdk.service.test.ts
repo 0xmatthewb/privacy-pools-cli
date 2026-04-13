@@ -839,8 +839,35 @@ describe("sdk service", () => {
         expect.objectContaining({
           commitment: 0n,
           label: 0n,
+          value: 0n,
         }),
       ]);
+    });
+
+    test("local compatibility ragequit parsing fails closed when _value is missing", async () => {
+      const ds = await getDataService(
+        CHAINS.sepolia,
+        poolAddress,
+        "http://127.0.0.1:8545",
+      );
+
+      (ds as any).client = {
+        getBlockNumber: async () => 1_000n,
+        getLogs: async () => [{
+          args: {
+            _ragequitter: "0xBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbBB",
+            _commitment: 99n,
+            _label: 111n,
+          },
+          blockNumber: 122n,
+          transactionHash:
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        }],
+      };
+
+      await expect((ds as any).getRagequits(poolInfo)).rejects.toThrow(
+        "Malformed ragequit log",
+      );
     });
 
     test("local compatibility data service rejects malformed logs", async () => {

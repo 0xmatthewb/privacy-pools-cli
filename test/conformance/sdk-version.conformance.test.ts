@@ -153,6 +153,15 @@ describe("sdk dependency conformance", () => {
     expect(depositEventCompatSource).toContain("normalizeDepositEventArgs");
   });
 
+  test("installed sdk still zero-fills remote deposit and ragequit values", () => {
+    const installedDataService = readFileSync(
+      `${CLI_ROOT}/node_modules/@0xbow/privacy-pools-core-sdk/src/core/data.service.ts`,
+      "utf8",
+    );
+
+    expect(installedDataService).toContain("value: value ?? BigInt(0)");
+  });
+
   test("cli source tree does not reimplement mnemonic master-key derivation or import local SDK copies", () => {
     const srcFiles = collectTsFiles(join(CLI_ROOT, "src"));
     const suspiciousDerivationFiles: string[] = [];

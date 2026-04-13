@@ -498,6 +498,8 @@ class LocalCompatDataService {
         args._commitment === null ||
         args._label === undefined ||
         args._label === null ||
+        args._value === undefined ||
+        args._value === null ||
         !log.blockNumber ||
         !log.transactionHash
       ) {
@@ -508,7 +510,7 @@ class LocalCompatDataService {
         ragequitter: args._ragequitter.toLowerCase(),
         commitment: args._commitment,
         label: args._label,
-        value: args._value ?? 0n,
+        value: args._value,
         blockNumber: BigInt(log.blockNumber),
         transactionHash: log.transactionHash as Hex,
       };
