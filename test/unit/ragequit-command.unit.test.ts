@@ -91,13 +91,13 @@ describe("ragequit command helpers", () => {
     expect(advisory?.message).toContain("private withdrawal");
   });
 
-  test("declined advisory marks ragequit as the only recovery path", () => {
+  test("declined advisory marks ragequit as the most common next action", () => {
     const advisory = getRagequitAdvisory(
       makePoolAccountRef({ status: "declined", aspStatus: "declined" }),
     );
 
     expect(advisory).not.toBeNull();
-    expect(advisory?.message).toContain("only recovery path");
+    expect(advisory?.message).toContain("most common next action");
   });
 
   test("unknown advisory stays silent", () => {

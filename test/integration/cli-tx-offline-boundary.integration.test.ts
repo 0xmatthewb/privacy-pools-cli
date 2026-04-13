@@ -58,7 +58,7 @@ function expectPoolResolutionFailure(
 describe("deposit command pipeline", () => {
   test("deposit --dry-run --json fails at ASP pool resolution", () => {
     const result = runCli(
-      ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
@@ -67,28 +67,28 @@ describe("deposit command pipeline", () => {
 
   test("deposit --unsigned --json fails at ASP pool resolution", () => {
     const result = runCli(
-      ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--chain", "sepolia"],
+      ["--json", "deposit", "0.01", "ETH", "--unsigned", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
     expectPoolResolutionFailure(result, json);
   });
 
-  test("deposit --unsigned --unsigned-format tx returns migration INPUT error", () => {
+  test("deposit --unsigned --unsigned-format tx is rejected as unknown option", () => {
     const result = runCli(
-      ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
+      ["--json", "deposit", "0.01", "ETH", "--unsigned", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     expect(result.status).toBe(2);
     const json = parseJsonOutput<{ success: boolean; errorMessage: string; error: { category: string } }>(result.stdout);
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
-    expect(json.errorMessage).toContain("--unsigned-format has been replaced");
+    expect(json.errorMessage).toContain("unsigned-format");
   });
 
-  test("deposit --unsigned-format returns migration INPUT error", () => {
+  test("deposit --unsigned-format is rejected as unknown option", () => {
     const result = runCli(
-      ["--json", "deposit", "0.01", "--asset", "ETH", "--unsigned-format", "tx", "--chain", "sepolia"],
+      ["--json", "deposit", "0.01", "ETH", "--unsigned-format", "tx", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     expect(result.status).toBe(2);
@@ -99,7 +99,7 @@ describe("deposit command pipeline", () => {
     }>(result.stdout);
     expect(json.success).toBe(false);
     expect(json.error.category).toBe("INPUT");
-    expect(json.errorMessage).toContain("--unsigned-format has been replaced");
+    expect(json.errorMessage).toContain("unsigned-format");
   });
 });
 
@@ -112,7 +112,7 @@ describe("withdraw command pipeline", () => {
     const result = runCli(
       [
         "--json", "withdraw", "0.01",
-        "--asset", "ETH", "--dry-run", "--direct",
+        "ETH", "--dry-run", "--direct",
         "--to", RECIPIENT, "--chain", "sepolia",
       ],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
@@ -125,7 +125,7 @@ describe("withdraw command pipeline", () => {
     const result = runCli(
       [
         "--json", "withdraw", "0.01",
-        "--asset", "ETH", "--unsigned", "--direct",
+        "ETH", "--unsigned", "--direct",
         "--to", RECIPIENT, "--chain", "sepolia",
       ],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
@@ -153,7 +153,7 @@ describe("withdraw command pipeline", () => {
     const result = runCli(
       [
         "--json", "withdraw", "0.01",
-        "--asset", "ETH", "--dry-run", "--direct",
+        "ETH", "--dry-run", "--direct",
         "--chain", "sepolia",
       ],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
@@ -170,7 +170,7 @@ describe("withdraw command pipeline", () => {
 describe("ragequit command pipeline", () => {
   test("ragequit --dry-run fails at ASP pool resolution", () => {
     const result = runCli(
-      ["--json", "ragequit", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--json", "ragequit", "ETH", "--dry-run", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
@@ -179,7 +179,7 @@ describe("ragequit command pipeline", () => {
 
   test("ragequit --unsigned fails at ASP pool resolution", () => {
     const result = runCli(
-      ["--json", "ragequit", "--asset", "ETH", "--unsigned", "--chain", "sepolia"],
+      ["--json", "ragequit", "ETH", "--unsigned", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);

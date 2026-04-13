@@ -24,7 +24,7 @@ describe("--dry-run flag acceptance", () => {
   test("deposit --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
-      ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
     expect(result.status).toBe(2);
@@ -48,7 +48,6 @@ describe("--dry-run flag acceptance", () => {
         "--json",
         "withdraw",
         "0.01",
-        "--asset",
         "ETH",
         "--dry-run",
         "--direct",
@@ -76,7 +75,7 @@ describe("--dry-run flag acceptance", () => {
   test("ragequit --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
-      ["--json", "ragequit", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--json", "ragequit", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
     expect(result.status).toBe(2);
@@ -96,7 +95,7 @@ describe("--dry-run flag acceptance", () => {
   test("deposit --dry-run --json produces valid JSON error envelope", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
-      ["--json", "deposit", "0.01", "--asset", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
     expect(result.status).toBe(2);
