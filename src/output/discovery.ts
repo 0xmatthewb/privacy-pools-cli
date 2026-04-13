@@ -164,6 +164,9 @@ export function renderHumanCommandDescription(
 
   writeListSection("JSON variants", descriptor.jsonVariants);
   writeListSection("Safety notes", descriptor.safetyNotes);
+  if (descriptor.agentRequiredFlags && descriptor.agentRequiredFlags.length > 0) {
+    writeListSection("Agent-required flags", descriptor.agentRequiredFlags);
+  }
   writeListSection("Agent workflow", descriptor.agentWorkflowNotes);
 
   const additionalModes: string[] = [];

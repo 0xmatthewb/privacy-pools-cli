@@ -9,6 +9,7 @@ import { allNonOptionTokens } from "./utils/root-argv.js";
 const ROOT_COMMAND_NAMES = [
   "init",
   "upgrade",
+  "config",
   "flow",
   "pools",
   "deposit",
@@ -37,6 +38,8 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
   init: async () => (await import("./command-shells/init.js")).createInitCommand(),
   upgrade: async () =>
     (await import("./command-shells/upgrade.js")).createUpgradeCommand(),
+  config: async () =>
+    (await import("./command-shells/config.js")).createConfigCommand(),
   flow: async () => (await import("./command-shells/flow.js")).createFlowCommand(),
   pools: async () => (await import("./command-shells/pools.js")).createPoolsCommand(),
   deposit: async () =>
@@ -172,6 +175,14 @@ export async function createRootProgram(
       rootGlobalFlagDescription("-v, --verbose"),
     ),
   );
+  // Commander interprets --no-xxx as negation of --xxx, setting
+  // opts().progress = false.  We handle this in resolveGlobalMode().
+  program.addOption(
+    new Option(
+      "--no-progress",
+      rootGlobalFlagDescription("--no-progress"),
+    ),
+  );
   program.addOption(
     new Option(
       "--no-banner",
@@ -194,6 +205,12 @@ export async function createRootProgram(
     new Option(
       "--jq <expression>",
       rootGlobalFlagDescription("--jq <expression>"),
+    ),
+  );
+  program.addOption(
+    new Option(
+      "--profile <name>",
+      rootGlobalFlagDescription("--profile <name>"),
     ),
   );
 

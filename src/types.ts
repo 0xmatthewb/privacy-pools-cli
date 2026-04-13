@@ -32,9 +32,11 @@ export interface GlobalOptions {
   quiet?: boolean;
   yes?: boolean;
   verbose?: boolean;
+  noProgress?: boolean;
   timeout?: string;
   format?: string;
   jq?: string;
+  profile?: string;
 }
 
 export type NextActionOptionValue = string | number | boolean | null;
@@ -144,6 +146,8 @@ export interface DetailedCommandDescriptor {
   supportsUnsigned: boolean;
   supportsDryRun: boolean;
   agentWorkflowNotes: string[];
+  /** Flags that agents must supply for unattended execution (no interactive fallback). */
+  agentRequiredFlags?: string[];
 }
 
 export interface ProtocolProfile {

@@ -91,6 +91,11 @@ export function getCommandExecutionMetadata(
 export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "init",
   "upgrade",
+  "config",
+  "config list",
+  "config get",
+  "config set",
+  "config path",
   "flow",
   "flow start",
   "flow watch",
@@ -345,6 +350,10 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
   "capabilities",
   "describe",
   "completion",
+  "config",
+  "config list",
+  "config get",
+  "config path",
   "pools",
   "activity",
   "stats",
@@ -360,6 +369,7 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
 const LOCAL_STATE_WRITE_COMMANDS = new Set<CommandPath>([
   "upgrade",
   "init",
+  "config set",
   "accounts",
   "history",
   "sync",
@@ -445,6 +455,7 @@ function descriptorSeed(path: CommandPath) {
     supportsUnsigned: metadata.help?.supportsUnsigned ?? false,
     supportsDryRun: metadata.help?.supportsDryRun ?? false,
     agentWorkflowNotes: metadata.help?.agentWorkflowNotes ?? [],
+    agentRequiredFlags: capabilities.agentRequiredFlags,
   };
 }
 
@@ -473,6 +484,7 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     supportsUnsigned: seed.supportsUnsigned,
     supportsDryRun: seed.supportsDryRun,
     agentWorkflowNotes: seed.agentWorkflowNotes,
+    ...(seed.agentRequiredFlags ? { agentRequiredFlags: seed.agentRequiredFlags } : {}),
   };
 }
 
