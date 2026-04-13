@@ -13,6 +13,7 @@ import {
   parseRootArgv,
   readLongOptionValue,
 } from "./utils/root-argv.js";
+import { setActiveProfile } from "./runtime/config-paths.js";
 import {
   cliMainHelperInternals,
 } from "./runtime/cli-main-helpers.js";
@@ -34,6 +35,12 @@ export async function runCli(
   pkg: CliPackageInfo,
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
+  // Activate --profile before any config loading.
+  const profileValue = readLongOptionValue(argv, "--profile");
+  if (profileValue) {
+    setActiveProfile(profileValue);
+  }
+
   const parsedArgv = parseRootArgv(argv);
   const {
     firstCommandToken,
@@ -194,6 +201,7 @@ export const cliMainTestInternals = {
     "--yes",
     "--no-banner",
     "--no-color",
+    "--no-progress",
   ]),
   isWelcomeShortFlagBundle,
   firstNonOptionToken,

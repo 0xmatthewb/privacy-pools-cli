@@ -31,8 +31,13 @@ export function makeMode(
     isCsv: false,
     isWide: false,
     isQuiet: false,
+    noProgress: false,
+    isVerbose: false,
+    verboseLevel: 0,
     format: "table" as const,
     skipPrompts: false,
+    jsonFields: null,
+    jqExpression: null,
     ...overrides,
   };
 }

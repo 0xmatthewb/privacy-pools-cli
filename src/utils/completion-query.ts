@@ -1,6 +1,10 @@
-import { CHAIN_NAMES } from "../config/chains.js";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { CHAIN_NAMES, CHAINS } from "../config/chains.js";
 import { FLOW_PRIVACY_DELAY_PROFILES } from "./flow-privacy-delay.js";
 import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
+import { resolveConfigHome } from "../runtime/config-paths.js";
+import { loadAccount } from "../services/account-storage.js";
 
 export const SUPPORTED_COMPLETION_SHELLS = [
   "bash",
@@ -99,8 +103,10 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionOption("-q, --quiet"),
       completionOption("--no-banner"),
       completionOption("-v, --verbose"),
+      completionOption("--no-progress"),
       completionOption("--timeout <seconds>"),
       completionOption("--no-color"),
+      completionOption("--profile <name>"),
       completionOption("-V, --version"),
     ],
     subcommands: [
@@ -119,7 +125,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         ],
       }),
       completionCommand("upgrade", {
-        options: [completionOption("--check")],
+        options: [completionOption("--check"), completionOption("--changelog")],
       }),
       completionCommand("flow", {
         subcommands: [
@@ -382,6 +388,83 @@ function filterByPrefix(candidates: string[], prefix: string): string[] {
   );
 }
 
+function isPoolAccountOption(option: CompletionOptionSpec): boolean {
+  return option.names.some((n) => n === "--pool-account" || n === "-p");
+}
+
+/**
+ * Read local account state and return PA-1, PA-2, ... candidates.
+ * This is a fast, silent, local-only operation -- no network calls.
+ */
+function dynamicPoolAccountCandidates(words: string[]): string[] {
+  try {
+    const configHome = resolveConfigHome();
+    const accountsDir = join(configHome, "accounts");
+    if (!existsSync(accountsDir)) return [];
+
+    // Resolve chain from preceding args or default config.
+    let chainId: number | null = null;
+    for (let i = 0; i < words.length - 1; i++) {
+      const token = words[i];
+      if (token === "--chain" || token === "-c") {
+        const chainName = words[i + 1];
+        const chain = chainName ? CHAINS[chainName] : undefined;
+        if (chain) { chainId = chain.id; break; }
+      }
+    }
+
+    if (chainId === null) {
+      // Try default chain from config.
+      try {
+        const configPath = join(configHome, "config.json");
+        if (existsSync(configPath)) {
+          const raw = readFileSync(configPath, "utf-8");
+          const parsed = JSON.parse(raw);
+          const defaultChain = parsed?.defaultChain;
+          if (typeof defaultChain === "string" && CHAINS[defaultChain]) {
+            chainId = CHAINS[defaultChain].id;
+          }
+        }
+      } catch { /* silent */ }
+    }
+
+    if (chainId === null) {
+      // Scan all account files and merge.
+      const files = readdirSync(accountsDir).filter((f) => f.endsWith(".json"));
+      const allPaNums = new Set<number>();
+      for (const file of files) {
+        const cid = Number(file.replace(".json", ""));
+        if (!Number.isInteger(cid)) continue;
+        const count = countPoolAccounts(cid);
+        for (let i = 1; i <= count; i++) allPaNums.add(i);
+      }
+      return Array.from(allPaNums).sort((a, b) => a - b).map((n) => `PA-${n}`);
+    }
+
+    const count = countPoolAccounts(chainId);
+    if (count === 0) return [];
+    return Array.from({ length: count }, (_, i) => `PA-${i + 1}`);
+  } catch {
+    return [];
+  }
+}
+
+function countPoolAccounts(chainId: number): number {
+  try {
+    const account = loadAccount(chainId);
+    if (!account) return 0;
+    const poolAccounts = account.poolAccounts;
+    if (!(poolAccounts instanceof Map)) return 0;
+    let total = 0;
+    for (const [, value] of poolAccounts) {
+      if (Array.isArray(value)) total += value.length;
+    }
+    return total;
+  } catch {
+    return 0;
+  }
+}
+
 export function queryCompletionCandidates(
   wordsInput: string[],
   cwordInput?: number,
@@ -407,14 +490,25 @@ export function queryCompletionCandidates(
     const flag = currentToken.slice(0, equalsIndex);
     const valuePrefix = currentToken.slice(equalsIndex + 1);
     const option = findOption(flag, current, tree);
-    if (option && option.values.length > 0) {
-      return filterByPrefix(option.values, valuePrefix).map(
-        (value) => `${flag}=${value}`,
-      );
+    if (option) {
+      const values = isPoolAccountOption(option)
+        ? dynamicPoolAccountCandidates(words)
+        : option.values;
+      if (values.length > 0) {
+        return filterByPrefix(values, valuePrefix).map(
+          (value) => `${flag}=${value}`,
+        );
+      }
     }
   }
 
   if (expectingValueFor) {
+    if (isPoolAccountOption(expectingValueFor)) {
+      const dynamicValues = dynamicPoolAccountCandidates(words);
+      if (dynamicValues.length > 0) {
+        return filterByPrefix(dynamicValues, currentToken);
+      }
+    }
     if (expectingValueFor.values.length === 0) return [];
     return filterByPrefix(expectingValueFor.values, currentToken);
   }

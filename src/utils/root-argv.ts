@@ -173,6 +173,9 @@ export function parseRootPreludeLongOption(
     case "--verbose":
       globalOpts.verbose = true;
       return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--no-progress":
+      globalOpts.noProgress = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
     case "--no-banner":
     case "--no-color":
       return { consumedNext: false, helpLike: false, versionLike: false };
@@ -211,6 +214,14 @@ export function parseRootPreludeLongOption(
       }
       if (nextToken === undefined) return null;
       globalOpts.timeout = nextToken;
+      return { consumedNext: true, helpLike: false, versionLike: false };
+    case "--profile":
+      if (inlineValue !== undefined) {
+        globalOpts.profile = inlineValue;
+        return { consumedNext: false, helpLike: false, versionLike: false };
+      }
+      if (nextToken === undefined) return null;
+      globalOpts.profile = nextToken;
       return { consumedNext: true, helpLike: false, versionLike: false };
     default:
       return null;
@@ -324,6 +335,36 @@ export function parseValidatedRootPrelude(
   };
 }
 
+/**
+ * Count `-v` / `--verbose` occurrences in argv for multi-level verbosity.
+ * Supports bundled short flags (e.g. `-vv` = 2, `-vvv` = 3) and repeated
+ * flags (`-v -v` = 2, `--verbose --verbose` = 2).
+ */
+function countVerboseFlags(argv: string[]): number {
+  const rootArgs = rootArgvSlice(argv);
+  let count = 0;
+  for (const token of rootArgs) {
+    if (token === "--verbose") {
+      count++;
+    } else if (token === "-v") {
+      count++;
+    } else if (/^-[A-Za-z]+$/.test(token) && !token.startsWith("--")) {
+      // Bundled short flags: count each 'v'
+      for (const ch of token.slice(1)) {
+        if (ch === "v") count++;
+      }
+    }
+  }
+  return count;
+}
+
+let _parsedVerboseLevel = 0;
+
+/** Returns the verbose level computed during parseRootArgv (0, 1, 2, 3+). */
+export function getParsedVerboseLevel(): number {
+  return _parsedVerboseLevel;
+}
+
 export function parseRootArgv(argv: string[]): ParsedRootArgv {
   const rootArgs = rootArgvSlice(argv);
   const firstCommandToken = firstNonOptionToken(argv);
@@ -355,6 +396,8 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
   const suppressBanner = rootArgs.includes("--no-banner");
   const isQuiet = rootArgs.includes("--quiet") || hasShortFlag(argv, "q");
   const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
+
+  _parsedVerboseLevel = countVerboseFlags(argv);
 
   return {
     argv,

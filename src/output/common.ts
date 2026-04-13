@@ -44,6 +44,8 @@ export interface OutputContext {
   mode: ResolvedGlobalMode;
   /** True when verbose output is requested. */
   isVerbose: boolean;
+  /** Verbose level: 0=off, 1=info, 2=debug, 3=trace. */
+  verboseLevel: number;
 }
 
 /**
@@ -53,7 +55,7 @@ export function createOutputContext(
   mode: ResolvedGlobalMode,
   isVerbose: boolean = false,
 ): OutputContext {
-  return { mode, isVerbose };
+  return { mode, isVerbose, verboseLevel: mode.verboseLevel };
 }
 
 /**

@@ -86,6 +86,62 @@ export function parseAmount(
   }
 }
 
+export interface ResolvedAddress {
+  address: `0x${string}`;
+  ensName?: string;
+}
+
+/**
+ * Resolve an input string to an Ethereum address.
+ *
+ * If the input is already a valid hex address, returns it directly.
+ * If it contains a dot (e.g. `vitalik.eth`), attempts ENS resolution on
+ * mainnet.  ENS always resolves on L1 regardless of `--chain`.
+ *
+ * Uses dynamic imports for viem/ens to keep startup fast.
+ */
+export async function resolveAddressOrEns(
+  input: string,
+  label?: string,
+): Promise<ResolvedAddress> {
+  // Already a valid address — fast path, no dynamic import needed.
+  if (isAddress(input)) {
+    return { address: validateAddress(input, label) };
+  }
+
+  // Try ENS resolution for names containing a dot (e.g. name.eth, name.xyz).
+  if (input.includes(".")) {
+    const { createPublicClient, http } = await import("viem");
+    const { mainnet } = await import("viem/chains");
+    const { normalize } = await import("viem/ens");
+
+    const client = createPublicClient({
+      chain: mainnet,
+      transport: http(),
+    });
+
+    try {
+      const resolved = await client.getEnsAddress({
+        name: normalize(input),
+      });
+      if (resolved) {
+        return { address: resolved, ensName: input };
+      }
+    } catch {
+      // Fall through to error
+    }
+
+    throw new CLIError(
+      `Could not resolve ENS name "${input}".`,
+      "INPUT",
+      "Verify the name exists and try again. ENS resolution requires mainnet connectivity.",
+    );
+  }
+
+  // Neither a valid address nor an ENS-like name.
+  return { address: validateAddress(input, label) };
+}
+
 export function validatePositive(value: bigint, label: string = "Amount"): void {
   if (value <= 0n) {
     throw new CLIError(

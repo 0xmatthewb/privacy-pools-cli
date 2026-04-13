@@ -55,7 +55,13 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
   },
   {
     flag: "-v, --verbose",
-    description: "Enable verbose/debug output",
+    description: "Enable verbose/debug output (-v info, -vv debug, -vvv trace)",
+    takesValue: false,
+    welcomeBoolean: true,
+  },
+  {
+    flag: "--no-progress",
+    description: "Suppress spinners/progress indicators (useful in CI)",
     takesValue: false,
     welcomeBoolean: true,
   },
@@ -76,6 +82,12 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
     description: "Disable colored output (also respects NO_COLOR env var)",
     takesValue: false,
     welcomeBoolean: true,
+  },
+  {
+    flag: "--profile <name>",
+    description: "Use a named profile (separate wallet identity and config)",
+    takesValue: true,
+    welcomeBoolean: false,
   },
 ] as const;
 

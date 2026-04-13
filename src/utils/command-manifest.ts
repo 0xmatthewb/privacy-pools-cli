@@ -12,6 +12,11 @@ export interface GeneratedCommandRoute {
 export const GENERATED_COMMAND_PATHS = [
   "init",
   "upgrade",
+  "config",
+  "config list",
+  "config get",
+  "config set",
+  "config path",
   "flow",
   "flow start",
   "flow watch",
@@ -50,6 +55,11 @@ export const GENERATED_ROOT_COMMANDS = [
     "name": "upgrade",
     "aliases": [],
     "description": "Check npm for updates or upgrade this CLI"
+  },
+  {
+    "name": "config",
+    "aliases": [],
+    "description": "View and manage CLI configuration"
   },
   {
     "name": "flow",
@@ -154,6 +164,36 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "upgrade": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config list": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config get": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config set": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config path": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -357,6 +397,61 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlags": "--agent [--check] [--yes]",
       "requiresInit": false,
       "expectedLatencyClass": "medium"
+    },
+    {
+      "name": "config",
+      "description": "View and manage CLI configuration",
+      "usage": "config",
+      "flags": [
+        "list",
+        "get <key>",
+        "set <key> [value]",
+        "path"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "config list",
+      "description": "List all configuration keys and their current values",
+      "usage": "config list",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "config get",
+      "description": "Read a single configuration key",
+      "usage": "config get <key>",
+      "flags": [
+        "--reveal"
+      ],
+      "agentFlags": "--agent [--reveal]",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "config set",
+      "description": "Write a single configuration key",
+      "usage": "config set <key> [value]",
+      "flags": [
+        "--file <path>",
+        "--stdin"
+      ],
+      "agentFlags": "--agent --file <path> | --stdin",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "config path",
+      "description": "Print the configuration directory path",
+      "usage": "config path",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
     },
     {
       "name": "flow",
@@ -683,6 +778,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -690,8 +786,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -701,13 +800,28 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresHumanReview": true,
       "prerequisites": [],
       "examples": [
-        "privacy-pools init",
-        "privacy-pools init --yes --default-chain mainnet",
-        "privacy-pools init --force --yes --default-chain mainnet",
-        "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
-        "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
-        "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
-        "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools init",
+            "privacy-pools init --yes --default-chain mainnet",
+            "privacy-pools init --force --yes --default-chain mainnet"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase"
+          ]
+        },
+        {
+          "category": "Import existing keys",
+          "commands": [
+            "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
+            "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
+            "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
+          ]
+        }
       ],
       "jsonFields": "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
@@ -740,6 +854,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -747,8 +862,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -762,11 +880,21 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "prerequisites": [],
       "examples": [
-        "privacy-pools upgrade --check",
-        "privacy-pools upgrade",
-        "privacy-pools upgrade --yes",
-        "privacy-pools upgrade --agent --check",
-        "privacy-pools upgrade --agent --yes"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools upgrade --check",
+            "privacy-pools upgrade",
+            "privacy-pools upgrade --yes"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools upgrade --agent --check",
+            "privacy-pools upgrade --agent --yes"
+          ]
+        }
       ],
       "jsonFields": "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
@@ -781,6 +909,260 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "In machine modes, upgrade is check-only unless --yes is explicitly present.",
         "Treat status = ready as an available update on a supported global npm install, status = manual as an available update requiring manual follow-up, and status = upgraded as a completed install that still requires a fresh CLI invocation."
       ]
+    },
+    "config": {
+      "command": "config",
+      "description": "View and manage CLI configuration",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config",
+      "flags": [
+        "list",
+        "get <key>",
+        "set <key> [value]",
+        "path"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config list",
+        "privacy-pools config get default-chain",
+        "privacy-pools config set default-chain arbitrum",
+        "privacy-pools config path"
+      ],
+      "jsonFields": null,
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "config list": {
+      "command": "config list",
+      "description": "List all configuration keys and their current values",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config list",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config list",
+        "privacy-pools config list --agent"
+      ],
+      "jsonFields": "{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir }",
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "config get": {
+      "command": "config get",
+      "description": "Read a single configuration key",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config get <key>",
+      "flags": [
+        "--reveal"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config get default-chain",
+        "privacy-pools config get rpc-override.mainnet",
+        "privacy-pools config get recovery-phrase --reveal",
+        "privacy-pools config get signer-key --reveal"
+      ],
+      "jsonFields": null,
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "config set": {
+      "command": "config set",
+      "description": "Write a single configuration key",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config set <key> [value]",
+      "flags": [
+        "--file <path>",
+        "--stdin"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config set default-chain arbitrum",
+        "privacy-pools config set rpc-override.mainnet https://my-rpc.example.com",
+        "privacy-pools config set recovery-phrase --file ./phrase.txt",
+        "cat key.txt | privacy-pools config set signer-key --stdin"
+      ],
+      "jsonFields": null,
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Sensitive keys are never accepted as positional arguments to prevent shell history leakage.",
+        "In non-interactive mode, --file or --stdin is required for sensitive keys."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "config path": {
+      "command": "config path",
+      "description": "Print the configuration directory path",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config path",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config path",
+        "privacy-pools config path --agent"
+      ],
+      "jsonFields": "{ configDir }",
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
     },
     "flow": {
       "command": "flow",
@@ -802,6 +1184,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -809,8 +1192,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -857,6 +1243,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -864,8 +1251,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -877,11 +1267,26 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "init"
       ],
       "examples": [
-        "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
-        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
-        "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet",
-        "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
-        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+            "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet"
+          ]
+        },
+        {
+          "category": "With options",
+          "commands": [
+            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
+            "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent"
+          ]
+        }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
@@ -904,6 +1309,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentWorkflowNotes": [
         "With --new-wallet, the flow stays attached automatically and waits for funding, deposit, approval, and withdrawal unless you detach with Ctrl-C.",
         "Use --watch to stay attached on configured-wallet workflows; otherwise the workflow is persisted locally and flow watch <workflowId> is the canonical resume path."
+      ],
+      "agentRequiredFlags": [
+        "--to"
       ]
     },
     "flow watch": {
@@ -924,6 +1332,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -931,8 +1340,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -948,10 +1360,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "init"
       ],
       "examples": [
-        "privacy-pools flow watch",
-        "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
-        "privacy-pools flow watch latest --agent",
-        "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools flow watch",
+            "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000"
+          ]
+        },
+        {
+          "category": "With options",
+          "commands": [
+            "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
+            "privacy-pools flow watch latest --agent"
+          ]
+        }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
@@ -987,6 +1409,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -994,8 +1417,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -1035,6 +1461,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1042,8 +1469,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1096,6 +1526,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1103,8 +1534,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1114,12 +1548,27 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
-        "privacy-pools pools",
-        "privacy-pools pools ETH",
-        "privacy-pools pools BOLD --chain mainnet",
-        "privacy-pools pools --all-chains --sort tvl-desc",
-        "privacy-pools pools --search usdc --sort asset-asc",
-        "privacy-pools pools --agent --chain mainnet"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools pools",
+            "privacy-pools pools ETH",
+            "privacy-pools pools BOLD --chain mainnet"
+          ]
+        },
+        {
+          "category": "Search and sort",
+          "commands": [
+            "privacy-pools pools --all-chains --sort tvl-desc",
+            "privacy-pools pools --search usdc --sort asset-asc"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools pools --agent --chain mainnet"
+          ]
+        }
       ],
       "jsonFields": "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
@@ -1155,6 +1604,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1162,8 +1612,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1173,10 +1626,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
-        "privacy-pools activity",
-        "privacy-pools activity --page 2 --limit 20",
-        "privacy-pools activity --asset ETH",
-        "privacy-pools activity --asset USDC --agent --chain mainnet"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools activity",
+            "privacy-pools activity --page 2 --limit 20",
+            "privacy-pools activity --asset ETH"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools activity --asset USDC --agent --chain mainnet"
+          ]
+        }
       ],
       "jsonFields": "{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
@@ -1206,6 +1669,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1213,8 +1677,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1252,6 +1719,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [],
       "globalFlags": [
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1259,8 +1727,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1300,6 +1771,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1307,8 +1779,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1348,6 +1823,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1355,8 +1831,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -1366,11 +1845,21 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
-        "privacy-pools status",
-        "privacy-pools status --check",
-        "privacy-pools status --no-check",
-        "privacy-pools status --agent --check-rpc",
-        "privacy-pools status --chain mainnet --rpc-url https://..."
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools status",
+            "privacy-pools status --check",
+            "privacy-pools status --no-check"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools status --agent --check-rpc",
+            "privacy-pools status --chain mainnet --rpc-url https://..."
+          ]
+        }
       ],
       "jsonFields": "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
       "jsonVariants": [],
@@ -1395,6 +1884,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1402,8 +1892,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -1441,6 +1934,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1448,8 +1942,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -1486,6 +1983,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1493,8 +1991,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -1534,6 +2035,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1541,8 +2043,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1558,12 +2063,27 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "init"
       ],
       "examples": [
-        "privacy-pools deposit 0.1 ETH",
-        "privacy-pools deposit 100 USDC",
-        "privacy-pools deposit 0.05 ETH --agent",
-        "privacy-pools deposit 0.1 ETH --unsigned",
-        "privacy-pools deposit 0.1 ETH --dry-run",
-        "privacy-pools deposit 0.1 --asset ETH --chain mainnet"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools deposit 0.1 ETH",
+            "privacy-pools deposit 100 USDC"
+          ]
+        },
+        {
+          "category": "With options",
+          "commands": [
+            "privacy-pools deposit 0.1 --asset ETH --chain mainnet",
+            "privacy-pools deposit 0.1 ETH --dry-run"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools deposit 0.05 ETH --agent",
+            "privacy-pools deposit 0.1 ETH --unsigned"
+          ]
+        }
       ],
       "jsonFields": "{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
@@ -1608,6 +2128,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1615,8 +2136,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1632,13 +2156,33 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "init (account state should be synced)"
       ],
       "examples": [
-        "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
-        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2",
-        "privacy-pools withdraw --all ETH --to 0xRecipient...",
-        "privacy-pools withdraw 50% ETH --to 0xRecipient...",
-        "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
-        "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
-        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
+            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2"
+          ]
+        },
+        {
+          "category": "Amount variants",
+          "commands": [
+            "privacy-pools withdraw --all ETH --to 0xRecipient...",
+            "privacy-pools withdraw 50% ETH --to 0xRecipient..."
+          ]
+        },
+        {
+          "category": "With options",
+          "commands": [
+            "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
+            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet"
+          ]
+        },
+        {
+          "category": "Quote",
+          "commands": [
+            "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
+          ]
+        }
       ],
       "jsonFields": "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
@@ -1658,6 +2202,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentWorkflowNotes": [
         "If the CLI is interrupted after proof generation but before submission completes, re-run withdraw to generate a fresh proof and re-evaluate the current account state.",
         "If a direct or relayed withdrawal transaction was submitted but confirmation timed out, run sync --chain <chain> before retrying so local state can detect the onchain result."
+      ],
+      "agentRequiredFlags": [
+        "--to"
       ]
     },
     "withdraw quote": {
@@ -1678,6 +2225,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1685,8 +2233,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "medium",
@@ -1733,6 +2284,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1740,8 +2292,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1753,10 +2308,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "init (account state should be synced)"
       ],
       "examples": [
-        "privacy-pools ragequit ETH --pool-account PA-1",
-        "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
-        "privacy-pools ragequit ETH --dry-run --pool-account PA-1",
-        "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools ragequit ETH --pool-account PA-1",
+            "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet"
+          ]
+        },
+        {
+          "category": "Advanced modes",
+          "commands": [
+            "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
+            "privacy-pools ragequit ETH --dry-run --pool-account PA-1"
+          ]
+        }
       ],
       "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
@@ -1765,12 +2330,15 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }"
       ],
       "safetyNotes": [
-        "Ragequit is public and irreversible and reveals the original deposit address onchain."
+        "Ragequit is always available as your self-custody guarantee, but it is public and irreversible and reveals the original deposit address onchain."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
       "agentWorkflowNotes": [
         "If the public recovery transaction was submitted but confirmation timed out, re-run ragequit or sync --chain <chain> before retrying so the CLI can detect the onchain result."
+      ],
+      "agentRequiredFlags": [
+        "--pool-account"
       ]
     },
     "accounts": {
@@ -1794,6 +2362,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1801,8 +2370,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1814,13 +2386,28 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "init"
       ],
       "examples": [
-        "privacy-pools accounts",
-        "privacy-pools accounts --all-chains",
-        "privacy-pools accounts --details",
-        "privacy-pools accounts --summary",
-        "privacy-pools accounts --chain <name> --pending-only",
-        "privacy-pools accounts --agent",
-        "privacy-pools accounts --no-sync --chain mainnet"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools accounts",
+            "privacy-pools accounts --all-chains",
+            "privacy-pools accounts --details"
+          ]
+        },
+        {
+          "category": "Compact modes",
+          "commands": [
+            "privacy-pools accounts --summary",
+            "privacy-pools accounts --chain <name> --pending-only"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools accounts --agent",
+            "privacy-pools accounts --no-sync --chain mainnet"
+          ]
+        }
       ],
       "jsonFields": "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
@@ -1853,6 +2440,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1860,8 +2448,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1901,6 +2492,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1908,8 +2500,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1956,6 +2551,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1963,8 +2559,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -1976,10 +2575,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "init"
       ],
       "examples": [
-        "privacy-pools history",
-        "privacy-pools history --limit 10",
-        "privacy-pools history --agent",
-        "privacy-pools history --no-sync --chain mainnet"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools history",
+            "privacy-pools history --limit 10"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools history --agent",
+            "privacy-pools history --no-sync --chain mainnet"
+          ]
+        }
       ],
       "jsonFields": "{ chain, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }",
       "jsonVariants": [],
@@ -2005,6 +2614,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2012,8 +2622,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
@@ -2057,6 +2670,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2064,8 +2678,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-q, --quiet",
         "--no-banner",
         "-v, --verbose",
+        "--no-progress",
         "--timeout <seconds>",
-        "--no-color"
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
@@ -2096,6 +2713,36 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ]
     },
     "upgrade": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "config": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "config list": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "config get": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "config set": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "config path": {
       "owner": "js-runtime",
       "nativeModes": [
         "help"
@@ -2277,8 +2924,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Machine-readable JSON output on stdout"
     },
     {
+      "flag": "--json-fields <fields>",
+      "description": "Select specific JSON fields (comma-separated, implies --json)"
+    },
+    {
       "flag": "--format <format>",
-      "description": "Output format: table (default), csv, json"
+      "description": "Output format: table (default), csv, json, wide"
     },
     {
       "flag": "-y, --yes",
@@ -2302,15 +2953,27 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "flag": "-v, --verbose",
-      "description": "Enable verbose/debug output"
+      "description": "Enable verbose/debug output (-v info, -vv debug, -vvv trace)"
+    },
+    {
+      "flag": "--no-progress",
+      "description": "Suppress spinners/progress indicators (useful in CI)"
     },
     {
       "flag": "--timeout <seconds>",
       "description": "Network/transaction timeout in seconds (default: 30)"
     },
     {
+      "flag": "--jq <expression>",
+      "description": "Filter JSON output with a JMESPath expression (implies --json)"
+    },
+    {
       "flag": "--no-color",
       "description": "Disable colored output (also respects NO_COLOR env var)"
+    },
+    {
+      "flag": "--profile <name>",
+      "description": "Use a named profile (separate wallet identity and config)"
     }
   ],
   "exitCodes": [
@@ -2590,6 +3253,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "nativeBridgeVersion": "1"
   },
   "safeReadOnlyCommands": [
+    "config",
+    "config list",
+    "config get",
+    "config path",
     "flow",
     "flow status",
     "pools",
