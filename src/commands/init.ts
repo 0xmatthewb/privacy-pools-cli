@@ -52,10 +52,12 @@ import { createOutputContext } from "../output/common.js";
 import {
   renderGeneratedRecoveryPhraseReview,
   renderInitBackupConfirmationReview,
+  renderInitDryRun,
   renderInitBackupMethodReview,
   renderInitBackupPathReview,
   renderInitBackupSaved,
   renderInitOverwriteReview,
+  renderInitSignerKeyReview,
   renderInitResult,
 } from "../output/init.js";
 
@@ -75,6 +77,7 @@ interface InitCommandOptions {
   defaultChain?: string;
   rpcUrl?: string;
   force?: boolean;
+  dryRun?: boolean;
 }
 
 export { createInitCommand } from "../command-shells/init.js";
@@ -192,6 +195,29 @@ function persistInitFilesAtomically(writes: InitPendingWrite[]): void {
     }
     throw error;
   }
+}
+
+function describeRecoveryPhraseSource(options: {
+  phrase?: string;
+  phraseFile?: string;
+  phraseStdin?: boolean;
+}): string {
+  if (options.phraseFile) return "import from file";
+  if (options.phraseStdin) return "import from stdin";
+  if (options.phrase) return "import inline";
+  return "generate new phrase";
+}
+
+function describeSignerKeySource(options: {
+  privateKey?: string;
+  privateKeyFile?: string;
+  privateKeyStdin?: boolean;
+}): string {
+  if (options.privateKeyFile) return "save from file";
+  if (options.privateKeyStdin) return "save from stdin";
+  if (options.privateKey) return "save inline";
+  if (process.env.PRIVACY_POOLS_PRIVATE_KEY?.trim()) return "use environment only";
+  return "prompt or skip";
 }
 
 export async function handleInitCommand(
@@ -359,11 +385,40 @@ export async function handleInitCommand(
 
     // ── Phase 2: Interactive prompts and gathering ──────────────────
 
-    ensureConfigDir();
-
     // Check for existing configuration or mnemonic
     const hasExisting = configExists() || mnemonicExists();
     const forceOverwrite = opts.force === true;
+    const existingConfig = configExists() ? loadConfig() : null;
+    const effectiveDefaultChain = (
+      opts.defaultChain ??
+      existingConfig?.defaultChain ??
+      "mainnet"
+    ).toLowerCase();
+
+    if (opts.dryRun) {
+      const ctx = createOutputContext(mode);
+      renderInitDryRun(ctx, {
+        operation: "init",
+        dryRun: true,
+        effectiveChain: effectiveDefaultChain,
+        recoveryPhraseSource: describeRecoveryPhraseSource({
+          phrase,
+          phraseFile,
+          phraseStdin,
+        }),
+        signerKeySource: describeSignerKeySource(opts),
+        overwriteExisting: hasExisting,
+        overwritePromptRequired: hasExisting && !forceOverwrite,
+        writeTargets: [
+          getConfigFilePath(),
+          getMnemonicFilePath(),
+          ...(signerKeySource ? [getSignerFilePath()] : []),
+        ],
+      });
+      return;
+    }
+
+    ensureConfigDir();
 
     if (hasExisting && !forceOverwrite && skipPrompts) {
       throw new CLIError(
@@ -393,6 +448,7 @@ export async function handleInitCommand(
     // --- Mnemonic ---
     let mnemonic: string;
     let importedMnemonic = Boolean(mnemonicSource);
+    let backupFilePath: string | null = null;
 
     if (mnemonicSource) {
       if (phraseInlineFlag && !silent) {
@@ -453,7 +509,6 @@ export async function handleInitCommand(
       // Offer to save recovery phrase to a file, then confirm backup
       if (!skipPrompts) {
         let backupMode: "file" | "manual" = "manual";
-        let savedBackupPath: string | null = null;
         process.stderr.write(renderInitBackupMethodReview());
         if (await maybeRenderPreviewScenario("init backup method")) {
           return;
@@ -493,7 +548,7 @@ export async function handleInitCommand(
               "Anyone with this phrase can access your Privacy Pools deposits.",
             ].join("\n"),
           );
-          savedBackupPath = filePath;
+          backupFilePath = filePath;
           process.stderr.write(renderInitBackupSaved(filePath));
         } else {
           process.stderr.write(
@@ -504,7 +559,7 @@ export async function handleInitCommand(
         process.stderr.write("\n");
         if (backupMode === "file") {
           process.stderr.write(
-            renderInitBackupConfirmationReview("file", savedBackupPath),
+            renderInitBackupConfirmationReview("file", backupFilePath),
           );
         }
         if (await maybeRenderPreviewScenario("init backup confirm")) {
@@ -555,26 +610,7 @@ export async function handleInitCommand(
 
     if (!signerKey && !process.env.PRIVACY_POOLS_PRIVATE_KEY && !skipPrompts) {
       process.stderr.write("\n");
-      process.stderr.write(
-        chalk.dim(
-          "The signer key is the private key that pays gas and sends transactions.",
-        ) + "\n",
-      );
-      process.stderr.write(
-        chalk.dim(
-          "This is separate from your recovery phrase, which enables private withdrawals.",
-        ) + "\n",
-      );
-      process.stderr.write(
-        chalk.dim(
-          "Without a signer key, you can only view accounts and balances but cannot deposit, withdraw, or ragequit.",
-        ) + "\n",
-      );
-      process.stderr.write(
-        chalk.dim(
-          "You can set it later via the PRIVACY_POOLS_PRIVATE_KEY environment variable or by re-running init.",
-        ) + "\n",
-      );
+      process.stderr.write(renderInitSignerKeyReview());
       process.stderr.write("\n");
       if (await maybeRenderPreviewScenario("init signer key")) {
         return;
@@ -700,6 +736,7 @@ export async function handleInitCommand(
       showMnemonic: !!showPhrase,
       mnemonic,
       warning: mnemonicWarning,
+      backupFilePath,
     });
   } catch (error) {
     if (isPromptCancellationError(error)) {

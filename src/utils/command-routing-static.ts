@@ -15,9 +15,11 @@ export const GENERATED_COMMAND_PATHS = [
   "config get",
   "config set",
   "config path",
+  "config profile",
   "config profile list",
   "config profile create",
   "config profile active",
+  "config profile use",
   "flow",
   "flow start",
   "flow watch",
@@ -105,6 +107,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
       "help"
     ]
   },
+  "config profile": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
   "config profile list": {
     "owner": "js-runtime",
     "nativeModes": [
@@ -118,6 +126,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "config profile active": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config profile use": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -316,6 +330,14 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     ]
   },
   {
+    "route": "config profile use",
+    "tokens": [
+      "config",
+      "profile",
+      "use"
+    ]
+  },
+  {
     "route": "config list",
     "tokens": [
       "config",
@@ -341,6 +363,13 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "tokens": [
       "config",
       "path"
+    ]
+  },
+  {
+    "route": "config profile",
+    "tokens": [
+      "config",
+      "profile"
     ]
   },
   {

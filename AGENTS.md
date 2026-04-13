@@ -157,10 +157,32 @@ Every JSON response wraps command-specific data in a standard envelope:
   "success": true,
   "defaultChain": "mainnet",
   "signerKeySet": true,
+  "backupFilePath": "/home/user/privacy-pools-recovery.txt | absent",
   "recoveryPhrase": "word1 word2 ... (only with --show-recovery-phrase)",
   "recoveryPhraseRedacted": true,
   "warning": "string | absent",
   "nextActions": [...]
+}
+```
+
+**`init` (`--dry-run`):**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "operation": "init",
+  "dryRun": true,
+  "effectiveChain": "mainnet",
+  "recoveryPhraseSource": "generate new phrase",
+  "signerKeySource": "save from file",
+  "overwriteExisting": false,
+  "overwritePromptRequired": false,
+  "writeTargets": [
+    "/home/user/.privacy-pools/config.json",
+    "/home/user/.privacy-pools/.mnemonic",
+    "/home/user/.privacy-pools/.signer"
+  ]
 }
 ```
 
@@ -232,6 +254,7 @@ Every JSON response wraps command-specific data in a standard envelope:
   "blockNumber": "12345678",
   "explorerUrl": "https://etherscan.io/tx/0x...",
   "destinationAddress": "0x... | absent",
+  "remainingBalance": "0",
   "nextActions": [...]
 }
 ```
@@ -254,7 +277,7 @@ Every JSON response wraps command-specific data in a standard envelope:
       "value": "99500000000000000",
       "hash": "0x...",
       "label": "456...",
-      "blockNumber": 12345678,
+      "blockNumber": "12345678",
       "txHash": "0x...",
       "explorerUrl": "https://etherscan.io/tx/0x..."
     }
@@ -291,7 +314,8 @@ Every JSON response wraps command-specific data in a standard envelope:
       "totalDepositsCount": 500,
       "acceptedDepositsCount": 480,
       "pendingDepositsCount": 20,
-      "growth24h": 2.5
+      "growth24h": 2.5,
+      "myPoolAccountsCount": 1
     }
   ]
 }
@@ -377,12 +401,16 @@ When a human delegates CLI operations to an agent:
 | ---- | ----------- |
 | `--agent` | Machine-friendly mode (alias for `--json --yes --quiet`) |
 | `-j, --json` | Machine-readable JSON output on stdout |
-| `--format <fmt>` | Output format: `table` (default), `csv`, `json` |
+| `-o, --output <fmt>` | Output format: `table` (default), `csv`, `json` |
+| `--format <fmt>` | Alias for `--output <fmt>` |
+| `--jq <expression>` | Filter JSON output with a JMESPath expression (implies `--json`) |
 | `-y, --yes` | Skip confirmation prompts |
 | `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-r, --rpc-url <url>` | Override RPC URL |
 | `-q, --quiet` | Suppress human-oriented stderr output |
 | `-v, --verbose` | Enable verbose/debug output |
+| `--no-progress` | Suppress spinners/progress indicators (useful in CI) |
+| `--no-header` | Suppress header rows in CSV and wide/tabular output |
 | `--no-banner` | Disable ASCII banner output. For deterministic output in CI/container environments, use `--no-banner` or `--agent` (which implies `--quiet`, suppressing the banner). The banner uses a session marker in `/tmp` that may not persist across container restarts. |
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
 | `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |
@@ -405,7 +433,7 @@ privacy-pools pools --agent --sort tvl-desc
 privacy-pools pools ETH --agent             # detail view for a specific pool
 ```
 
-JSON payload (single chain): `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload (single chain): `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 Default sort is `tvl-desc` (highest pool balance first). Override with `--sort`.
 
@@ -413,7 +441,7 @@ In pools JSON, `asset` is the symbol to use in follow-up CLI commands and `token
 
 With `--all-chains`, each pool includes a `chain` field and the root includes `allChains: true`, `chains: [{ chain, pools, error }]`, and optional `warnings`.
 
-**Detail view** (`pools <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON payload: `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. Supports `--json` and `--chain`. Does not support `--format csv`.
+**Detail view** (`pools <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON payload: `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. `recentActivityUnavailable: true` means the CLI attempted the fetch but could not load it. Supports `--json` and `--chain`. Does not support `--format csv`.
 
 #### `activity`
 
@@ -480,7 +508,7 @@ privacy-pools upgrade --agent --check
 privacy-pools upgrade --agent --yes
 ```
 
-JSON payload: `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, releaseHighlights?: string[], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 `upgrade` checks npm for the latest published `privacy-pools-cli` release. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, non-npm global installs, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine modes, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
 
@@ -524,13 +552,14 @@ Initialize wallet and configuration.
 
 ```bash
 privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
+privacy-pools init --agent --dry-run
 privacy-pools init --agent --recovery-phrase-file ./recovery.txt --default-chain mainnet
 cat phrase.txt | privacy-pools init --agent --recovery-phrase-stdin --default-chain mainnet
 privacy-pools init --agent --private-key-file ./signer-key.txt --default-chain mainnet
 printf '%s\n' 0x... | privacy-pools init --agent --recovery-phrase-file ./recovery.txt --private-key-stdin --default-chain mainnet
 ```
 
-JSON payload: `{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `success: { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: "init", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }`
 
 When `--show-recovery-phrase` is passed (and a new recovery phrase was generated), `recoveryPhrase` contains that recovery phrase. Otherwise `recoveryPhraseRedacted: true` and a `warning` field is included indicating the recovery phrase must be captured. When importing an existing recovery phrase, neither field is present.
 
@@ -678,7 +707,7 @@ Withdraw from a Privacy Pool. Relayed by default (recommended for privacy).
 
 ```bash
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
-privacy-pools withdraw 0.05 ETH --to 0xRecipient --from-pa PA-2 --agent
+privacy-pools withdraw 0.05 ETH --to 0xRecipient --pool-account PA-2 --agent
 privacy-pools withdraw --all ETH --to 0xRecipient --agent
 privacy-pools withdraw 50% ETH --to 0xRecipient --agent
 privacy-pools withdraw 0.1 ETH --direct --agent
@@ -715,11 +744,11 @@ Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof gen
 Public recovery to the original deposit address. Does not preserve privacy. Use for declined deposits, PoA-blocked accounts, or when the user chooses not to wait for approval. Asset resolution still works when public pool discovery is offline because the CLI falls back to a built-in pool registry.
 
 ```bash
-privacy-pools exit ETH --from-pa PA-1 --agent
-privacy-pools ragequit ETH --from-pa PA-1 --agent   # same thing
+privacy-pools ragequit ETH --pool-account PA-1 --agent
+privacy-pools exit ETH --pool-account PA-1 --agent   # same thing
 ```
 
-JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: "0", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 #### `accounts`
 
@@ -736,6 +765,7 @@ privacy-pools accounts --agent --details
 When no `--chain` is specified, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--all-chains` to include testnets.
 
 JSON payload: `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+Supports `--status <status>` for approved/pending/poa_required/declined/unknown/spent/exited filters. `--watch` is human-only and only valid with pending results.
 
 In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId` before using it in follow-up commands.
 
@@ -907,7 +937,7 @@ Validate inputs, check balances, and preview transaction details without submitt
 ```bash
 privacy-pools deposit 0.1 ETH --dry-run --agent
 privacy-pools withdraw 0.05 ETH --to 0x... --dry-run --agent
-privacy-pools ragequit ETH --from-pa PA-1 --dry-run --agent
+privacy-pools ragequit ETH --pool-account PA-1 --dry-run --agent
 ```
 
 Dry-run responses include `"dryRun": true` and all validation results.
@@ -984,7 +1014,7 @@ When `retryable: false` (non-retryable):
 4. For `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
 5. For `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
 6. For `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
-7. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poa_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+7. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poa_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit <asset> --chain <chain> --pool-account <PA-#>`.
 
 ## Supported Chains
 

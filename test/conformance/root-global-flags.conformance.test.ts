@@ -62,9 +62,11 @@ describe("root global flags conformance", () => {
     const helpText = rootHelpBaseText();
     const normalizedHelpText = normalizeWhitespace(helpText);
     for (const { flag, description } of ROOT_GLOBAL_FLAG_METADATA) {
-      expect(
-        splitFlagNames(flag).some((name) => helpText.includes(name)),
-      ).toBe(true);
+      if (flag !== "--format <format>") {
+        expect(
+          splitFlagNames(flag).some((name) => helpText.includes(name)),
+        ).toBe(true);
+      }
       expect(normalizedHelpText).toContain(normalizeWhitespace(description));
     }
   });

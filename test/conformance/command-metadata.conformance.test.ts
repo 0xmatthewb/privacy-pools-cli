@@ -86,7 +86,7 @@ describe("command metadata conformance", () => {
     const completion = buildCapabilitiesPayload().commands.find((command) => command.name === "completion");
 
     expect(completion).toBeDefined();
-    expect(completion?.flags).toEqual(["[shell]", "--shell <shell>"]);
+    expect(completion?.flags).toEqual(["[shell]", "--shell <shell>", "--install"]);
     expect(completion?.flags ?? []).not.toContain("--query");
     expect(completion?.flags ?? []).not.toContain("--cword <index>");
   });

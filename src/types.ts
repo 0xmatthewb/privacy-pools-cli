@@ -28,6 +28,7 @@ export interface GlobalOptions {
   rpcUrl?: string;
   json?: boolean;
   jsonFields?: string;
+  output?: string;
   agent?: boolean;
   quiet?: boolean;
   yes?: boolean;

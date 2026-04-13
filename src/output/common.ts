@@ -109,7 +109,7 @@ export function createNextAction(
 
   if (config.options) {
     const options = Object.fromEntries(
-      Object.entries(config.options).filter(([, value]) => value !== undefined),
+      Object.entries(config.options).filter(([, value]) => value !== undefined && value !== null),
     ) as Record<string, NextActionOptionValue>;
     if (Object.keys(options).length > 0) {
       action.options = options;

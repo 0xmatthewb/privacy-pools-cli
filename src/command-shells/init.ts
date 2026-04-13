@@ -40,6 +40,10 @@ export function createInitCommand(): Command {
     .option("--default-chain <chain>", "Set default chain")
     .option("--rpc-url <url>", "Set RPC URL for the default chain")
     .option("--force", "Overwrite existing configuration without prompting")
+    .option(
+      "--dry-run",
+      "Preview the init changes without writing files or generating a live recovery phrase",
+    )
     .addOption(
       new Option(
         "--skip-circuits",

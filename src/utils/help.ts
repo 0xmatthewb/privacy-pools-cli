@@ -23,12 +23,12 @@ function shouldShowPathRegistrationHint(
  * Orients the user quickly without the full Commander listing.
  */
 export function welcomeScreen(
-  options: { packageRoot?: string; version?: string } = {},
+  options: { packageRoot?: string; version?: string; readinessLabel?: string } = {},
 ): string {
   const version = options.version?.trim();
   const sep = inlineSeparator();
   const versionLine = version
-    ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent("privacypools.com")}`
+    ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent("privacypools.com")}${options.readinessLabel ? `${chalk.dim(sep)}${chalk.dim(options.readinessLabel)}` : ""}`
     : accent("privacypools.com");
 
   const lines = [

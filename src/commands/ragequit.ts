@@ -286,6 +286,9 @@ export async function handleRagequitCommand(
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
+  const confirmationTimeoutSeconds = Math.round(
+    getConfirmationTimeoutMs() / 1000,
+  );
   if (opts.fromPa !== undefined) {
     throw new CLIError(
       "--from-pa has been renamed to --pool-account.",
@@ -302,7 +305,7 @@ export async function handleRagequitCommand(
       `\n${renderNarrativeSteps(createNarrativeSteps([
         "Account synced",
         "Generate commitment proof",
-        "Submit public recovery",
+        "Submit ragequit",
       ], activeIndex, note))}`,
     );
   };
@@ -393,9 +396,9 @@ export async function handleRagequitCommand(
       );
     } else {
       throw new CLIError(
-        "No asset specified. Use --asset <symbol|address>.",
+        "No asset specified.",
         "INPUT",
-        "Run 'privacy-pools pools' to see available assets, then use --asset ETH (or the asset symbol).",
+        "Run 'privacy-pools pools' to see available assets, then use a positional asset like 'privacy-pools ragequit ETH'.",
       );
     }
     verbose(
@@ -614,7 +617,7 @@ export async function handleRagequitCommand(
         throw new CLIError(
           "No available Pool Accounts found for ragequit.",
           "INPUT",
-          `You may not have deposits in ${pool.symbol}. Try 'privacy-pools deposit ...' first.`,
+          `Run 'privacy-pools accounts --chain ${chainConfig.name}' to inspect this wallet, or choose a different chain if the deposit was made elsewhere.`,
         );
       }
 
@@ -779,6 +782,7 @@ export async function handleRagequitCommand(
             destinationAddress: depositorAddress,
             advisory: advisory?.message ?? null,
             advisoryKind: advisory?.level === "info" ? "read-only" : "warning",
+            tokenPrice,
           }),
         );
       }
@@ -813,10 +817,10 @@ export async function handleRagequitCommand(
         }
         const ok = await confirmActionWithSeverity({
           severity: "high_stakes",
-          standardMessage: "Confirm public recovery?",
+          standardMessage: "Confirm ragequit?",
           highStakesToken: "RAGEQUIT",
           highStakesWarning:
-            "This recovery is public and irreversible. Funds return to the original deposit address, but privacy is lost.",
+            "This ragequit is public and irreversible. Funds return to the original deposit address, and privacy is lost.",
           confirm,
         });
         if (!ok) {
@@ -850,7 +854,7 @@ export async function handleRagequitCommand(
       // Generate commitment proof
       writeRagequitProgress(
         1,
-        "Building the proof required for public recovery.",
+        "Building the proof required for ragequit.",
       );
       spin.start();
 
@@ -882,6 +886,7 @@ export async function handleRagequitCommand(
           selectedCommitmentValue: commitment.value,
           proofPublicSignals: proof.publicSignals.length,
           advisory: advisory?.message ?? null,
+          tokenPrice,
         });
         return;
       }
@@ -925,7 +930,7 @@ export async function handleRagequitCommand(
       // Submit ragequit
       writeRagequitProgress(
         2,
-        "Submitting the public recovery transaction.",
+        "Submitting the ragequit transaction.",
       );
       const solidityProof = toRagequitSolidityProof(proof);
       spin.text = "Submitting ragequit transaction...";
@@ -947,7 +952,7 @@ export async function handleRagequitCommand(
         throw new CLIError(
           "Timed out waiting for ragequit confirmation.",
           "RPC",
-          `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`,
+          `Tx ${tx.hash} may still confirm. Wait about ${confirmationTimeoutSeconds}s or re-run with --timeout <seconds>, then run 'privacy-pools sync' to pick up the transaction.`,
         );
       }
       if (receipt.status !== "success") {
@@ -1026,6 +1031,7 @@ export async function handleRagequitCommand(
         explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
         destinationAddress: depositorAddress,
         advisory: advisory?.message ?? null,
+        tokenPrice,
       });
     } finally {
       releaseLock();

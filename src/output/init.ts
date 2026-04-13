@@ -19,7 +19,6 @@ import {
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
-import { isTestnetChain } from "../config/chains.js";
 import {
   formatCallout,
   formatKeyValueRows,
@@ -41,6 +40,18 @@ export interface InitRenderResult {
   mnemonic?: string;
   /** Warning message to include in JSON output (e.g. for agent recovery phrase capture). */
   warning?: string;
+  backupFilePath?: string | null;
+}
+
+export interface InitDryRunResult {
+  operation: "init";
+  dryRun: true;
+  effectiveChain: string;
+  recoveryPhraseSource: string;
+  signerKeySource: string;
+  overwriteExisting: boolean;
+  overwritePromptRequired: boolean;
+  writeTargets: string[];
 }
 
 export function renderInitOverwriteReview(importingRecoveryPhrase: boolean): string {
@@ -71,14 +82,89 @@ export function renderInitOverwriteReview(importingRecoveryPhrase: boolean): str
 }
 
 export function renderGeneratedRecoveryPhraseReview(mnemonic: string): string {
+  const words = mnemonic.trim().split(/\s+/).filter(Boolean);
+  const columns = words.length >= 18 ? 3 : 2;
+  const rows = Math.ceil(words.length / columns);
+  const cells = words.map(
+    (word, index) => `${String(index + 1).padStart(2, " ")}. ${word}`,
+  );
+  const cellWidth = cells.reduce((max, cell) => Math.max(max, cell.length), 0) + 4;
+  const gridLines: string[] = [];
+
+  for (let row = 0; row < rows; row++) {
+    const rowCells: string[] = [];
+    for (let column = 0; column < columns; column++) {
+      const index = row + column * rows;
+      if (index >= cells.length) continue;
+      rowCells.push(cells[index]!.padEnd(cellWidth, " "));
+    }
+    gridLines.push(`  ${rowCells.join("")}`.trimEnd());
+  }
+
   return `${formatSectionHeading("Recovery phrase", {
     divider: true,
     padTop: false,
-  })}  ${mnemonic}\n${formatCallout("danger", [
+  })}${formatCallout("recovery", [
+    "Your recovery phrase is the master key to your deposited funds. It is independent of your signer wallet.",
+  ])}${gridLines.join("\n")}\n${formatCallout("danger", [
     "Save this recovery phrase now.",
     "This is the only time the CLI will display it.",
     "Anyone with this phrase can recover your deposited funds.",
   ])}`;
+}
+
+export function renderInitDryRun(
+  ctx: OutputContext,
+  result: InitDryRunResult,
+): void {
+  guardCsvUnsupported(ctx, "init --dry-run");
+
+  if (ctx.mode.isJson) {
+    printJsonSuccess({
+      operation: result.operation,
+      dryRun: result.dryRun,
+      effectiveChain: result.effectiveChain,
+      recoveryPhraseSource: result.recoveryPhraseSource,
+      signerKeySource: result.signerKeySource,
+      overwriteExisting: result.overwriteExisting,
+      overwritePromptRequired: result.overwritePromptRequired,
+      writeTargets: result.writeTargets,
+    }, false);
+    return;
+  }
+
+  const silent = isSilent(ctx);
+  if (!silent) process.stderr.write("\n");
+  info("Dry-run complete. No files were changed.", silent);
+  if (silent) return;
+
+  process.stderr.write(
+    formatReviewSurface({
+      title: "Init dry-run",
+      summaryRows: [
+        { label: "Effective chain", value: result.effectiveChain },
+        { label: "Recovery phrase", value: result.recoveryPhraseSource },
+        { label: "Signer key", value: result.signerKeySource },
+        {
+          label: "Existing setup",
+          value: result.overwriteExisting ? "would be replaced" : "fresh setup",
+          valueTone: result.overwriteExisting ? "warning" : "success",
+        },
+        {
+          label: "Overwrite prompt",
+          value: result.overwritePromptRequired ? "would prompt first" : "not needed",
+          valueTone: result.overwritePromptRequired ? "warning" : "muted",
+        },
+      ],
+      primaryCallout: {
+        kind: "read-only",
+        lines: [
+          "This preview does not generate a live recovery phrase or write any files.",
+          `Would write: ${result.writeTargets.join(", ")}`,
+        ],
+      },
+    }),
+  );
 }
 
 export function renderInitBackupMethodReview(): string {
@@ -154,6 +240,15 @@ export function renderInitBackupConfirmationReview(
   });
 }
 
+export function renderInitSignerKeyReview(): string {
+  return formatCallout("read-only", [
+    "Your signer key pays gas and submits transactions.",
+    "It is separate from your recovery phrase, which remains the master key to your deposited funds.",
+    "Without a signer key, you can still view accounts and balances.",
+    "You can set it now, later via PRIVACY_POOLS_PRIVATE_KEY, or by re-running init.",
+  ]);
+}
+
 /**
  * Render the init command final output.
  */
@@ -163,7 +258,6 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   // Agent path: new wallet → status (verify readiness); restore → migrate status first.
   // Imported website accounts can require legacy migration or website recovery before the
   // CLI can safely restore them, so migrate status is the canonical first check.
-  const isTestnet = isTestnetChain(result.defaultChain);
   const agentNextActions = result.mnemonicImported
     ? [
         createNextAction(
@@ -194,26 +288,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
           { options: { allChains: true } },
         ),
       ]
-    : [
-        createNextAction(
-          "flow start",
-          "Start with the guided workflow for your first deposit and later private withdrawal.",
-          "after_init",
-          {
-            args: ["0.1", "ETH"],
-            options: {
-              to: "0xRecipient",
-              ...(isTestnet ? { chain: result.defaultChain } : {}),
-            },
-          },
-        ),
-        createNextAction(
-          "pools",
-          "Browse available pools if you prefer the manual path before depositing.",
-          "after_init",
-          isTestnet ? { options: { chain: result.defaultChain } } : undefined,
-        ),
-      ];
+    : [];
 
   if (ctx.mode.isJson) {
     const jsonOutput: Record<string, unknown> = appendNextActions({
@@ -229,6 +304,9 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     }
     if (result.warning) {
       jsonOutput.warning = result.warning;
+    }
+    if (result.backupFilePath) {
+      jsonOutput.backupFilePath = result.backupFilePath;
     }
     printJsonSuccess(jsonOutput, false);
     return;

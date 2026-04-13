@@ -13,7 +13,13 @@ export function createFlowCommand(): Command {
 
   const command = new Command("flow")
     .description(metadata.description)
-    .addHelpText("after", commandHelpText(metadata.help ?? {}));
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
+    .action(
+      createLazyAction(
+        () => import("../commands/flow.js"),
+        "handleFlowRootCommand",
+      ),
+    );
 
   command
     .command("start")

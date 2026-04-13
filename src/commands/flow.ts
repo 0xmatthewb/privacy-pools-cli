@@ -4,6 +4,7 @@ import { formatFlowRagequitReview, renderFlowResult } from "../output/flow.js";
 import {
   FlowCancelledError,
   getWorkflowStatus,
+  listSavedWorkflowIds,
   ragequitWorkflow,
   startWorkflow,
   watchWorkflow,
@@ -98,6 +99,107 @@ async function handleFlowCommandError(
   }
 
   printError(error, options.json);
+}
+
+export async function handleFlowRootCommand(
+  _opts: Record<string, unknown>,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = getRootGlobalOptions(cmd);
+  const mode = resolveGlobalMode(globalOpts);
+
+  try {
+    if (mode.isJson || !process.stdin.isTTY || !process.stderr.isTTY) {
+      cmd.outputHelp();
+      return;
+    }
+
+    ensurePromptInteractionAvailable();
+    const [{ input, select }, savedWorkflowIds] = await Promise.all([
+      import("@inquirer/prompts"),
+      Promise.resolve(listSavedWorkflowIds()),
+    ]);
+    const latestWorkflowId = savedWorkflowIds[0];
+    const workflowChoiceSuffix = latestWorkflowId
+      ? ` (${latestWorkflowId})`
+      : "";
+    const action = await select({
+      message: "What would you like to do?",
+      choices: [
+        {
+          name: "Start a new easy-path flow",
+          value: "start",
+          description: "Deposit now and save a later private withdrawal.",
+        },
+        ...(latestWorkflowId
+          ? [
+              {
+                name: `Watch the latest saved flow${workflowChoiceSuffix}`,
+                value: "watch",
+                description:
+                  "Resume the current flow through review, delay, and withdrawal.",
+              },
+              {
+                name: `Check status for the latest saved flow${workflowChoiceSuffix}`,
+                value: "status",
+                description: "Show the saved flow snapshot without advancing it.",
+              },
+              {
+                name: `Ragequit the latest saved flow${workflowChoiceSuffix}`,
+                value: "ragequit",
+                description:
+                  "Use the public recovery path for the latest saved flow.",
+              },
+            ]
+          : []),
+      ],
+    });
+
+    if (action === "start") {
+      const amount = (await input({
+        message: "Deposit amount:",
+        default: "0.1",
+      })).trim();
+      const asset = (await input({
+        message: "Asset symbol:",
+        default: "ETH",
+      })).trim().toUpperCase();
+      const recipient = (await input({
+        message: "Recipient address:",
+        validate: (value) => {
+          try {
+            validateAddress(value, "Recipient");
+            return true;
+          } catch (error) {
+            return error instanceof Error ? error.message : "Invalid address.";
+          }
+        },
+      })).trim();
+      await handleFlowStartCommand(amount, asset, { to: recipient }, cmd);
+      return;
+    }
+
+    if (action === "watch") {
+      await handleFlowWatchCommand("latest", {}, cmd);
+      return;
+    }
+
+    if (action === "status") {
+      await handleFlowStatusCommand("latest", {}, cmd);
+      return;
+    }
+
+    if (action === "ragequit") {
+      await handleFlowRagequitCommand("latest", {}, cmd);
+      return;
+    }
+  } catch (error) {
+    await handleFlowCommandError(error, {
+      cmd,
+      json: mode.isJson,
+      silent: mode.isQuiet,
+    });
+  }
 }
 
 export async function handleFlowStartCommand(
@@ -213,10 +315,10 @@ export async function handleFlowRagequitCommand(
       const { confirm } = await import("@inquirer/prompts");
       const ok = await confirmActionWithSeverity({
         severity: "high_stakes",
-        standardMessage: "Confirm public recovery?",
+        standardMessage: "Confirm ragequit?",
         highStakesToken: "RAGEQUIT",
         highStakesWarning:
-          "This saved flow will recover publicly to the original deposit address. Privacy will not be preserved.",
+          "This saved flow will ragequit funds back to the original deposit address. Privacy will not be preserved.",
         confirm,
       });
       if (!ok) {

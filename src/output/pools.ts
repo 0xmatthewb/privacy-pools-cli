@@ -33,6 +33,7 @@ export interface PoolWithChain {
   chain: string;
   chainId: number;
   pool: PoolStats;
+  myPoolAccountsCount?: number;
 }
 
 export interface ChainSummary {
@@ -78,6 +79,7 @@ function formatDepositsCount(pool: PoolStats): string {
 export function poolToJson(
   pool: PoolStats,
   chain?: string,
+  myPoolAccountsCount?: number,
 ): Record<string, string | number | null> {
   const payload: Record<string, string | number | null> = {
     asset: pool.symbol,
@@ -103,6 +105,9 @@ export function poolToJson(
     pendingGrowth24h: pool.pendingGrowth24h ?? null,
   };
   if (chain) payload.chain = chain;
+  if (myPoolAccountsCount !== undefined) {
+    payload.myPoolAccountsCount = myPoolAccountsCount;
+  }
   return payload;
 }
 
@@ -142,6 +147,9 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
  */
 export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const { allChains, chainName, search, sort, filteredPools, chainSummaries, warnings } = data;
+  const showMyPoolAccounts = filteredPools.some(
+    (entry) => (entry.myPoolAccountsCount ?? 0) > 0,
+  );
 
   const agentNextActions = [
     createNextAction("deposit", "Deposit into a pool.", "after_pools", {
@@ -176,7 +184,9 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
         search,
         sort,
         chains: chainSummaries,
-        pools: filteredPools.map((entry) => poolToJson(entry.pool, entry.chain)),
+        pools: filteredPools.map((entry) =>
+          poolToJson(entry.pool, entry.chain, entry.myPoolAccountsCount),
+        ),
         warnings: warnings.length > 0 ? warnings : undefined,
       }, agentNextActions));
     } else {
@@ -184,7 +194,9 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
         chain: chainName,
         search,
         sort,
-        pools: filteredPools.map((entry) => poolToJson(entry.pool)),
+        pools: filteredPools.map((entry) =>
+          poolToJson(entry.pool, undefined, entry.myPoolAccountsCount),
+        ),
       }, agentNextActions));
     }
     return;
@@ -192,14 +204,15 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
 
   if (ctx.mode.isCsv) {
     const csvHeaders = allChains
-      ? ["Chain", "Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
-      : ["Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
+      ? ["Chain", "Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
+      : ["Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
     printCsv(
       csvHeaders,
-      filteredPools.map(({ chain, pool }) => {
+      filteredPools.map(({ chain, pool, myPoolAccountsCount }) => {
         const dd = displayDecimals(pool.decimals);
         const baseRow = [
           pool.symbol,
+          ...(showMyPoolAccounts ? [String(myPoolAccountsCount ?? 0)] : []),
           formatDepositsCount(pool),
           formatStatAmount(
             pool.totalInPoolValue ?? pool.acceptedDepositsValue,
@@ -256,18 +269,19 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
 
   const isWideFormat = ctx.mode.isWide;
   const baseHeaders = allChains
-    ? ["Chain", "Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
-    : ["Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
+    ? ["Chain", "Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
+    : ["Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
   const headers = isWideFormat
     ? [...baseHeaders, "Pool Address", "Scope"]
     : baseHeaders;
   if (getOutputWidthClass() === "wide" || isWideFormat) {
     printTable(
       headers,
-      filteredPools.map(({ chain, pool }) => {
+      filteredPools.map(({ chain, pool, myPoolAccountsCount }) => {
         const dd = displayDecimals(pool.decimals);
         const baseRow = [
           pool.symbol,
+          ...(showMyPoolAccounts ? [String(myPoolAccountsCount ?? 0)] : []),
           formatDepositsCount(pool),
           formatStatAmount(
             pool.totalInPoolValue ?? pool.acceptedDepositsValue,
@@ -296,7 +310,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       }),
     );
   } else {
-    for (const { chain, pool } of filteredPools) {
+    for (const { chain, pool, myPoolAccountsCount } of filteredPools) {
       const dd = displayDecimals(pool.decimals);
       process.stderr.write(
         formatSectionHeading(
@@ -331,10 +345,14 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
             value: formatBPS(pool.vettingFeeBPS),
           },
           {
+            label: "Your PAs",
+            value: showMyPoolAccounts ? String(myPoolAccountsCount ?? 0) : undefined,
+          },
+          {
             label: "Total Deposits",
             value: formatDepositsCount(pool),
           },
-        ]),
+        ].filter((row): row is { label: string; value: string } => typeof row.value === "string")),
       );
     }
   }
@@ -367,6 +385,7 @@ export interface PoolDetailRenderData {
   myPoolAccounts: PoolAccountRef[] | null;
   myFundsWarning?: string | null;
   recentActivity: PoolDetailActivityEvent[] | null;
+  recentActivityUnavailable?: boolean;
 }
 
 function formatReviewSummary(poolAccounts: PoolAccountRef[]): string {
@@ -396,6 +415,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     myPoolAccounts,
     myFundsWarning,
     recentActivity,
+    recentActivityUnavailable,
   } = data;
   const dd = displayDecimals(pool.decimals);
   const hasUsd = tokenPrice !== null;
@@ -458,6 +478,9 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
         ...event,
         status: normalizePublicEventReviewStatus(event.type, event.status),
       }));
+    }
+    if (recentActivityUnavailable) {
+      payload.recentActivityUnavailable = true;
     }
 
     const detailNextActions = [
@@ -599,7 +622,14 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
   }
 
   process.stderr.write(formatSectionHeading("Recent activity", { divider: true }));
-  if (recentActivity !== null && recentActivity.length > 0) {
+  if (recentActivityUnavailable) {
+    process.stderr.write(
+      formatCallout(
+        "warning",
+        "Recent public activity could not be loaded right now. Pool stats and your cached funds are still available.",
+      ),
+    );
+  } else if (recentActivity !== null && recentActivity.length > 0) {
     const activityRows = recentActivity.map((event) => [
       event.type === "withdrawal" ? "Withdraw" : event.type === "ragequit" ? "Ragequit" : "Deposit",
       event.amount ?? "-",

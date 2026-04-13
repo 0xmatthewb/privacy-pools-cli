@@ -15,9 +15,11 @@ export type CommandPath =
   | "config get"
   | "config set"
   | "config path"
+  | "config profile"
   | "config profile list"
   | "config profile create"
   | "config profile active"
+  | "config profile use"
   | "flow"
   | "flow start"
   | "flow watch"
@@ -63,7 +65,7 @@ export interface CommandMetadata {
 }
 
 const POOLS_LIST_JSON_FIELDS =
-  "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }";
+  "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }";
 
 export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   init: {
@@ -72,12 +74,14 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       overview: [
         "Creates or imports the local Privacy Pools wallet state under ~/.privacy-pools/. The recovery phrase controls deposit privacy and account restoration, while the signer key pays gas and submits transactions; they are intentionally separate secrets.",
         "When you generate a fresh wallet, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored.",
+        "Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files.",
         "If you are moving from the website to the CLI, the smoothest restore path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download).",
         "Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.",
       ],
       examples: [
         { category: "Basic", commands: [
           "privacy-pools init",
+          "privacy-pools init --dry-run",
           "privacy-pools init --yes --default-chain mainnet",
           "privacy-pools init --force --yes --default-chain mainnet",
         ]},
@@ -91,7 +95,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         ]},
       ],
       jsonFields:
-        "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "success: { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }",
       safetyNotes: [
         "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
         "Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.",
@@ -114,6 +118,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--default-chain <chain>",
         "--force",
         "--show-recovery-phrase",
+        "--dry-run",
       ],
       agentFlags: "--agent --default-chain <chain> --show-recovery-phrase",
       requiresInit: false,
@@ -141,7 +146,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         ]},
       ],
       jsonFields:
-        "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, releaseHighlights?: string[], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       safetyNotes: [
         "Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.",
         "Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
@@ -167,7 +172,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Inspect or modify the local CLI configuration without re-running init.",
-        "Subcommands: list (show all settings), get <key> (read one key), set <key> [value] (write one key), path (print config directory).",
+        "Subcommands: list (show all settings), get <key> (read one key), set <key> [value] (write one key), path (print config directory), profile use <name> (persist the active profile).",
       ],
       examples: [
         "privacy-pools config list",
@@ -247,7 +252,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       safetyNotes: [
         "Sensitive keys are never accepted as positional arguments to prevent shell history leakage.",
-        "In non-interactive mode, --file or --stdin is required for sensitive keys.",
+        "The sensitive keys are recovery-phrase and signer-key. In non-interactive mode, use --file or --stdin for them.",
       ],
       seeAlso: ["config get", "config list", "init"],
     },
@@ -275,6 +280,27 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "config path",
       agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+  },
+  "config profile": {
+    description: "Manage named profiles",
+    help: {
+      overview: [
+        "Namespace for creating, listing, inspecting, and persisting named profiles.",
+        "Profiles keep separate wallet identities and config directories under the CLI home.",
+      ],
+      examples: [
+        "privacy-pools config profile list",
+        "privacy-pools config profile create trading",
+        "privacy-pools config profile use trading",
+      ],
+      seeAlso: ["config profile list", "config profile create", "config profile active", "config profile use"],
+    },
+    capabilities: {
+      usage: "config profile <command>",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -339,11 +365,33 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     safeReadOnly: true,
   },
+  "config profile use": {
+    description: "Persist the active profile",
+    help: {
+      overview: [
+        "Persists the default profile to use for future commands when --profile is not explicitly passed.",
+        "Use 'default' to switch back to the root ~/.privacy-pools directory.",
+      ],
+      examples: [
+        "privacy-pools config profile use trading",
+        "privacy-pools config profile use default",
+      ],
+      jsonFields: "{ profile, active, configDir }",
+      seeAlso: ["config profile list", "config profile active", "init"],
+    },
+    capabilities: {
+      usage: "config profile use <name>",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: false,
+  },
   flow: {
     description: "Guided deposit-to-private-withdrawal workflow",
     help: {
       overview: [
         "Top-level namespace for the persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands.",
+        "In an interactive TTY, bare 'privacy-pools flow' opens a picker for start/watch/status/ragequit. Non-interactive calls keep standard help behavior.",
         "`privacyDelayConfigured = false` in flow JSON means a legacy saved workflow was normalized to `off` without an explicitly saved privacy-delay policy.",
         "Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.",
       ],
@@ -556,7 +604,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       jsonFields: POOLS_LIST_JSON_FIELDS,
       jsonVariants: [
-        "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }",
+        "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
         "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }",
       ],
       agentWorkflowNotes: [
@@ -783,7 +831,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
           "privacy-pools deposit 100 USDC",
         ]},
         { category: "With options", commands: [
-          "privacy-pools deposit 0.1 --asset ETH --chain mainnet",
+          "privacy-pools deposit 0.1 ETH --chain mainnet",
           "privacy-pools deposit 0.1 ETH --dry-run",
         ]},
         { category: "Agent / CI", commands: [
@@ -815,7 +863,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "deposit <amount> [asset]",
       flags: [
-        "--asset <symbol|address>",
+        "--asset <symbol|address> (deprecated alias)",
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--ignore-unique-amount",
@@ -834,6 +882,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off.",
         `Pool Accounts marked poa_required cannot withdraw privately until Proof of Association is completed at ${POA_PORTAL_URL}.`,
         "Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off.",
+        "In interactive mode, omitting the amount prompts for it after the pool is selected. Relayer quotes are refreshed automatically before proof generation when they are close to expiry.",
       ],
       examples: [
         { category: "Basic", commands: [
@@ -857,6 +906,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
+        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds.",
       ],
       jsonFields:
         "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
@@ -878,7 +928,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "withdraw [amount] [asset] --to <address>",
       flags: [
-        "--asset <symbol|address>",
+        "--asset <symbol|address> (deprecated alias)",
         "--to <address>",
         "--pool-account <PA-#>",
         "--all",
@@ -908,13 +958,13 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       agentWorkflowNotes: [
         "Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.",
-        "For agents, prefer `withdraw quote <amount> --asset <symbol|address>` or `withdraw quote <amount> <asset>`. The legacy asset-first positional form also works but is less clear for machine callers.",
+        "For agents, prefer `withdraw quote <amount> <asset>`. The deprecated `--asset` alias still works, but positional asset syntax is clearer for machine callers.",
       ],
       seeAlso: ["withdraw","accounts"],
     },
     capabilities: {
-      usage: "withdraw quote <amount> --asset <symbol|address>",
-      flags: ["--asset <symbol|address>", "--to <address>"],
+      usage: "withdraw quote <amount> <asset>",
+      flags: ["--to <address>", "--asset <symbol|address> (deprecated alias)"],
       agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "medium",
@@ -927,7 +977,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     aliases: ["exit"],
     help: {
       overview: [
-        "Your self-custody guarantee: publicly recovers funds to the original deposit address at any time. Does not preserve privacy. Available for any Pool Account regardless of ASP status — declined, PoA-blocked, pending, or even approved.",
+        "Your self-custody guarantee: ragequits funds back to the original deposit address at any time. Does not preserve privacy. Available for any Pool Account regardless of ASP status — declined, PoA-blocked, pending, or even approved.",
         "Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.",
       ],
       examples: [
@@ -945,11 +995,11 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Ragequit is always available as your self-custody guarantee, but it is public and irreversible and reveals the original deposit address onchain.",
       ],
       jsonFields:
-        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
-        "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
@@ -961,7 +1011,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "ragequit [asset] --pool-account <PA-#>",
       flags: [
-        "--asset <symbol|address>",
+        "--asset <symbol|address> (deprecated alias)",
         "--pool-account <PA-#>",
         "--unsigned [envelope|tx]",
         "--dry-run",
@@ -980,6 +1030,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       overview: [
         "Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --all-chains to include supported testnets.",
         "Compact modes like --summary and --pending-only are intended for agent polling loops so they do not have to parse the full account dataset on every check.",
+        "Use --status <status> to filter by approved/pending/poa_required/declined/unknown/spent/exited. Human-only --watch is a 15-second pending poll loop that stops when pending results reach zero or on Ctrl-C.",
       ],
       examples: [
         { category: "Basic", commands: [
@@ -990,6 +1041,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         { category: "Compact modes", commands: [
           "privacy-pools accounts --summary",
           "privacy-pools accounts --chain <name> --pending-only",
+          "privacy-pools accounts --chain <name> --status approved",
+          "privacy-pools accounts --chain <name> --pending-only --watch",
         ]},
         { category: "Agent / CI", commands: [
           "privacy-pools accounts --agent",
@@ -1011,7 +1064,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["sync","withdraw","ragequit","history"],
     },
     capabilities: {
-      flags: ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only"],
+      flags: ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only", "--status <status>", "--watch"],
       agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "slow",

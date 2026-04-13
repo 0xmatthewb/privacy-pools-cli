@@ -48,6 +48,10 @@ import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import {
+  POOL_ACCOUNT_STATUSES,
+  type PoolAccountStatus,
+} from "../utils/statuses.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -57,6 +61,8 @@ interface AccountsCommandOptions {
   details?: boolean;
   summary?: boolean;
   pendingOnly?: boolean;
+  status?: string;
+  watch?: boolean;
 }
 
 interface AccountScopeSource {
@@ -73,18 +79,24 @@ type AccountsEmptyReason =
   | "first_deposit"
   | "other_chain_activity"
   | "no_pending_left"
-  | "restore_check_recommended";
+  | "restore_check_recommended"
+  | "status_filtered_empty";
 
 export { createAccountsCommand } from "../command-shells/accounts.js";
 
 function resolveAccountsEmptyState(params: {
   pendingOnly: boolean;
+  statusFilter?: PoolAccountStatus;
   rootChain: string;
   queriedChains: string[] | undefined;
 }): {
   emptyReason: AccountsEmptyReason;
   otherChains?: string[];
 } {
+  if (params.statusFilter && !params.pendingOnly) {
+    return { emptyReason: "status_filtered_empty" };
+  }
+
   if (params.pendingOnly) {
     return { emptyReason: "no_pending_left" };
   }
@@ -128,6 +140,33 @@ export function formatAccountsLoadingText(
   if (completedChains === undefined || totalChains === undefined)
     return baseText;
   return `${baseText} (${completedChains}/${totalChains} complete)`;
+}
+
+function normalizeStatusFilter(
+  rawStatus: string | undefined,
+): PoolAccountStatus | undefined {
+  if (!rawStatus) return undefined;
+  const normalized = rawStatus.trim().toLowerCase();
+  return POOL_ACCOUNT_STATUSES.includes(normalized as PoolAccountStatus)
+    ? (normalized as PoolAccountStatus)
+    : undefined;
+}
+
+function filterGroupsByStatus(
+  groups: AccountPoolGroup[],
+  statusFilter: PoolAccountStatus | undefined,
+): AccountPoolGroup[] {
+  if (!statusFilter) return groups;
+  return groups
+    .map((group) => ({
+      ...group,
+      poolAccounts: group.poolAccounts.filter((poolAccount) => poolAccount.status === statusFilter),
+    }))
+    .filter((group) => group.poolAccounts.length > 0);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** Bundled context for loadAccountsForChain — avoids 8-param sprawl. */
@@ -418,6 +457,41 @@ export async function handleAccountsCommand(
       );
     }
 
+    const normalizedStatus = normalizeStatusFilter(opts.status);
+    if (opts.status && !normalizedStatus) {
+      throw new CLIError(
+        `Invalid --status value: ${opts.status}`,
+        "INPUT",
+        `Use one of: ${POOL_ACCOUNT_STATUSES.join(", ")}.`,
+      );
+    }
+
+    if (opts.pendingOnly && normalizedStatus && normalizedStatus !== "pending") {
+      throw new CLIError(
+        "Cannot combine --pending-only with a non-pending --status filter.",
+        "INPUT",
+        "Use either --pending-only or --status pending.",
+      );
+    }
+
+    const effectiveStatus = normalizedStatus ?? (opts.pendingOnly ? "pending" : undefined);
+
+    if (opts.watch && (mode.isJson || mode.isCsv || mode.isAgent)) {
+      throw new CLIError(
+        "--watch is only available in human table output.",
+        "INPUT",
+        "Re-run without --json, --agent, or --format csv.",
+      );
+    }
+
+    if (opts.watch && effectiveStatus !== "pending") {
+      throw new CLIError(
+        "--watch requires pending approvals.",
+        "INPUT",
+        "Use --pending-only or --status pending with --watch.",
+      );
+    }
+
     if ((opts.summary || opts.pendingOnly) && opts.details) {
       throw new CLIError(
         "Compact account modes do not support --details.",
@@ -426,176 +500,203 @@ export async function handleAccountsCommand(
       );
     }
 
-    const config = loadConfig();
-    const explicitChain = globalOpts?.chain;
-    const useMultiChain = opts.allChains || !explicitChain;
+    const renderOnce = async (): Promise<number> => {
+      const config = loadConfig();
+      const explicitChain = globalOpts?.chain;
+      const useMultiChain = opts.allChains || !explicitChain;
 
-    if (useMultiChain && globalOpts?.rpcUrl) {
-      throw new CLIError(
-        "--rpc-url cannot be combined with multi-chain accounts queries.",
-        "INPUT",
-        "Use --chain <name> to target a single chain with --rpc-url.",
+      if (useMultiChain && globalOpts?.rpcUrl) {
+        throw new CLIError(
+          "--rpc-url cannot be combined with multi-chain accounts queries.",
+          "INPUT",
+          "Use --chain <name> to target a single chain with --rpc-url.",
+        );
+      }
+
+      const chainsToQuery = opts.allChains
+        ? getAllChainsWithOverrides()
+        : explicitChain
+          ? [resolveChain(explicitChain, config.defaultChain)]
+          : getDefaultReadOnlyChains();
+
+      const rootChain = explicitChain
+        ? chainsToQuery[0].name
+        : opts.allChains
+          ? MULTI_CHAIN_SCOPE_ALL_CHAINS
+          : MULTI_CHAIN_SCOPE_ALL_MAINNETS;
+      const queriedChains = useMultiChain
+        ? chainsToQuery.map((chain) => chain.name)
+        : undefined;
+      const mnemonic = loadMnemonic();
+
+      const spin = spinner(
+        useMultiChain
+          ? formatAccountsLoadingText(opts.allChains)
+          : `Loading Pool Accounts on ${chainsToQuery[0].name}...`,
+        silent,
       );
-    }
+      spin.start();
+      const useParallelChainLoading = useMultiChain && chainsToQuery.length > 1;
 
-    const chainsToQuery = opts.allChains
-      ? getAllChainsWithOverrides()
-      : explicitChain
-        ? [resolveChain(explicitChain, config.defaultChain)]
-        : getDefaultReadOnlyChains();
-
-    const rootChain = explicitChain
-      ? chainsToQuery[0].name
-      : opts.allChains
-        ? MULTI_CHAIN_SCOPE_ALL_CHAINS
-        : MULTI_CHAIN_SCOPE_ALL_MAINNETS;
-    const queriedChains = useMultiChain
-      ? chainsToQuery.map((chain) => chain.name)
-      : undefined;
-    const mnemonic = loadMnemonic();
-
-    const spin = spinner(
-      useMultiChain
-        ? formatAccountsLoadingText(opts.allChains)
-        : `Loading Pool Accounts on ${chainsToQuery[0].name}...`,
-      silent,
-    );
-    spin.start();
-    const useParallelChainLoading = useMultiChain && chainsToQuery.length > 1;
-
-    const chainCtx: ChainLoadContext = {
-      opts,
-      rpcUrl: globalOpts?.rpcUrl,
-      spin,
-      showPerChainProgress: !useParallelChainLoading,
-      silent,
-      mode,
-      isVerbose,
-      mnemonic,
-    };
-
-    const loadedResults: LoadedChainAccounts[] = [];
-    const warnings: AccountWarning[] = [];
-    let firstError: unknown;
-
-    if (useParallelChainLoading) {
-      const totalChains = chainsToQuery.length;
-      let completedChains = 0;
-      let showAggregateProgress = false;
-      const updateAggregateProgress = () => {
-        if (!showAggregateProgress || silent) return;
-        spin.text = formatAccountsLoadingText(
-          opts.allChains,
-          completedChains,
-          totalChains,
-        );
+      const chainCtx: ChainLoadContext = {
+        opts,
+        rpcUrl: globalOpts?.rpcUrl,
+        spin,
+        showPerChainProgress: !useParallelChainLoading,
+        silent,
+        mode,
+        isVerbose,
+        mnemonic,
       };
-      const progressTimer = setTimeout(() => {
-        showAggregateProgress = true;
-        updateAggregateProgress();
-      }, 3000);
 
-      type ChainLoadOutcome =
-        | { chainConfig: ChainConfig; result: LoadedChainAccounts }
-        | { chainConfig: ChainConfig; error: unknown };
+      const loadedResults: LoadedChainAccounts[] = [];
+      const warnings: AccountWarning[] = [];
+      let firstError: unknown;
 
-      // Preserve deterministic output order by iterating the Promise.all results
-      // in the same order as the input chain list, even though the work runs concurrently.
-      let outcomes: ChainLoadOutcome[] = [];
-      try {
-        outcomes = await Promise.all(
-          chainsToQuery.map(async (chainConfig) => {
-            try {
-              const result = await loadAccountsForChain(chainConfig, chainCtx);
-              return { chainConfig, result };
-            } catch (error) {
-              return { chainConfig, error };
-            } finally {
-              completedChains += 1;
-              updateAggregateProgress();
-            }
-          }),
-        );
-      } finally {
-        clearTimeout(progressTimer);
-      }
+      if (useParallelChainLoading) {
+        const totalChains = chainsToQuery.length;
+        let completedChains = 0;
+        let showAggregateProgress = false;
+        const updateAggregateProgress = () => {
+          if (!showAggregateProgress || silent) return;
+          spin.text = formatAccountsLoadingText(
+            opts.allChains,
+            completedChains,
+            totalChains,
+          );
+        };
+        const progressTimer = setTimeout(() => {
+          showAggregateProgress = true;
+          updateAggregateProgress();
+        }, 3000);
 
-      for (const outcome of outcomes) {
-        if ("error" in outcome) {
-          if (firstError === undefined) firstError = outcome.error;
-          const classified = classifyError(outcome.error);
-          warnings.push({
-            chain: outcome.chainConfig.name,
-            category: classified.category,
-            message: classified.message,
-          });
-          continue;
-        }
+        type ChainLoadOutcome =
+          | { chainConfig: ChainConfig; result: LoadedChainAccounts }
+          | { chainConfig: ChainConfig; error: unknown };
 
-        warnings.push(...outcome.result.warnings);
-        loadedResults.push(outcome.result);
-      }
-    } else {
-      for (const chainConfig of chainsToQuery) {
+        let outcomes: ChainLoadOutcome[] = [];
         try {
-          const result = await loadAccountsForChain(chainConfig, chainCtx);
-          warnings.push(...result.warnings);
-          loadedResults.push(result);
-        } catch (error) {
-          if (firstError === undefined) firstError = error;
-          const classified = classifyError(error);
-          warnings.push({
-            chain: chainConfig.name,
-            category: classified.category,
-            message: classified.message,
-          });
+          outcomes = await Promise.all(
+            chainsToQuery.map(async (chainConfig) => {
+              try {
+                const result = await loadAccountsForChain(chainConfig, chainCtx);
+                return { chainConfig, result };
+              } catch (error) {
+                return { chainConfig, error };
+              } finally {
+                completedChains += 1;
+                updateAggregateProgress();
+              }
+            }),
+          );
+        } finally {
+          clearTimeout(progressTimer);
+        }
+
+        for (const outcome of outcomes) {
+          if ("error" in outcome) {
+            if (firstError === undefined) firstError = outcome.error;
+            const classified = classifyError(outcome.error);
+            warnings.push({
+              chain: outcome.chainConfig.name,
+              category: classified.category,
+              message: classified.message,
+            });
+            continue;
+          }
+
+          warnings.push(...outcome.result.warnings);
+          loadedResults.push(outcome.result);
+        }
+      } else {
+        for (const chainConfig of chainsToQuery) {
+          try {
+            const result = await loadAccountsForChain(chainConfig, chainCtx);
+            warnings.push(...result.warnings);
+            loadedResults.push(result);
+          } catch (error) {
+            if (firstError === undefined) firstError = error;
+            const classified = classifyError(error);
+            warnings.push({
+              chain: chainConfig.name,
+              category: classified.category,
+              message: classified.message,
+            });
+          }
         }
       }
-    }
 
-    spin.stop();
+      spin.stop();
 
-    if (loadedResults.length === 0) {
-      throw firstError;
-    }
+      if (loadedResults.length === 0) {
+        throw firstError;
+      }
 
-    const groups = loadedResults.flatMap((result) => result.groups);
+      const groups = filterGroupsByStatus(
+        loadedResults.flatMap((result) => result.groups),
+        effectiveStatus,
+      );
 
-    // Compute the oldest sync time across all loaded chains for cache age display.
-    const syncTimes = loadedResults
-      .map((r) => loadSyncMeta(r.chainConfig.id)?.lastSyncTime)
-      .filter((t): t is number => t != null);
-    const lastSyncTime = syncTimes.length > 0 ? Math.min(...syncTimes) : null;
+      const syncTimes = loadedResults
+        .map((r) => loadSyncMeta(r.chainConfig.id)?.lastSyncTime)
+        .filter((t): t is number => t != null);
+      const lastSyncTime = syncTimes.length > 0 ? Math.min(...syncTimes) : null;
 
-    if (groups.length === 0) {
-      const emptyState = resolveAccountsEmptyState({
-        pendingOnly: !!opts.pendingOnly,
-        rootChain,
-        queriedChains,
-      });
-      renderAccountsNoPools(outCtx, {
+      if (groups.length === 0) {
+        const emptyState = resolveAccountsEmptyState({
+          pendingOnly: effectiveStatus === "pending",
+          statusFilter: effectiveStatus,
+          rootChain,
+          queriedChains,
+        });
+        renderAccountsNoPools(outCtx, {
+          chain: rootChain,
+          allChains: opts.allChains || undefined,
+          chains: queriedChains,
+          warnings,
+          summary: !!opts.summary,
+          pendingOnly: effectiveStatus === "pending",
+          statusFilter: effectiveStatus,
+          ...emptyState,
+        });
+        return 0;
+      }
+
+      renderAccounts(outCtx, {
         chain: rootChain,
         allChains: opts.allChains || undefined,
         chains: queriedChains,
         warnings,
-        summary: !!opts.summary,
-        pendingOnly: !!opts.pendingOnly,
-        ...emptyState,
+        groups,
+        showDetails: !!opts.details,
+        showSummary: !!opts.summary,
+        showPendingOnly: effectiveStatus === "pending",
+        statusFilter: effectiveStatus,
+        lastSyncTime,
       });
-      return;
-    }
 
-    renderAccounts(outCtx, {
-      chain: rootChain,
-      allChains: opts.allChains || undefined,
-      chains: queriedChains,
-      warnings,
-      groups,
-      showDetails: !!opts.details,
-      showSummary: !!opts.summary,
-      showPendingOnly: !!opts.pendingOnly,
-      lastSyncTime,
-    });
+      return effectiveStatus === "pending"
+        ? groups.reduce(
+            (count, group) => count + group.poolAccounts.filter((poolAccount) => poolAccount.status === "pending").length,
+            0,
+          )
+        : 0;
+    };
+
+    let iteration = 0;
+    while (true) {
+      if (opts.watch && iteration > 0 && process.stderr.isTTY) {
+        process.stderr.write("\x1bc");
+      }
+
+      const pendingCount = await renderOnce();
+      if (!opts.watch || pendingCount <= 0) {
+        return;
+      }
+
+      iteration += 1;
+      await sleep(15_000);
+    }
   } catch (error) {
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;

@@ -9,6 +9,15 @@ export type PoolAccountStatus =
   | "unknown"
   | "spent"
   | "exited";
+export const POOL_ACCOUNT_STATUSES: PoolAccountStatus[] = [
+  "approved",
+  "pending",
+  "poa_required",
+  "declined",
+  "unknown",
+  "spent",
+  "exited",
+];
 export type AspApprovalStatus =
   | "approved"
   | "pending"

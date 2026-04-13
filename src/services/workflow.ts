@@ -1046,6 +1046,21 @@ export function resolveLatestWorkflowId(): string {
   return latest.snapshot.workflowId;
 }
 
+export function listSavedWorkflowIds(): string[] {
+  const { snapshots } = listWorkflowSnapshots();
+  return snapshots
+    .sort((left, right) => {
+      const leftTime = Date.parse(
+        left.snapshot.updatedAt || left.snapshot.createdAt,
+      );
+      const rightTime = Date.parse(
+        right.snapshot.updatedAt || right.snapshot.createdAt,
+      );
+      return rightTime - leftTime;
+    })
+    .map(({ snapshot }) => snapshot.workflowId);
+}
+
 function resolveWorkflowId(input: string | undefined): string {
   if (!input || input === "latest") {
     return resolveLatestWorkflowId();

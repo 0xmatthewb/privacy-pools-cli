@@ -172,6 +172,12 @@ export function renderUpgradeResult(
         "Re-run privacy-pools to use the updated version.",
       ]),
     );
+    if (result.releaseHighlights && result.releaseHighlights.length > 0) {
+      process.stderr.write(formatSectionHeading("Release highlights", { divider: true }));
+      for (const highlight of result.releaseHighlights) {
+        process.stderr.write(`  - ${highlight}\n`);
+      }
+    }
     process.stderr.write("\n");
     return;
   }
@@ -195,6 +201,12 @@ export function renderUpgradeResult(
   );
 
   if (result.status === "manual") {
+    if (result.releaseHighlights && result.releaseHighlights.length > 0) {
+      process.stderr.write(formatSectionHeading("Release highlights", { divider: true }));
+      for (const highlight of result.releaseHighlights) {
+        process.stderr.write(`  - ${highlight}\n`);
+      }
+    }
     process.stderr.write(
       formatCallout(
         "warning",
@@ -213,6 +225,12 @@ export function renderUpgradeResult(
   }
 
   if (result.status === "ready") {
+    if (result.releaseHighlights && result.releaseHighlights.length > 0) {
+      process.stderr.write(formatSectionHeading("Release highlights", { divider: true }));
+      for (const highlight of result.releaseHighlights) {
+        process.stderr.write(`  - ${highlight}\n`);
+      }
+    }
     process.stderr.write(
       formatCallout(
         "read-only",

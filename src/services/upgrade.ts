@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join, sep } from "node:path";
 import type { CliPackageInfo } from "../package-info.js";
 import { CLIError, sanitizeDiagnosticText } from "../utils/errors.js";
@@ -41,6 +41,7 @@ export interface UpgradeResult {
   command: string | null;
   installContext: UpgradeInstallContext;
   installedVersion: string | null;
+  releaseHighlights?: string[];
 }
 
 interface CommandResult {
@@ -74,6 +75,41 @@ function exactUpgradeCommand(targetVersion: string): string {
 
 function localProjectUpgradeCommand(targetVersion: string): string {
   return `npm install ${CLI_NPM_PACKAGE_NAME}@${targetVersion}`;
+}
+
+export function loadBundledReleaseHighlights(
+  packageRoot: string,
+  targetVersion: string,
+  limit: number = 3,
+): string[] {
+  const changelogPath = join(packageRoot, "CHANGELOG.md");
+  if (!existsSync(changelogPath)) {
+    return [];
+  }
+
+  const changelog = readFileSync(changelogPath, "utf8");
+  const versionHeader = new RegExp(
+    `^## \\[${targetVersion.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\](?:\\s+-\\s+.*)?$`,
+    "m",
+  );
+  const headerMatch = changelog.match(versionHeader);
+  if (!headerMatch || headerMatch.index === undefined) {
+    return [];
+  }
+
+  const afterHeader = changelog.slice(headerMatch.index + headerMatch[0].length);
+  const nextSectionIndex = afterHeader.search(/^## \[/m);
+  const sectionBody = (nextSectionIndex >= 0
+    ? afterHeader.slice(0, nextSectionIndex)
+    : afterHeader).trim();
+
+  return sectionBody
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.slice(2).trim())
+    .filter(Boolean)
+    .slice(0, limit);
 }
 
 function manualUpgradeCommandForContext(

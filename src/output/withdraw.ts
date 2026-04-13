@@ -53,6 +53,7 @@ export interface RelayedWithdrawalReviewData {
   tokenPrice?: number | null;
   remainingBelowMinAdvisory?: string | null;
   nowMs?: number;
+  anonymitySet?: { eligible: number; total: number; percentage: number };
 }
 
 export interface DirectWithdrawalReviewData {
@@ -80,12 +81,20 @@ export function formatRelayedWithdrawalReview(
   const feeAmount = (data.amount * data.quoteFeeBPS) / 10000n;
   const netAmount = data.amount - feeAmount;
   const quoteExpiry = `${new Date(data.expirationMs).toISOString()} (in ${secondsLeft}s)`;
+  const secondaryLines = [
+    ...(data.remainingBelowMinAdvisory ? [data.remainingBelowMinAdvisory] : []),
+    ...(secondsLeft <= 30
+      ? [
+          "This quote is close to expiry. The CLI will refresh before proof generation when it can; if the fee changes, you will need to re-run the withdrawal.",
+        ]
+      : []),
+  ];
   return formatReviewSurface({
     title: "Withdrawal review",
     summaryRows: [
-      { label: "Source PA", value: data.poolAccountId },
+      { label: "Pool Account", value: data.poolAccountId },
       {
-        label: "PA balance",
+        label: "Pool Account balance",
         value: formatAmount(
           data.poolAccountBalance,
           data.decimals,
@@ -150,6 +159,15 @@ export function formatRelayedWithdrawalReview(
         value: quoteExpiry,
         valueTone: secondsLeft <= 20 ? "warning" : "muted",
       },
+      ...(data.anonymitySet
+        ? [
+            {
+              label: "Anonymity set",
+              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%)`,
+              valueTone: "accent" as const,
+            },
+          ]
+        : []),
     ],
     primaryCallout: {
       kind: "privacy",
@@ -157,10 +175,10 @@ export function formatRelayedWithdrawalReview(
         "This uses the relayed privacy-preserving path, so the withdrawal is not tied to your signer address onchain.",
       ],
     },
-    secondaryCallout: data.remainingBelowMinAdvisory
+    secondaryCallout: secondaryLines.length > 0
       ? {
           kind: "warning",
-          lines: data.remainingBelowMinAdvisory,
+          lines: secondaryLines,
         }
       : null,
   });
@@ -335,6 +353,12 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
               value: "enabled (receive ETH for gas)",
             }]
           : []),
+        ...(data.anonymitySet
+          ? [{
+              label: "Anonymity set",
+              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%)`,
+            }]
+          : []),
         {
           label: "Pool Account balance",
           value: formatAmount(
@@ -489,6 +513,12 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
           ? [{
               label: "Gas token received",
               value: "ETH included with withdrawal",
+            }]
+          : []),
+        ...(data.anonymitySet
+          ? [{
+              label: "Anonymity set",
+              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%)`,
             }]
           : []),
         ...(data.remainingBalance === 0n
@@ -712,6 +742,14 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       }),
     );
     process.stderr.write(formatKeyValueRows(quoteRows));
+    if (!hasRecipient) {
+      process.stderr.write(
+        formatCallout(
+          "read-only",
+          "Add --to <address> for an accurate fee quote and a runnable next step.",
+        ),
+      );
+    }
   }
   renderNextSteps(ctx, humanNextActions);
 }

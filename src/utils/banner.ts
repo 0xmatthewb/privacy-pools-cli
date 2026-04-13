@@ -66,6 +66,7 @@ interface BannerMeta {
   version?: string;
   repository?: string | null;
   website?: string;
+  readinessLabel?: string;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -78,7 +79,7 @@ function composeWelcomeText(meta: BannerMeta): string[] {
   const sep = inlineSeparator();
 
   const versionLine = version
-    ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent(website)}`
+    ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent(website)}${meta.readinessLabel ? `${chalk.dim(sep)}${chalk.dim(meta.readinessLabel)}` : ""}`
     : accent(website);
 
   return [

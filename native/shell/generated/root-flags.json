@@ -18,6 +18,18 @@
     "welcomeBoolean": false
   },
   {
+    "flag": "-o, --output <format>",
+    "description": "Output format: table (default), csv, json, wide",
+    "takesValue": true,
+    "welcomeBoolean": false,
+    "values": [
+      "table",
+      "csv",
+      "json",
+      "wide"
+    ]
+  },
+  {
     "flag": "--format <format>",
     "description": "Output format: table (default), csv, json, wide",
     "takesValue": true,

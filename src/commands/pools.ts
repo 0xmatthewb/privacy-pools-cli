@@ -8,6 +8,7 @@ import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { loadMnemonic } from "../services/wallet.js";
+import { loadAccount } from "../services/account-storage.js";
 import { getDataService } from "../services/sdk.js";
 import {
   initializeAccountService,
@@ -101,6 +102,56 @@ function withChainMeta(
     chain: chainConfig.name,
     chainId: chainConfig.id,
     pool,
+  }));
+}
+
+function countCachedPoolAccountsForScope(
+  chainId: number,
+  scope: bigint,
+): number | undefined {
+  try {
+    const account = loadAccount(chainId);
+    if (!account || !(account.poolAccounts instanceof Map)) {
+      return 0;
+    }
+
+    const scopeEntries = account.poolAccounts.get(scope);
+    if (!Array.isArray(scopeEntries)) {
+      return 0;
+    }
+
+    let total = 0;
+    for (const entry of scopeEntries) {
+      const rawEntry = entry as {
+        ragequit?: boolean;
+        commitments?: Array<{ value?: bigint }>;
+      };
+      if (rawEntry.ragequit === true) continue;
+      const commitments = Array.isArray(rawEntry.commitments)
+        ? rawEntry.commitments
+        : [];
+      const latestCommitment = commitments.at(-1);
+      const remainingValue = latestCommitment?.value;
+      if (typeof remainingValue === "bigint" && remainingValue > 0n) {
+        total += 1;
+      }
+    }
+
+    return total;
+  } catch {
+    return undefined;
+  }
+}
+
+function enrichPoolsWithCachedAccountCounts(
+  pools: PoolWithChain[],
+): PoolWithChain[] {
+  return pools.map((entry) => ({
+    ...entry,
+    myPoolAccountsCount: countCachedPoolAccountsForScope(
+      entry.chainId,
+      entry.pool.scope,
+    ),
   }));
 }
 
@@ -343,6 +394,7 @@ export async function handlePoolsCommand(
 
       // Try to fetch recent activity (non-fatal).
       let recentActivity: PoolDetailActivityEvent[] | null = null;
+      let recentActivityUnavailable = false;
       try {
         const eventsPage = await fetchPoolEvents(chainConfig, pool.scope, 1, 5);
         const events = Array.isArray(eventsPage.events)
@@ -358,7 +410,7 @@ export async function handlePoolsCommand(
           };
         });
       } catch {
-        /* graceful skip */
+        recentActivityUnavailable = true;
       }
 
       spin.stop();
@@ -371,6 +423,7 @@ export async function handlePoolsCommand(
         myPoolAccounts,
         myFundsWarning,
         recentActivity,
+        recentActivityUnavailable,
       });
     } catch (error) {
       printError(error, mode.isJson);
@@ -451,9 +504,9 @@ export async function handlePoolsCommand(
         };
       });
 
-    const rawPools = chainResults.flatMap((result) =>
+    const rawPools = enrichPoolsWithCachedAccountCounts(chainResults.flatMap((result) =>
       withChainMeta(result.chainConfig, result.pools),
-    );
+    ));
 
     const renderData: PoolsRenderData = {
       allChains: isMultiChain,

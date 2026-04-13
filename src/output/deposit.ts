@@ -48,6 +48,8 @@ export interface DepositReviewData {
   decimals: number;
   tokenPrice?: number | null;
   isErc20?: boolean;
+  estimatedGasCost?: bigint | null;
+  gasSymbol?: string;
 }
 
 function depositUsdSuffix(
@@ -60,6 +62,14 @@ function depositUsdSuffix(
 }
 
 export function formatDepositReview(data: DepositReviewData): string {
+  const secondaryLines = [
+    ...(data.isErc20
+      ? ["This will require 2 transactions: token approval + deposit."]
+      : []),
+    ...(data.estimatedGasCost !== undefined && data.estimatedGasCost !== null
+      ? ["Gas estimate is best effort and may change before submission."]
+      : []),
+  ];
   return formatReviewSurface({
     title: "Deposit review",
     summaryRows: [
@@ -84,18 +94,33 @@ export function formatDepositReview(data: DepositReviewData): string {
           depositUsdSuffix(data.estimatedCommitted, data.decimals, data.tokenPrice),
         valueTone: "success",
       },
+      ...(data.estimatedGasCost !== undefined && data.estimatedGasCost !== null
+        ? [
+            {
+              label: "Est. gas",
+              value: formatAmount(
+                data.estimatedGasCost,
+                18,
+                data.gasSymbol ?? "ETH",
+                displayDecimals(18),
+              ),
+              valueTone: "muted" as const,
+            },
+          ]
+        : []),
     ],
     primaryCallout: {
       kind: "privacy",
       lines: [
         "Deposits are always public on-chain.",
         "Association Set Provider (ASP) approval unlocks private withdrawal via relayer.",
+        DEPOSIT_APPROVAL_TIMELINE_COPY,
       ],
     },
-    secondaryCallout: data.isErc20
+    secondaryCallout: secondaryLines.length > 0
       ? {
           kind: "read-only",
-          lines: "This will require 2 transactions: token approval + deposit.",
+          lines: secondaryLines,
         }
       : null,
   });

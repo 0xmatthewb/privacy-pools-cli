@@ -146,9 +146,17 @@ export async function createRootProgram(
     .option("-j, --json", rootGlobalFlagDescription("-j, --json"))
     .addOption(
       new Option(
+        "-o, --output <format>",
+        rootGlobalFlagDescription("-o, --output <format>"),
+      ).choices([...rootGlobalFlagValues("-o, --output <format>")]),
+    )
+    .addOption(
+      new Option(
         "--format <format>",
         rootGlobalFlagDescription("--format <format>"),
-      ).choices([...rootGlobalFlagValues("--format <format>")]),
+      )
+        .choices([...rootGlobalFlagValues("--format <format>")])
+        .hideHelp(),
     )
     .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"));
 

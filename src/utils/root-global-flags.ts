@@ -23,6 +23,13 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
     welcomeBoolean: false,
   },
   {
+    flag: "-o, --output <format>",
+    description: OUTPUT_FORMAT_DESCRIPTION,
+    takesValue: true,
+    welcomeBoolean: false,
+    values: [...OUTPUT_FORMATS],
+  },
+  {
     flag: "--format <format>",
     description: OUTPUT_FORMAT_DESCRIPTION,
     takesValue: true,
@@ -104,7 +111,7 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
 ] as const;
 
 export type RootGlobalFlagMetadata = (typeof ROOT_GLOBAL_FLAG_METADATA)[number];
-export type RootGlobalFlag = RootGlobalFlagMetadata["flag"];
+export type RootGlobalFlag = RootGlobalFlagMetadata["flag"] | string;
 
 function splitFlagNames(flag: string): string[] {
   return flag
@@ -115,13 +122,13 @@ function splitFlagNames(flag: string): string[] {
     .filter(Boolean);
 }
 
-const ROOT_GLOBAL_FLAG_DESCRIPTIONS = new Map(
+const ROOT_GLOBAL_FLAG_DESCRIPTIONS = new Map<string, string>(
   ROOT_GLOBAL_FLAG_METADATA.map(({ flag, description }) => [flag, description]),
 );
-const ROOT_GLOBAL_FLAG_VALUES = new Map(
+const ROOT_GLOBAL_FLAG_VALUES = new Map<string, readonly string[]>(
   ROOT_GLOBAL_FLAG_METADATA.map((entry) => [
     entry.flag,
-    "values" in entry ? (entry.values ?? []) : [],
+    "values" in entry ? entry.values : [],
   ]),
 );
 
@@ -141,8 +148,22 @@ export const ROOT_WELCOME_BOOLEAN_FLAGS = new Set(
   ),
 );
 
+function resolveRootFlagMetadata(flag: string): RootGlobalFlagMetadata | undefined {
+  return ROOT_GLOBAL_FLAG_METADATA.find(
+    (entry) => entry.flag === flag || splitFlagNames(entry.flag).includes(flag.split(/\s+/)[0] ?? flag),
+  );
+}
+
+function rootFlagValues(
+  metadata: RootGlobalFlagMetadata | undefined,
+): readonly string[] {
+  return metadata && "values" in metadata ? metadata.values : [];
+}
+
 export function rootGlobalFlagDescription(flag: RootGlobalFlag): string {
-  const description = ROOT_GLOBAL_FLAG_DESCRIPTIONS.get(flag);
+  const description =
+    ROOT_GLOBAL_FLAG_DESCRIPTIONS.get(flag) ??
+    resolveRootFlagMetadata(flag)?.description;
   if (!description) {
     throw new Error(`Unknown root global flag: ${flag}`);
   }
@@ -150,8 +171,12 @@ export function rootGlobalFlagDescription(flag: RootGlobalFlag): string {
 }
 
 export function rootGlobalFlagValues(flag: RootGlobalFlag): readonly string[] {
-  const values = ROOT_GLOBAL_FLAG_VALUES.get(flag);
-  if (!values) {
+  const resolved = resolveRootFlagMetadata(flag);
+  const values =
+    ROOT_GLOBAL_FLAG_VALUES.get(flag) ??
+    rootFlagValues(resolved) ??
+    [];
+  if (values.length === 0 && !resolved) {
     throw new Error(`Unknown root global flag: ${flag}`);
   }
   return values;

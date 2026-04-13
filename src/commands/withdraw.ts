@@ -122,7 +122,8 @@ import {
 } from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
-  classifyPoolAccountRefs,
+  buildAllPoolAccountRefs,
+  buildPoolAccountRefs,
   collectActiveLabels,
   describeUnavailablePoolAccount,
   getUnknownPoolAccountError,
@@ -352,6 +353,9 @@ export async function handleWithdrawCommand(
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
   const isDirect = opts.direct ?? false;
+  const confirmationTimeoutSeconds = Math.round(
+    getConfirmationTimeoutMs() / 1000,
+  );
   if (opts.fromPa !== undefined) {
     throw new CLIError(
       "--from-pa has been renamed to --pool-account.",
@@ -442,6 +446,7 @@ export async function handleWithdrawCommand(
     const isAllWithdrawal = opts.all ?? false;
     let amountStr: string;
     let positionalOrFlagAsset: string | undefined;
+    let needsAmountPrompt = false;
 
     if (isAllWithdrawal) {
       if (secondArg !== undefined) {
@@ -462,20 +467,26 @@ export async function handleWithdrawCommand(
       amountStr = "";
     } else {
       if (!firstArg) {
-        throw new CLIError(
-          "Missing amount. Specify an amount or use --all.",
-          "INPUT",
-          "Example: privacy-pools withdraw 0.05 ETH --to 0x... or privacy-pools withdraw --all --asset ETH --to 0x...",
+        if (skipPrompts) {
+          throw new CLIError(
+            "Missing amount. Specify an amount or use --all.",
+            "INPUT",
+            "Example: privacy-pools withdraw 0.05 ETH --to 0x... or privacy-pools withdraw --all ETH --to 0x...",
+          );
+        }
+        amountStr = "";
+        positionalOrFlagAsset = opts.asset ?? secondArg;
+        needsAmountPrompt = true;
+      } else {
+        const resolved = resolveAmountAndAssetInput(
+          "withdraw",
+          firstArg,
+          secondArg,
+          opts.asset,
         );
+        amountStr = resolved.amount;
+        positionalOrFlagAsset = resolved.asset;
       }
-      const resolved = resolveAmountAndAssetInput(
-        "withdraw",
-        firstArg,
-        secondArg,
-        opts.asset,
-      );
-      amountStr = resolved.amount;
-      positionalOrFlagAsset = resolved.asset;
     }
 
     // Detect percentage amounts (e.g. "50%")
@@ -578,9 +589,9 @@ export async function handleWithdrawCommand(
       );
     } else {
       throw new CLIError(
-        "No asset specified. Use --asset <symbol|address>.",
+        "No asset specified.",
         "INPUT",
-        "Run 'privacy-pools pools' to see available assets, then use --asset ETH (or the asset symbol).",
+        "Run 'privacy-pools pools' to see available assets, then use a positional asset like 'privacy-pools withdraw 0.05 ETH --to 0x...'.",
       );
     }
     verbose(
@@ -588,6 +599,35 @@ export async function handleWithdrawCommand(
       isVerbose,
       silent,
     );
+
+    if (needsAmountPrompt) {
+      ensurePromptInteractionAvailable();
+      amountStr = (
+        await input({
+          message: `Withdrawal amount for ${pool.symbol} (e.g. 0.05, 50%, 100%):`,
+          validate: (value) => {
+            const trimmed = value.trim();
+            if (trimmed.length === 0) {
+              return "Enter an amount or percentage.";
+            }
+            if (isPercentageAmount(trimmed)) {
+              const percentage = Number.parseFloat(trimmed.replace("%", ""));
+              if (!Number.isFinite(percentage) || percentage <= 0 || percentage > 100) {
+                return "Use a percentage between 1% and 100%.";
+              }
+              return true;
+            }
+            try {
+              const parsed = parseAmount(trimmed, pool.decimals);
+              validatePositive(parsed, "Withdrawal amount");
+              return true;
+            } catch (error) {
+              return error instanceof Error ? error.message : "Invalid amount.";
+            }
+          },
+        })
+      ).trim();
+    }
 
     // Resolve --extra-gas: default true for ERC20, always false for native asset (ETH)
     const isNativeAsset = isNativePoolAsset(chainConfig.id, pool.asset);
@@ -751,10 +791,12 @@ export async function handleWithdrawCommand(
       );
       const poolCommitments = spendable.get(pool.scope) ?? [];
 
-      const {
-        activeRefs: rawPoolAccounts,
-        allRefs: allKnownPoolAccounts,
-      } = classifyPoolAccountRefs(
+      const rawPoolAccounts = buildPoolAccountRefs(
+        accountService.account,
+        pool.scope,
+        poolCommitments,
+      );
+      const allKnownPoolAccounts = buildAllPoolAccountRefs(
         accountService.account,
         pool.scope,
         poolCommitments,
@@ -855,10 +897,14 @@ export async function handleWithdrawCommand(
       );
       const allCommitmentHashes = leaves.stateTreeLeaves.map((s) => BigInt(s));
 
-      const {
-        allRefs: allPoolAccounts,
-        activeRefs: poolAccounts,
-      } = classifyPoolAccountRefs(
+      const allPoolAccounts = buildAllPoolAccountRefs(
+        accountService.account,
+        pool.scope,
+        poolCommitments,
+        aspReviewState.approvedLabels,
+        aspReviewState.reviewStatuses,
+      );
+      const poolAccounts = buildPoolAccountRefs(
         accountService.account,
         pool.scope,
         poolCommitments,
@@ -1467,7 +1513,7 @@ export async function handleWithdrawCommand(
           throw new CLIError(
             "Timed out waiting for withdrawal confirmation.",
             "RPC",
-            `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync' to pick up the transaction.`,
+            `Tx ${tx.hash} may still confirm. Wait about ${confirmationTimeoutSeconds}s or re-run with --timeout <seconds>, then run 'privacy-pools sync' to pick up the transaction.`,
           );
         }
         if (receipt.status !== "success") {
@@ -1705,6 +1751,7 @@ export async function handleWithdrawCommand(
                 : null,
               tokenPrice,
               remainingBelowMinAdvisory,
+              anonymitySet,
             }),
           );
         };
@@ -1717,7 +1764,7 @@ export async function handleWithdrawCommand(
             );
             if (secondsLeft <= 0) {
               await fetchFreshQuote(
-                "Quote expired. Refreshing relayer quote...",
+                "Quote expired. Refreshing relayer quote before continuing...",
               );
               continue;
             }
@@ -1767,14 +1814,14 @@ export async function handleWithdrawCommand(
 
             spin.start();
             warn(
-              "Quote expired while waiting for confirmation. Fetching a fresh quote...",
+              "Quote expired while you were confirming. Fetching a fresh relayer quote...",
               silent,
             );
-            await fetchFreshQuote("Refreshing relayer quote...");
+            await fetchFreshQuote("Refreshing relayer quote after confirmation delay...");
           }
         } else {
           if (Date.now() > expirationMs) {
-            await fetchFreshQuote("Quote expired. Refreshing relayer quote...");
+            await fetchFreshQuote("Quote expired. Refreshing relayer quote before proof generation...");
           }
           if (!silent) {
             spin.stop();
@@ -1813,7 +1860,9 @@ export async function handleWithdrawCommand(
               silent,
             );
             const previousFeeBPS = quote.feeBPS;
-            await fetchFreshQuote("Quote nearly expired before proof. Refreshing...");
+            await fetchFreshQuote(
+              "Quote nearly expired before proof. Refreshing so it survives proof generation...",
+            );
             if (Number(quote.feeBPS) !== Number(previousFeeBPS)) {
               throw new CLIError(
                 `Relayer fee changed during pre-proof refresh (${previousFeeBPS} → ${quote.feeBPS} BPS). Re-run the withdrawal.`,
@@ -1995,7 +2044,7 @@ export async function handleWithdrawCommand(
           throw new CLIError(
             "Timed out waiting for relayed withdrawal confirmation.",
             "RPC",
-            "The relayer may have replaced or delayed the transaction. Check the explorer and run 'privacy-pools sync' to update local state.",
+            `The relayer may have replaced or delayed the transaction. Wait about ${confirmationTimeoutSeconds}s or re-run with --timeout <seconds>, then check the explorer and run 'privacy-pools sync' to update local state.`,
           );
         }
 
@@ -2135,9 +2184,9 @@ export async function handleWithdrawQuoteCommand(
       );
     } else {
       throw new CLIError(
-        "No asset specified. Use --asset <symbol|address>.",
+        "No asset specified.",
         "INPUT",
-        "Example: privacy-pools withdraw quote 0.1 --asset ETH",
+        "Example: privacy-pools withdraw quote 0.1 ETH",
       );
     }
     verbose(

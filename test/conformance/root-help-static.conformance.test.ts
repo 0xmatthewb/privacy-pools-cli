@@ -23,6 +23,10 @@ const NATIVE_MANIFEST_PATH = join(
 const README_PATH = join(CLI_ROOT, "README.md");
 const AGENT_GUIDE_PATH = join(CLI_ROOT, "AGENTS.md");
 
+function stripAnsi(text: string): string {
+  return text.replace(/\x1B\[[0-9;]*m/g, "");
+}
+
 describe("root help static conformance", () => {
   test("static root help text matches the live commander root help", async () => {
     const program = await createRootProgram("0.0.0");
@@ -41,8 +45,8 @@ describe("root help static conformance", () => {
     };
 
     try {
-      expect(manifest.rootHelp).toBe(
-        `${styleCommanderHelp(rootHelpBaseText())}\n${rootHelpFooter()}`,
+      expect(stripAnsi(manifest.rootHelp)).toBe(
+        stripAnsi(`${styleCommanderHelp(rootHelpBaseText())}\n${rootHelpFooter()}`),
       );
       expect(manifest.structuredRootHelp).toBe(rootHelpText());
     } finally {

@@ -18,10 +18,16 @@ const GENERIC_SECTION_HEADER_RE = /^[A-Z][A-Za-z0-9 ()/\-]+:$/;
 
 const EXPLORE_ORDER = ["pools", "activity", "stats", "status", "guide", "capabilities", "describe"];
 const TRANSACT_ORDER = ["init", "flow", "deposit", "accounts", "migrate", "withdraw", "ragequit", "history", "sync"];
-const TOOLING_ORDER = ["upgrade", "completion"];
+const TOOLING_ORDER = ["upgrade", "config", "completion"];
 const EXPLORE_SET = new Set(EXPLORE_ORDER);
 const TRANSACT_SET = new Set(TRANSACT_ORDER);
 const TOOLING_SET = new Set(TOOLING_ORDER);
+const ROOT_COMMAND_SET = new Set([
+  ...EXPLORE_ORDER,
+  ...TRANSACT_ORDER,
+  ...TOOLING_ORDER,
+  "help",
+]);
 
 const CMD_RE = /^(\s{2,})([a-z][\w-]*(?:\|[a-z][\w-]*)?(?:\s+\[[^\]]+\])?(?:\s+<[^>]+>)?)(\s{2,})(.+)$/i;
 
@@ -31,51 +37,56 @@ const ROOT_HELP_BASE_LINES = [
   "Privacy Pools: a compliant way to transact privately on Ethereum",
   "",
   "Options:",
-  "  -V, --version        output the version number",
-  "  -c, --chain <name>   Target chain (mainnet, arbitrum, optimism, ...)",
-  "  -j, --json           Machine-readable JSON output on stdout",
-  "  --json-fields <f>    Select specific JSON fields (comma-separated, implies",
-  "                       --json)",
-  `  --format <format>    ${OUTPUT_FORMAT_DESCRIPTION}`,
-  `                       (choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`,
-  "  -y, --yes            Skip confirmation prompts",
-  "  -r, --rpc-url <url>  Override RPC URL",
-  "  --agent              Machine-friendly mode (alias for --json --yes --quiet)",
-  "  -q, --quiet          Suppress human-oriented stderr output",
-  "  -v, --verbose        Enable verbose/debug output (-v info, -vv debug, -vvv trace)",
-  "  --no-progress        Suppress spinners/progress indicators (useful in CI)",
-  "  --no-header          Suppress header rows in CSV and wide/tabular table output",
-  "  --no-banner          Disable ASCII banner output",
-  "  --no-color           Disable colored output (also respects NO_COLOR env var)",
-  "  --timeout <seconds>  Network/transaction timeout in seconds (default: 30)",
-  "  --jq <expression>   Filter JSON output with a JMESPath expression (implies",
-  "                       --json)",
-  "  --profile <name>     Use a named profile (separate wallet identity and config)",
-  "  -h, --help           display help for command",
+  "  -V, --version           output the version number",
+  "  -c, --chain <name>      Target chain (mainnet, arbitrum, optimism, ...)",
+  "  -j, --json              Machine-readable JSON output on stdout",
+  `  -o, --output <format>   ${OUTPUT_FORMAT_DESCRIPTION}`,
+  `                          (choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`,
+  "  -y, --yes               Skip confirmation prompts",
+  "  -r, --rpc-url <url>     Override RPC URL",
+  "  --json-fields <fields>  Select specific JSON fields (comma-separated, implies",
+  "                          --json)",
+  "  --agent                 Machine-friendly mode (alias for --json --yes --quiet)",
+  "  -q, --quiet             Suppress human-oriented stderr output",
+  "  -v, --verbose           Enable verbose/debug output (-v info, -vv debug, -vvv",
+  "                          trace)",
+  "  --no-progress           Suppress spinners/progress indicators (useful in CI)",
+  "  --no-header             Suppress header rows in CSV and wide/tabular table",
+  "                          output",
+  "  --no-banner             Disable ASCII banner output",
+  "  --no-color              Disable colored output (also respects NO_COLOR env",
+  "                          var)",
+  "  --timeout <seconds>     Network/transaction timeout in seconds (default: 30)",
+  "  --jq <expression>       Filter JSON output with a JMESPath expression (implies",
+  "                          --json)",
+  "  --profile <name>        Use a named profile (separate wallet identity and",
+  "                          config)",
+  "  -h, --help              display help for command",
   "",
   "Commands:",
-  "  init                 Initialize wallet and configuration",
-  "  upgrade              Check npm for updates or upgrade this CLI",
-  "  flow                 Guided deposit-to-private-withdrawal workflow",
-  "  pools                List available pools and assets",
-  "  deposit              Deposit funds into a Privacy Pool",
-  "  accounts             List your Pool Accounts with balances",
-  "  migrate              Inspect legacy migration readiness on CLI-supported",
-  "                       chains",
-  "  withdraw             Privately withdraw funds via relayer",
-  "  ragequit|exit        Publicly recover funds to your original deposit",
-  "                       address (self-custody guarantee)",
-  "  history              Show chronological event history (deposits, migrations,",
-  "                       withdrawals, ragequits)",
-  "  sync                 Force-sync local account state from onchain events",
-  "  status               Show configuration and check connection health",
-  "  activity             Show public activity feed",
-  "  stats                Show public statistics",
-  "  guide                Show usage guide, workflow, and reference",
-  "  capabilities         Describe CLI capabilities for agent discovery",
-  "  describe             Describe one command for runtime agent introspection",
-  "  completion           Generate or install shell completion",
-  "  help                 display help for command",
+  "  init                    Initialize wallet and configuration",
+  "  upgrade                 Check npm for updates or upgrade this CLI",
+  "  config                  View and manage CLI configuration",
+  "  flow                    Guided deposit-to-private-withdrawal workflow",
+  "  pools                   List available pools and assets",
+  "  deposit                 Deposit funds into a Privacy Pool",
+  "  accounts                List your Pool Accounts with balances",
+  "  migrate                 Inspect legacy migration readiness on CLI-supported",
+  "                          chains",
+  "  withdraw                Privately withdraw funds via relayer",
+  "  ragequit|exit           Publicly recover funds to your original deposit",
+  "                          address (self-custody guarantee)",
+  "  history                 Show chronological event history (deposits,",
+  "                          migrations, withdrawals, ragequits)",
+  "  sync                    Force-sync local account state from onchain events",
+  "  status                  Show configuration and check connection health",
+  "  activity                Show public activity feed",
+  "  stats                   Show public statistics",
+  "  guide                   Show usage guide, workflow, and reference",
+  "  capabilities            Describe CLI capabilities for agent discovery",
+  "  describe                Describe one command for runtime agent introspection",
+  "  completion              Generate or install shell completion",
+  "  help                    display help for command",
 ];
 
 function styleCmdLine(line: string): string {
@@ -124,12 +135,7 @@ export function styleCommanderHelp(raw: string): string {
       }
     }
 
-    const isRoot = entries.some(
-      (entry) =>
-        EXPLORE_SET.has(entry.name) ||
-        TRANSACT_SET.has(entry.name) ||
-        TOOLING_SET.has(entry.name),
-    );
+    const isRoot = entries.length > 0 && entries.every((entry) => ROOT_COMMAND_SET.has(entry.name));
     if (!isRoot) {
       for (const entry of entries) result.push(...entry.lines.map(styleCmdLine));
       cmdBuffer = [];

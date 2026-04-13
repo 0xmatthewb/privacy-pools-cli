@@ -9,6 +9,7 @@ export function createConfigCommand(): Command {
   const getMetadata = getCommandMetadata("config get");
   const setMetadata = getCommandMetadata("config set");
   const pathMetadata = getCommandMetadata("config path");
+  const profileMetadata = getCommandMetadata("config profile");
 
   const command = new Command("config")
     .description(metadata.description)
@@ -67,10 +68,12 @@ export function createConfigCommand(): Command {
   const profileListMeta = getCommandMetadata("config profile list");
   const profileCreateMeta = getCommandMetadata("config profile create");
   const profileActiveMeta = getCommandMetadata("config profile active");
+  const profileUseMeta = getCommandMetadata("config profile use");
 
   const profile = command
     .command("profile")
-    .description("Manage named profiles (separate wallet identities)");
+    .description(profileMetadata.description)
+    .addHelpText("after", commandHelpText(profileMetadata.help ?? {}));
 
   profile
     .command("list")
@@ -103,6 +106,18 @@ export function createConfigCommand(): Command {
       createLazyAction(
         () => import("../commands/config.js"),
         "handleConfigProfileActiveCommand",
+      ),
+    );
+
+  profile
+    .command("use")
+    .description(profileUseMeta.description)
+    .argument("<name>", "Profile name or 'default'")
+    .addHelpText("after", commandHelpText(profileUseMeta.help ?? {}))
+    .action(
+      createLazyAction(
+        () => import("../commands/config.js"),
+        "handleConfigProfileUseCommand",
       ),
     );
 

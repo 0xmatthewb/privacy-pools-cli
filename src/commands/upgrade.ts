@@ -10,6 +10,7 @@ import {
 } from "../output/upgrade.js";
 import {
   inspectUpgrade,
+  loadBundledReleaseHighlights,
   markUpgradeCancelled,
   performUpgrade,
 } from "../services/upgrade.js";
@@ -32,6 +33,17 @@ import type { UpgradeResult } from "../services/upgrade.js";
 interface UpgradeCommandOptions {
   check?: boolean;
   changelog?: boolean;
+}
+
+function withBundledReleaseHighlights(
+  result: UpgradeResult,
+  packageRoot: string,
+): UpgradeResult {
+  const targetVersion = result.installedVersion ?? result.latestVersion;
+  const releaseHighlights = loadBundledReleaseHighlights(packageRoot, targetVersion);
+  return releaseHighlights.length > 0
+    ? { ...result, releaseHighlights }
+    : result;
 }
 
 function previewUpgradeInspectResult(
@@ -107,7 +119,10 @@ export async function handleUpgradeCommand(
     const pkg = readCliPackageInfo(import.meta.url);
     const previewResult = previewUpgradeInspectResult(pkg.version);
     const inspectUpgradeWithPreview = async () =>
-      previewResult ?? inspectUpgrade(pkg);
+      withBundledReleaseHighlights(
+        previewResult ?? await inspectUpgrade(pkg),
+        pkg.packageRoot,
+      );
     let result = shouldShowProgress
       ? await (async () => {
           const [{ spinner }, { withSpinnerProgress }] = await Promise.all([
@@ -135,7 +150,10 @@ export async function handleUpgradeCommand(
       const spin = spinner("Installing update...", false);
       spin.start();
       try {
-        return await performUpgrade(result);
+        return withBundledReleaseHighlights(
+          await performUpgrade(result),
+          pkg.packageRoot,
+        );
       } finally {
         spin.stop();
       }

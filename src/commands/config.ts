@@ -29,13 +29,18 @@ import {
   renderConfigProfileList,
   renderConfigProfileCreate,
   renderConfigProfileActive,
+  renderConfigProfileUse,
 } from "../output/config.js";
 import type {
   ConfigListResult,
   ConfigGetResult,
   ConfigSetResult,
 } from "../output/config.js";
-import { resolveConfigHome, getActiveProfile } from "../runtime/config-paths.js";
+import {
+  resolveConfigHome,
+  getActiveProfile,
+  persistActiveProfile,
+} from "../runtime/config-paths.js";
 
 export { createConfigCommand } from "../command-shells/config.js";
 
@@ -417,6 +422,42 @@ export async function handleConfigProfileActiveCommand(
     const active = getActiveProfile() ?? "default";
     const configDir = getConfigDir();
     renderConfigProfileActive(ctx, active, configDir);
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
+}
+
+export async function handleConfigProfileUseCommand(
+  name: string,
+  _opts: Record<string, unknown>,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = cmd.parent?.parent?.parent?.opts() as GlobalOptions;
+  const mode = resolveGlobalMode(globalOpts);
+  const ctx = createOutputContext(mode);
+
+  try {
+    if (name !== "default" && !PROFILE_NAME_RE.test(name)) {
+      throw new CLIError(
+        `Invalid profile name: ${name}`,
+        "INPUT",
+        "Profile names must start with a letter or digit and contain only letters, digits, hyphens, and underscores.",
+      );
+    }
+
+    if (name !== "default") {
+      const knownProfiles = listProfileNames();
+      if (!knownProfiles.includes(name)) {
+        throw new CLIError(
+          `Unknown profile: ${name}`,
+          "INPUT",
+          "Run 'privacy-pools config profile list' to see available profiles, or create one first.",
+        );
+      }
+    }
+
+    persistActiveProfile(name);
+    renderConfigProfileUse(ctx, name, resolveConfigHome());
   } catch (error) {
     printError(error, mode.isJson);
   }

@@ -277,16 +277,16 @@ const AGENT_WORKFLOW = [
   "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
   "5. privacy-pools flow watch [workflowId|latest] --agent",
   "6. privacy-pools flow ragequit [workflowId|latest] --agent  (optional public recovery after the deposit exists; canonical if the saved workflow is declined)",
-  "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
+  "7. privacy-pools deposit <amount> <asset> --agent --chain <chain>  (manual alternative)",
   "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poa_required with accounts --agent --chain <chain>)",
-  "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>",
+  "9. privacy-pools withdraw <amount> <asset> --to <address> --agent --chain <chain>",
 ];
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
     `After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poa_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if poa_required. Always preserve the same --chain scope for both polling and confirmation. ${DEPOSIT_APPROVAL_TIMELINE_COPY} Follow nextActions from the deposit response for the canonical polling command.`,
   withdrawQuote:
-    "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
+    "Use 'withdraw quote <amount> <asset> --agent' to check relayer fees before committing to a withdrawal.",
   firstRun:
     "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
   unsignedMode:

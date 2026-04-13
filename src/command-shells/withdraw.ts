@@ -41,7 +41,7 @@ export function createWithdrawCommand(): Command {
     .option("--all", "Withdraw entire Pool Account balance (requires asset: withdraw --all ETH)")
     .option(
       "--extra-gas",
-      "Request gas tokens with withdrawal (default: true for ERC20)",
+      "Request native gas tokens alongside an ERC20 withdrawal (default: true for ERC20)",
     )
     .option("--no-extra-gas", "Disable extra gas request")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))

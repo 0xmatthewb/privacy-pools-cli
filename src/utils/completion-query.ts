@@ -1,10 +1,12 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { CHAIN_NAMES, CHAINS, KNOWN_POOLS } from "../config/chains.js";
+import { POOL_ACCOUNT_STATUSES } from "./statuses.js";
 import { FLOW_PRIVACY_DELAY_PROFILES } from "./flow-privacy-delay.js";
 import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
-import { resolveConfigHome } from "../runtime/config-paths.js";
+import { resolveBaseConfigHome, resolveConfigHome } from "../runtime/config-paths.js";
 import { loadAccount } from "../services/account-storage.js";
+import { listSavedWorkflowIds } from "../services/workflow.js";
 import { rootGlobalFlagValues } from "./root-global-flags.js";
 import {
   detectCompletionShell,
@@ -82,6 +84,10 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionOption("-c, --chain <name>", CHAIN_NAMES),
       completionOption("-j, --json"),
       completionOption("--json-fields <fields>"),
+      completionOption(
+        "-o, --output <format>",
+        rootGlobalFlagValues("-o, --output <format>"),
+      ),
       completionOption("--format <format>", rootGlobalFlagValues("--format <format>")),
       completionOption("-y, --yes"),
       completionOption("-r, --rpc-url <url>"),
@@ -114,6 +120,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--default-chain <chain>", CHAIN_NAMES),
           completionOption("--rpc-url <url>"),
           completionOption("--force"),
+          completionOption("--dry-run"),
           completionOption("--skip-circuits"),
         ],
       }),
@@ -138,6 +145,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionCommand("list"),
               completionCommand("create"),
               completionCommand("active"),
+              completionCommand("use"),
             ],
           }),
         ],
@@ -184,6 +192,8 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--details"),
           completionOption("--summary"),
           completionOption("--pending-only"),
+          completionOption("--status <status>", POOL_ACCOUNT_STATUSES),
+          completionOption("--watch"),
         ],
       }),
       completionCommand("migrate", {
@@ -440,6 +450,10 @@ function isAssetOption(option: CompletionOptionSpec): boolean {
   return option.names.some((n) => n === "--asset" || n === "-a");
 }
 
+function isProfileOption(option: CompletionOptionSpec): boolean {
+  return option.names.some((n) => n === "--profile");
+}
+
 function configuredDefaultChainName(configHome: string): string | null {
   try {
     const configPath = join(configHome, "config.json");
@@ -576,6 +590,55 @@ function dynamicPoolAccountCandidates(words: string[]): string[] {
   }
 }
 
+function dynamicProfileCandidates(): string[] {
+  try {
+    const baseConfigHome = resolveBaseConfigHome();
+    const profilesDir = join(baseConfigHome, "profiles");
+    const profiles = existsSync(profilesDir)
+      ? readdirSync(profilesDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+      : [];
+    return uniqueSorted(["default", ...profiles]);
+  } catch {
+    return ["default"];
+  }
+}
+
+function dynamicWorkflowCandidates(): string[] {
+  try {
+    const workflowIds = listSavedWorkflowIds();
+    return workflowIds.length > 0
+      ? uniqueSorted(["latest", ...workflowIds])
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function currentTokenLooksLikeWorkflowIdPosition(
+  commandPath: string[],
+  positionalsBeforeCurrent: string[],
+): boolean {
+  const path = commandPath.join(" ");
+  return (
+    (path === "flow watch" ||
+      path === "flow status" ||
+      path === "flow ragequit") &&
+    positionalsBeforeCurrent.length === 0
+  );
+}
+
+function currentTokenLooksLikeProfilePosition(
+  commandPath: string[],
+  positionalsBeforeCurrent: string[],
+): boolean {
+  return (
+    commandPath.join(" ") === "config profile use" &&
+    positionalsBeforeCurrent.length === 0
+  );
+}
+
 function countPoolAccounts(configHome: string, chainId: number): number {
   const cacheKey = `${configHome}:${chainId}`;
   const cached = poolAccountCountCache.get(cacheKey);
@@ -664,6 +727,12 @@ export function queryCompletionCandidates(
         return filterByPrefix(dynamicValues, currentToken);
       }
     }
+    if (isProfileOption(expectingValueFor)) {
+      const dynamicValues = dynamicProfileCandidates();
+      if (dynamicValues.length > 0) {
+        return filterByPrefix(dynamicValues, currentToken);
+      }
+    }
     if (expectingValueFor.values.length === 0) return [];
     return filterByPrefix(expectingValueFor.values, currentToken);
   }
@@ -678,6 +747,34 @@ export function queryCompletionCandidates(
     )
   ) {
     const dynamicValues = dynamicAssetCandidates(words);
+    if (dynamicValues.length > 0) {
+      return filterByPrefix(dynamicValues, currentToken);
+    }
+  }
+
+  if (
+    !currentToken.startsWith("-")
+    && currentToken.indexOf("=") < 0
+    && currentTokenLooksLikeWorkflowIdPosition(
+      commandPath,
+      positionalsBeforeCurrent,
+    )
+  ) {
+    const dynamicValues = dynamicWorkflowCandidates();
+    if (dynamicValues.length > 0) {
+      return filterByPrefix(dynamicValues, currentToken);
+    }
+  }
+
+  if (
+    !currentToken.startsWith("-")
+    && currentToken.indexOf("=") < 0
+    && currentTokenLooksLikeProfilePosition(
+      commandPath,
+      positionalsBeforeCurrent,
+    )
+  ) {
+    const dynamicValues = dynamicProfileCandidates();
     if (dynamicValues.length > 0) {
       return filterByPrefix(dynamicValues, currentToken);
     }

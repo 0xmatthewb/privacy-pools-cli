@@ -247,3 +247,32 @@ export function renderConfigProfileActive(
     ]),
   );
 }
+
+// ── config profile use ──────────────────────────────────────────────────────
+
+export function renderConfigProfileUse(
+  ctx: OutputContext,
+  active: string,
+  configDir: string,
+): void {
+  guardCsvUnsupported(ctx, "config profile use");
+
+  if (ctx.mode.isJson) {
+    printJsonSuccess({
+      profile: active,
+      active: true,
+      configDir,
+    });
+    return;
+  }
+
+  if (isSilent(ctx)) return;
+
+  success(`Active profile set to ${active}.`, false);
+  process.stderr.write(
+    formatKeyValueRows([
+      { label: "Active profile", value: active, valueTone: "success" as const },
+      { label: "Config directory", value: configDir },
+    ]),
+  );
+}

@@ -162,17 +162,22 @@ export async function runCli(
           return;
         }
         let bannerIncludedWelcome = false;
+        const { getWelcomeReadinessLabel } = await import("./utils/welcome-readiness.js");
+        const readinessLabel = getWelcomeReadinessLabel();
         if (!suppressBanner) {
           const { printBanner } = await import("./utils/banner.js");
           const bannerResult = await printBanner({
             version: pkg.version,
             repository: normalizeRepositoryUrl(pkg.repository),
+            readinessLabel,
           });
           bannerIncludedWelcome = bannerResult.includedWelcomeText;
         }
         if (!bannerIncludedWelcome) {
           const { welcomeScreen } = await import("./utils/help.js");
-          process.stdout.write(welcomeScreen({ version: pkg.version }) + "\n");
+          process.stdout.write(
+            welcomeScreen({ version: pkg.version, readinessLabel }) + "\n",
+          );
         }
         const notice = getUpdateNotice(pkg.version);
         if (notice) process.stderr.write(chalk!.dim(notice) + "\n");

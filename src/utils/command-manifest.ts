@@ -17,9 +17,11 @@ export const GENERATED_COMMAND_PATHS = [
   "config get",
   "config set",
   "config path",
+  "config profile",
   "config profile list",
   "config profile create",
   "config profile active",
+  "config profile use",
   "flow",
   "flow start",
   "flow watch",
@@ -202,6 +204,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
       "help"
     ]
   },
+  "config profile": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
   "config profile list": {
     "owner": "js-runtime",
     "nativeModes": [
@@ -215,6 +223,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "config profile active": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config profile use": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -402,7 +416,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--private-key-stdin",
         "--default-chain <chain>",
         "--force",
-        "--show-recovery-phrase"
+        "--show-recovery-phrase",
+        "--dry-run"
       ],
       "agentFlags": "--agent --default-chain <chain> --show-recovery-phrase",
       "requiresInit": false,
@@ -611,7 +626,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Deposit funds into a Privacy Pool",
       "usage": "deposit <amount> [asset]",
       "flags": [
-        "--asset <symbol|address>",
+        "--asset <symbol|address> (deprecated alias)",
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--ignore-unique-amount"
@@ -625,7 +640,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Privately withdraw funds via relayer",
       "usage": "withdraw [amount] [asset] --to <address>",
       "flags": [
-        "--asset <symbol|address>",
+        "--asset <symbol|address> (deprecated alias)",
         "--to <address>",
         "--pool-account <PA-#>",
         "--all",
@@ -642,10 +657,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "withdraw quote",
       "description": "Request relayer quote and limits without generating a proof",
-      "usage": "withdraw quote <amount> --asset <symbol|address>",
+      "usage": "withdraw quote <amount> <asset>",
       "flags": [
-        "--asset <symbol|address>",
-        "--to <address>"
+        "--to <address>",
+        "--asset <symbol|address> (deprecated alias)"
       ],
       "agentFlags": "--agent",
       "requiresInit": true,
@@ -660,7 +675,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--all-chains",
         "--details",
         "--summary",
-        "--pending-only"
+        "--pending-only",
+        "--status <status>",
+        "--watch"
       ],
       "agentFlags": "--agent",
       "requiresInit": true,
@@ -733,7 +750,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "usage": "ragequit [asset] --pool-account <PA-#>",
       "flags": [
-        "--asset <symbol|address>",
+        "--asset <symbol|address> (deprecated alias)",
         "--pool-account <PA-#>",
         "--unsigned [envelope|tx]",
         "--dry-run"
@@ -795,12 +812,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--private-key-stdin",
         "--default-chain <chain>",
         "--force",
-        "--show-recovery-phrase"
+        "--show-recovery-phrase",
+        "--dry-run"
       ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -827,6 +846,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "category": "Basic",
           "commands": [
             "privacy-pools init",
+            "privacy-pools init --dry-run",
             "privacy-pools init --yes --default-chain mainnet",
             "privacy-pools init --force --yes --default-chain mainnet"
           ]
@@ -846,7 +866,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      "jsonFields": "success: { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }",
       "jsonVariants": [],
       "safetyNotes": [
         "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
@@ -878,6 +898,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -920,7 +941,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      "jsonFields": "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, releaseHighlights?: string[], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.",
@@ -955,6 +976,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1005,6 +1027,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1055,6 +1078,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1108,6 +1132,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1139,7 +1164,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "Sensitive keys are never accepted as positional arguments to prevent shell history leakage.",
-        "In non-interactive mode, --file or --stdin is required for sensitive keys."
+        "The sensitive keys are recovery-phrase and signer-key. In non-interactive mode, use --file or --stdin for them."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -1161,6 +1186,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1193,6 +1219,56 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": []
     },
+    "config profile": {
+      "command": "config profile",
+      "description": "Manage named profiles",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config profile <command>",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "-o, --output <format>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config profile list",
+        "privacy-pools config profile create trading",
+        "privacy-pools config profile use trading"
+      ],
+      "jsonFields": null,
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
     "config profile list": {
       "command": "config profile list",
       "description": "List available profiles",
@@ -1209,6 +1285,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1257,6 +1334,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1305,6 +1383,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1337,6 +1416,55 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": []
     },
+    "config profile use": {
+      "command": "config profile use",
+      "description": "Persist the active profile",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config profile use <name>",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "-o, --output <format>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config profile use trading",
+        "privacy-pools config profile use default"
+      ],
+      "jsonFields": "{ profile, active, configDir }",
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
     "flow": {
       "command": "flow",
       "description": "Guided deposit-to-private-withdrawal workflow",
@@ -1358,6 +1486,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1418,6 +1547,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1508,6 +1638,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1586,6 +1717,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1639,6 +1771,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1705,6 +1838,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1749,9 +1883,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      "jsonFields": "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
-        "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }",
+        "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
         "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }"
       ],
       "safetyNotes": [],
@@ -1784,6 +1918,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1850,6 +1985,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1901,6 +2037,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -1954,6 +2091,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2007,6 +2145,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2069,6 +2208,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2120,6 +2260,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2170,6 +2311,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2214,7 +2356,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "deposit <amount> [asset]",
       "flags": [
-        "--asset <symbol|address>",
+        "--asset <symbol|address> (deprecated alias)",
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--ignore-unique-amount"
@@ -2223,6 +2365,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2261,7 +2404,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         {
           "category": "With options",
           "commands": [
-            "privacy-pools deposit 0.1 --asset ETH --chain mainnet",
+            "privacy-pools deposit 0.1 ETH --chain mainnet",
             "privacy-pools deposit 0.1 ETH --dry-run"
           ]
         },
@@ -2303,7 +2446,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "withdraw [amount] [asset] --to <address>",
       "flags": [
-        "--asset <symbol|address>",
+        "--asset <symbol|address> (deprecated alias)",
         "--to <address>",
         "--pool-account <PA-#>",
         "--all",
@@ -2317,6 +2460,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2384,7 +2528,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
-        "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later."
+        "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
+        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -2406,15 +2551,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "help"
         ]
       },
-      "usage": "withdraw quote <amount> --asset <symbol|address>",
+      "usage": "withdraw quote <amount> <asset>",
       "flags": [
-        "--asset <symbol|address>",
-        "--to <address>"
+        "--to <address>",
+        "--asset <symbol|address> (deprecated alias)"
       ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2449,7 +2595,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": [
         "Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.",
-        "For agents, prefer `withdraw quote <amount> --asset <symbol|address>` or `withdraw quote <amount> <asset>`. The legacy asset-first positional form also works but is less clear for machine callers."
+        "For agents, prefer `withdraw quote <amount> <asset>`. The deprecated `--asset` alias still works, but positional asset syntax is clearer for machine callers."
       ]
     },
     "ragequit": {
@@ -2466,7 +2612,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "ragequit [asset] --pool-account <PA-#>",
       "flags": [
-        "--asset <symbol|address>",
+        "--asset <symbol|address> (deprecated alias)",
         "--pool-account <PA-#>",
         "--unsigned [envelope|tx]",
         "--dry-run"
@@ -2475,6 +2621,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2514,11 +2661,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
-        "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }"
+        "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }"
       ],
       "safetyNotes": [
         "Ragequit is always available as your self-custody guarantee, but it is public and irreversible and reveals the original deposit address onchain."
@@ -2548,12 +2695,15 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--all-chains",
         "--details",
         "--summary",
-        "--pending-only"
+        "--pending-only",
+        "--status <status>",
+        "--watch"
       ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2590,7 +2740,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "category": "Compact modes",
           "commands": [
             "privacy-pools accounts --summary",
-            "privacy-pools accounts --chain <name> --pending-only"
+            "privacy-pools accounts --chain <name> --pending-only",
+            "privacy-pools accounts --chain <name> --status approved",
+            "privacy-pools accounts --chain <name> --pending-only --watch"
           ]
         },
         {
@@ -2633,6 +2785,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2686,6 +2839,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2746,6 +2900,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2810,6 +2965,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2868,6 +3024,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
         "-r, --rpc-url <url>",
@@ -2948,6 +3105,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
+    "config profile": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
     "config profile list": {
       "owner": "js-runtime",
       "nativeModes": [
@@ -2961,6 +3124,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ]
     },
     "config profile active": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "config profile use": {
       "owner": "js-runtime",
       "nativeModes": [
         "help"
@@ -3144,6 +3313,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "flag": "--json-fields <fields>",
       "description": "Select specific JSON fields (comma-separated, implies --json)"
+    },
+    {
+      "flag": "-o, --output <format>",
+      "description": "Output format: table (default), csv, json, wide"
     },
     {
       "flag": "--format <format>",
@@ -3334,13 +3507,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
     "5. privacy-pools flow watch [workflowId|latest] --agent",
     "6. privacy-pools flow ragequit [workflowId|latest] --agent  (optional public recovery after the deposit exists; canonical if the saved workflow is declined)",
-    "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
+    "7. privacy-pools deposit <amount> <asset> --agent --chain <chain>  (manual alternative)",
     "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poa_required with accounts --agent --chain <chain>)",
-    "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
+    "9. privacy-pools withdraw <amount> <asset> --to <address> --agent --chain <chain>"
   ],
   "agentNotes": {
     "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poa_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if poa_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). Follow nextActions from the deposit response for the canonical polling command.",
-    "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
+    "withdrawQuote": "Use 'withdraw quote <amount> <asset> --agent' to check relayer fees before committing to a withdrawal.",
     "firstRun": "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
@@ -3479,6 +3652,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config list",
     "config get",
     "config path",
+    "config profile",
     "config profile list",
     "config profile active",
     "flow",

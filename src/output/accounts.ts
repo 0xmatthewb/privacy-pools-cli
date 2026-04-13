@@ -67,6 +67,7 @@ export interface AccountsRenderData {
   showDetails: boolean;
   showSummary: boolean;
   showPendingOnly: boolean;
+  statusFilter?: string;
   /** Epoch ms of the oldest sync across queried chains. Null if unknown. */
   lastSyncTime?: number | null;
 }
@@ -82,8 +83,10 @@ export interface AccountsEmptyRenderData {
     | "first_deposit"
     | "other_chain_activity"
     | "no_pending_left"
-    | "restore_check_recommended";
+    | "restore_check_recommended"
+    | "status_filtered_empty";
   otherChains?: string[];
+  statusFilter?: string;
 }
 
 interface JsonAccountRow {
@@ -348,6 +351,9 @@ function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
       ? "all chains"
       : "mainnet chains"
     : data.chain;
+  const statusLabel = data.statusFilter
+    ? data.statusFilter.replaceAll("_", " ")
+    : null;
 
   switch (data.emptyReason) {
     case "no_pending_left":
@@ -378,6 +384,14 @@ function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
         [
           "No active Pool Accounts found, but this wallet has local deposit history.",
           "If you imported this recovery phrase, run privacy-pools migrate status --all-chains to check for existing deposits on other chains.",
+        ],
+      );
+    case "status_filtered_empty":
+      return formatCallout(
+        "read-only",
+        [
+          `No ${statusLabel ?? "matching"} Pool Accounts are visible on ${scopeLabel}.`,
+          "Try re-running accounts without --status to review all current Pool Account states.",
         ],
       );
     default:
@@ -840,6 +854,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       ? includeChainFields
         ? `Pending Pool Accounts across ${allChains ? "all chains" : "mainnet chains"}:`
         : `Pending Pool Accounts on ${chain}:`
+      : data.statusFilter
+        ? includeChainFields
+          ? `${data.statusFilter.replaceAll("_", " ")} Pool Accounts across ${allChains ? "all chains" : "mainnet chains"}:`
+          : `${data.statusFilter.replaceAll("_", " ")} Pool Accounts on ${chain}:`
       : includeChainFields
         ? `My Pools across ${allChains ? "all chains" : "mainnet chains"}:`
         : `Pool Accounts on ${chain}:`;

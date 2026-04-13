@@ -65,7 +65,7 @@ export function resolveGlobalMode(
   const hasJsonFieldsFlag = typeof globalOpts?.jsonFields === "string";
   const hasStructuredJsonFlag =
     (globalOpts?.json ?? false) || isAgent || hasJq || hasJsonFieldsFlag;
-  const explicitFormat = normalizeOutputFormat(globalOpts?.format);
+  const explicitFormat = normalizeOutputFormat(globalOpts?.output ?? globalOpts?.format);
   const isWide = explicitFormat === "wide";
   const format: OutputFormat =
     explicitFormat === "json" || hasStructuredJsonFlag ? "json" :

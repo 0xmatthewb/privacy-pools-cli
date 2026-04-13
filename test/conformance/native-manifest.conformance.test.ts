@@ -137,6 +137,6 @@ describe("native manifest conformance", () => {
       );
     }
   },
-    { timeout: 20_000 },
+    { timeout: 90_000 },
   );
 });

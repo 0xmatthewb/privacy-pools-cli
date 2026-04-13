@@ -5,6 +5,13 @@ export const ROOT_HELP_FOOTER_ENTRIES = [
   ["Agent discovery:", "privacy-pools capabilities"],
 ] as const;
 
+const COMMON_WORKFLOWS = [
+  ["Easy path", "privacy-pools flow start 0.1 ETH --to <address>"],
+  ["Manual path", "privacy-pools deposit 0.1 ETH"],
+  ["Watch review", "privacy-pools accounts --chain mainnet --pending-only"],
+  ["Withdraw", "privacy-pools withdraw --all ETH --to <address>"],
+] as const;
+
 const COMMAND_GROUPS = [
   ["Setup", "init, config, upgrade"],
   ["Transact", "deposit, withdraw, ragequit, flow"],
@@ -18,6 +25,11 @@ export function rootHelpFooterPlain(): string {
     "Command Groups:",
     ...COMMAND_GROUPS.map(
       ([label, commands]) => `  ${label.padEnd(12)}${commands}`,
+    ),
+    "",
+    "Common workflows:",
+    ...COMMON_WORKFLOWS.map(
+      ([label, command]) => `  ${label.padEnd(18)}${command}`,
     ),
     "",
     ...ROOT_HELP_FOOTER_ENTRIES.map(
@@ -34,6 +46,11 @@ export async function rootHelpFooterStyled(): Promise<string> {
     chalk.bold("Command Groups:"),
     ...COMMAND_GROUPS.map(
       ([label, commands]) => `  ${chalk.dim(label.padEnd(12))}${accent(commands)}`,
+    ),
+    "",
+    chalk.bold("Common workflows:"),
+    ...COMMON_WORKFLOWS.map(
+      ([label, command]) => `  ${chalk.dim(label.padEnd(18))}${accent(command)}`,
     ),
     "",
     ...ROOT_HELP_FOOTER_ENTRIES.map(

@@ -78,6 +78,20 @@ export function readLongOptionValue(
   return null;
 }
 
+export function readShortOptionValue(
+  args: string[],
+  flag: string,
+): string | null {
+  const rootArgs = rootArgvSlice(args);
+  for (let i = 0; i < rootArgs.length; i++) {
+    const token = rootArgs[i];
+    if (token === flag) {
+      return i + 1 < rootArgs.length ? (rootArgs[i + 1] ?? null) : null;
+    }
+  }
+  return null;
+}
+
 export function allNonOptionTokens(args: string[]): string[] {
   const tokens: string[] = [];
   const rootArgs = rootArgvSlice(args);
@@ -199,12 +213,15 @@ export function parseRootPreludeLongOption(
       globalOpts.chain = nextToken;
       return { consumedNext: true, helpLike: false, versionLike: false };
     case "--format":
+    case "--output":
       if (inlineValue !== undefined) {
         globalOpts.format = inlineValue;
+        globalOpts.output = inlineValue;
         return { consumedNext: false, helpLike: false, versionLike: false };
       }
       if (nextToken === undefined) return null;
       globalOpts.format = nextToken;
+      globalOpts.output = nextToken;
       return { consumedNext: true, helpLike: false, versionLike: false };
     case "--rpc-url":
       if (inlineValue !== undefined) {
@@ -248,6 +265,11 @@ export function parseRootPreludeShortOption(
     case "-r":
       if (nextToken === undefined) return null;
       globalOpts.rpcUrl = nextToken;
+      return { consumedNext: true, helpLike: false, versionLike: false };
+    case "-o":
+      if (nextToken === undefined) return null;
+      globalOpts.output = nextToken;
+      globalOpts.format = nextToken;
       return { consumedNext: true, helpLike: false, versionLike: false };
     case "-j":
       globalOpts.json = true;
@@ -375,7 +397,11 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
   const firstCommandToken = firstNonOptionToken(argv);
   const nonOptionTokens = allNonOptionTokens(argv);
   const formatFlagValue =
-    readLongOptionValue(argv, "--format")?.toLowerCase() ?? null;
+    (
+      readLongOptionValue(argv, "--output") ??
+      readLongOptionValue(argv, "--format") ??
+      readShortOptionValue(argv, "-o")
+    )?.toLowerCase() ?? null;
   const isAgent = hasLongFlag(argv, "--agent");
   const hasJq = hasLongFlag(argv, "--jq");
   const isJson =

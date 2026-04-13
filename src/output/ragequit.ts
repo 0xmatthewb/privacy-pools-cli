@@ -23,6 +23,7 @@ import {
   formatDenseOutcomeLine,
   formatTxHash,
   displayDecimals,
+  formatUsdValue,
 } from "../utils/format.js";
 import { inlineSeparator } from "../utils/terminal.js";
 import {
@@ -41,21 +42,28 @@ export interface RagequitReviewData {
   destinationAddress: string | null;
   advisory?: string | null;
   advisoryKind?: "warning" | "read-only";
+  tokenPrice?: number | null;
 }
 
 export function formatRagequitReview(data: RagequitReviewData): string {
+  const amountUsd = formatUsdValue(
+    data.amount,
+    data.decimals,
+    data.tokenPrice ?? null,
+  );
   return formatReviewSurface({
     title: "Ragequit review",
     summaryRows: [
       { label: "Pool Account", value: data.poolAccountId },
       {
         label: "Amount",
-        value: formatAmount(
-          data.amount,
-          data.decimals,
-          data.asset,
-          displayDecimals(data.decimals),
-        ),
+        value:
+          formatAmount(
+            data.amount,
+            data.decimals,
+            data.asset,
+            displayDecimals(data.decimals),
+          ) + (amountUsd === "-" ? "" : ` (${amountUsd})`),
       },
       { label: "Chain", value: data.chain },
       {
@@ -93,6 +101,7 @@ export interface RagequitDryRunData {
   selectedCommitmentValue: bigint;
   proofPublicSignals: number;
   advisory?: string | null;
+  tokenPrice?: number | null;
 }
 
 export interface RagequitSuccessData {
@@ -109,6 +118,7 @@ export interface RagequitSuccessData {
   explorerUrl: string | null;
   destinationAddress: string | null;
   advisory?: string | null;
+  tokenPrice?: number | null;
 }
 
 /**
@@ -156,6 +166,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         selectedCommitmentLabel: data.selectedCommitmentLabel.toString(),
         selectedCommitmentValue: data.selectedCommitmentValue.toString(),
         proofPublicSignals: data.proofPublicSignals,
+        remainingBalance: "0",
         ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),
       false,
@@ -175,12 +186,21 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         { label: "Pool Account", value: data.poolAccountId },
         {
           label: "Amount",
-          value: formatAmount(
-            data.amount,
-            data.decimals,
-            data.asset,
-            displayDecimals(data.decimals),
-          ),
+          value:
+            formatAmount(
+              data.amount,
+              data.decimals,
+              data.asset,
+              displayDecimals(data.decimals),
+            ) +
+            (() => {
+              const amountUsd = formatUsdValue(
+                data.amount,
+                data.decimals,
+                data.tokenPrice ?? null,
+              );
+              return amountUsd === "-" ? "" : ` (${amountUsd})`;
+            })(),
         },
         ...(data.destinationAddress
           ? [{
@@ -244,6 +264,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
         destinationAddress: data.destinationAddress,
+        remainingBalance: "0",
         ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),
       false,
@@ -273,12 +294,21 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         { label: "Pool Account", value: data.poolAccountId },
         {
           label: "Amount",
-          value: formatAmount(
-            data.amount,
-            data.decimals,
-            data.asset,
-            displayDecimals(data.decimals),
-          ),
+          value:
+            formatAmount(
+              data.amount,
+              data.decimals,
+              data.asset,
+              displayDecimals(data.decimals),
+            ) +
+            (() => {
+              const amountUsd = formatUsdValue(
+                data.amount,
+                data.decimals,
+                data.tokenPrice ?? null,
+              );
+              return amountUsd === "-" ? "" : ` (${amountUsd})`;
+            })(),
         },
         { label: "Tx", value: formatTxHash(data.txHash) },
         ...(data.explorerUrl
