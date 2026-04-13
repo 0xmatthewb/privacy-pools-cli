@@ -3,6 +3,10 @@ import {
   ROOT_OPTIONS_WITH_VALUE,
   ROOT_WELCOME_BOOLEAN_FLAGS,
 } from "./root-global-flags.js";
+import {
+  getParsedVerboseLevel as readParsedVerboseLevel,
+  setParsedVerboseLevel,
+} from "./verbose-level.js";
 import type { GlobalOptions } from "../types.js";
 
 export interface ParsedRootArgv {
@@ -361,11 +365,9 @@ function countVerboseFlags(argv: string[]): number {
   return count;
 }
 
-let _parsedVerboseLevel = 0;
-
 /** Returns the verbose level computed during parseRootArgv (0, 1, 2, 3+). */
 export function getParsedVerboseLevel(): number {
-  return _parsedVerboseLevel;
+  return readParsedVerboseLevel();
 }
 
 export function parseRootArgv(argv: string[]): ParsedRootArgv {
@@ -400,7 +402,7 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
   const isQuiet = rootArgs.includes("--quiet") || hasShortFlag(argv, "q");
   const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
 
-  _parsedVerboseLevel = countVerboseFlags(argv);
+  setParsedVerboseLevel(countVerboseFlags(argv));
 
   return {
     argv,

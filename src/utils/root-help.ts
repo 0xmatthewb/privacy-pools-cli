@@ -4,6 +4,10 @@ import {
   ROOT_HELP_FOOTER_ENTRIES,
   rootHelpFooterPlain as rootHelpFooterPlainValue,
 } from "./root-help-footer.js";
+import {
+  OUTPUT_FORMAT_CHOICES_HELP_TEXT,
+  OUTPUT_FORMAT_DESCRIPTION,
+} from "./mode.js";
 
 type Section = "options" | "commands" | "arguments" | null;
 
@@ -32,8 +36,8 @@ const ROOT_HELP_BASE_LINES = [
   "  -j, --json           Machine-readable JSON output on stdout",
   "  --json-fields <f>    Select specific JSON fields (comma-separated, implies",
   "                       --json)",
-  "  --format <format>    Output format: table (default), csv, json, wide",
-  '                       (choices: "table", "csv", "json", "wide")',
+  `  --format <format>    ${OUTPUT_FORMAT_DESCRIPTION}`,
+  `                       (choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`,
   "  -y, --yes            Skip confirmation prompts",
   "  -r, --rpc-url <url>  Override RPC URL",
   "  --agent              Machine-friendly mode (alias for --json --yes --quiet)",

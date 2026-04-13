@@ -1,7 +1,7 @@
 import type { GlobalOptions } from "../types.js";
 import { configureJsonOutput } from "./json.js";
 import { setSuppressHeaders, setSuppressProgress } from "./format.js";
-import { getParsedVerboseLevel } from "./root-argv.js";
+import { getParsedVerboseLevel } from "./verbose-level.js";
 import { setActiveProfile } from "../runtime/config-paths.js";
 
 export const OUTPUT_FORMATS = ["table", "csv", "json", "wide"] as const;
@@ -9,6 +9,12 @@ export const OUTPUT_FORMATS = ["table", "csv", "json", "wide"] as const;
 export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 
 const OUTPUT_FORMAT_SET = new Set<string>(OUTPUT_FORMATS);
+
+export const OUTPUT_FORMAT_DESCRIPTION = `Output format: ${OUTPUT_FORMATS[0]} (default), ${OUTPUT_FORMATS.slice(1).join(", ")}`;
+export const OUTPUT_FORMAT_CHOICES_TEXT = OUTPUT_FORMATS.join(", ");
+export const OUTPUT_FORMAT_CHOICES_HELP_TEXT = OUTPUT_FORMATS
+  .map((value) => `"${value}"`)
+  .join(", ");
 
 export interface ResolvedGlobalMode {
   isAgent: boolean;
@@ -43,7 +49,7 @@ export function isSupportedOutputFormat(
 }
 
 export function invalidOutputFormatMessage(value: string): string {
-  return `option '--format <format>' argument '${value}' is invalid. Allowed choices are ${OUTPUT_FORMATS.join(", ")}.`;
+  return `option '--format <format>' argument '${value}' is invalid. Allowed choices are ${OUTPUT_FORMAT_CHOICES_TEXT}.`;
 }
 
 export function resolveGlobalMode(

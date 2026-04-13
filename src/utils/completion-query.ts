@@ -5,6 +5,7 @@ import { FLOW_PRIVACY_DELAY_PROFILES } from "./flow-privacy-delay.js";
 import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
 import { resolveConfigHome } from "../runtime/config-paths.js";
 import { loadAccount } from "../services/account-storage.js";
+import { OUTPUT_FORMATS } from "./mode.js";
 
 export const SUPPORTED_COMPLETION_SHELLS = [
   "bash",
@@ -36,7 +37,6 @@ interface CompletionCommandNode {
   subcommands: Map<string, CompletionCommandNode>;
 }
 
-const OUTPUT_FORMAT_VALUES = ["table", "csv", "json", "wide"] as const;
 const UNSIGNED_FORMAT_VALUES = ["envelope", "tx"] as const;
 
 function uniqueSorted(values: string[]): string[] {
@@ -101,7 +101,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionOption("-c, --chain <name>", CHAIN_NAMES),
       completionOption("-j, --json"),
       completionOption("--json-fields <fields>"),
-      completionOption("--format <format>", OUTPUT_FORMAT_VALUES),
+      completionOption("--format <format>", OUTPUT_FORMATS),
       completionOption("-y, --yes"),
       completionOption("-r, --rpc-url <url>"),
       completionOption("--agent"),

@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
 #[derive(Debug, Clone)]
@@ -32,7 +32,11 @@ impl ParsedRootArgv {
     pub(crate) fn has_invalid_output_format(&self) -> bool {
         self.format_flag_value
             .as_deref()
-            .map(|value| value != "table" && value != "csv" && value != "json" && value != "wide")
+            .map(|value| {
+                root_flag_allowed_values_set("--format")
+                    .map(|choices| !choices.contains(value))
+                    .unwrap_or(true)
+            })
             .unwrap_or(false)
     }
 }
@@ -44,6 +48,8 @@ struct GeneratedRootFlag {
     takes_value: bool,
     #[serde(rename = "welcomeBoolean")]
     welcome_boolean: bool,
+    #[serde(default)]
+    values: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -54,6 +60,8 @@ struct RootFlagContract {
     welcome_boolean_options: BTreeSet<String>,
     boolean_short_bundle_flags: BTreeSet<char>,
     welcome_short_bundle_flags: BTreeSet<char>,
+    option_value_sets: BTreeMap<String, BTreeSet<String>>,
+    option_value_lists: BTreeMap<String, Vec<String>>,
 }
 
 static ROOT_FLAG_CONTRACT: OnceLock<RootFlagContract> = OnceLock::new();
@@ -105,6 +113,21 @@ fn root_flag_contract() -> &'static RootFlagContract {
             .filter(|flag| flag.welcome_boolean)
             .flat_map(|flag| split_flag_names(&flag.flag))
             .collect::<BTreeSet<_>>();
+        let mut option_value_sets = BTreeMap::new();
+        let mut option_value_lists = BTreeMap::new();
+
+        for flag in &flags {
+            if flag.values.is_empty() {
+                continue;
+            }
+
+            let value_set = flag.values.iter().cloned().collect::<BTreeSet<_>>();
+            let value_list = flag.values.clone();
+            for name in split_flag_names(&flag.flag) {
+                option_value_sets.insert(name.clone(), value_set.clone());
+                option_value_lists.insert(name, value_list.clone());
+            }
+        }
 
         RootFlagContract {
             boolean_short_bundle_flags: short_bundle_flags(&boolean_options),
@@ -113,8 +136,22 @@ fn root_flag_contract() -> &'static RootFlagContract {
             inline_value_options,
             boolean_options,
             welcome_boolean_options,
+            option_value_sets,
+            option_value_lists,
         }
     })
+}
+
+fn root_flag_allowed_values_set(flag: &str) -> Option<&BTreeSet<String>> {
+    root_flag_contract().option_value_sets.get(flag)
+}
+
+pub(crate) fn output_format_choices_text() -> String {
+    root_flag_contract()
+        .option_value_lists
+        .get("--format")
+        .map(|values| values.join(", "))
+        .unwrap_or_else(|| "unknown".to_string())
 }
 
 pub(crate) fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
@@ -497,6 +534,11 @@ mod tests {
         assert!(!parsed.has_invalid_output_format());
         assert!(!parsed.is_csv_mode);
         assert!(!parsed.is_structured_output_mode);
+    }
+
+    #[test]
+    fn output_format_choices_are_loaded_from_generated_root_flags() {
+        assert_eq!(output_format_choices_text(), "table, csv, json, wide");
     }
 
     #[test]

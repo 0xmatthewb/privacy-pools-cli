@@ -21,7 +21,13 @@
     "flag": "--format <format>",
     "description": "Output format: table (default), csv, json, wide",
     "takesValue": true,
-    "welcomeBoolean": false
+    "welcomeBoolean": false,
+    "values": [
+      "table",
+      "csv",
+      "json",
+      "wide"
+    ]
   },
   {
     "flag": "-y, --yes",

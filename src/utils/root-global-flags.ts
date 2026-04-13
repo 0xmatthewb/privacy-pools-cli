@@ -1,3 +1,8 @@
+import {
+  OUTPUT_FORMAT_DESCRIPTION,
+  OUTPUT_FORMATS,
+} from "./mode.js";
+
 export const ROOT_GLOBAL_FLAG_METADATA = [
   {
     flag: "-c, --chain <name>",
@@ -19,9 +24,10 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
   },
   {
     flag: "--format <format>",
-    description: "Output format: table (default), csv, json, wide",
+    description: OUTPUT_FORMAT_DESCRIPTION,
     takesValue: true,
     welcomeBoolean: false,
+    values: [...OUTPUT_FORMATS],
   },
   {
     flag: "-y, --yes",

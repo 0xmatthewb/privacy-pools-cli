@@ -22,14 +22,15 @@ use contract::{manifest, runtime_contract};
 use dispatch::{handle_capabilities, handle_completion, handle_describe, handle_guide};
 use error::CliError;
 use output::{emit_help, emit_version, print_error_and_exit, set_suppress_headers};
-use root_argv::{parse_root_argv, read_long_option_value, root_argv_slice, ParsedRootArgv};
+use root_argv::{
+    output_format_choices_text, parse_root_argv, read_long_option_value, root_argv_slice,
+    ParsedRootArgv,
+};
 use routing::{
     activity_native_mode, is_known_root_command, manifest_allows_native_mode, pools_native_mode,
     resolve_help_path, stats_native_mode,
 };
 use std::env;
-
-const OUTPUT_FORMAT_CHOICES: &str = "table, csv, json, wide";
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
@@ -85,7 +86,8 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
             return Err(CliError::input(
                 format!(
                     "option '--format <format>' argument '{}' is invalid. Allowed choices are {}.",
-                    format_value, OUTPUT_FORMAT_CHOICES
+                    format_value,
+                    output_format_choices_text()
                 ),
                 Some("Use --help to see usage and examples.".to_string()),
             ));

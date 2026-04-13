@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
+import { OUTPUT_FORMAT_DESCRIPTION } from "./mode.js";
 import { accent, accentBold, brand, dangerTone, notice, successTone } from "./theme.js";
 import { inlineSeparator } from "./terminal.js";
 export { styleCommanderHelp } from "./root-help.js";
@@ -166,7 +167,7 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("-c, --chain <name>")}    Target chain (mainnet, arbitrum, optimism; testnets: sepolia, op-sepolia)`,
     `  ${notice("-r, --rpc-url <url>")}   Override RPC URL`,
     `  ${notice("-j, --json")}            Machine-readable JSON output`,
-    `  ${notice("--format <fmt>")}        Output format: table (default), csv, json, wide`,
+    `  ${notice("--format <fmt>")}        ${OUTPUT_FORMAT_DESCRIPTION}`,
     `  ${notice("--no-color")}            Disable colored output (also respects NO_COLOR env var)`,
     `  ${notice("-y, --yes")}             Skip confirmation prompts`,
     `  ${notice("-q, --quiet")}           Suppress human-oriented stderr output`,

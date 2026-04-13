@@ -5,6 +5,7 @@ import {
 } from "./utils/root-help-footer.js";
 import { rootGlobalFlagDescription } from "./utils/root-global-flags.js";
 import { allNonOptionTokens } from "./utils/root-argv.js";
+import { OUTPUT_FORMATS } from "./utils/mode.js";
 
 const ROOT_COMMAND_NAMES = [
   "init",
@@ -145,7 +146,7 @@ export async function createRootProgram(
       new Option(
         "--format <format>",
         rootGlobalFlagDescription("--format <format>"),
-      ).choices(["table", "csv", "json", "wide"]),
+      ).choices([...OUTPUT_FORMATS]),
     )
     .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"));
 
