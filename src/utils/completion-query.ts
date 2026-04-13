@@ -177,7 +177,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("withdraw", {
         options: [
           completionOption("-t, --to <address>"),
-          completionOption("-p, --from-pa <PA-#|#>"),
+          completionOption("-p, --pool-account <PA-#|#>"),
           completionOption("--direct"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
@@ -199,7 +199,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         aliases: ["exit"],
         options: [
           completionOption("-a, --asset <symbol|address>"),
-          completionOption("-p, --from-pa <PA-#|#>"),
+          completionOption("-p, --pool-account <PA-#|#>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
         ],

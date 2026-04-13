@@ -12,9 +12,10 @@ export function createWithdrawCommand(): Command {
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
     .option("-t, --to <address>", "Recipient address (required for relayed)")
     .option(
-      "-p, --from-pa <PA-#|#>",
+      "-p, --pool-account <PA-#|#>",
       "Withdraw from a specific Pool Account (e.g. PA-2)",
     )
+    .addOption(new Option("--from-pa <PA-#|#>", "Deprecated: use --pool-account").hideHelp())
     .addOption(
       new Option(
         "--direct",
@@ -27,17 +28,16 @@ export function createWithdrawCommand(): Command {
         "Build unsigned transaction without submitting; format: envelope (default) or tx",
       ).choices(["envelope", "tx"]),
     )
-    .addOption(
-      new Option(
-        "--unsigned-format <format>",
-        "Deprecated: use --unsigned [format]",
-      ).hideHelp(),
-    )
     .option(
       "--dry-run",
       "Generate and verify withdrawal artifacts without submitting",
     )
-    .option("-a, --asset <symbol|address>", "Asset to withdraw")
+    .addOption(
+      new Option(
+        "-a, --asset <symbol|address>",
+        "Deprecated: use positional argument instead",
+      ).hideHelp(),
+    )
     .option("--all", "Withdraw entire Pool Account balance")
     .option(
       "--extra-gas",

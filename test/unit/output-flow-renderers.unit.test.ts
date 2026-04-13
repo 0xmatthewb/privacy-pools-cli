@@ -215,8 +215,8 @@ describe("renderFlowResult", () => {
       renderFlowResult(ctx, {
         action: "status",
         snapshot: sampleSnapshot({
-          phase: "paused_poi_required",
-          aspStatus: "poi_required",
+          phase: "paused_poa_required",
+          aspStatus: "poa_required",
         }),
       }),
     );
@@ -261,8 +261,8 @@ describe("renderFlowResult", () => {
       renderFlowResult(ctx, {
         action: "status",
         snapshot: sampleSnapshot({
-          phase: "paused_poi_required",
-          aspStatus: "poi_required",
+          phase: "paused_poa_required",
+          aspStatus: "poa_required",
         }),
       }),
     );

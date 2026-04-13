@@ -481,7 +481,7 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
                     format_count_number(my_funds.pool_accounts),
                     format_review_summary(
                         my_funds.pending_count,
-                        my_funds.poi_required_count,
+                        my_funds.poa_required_count,
                         my_funds.declined_count,
                     )
                 ),
@@ -494,7 +494,7 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
         write_stderr_text(&format_callout(
             CalloutKind::Success,
             &[if my_funds.pending_count == 0
-                && my_funds.poi_required_count == 0
+                && my_funds.poa_required_count == 0
                 && my_funds.declined_count == 0
             {
                 "Wallet funds loaded successfully. Approved Pool Accounts in this pool are ready for withdraw.".to_string()
@@ -533,7 +533,7 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
                 )],
             ));
         }
-        if my_funds.poi_required_count > 0 {
+        if my_funds.poa_required_count > 0 {
             write_stderr_text(&format_callout(
                 CalloutKind::Recovery,
                 &[format!(
@@ -743,15 +743,15 @@ fn format_pool_deposits_count(entry: &PoolListingEntry) -> String {
         .unwrap_or_else(|| "-".to_string())
 }
 
-fn format_review_summary(pending_count: u64, poi_required_count: u64, declined_count: u64) -> String {
+fn format_review_summary(pending_count: u64, poa_required_count: u64, declined_count: u64) -> String {
     let mut parts = Vec::new();
     if pending_count > 0 {
         parts.push(format!("{} pending", format_count_number(pending_count)));
     }
-    if poi_required_count > 0 {
+    if poa_required_count > 0 {
         parts.push(format!(
             "{} PoA needed",
-            format_count_number(poi_required_count)
+            format_count_number(poa_required_count)
         ));
     }
     if declined_count > 0 {
@@ -768,7 +768,7 @@ fn format_pool_account_status(status: &str) -> String {
     match status {
         "approved" => crate::output::format_success_text("approved"),
         "pending" => crate::output::format_notice_text("pending"),
-        "poi_required" => crate::output::format_notice_text("PoA needed"),
+        "poa_required" | "poi_required" => crate::output::format_notice_text("PoA needed"),
         "declined" => crate::output::format_danger_text("declined"),
         "unknown" => crate::output::format_muted_text("unknown"),
         other => other.to_string(),

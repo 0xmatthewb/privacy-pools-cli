@@ -386,14 +386,14 @@ export function registerRagequitCommandHandlerHarness(): void {
 }
 
 export function registerRagequitEntrySubmitTests(): void {
-  test("rejects malformed --from-pa selectors before loading account state", async () => {
+  test("rejects malformed --pool-account selectors before loading account state", async () => {
     useIsolatedHome();
 
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "banana",
+          poolAccount: "banana",
           unsigned: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -402,7 +402,7 @@ export function registerRagequitEntrySubmitTests(): void {
 
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain("Invalid --from-pa");
+    expect(json.error.message ?? json.errorMessage).toContain("Invalid --pool-account");
     expect(exitCode).toBe(2);
   });
 
@@ -413,7 +413,7 @@ export function registerRagequitEntrySubmitTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           dryRun: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -472,7 +472,7 @@ export function registerRagequitEntrySubmitTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           dryRun: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -531,7 +531,7 @@ export function registerRagequitEntrySubmitTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           dryRun: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -554,7 +554,7 @@ export function registerRagequitUnsignedTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           unsigned: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -583,7 +583,7 @@ export function registerRagequitUnsignedTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           unsigned: "tx",
         },
         fakeCommand({ chain: "mainnet" }),
@@ -605,7 +605,7 @@ export function registerRagequitUnsignedTests(): void {
 }
 
 export function registerRagequitEntrySubmitCompletionTests(): void {
-  test("supports the deprecated --commitment selector without requiring --from-pa", async () => {
+  test("supports the deprecated --commitment selector without requiring --pool-account", async () => {
     useIsolatedHome();
 
     const { json } = await captureAsyncJsonOutput(() =>
@@ -638,7 +638,7 @@ export function registerRagequitEntrySubmitCompletionTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -698,7 +698,7 @@ export function registerRagequitEntrySubmitCompletionTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -713,14 +713,14 @@ export function registerRagequitEntrySubmitCompletionTests(): void {
 }
 
 export function registerRagequitOwnershipTests(): void {
-  test("fails closed when --from-pa and --commitment are combined", async () => {
+  test("fails closed when --pool-account and --commitment are combined", async () => {
     useIsolatedHome();
 
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           commitment: "0",
           unsigned: true,
         },
@@ -731,7 +731,7 @@ export function registerRagequitOwnershipTests(): void {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
-      "Cannot use --from-pa and --commitment together",
+      "Cannot use --pool-account and --commitment together",
     );
     expect(exitCode).toBe(2);
   });
@@ -779,7 +779,7 @@ export function registerRagequitOwnershipTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -811,7 +811,7 @@ export function registerRagequitOwnershipTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -830,6 +830,9 @@ export function registerRagequitOwnershipTests(): void {
 export function registerRagequitHumanConfirmationTests(): void {
   test("lets humans select a Pool Account and cancel before public recovery", async () => {
     useIsolatedHome({ withSigner: true });
+    // PA selection prompt returns PA number, then approved-account advisory returns "ragequit"
+    selectPromptMock.mockImplementationOnce(async () => 1);
+    selectPromptMock.mockImplementationOnce(async () => "ragequit");
     inputPromptMock.mockImplementationOnce(async () => "");
 
     const { stdout, stderr } = await captureAsyncOutput(() =>
@@ -841,10 +844,10 @@ export function registerRagequitHumanConfirmationTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(selectPromptMock).toHaveBeenCalledTimes(1);
+    expect(selectPromptMock).toHaveBeenCalledTimes(2);
     expect(inputPromptMock).toHaveBeenCalledTimes(1);
     expect(stderr).toContain("Ragequit review");
-    expect(stderr).toContain("Ragequit sends funds back to the original deposit address.");
+    expect(stderr).toContain("Ragequit publicly recovers funds to your original deposit address.");
     expect(stderr).toContain("Ragequit cancelled.");
     expect(ragequitMock).not.toHaveBeenCalled();
   });
@@ -868,7 +871,7 @@ export function registerRagequitHumanConfirmationTests(): void {
       ),
     );
 
-    expect(stderr).toContain("only recovery path");
+    expect(stderr).toContain("most common next action");
     expect(stderr).toContain("Ragequit cancelled.");
   });
 
@@ -886,29 +889,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
-      "Must specify --from-pa",
-    );
-    expect(exitCode).toBe(2);
-  });
-
-  test("rejects the deprecated --unsigned-format flag with a targeted INPUT error", async () => {
-    useIsolatedHome();
-
-    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      handleRagequitCommand(
-        "ETH",
-        {
-          fromPa: "PA-1",
-          unsignedFormat: "tx" as "tx",
-        },
-        fakeCommand({ json: true, chain: "mainnet" }),
-      ),
-    );
-
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain(
-      "replaced by --unsigned [format]",
+      "Must specify --pool-account",
     );
     expect(exitCode).toBe(2);
   });
@@ -920,7 +901,7 @@ export function registerRagequitHumanConfirmationTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           unsigned: "raw" as "raw",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -941,7 +922,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleRagequitCommand(
         undefined,
-        { unsigned: true, fromPa: "PA-1" },
+        { unsigned: true, poolAccount: "PA-1" },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
     );
@@ -957,6 +938,8 @@ export function registerRagequitHumanConfirmationTests(): void {
     listPoolsMock.mockImplementation(async () => [ETH_POOL]);
     selectPromptMock.mockImplementationOnce(async () => ETH_POOL.asset);
     selectPromptMock.mockImplementationOnce(async () => 1);
+    // The approved-account advisory prompt (2D) adds a 3rd select call
+    selectPromptMock.mockImplementationOnce(async () => "ragequit");
 
     const { stderr } = await captureAsyncOutput(() =>
       handleRagequitCommand(
@@ -966,7 +949,7 @@ export function registerRagequitHumanConfirmationTests(): void {
       ),
     );
 
-    expect(selectPromptMock).toHaveBeenCalledTimes(2);
+    expect(selectPromptMock).toHaveBeenCalledTimes(3);
     expect(ragequitMock).toHaveBeenCalledTimes(1);
     expect(stderr).toContain("Ragequit confirmed");
   });
@@ -982,6 +965,8 @@ export function registerRagequitHumanConfirmationTests(): void {
     resolvePoolMock.mockImplementationOnce(async () => ETH_POOL);
     selectPromptMock.mockImplementationOnce(async () => ETH_POOL.asset);
     selectPromptMock.mockImplementationOnce(async () => 1);
+    // The approved-account advisory prompt (2D)
+    selectPromptMock.mockImplementationOnce(async () => "ragequit");
 
     await captureAsyncOutput(() =>
       handleRagequitCommand(
@@ -1023,7 +1008,7 @@ export function registerRagequitHumanConfirmationTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-9",
+          poolAccount: "PA-9",
           unsigned: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -1047,7 +1032,7 @@ export function registerRagequitHumanConfirmationTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           unsigned: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -1095,7 +1080,7 @@ export function registerRagequitHumanConfirmationTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1123,7 +1108,7 @@ export function registerRagequitHumanConfirmationTests(): void {
       handleRagequitCommand(
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1151,7 +1136,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     const { stderr } = await captureAsyncOutput(() =>
       handleRagequitCommand(
         "ETH",
-        { fromPa: "PA-1" },
+        { poolAccount: "PA-1" },
         fakeCommand({ chain: "mainnet" }),
       ),
     );
@@ -1169,7 +1154,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     const { stderr } = await captureAsyncOutput(() =>
       handleRagequitCommand(
         "ETH",
-        { fromPa: "PA-1" },
+        { poolAccount: "PA-1" },
         fakeCommand({ chain: "mainnet" }),
       ),
     );
@@ -1194,7 +1179,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     const { stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
       handleRagequitCommand(
         "ETH",
-        { fromPa: "PA-1" },
+        { poolAccount: "PA-1" },
         fakeCommand({ chain: "mainnet", verbose: true }),
       ),
     );

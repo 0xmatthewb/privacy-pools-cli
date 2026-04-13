@@ -560,7 +560,7 @@ defineScenarioSuite("no-sync acceptance", [
         chain: string;
         pendingCount: number;
         approvedCount: number;
-        poiRequiredCount: number;
+        poaRequiredCount: number;
         declinedCount: number;
         unknownCount: number;
         spentCount: number;
@@ -579,7 +579,7 @@ defineScenarioSuite("no-sync acceptance", [
         expect(json.accounts).toBeUndefined();
         expect(json.pendingCount).toBe(1);
         expect(json.approvedCount).toBe(1);
-        expect(json.poiRequiredCount).toBe(0);
+        expect(json.poaRequiredCount).toBe(0);
         expect(json.declinedCount).toBe(0);
         expect(json.unknownCount).toBe(0);
         expect(json.spentCount).toBe(1);
@@ -756,7 +756,7 @@ defineScenarioSuite("no-sync acceptance", [
         chains: string[];
         pendingCount: number;
         approvedCount: number;
-        poiRequiredCount: number;
+        poaRequiredCount: number;
         declinedCount: number;
         unknownCount: number;
         spentCount: number;
@@ -787,7 +787,7 @@ defineScenarioSuite("no-sync acceptance", [
         ]);
         expect(json.pendingCount).toBe(5);
         expect(json.approvedCount).toBe(5);
-        expect(json.poiRequiredCount).toBe(0);
+        expect(json.poaRequiredCount).toBe(0);
         expect(json.declinedCount).toBe(0);
         expect(json.unknownCount).toBe(0);
         expect(json.spentCount).toBe(5);

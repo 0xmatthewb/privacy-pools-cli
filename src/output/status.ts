@@ -329,7 +329,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         ),
         createNextAction(
           "ragequit",
-          "Public recovery still works while the ASP is down when RPC is healthy, including unsigned ragequit payloads, but you must supply --asset and --from-pa.",
+          "Public recovery still works while the ASP is down when RPC is healthy, including unsigned ragequit payloads, but you must supply --asset and --pool-account.",
           "status_degraded_health",
           { options: { agent: true }, runnable: false },
         ),

@@ -74,9 +74,9 @@ export interface MockState {
   gasPrice: bigint;
   gasPriceError: boolean;
   aspUnavailable: boolean;
-  aspStatus: "approved" | "pending" | "declined" | "poi_required";
+  aspStatus: "approved" | "pending" | "declined" | "poa_required";
   aspStatusSequence:
-    | Array<"approved" | "pending" | "declined" | "poi_required">
+    | Array<"approved" | "pending" | "declined" | "poa_required">
     | null;
   latestRoot: bigint;
   latestRootSequence: bigint[] | null;

@@ -42,14 +42,14 @@ describe("getEligibleUnapprovedStatuses", () => {
         [
           samplePoolAccount({ status: "approved", aspStatus: "approved" }),
           samplePoolAccount({ paNumber: 2, paId: "PA-2", status: "pending", aspStatus: "pending" }),
-          samplePoolAccount({ paNumber: 3, paId: "PA-3", status: "poi_required", aspStatus: "poi_required" }),
+          samplePoolAccount({ paNumber: 3, paId: "PA-3", status: "poa_required", aspStatus: "poa_required" }),
           samplePoolAccount({ paNumber: 4, paId: "PA-4", status: "declined", aspStatus: "declined" }),
           samplePoolAccount({ paNumber: 5, paId: "PA-5", status: "unknown", aspStatus: "unknown" }),
           samplePoolAccount({ paNumber: 6, paId: "PA-6", status: "pending", aspStatus: "pending" }),
         ],
         400n,
       ),
-    ).toEqual(["pending", "poi_required", "declined", "unknown"]);
+    ).toEqual(["pending", "poa_required", "declined", "unknown"]);
   });
 
   test("ignores Pool Accounts that are approved or too small", () => {
@@ -132,20 +132,20 @@ describe("formatApprovalResolutionHint", () => {
 
     expect(hint).toContain("declined by the ASP");
     expect(hint).toContain("including --direct");
-    expect(hint).toContain("privacy-pools ragequit --chain sepolia --asset ETH --from-pa PA-4");
+    expect(hint).toContain("privacy-pools ragequit --chain sepolia --asset ETH --pool-account PA-4");
   });
 
-  test("explains poi_required Pool Accounts need PoA before withdraw", () => {
+  test("explains poa_required Pool Accounts need PoA before withdraw", () => {
     const hint = formatApprovalResolutionHint({
       chainName: "mainnet",
       assetSymbol: "ETH",
       poolAccountId: "PA-2",
-      status: "poi_required",
+      status: "poa_required",
     });
 
     expect(hint).toContain("Proof of Association");
     expect(hint).toContain(POA_PORTAL_URL);
-    expect(hint).toContain("privacy-pools ragequit --chain mainnet --asset ETH --from-pa PA-2");
+    expect(hint).toContain("privacy-pools ragequit --chain mainnet --asset ETH --pool-account PA-2");
   });
 
   test("unknown unapproved state points users back to accounts for final status", () => {

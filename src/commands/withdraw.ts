@@ -137,10 +137,10 @@ type WithdrawReviewStatus = Exclude<AspApprovalStatus, "approved">;
 
 interface WithdrawCommandOptions {
   to?: string;
+  poolAccount?: string;
   fromPa?: string;
   direct?: boolean;
   unsigned?: boolean | string;
-  unsignedFormat?: string;
   dryRun?: boolean;
   asset?: string;
   all?: boolean;
@@ -165,7 +165,7 @@ export function getEligibleUnapprovedStatuses(
     if (poolAccount.status === "approved") continue;
     if (
       poolAccount.status === "pending" ||
-      poolAccount.status === "poi_required" ||
+      poolAccount.status === "poa_required" ||
       poolAccount.status === "declined" ||
       poolAccount.status === "unknown"
     ) {
@@ -184,17 +184,17 @@ export function formatApprovalResolutionHint(params: {
 }): string {
   const { chainName, assetSymbol, poolAccountId, status } = params;
   const ragequitSelector = poolAccountId ?? "<PA-#>";
-  const ragequitCmd = `privacy-pools ragequit --chain ${chainName} --asset ${assetSymbol} --from-pa ${ragequitSelector}`;
+  const ragequitCmd = `privacy-pools ragequit --chain ${chainName} --asset ${assetSymbol} --pool-account ${ragequitSelector}`;
 
   switch (status) {
     case "pending":
       return `ASP approval is required for both relayed and direct withdrawals. Run 'privacy-pools accounts --chain ${chainName}' to check aspStatus. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`;
-    case "poi_required":
+    case "poa_required":
       return `This Pool Account needs Proof of Association before it can use withdraw. Complete the PoA flow at ${POA_PORTAL_URL}, then re-run 'privacy-pools accounts --chain ${chainName}' to confirm aspStatus. If you prefer a public recovery path instead, use '${ragequitCmd}'.`;
     case "declined":
-      return `This Pool Account was declined by the ASP. Private withdraw, including --direct, is unavailable. Use '${ragequitCmd}' to recover publicly to the original deposit address.`;
+      return `This Pool Account was declined by the ASP. Private withdraw, including --direct, is unavailable. Ragequit is available to publicly recover funds to the original deposit address: '${ragequitCmd}'.`;
     default:
-      return `Run 'privacy-pools accounts --chain ${chainName}' to inspect aspStatus. Pending deposits need more time, POA-needed deposits need Proof of Association at ${POA_PORTAL_URL}, and declined deposits must use '${ragequitCmd}' to recover publicly to the original deposit address.`;
+      return `Run 'privacy-pools accounts --chain ${chainName}' to inspect aspStatus. Pending deposits need more time, POA-needed deposits need Proof of Association at ${POA_PORTAL_URL}, and declined deposits can be recovered publicly via ragequit: '${ragequitCmd}'.`;
   }
 }
 
@@ -278,6 +278,7 @@ export async function refreshExpiredRelayerQuoteForWithdrawal(params: {
   maxRelayFeeBPS: bigint | string;
   nowMs?: () => number;
   maxAttempts?: number;
+  onRetry?: (attempt: number, maxAttempts: number) => void;
 }): Promise<{
   quote: RelayerQuoteResponse;
   quoteFeeBPS: bigint;
@@ -288,6 +289,9 @@ export async function refreshExpiredRelayerQuoteForWithdrawal(params: {
   const maxAttempts = params.maxAttempts ?? 3;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (attempt > 1 && params.onRetry) {
+      params.onRetry(attempt, maxAttempts);
+    }
     const quote = await params.fetchQuote();
     const { quoteFeeBPS, expirationMs } = validateRelayerQuoteForWithdrawal(
       quote,
@@ -316,6 +320,15 @@ export async function handleWithdrawCommand(
   opts: WithdrawCommandOptions,
   cmd: Command,
 ): Promise<void> {
+  // Deprecated --asset flag migration guard.
+  if (opts.asset !== undefined) {
+    throw new CLIError(
+      "--asset has been replaced by a positional argument.",
+      "INPUT",
+      "Use: privacy-pools withdraw <amount> <asset> --to <address> (e.g. privacy-pools withdraw 0.05 ETH --to 0x...)",
+    );
+  }
+
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
@@ -330,21 +343,26 @@ export async function handleWithdrawCommand(
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
   const isDirect = opts.direct ?? false;
-  const fromPaRaw = opts.fromPa as string | undefined;
+  if (opts.fromPa !== undefined) {
+    throw new CLIError(
+      "--from-pa has been renamed to --pool-account.",
+      "INPUT",
+      `Use: --pool-account ${opts.fromPa}`,
+    );
+  }
+  const fromPaRaw = opts.poolAccount as string | undefined;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
   const writeWithdrawProgress = (activeIndex: number, note?: string) => {
     if (silent) return;
     const labels = isDirect
       ? [
-          "Account synced",
-          "ASP data fetched",
+          "Account & ASP data synced",
           "Generate withdrawal proof",
           "Submit withdrawal",
         ]
       : [
-          "Account synced",
-          "ASP data fetched",
+          "Account & ASP data synced",
           "Request relayer quote",
           "Generate withdrawal proof",
           "Submit to relayer",
@@ -357,17 +375,9 @@ export async function handleWithdrawCommand(
   try {
     if (fromPaRaw !== undefined && fromPaNumber === null) {
       throw new CLIError(
-        `Invalid --from-pa value: ${fromPaRaw}.`,
+        `Invalid --pool-account value: ${fromPaRaw}.`,
         "INPUT",
         "Use a Pool Account identifier like PA-2 (or just 2).",
-      );
-    }
-
-    if (opts.unsignedFormat !== undefined) {
-      throw new CLIError(
-        "--unsigned-format has been replaced by --unsigned [format].",
-        "INPUT",
-        `Use: privacy-pools withdraw ... --unsigned ${opts.unsignedFormat ?? "envelope"}`,
       );
     }
 
@@ -602,11 +612,11 @@ export async function handleWithdrawCommand(
       await maybeRenderPreviewProgressStep("withdraw.sync-account-state", {
         stage: {
           step: 1,
-          total: isDirect ? 4 : 5,
+          total: isDirect ? 3 : 4,
           label: "Syncing account state",
         },
         spinnerText: "Syncing account state...",
-        doneText: "Account state synced.",
+        doneText: "Account & ASP data synced.",
       })
     ) {
       return;
@@ -624,25 +634,10 @@ export async function handleWithdrawCommand(
 
     if (
       !isDirect &&
-      await maybeRenderPreviewProgressStep("withdraw.fetch-asp-data", {
-        stage: {
-          step: 2,
-          total: 5,
-          label: "Fetching ASP data",
-        },
-        spinnerText: "Fetching ASP data...",
-        doneText: "ASP data loaded.",
-      })
-    ) {
-      return;
-    }
-
-    if (
-      !isDirect &&
       await maybeRenderPreviewProgressStep("withdraw.request-quote", {
         stage: {
-          step: 3,
-          total: 5,
+          step: 2,
+          total: 4,
           label: "Requesting relayer quote",
         },
         spinnerText: "Requesting relayer quote...",
@@ -655,8 +650,8 @@ export async function handleWithdrawCommand(
     if (
       await maybeRenderPreviewProgressStep("withdraw.generate-proof", {
         stage: {
-          step: isDirect ? 3 : 4,
-          total: isDirect ? 4 : 5,
+          step: isDirect ? 2 : 3,
+          total: isDirect ? 3 : 4,
           label: "Generating ZK proof",
         },
         spinnerText: "Generating ZK proof...",
@@ -670,8 +665,8 @@ export async function handleWithdrawCommand(
       isDirect &&
       await maybeRenderPreviewProgressStep("withdraw.submit-direct", {
         stage: {
-          step: 4,
-          total: 4,
+          step: 3,
+          total: 3,
           label: "Submitting withdrawal",
         },
         spinnerText: "Submitting withdrawal...",
@@ -685,8 +680,8 @@ export async function handleWithdrawCommand(
       !isDirect &&
       await maybeRenderPreviewProgressStep("withdraw.submit-relayed", {
         stage: {
-          step: 5,
-          total: 5,
+          step: 4,
+          total: 4,
           label: "Submitting to relayer",
         },
         spinnerText: "Submitting to relayer...",
@@ -709,9 +704,14 @@ export async function handleWithdrawCommand(
         globalOpts?.rpcUrl,
       );
 
-      writeWithdrawProgress(0, "Refreshing the latest account state.");
+      writeWithdrawProgress(0, "Syncing account state and fetching ASP data.");
       const spin = spinner("Syncing account state...", silent);
       spin.start();
+
+      // Start ASP root/leaf fetches concurrently with account sync
+      // (they only need chainConfig + pool.scope, not account data).
+      const rootsPromise = fetchMerkleRoots(chainConfig, pool.scope);
+      const leavesPromise = fetchMerkleLeaves(chainConfig, pool.scope);
 
       const accountService = await initializeAccountService(
         dataService,
@@ -809,13 +809,13 @@ export async function handleWithdrawCommand(
         );
       }
 
-      // Fetch ASP data
-      writeWithdrawProgress(1, "Fetching ASP approval state and Merkle data.");
+      // Await ASP roots/leaves (started concurrently with sync above),
+      // then fetch review statuses which depend on account-derived activeLabels.
       spin.text = "Fetching ASP data...";
       const activeLabels = collectActiveLabels(poolCommitments);
       const [roots, leaves, rawReviewStatuses] = await Promise.all([
-        fetchMerkleRoots(chainConfig, pool.scope),
-        fetchMerkleLeaves(chainConfig, pool.scope),
+        rootsPromise,
+        leavesPromise,
         fetchDepositReviewStatuses(chainConfig, pool.scope, activeLabels),
       ]);
       verbose(
@@ -979,7 +979,7 @@ export async function handleWithdrawCommand(
               poolAccountId: requested.paId,
               status:
                 requested.status === "pending" ||
-                requested.status === "poi_required" ||
+                requested.status === "poa_required" ||
                 requested.status === "declined" ||
                 requested.status === "unknown"
                   ? requested.status
@@ -1245,7 +1245,7 @@ export async function handleWithdrawCommand(
         }
 
         // Re-verify parity right before proving
-        writeWithdrawProgress(2, "Building the direct withdrawal proof.");
+        writeWithdrawProgress(1, "Building the direct withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
           "Re-run the withdrawal command to generate a fresh proof.",
@@ -1336,7 +1336,7 @@ export async function handleWithdrawCommand(
           "Run 'privacy-pools sync' then retry the withdrawal.",
         );
 
-        writeWithdrawProgress(3, "Submitting the direct withdrawal transaction.");
+        writeWithdrawProgress(2, "Submitting the direct withdrawal transaction.");
         spin.text = "Submitting withdrawal transaction...";
         const tx = await withdrawDirect(
           chainConfig,
@@ -1418,7 +1418,7 @@ export async function handleWithdrawCommand(
       } else {
         // --- Relayed Withdrawal ---
         // Get relayer details + quote
-        writeWithdrawProgress(2, "Fetching a fresh relayer quote.");
+        writeWithdrawProgress(1, "Fetching a fresh relayer quote.");
         spin.text = "Requesting relayer quote...";
         const details = await getRelayerDetails(chainConfig, pool.asset);
         const relayerUrl = details.relayerUrl;
@@ -1436,7 +1436,7 @@ export async function handleWithdrawCommand(
           );
         }
 
-        const remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory(
+        let remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory(
           {
             remainingBalance: selectedPoolAccount.value - withdrawalAmount,
             minWithdrawAmount: BigInt(details.minWithdrawAmount),
@@ -1446,7 +1446,46 @@ export async function handleWithdrawCommand(
           },
         );
 
-        if (skipPrompts && !silent && remainingBelowMinAdvisory) {
+        if (remainingBelowMinAdvisory && !skipPrompts) {
+          // Interactive mode: let the user choose how to handle the low remainder.
+          spin.stop();
+          const remainingBalance = selectedPoolAccount.value - withdrawalAmount;
+          warn(
+            `Remaining balance (${formatAmount(remainingBalance, pool.decimals, pool.symbol)}) would fall below the relayer minimum.`,
+            silent,
+          );
+          ensurePromptInteractionAvailable();
+          const remainderChoice = await select({
+            message: "How would you like to proceed?",
+            choices: [
+              {
+                name: "Withdraw the full balance instead",
+                value: "full" as const,
+              },
+              {
+                name: "Continue with this amount (remainder won't be privately withdrawable)",
+                value: "continue" as const,
+              },
+            ],
+          });
+          if (remainderChoice === "full") {
+            withdrawalAmount = selectedPoolAccount.value;
+            withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+            info(
+              `Adjusted to full balance: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+              silent,
+            );
+            // Recalculate advisory (should be null now since remainder is 0)
+            remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory({
+              remainingBalance: selectedPoolAccount.value - withdrawalAmount,
+              minWithdrawAmount: BigInt(details.minWithdrawAmount),
+              poolAccountId: selectedPoolAccount.paId,
+              assetSymbol: pool.symbol,
+              decimals: pool.decimals,
+            });
+          }
+          spin.start();
+        } else if (skipPrompts && !silent && remainingBelowMinAdvisory) {
           warn(remainingBelowMinAdvisory, silent);
           process.stderr.write("\n");
         }
@@ -1510,6 +1549,9 @@ export async function handleWithdrawCommand(
               return quoteResult.quote;
             },
             maxRelayFeeBPS: pool.maxRelayFeeBPS,
+            onRetry: (attempt, max) => {
+              warn(`Quote expired, refreshing... (attempt ${attempt}/${max})`, silent);
+            },
           });
           quote = refreshed.quote;
           quoteFeeBPS = refreshed.quoteFeeBPS;
@@ -1647,7 +1689,7 @@ export async function handleWithdrawCommand(
         verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
 
         // Re-verify parity right before proving
-        writeWithdrawProgress(3, "Building the relayed withdrawal proof.");
+        writeWithdrawProgress(2, "Building the relayed withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
           "Re-run the withdrawal command to generate a fresh proof.",
@@ -1789,7 +1831,7 @@ export async function handleWithdrawCommand(
           return;
         }
 
-        writeWithdrawProgress(4, "Submitting the signed request to the relayer.");
+        writeWithdrawProgress(3, "Submitting the signed request to the relayer.");
         spin.text = "Submitting to relayer...";
         const result = await submitRelayRequest(chainConfig, {
           scope: pool.scope,

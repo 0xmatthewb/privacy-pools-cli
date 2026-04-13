@@ -46,7 +46,7 @@ describe("help content", () => {
     expect(guide).toContain("privacy-pools accounts --chain mainnet");
     expect(guide).toContain("approved");
     expect(guide).toContain("declined");
-    expect(guide).toMatch(/Proof of Association|POA Needed|poi_required/);
+    expect(guide).toMatch(/Proof of Association|POA Needed|poa_required/);
     expect(guide).toContain("--chain");
   });
 

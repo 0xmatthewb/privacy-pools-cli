@@ -114,7 +114,7 @@ interface AccountsSummaryData {
   balances: JsonBalanceRow[];
   pendingCount: number;
   approvedCount: number;
-  poiRequiredCount: number;
+  poaRequiredCount: number;
   declinedCount: number;
   unknownCount: number;
   spentCount: number;
@@ -162,7 +162,7 @@ function summarizeGroups(
   const balances: JsonBalanceRow[] = [];
   let pendingCount = 0;
   let approvedCount = 0;
-  let poiRequiredCount = 0;
+  let poaRequiredCount = 0;
   let declinedCount = 0;
   let unknownCount = 0;
   let spentCount = 0;
@@ -175,7 +175,7 @@ function summarizeGroups(
     for (const pa of group.poolAccounts) {
       if (pa.status === "pending") pendingCount++;
       if (pa.status === "approved") approvedCount++;
-      if (pa.status === "poi_required") poiRequiredCount++;
+      if (pa.status === "poa_required") poaRequiredCount++;
       if (pa.status === "declined") declinedCount++;
       if (pa.status === "unknown") unknownCount++;
 
@@ -225,7 +225,7 @@ function summarizeGroups(
     balances,
     pendingCount,
     approvedCount,
-    poiRequiredCount,
+    poaRequiredCount,
     declinedCount,
     unknownCount,
     spentCount,
@@ -398,13 +398,13 @@ function renderWarnings(warnings: AccountWarning[] | undefined, silent: boolean)
 
 function formatActiveReviewSummary(poolAccounts: PoolAccountRef[]): string {
   const pendingCount = poolAccounts.filter((pa) => pa.status === "pending").length;
-  const poiRequiredCount = poolAccounts.filter((pa) => pa.status === "poi_required").length;
+  const poaRequiredCount = poolAccounts.filter((pa) => pa.status === "poa_required").length;
   const declinedCount = poolAccounts.filter((pa) => pa.status === "declined").length;
   const unknownCount = poolAccounts.filter((pa) => pa.status === "unknown").length;
   const parts: string[] = [];
 
   if (pendingCount > 0) parts.push(`${pendingCount} pending`);
-  if (poiRequiredCount > 0) parts.push(`${poiRequiredCount} PoA needed`);
+  if (poaRequiredCount > 0) parts.push(`${poaRequiredCount} PoA needed`);
   if (declinedCount > 0) parts.push(`${declinedCount} declined`);
   if (unknownCount > 0) parts.push(`${unknownCount} unknown`);
 
@@ -441,7 +441,7 @@ function renderSummaryCsv(
       String(balance.poolAccounts),
       String(summary.pendingCount),
       String(summary.approvedCount),
-      String(summary.poiRequiredCount),
+      String(summary.poaRequiredCount),
       String(summary.declinedCount),
       String(summary.unknownCount),
       String(summary.spentCount),
@@ -531,13 +531,22 @@ function renderHumanGroupTable(
   const dd = displayDecimals(group.decimals);
   const hasUsd = group.tokenPrice !== null;
   if (showDetails) {
+    const isWide = ctx.mode.isWide;
     const detailHeaders = ctx.isVerbose
       ? hasUsd
-        ? ["PA", "State", "Review", "Value", "USD", "Commitment", "Label", "Block", "Tx"]
-        : ["PA", "State", "Review", "Value", "Commitment", "Label", "Block", "Tx"]
+        ? isWide
+          ? ["PA", "State", "Review", "Value", "USD", "Commitment", "Label", "Block", "Tx", "Pool"]
+          : ["PA", "State", "Review", "Value", "USD", "Commitment", "Label", "Block", "Tx"]
+        : isWide
+          ? ["PA", "State", "Review", "Value", "Commitment", "Label", "Block", "Tx", "Pool"]
+          : ["PA", "State", "Review", "Value", "Commitment", "Label", "Block", "Tx"]
       : hasUsd
-        ? ["PA", "State", "Review", "Value", "USD", "Tx"]
-        : ["PA", "State", "Review", "Value", "Tx"];
+        ? isWide
+          ? ["PA", "State", "Review", "Value", "USD", "Tx", "Pool", "Block"]
+          : ["PA", "State", "Review", "Value", "USD", "Tx"]
+        : isWide
+          ? ["PA", "State", "Review", "Value", "Tx", "Pool", "Block"]
+          : ["PA", "State", "Review", "Value", "Tx"];
     printTable(
       detailHeaders,
       group.poolAccounts.map((pa) => {
@@ -558,13 +567,24 @@ function renderHumanGroupTable(
           );
         }
         base.push(formatTxHash(pa.txHash));
+        if (isWide) {
+          base.push(formatAddress(group.poolAddress, 8));
+          if (!ctx.isVerbose) {
+            base.push(pa.blockNumber.toString());
+          }
+        }
         return base;
       }),
     );
   } else {
+    const isWide = ctx.mode.isWide;
     const summaryHeaders = hasUsd
-      ? ["PA", "Balance", "USD", "Status"]
-      : ["PA", "Balance", "Status"];
+      ? isWide
+        ? ["PA", "Balance", "USD", "Status", "Pool", "Tx", "Block"]
+        : ["PA", "Balance", "USD", "Status"]
+      : isWide
+        ? ["PA", "Balance", "Status", "Pool", "Tx", "Block"]
+        : ["PA", "Balance", "Status"];
     printTable(
       summaryHeaders,
       group.poolAccounts.map((pa) => {
@@ -577,6 +597,13 @@ function renderHumanGroupTable(
           row.push(formatUsdValue(pa.value, group.decimals, group.tokenPrice!));
         }
         row.push(statusLabel);
+        if (isWide) {
+          row.push(
+            formatAddress(group.poolAddress, 8),
+            formatTxHash(pa.txHash),
+            pa.blockNumber.toString(),
+          );
+        }
         return row;
       }),
     );
@@ -628,7 +655,7 @@ export function renderAccountsNoPools(
             {
               pendingCount: 0,
               approvedCount: 0,
-              poiRequiredCount: 0,
+              poaRequiredCount: 0,
               declinedCount: 0,
               unknownCount: 0,
               spentCount: 0,
@@ -666,7 +693,7 @@ export function renderAccountsNoPools(
           balances: [],
           pendingCount: 0,
           approvedCount: 0,
-          poiRequiredCount: 0,
+          poaRequiredCount: 0,
           declinedCount: 0,
           unknownCount: 0,
           spentCount: 0,
@@ -756,7 +783,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             {
               pendingCount: summary.pendingCount,
               approvedCount: summary.approvedCount,
-              poiRequiredCount: summary.poiRequiredCount,
+              poaRequiredCount: summary.poaRequiredCount,
               declinedCount: summary.declinedCount,
               unknownCount: summary.unknownCount,
               spentCount: summary.spentCount,
@@ -805,7 +832,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   const silent = isSilent(ctx);
   const hasPendingApprovals = summary.pendingCount > 0;
-  const hasPoiRequiredApprovals = summary.poiRequiredCount > 0;
+  const hasPoaRequiredApprovals = summary.poaRequiredCount > 0;
   const hasDeclinedApprovals = summary.declinedCount > 0;
   const title = showSummary
     ? includeChainFields
@@ -838,7 +865,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     process.stderr.write("\n");
   }
 
-  if (!silent && hasPoiRequiredApprovals) {
+  if (!silent && hasPoaRequiredApprovals) {
     info(
       `POA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association at ${POA_PORTAL_URL}, then re-check accounts. Ragequit remains available if you prefer public recovery to the original deposit address.`,
       silent,
@@ -852,7 +879,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       [
         [renderPoolAccountStatus("approved"), String(summary.approvedCount)],
         [renderPoolAccountStatus("pending"), String(summary.pendingCount)],
-        [renderPoolAccountStatus("poi_required"), String(summary.poiRequiredCount)],
+        [renderPoolAccountStatus("poa_required"), String(summary.poaRequiredCount)],
         [renderPoolAccountStatus("declined"), String(summary.declinedCount)],
         [renderPoolAccountStatus("unknown"), String(summary.unknownCount)],
         [renderPoolAccountStatus("spent"), String(summary.spentCount)],
@@ -866,7 +893,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     const activeCount =
       summary.approvedCount +
       summary.pendingCount +
-      summary.poiRequiredCount +
+      summary.poaRequiredCount +
       summary.declinedCount +
       summary.unknownCount;
     if (activeCount === 0) {

@@ -42,7 +42,7 @@ pub(super) fn format_asp_approval_status_label(status: &str) -> String {
     match status.trim().to_lowercase().as_str() {
         "approved" => format_success_text("Approved"),
         "pending" => format_notice_text("Pending"),
-        "poi_required" => format_danger_text("POA Needed"),
+        "poa_required" | "poi_required" => format_danger_text("POA Needed"),
         "declined" => format_danger_text("Declined"),
         _ => format_muted_text("Unknown"),
     }
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn approval_labels_match_cli_contract() {
         assert_eq!(
-            format_asp_approval_status_label("poi_required"),
+            format_asp_approval_status_label("poa_required"),
             "POA Needed"
         );
         assert_eq!(format_asp_approval_status_label("declined"), "Declined");

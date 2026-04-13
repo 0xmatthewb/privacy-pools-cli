@@ -24,7 +24,7 @@ import {
 } from "./withdraw-command-handler.shared.ts";
 
 export function registerWithdrawValidationPreludeTests(): void {
-  test("rejects malformed --from-pa selectors before touching account state", async () => {
+  test("rejects malformed --pool-account selectors before touching account state", async () => {
     useIsolatedHome({ withSigner: true });
 
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
@@ -32,7 +32,7 @@ export function registerWithdrawValidationPreludeTests(): void {
         "0.1",
         "ETH",
         {
-          fromPa: "banana",
+          poolAccount: "banana",
           to: "0x4444444444444444444444444444444444444444",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -41,7 +41,7 @@ export function registerWithdrawValidationPreludeTests(): void {
 
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain("Invalid --from-pa");
+    expect(json.error.message ?? json.errorMessage).toContain("Invalid --pool-account");
     expect(exitCode).toBe(2);
     expect(initializeAccountServiceMock).not.toHaveBeenCalled();
   });
@@ -97,7 +97,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
         {
           all: true,
           dryRun: true,
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           to: "0x4444444444444444444444444444444444444444",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -118,7 +118,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
         "ETH",
         {
           dryRun: true,
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           to: "0x4444444444444444444444444444444444444444",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -223,7 +223,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
         "2",
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           to: "0x4444444444444444444444444444444444444444",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -256,7 +256,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
         "0.1",
         "ETH",
         {
-          fromPa: "PA-2",
+          poolAccount: "PA-2",
           to: "0x4444444444444444444444444444444444444444",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -269,7 +269,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     expect(exitCode).toBe(4);
   });
 
-  test("surfaces unavailable historical Pool Accounts through --from-pa", async () => {
+  test("surfaces unavailable historical Pool Accounts through --pool-account", async () => {
     useIsolatedHome({ withSigner: true });
     const spentPoolAccount = {
       ...APPROVED_POOL_ACCOUNT,
@@ -299,7 +299,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
         "0.1",
         "ETH",
         {
-          fromPa: "PA-3",
+          poolAccount: "PA-3",
           to: "0x4444444444444444444444444444444444444444",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -313,7 +313,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     expect(exitCode).toBe(2);
   });
 
-  test("surfaces unknown Pool Accounts through --from-pa", async () => {
+  test("surfaces unknown Pool Accounts through --pool-account", async () => {
     useIsolatedHome({ withSigner: true });
     getUnknownPoolAccountErrorMock.mockImplementationOnce(() => ({
       message: "PA-99 is not part of this pool.",
@@ -325,7 +325,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
         "0.1",
         "ETH",
         {
-          fromPa: "PA-99",
+          poolAccount: "PA-99",
           to: "0x4444444444444444444444444444444444444444",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -373,7 +373,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
         "2",
         "ETH",
         {
-          fromPa: "PA-1",
+          poolAccount: "PA-1",
           to: "0x4444444444444444444444444444444444444444",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -488,29 +488,6 @@ export function registerWithdrawValidationPostQuoteTests(): void {
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
       "require --to",
-    );
-    expect(exitCode).toBe(2);
-  });
-
-  test("rejects the deprecated --unsigned-format flag with a targeted INPUT error", async () => {
-    useIsolatedHome();
-
-    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      handleWithdrawCommand(
-        "0.1",
-        "ETH",
-        {
-          to: "0x4444444444444444444444444444444444444444",
-          unsignedFormat: "tx" as "tx",
-        },
-        fakeCommand({ json: true, chain: "mainnet" }),
-      ),
-    );
-
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain(
-      "replaced by --unsigned [format]",
     );
     expect(exitCode).toBe(2);
   });

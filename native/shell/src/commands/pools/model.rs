@@ -89,7 +89,7 @@ pub(super) struct PoolDetailMyFunds {
     pub(super) usd_value: Option<String>,
     pub(super) pool_accounts: u64,
     pub(super) pending_count: u64,
-    pub(super) poi_required_count: u64,
+    pub(super) poa_required_count: u64,
     pub(super) declined_count: u64,
     pub(super) accounts: Vec<PoolDetailAccount>,
 }

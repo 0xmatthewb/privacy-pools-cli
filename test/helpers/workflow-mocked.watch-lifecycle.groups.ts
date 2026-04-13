@@ -835,7 +835,7 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
         expect(stderr).not.toContain("This workflow is now waiting until");
       });
       test("watchWorkflow pauses flows that require Proof of Association", async () => {
-        state.aspStatus = "poi_required";
+        state.aspStatus = "poa_required";
         writeWorkflowSnapshot("wf-poi", {
           phase: "awaiting_asp",
           walletMode: "configured",
@@ -857,8 +857,8 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
           isVerbose: false,
         });
 
-        expect(snapshot.phase).toBe("paused_poi_required");
-        expect(snapshot.aspStatus).toBe("poi_required");
+        expect(snapshot.phase).toBe("paused_poa_required");
+        expect(snapshot.aspStatus).toBe("poa_required");
         expect(state.requestQuoteCalls).toHaveLength(0);
       });
       test("watchWorkflow stops when the saved workflow no longer matches the Pool Account state", async () => {

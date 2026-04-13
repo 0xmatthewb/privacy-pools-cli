@@ -199,7 +199,7 @@ function appendInsertedStateTreeLeaf(commitment: bigint): void {
 
 function setLabelReviewStatus(
   label: bigint,
-  reviewStatus: "pending" | "declined" | "poi_required",
+  reviewStatus: "pending" | "declined" | "poa_required",
 ): void {
   const labelString = label.toString();
   const state = requireAspState();
@@ -475,9 +475,9 @@ describe("workflow service on Anvil", () => {
     assert.equal(watched.aspStatus, "declined");
   });
 
-  anvilTest("watchWorkflow pauses poi_required workflows", { timeout: ANVIL_TEST_TIMEOUT_MS }, async () => {
+  anvilTest("watchWorkflow pauses poa_required workflows", { timeout: ANVIL_TEST_TIMEOUT_MS }, async () => {
     const { snapshot, label } = await startServiceFlow("pp-workflow-service-poi-");
-    setLabelReviewStatus(label, "poi_required");
+    setLabelReviewStatus(label, "poa_required");
 
     const watched = await watchWorkflow({
       workflowId: snapshot.workflowId,
@@ -489,8 +489,8 @@ describe("workflow service on Anvil", () => {
       isVerbose: false,
     });
 
-    assert.equal(watched.phase, "paused_poi_required");
-    assert.equal(watched.aspStatus, "poi_required");
+    assert.equal(watched.phase, "paused_poa_required");
+    assert.equal(watched.aspStatus, "poa_required");
   });
 
   anvilTest("watchWorkflow stops when the saved workflow no longer matches the Pool Account", { timeout: ANVIL_TEST_TIMEOUT_MS }, async () => {

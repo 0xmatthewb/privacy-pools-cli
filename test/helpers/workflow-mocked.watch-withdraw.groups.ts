@@ -31,10 +31,10 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
       test("watchWorkflow clears new-wallet secrets after a saved public recovery confirms", async () => {
         writeWorkflowSecret("wf-ragequit-watch");
         writeWorkflowSnapshot("wf-ragequit-watch", {
-          phase: "paused_poi_required",
+          phase: "paused_poa_required",
           walletMode: "new_wallet",
           walletAddress: NEW_WALLET_ADDRESS,
-          aspStatus: "poi_required",
+          aspStatus: "poa_required",
           ragequitTxHash: state.ragequitTxHash,
           ragequitBlockNumber: null,
         });
@@ -95,10 +95,10 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
           throw new Error("refresh failed");
         });
         writeWorkflowSnapshot("wf-ragequit-refresh-warning", {
-          phase: "paused_poi_required",
+          phase: "paused_poa_required",
           walletMode: "configured",
           walletAddress: GLOBAL_SIGNER_ADDRESS,
-          aspStatus: "poi_required",
+          aspStatus: "poa_required",
           ragequitTxHash: state.ragequitTxHash,
           ragequitBlockNumber: null,
         });

@@ -225,7 +225,7 @@ async function expectManualErc20JourneyCompletes(
       "USDC",
       "--to",
       relayedRecipient,
-      "--from-pa",
+      "--pool-account",
       depositJson.poolAccountId,
       "--chain",
       "sepolia",

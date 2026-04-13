@@ -814,7 +814,7 @@ describe("native shell parity", () => {
     },
     {
       label: "ragequit",
-      args: ["--agent", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-1"],
+      args: ["--agent", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-1"],
       envFactory: fixtureEnv,
       testTimeoutMs: 20_000,
     },

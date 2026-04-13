@@ -148,7 +148,7 @@ fn normalize_asp_approval_status(raw_status: Option<&str>) -> &'static str {
     {
         "approved" | "accepted" => "approved",
         "pending" => "pending",
-        "poi_required" => "poi_required",
+        "poa_required" | "poi_required" => "poa_required",
         "declined" | "rejected" | "denied" => "declined",
         _ => "unknown",
     }

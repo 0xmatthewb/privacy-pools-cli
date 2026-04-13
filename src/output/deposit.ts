@@ -21,6 +21,7 @@ import {
 } from "./common.js";
 import {
   formatAmount,
+  formatBPS,
   formatDenseOutcomeLine,
   formatTxHash,
   displayDecimals,
@@ -41,6 +42,7 @@ export interface DepositReviewData {
   amount: bigint;
   feeAmount: bigint;
   estimatedCommitted: bigint;
+  vettingFeeBPS: bigint;
   asset: string;
   chain: string;
   decimals: number;
@@ -69,7 +71,7 @@ export function formatDepositReview(data: DepositReviewData): string {
       },
       { label: "Chain", value: data.chain },
       {
-        label: "Vetting fee",
+        label: `Vetting fee (${formatBPS(data.vettingFeeBPS)})`,
         value:
           `${formatAmount(data.feeAmount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
           depositUsdSuffix(data.feeAmount, data.decimals, data.tokenPrice),
@@ -255,7 +257,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       "after_deposit",
       {
         args: [data.asset],
-        options: { agent: true, chain: data.chain, fromPa: data.poolAccountId },
+        options: { agent: true, chain: data.chain, poolAccount: data.poolAccountId },
       },
     ),
   ];
@@ -276,7 +278,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         args: [data.asset],
         options: {
           chain: data.chain,
-          fromPa: data.poolAccountId,
+          poolAccount: data.poolAccountId,
         },
       },
     ),

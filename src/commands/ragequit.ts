@@ -114,10 +114,10 @@ interface RagequitAdvisory {
 
 interface RagequitCommandOptions {
   asset?: string;
+  poolAccount?: string;
   fromPa?: string;
   commitment?: string;
   unsigned?: boolean | string;
-  unsignedFormat?: string;
   dryRun?: boolean;
 }
 
@@ -144,14 +144,14 @@ export function getRagequitAdvisory(
     case "approved":
       return {
         level: "warn",
-        message: `${poolAccount.paId} is approved. Use 'privacy-pools withdraw --from-pa ${poolAccount.paId} ...' for a private withdrawal instead. Only continue with ragequit if you intentionally want public recovery.`,
+        message: `${poolAccount.paId} is approved. Use 'privacy-pools withdraw --pool-account ${poolAccount.paId} ...' for a private withdrawal instead. Only continue with ragequit if you intentionally want public recovery.`,
       };
     case "pending":
       return {
         level: "info",
         message: `${poolAccount.paId} is still pending ASP review. Ragequit is available if you prefer public recovery instead of waiting for approval.`,
       };
-    case "poi_required":
+    case "poa_required":
       return {
         level: "info",
         message: `${poolAccount.paId} needs Proof of Association before it can use withdraw. Complete the PoA flow at ${POA_PORTAL_URL} for a private withdrawal, or continue with ragequit for public recovery.`,
@@ -159,7 +159,7 @@ export function getRagequitAdvisory(
     case "declined":
       return {
         level: "info",
-        message: `${poolAccount.paId} was declined by the ASP. Ragequit is the only recovery path for this Pool Account and will return funds publicly to the original deposit address.`,
+        message: `${poolAccount.paId} was declined by the ASP. Ragequit is the most common next action and will return funds publicly to the original deposit address. You can also leave funds in the pool if you prefer.`,
       };
     default:
       return null;
@@ -263,6 +263,15 @@ export async function handleRagequitCommand(
   opts: RagequitCommandOptions,
   cmd: Command,
 ): Promise<void> {
+  // Deprecated --asset flag migration guard.
+  if (opts.asset !== undefined) {
+    throw new CLIError(
+      "--asset has been replaced by a positional argument.",
+      "INPUT",
+      "Use: privacy-pools ragequit <asset> (e.g. privacy-pools ragequit ETH)",
+    );
+  }
+
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
@@ -276,7 +285,14 @@ export async function handleRagequitCommand(
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
-  const fromPaRaw = opts.fromPa as string | undefined;
+  if (opts.fromPa !== undefined) {
+    throw new CLIError(
+      "--from-pa has been renamed to --pool-account.",
+      "INPUT",
+      `Use: --pool-account ${opts.fromPa}`,
+    );
+  }
+  const fromPaRaw = opts.poolAccount as string | undefined;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
   const writeRagequitProgress = (activeIndex: number, note?: string) => {
@@ -293,7 +309,7 @@ export async function handleRagequitCommand(
   try {
     if (fromPaRaw !== undefined && fromPaNumber === null) {
       throw new CLIError(
-        `Invalid --from-pa value: ${fromPaRaw}.`,
+        `Invalid --pool-account value: ${fromPaRaw}.`,
         "INPUT",
         "Use a Pool Account identifier like PA-2 (or just 2).",
       );
@@ -301,17 +317,9 @@ export async function handleRagequitCommand(
 
     if (fromPaRaw !== undefined && opts.commitment !== undefined) {
       throw new CLIError(
-        "Cannot use --from-pa and --commitment together.",
+        "Cannot use --pool-account and --commitment together.",
         "INPUT",
-        "Use --from-pa for Pool Account selection. --commitment is deprecated.",
-      );
-    }
-
-    if (opts.unsignedFormat !== undefined) {
-      throw new CLIError(
-        "--unsigned-format has been replaced by --unsigned [format].",
-        "INPUT",
-        `Use: privacy-pools ragequit ... --unsigned ${opts.unsignedFormat ?? "envelope"}`,
+        "Use --pool-account for Pool Account selection. --commitment is deprecated.",
       );
     }
 
@@ -410,7 +418,7 @@ export async function handleRagequitCommand(
     }
 
     if (
-      !opts.fromPa &&
+      !opts.poolAccount &&
       !skipPrompts &&
       await maybeRenderPreviewScenario("ragequit select", {
         timing: "after-prompts",
@@ -419,7 +427,7 @@ export async function handleRagequitCommand(
       return;
     }
     if (
-      opts.fromPa &&
+      opts.poolAccount &&
       await maybeRenderPreviewScenario("ragequit confirm", {
         timing: "after-prompts",
       })
@@ -660,7 +668,7 @@ export async function handleRagequitCommand(
           throw new CLIError(
             `Invalid commitment index: ${opts.commitment}. Valid range: 0-${poolCommitments.length - 1}`,
             "INPUT",
-            "This legacy index is deprecated. Use --from-pa PA-<n> instead.",
+            "This legacy index is deprecated. Use --pool-account PA-<n> instead.",
           );
         }
         const legacyCommitment = poolCommitments[idx];
@@ -686,7 +694,7 @@ export async function handleRagequitCommand(
         }
         if (!silent) {
           warn(
-            "--commitment is deprecated. Use --from-pa PA-<n> instead.",
+            "--commitment is deprecated. Use --pool-account PA-<n> instead.",
             false,
           );
         }
@@ -717,9 +725,9 @@ export async function handleRagequitCommand(
         )!;
       } else {
         throw new CLIError(
-          "Must specify --from-pa in non-interactive mode.",
+          "Must specify --pool-account in non-interactive mode.",
           "INPUT",
-          "Use --from-pa <PA-#> to select which Pool Account to ragequit.",
+          "Use --pool-account <PA-#> to select which Pool Account to ragequit.",
         );
       }
 
@@ -757,9 +765,9 @@ export async function handleRagequitCommand(
 
       // Always show the public recovery warning in human mode, even when --yes
       // skips the confirmation prompt.
+      const advisory = getRagequitAdvisory(selectedPoolAccount);
       if (!silent) {
         process.stderr.write("\n");
-        const advisory = getRagequitAdvisory(selectedPoolAccount);
         process.stderr.write(
           formatRagequitReview({
             poolAccountId: selectedPoolAccount.paId,
@@ -772,6 +780,26 @@ export async function handleRagequitCommand(
             advisoryKind: advisory?.level === "info" ? "read-only" : "warning",
           }),
         );
+      }
+
+      // Interactive choice for approved accounts: offer to switch to private withdrawal
+      if (selectedPoolAccount.status === "approved" && !skipPrompts) {
+        ensurePromptInteractionAvailable();
+        const choice = await select({
+          message:
+            "This deposit is approved for private withdrawal. Continue with public ragequit anyway?",
+          choices: [
+            { name: "Yes, ragequit publicly", value: "ragequit" as const },
+            { name: "Switch to private withdrawal", value: "withdraw" as const },
+          ],
+        });
+        if (choice === "withdraw") {
+          info(
+            `Run: privacy-pools withdraw --pool-account ${selectedPoolAccount.paId} --to <recipient>`,
+            false,
+          );
+          return;
+        }
       }
 
       if (!skipPrompts) {
@@ -852,6 +880,7 @@ export async function handleRagequitCommand(
           selectedCommitmentLabel: commitment.label,
           selectedCommitmentValue: commitment.value,
           proofPublicSignals: proof.publicSignals.length,
+          advisory: advisory?.message ?? null,
         });
         return;
       }
@@ -995,6 +1024,7 @@ export async function handleRagequitCommand(
         blockNumber: receipt.blockNumber,
         explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
         destinationAddress: depositorAddress,
+        advisory: advisory?.message ?? null,
       });
     } finally {
       releaseLock();

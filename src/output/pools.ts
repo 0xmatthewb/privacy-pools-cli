@@ -10,7 +10,7 @@ import type { OutputContext } from "./common.js";
 import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
 import { POA_PORTAL_URL } from "../config/chains.js";
 import { accentBold } from "../utils/theme.js";
-import { formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
+import { formatAddress, formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import {
@@ -251,10 +251,14 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     ]),
   );
 
-  const headers = allChains
+  const isWideFormat = ctx.mode.isWide;
+  const baseHeaders = allChains
     ? ["Chain", "Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
     : ["Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
-  if (getOutputWidthClass() === "wide") {
+  const headers = isWideFormat
+    ? [...baseHeaders, "Pool Address", "Scope"]
+    : baseHeaders;
+  if (getOutputWidthClass() === "wide" || isWideFormat) {
     printTable(
       headers,
       filteredPools.map(({ chain, pool }) => {
@@ -281,7 +285,11 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
           ),
           formatBPS(pool.vettingFeeBPS),
         ];
-        return allChains ? [chain, ...baseRow] : baseRow;
+        const row = allChains ? [chain, ...baseRow] : baseRow;
+        if (isWideFormat) {
+          row.push(formatAddress(pool.pool, 8), pool.scope.toString());
+        }
+        return row;
       }),
     );
   } else {
@@ -357,13 +365,13 @@ export interface PoolDetailRenderData {
 
 function formatReviewSummary(poolAccounts: PoolAccountRef[]): string {
   const pendingCount = poolAccounts.filter((pa) => pa.status === "pending").length;
-  const poiRequiredCount = poolAccounts.filter((pa) => pa.status === "poi_required").length;
+  const poaRequiredCount = poolAccounts.filter((pa) => pa.status === "poa_required").length;
   const declinedCount = poolAccounts.filter((pa) => pa.status === "declined").length;
   const unknownCount = poolAccounts.filter((pa) => pa.status === "unknown").length;
   const parts: string[] = [];
 
   if (pendingCount > 0) parts.push(`${pendingCount} pending`);
-  if (poiRequiredCount > 0) parts.push(`${poiRequiredCount} PoA needed`);
+  if (poaRequiredCount > 0) parts.push(`${poaRequiredCount} PoA needed`);
   if (declinedCount > 0) parts.push(`${declinedCount} declined`);
   if (unknownCount > 0) parts.push(`${unknownCount} unknown`);
 
@@ -395,7 +403,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
         usdValue: hasUsd ? formatUsdValue(myTotal, pool.decimals, tokenPrice) : null,
         poolAccounts: active.length,
         pendingCount: active.filter((pa) => pa.status === "pending").length,
-        poiRequiredCount: active.filter((pa) => pa.status === "poi_required").length,
+        poaRequiredCount: active.filter((pa) => pa.status === "poa_required").length,
         declinedCount: active.filter((pa) => pa.status === "declined").length,
         accounts: myPoolAccounts.map((pa) => ({
           id: pa.paId,
@@ -529,7 +537,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
       );
     }
 
-    if (active.some((pa) => pa.status === "poi_required")) {
+    if (active.some((pa) => pa.status === "poa_required")) {
       process.stderr.write(
         formatCallout(
           "recovery",

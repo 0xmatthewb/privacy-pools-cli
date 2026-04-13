@@ -267,13 +267,13 @@ const AGENT_WORKFLOW = [
   "5. privacy-pools flow watch [workflowId|latest] --agent",
   "6. privacy-pools flow ragequit [workflowId|latest] --agent  (optional public recovery after the deposit exists; canonical if the saved workflow is declined)",
   "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
-  "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
+  "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poa_required with accounts --agent --chain <chain>)",
   "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>",
 ];
 
 const AGENT_NOTES: Record<string, string> = {
   polling:
-    `After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if poi_required. Always preserve the same --chain scope for both polling and confirmation. ${DEPOSIT_APPROVAL_TIMELINE_COPY} Follow nextActions from the deposit response for the canonical polling command.`,
+    `After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poa_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if poa_required. Always preserve the same --chain scope for both polling and confirmation. ${DEPOSIT_APPROVAL_TIMELINE_COPY} Follow nextActions from the deposit response for the canonical polling command.`,
   withdrawQuote:
     "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
   firstRun:
@@ -288,14 +288,14 @@ const AGENT_NOTES: Record<string, string> = {
 
 export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   aspApprovalStatus: {
-    values: ["approved", "pending", "poi_required", "declined", "unknown"],
+    values: ["approved", "pending", "poa_required", "declined", "unknown"],
     description:
-      `ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poi_required' means Proof of Association (${POA_PORTAL_URL}) is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.`,
+      `ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poa_required' means Proof of Association (${POA_PORTAL_URL}) is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.`,
   },
   poolAccountStatus: {
-    values: ["approved", "pending", "poi_required", "declined", "unknown", "spent", "exited"],
+    values: ["approved", "pending", "poa_required", "declined", "unknown", "spent", "exited"],
     description:
-      "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poi_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means ragequit/exit was used.",
+      "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poa_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means ragequit/exit was used.",
   },
   errorCategories: {
     values: ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"],

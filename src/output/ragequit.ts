@@ -68,8 +68,8 @@ export function formatRagequitReview(data: RagequitReviewData): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Ragequit sends funds back to the original deposit address.",
-        "This is safe and expected in some cases, but privacy is lost and the action cannot be undone.",
+        "Ragequit publicly recovers funds to your original deposit address.",
+        "This is your self-custody guarantee — always available, but privacy is lost and the action cannot be undone.",
       ],
     },
     secondaryCallout: data.advisory
@@ -92,6 +92,7 @@ export interface RagequitDryRunData {
   selectedCommitmentLabel: bigint;
   selectedCommitmentValue: bigint;
   proofPublicSignals: number;
+  advisory?: string | null;
 }
 
 export interface RagequitSuccessData {
@@ -107,6 +108,7 @@ export interface RagequitSuccessData {
   blockNumber: bigint;
   explorerUrl: string | null;
   destinationAddress: string | null;
+  advisory?: string | null;
 }
 
 /**
@@ -124,7 +126,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
       "after_dry_run",
       {
         args: [data.asset],
-        options: { agent: true, chain: data.chain, fromPa: data.poolAccountId },
+        options: { agent: true, chain: data.chain, poolAccount: data.poolAccountId },
       },
     ),
   ];
@@ -135,7 +137,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
       "after_dry_run",
       {
         args: [data.asset],
-        options: { chain: data.chain, fromPa: data.poolAccountId },
+        options: { chain: data.chain, poolAccount: data.poolAccountId },
       },
     ),
   ];
@@ -154,6 +156,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         selectedCommitmentLabel: data.selectedCommitmentLabel.toString(),
         selectedCommitmentValue: data.selectedCommitmentValue.toString(),
         proofPublicSignals: data.proofPublicSignals,
+        ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),
       false,
     );
@@ -241,6 +244,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
         destinationAddress: data.destinationAddress,
+        ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),
       false,
     );

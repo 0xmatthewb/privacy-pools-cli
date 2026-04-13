@@ -393,8 +393,8 @@ describe("read-only output renderers", () => {
               {
                 paNumber: 4,
                 paId: "PA-4",
-                status: "poi_required",
-                aspStatus: "poi_required",
+                status: "poa_required",
+                aspStatus: "poa_required",
                 commitment: { hash: 504n, label: 604n, value: 12000000n },
                 label: 604n,
                 value: 12000000n,

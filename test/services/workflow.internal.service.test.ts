@@ -113,7 +113,7 @@ type MockPoolAccount = {
     | "approved"
     | "pending"
     | "declined"
-    | "poi_required"
+    | "poa_required"
     | "unknown"
     | "spent"
     | "exited";
@@ -121,7 +121,7 @@ type MockPoolAccount = {
     | "approved"
     | "pending"
     | "declined"
-    | "poi_required"
+    | "poa_required"
     | "unknown";
   label: bigint;
   value: bigint;

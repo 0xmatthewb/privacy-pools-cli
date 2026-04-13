@@ -81,9 +81,9 @@ describe("ragequit command helpers", () => {
     expect(advisory?.message).toContain("prefer public recovery instead of waiting");
   });
 
-  test("poi_required advisory points to the PoA flow", () => {
+  test("poa_required advisory points to the PoA flow", () => {
     const advisory = getRagequitAdvisory(
-      makePoolAccountRef({ status: "poi_required", aspStatus: "poi_required" }),
+      makePoolAccountRef({ status: "poa_required", aspStatus: "poa_required" }),
     );
 
     expect(advisory).not.toBeNull();
@@ -112,7 +112,7 @@ describe("ragequit command helpers", () => {
     const scope = 444n;
     const approved = commitment(10n, 101n, 100n);
     const declined = commitment(20n, 202n, 200n);
-    const poiRequired = commitment(30n, 303n, 300n);
+    const poaRequired = commitment(30n, 303n, 300n);
     const approvedButLeafPending = commitment(40n, 404n, 400n);
 
     const account: PrivacyPoolAccount = {
@@ -121,7 +121,7 @@ describe("ragequit command helpers", () => {
         [scope as any, [
           { label: approved.label as any, deposit: approved, children: [] },
           { label: declined.label as any, deposit: declined, children: [] },
-          { label: poiRequired.label as any, deposit: poiRequired, children: [] },
+          { label: poaRequired.label as any, deposit: poaRequired, children: [] },
           { label: approvedButLeafPending.label as any, deposit: approvedButLeafPending, children: [] },
         ]],
       ]) as any,
@@ -130,12 +130,12 @@ describe("ragequit command helpers", () => {
     const refs = buildRagequitPoolAccountRefs(
       account,
       scope,
-      [approved, declined, poiRequired, approvedButLeafPending],
+      [approved, declined, poaRequired, approvedButLeafPending],
       new Set([approved.label.toString()]),
       new Map([
         [approved.label.toString(), "approved"],
         [declined.label.toString(), "declined"],
-        [poiRequired.label.toString(), "poi_required"],
+        [poaRequired.label.toString(), "poa_required"],
         [approvedButLeafPending.label.toString(), "approved"],
       ]),
     );
@@ -143,7 +143,7 @@ describe("ragequit command helpers", () => {
     expect(refs.map((row) => row.status)).toEqual([
       "approved",
       "declined",
-      "poi_required",
+      "poa_required",
       "pending",
     ]);
   });

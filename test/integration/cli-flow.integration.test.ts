@@ -244,7 +244,7 @@ describe("flow command", () => {
       },
     },
     {
-      phase: "paused_poi_required",
+      phase: "paused_poa_required",
       expectedNextActions: [
         {
           command: "flow watch",
@@ -261,7 +261,7 @@ describe("flow command", () => {
       overrides: {
         poolAccountId: "PA-1",
         poolAccountNumber: 1,
-        aspStatus: "poi_required",
+        aspStatus: "poa_required",
       },
     },
     {

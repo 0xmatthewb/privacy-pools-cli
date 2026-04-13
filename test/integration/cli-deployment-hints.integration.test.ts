@@ -75,7 +75,7 @@ describe("deployment block hints", () => {
       chain: string;
       pendingCount: number;
       approvedCount: number;
-      poiRequiredCount: number;
+      poaRequiredCount: number;
       declinedCount: number;
       unknownCount: number;
       spentCount: number;
@@ -87,7 +87,7 @@ describe("deployment block hints", () => {
     expect(json.chain).toBe("sepolia");
     expect(json.pendingCount).toBe(0);
     expect(json.approvedCount).toBe(0);
-    expect(json.poiRequiredCount).toBe(0);
+    expect(json.poaRequiredCount).toBe(0);
     expect(json.declinedCount).toBe(0);
     expect(json.unknownCount).toBe(0);
     expect(json.spentCount).toBe(0);

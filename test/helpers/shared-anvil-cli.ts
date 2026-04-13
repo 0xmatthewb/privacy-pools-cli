@@ -82,7 +82,7 @@ export function setSharedLabelReviewStatus(
   env: SharedAnvilEnv,
   poolKey: SharedPoolKey,
   label: bigint,
-  reviewStatus: "pending" | "declined" | "poi_required",
+  reviewStatus: "pending" | "declined" | "poa_required",
 ): void {
   const labelString = label.toString();
   updateSharedPoolState(env, poolKey, (pool) => ({

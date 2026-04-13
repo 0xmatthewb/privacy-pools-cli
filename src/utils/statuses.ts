@@ -4,7 +4,7 @@ import { dangerTone, notice, successTone } from "./theme.js";
 export type PoolAccountStatus =
   | "approved"
   | "pending"
-  | "poi_required"
+  | "poa_required"
   | "declined"
   | "unknown"
   | "spent"
@@ -12,7 +12,7 @@ export type PoolAccountStatus =
 export type AspApprovalStatus =
   | "approved"
   | "pending"
-  | "poi_required"
+  | "poa_required"
   | "declined"
   | "unknown";
 
@@ -33,8 +33,9 @@ export function normalizeAspApprovalStatus(
       return "approved";
     case "pending":
       return "pending";
+    case "poa_required":
     case "poi_required":
-      return "poi_required";
+      return "poa_required";
     case "declined":
     case "rejected":
     case "denied":
@@ -103,7 +104,7 @@ export function formatAspApprovalStatus(
           return "Approved";
         case "pending":
           return "Pending";
-        case "poi_required":
+        case "poa_required":
           return "POA Needed";
         case "declined":
           return "Declined";
@@ -117,7 +118,7 @@ export function formatAspApprovalStatus(
       return "Approved";
     case "pending":
       return "Pending";
-    case "poi_required":
+    case "poa_required":
       return "POA Needed";
     case "declined":
       return "Declined";
@@ -137,7 +138,7 @@ export function renderAspApprovalStatus(
       return successTone(label);
     case "pending":
       return notice(label);
-    case "poi_required":
+    case "poa_required":
       return dangerTone(label);
     case "declined":
       return dangerTone(label);
@@ -156,7 +157,7 @@ export function formatPoolAccountStatus(status: PoolAccountStatus): string {
       return "Approved";
     case "pending":
       return "Pending";
-    case "poi_required":
+    case "poa_required":
       return "POA Needed";
     case "declined":
       return "Declined";
@@ -177,7 +178,7 @@ export function renderPoolAccountStatus(status: PoolAccountStatus): string {
       return successTone(label);
     case "pending":
       return notice(label);
-    case "poi_required":
+    case "poa_required":
       return dangerTone(label);
     case "declined":
       return dangerTone(label);

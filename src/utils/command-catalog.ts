@@ -65,13 +65,19 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.",
       ],
       examples: [
-        "privacy-pools init",
-        "privacy-pools init --yes --default-chain mainnet",
-        "privacy-pools init --force --yes --default-chain mainnet",
-        "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
-        "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
-        "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
-        "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet",
+        { category: "Basic", commands: [
+          "privacy-pools init",
+          "privacy-pools init --yes --default-chain mainnet",
+          "privacy-pools init --force --yes --default-chain mainnet",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
+        ]},
+        { category: "Import existing keys", commands: [
+          "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
+          "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
+          "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet",
+        ]},
       ],
       jsonFields:
         "{ defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
@@ -112,11 +118,15 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Machine modes (--json / --agent) stay check-only unless --yes is also present.",
       ],
       examples: [
-        "privacy-pools upgrade --check",
-        "privacy-pools upgrade",
-        "privacy-pools upgrade --yes",
-        "privacy-pools upgrade --agent --check",
-        "privacy-pools upgrade --agent --yes",
+        { category: "Basic", commands: [
+          "privacy-pools upgrade --check",
+          "privacy-pools upgrade",
+          "privacy-pools upgrade --yes",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools upgrade --agent --check",
+          "privacy-pools upgrade --agent --yes",
+        ]},
       ],
       jsonFields:
         "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
@@ -176,11 +186,17 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.",
       ],
       examples: [
-        "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
-        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
-        "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet",
-        "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
-        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent",
+        { category: "Basic", commands: [
+          "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+          "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet",
+        ]},
+        { category: "With options", commands: [
+          "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
+          "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent",
+        ]},
       ],
       prerequisites: "init",
       jsonFields:
@@ -225,17 +241,21 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Re-checks a saved workflow using the same protocol realities as the frontend. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation.",
-        "Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external.",
+        "Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external.",
         "The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus.",
         "When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires.",
         "Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.",
         "flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.",
       ],
       examples: [
-        "privacy-pools flow watch",
-        "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
-        "privacy-pools flow watch latest --agent",
-        "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000",
+        { category: "Basic", commands: [
+          "privacy-pools flow watch",
+          "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000",
+        ]},
+        { category: "With options", commands: [
+          "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
+          "privacy-pools flow watch latest --agent",
+        ]},
       ],
       prerequisites: "init",
       jsonFields:
@@ -325,17 +345,23 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets too.",
       ],
       examples: [
-        "privacy-pools pools",
-        "privacy-pools pools ETH",
-        "privacy-pools pools BOLD --chain mainnet",
-        "privacy-pools pools --all-chains --sort tvl-desc",
-        "privacy-pools pools --search usdc --sort asset-asc",
-        "privacy-pools pools --agent --chain mainnet",
+        { category: "Basic", commands: [
+          "privacy-pools pools",
+          "privacy-pools pools ETH",
+          "privacy-pools pools BOLD --chain mainnet",
+        ]},
+        { category: "Search and sort", commands: [
+          "privacy-pools pools --all-chains --sort tvl-desc",
+          "privacy-pools pools --search usdc --sort asset-asc",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools pools --agent --chain mainnet",
+        ]},
       ],
       jsonFields: POOLS_LIST_JSON_FIELDS,
       jsonVariants: [
         "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }",
-        "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poiRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }",
+        "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }",
       ],
       agentWorkflowNotes: [
         "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
@@ -355,10 +381,14 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: "Show public activity feed",
     help: {
       examples: [
-        "privacy-pools activity",
-        "privacy-pools activity --page 2 --limit 20",
-        "privacy-pools activity --asset ETH",
-        "privacy-pools activity --asset USDC --agent --chain mainnet",
+        { category: "Basic", commands: [
+          "privacy-pools activity",
+          "privacy-pools activity --page 2 --limit 20",
+          "privacy-pools activity --asset ETH",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools activity --asset USDC --agent --chain mainnet",
+        ]},
       ],
       jsonFields:
         "{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
@@ -444,11 +474,15 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "When only the ASP is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow.",
       ],
       examples: [
-        "privacy-pools status",
-        "privacy-pools status --check",
-        "privacy-pools status --no-check",
-        "privacy-pools status --agent --check-rpc",
-        "privacy-pools status --chain mainnet --rpc-url https://...",
+        { category: "Basic", commands: [
+          "privacy-pools status",
+          "privacy-pools status --check",
+          "privacy-pools status --no-check",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools status --agent --check-rpc",
+          "privacy-pools status --chain mainnet --rpc-url https://...",
+        ]},
       ],
       jsonFields:
         "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
@@ -534,12 +568,18 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off.",
       ],
       examples: [
-        "privacy-pools deposit 0.1 ETH",
-        "privacy-pools deposit 100 USDC",
-        "privacy-pools deposit 0.05 ETH --agent",
-        "privacy-pools deposit 0.1 ETH --unsigned",
-        "privacy-pools deposit 0.1 ETH --dry-run",
-        "privacy-pools deposit 0.1 --asset ETH --chain mainnet",
+        { category: "Basic", commands: [
+          "privacy-pools deposit 0.1 ETH",
+          "privacy-pools deposit 100 USDC",
+        ]},
+        { category: "With options", commands: [
+          "privacy-pools deposit 0.1 --asset ETH --chain mainnet",
+          "privacy-pools deposit 0.1 ETH --dry-run",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools deposit 0.05 ETH --agent",
+          "privacy-pools deposit 0.1 ETH --unsigned",
+        ]},
       ],
       prerequisites: "init",
       jsonFields:
@@ -552,7 +592,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       safetyNotes: [
         `Deposits are reviewed by the ASP before approval. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
-        `Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at ${POA_PORTAL_URL} before they can withdraw privately.`,
+        `Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at ${POA_PORTAL_URL} before they can withdraw privately.`,
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
@@ -581,22 +621,30 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off.",
-        `Pool Accounts marked poi_required cannot withdraw privately until Proof of Association is completed at ${POA_PORTAL_URL}.`,
+        `Pool Accounts marked poa_required cannot withdraw privately until Proof of Association is completed at ${POA_PORTAL_URL}.`,
         "Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off.",
       ],
       examples: [
-        "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
-        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2",
-        "privacy-pools withdraw --all ETH --to 0xRecipient...",
-        "privacy-pools withdraw 50% ETH --to 0xRecipient...",
-        "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
-        "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
-        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet",
+        { category: "Basic", commands: [
+          "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
+          "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2",
+        ]},
+        { category: "Amount variants", commands: [
+          "privacy-pools withdraw --all ETH --to 0xRecipient...",
+          "privacy-pools withdraw 50% ETH --to 0xRecipient...",
+        ]},
+        { category: "With options", commands: [
+          "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
+          "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet",
+        ]},
+        { category: "Quote", commands: [
+          "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
+        ]},
       ],
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.",
-        "ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.",
+        "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
       ],
       jsonFields:
@@ -620,7 +668,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       flags: [
         "--asset <symbol|address>",
         "--to <address>",
-        "--from-pa <PA-#>",
+        "--pool-account <PA-#>",
         "--all",
         "--direct",
         "--extra-gas",
@@ -661,22 +709,26 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "**Withdrawal quote:**",
   },
   ragequit: {
-    description: "Publicly withdraw funds to your deposit address",
+    description: "Publicly recover funds to your original deposit address (self-custody guarantee)",
     aliases: ["exit"],
     help: {
       overview: [
-        "Public recovery path that returns funds to the original deposit address. Does not preserve privacy. Use this for declined, PoA-blocked, or otherwise unrecoverable Pool Accounts, or when you choose not to wait for approval.",
+        "Your self-custody guarantee: publicly recovers funds to the original deposit address at any time. Does not preserve privacy. Available for any Pool Account regardless of ASP status — declined, PoA-blocked, pending, or even approved.",
         "Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.",
       ],
       examples: [
-        "privacy-pools ragequit ETH --from-pa PA-1",
-        "privacy-pools ragequit ETH --unsigned --from-pa PA-1",
-        "privacy-pools ragequit ETH --dry-run --from-pa PA-1",
-        "privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet",
+        { category: "Basic", commands: [
+          "privacy-pools ragequit ETH --pool-account PA-1",
+          "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet",
+        ]},
+        { category: "Advanced modes", commands: [
+          "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
+          "privacy-pools ragequit ETH --dry-run --pool-account PA-1",
+        ]},
       ],
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
-        "Ragequit is public and irreversible and reveals the original deposit address onchain.",
+        "Ragequit is always available as your self-custody guarantee, but it is public and irreversible and reveals the original deposit address onchain.",
       ],
       jsonFields:
         "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
@@ -692,10 +744,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
     },
     capabilities: {
-      usage: "ragequit [asset] --from-pa <PA-#>",
+      usage: "ragequit [asset] --pool-account <PA-#>",
       flags: [
         "--asset <symbol|address>",
-        "--from-pa <PA-#>",
+        "--pool-account <PA-#>",
         "--unsigned [envelope|tx]",
         "--dry-run",
       ],
@@ -714,19 +766,25 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Compact modes like --summary and --pending-only are intended for agent polling loops so they do not have to parse the full account dataset on every check.",
       ],
       examples: [
-        "privacy-pools accounts",
-        "privacy-pools accounts --all-chains",
-        "privacy-pools accounts --details",
-        "privacy-pools accounts --summary",
-        "privacy-pools accounts --chain <name> --pending-only",
-        "privacy-pools accounts --agent",
-        "privacy-pools accounts --no-sync --chain mainnet",
+        { category: "Basic", commands: [
+          "privacy-pools accounts",
+          "privacy-pools accounts --all-chains",
+          "privacy-pools accounts --details",
+        ]},
+        { category: "Compact modes", commands: [
+          "privacy-pools accounts --summary",
+          "privacy-pools accounts --chain <name> --pending-only",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools accounts --agent",
+          "privacy-pools accounts --no-sync --chain mainnet",
+        ]},
       ],
       prerequisites: "init",
       jsonFields:
         "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       jsonVariants: [
-        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
         "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       ],
       agentWorkflowNotes: [
@@ -806,10 +864,14 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: "Show chronological event history (deposits, migrations, withdrawals, ragequits)",
     help: {
       examples: [
-        "privacy-pools history",
-        "privacy-pools history --limit 10",
-        "privacy-pools history --agent",
-        "privacy-pools history --no-sync --chain mainnet",
+        { category: "Basic", commands: [
+          "privacy-pools history",
+          "privacy-pools history --limit 10",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools history --agent",
+          "privacy-pools history --no-sync --chain mainnet",
+        ]},
       ],
       prerequisites: "init",
       jsonFields:

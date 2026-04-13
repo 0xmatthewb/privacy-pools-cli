@@ -9,15 +9,21 @@ export function createRagequitCommand(): Command {
     .alias("exit")
     .description(metadata.description)
     .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
-    .option("-a, --asset <symbol|address>", "Asset pool to ragequit from")
+    .addOption(
+      new Option(
+        "-a, --asset <symbol|address>",
+        "Deprecated: use positional argument instead",
+      ).hideHelp(),
+    )
     .option(
-      "-p, --from-pa <PA-#|#>",
+      "-p, --pool-account <PA-#|#>",
       "Ragequit a specific Pool Account (e.g. PA-2)",
     )
+    .addOption(new Option("--from-pa <PA-#|#>", "Deprecated: use --pool-account").hideHelp())
     .addOption(
       new Option(
         "-i, --commitment <index>",
-        "Deprecated: 0-based spendable commitment index (use --from-pa)",
+        "Deprecated: 0-based spendable commitment index (use --pool-account)",
       ).hideHelp(),
     )
     .addOption(
@@ -25,12 +31,6 @@ export function createRagequitCommand(): Command {
         "--unsigned [format]",
         "Build unsigned transaction without submitting; format: envelope (default) or tx",
       ).choices(["envelope", "tx"]),
-    )
-    .addOption(
-      new Option(
-        "--unsigned-format <format>",
-        "Deprecated: use --unsigned [format]",
-      ).hideHelp(),
     )
     .option("--dry-run", "Generate proof and validate without submitting")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))

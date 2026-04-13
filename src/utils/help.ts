@@ -83,18 +83,18 @@ export function guideText(): string {
     `  ${accent("privacy-pools deposit 0.1 ETH")}`,
     `  ${accent("privacy-pools accounts --chain mainnet --pending-only")}        ${chalk.dim("(poll ASP review; keep the same --chain until it disappears)")}`,
     `  ${accent("privacy-pools accounts --chain mainnet")}                       ${chalk.dim("(then confirm approved vs declined vs POA Needed)")}`,
-    `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient --from-pa PA-1")}`,
+    `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient --pool-account PA-1")}`,
     chalk.dim("  Transaction commands use your default chain (set during init)."),
     chalk.dim("  Public dashboards like pools/activity/stats default to all CLI-supported mainnet chains unless you pass --chain."),
     chalk.dim("  Accounts is wallet-dependent: use --chain to keep approval checks on the same network as the deposit."),
     "",
     chalk.dim("  Deposits are reviewed by the ASP (Association Set Provider) before approval."),
     chalk.dim(`  ${DEPOSIT_APPROVAL_TIMELINE_COPY}`),
-    chalk.dim("  ASP approval is required for withdraw, including --direct. If a deposit is"),
-    chalk.dim("  declined, use ragequit for public recovery to the original deposit address."),
-    chalk.dim("  Declined saved easy-path workflows use 'flow ragequit' as their canonical"),
-    chalk.dim("  public recovery path, and operators can also choose it manually after the"),
-    chalk.dim("  public deposit exists."),
+    chalk.dim("  ASP approval is required for withdraw, including --direct. Ragequit is your"),
+    chalk.dim("  self-custody guarantee — always available to publicly recover funds to the"),
+    chalk.dim("  original deposit address. Declined saved easy-path workflows use"),
+    chalk.dim("  'flow ragequit' as their canonical public recovery path, and operators can"),
+    chalk.dim("  also choose it manually after the public deposit exists."),
     "",
     chalk.bold("Two-Key Model"),
     `  Privacy Pools uses two keys:`,
@@ -108,7 +108,7 @@ export function guideText(): string {
     `  1. ${accent("init")}           Set up wallet and config (run once)`,
     `  2. ${accent("flow start")}     Easy path: deposit now and save a later private withdrawal`,
     `  3. ${accent("flow watch")}     Resume a saved workflow through funding, approval, delay, and withdrawal`,
-    `  4. ${accent("flow ragequit")}  Saved-workflow public recovery if you stop waiting or the easy path is declined`,
+    `  4. ${accent("flow ragequit")}  Self-custody recovery for saved workflows (always available)`,
     `  5. ${accent("pools")}          Manual path: browse available pools`,
     `  6. ${accent("deposit")}        Manual path: deposit into a pool (vetting fee shown before confirming)`,
     `  7. ${accent("accounts")}       Manual path: poll pending review, then confirm approval status and balances`,
@@ -118,7 +118,7 @@ export function guideText(): string {
     `  *  ${accent("status")}         Check setup and connection health (checks run by default)`,
     `  *  ${accent("upgrade")}        Check npm for updates or upgrade this CLI`,
     `  *  ${accent("activity")}       Public onchain feed ${chalk.dim("(for your history, use 'history')")}`,
-    `  *  ${accent("ragequit")}       Public withdrawal. Returns funds to deposit address (alias: exit)`,
+    `  *  ${accent("ragequit")}       Self-custody guarantee. Publicly recovers funds to deposit address (alias: exit)`,
     `  *  ${accent("withdraw quote")} Check relayer fees before withdrawing`,
     chalk.dim("  'migrate status' is read-only. The CLI does not submit migration transactions; use the website for actual migration or website-based recovery."),
     chalk.dim("  It only checks chains currently supported by the CLI; review beta or website-only legacy migration surfaces in the website."),
@@ -130,7 +130,7 @@ export function guideText(): string {
     `  ${notice("-c, --chain <name>")}    Target chain (mainnet, arbitrum, optimism; testnets: sepolia, op-sepolia)`,
     `  ${notice("-r, --rpc-url <url>")}   Override RPC URL`,
     `  ${notice("-j, --json")}            Machine-readable JSON output`,
-    `  ${notice("--format <fmt>")}        Output format: table (default), csv, json`,
+    `  ${notice("--format <fmt>")}        Output format: table (default), csv, json, wide`,
     `  ${notice("--no-color")}            Disable colored output (also respects NO_COLOR env var)`,
     `  ${notice("-y, --yes")}             Skip confirmation prompts`,
     `  ${notice("-q, --quiet")}           Suppress human-oriented stderr output`,
@@ -177,8 +177,8 @@ export function guideText(): string {
     "  Not approved?     Deposits are reviewed by the ASP. Most deposits are",
     "                   approved within 1 hour, but some may take longer",
     "                   (up to 7 days). Some may require Proof of Association",
-    "                   or be declined. Declined deposits must use ragequit",
-    "                   for public recovery.",
+    "                   or be declined. Declined deposits can be recovered",
+    "                   publicly via ragequit.",
     "  Custom RPC?       Pass --rpc-url on any command, or save per-chain overrides in",
     `                   ~/.privacy-pools/config.json under ${chalk.dim('"rpcOverrides": { "<chainId>": "https://..." }')}.`,
     "",
@@ -205,11 +205,11 @@ export function guideText(): string {
     `  ${notice("Signer key")}               Private key that pays gas and sends transactions.`,
     `  ${notice("Pool Account (PA)")}        A single deposit and its balance, tracked for withdrawal or exit.`,
     `  ${notice("ASP (Association Set Provider) status")}  ${successTone("approved")} (withdraw ready), ${notice("pending")} (waiting),`,
-    `                                   ${notice("poi_required")} (Proof of Association needed),`,
-    `                                   ${dangerTone("declined")} (ragequit only), ${chalk.dim("unknown")} (unresolved).`,
+    `                                   ${notice("poa_required")} (Proof of Association needed),`,
+    `                                   ${dangerTone("declined")} (ragequit available), ${chalk.dim("unknown")} (unresolved).`,
     `  ${notice("Relayed withdrawal")}       Privacy-preserving withdrawal via a relayer (recommended).`,
     `  ${notice("Direct withdrawal")}        Non-private withdrawal; links deposit and withdrawal onchain.`,
-    `  ${notice("Ragequit (exit alias)")}    Public, irreversible withdrawal to original deposit address.`,
+    `  ${notice("Ragequit (exit alias)")}    Self-custody guarantee. Public, irreversible recovery to original deposit address.`,
     "",
     chalk.bold("Agent Integration"),
     `  For programmatic/agent use, run ${accent("privacy-pools capabilities --agent")} to discover`,
@@ -228,9 +228,11 @@ export function guideText(): string {
   ].join("\n");
 }
 
+export type HelpExample = string | { category: string; commands: string[] };
+
 export interface CommandHelpConfig {
   overview?: string[];
-  examples?: string[];
+  examples?: HelpExample[];
   prerequisites?: string;
   jsonFields?: string;
   jsonVariants?: string[];
@@ -255,7 +257,14 @@ export function commandHelpText(config: CommandHelpConfig): string {
   if (config.examples && config.examples.length > 0) {
     lines.push("", "Examples:");
     for (const example of config.examples) {
-      lines.push(`  ${example}`);
+      if (typeof example === "string") {
+        lines.push(`  ${example}`);
+      } else {
+        lines.push(`  ${example.category}:`);
+        for (const cmd of example.commands) {
+          lines.push(`    ${cmd}`);
+        }
+      }
     }
   }
 

@@ -257,7 +257,7 @@ describe("renderAccountsNoPools parity", () => {
     const json = parseCapturedJson(stdout);
     expect(json.pendingCount).toBe(0);
     expect(json.approvedCount).toBe(0);
-    expect(json.poiRequiredCount).toBe(0);
+    expect(json.poaRequiredCount).toBe(0);
     expect(json.declinedCount).toBe(0);
     expect(json.balances).toEqual([]);
     expect(json.accounts).toBeUndefined();
@@ -360,8 +360,8 @@ describe("renderAccounts parity", () => {
     poolAccounts: [
       {
         ...STUB_GROUP.poolAccounts[0]!,
-        status: "poi_required",
-        aspStatus: "poi_required",
+        status: "poa_required",
+        aspStatus: "poa_required",
       },
     ],
   };
@@ -428,7 +428,7 @@ describe("renderAccounts parity", () => {
     expect(json.accounts).toBeUndefined();
     expect(json.pendingCount).toBe(1);
     expect(json.approvedCount).toBe(0);
-    expect(json.poiRequiredCount).toBe(0);
+    expect(json.poaRequiredCount).toBe(0);
     expect(json.declinedCount).toBe(0);
     expect(json.unknownCount).toBe(0);
     expect(json.balances).toEqual([

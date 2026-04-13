@@ -112,7 +112,7 @@ describe("pool account mapping", () => {
       20n,
       "0x2020202020202020202020202020202020202020202020202020202020202020",
     );
-    const poiRequired = commitment(
+    const poaRequired = commitment(
       25n,
       252n,
       250n,
@@ -133,7 +133,7 @@ describe("pool account mapping", () => {
         [scope as any, [
           { label: approved.label as any, deposit: approved, children: [] },
           { label: declined.label as any, deposit: declined, children: [] },
-          { label: poiRequired.label as any, deposit: poiRequired, children: [] },
+          { label: poaRequired.label as any, deposit: poaRequired, children: [] },
           { label: approvedButLeafPending.label as any, deposit: approvedButLeafPending, children: [] },
         ]],
       ]) as any,
@@ -142,18 +142,18 @@ describe("pool account mapping", () => {
     const refs = buildAllPoolAccountRefs(
       account,
       scope,
-      [approved, declined, poiRequired, approvedButLeafPending],
+      [approved, declined, poaRequired, approvedButLeafPending],
       new Set([approved.label.toString()]),
       new Map([
         [approved.label.toString(), "approved"],
         [declined.label.toString(), "declined"],
-        [poiRequired.label.toString(), "poi_required"],
+        [poaRequired.label.toString(), "poa_required"],
         [approvedButLeafPending.label.toString(), "approved"],
       ]),
     );
 
-    expect(refs.map((row) => row.status)).toEqual(["approved", "declined", "poi_required", "pending"]);
-    expect(refs.map((row) => row.aspStatus)).toEqual(["approved", "declined", "poi_required", "pending"]);
+    expect(refs.map((row) => row.status)).toEqual(["approved", "declined", "poa_required", "pending"]);
+    expect(refs.map((row) => row.aspStatus)).toEqual(["approved", "declined", "poa_required", "pending"]);
   });
 
   test("migrated legacy accounts are hidden from refs and numbering", () => {

@@ -200,7 +200,7 @@ describe("proof progress PTY integration", () => {
       "ETH",
       "--to",
       relayedRecipient,
-      "--from-pa",
+      "--pool-account",
       account.poolAccountId,
       "--chain",
       "sepolia",

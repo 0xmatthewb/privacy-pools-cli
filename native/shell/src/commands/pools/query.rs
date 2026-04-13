@@ -326,8 +326,8 @@ fn parse_pool_detail_my_funds(value: Option<&Value>) -> Result<Option<PoolDetail
         usd_value: optional_string(object, "usdValue"),
         pool_accounts: object.get("poolAccounts").and_then(Value::as_u64).unwrap_or(0),
         pending_count: object.get("pendingCount").and_then(Value::as_u64).unwrap_or(0),
-        poi_required_count: object
-            .get("poiRequiredCount")
+        poa_required_count: object
+            .get("poaRequiredCount")
             .and_then(Value::as_u64)
             .unwrap_or(0),
         declined_count: object.get("declinedCount").and_then(Value::as_u64).unwrap_or(0),

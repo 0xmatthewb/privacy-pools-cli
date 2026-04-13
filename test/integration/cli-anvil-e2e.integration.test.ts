@@ -223,7 +223,7 @@ describe("Anvil E2E", () => {
         "--agent",
         "ragequit",
         "ETH",
-        "--from-pa",
+        "--pool-account",
         deposit.poolAccountId,
         "--chain",
         "sepolia",
@@ -296,7 +296,7 @@ describe("Anvil E2E", () => {
         "ETH",
         "--to",
         relayedRecipient,
-        "--from-pa",
+        "--pool-account",
         deposit.poolAccountId,
         "--chain",
         "sepolia",
@@ -435,7 +435,7 @@ describe("Anvil E2E", () => {
         "--agent",
         "ragequit",
         "ETH",
-        "--from-pa",
+        "--pool-account",
         deposit.poolAccountId,
         "--chain",
         "sepolia",
@@ -508,7 +508,7 @@ describe("Anvil E2E", () => {
         "ETH",
         "--to",
         relayedRecipient,
-        "--from-pa",
+        "--pool-account",
         deposit.poolAccountId,
         "--chain",
         "sepolia",
@@ -637,7 +637,7 @@ describe("Anvil E2E", () => {
         "ETH",
         "--to",
         relayedRecipient,
-        "--from-pa",
+        "--pool-account",
         deposit.poolAccountId,
         "--chain",
         "sepolia",
@@ -654,13 +654,13 @@ describe("Anvil E2E", () => {
     expect(payload.error.hint).toContain("ragequit");
   });
 
-  anvilTest("poi_required deposits fail closed with portal guidance", async () => {
+  anvilTest("poa_required deposits fail closed with portal guidance", async () => {
     const deposit = await createDepositedPoolAccount("pp-anvil-eth-poi-");
     setSharedLabelReviewStatus(
       requireSharedEnv(),
       "eth",
       deposit.label,
-      "poi_required",
+      "poa_required",
     );
 
     const result = runAnvilCli(
@@ -672,7 +672,7 @@ describe("Anvil E2E", () => {
         "ETH",
         "--to",
         relayedRecipient,
-        "--from-pa",
+        "--pool-account",
         deposit.poolAccountId,
         "--chain",
         "sepolia",
@@ -706,7 +706,7 @@ describe("Anvil E2E", () => {
         "--agent",
         "ragequit",
         "ETH",
-        "--from-pa",
+        "--pool-account",
         deposit.poolAccountId,
         "--chain",
         "sepolia",
@@ -739,7 +739,7 @@ describe("Anvil E2E", () => {
         "--agent",
         "ragequit",
         "ETH",
-        "--from-pa",
+        "--pool-account",
         deposit.poolAccountId,
         "--chain",
         "sepolia",

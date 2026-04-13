@@ -207,7 +207,7 @@ function phaseLabel(phase: FlowPhase): string {
       return "Completed";
     case "completed_public_recovery":
       return "Completed via ragequit";
-    case "paused_poi_required":
+    case "paused_poa_required":
       return "Paused: Proof of Association required";
     case "paused_declined":
       return "Paused: declined";
@@ -346,7 +346,7 @@ function buildFlowRail(snapshot: FlowSnapshot, action: FlowRenderData["action"])
     "Review",
     snapshot.phase === "awaiting_asp"
       ? "active"
-      : snapshot.phase === "paused_declined" || snapshot.phase === "paused_poi_required"
+      : snapshot.phase === "paused_declined" || snapshot.phase === "paused_poa_required"
         ? "blocked"
         : snapshot.phase === "awaiting_funding" || snapshot.phase === "depositing_publicly"
           ? "pending"
@@ -355,7 +355,7 @@ function buildFlowRail(snapshot: FlowSnapshot, action: FlowRenderData["action"])
       ? "Waiting for ASP approval."
       : snapshot.phase === "paused_declined"
         ? "Declined by the ASP."
-        : snapshot.phase === "paused_poi_required"
+        : snapshot.phase === "paused_poa_required"
           ? "Proof of Association is required before private withdrawal can continue."
           : undefined,
   );
@@ -372,7 +372,7 @@ function buildFlowRail(snapshot: FlowSnapshot, action: FlowRenderData["action"])
             snapshot.phase === "completed" ||
             snapshot.phase === "completed_public_recovery"
           ? "done"
-          : snapshot.phase === "paused_declined" || snapshot.phase === "paused_poi_required"
+          : snapshot.phase === "paused_declined" || snapshot.phase === "paused_poa_required"
             ? "pending"
             : "pending",
     snapshot.phase === "approved_waiting_privacy_delay"
@@ -387,7 +387,7 @@ function buildFlowRail(snapshot: FlowSnapshot, action: FlowRenderData["action"])
       ? "done"
       : publicRecoveryRequired || snapshot.phase === "paused_declined"
         ? "blocked"
-        : snapshot.phase === "paused_poi_required"
+        : snapshot.phase === "paused_poa_required"
           ? "blocked"
           : snapshot.phase === "withdrawing" || snapshot.phase === "approved_ready_to_withdraw"
             ? "active"
@@ -400,7 +400,7 @@ function buildFlowRail(snapshot: FlowSnapshot, action: FlowRenderData["action"])
         ? "The saved full-balance withdrawal is below the relayer minimum, so public recovery is required."
         : snapshot.phase === "paused_declined"
           ? "Use flow ragequit to return funds to the original deposit address."
-          : snapshot.phase === "paused_poi_required"
+          : snapshot.phase === "paused_poa_required"
             ? "Complete Proof of Association to continue privately, or recover publicly instead."
             : snapshot.phase === "approved_ready_to_withdraw"
               ? "Ready for the relayed private withdrawal."
@@ -525,7 +525,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
           },
         ),
       ];
-    case "paused_poi_required":
+    case "paused_poa_required":
       return [
         createNextAction(
           "flow watch",
@@ -656,7 +656,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
           },
         ),
       ];
-    case "paused_poi_required":
+    case "paused_poa_required":
       return [
         createNextAction(
           "flow watch",
@@ -787,7 +787,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       `${data.snapshot.poolAccountId ?? "This workflow"} was declined by the ASP. This saved workflow is paused and ready for public recovery via flow ragequit.${configuredSignerRecoverySuffix(data.snapshot)}`,
       silent,
     );
-  } else if (data.snapshot.phase === "paused_poi_required") {
+  } else if (data.snapshot.phase === "paused_poa_required") {
     warn(
       `${data.snapshot.poolAccountId ?? "This workflow"} needs Proof of Association before the private withdrawal can continue. Complete PoA to continue privately, or use flow ragequit to recover publicly.${configuredSignerRecoverySuffix(data.snapshot)}`,
       silent,
@@ -888,7 +888,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     !publicRecoveryRequired &&
     phase !== "withdrawing" &&
     phase !== "paused_declined" &&
-    phase !== "paused_poi_required" &&
+    phase !== "paused_poa_required" &&
     phase !== "stopped_external" &&
     !inlinePrivacyWarnings;
 
@@ -1118,7 +1118,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
           `This workflow was declined by the ASP. Your funds can still return safely to the original deposit address with privacy-pools flow ragequit ${data.snapshot.workflowId}. Privacy will not be preserved.${configuredSignerRecoverySuffix(data.snapshot)}`,
         ];
         break;
-      case "paused_poi_required":
+      case "paused_poa_required":
         phaseSectionTitle = "Recovery decision";
         if (committedValue) {
           phaseRows.push({
@@ -1202,7 +1202,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     data.snapshot.walletMode === "new_wallet" &&
     (isTerminal ||
       phase === "paused_declined" ||
-      phase === "paused_poi_required" ||
+      phase === "paused_poa_required" ||
       phase === "stopped_external")
       ? [
           "Any leftover funds or gas reserve remain in the dedicated workflow wallet until you move them manually.",
@@ -1222,7 +1222,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     !isPreDeposit &&
     phase !== "withdrawing" &&
     phase !== "paused_declined" &&
-    phase !== "paused_poi_required" &&
+    phase !== "paused_poa_required" &&
     phase !== "stopped_external" &&
     !requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot);
   const transactionRows = [];
@@ -1252,7 +1252,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   }
 
   const recoveryRows = [];
-  if (phase === "paused_poi_required") {
+  if (phase === "paused_poa_required") {
     recoveryRows.push({
       label: "Continue privately",
       value: POA_PORTAL_URL,

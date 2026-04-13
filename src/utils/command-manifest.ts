@@ -106,7 +106,7 @@ export const GENERATED_ROOT_COMMANDS = [
     "aliases": [
       "exit"
     ],
-    "description": "Publicly withdraw funds to your deposit address"
+    "description": "Publicly recover funds to your original deposit address (self-custody guarantee)"
   },
   {
     "name": "accounts",
@@ -511,7 +511,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "--asset <symbol|address>",
         "--to <address>",
-        "--from-pa <PA-#>",
+        "--pool-account <PA-#>",
         "--all",
         "--direct",
         "--extra-gas",
@@ -611,14 +611,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "ragequit",
-      "description": "Publicly withdraw funds to your deposit address",
+      "description": "Publicly recover funds to your original deposit address (self-custody guarantee)",
       "aliases": [
         "exit"
       ],
-      "usage": "ragequit [asset] --from-pa <PA-#>",
+      "usage": "ragequit [asset] --pool-account <PA-#>",
       "flags": [
         "--asset <symbol|address>",
-        "--from-pa <PA-#>",
+        "--pool-account <PA-#>",
         "--unsigned [envelope|tx]",
         "--dry-run"
       ],
@@ -1124,7 +1124,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonFields": "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
         "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }",
-        "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poiRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }"
+        "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }"
       ],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -1574,7 +1574,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
-        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately."
+        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -1597,7 +1597,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "--asset <symbol|address>",
         "--to <address>",
-        "--from-pa <PA-#>",
+        "--pool-account <PA-#>",
         "--all",
         "--direct",
         "--extra-gas",
@@ -1633,7 +1633,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "examples": [
         "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
-        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2",
+        "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2",
         "privacy-pools withdraw --all ETH --to 0xRecipient...",
         "privacy-pools withdraw 50% ETH --to 0xRecipient...",
         "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
@@ -1650,7 +1650,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "safetyNotes": [
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.",
-        "ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.",
+        "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later."
       ],
       "supportsUnsigned": true,
@@ -1713,7 +1713,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "ragequit": {
       "command": "ragequit",
-      "description": "Publicly withdraw funds to your deposit address",
+      "description": "Publicly recover funds to your original deposit address (self-custody guarantee)",
       "aliases": [
         "exit"
       ],
@@ -1723,10 +1723,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "help"
         ]
       },
-      "usage": "ragequit [asset] --from-pa <PA-#>",
+      "usage": "ragequit [asset] --pool-account <PA-#>",
       "flags": [
         "--asset <symbol|address>",
-        "--from-pa <PA-#>",
+        "--pool-account <PA-#>",
         "--unsigned [envelope|tx]",
         "--dry-run"
       ],
@@ -1753,10 +1753,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "init (account state should be synced)"
       ],
       "examples": [
-        "privacy-pools ragequit ETH --from-pa PA-1",
-        "privacy-pools ragequit ETH --unsigned --from-pa PA-1",
-        "privacy-pools ragequit ETH --dry-run --from-pa PA-1",
-        "privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet"
+        "privacy-pools ragequit ETH --pool-account PA-1",
+        "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
+        "privacy-pools ragequit ETH --dry-run --pool-account PA-1",
+        "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet"
       ],
       "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
@@ -1824,7 +1824,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [
-        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
         "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }"
       ],
       "safetyNotes": [],
@@ -2450,11 +2450,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "5. privacy-pools flow watch [workflowId|latest] --agent",
     "6. privacy-pools flow ragequit [workflowId|latest] --agent  (optional public recovery after the deposit exists; canonical if the saved workflow is declined)",
     "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
-    "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poi_required with accounts --agent --chain <chain>)",
+    "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poa_required with accounts --agent --chain <chain>)",
     "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
   ],
   "agentNotes": {
-    "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poi_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if poi_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). Follow nextActions from the deposit response for the canonical polling command.",
+    "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poa_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at tornado.0xbow.io first if poa_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
     "firstRun": "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
@@ -2466,23 +2466,23 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "values": [
         "approved",
         "pending",
-        "poi_required",
+        "poa_required",
         "declined",
         "unknown"
       ],
-      "description": "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poi_required' means Proof of Association (tornado.0xbow.io) is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined."
+      "description": "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poa_required' means Proof of Association (tornado.0xbow.io) is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined."
     },
     "poolAccountStatus": {
       "values": [
         "approved",
         "pending",
-        "poi_required",
+        "poa_required",
         "declined",
         "unknown",
         "spent",
         "exited"
       ],
-      "description": "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poi_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means ragequit/exit was used."
+      "description": "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poa_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means ragequit/exit was used."
     },
     "errorCategories": {
       "values": [

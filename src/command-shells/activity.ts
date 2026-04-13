@@ -12,7 +12,7 @@ export function createActivityCommand(): Command {
       "Filter to one pool asset on the selected chain",
     )
     .option("--page <n>", "Page number", "1")
-    .option("--limit <n>", "Items per page", "12")
+    .option("-n, --limit <n>", "Items per page", "12")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

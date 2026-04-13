@@ -101,7 +101,7 @@
         "mode": "\"flow\"",
         "action": "\"start\"|\"watch\"|\"status\"|\"ragequit\"",
         "workflowId": "uuid-string",
-        "phase": "\"awaiting_funding\"|\"depositing_publicly\"|\"awaiting_asp\"|\"approved_waiting_privacy_delay\"|\"approved_ready_to_withdraw\"|\"withdrawing\"|\"completed\"|\"completed_public_recovery\"|\"paused_declined\"|\"paused_poi_required\"|\"stopped_external\"",
+        "phase": "\"awaiting_funding\"|\"depositing_publicly\"|\"awaiting_asp\"|\"approved_waiting_privacy_delay\"|\"approved_ready_to_withdraw\"|\"withdrawing\"|\"completed\"|\"completed_public_recovery\"|\"paused_declined\"|\"paused_poa_required\"|\"stopped_external\"",
         "walletMode": "\"configured\"|\"new_wallet\"",
         "walletAddress": "0x-prefixed-address|null",
         "requiredNativeFunding": "decimal-string-wei|null",
@@ -117,7 +117,7 @@
         "depositBlockNumber": "decimal-string|null",
         "depositExplorerUrl": "string|null",
         "committedValue": "decimal-string-wei|null",
-        "aspStatus": "\"pending\"|\"approved\"|\"poi_required\"|\"declined\"|\"unknown\"|undefined",
+        "aspStatus": "\"pending\"|\"approved\"|\"poa_required\"|\"declined\"|\"unknown\"|undefined",
         "privacyDelayProfile": "\"off\"|\"balanced\"|\"aggressive\"",
         "privacyDelayConfigured": "boolean (true when the workflow explicitly saved a delay policy; false for legacy snapshots normalized to off)",
         "privacyDelayUntil": "iso8601-string|null",
@@ -220,7 +220,7 @@
         "pendingDepositsCount": "number|null",
         "growth24h": "number|null",
         "pendingGrowth24h": "number|null",
-        "myFunds": "{ balance: decimal-string-wei, usdValue: string|null, poolAccounts: number, pendingCount: number, poiRequiredCount: number, declinedCount: number, accounts: [{ id, status, aspStatus, value }] }|null",
+        "myFunds": "{ balance: decimal-string-wei, usdValue: string|null, poolAccounts: number, pendingCount: number, poaRequiredCount: number, declinedCount: number, accounts: [{ id, status, aspStatus, value }] }|null",
         "myFundsWarning": "string? (present when wallet state could not be loaded fully)",
         "recentActivity": "[{ type: string, amount: string|null, timeLabel: string, status: string|null }]|null"
       }
@@ -240,7 +240,7 @@
         "label": "decimal-string|null",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poi_required before choosing withdraw or ragequit)"
+        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poa_required before choosing withdraw or ragequit)"
       },
       "variants": {
         "dryRun": {
@@ -436,7 +436,7 @@
         "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "pendingCount": "number",
         "approvedCount": "number",
-        "poiRequiredCount": "number",
+        "poaRequiredCount": "number",
         "declinedCount": "number",
         "unknownCount": "number",
         "spentCount": "number",
@@ -453,8 +453,8 @@
       "accountFields": {
         "poolAccountNumber": "number",
         "poolAccountId": "string (PA-#)",
-        "status": "\"approved\"|\"pending\"|\"poi_required\"|\"declined\"|\"unknown\"|\"spent\"|\"exited\"",
-        "aspStatus": "\"pending\"|\"approved\"|\"poi_required\"|\"declined\"|\"unknown\"",
+        "status": "\"approved\"|\"pending\"|\"poa_required\"|\"declined\"|\"unknown\"|\"spent\"|\"exited\"",
+        "aspStatus": "\"pending\"|\"approved\"|\"poa_required\"|\"declined\"|\"unknown\"",
         "asset": "string",
         "scope": "decimal-string",
         "value": "decimal-string-wei",

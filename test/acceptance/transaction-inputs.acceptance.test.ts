@@ -253,7 +253,7 @@ defineScenarioSuite("transaction inputs acceptance", [
       expect(json.error.message).toContain(`Failed to resolve pool for ${assetAddress}`);
     }),
     runCliStep(
-      ["--json", "deposit", "ETH", "0.1", "--asset", "ETH", "--yes"],
+      ["--json", "deposit", "0.1", "--asset", "ETH", "--yes"],
       {
         timeoutMs: 10_000,
       },
@@ -266,7 +266,7 @@ defineScenarioSuite("transaction inputs acceptance", [
     }>((json) => {
       expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("Ambiguous positional arguments");
+      expect(json.error.message).toContain("--asset has been replaced");
     }),
   ]),
   defineScenario("pre-network transaction guards reject malformed selectors before RPC work", [
@@ -276,11 +276,10 @@ defineScenarioSuite("transaction inputs acceptance", [
         "--json",
         "withdraw",
         "0.1",
-        "--asset",
         "ETH",
         "--to",
         "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",
-        "--from-pa",
+        "--pool-account",
         "not-a-pa",
         "--chain",
         "sepolia",
@@ -295,14 +294,13 @@ defineScenarioSuite("transaction inputs acceptance", [
     }>((json) => {
       expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("Invalid --from-pa");
+      expect(json.error.message).toContain("Invalid --pool-account");
     }),
     runCliStep(
       [
         "--json",
         "withdraw",
         "0.1",
-        "--asset",
         "ETH",
         "--direct",
         "--to",
@@ -326,9 +324,8 @@ defineScenarioSuite("transaction inputs acceptance", [
       [
         "--json",
         "ragequit",
-        "--asset",
         "ETH",
-        "--from-pa",
+        "--pool-account",
         "not-a-pa",
         "--chain",
         "sepolia",
@@ -343,15 +340,14 @@ defineScenarioSuite("transaction inputs acceptance", [
     }>((json) => {
       expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("Invalid --from-pa");
+      expect(json.error.message).toContain("Invalid --pool-account");
     }),
     runCliStep(
       [
         "--json",
         "ragequit",
-        "--asset",
         "ETH",
-        "--from-pa",
+        "--pool-account",
         "PA-1",
         "--commitment",
         "0",
@@ -369,7 +365,7 @@ defineScenarioSuite("transaction inputs acceptance", [
       expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
       expect(json.error.message).toContain(
-        "Cannot use --from-pa and --commitment together",
+        "Cannot use --pool-account and --commitment together",
       );
     }),
   ]),

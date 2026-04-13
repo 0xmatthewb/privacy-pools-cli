@@ -222,7 +222,7 @@ defineScenarioSuite("completion acceptance", [
       { timeoutMs: 10_000 },
     ),
     assertExit(0),
-    assertCompletionLines(["-p", "--from-pa"]),
+    assertCompletionLines(["-p", "--pool-account"]),
     runCliStep(
       [
         "completion",

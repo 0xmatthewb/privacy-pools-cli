@@ -212,7 +212,7 @@ export type FlowPhase =
   | "withdrawing"
   | "completed"
   | "completed_public_recovery"
-  | "paused_poi_required"
+  | "paused_poa_required"
   | "paused_declined"
   | "stopped_external";
 
@@ -1110,7 +1110,7 @@ function flowHasPendingPrivateWithdrawalTarget(
     snapshot.phase === "awaiting_asp" ||
     snapshot.phase === "approved_waiting_privacy_delay" ||
     snapshot.phase === "approved_ready_to_withdraw" ||
-    snapshot.phase === "paused_poi_required"
+    snapshot.phase === "paused_poa_required"
   );
 }
 
@@ -3642,15 +3642,15 @@ async function inspectAndAdvanceFlow(params: {
     };
   }
 
-  if (aspStatus === "poi_required") {
-    const poiRequired = clearLastError(
+  if (aspStatus === "poa_required") {
+    const poaRequired = clearLastError(
       updateSnapshot(savedAligned, {
-        phase: "paused_poi_required",
+        phase: "paused_poa_required",
         aspStatus,
       }),
     );
     return {
-      snapshot: saveWorkflowSnapshotIfChanged(savedAligned, poiRequired),
+      snapshot: saveWorkflowSnapshotIfChanged(savedAligned, poaRequired),
       continueWatching: false,
     };
   }

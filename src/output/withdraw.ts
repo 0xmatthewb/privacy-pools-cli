@@ -238,7 +238,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
     agent: true,
     chain: data.chain,
     to: data.recipient,
-    fromPa: data.poolAccountId,
+    poolAccount: data.poolAccountId,
   };
   if (data.withdrawMode === "direct") {
     actionOptions.direct = true;
@@ -260,7 +260,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
   const humanActionOptions: Record<string, string | boolean> = {
     chain: data.chain,
     to: data.recipient,
-    fromPa: data.poolAccountId,
+    poolAccount: data.poolAccountId,
   };
   if (data.withdrawMode === "direct") {
     humanActionOptions.direct = true;

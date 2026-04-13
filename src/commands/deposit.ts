@@ -96,7 +96,6 @@ const depositedEventAbi = parseAbi([
 interface DepositCommandOptions {
   asset?: string;
   unsigned?: boolean | string;
-  unsignedFormat?: string;
   dryRun?: boolean;
   ignoreUniqueAmount?: boolean;
 }
@@ -109,6 +108,15 @@ export async function handleDepositCommand(
   opts: DepositCommandOptions,
   cmd: Command,
 ): Promise<void> {
+  // Deprecated --asset flag migration guard.
+  if (opts.asset !== undefined) {
+    throw new CLIError(
+      "--asset has been replaced by a positional argument.",
+      "INPUT",
+      "Use: privacy-pools deposit <amount> <asset> (e.g. privacy-pools deposit 0.1 ETH)",
+    );
+  }
+
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
@@ -124,14 +132,6 @@ export async function handleDepositCommand(
   const isVerbose = globalOpts?.verbose ?? false;
 
   try {
-    if (opts.unsignedFormat !== undefined) {
-      throw new CLIError(
-        "--unsigned-format has been replaced by --unsigned [format].",
-        "INPUT",
-        `Use: privacy-pools deposit ... --unsigned ${opts.unsignedFormat ?? "envelope"}`,
-      );
-    }
-
     if (
       unsignedFormat &&
       unsignedFormat !== "envelope" &&
@@ -284,6 +284,7 @@ export async function handleDepositCommand(
           amount,
           feeAmount,
           estimatedCommitted,
+          vettingFeeBPS: pool.vettingFeeBPS,
           asset: pool.symbol,
           chain: chainConfig.name,
           decimals: pool.decimals,
@@ -409,7 +410,7 @@ export async function handleDepositCommand(
             pool.symbol,
           );
           // Also check native balance for gas (approve + deposit txs)
-          await checkHasGas(publicClient, signerAddr);
+          await checkHasGas(publicClient, signerAddr, "ETH", 2);
         }
         balanceSufficient = true;
       } else if (isDryRun && !isUnsigned) {
@@ -435,7 +436,7 @@ export async function handleDepositCommand(
               pool.decimals,
               pool.symbol,
             );
-            await checkHasGas(publicClient, signerAddr);
+            await checkHasGas(publicClient, signerAddr, "ETH", 2);
           }
           balanceSufficient = true;
         } catch (error) {
