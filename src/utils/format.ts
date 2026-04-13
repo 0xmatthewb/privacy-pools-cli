@@ -216,6 +216,64 @@ function formatStackedTable(headers: string[], rows: string[][]): string {
     .join("\n\n")}\n`;
 }
 
+/** Format elapsed milliseconds into a compact label like "1.2s" or "342ms". */
+export function formatElapsed(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const sec = ms / 1000;
+  return sec < 10 ? `${sec.toFixed(1)}s` : `${Math.round(sec)}s`;
+}
+
+/**
+ * Format a future epoch-ms deadline as a compact remaining-time label.
+ * Returns e.g. "2m 15s", "45s", or "expired" when the deadline has passed.
+ */
+export function formatRemainingTime(deadlineMs: number, nowMs: number = Date.now()): string {
+  const remainMs = deadlineMs - nowMs;
+  if (remainMs <= 0) return "expired";
+  const totalSec = Math.floor(remainMs / 1000);
+  if (totalSec < 60) return `${totalSec}s`;
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+}
+
+/**
+ * Wrap an Ora-like spinner to automatically append elapsed time
+ * on succeed() and fail() calls.
+ */
+function withElapsedTracking<T extends Ora>(spin: T): T {
+  // Use performance.now() to avoid interference with Date.now() mocks in tests.
+  let startTime = performance.now();
+  const originalStart = spin.start.bind(spin);
+  const originalSucceed = spin.succeed.bind(spin);
+  const originalFail = spin.fail.bind(spin);
+
+  spin.start = function (message?: string) {
+    startTime = performance.now();
+    return originalStart(message);
+  } as typeof spin.start;
+
+  spin.succeed = function (message?: string) {
+    const elapsed = performance.now() - startTime;
+    const msg = message ?? spin.text;
+    if (msg && elapsed >= 250) {
+      return originalSucceed(`${msg} ${chalk.dim(`(${formatElapsed(Math.round(elapsed))})`)}`);
+    }
+    return originalSucceed(message);
+  } as typeof spin.succeed;
+
+  spin.fail = function (message?: string) {
+    const elapsed = performance.now() - startTime;
+    const msg = message ?? spin.text;
+    if (msg && elapsed >= 250) {
+      return originalFail(`${msg} ${chalk.dim(`(${formatElapsed(Math.round(elapsed))})`)}`);
+    }
+    return originalFail(message);
+  } as typeof spin.fail;
+
+  return spin;
+}
+
 function createStaticSpinner(text: string, quiet: boolean): Ora {
   let currentText = text;
   let spinning = false;
@@ -274,18 +332,25 @@ function createStaticSpinner(text: string, quiet: boolean): Ora {
   return staticSpinner as unknown as Ora;
 }
 
+// Module-level flag: when true, spinner() returns a silent/static spinner.
+let _suppressProgress = false;
+/** Called by resolveGlobalMode() when --no-progress is active. */
+export function setSuppressProgress(value: boolean): void {
+  _suppressProgress = value;
+}
+
 export function spinner(text: string, quiet: boolean = false) {
-  if (process.env.PRIVACY_POOLS_CLI_STATIC_SPINNER === "1") {
-    return createStaticSpinner(text, quiet);
+  if (_suppressProgress || process.env.PRIVACY_POOLS_CLI_STATIC_SPINNER === "1") {
+    return withElapsedTracking(createStaticSpinner(text, _suppressProgress || quiet) as Ora);
   }
 
-  return ora({
+  return withElapsedTracking(ora({
     text,
     color: spinnerColor,
     stream: process.stderr,
     isSilent: quiet,
     discardStdin: false,
-  });
+  }));
 }
 
 export function success(message: string, quiet: boolean = false): void {
@@ -383,4 +448,30 @@ export function formatApproxBlockTimeAgo(
   const blockDelta = Number(currentBlock - eventBlock);
   const deltaMs = blockDelta * avgBlockTimeSec * 1000;
   return formatTimeAgo(Date.now() - deltaMs);
+}
+
+// ── Multi-level verbose helpers ───────────────────────────────────────────────
+
+/**
+ * Level-2 debug output (requires -vv). Prints `[debug] message` in dim style.
+ */
+export function verboseL2(
+  message: string,
+  verboseLevel: number,
+  quiet: boolean = false,
+): void {
+  if (quiet || verboseLevel < 2) return;
+  process.stderr.write(`${chalk.dim(`[debug] ${message}`)}\n`);
+}
+
+/**
+ * Level-3 trace output (requires -vvv). Prints `[trace] message` in dim style.
+ */
+export function verboseL3(
+  message: string,
+  verboseLevel: number,
+  quiet: boolean = false,
+): void {
+  if (quiet || verboseLevel < 3) return;
+  process.stderr.write(`${chalk.dim(`[trace] ${message}`)}\n`);
 }

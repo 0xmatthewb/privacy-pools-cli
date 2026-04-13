@@ -23,6 +23,7 @@ import {
   displayDecimals,
   formatAddress,
   formatAmount,
+  formatTimeAgo,
   formatTxHash,
   formatUsdValue,
 } from "../utils/format.js";
@@ -66,6 +67,8 @@ export interface AccountsRenderData {
   showDetails: boolean;
   showSummary: boolean;
   showPendingOnly: boolean;
+  /** Epoch ms of the oldest sync across queried chains. Null if unknown. */
+  lastSyncTime?: number | null;
 }
 
 export interface AccountsEmptyRenderData {
@@ -821,6 +824,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             accounts: summary.accounts,
             balances: summary.balances,
             pendingCount: summary.pendingCount,
+            ...(data.lastSyncTime != null ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() } : {}),
           },
           meta,
         ),
@@ -846,7 +850,13 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
         ? `My Pools across ${allChains ? "all chains" : "mainnet chains"}:`
         : `Pool Accounts on ${chain}:`;
 
-  if (!silent) process.stderr.write(`\n${accentBold(title)}\n\n`);
+  if (!silent) {
+    process.stderr.write(`\n${accentBold(title)}\n`);
+    if (data.lastSyncTime != null) {
+      process.stderr.write(chalk.dim(`  Updated ${formatTimeAgo(data.lastSyncTime)}\n`));
+    }
+    process.stderr.write("\n");
+  }
   renderWarnings(warnings, silent);
 
   if (!silent && hasPendingApprovals) {

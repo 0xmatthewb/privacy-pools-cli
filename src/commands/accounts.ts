@@ -15,6 +15,7 @@ import {
   assertAccountStateFreshForNoSync,
   getStoredLegacyPoolAccounts,
   initializeAccountServiceWithState,
+  loadSyncMeta,
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
@@ -558,6 +559,13 @@ export async function handleAccountsCommand(
     }
 
     const groups = loadedResults.flatMap((result) => result.groups);
+
+    // Compute the oldest sync time across all loaded chains for cache age display.
+    const syncTimes = loadedResults
+      .map((r) => loadSyncMeta(r.chainConfig.id)?.lastSyncTime)
+      .filter((t): t is number => t != null);
+    const lastSyncTime = syncTimes.length > 0 ? Math.min(...syncTimes) : null;
+
     if (groups.length === 0) {
       const emptyState = resolveAccountsEmptyState({
         pendingOnly: !!opts.pendingOnly,
@@ -585,6 +593,7 @@ export async function handleAccountsCommand(
       showDetails: !!opts.details,
       showSummary: !!opts.summary,
       showPendingOnly: !!opts.pendingOnly,
+      lastSyncTime,
     });
   } catch (error) {
     printError(error, mode.isJson);
