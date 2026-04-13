@@ -1,9 +1,12 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Command } from "commander";
 import { readCliPackageInfo } from "../package-info.js";
 import { createOutputContext } from "../output/common.js";
 import {
   formatUpgradeInstallReview,
   renderUpgradeResult,
+  renderChangelog,
 } from "../output/upgrade.js";
 import {
   inspectUpgrade,
@@ -28,6 +31,7 @@ import type { UpgradeResult } from "../services/upgrade.js";
 
 interface UpgradeCommandOptions {
   check?: boolean;
+  changelog?: boolean;
 }
 
 function previewUpgradeInspectResult(
@@ -69,6 +73,16 @@ export async function handleUpgradeCommand(
 
   try {
     if (await maybeRenderPreviewScenario("upgrade")) {
+      return;
+    }
+
+    if (opts.changelog) {
+      const pkg = readCliPackageInfo(import.meta.url);
+      const changelogPath = join(pkg.packageRoot, "CHANGELOG.md");
+      const content = existsSync(changelogPath)
+        ? readFileSync(changelogPath, "utf-8")
+        : null;
+      renderChangelog(ctx, content);
       return;
     }
 

@@ -63,6 +63,33 @@ export function formatUpgradeInstallReview(
   });
 }
 
+export function renderChangelog(
+  ctx: OutputContext,
+  content: string | null,
+): void {
+  guardCsvUnsupported(ctx, "upgrade --changelog");
+
+  if (ctx.mode.isJson) {
+    printJsonSuccess({
+      changelog: content ?? null,
+      available: content !== null,
+    });
+    return;
+  }
+
+  if (isSilent(ctx)) return;
+
+  if (!content) {
+    warn("CHANGELOG.md not found in the package root.", ctx.mode.isQuiet);
+    return;
+  }
+
+  process.stdout.write(content);
+  if (!content.endsWith("\n")) {
+    process.stdout.write("\n");
+  }
+}
+
 export function renderUpgradeResult(
   ctx: OutputContext,
   result: UpgradeResult,

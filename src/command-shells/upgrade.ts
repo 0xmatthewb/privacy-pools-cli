@@ -11,6 +11,10 @@ export function createUpgradeCommand(): Command {
       "--check",
       "Check npm for a newer privacy-pools-cli release without installing it",
     )
+    .option(
+      "--changelog",
+      "Display the changelog (release history and migration notes)",
+    )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(
