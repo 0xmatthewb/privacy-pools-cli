@@ -5,7 +5,7 @@ import { FLOW_PRIVACY_DELAY_PROFILES } from "./flow-privacy-delay.js";
 import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
 import { resolveConfigHome } from "../runtime/config-paths.js";
 import { loadAccount } from "../services/account-storage.js";
-import { OUTPUT_FORMATS } from "./mode.js";
+import { rootGlobalFlagValues } from "./root-global-flags.js";
 import {
   detectCompletionShell,
   isCompletionShell,
@@ -82,7 +82,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionOption("-c, --chain <name>", CHAIN_NAMES),
       completionOption("-j, --json"),
       completionOption("--json-fields <fields>"),
-      completionOption("--format <format>", OUTPUT_FORMATS),
+      completionOption("--format <format>", rootGlobalFlagValues("--format <format>")),
       completionOption("-y, --yes"),
       completionOption("-r, --rpc-url <url>"),
       completionOption("--agent"),

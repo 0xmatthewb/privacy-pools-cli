@@ -3,9 +3,11 @@ import {
   rootHelpFooterPlain,
   rootHelpFooterStyled,
 } from "./utils/root-help-footer.js";
-import { rootGlobalFlagDescription } from "./utils/root-global-flags.js";
+import {
+  rootGlobalFlagDescription,
+  rootGlobalFlagValues,
+} from "./utils/root-global-flags.js";
 import { allNonOptionTokens } from "./utils/root-argv.js";
-import { OUTPUT_FORMATS } from "./utils/mode.js";
 
 const ROOT_COMMAND_NAMES = [
   "init",
@@ -146,7 +148,7 @@ export async function createRootProgram(
       new Option(
         "--format <format>",
         rootGlobalFlagDescription("--format <format>"),
-      ).choices([...OUTPUT_FORMATS]),
+      ).choices([...rootGlobalFlagValues("--format <format>")]),
     )
     .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"));
 

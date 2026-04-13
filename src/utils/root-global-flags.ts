@@ -118,6 +118,12 @@ function splitFlagNames(flag: string): string[] {
 const ROOT_GLOBAL_FLAG_DESCRIPTIONS = new Map(
   ROOT_GLOBAL_FLAG_METADATA.map(({ flag, description }) => [flag, description]),
 );
+const ROOT_GLOBAL_FLAG_VALUES = new Map(
+  ROOT_GLOBAL_FLAG_METADATA.map((entry) => [
+    entry.flag,
+    "values" in entry ? (entry.values ?? []) : [],
+  ]),
+);
 
 export const ROOT_OPTIONS_WITH_VALUE = new Set(
   ROOT_GLOBAL_FLAG_METADATA.filter(({ takesValue }) => takesValue).flatMap(
@@ -141,4 +147,12 @@ export function rootGlobalFlagDescription(flag: RootGlobalFlag): string {
     throw new Error(`Unknown root global flag: ${flag}`);
   }
   return description;
+}
+
+export function rootGlobalFlagValues(flag: RootGlobalFlag): readonly string[] {
+  const values = ROOT_GLOBAL_FLAG_VALUES.get(flag);
+  if (!values) {
+    throw new Error(`Unknown root global flag: ${flag}`);
+  }
+  return values;
 }
