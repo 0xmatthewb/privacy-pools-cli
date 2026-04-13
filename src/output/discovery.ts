@@ -152,7 +152,10 @@ export function renderHumanCommandDescription(
   writeListSection("Flags", descriptor.flags);
   writeListSection("Global flags", descriptor.globalFlags);
   writeListSection("Prerequisites", descriptor.prerequisites);
-  writeListSection("Examples", descriptor.examples);
+  const flatExamples: string[] = descriptor.examples.flatMap((ex) =>
+    typeof ex === "string" ? [ex] : [`${ex.category}:`, ...ex.commands.map((c) => `  ${c}`)],
+  );
+  writeListSection("Examples", flatExamples);
 
   if (descriptor.jsonFields) {
     process.stderr.write(formatSectionHeading("JSON fields", { divider: true }));

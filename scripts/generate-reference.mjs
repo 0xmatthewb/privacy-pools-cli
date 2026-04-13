@@ -167,11 +167,31 @@ for (const path of CAPABILITIES_COMMAND_ORDER) {
   const examples = metadata.help?.examples ?? [];
   if (examples.length > 0) {
     lines.push("");
-    lines.push("```bash");
-    for (const ex of examples) {
-      lines.push(ex);
+    const hasCategories = examples.some((ex) => typeof ex !== "string");
+    if (hasCategories) {
+      for (const ex of examples) {
+        if (typeof ex === "string") {
+          lines.push("```bash");
+          lines.push(ex);
+          lines.push("```");
+        } else {
+          lines.push(`**${ex.category}:**`);
+          lines.push("");
+          lines.push("```bash");
+          for (const cmd of ex.commands) {
+            lines.push(cmd);
+          }
+          lines.push("```");
+          lines.push("");
+        }
+      }
+    } else {
+      lines.push("```bash");
+      for (const ex of examples) {
+        lines.push(ex);
+      }
+      lines.push("```");
     }
-    lines.push("```");
   }
 
   // Flag table from Commander (for human descriptions)

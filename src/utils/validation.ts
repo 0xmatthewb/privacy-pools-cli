@@ -2,6 +2,7 @@ import { isAddress, parseUnits } from "viem";
 import { CHAINS, CHAIN_NAMES, resolveChainOverrides } from "../config/chains.js";
 import type { ChainConfig } from "../types.js";
 import { CLIError } from "./errors.js";
+import { didYouMean } from "./fuzzy.js";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -15,10 +16,14 @@ export function resolveChain(
   const resolvedName = normalized === "ethereum" ? "mainnet" : normalized;
   const config = CHAINS[resolvedName];
   if (!config) {
+    const suggestion = didYouMean(name, CHAIN_NAMES);
+    const hint = suggestion
+      ? `Did you mean "${suggestion}"? Available chains: ${CHAIN_NAMES.join(", ")}`
+      : `Available chains: ${CHAIN_NAMES.join(", ")}`;
     throw new CLIError(
       `Unknown chain: ${name}`,
       "INPUT",
-      `Available chains: ${CHAIN_NAMES.join(", ")}`
+      hint
     );
   }
 

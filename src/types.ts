@@ -27,12 +27,14 @@ export interface GlobalOptions {
   chain?: string;
   rpcUrl?: string;
   json?: boolean;
+  jsonFields?: string;
   agent?: boolean;
   quiet?: boolean;
   yes?: boolean;
   verbose?: boolean;
   timeout?: string;
   format?: string;
+  jq?: string;
 }
 
 export type NextActionOptionValue = string | number | boolean | null;
@@ -135,7 +137,7 @@ export interface DetailedCommandDescriptor {
   requiresHumanReview: boolean;
   preferredSafeVariant?: PreferredSafeVariant;
   prerequisites: string[];
-  examples: string[];
+  examples: Array<string | { category: string; commands: string[] }>;
   jsonFields: string | null;
   jsonVariants: string[];
   safetyNotes: string[];

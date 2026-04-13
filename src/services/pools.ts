@@ -11,6 +11,7 @@ import {
 } from "./sdk.js";
 import { hasCustomRpcOverride } from "./config.js";
 import { CLIError, sanitizeEndpointForDisplay } from "../utils/errors.js";
+import { didYouMean } from "../utils/fuzzy.js";
 import {
   elapsedRuntimeMs,
   emitRuntimeDiagnostic,
@@ -1013,12 +1014,19 @@ export async function resolvePool(
       elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
       outcome: "not-found",
     });
+    const assetCandidates = availableAssetsHint?.split(", ") ?? [];
+    const assetSuggestion = assetCandidates.length > 0
+      ? didYouMean(assetInput, assetCandidates)
+      : null;
+    const assetHint = assetSuggestion
+      ? `Did you mean "${assetSuggestion}"? Available assets: ${availableAssetsHint}`
+      : availableAssetsHint
+        ? `Available assets: ${availableAssetsHint}`
+        : "No pools found. Try using --asset with a contract address.";
     throw new CLIError(
       `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,
       "INPUT",
-      availableAssetsHint
-        ? `Available assets: ${availableAssetsHint}`
-        : "No pools found. Try using --asset with a contract address."
+      assetHint
     );
   }
 
