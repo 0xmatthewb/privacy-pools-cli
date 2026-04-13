@@ -12,15 +12,28 @@ Initialize wallet and configuration
 
 Creates or imports the local Privacy Pools wallet state under ~/.privacy-pools/. The recovery phrase controls deposit privacy and account restoration, while the signer key pays gas and submits transactions; they are intentionally separate secrets. When you generate a fresh wallet, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
 
+**Basic:**
+
 ```bash
 privacy-pools init
 privacy-pools init --yes --default-chain mainnet
 privacy-pools init --force --yes --default-chain mainnet
+```
+
+**Agent / CI:**
+
+```bash
 privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
+```
+
+**Import existing keys:**
+
+```bash
 privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt
 cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet
 printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet
 ```
+
 
 | Flag | Description |
 |------|-------------|
@@ -47,13 +60,21 @@ Check npm for updates or upgrade this CLI
 
 Checks npm for the latest published privacy-pools-cli version and can upgrade a supported global npm install in place. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and other ambiguous contexts never mutate; the CLI returns manual guidance plus an exact follow-up npm command. Machine modes (--json / --agent) stay check-only unless --yes is also present.
 
+**Basic:**
+
 ```bash
 privacy-pools upgrade --check
 privacy-pools upgrade
 privacy-pools upgrade --yes
+```
+
+**Agent / CI:**
+
+```bash
 privacy-pools upgrade --agent --check
 privacy-pools upgrade --agent --yes
 ```
+
 
 | Flag | Description |
 |------|-------------|
@@ -88,13 +109,26 @@ Deposit now and save a later private withdrawal workflow
 
 This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient. With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve. The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.
 
+**Basic:**
+
 ```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient...
-privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off
 privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet
+```
+
+**With options:**
+
+```bash
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off
 privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt
+```
+
+**Agent / CI:**
+
+```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 ```
+
 
 | Flag | Description |
 |------|-------------|
@@ -125,14 +159,22 @@ Resume a saved flow through funding, approval, privacy delay, and withdrawal
 
 **Usage:** `privacy-pools flow watch [workflowId|latest] [options]`
 
-Re-checks a saved workflow using the same protocol realities as the frontend. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poi_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.
+Re-checks a saved workflow using the same protocol realities as the frontend. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.
+
+**Basic:**
 
 ```bash
 privacy-pools flow watch
-privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy
-privacy-pools flow watch latest --agent
 privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000
 ```
+
+**With options:**
+
+```bash
+privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy
+privacy-pools flow watch latest --agent
+```
+
 
 | Flag | Description |
 |------|-------------|
@@ -189,14 +231,27 @@ List available pools and assets
 
 Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets too.
 
+**Basic:**
+
 ```bash
 privacy-pools pools
 privacy-pools pools ETH
 privacy-pools pools BOLD --chain mainnet
+```
+
+**Search and sort:**
+
+```bash
 privacy-pools pools --all-chains --sort tvl-desc
 privacy-pools pools --search usdc --sort asset-asc
+```
+
+**Agent / CI:**
+
+```bash
 privacy-pools pools --agent --chain mainnet
 ```
+
 
 | Flag | Description |
 |------|-------------|
@@ -208,24 +263,32 @@ privacy-pools pools --agent --chain mainnet
 
 **JSON variants:**
 - `detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }`
-- `detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poiRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }`
+- `detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }`
 
 ### `activity`
 
 Show public activity feed
 
+**Basic:**
+
 ```bash
 privacy-pools activity
 privacy-pools activity --page 2 --limit 20
 privacy-pools activity --asset ETH
+```
+
+**Agent / CI:**
+
+```bash
 privacy-pools activity --asset USDC --agent --chain mainnet
 ```
+
 
 | Flag | Description |
 |------|-------------|
 | `-a, --asset <symbol\|address>` | Filter to one pool asset on the selected chain |
 | `--page <n>` | Page number |
-| `--limit <n>` | Items per page |
+| `-n, --limit <n>` | Items per page |
 
 **JSON output:** `{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
@@ -291,25 +354,38 @@ Deposit funds into a Privacy Pool
 
 Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local commitment precomputation path, so there is no runtime download step when proofs are needed. Most proof-generation steps complete in roughly 10-30s once the packaged artifacts are verified locally. In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off.
 
+**Basic:**
+
 ```bash
 privacy-pools deposit 0.1 ETH
 privacy-pools deposit 100 USDC
+```
+
+**With options:**
+
+```bash
+privacy-pools deposit 0.1 --asset ETH --chain mainnet
+privacy-pools deposit 0.1 ETH --dry-run
+```
+
+**Agent / CI:**
+
+```bash
 privacy-pools deposit 0.05 ETH --agent
 privacy-pools deposit 0.1 ETH --unsigned
-privacy-pools deposit 0.1 ETH --dry-run
-privacy-pools deposit 0.1 --asset ETH --chain mainnet
 ```
+
 
 | Flag | Description |
 |------|-------------|
-| `-a, --asset <symbol\|address>` | Asset to deposit (symbol like ETH, USDC, or contract address) |
+| `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
 | `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
 | `--dry-run` | Validate and preview the transaction without submitting |
 | `--ignore-unique-amount` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
 
 **Safety:** Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
 **Safety:** A vetting fee is deducted from the deposit amount by the pool's ASP.
-**Safety:** Only approved deposits can use withdraw, whether relayed or direct. Declined deposits must use ragequit publicly. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.
+**Safety:** Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.
 
 **JSON output:** `{ operation, txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
@@ -324,32 +400,50 @@ Privately withdraw funds via relayer
 
 **Usage:** `privacy-pools withdraw [amount] [asset] [options]`
 
-Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off. Pool Accounts marked poi_required cannot withdraw privately until Proof of Association is completed at tornado.0xbow.io. Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off.
+Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off. Pool Accounts marked poa_required cannot withdraw privately until Proof of Association is completed at tornado.0xbow.io. Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off.
+
+**Basic:**
 
 ```bash
 privacy-pools withdraw 0.05 ETH --to 0xRecipient...
-privacy-pools withdraw 0.05 ETH --to 0xRecipient... --from-pa PA-2
+privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2
+```
+
+**Amount variants:**
+
+```bash
 privacy-pools withdraw --all ETH --to 0xRecipient...
 privacy-pools withdraw 50% ETH --to 0xRecipient...
+```
+
+**With options:**
+
+```bash
 privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run
-privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet
 ```
+
+**Quote:**
+
+```bash
+privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
+```
+
 
 | Flag | Description |
 |------|-------------|
 | `-t, --to <address>` | Recipient address (required for relayed) |
-| `-p, --from-pa <PA-#\|#>` | Withdraw from a specific Pool Account (e.g. PA-2) |
+| `-p, --pool-account <PA-#\|#>` | Withdraw from a specific Pool Account (e.g. PA-2) |
 | `--direct` | NOT recommended. Withdraw directly onchain, publicly linking deposit and withdrawal addresses. Use relayed mode (default) for privacy. |
 | `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
 | `--dry-run` | Generate and verify withdrawal artifacts without submitting |
-| `-a, --asset <symbol\|address>` | Asset to withdraw |
+| `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
 | `--all` | Withdraw entire Pool Account balance |
 | `--extra-gas` | Request gas tokens with withdrawal (default: true for ERC20) |
 | `--no-extra-gas` | Disable extra gas request |
 
 **Safety:** Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.
-**Safety:** ASP approval is required for both relayed and direct withdrawals. Declined deposits must ragequit publicly to the original deposit address.
+**Safety:** ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.
 **Safety:** Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
 
 **JSON output:** `{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
@@ -385,15 +479,28 @@ List your Pool Accounts with balances
 
 Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --all-chains to include supported testnets. Compact modes like --summary and --pending-only are intended for agent polling loops so they do not have to parse the full account dataset on every check.
 
+**Basic:**
+
 ```bash
 privacy-pools accounts
 privacy-pools accounts --all-chains
 privacy-pools accounts --details
+```
+
+**Compact modes:**
+
+```bash
 privacy-pools accounts --summary
 privacy-pools accounts --chain <name> --pending-only
+```
+
+**Agent / CI:**
+
+```bash
 privacy-pools accounts --agent
 privacy-pools accounts --no-sync --chain mainnet
 ```
+
 
 | Flag | Description |
 |------|-------------|
@@ -406,7 +513,7 @@ privacy-pools accounts --no-sync --chain mainnet
 **JSON output:** `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 **JSON variants:**
-- `--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+- `--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 - `--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `migrate`
@@ -447,12 +554,20 @@ privacy-pools migrate status --all-chains --agent
 
 Show chronological event history (deposits, migrations, withdrawals, ragequits)
 
+**Basic:**
+
 ```bash
 privacy-pools history
 privacy-pools history --limit 10
+```
+
+**Agent / CI:**
+
+```bash
 privacy-pools history --agent
 privacy-pools history --no-sync --chain mainnet
 ```
+
 
 | Flag | Description |
 |------|-------------|
@@ -485,13 +600,21 @@ Show configuration and check connection health
 
 Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. When status falls back to recommendedMode = read-only because RPC health is degraded, nextActions stays on public discovery and avoids account-state guidance until connectivity is restored. When only the ASP is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow.
 
+**Basic:**
+
 ```bash
 privacy-pools status
 privacy-pools status --check
 privacy-pools status --no-check
+```
+
+**Agent / CI:**
+
+```bash
 privacy-pools status --agent --check-rpc
 privacy-pools status --chain mainnet --rpc-url https://...
 ```
+
 
 | Flag | Description |
 |------|-------------|
@@ -504,27 +627,35 @@ privacy-pools status --chain mainnet --rpc-url https://...
 
 ### `ragequit`
 
-Publicly withdraw funds to your deposit address
+Publicly recover funds to your original deposit address (self-custody guarantee)
 
 **Usage:** `privacy-pools ragequit [asset] [options]`
 
-Public recovery path that returns funds to the original deposit address. Does not preserve privacy. Use this for declined, PoA-blocked, or otherwise unrecoverable Pool Accounts, or when you choose not to wait for approval. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.
+Your self-custody guarantee: publicly recovers funds to the original deposit address at any time. Does not preserve privacy. Available for any Pool Account regardless of ASP status — declined, PoA-blocked, pending, or even approved. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.
+
+**Basic:**
 
 ```bash
-privacy-pools ragequit ETH --from-pa PA-1
-privacy-pools ragequit ETH --unsigned --from-pa PA-1
-privacy-pools ragequit ETH --dry-run --from-pa PA-1
-privacy-pools ragequit ETH --from-pa PA-1 --chain mainnet
+privacy-pools ragequit ETH --pool-account PA-1
+privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet
 ```
+
+**Advanced modes:**
+
+```bash
+privacy-pools ragequit ETH --unsigned --pool-account PA-1
+privacy-pools ragequit ETH --dry-run --pool-account PA-1
+```
+
 
 | Flag | Description |
 |------|-------------|
-| `-a, --asset <symbol\|address>` | Asset pool to ragequit from |
-| `-p, --from-pa <PA-#\|#>` | Ragequit a specific Pool Account (e.g. PA-2) |
+| `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
+| `-p, --pool-account <PA-#\|#>` | Ragequit a specific Pool Account (e.g. PA-2) |
 | `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
 | `--dry-run` | Generate proof and validate without submitting |
 
-**Safety:** Ragequit is public and irreversible and reveals the original deposit address onchain.
+**Safety:** Ragequit is always available as your self-custody guarantee, but it is public and irreversible and reveals the original deposit address onchain.
 
 **JSON output:** `{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
@@ -582,7 +713,8 @@ privacy-pools capabilities --agent
 |------|-------------|
 | `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-j, --json` | Machine-readable JSON output on stdout |
-| `--format <format>` | Output format: table (default), csv, json |
+| `--json-fields <fields>` | Select specific JSON fields (comma-separated, implies --json) |
+| `--format <format>` | Output format: table (default), csv, json, wide |
 | `-y, --yes` | Skip confirmation prompts |
 | `-r, --rpc-url <url>` | Override RPC URL |
 | `--agent` | Machine-friendly mode (alias for --json --yes --quiet) |
@@ -590,6 +722,7 @@ privacy-pools capabilities --agent
 | `--no-banner` | Disable ASCII banner output |
 | `-v, --verbose` | Enable verbose/debug output |
 | `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |
+| `--jq <expression>` | Filter JSON output with a JMESPath expression (implies --json) |
 | `--no-color` | Disable colored output (also respects NO_COLOR env var) |
 
 ## Exit Codes
