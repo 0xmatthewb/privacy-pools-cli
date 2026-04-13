@@ -234,6 +234,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   success("Setup complete!", silent);
+  info("Tip: Run 'privacy-pools completion --help' to set up shell tab completion.", silent);
   if (!silent) {
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(

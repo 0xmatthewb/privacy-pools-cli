@@ -126,6 +126,19 @@ export function guideText(): string {
     chalk.dim("  In machine mode, this path requires '--export-new-wallet <path>' so the generated key is backed up first."),
     chalk.dim("  Manual commands remain available for advanced control."),
     "",
+    chalk.bold("Flow States"),
+    `  ${notice("awaiting_funding")}                    Workflow wallet needs ETH/tokens to proceed.`,
+    `  ${notice("depositing_publicly")}                 Deposit transaction submitted, awaiting onchain confirmation.`,
+    `  ${notice("awaiting_asp")}                        Deposit confirmed, ASP is reviewing.`,
+    `  ${notice("approved_waiting_privacy_delay")}      Approved; privacy delay timer running.`,
+    `  ${notice("approved_ready_to_withdraw")}          Ready for private withdrawal.`,
+    `  ${notice("withdrawing")}                         Withdrawal transaction in flight.`,
+    `  ${notice("completed")}                           Private withdrawal succeeded.`,
+    `  ${notice("completed_public_recovery")}           Ragequit recovery completed.`,
+    `  ${notice("paused_poa_required")}                 Proof of Association needed before private withdrawal.`,
+    `  ${notice("paused_declined")}                     Deposit declined; use flow ragequit for public recovery.`,
+    `  ${notice("stopped_external")}                    Workflow stopped by external event.`,
+    "",
     chalk.bold("Global Options"),
     `  ${notice("-c, --chain <name>")}    Target chain (mainnet, arbitrum, optimism; testnets: sepolia, op-sepolia)`,
     `  ${notice("-r, --rpc-url <url>")}   Override RPC URL`,
@@ -134,10 +147,12 @@ export function guideText(): string {
     `  ${notice("--no-color")}            Disable colored output (also respects NO_COLOR env var)`,
     `  ${notice("-y, --yes")}             Skip confirmation prompts`,
     `  ${notice("-q, --quiet")}           Suppress human-oriented stderr output`,
-    `  ${notice("-v, --verbose")}         Enable verbose/debug output`,
+    `  ${notice("-v, --verbose")}         Enable verbose/debug output (-v info, -vv debug, -vvv trace)`,
+    `  ${notice("--no-progress")}        Suppress spinners/progress indicators (useful in CI)`,
     `  ${notice("--agent")}               Alias for --json --yes --quiet (agent/automation mode)`,
     `  ${notice("--timeout <seconds>")}  Network/transaction timeout (default: 30)`,
     `  ${notice("--no-banner")}           Disable ASCII banner`,
+    `  ${notice("--profile <name>")}     Use a named profile (separate wallet identity and config)`,
     "",
     chalk.bold("Environment Variables"),
     `  ${notice("PRIVACY_POOLS_PRIVATE_KEY")}   Signer key (takes precedence over saved signer key file)`,
@@ -240,6 +255,7 @@ export interface CommandHelpConfig {
   supportsDryRun?: boolean;
   safetyNotes?: string[];
   agentWorkflowNotes?: string[];
+  seeAlso?: string[];
 }
 
 export const helpTestInternals = {
@@ -304,6 +320,13 @@ export function commandHelpText(config: CommandHelpConfig): string {
     }
     if (config.supportsDryRun) {
       lines.push("  --dry-run validates the operation without submitting it.");
+    }
+  }
+
+  if (config.seeAlso && config.seeAlso.length > 0) {
+    lines.push("", "See also:");
+    for (const ref of config.seeAlso) {
+      lines.push(`  privacy-pools ${ref}`);
     }
   }
 

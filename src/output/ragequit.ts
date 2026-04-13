@@ -68,8 +68,8 @@ export function formatRagequitReview(data: RagequitReviewData): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Ragequit publicly recovers funds to your original deposit address.",
-        "This is your self-custody guarantee — always available, but privacy is lost and the action cannot be undone.",
+        "You will not gain any privacy. Ragequit publicly recovers funds to your original deposit address.",
+        "This is your self-custody guarantee — always available, but the action cannot be undone.",
       ],
     },
     secondaryCallout: data.advisory
@@ -193,7 +193,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
     process.stderr.write(
       formatCallout(
         "recovery",
-        "Ragequit is a public, non-private withdrawal that returns funds to your deposit address.",
+        "You will not gain any privacy. Ragequit publicly returns funds to your original deposit address.",
       ),
     );
     process.stderr.write(
@@ -296,8 +296,8 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
       formatCallout(
         "recovery",
         [
-          "Funds are returning to the original deposit address via ragequit.",
-          "This is safe and expected for declined deposits, but privacy is not preserved.",
+          "You will not gain any privacy from this ragequit.",
+          "Funds are returning publicly to the original deposit address. This is safe and expected for declined deposits.",
         ],
       ),
     );
