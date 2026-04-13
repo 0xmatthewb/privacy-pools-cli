@@ -10,6 +10,11 @@ export interface GeneratedCommandRoute {
 export const GENERATED_COMMAND_PATHS = [
   "init",
   "upgrade",
+  "config",
+  "config list",
+  "config get",
+  "config set",
+  "config path",
   "flow",
   "flow start",
   "flow watch",
@@ -62,6 +67,36 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "upgrade": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config list": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config get": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config set": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config path": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -236,6 +271,34 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
 
 export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedCommandRoute[] = [
   {
+    "route": "config list",
+    "tokens": [
+      "config",
+      "list"
+    ]
+  },
+  {
+    "route": "config get",
+    "tokens": [
+      "config",
+      "get"
+    ]
+  },
+  {
+    "route": "config set",
+    "tokens": [
+      "config",
+      "set"
+    ]
+  },
+  {
+    "route": "config path",
+    "tokens": [
+      "config",
+      "path"
+    ]
+  },
+  {
     "route": "flow start",
     "tokens": [
       "flow",
@@ -301,6 +364,12 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "route": "upgrade",
     "tokens": [
       "upgrade"
+    ]
+  },
+  {
+    "route": "config",
+    "tokens": [
+      "config"
     ]
   },
   {

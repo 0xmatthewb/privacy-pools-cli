@@ -6,14 +6,20 @@
     "welcomeBoolean": false
   },
   {
-    "flag": "-j, --json [fields]",
-    "description": "JSON output on stdout. Optionally specify comma-separated field names to select.",
+    "flag": "-j, --json",
+    "description": "Machine-readable JSON output on stdout",
     "takesValue": false,
     "welcomeBoolean": false
   },
   {
+    "flag": "--json-fields <fields>",
+    "description": "Select specific JSON fields (comma-separated, implies --json)",
+    "takesValue": true,
+    "welcomeBoolean": false
+  },
+  {
     "flag": "--format <format>",
-    "description": "Output format: table (default), csv, json",
+    "description": "Output format: table (default), csv, json, wide",
     "takesValue": true,
     "welcomeBoolean": false
   },
@@ -49,7 +55,13 @@
   },
   {
     "flag": "-v, --verbose",
-    "description": "Enable verbose/debug output",
+    "description": "Enable verbose/debug output (-v info, -vv debug, -vvv trace)",
+    "takesValue": false,
+    "welcomeBoolean": true
+  },
+  {
+    "flag": "--no-progress",
+    "description": "Suppress spinners/progress indicators (useful in CI)",
     "takesValue": false,
     "welcomeBoolean": true
   },
@@ -70,5 +82,11 @@
     "description": "Disable colored output (also respects NO_COLOR env var)",
     "takesValue": false,
     "welcomeBoolean": true
+  },
+  {
+    "flag": "--profile <name>",
+    "description": "Use a named profile (separate wallet identity and config)",
+    "takesValue": true,
+    "welcomeBoolean": false
   }
 ]

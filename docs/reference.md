@@ -79,12 +79,94 @@ privacy-pools upgrade --agent --yes
 | Flag | Description |
 |------|-------------|
 | `--check` | Check npm for a newer privacy-pools-cli release without installing it |
+| `--changelog` | Display the changelog (release history and migration notes) |
 
 **Safety:** Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.
 **Safety:** Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.
 **Safety:** A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes.
 
 **JSON output:** `{ mode: "upgrade", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+
+### `config`
+
+View and manage CLI configuration
+
+Inspect or modify the local CLI configuration without re-running init. Subcommands: list (show all settings), get <key> (read one key), set <key> [value] (write one key), path (print config directory).
+
+```bash
+privacy-pools config list
+privacy-pools config get default-chain
+privacy-pools config set default-chain arbitrum
+privacy-pools config path
+```
+
+### `config list`
+
+List all configuration keys and their current values
+
+Shows all configuration keys with their current values. Sensitive keys (recovery-phrase, signer-key) show [set] or [not set] rather than the actual value.
+
+```bash
+privacy-pools config list
+privacy-pools config list --agent
+```
+
+**JSON output:** `{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir }`
+
+### `config get`
+
+Read a single configuration key
+
+**Usage:** `privacy-pools config get <key> [options]`
+
+Valid keys: default-chain, rpc-override.<chain>, recovery-phrase, signer-key. Sensitive keys show [set] unless --reveal is passed.
+
+```bash
+privacy-pools config get default-chain
+privacy-pools config get rpc-override.mainnet
+privacy-pools config get recovery-phrase --reveal
+privacy-pools config get signer-key --reveal
+```
+
+| Flag | Description |
+|------|-------------|
+| `--reveal` | Show the actual value of sensitive keys instead of [set] |
+
+### `config set`
+
+Write a single configuration key
+
+**Usage:** `privacy-pools config set <key> [value] [options]`
+
+Non-sensitive keys (default-chain, rpc-override.<chain>) accept the value as a positional argument. Sensitive keys (recovery-phrase, signer-key) require --file <path>, --stdin, or interactive masked input.
+
+```bash
+privacy-pools config set default-chain arbitrum
+privacy-pools config set rpc-override.mainnet https://my-rpc.example.com
+privacy-pools config set recovery-phrase --file ./phrase.txt
+cat key.txt | privacy-pools config set signer-key --stdin
+```
+
+| Flag | Description |
+|------|-------------|
+| `--file <path>` | Read value from file (for sensitive keys) |
+| `--stdin` | Read value from stdin (for sensitive keys) |
+
+**Safety:** Sensitive keys are never accepted as positional arguments to prevent shell history leakage.
+**Safety:** In non-interactive mode, --file or --stdin is required for sensitive keys.
+
+### `config path`
+
+Print the configuration directory path
+
+Prints the resolved configuration home directory. Useful for scripting and diagnostics.
+
+```bash
+privacy-pools config path
+privacy-pools config path --agent
+```
+
+**JSON output:** `{ configDir }`
 
 ### `flow`
 
@@ -720,10 +802,12 @@ privacy-pools capabilities --agent
 | `--agent` | Machine-friendly mode (alias for --json --yes --quiet) |
 | `-q, --quiet` | Suppress human-oriented stderr output |
 | `--no-banner` | Disable ASCII banner output |
-| `-v, --verbose` | Enable verbose/debug output |
+| `-v, --verbose` | Enable verbose/debug output (-v info, -vv debug, -vvv trace) |
+| `--no-progress` | Suppress spinners/progress indicators (useful in CI) |
 | `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |
 | `--jq <expression>` | Filter JSON output with a JMESPath expression (implies --json) |
 | `--no-color` | Disable colored output (also respects NO_COLOR env var) |
+| `--profile <name>` | Use a named profile (separate wallet identity and config) |
 
 ## Exit Codes
 
