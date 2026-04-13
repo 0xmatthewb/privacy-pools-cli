@@ -439,7 +439,10 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     const originalNow = Date.now;
     let nowCalls = 0;
     const initialNow = 1_700_000_000_000;
-    const expiredNow = 1_700_000_003_000;
+    // Quote expires 31s in the future so the pre-proof freshness check (< 30s)
+    // does NOT trigger proactively. The expiry only fires post-proof.
+    const quoteExpiresAt = initialNow + 31_000;
+    const expiredNow = quoteExpiresAt + 1_000;
     proveWithdrawalMock.mockImplementationOnce(async () => {
       return {
         proof: {
@@ -456,16 +459,17 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     });
     requestQuoteMock
       .mockImplementationOnce(async () =>
-        buildRelayerQuote({ expiration: initialNow + 1_000 }),
+        buildRelayerQuote({ expiration: quoteExpiresAt }),
       )
       .mockImplementationOnce(async () =>
         buildRelayerQuote({
           feeBPS: "275",
-          expiration: initialNow + 10_000,
+          expiration: initialNow + 100_000,
           signedRelayerCommitment: "0x02",
         }),
       );
-    Date.now = () => (++nowCalls <= 2 ? initialNow : expiredNow);
+    // First few calls return initialNow (quote is valid), then expiredNow (post-proof expired).
+    Date.now = () => (++nowCalls <= 4 ? initialNow : expiredNow);
 
     try {
       const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
@@ -495,19 +499,23 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     const originalNow = Date.now;
     let nowCalls = 0;
     const initialNow = 1_700_000_000_000;
-    const expiredNow = 1_700_000_003_000;
+    // Quote expires 31s in the future so the pre-proof freshness check (< 30s)
+    // does NOT trigger proactively. The expiry only fires post-proof.
+    const quoteExpiresAt = initialNow + 31_000;
+    const expiredNow = quoteExpiresAt + 1_000;
     requestQuoteMock
       .mockImplementationOnce(async () =>
-        buildRelayerQuote({ expiration: initialNow + 1_000 }),
+        buildRelayerQuote({ expiration: quoteExpiresAt }),
       )
       .mockImplementationOnce(async () =>
         buildRelayerQuote({
-          expiration: initialNow + 10_000,
+          expiration: initialNow + 100_000,
           feeRecipient:
             "0x9999999999999999999999999999999999999999" as Address,
         }),
       );
-    Date.now = () => (++nowCalls <= 2 ? initialNow : expiredNow);
+    // First few calls return initialNow (quote is valid), then expiredNow (post-proof expired).
+    Date.now = () => (++nowCalls <= 4 ? initialNow : expiredNow);
 
     try {
       const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>

@@ -12,6 +12,7 @@ import {
   parseAmount,
   validateAddress,
   validatePositive,
+  resolveAddressOrEns,
 } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
@@ -51,6 +52,7 @@ import {
   deriveTokenPrice,
   usdSuffix,
   displayDecimals,
+  formatRemainingTime,
 } from "../utils/format.js";
 import {
   printError,
@@ -496,8 +498,14 @@ export async function handleWithdrawCommand(
     // Validate --to / --direct constraints. Human relayed mode can prompt later
     // once the asset and Pool Account have been selected.
     let recipientAddress: Address | null = null;
+    let recipientEnsName: string | undefined;
     if (opts.to) {
-      recipientAddress = validateAddress(opts.to, "Recipient");
+      const resolved = await resolveAddressOrEns(opts.to, "Recipient");
+      recipientAddress = resolved.address;
+      recipientEnsName = resolved.ensName;
+      if (recipientEnsName) {
+        info(`Resolved ${recipientEnsName} \u2192 ${recipientAddress}`, silent);
+      }
     } else if (isDirect && !signerAddress) {
       throw new CLIError(
         "Direct withdrawal requires --to <address> in unsigned mode (no signer key available).",
@@ -1070,6 +1078,100 @@ export async function handleWithdrawCommand(
         }
       }
 
+      // ── Early relayer minimum validation (C3) ────────────────────────────
+      // For relayed withdrawals, fetch relayer details early so the user
+      // discovers a below-minimum amount before reaching the review stage.
+      // The fetched details are reused later to avoid a redundant network call.
+      // ── Early relayer minimum validation (C3) ────────────────────────────
+      // For relayed withdrawals, fetch relayer details early so the user
+      // discovers a below-minimum amount before reaching the review stage.
+      // The fetched details are reused later to avoid a redundant network call.
+      let earlyRelayerDetails: Awaited<ReturnType<typeof getRelayerDetails>> | null = null;
+      if (!isDirect) {
+        spin.text = "Checking relayer requirements...";
+        let earlyMinCheckFailed = false;
+        try {
+          earlyRelayerDetails = await getRelayerDetails(chainConfig, pool.asset);
+          const minWithdraw = BigInt(earlyRelayerDetails.minWithdrawAmount);
+
+          // Interactive re-entry loop when amount is below minimum
+          while (withdrawalAmount < minWithdraw) {
+            earlyMinCheckFailed = true;
+            if (skipPrompts) {
+              throw new CLIError(
+                `Amount below relayer minimum of ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`,
+                "RELAYER",
+                `Increase your withdrawal amount to at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`,
+              );
+            }
+            spin.stop();
+            warn(
+              `Withdrawal amount ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)} is below the relayer minimum of ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`,
+              silent,
+            );
+            ensurePromptInteractionAvailable();
+            const newAmountStr = await input({
+              message: `Enter a new amount (minimum ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}):`,
+              validate: (val) => {
+                try {
+                  const parsed = parseAmount(val, pool.decimals);
+                  validatePositive(parsed, "Withdrawal amount");
+                  if (parsed > selectedPoolAccount.value) {
+                    return `Amount exceeds ${selectedPoolAccount.paId} balance of ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol)}.`;
+                  }
+                  if (parsed < minWithdraw) {
+                    return `Amount must be at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`;
+                  }
+                  return true;
+                } catch (e) {
+                  return e instanceof Error ? e.message : "Invalid amount.";
+                }
+              },
+            });
+            withdrawalAmount = parseAmount(newAmountStr, pool.decimals);
+            withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+            info(
+              `Updated withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+              silent,
+            );
+            earlyMinCheckFailed = false;
+            spin.start();
+          }
+
+          // Early remainder advisory
+          const earlyRemainingBalance = selectedPoolAccount.value - withdrawalAmount;
+          if (earlyRemainingBalance > 0n && earlyRemainingBalance < minWithdraw) {
+            const advisory = getRelayedWithdrawalRemainderAdvisory({
+              remainingBalance: earlyRemainingBalance,
+              minWithdrawAmount: minWithdraw,
+              poolAccountId: selectedPoolAccount.paId,
+              assetSymbol: pool.symbol,
+              decimals: pool.decimals,
+            });
+            if (advisory) {
+              warn(advisory, silent);
+            }
+          }
+        } catch (e) {
+          // Rethrow min-amount validation errors and prompt cancellations.
+          // Network failures fetching relayer details are non-fatal here --
+          // the late check at the relayed branch entry will catch them.
+          if (earlyMinCheckFailed) {
+            throw e;
+          }
+          if (isPromptCancellationError(e)) {
+            throw e;
+          }
+          // Network/relayer fetch failure: fall through, late validation will catch it.
+          earlyRelayerDetails = null;
+          verbose(
+            `Early relayer details fetch failed (non-fatal): ${e instanceof Error ? e.message : String(e)}`,
+            isVerbose,
+            silent,
+          );
+        }
+      }
+
       const commitment = selectedPoolAccount.commitment;
       const commitmentLabel = commitment.label;
       verbose(
@@ -1417,10 +1519,11 @@ export async function handleWithdrawCommand(
         });
       } else {
         // --- Relayed Withdrawal ---
-        // Get relayer details + quote
+        // Get relayer details + quote.
+        // Reuse early-fetched details when available (C3) to avoid a redundant call.
         writeWithdrawProgress(1, "Fetching a fresh relayer quote.");
         spin.text = "Requesting relayer quote...";
-        const details = await getRelayerDetails(chainConfig, pool.asset);
+        const details = earlyRelayerDetails ?? await getRelayerDetails(chainConfig, pool.asset);
         const relayerUrl = details.relayerUrl;
         verbose(
           `Relayer details: minWithdraw=${details.minWithdrawAmount} feeReceiver=${details.feeReceiverAddress}`,
@@ -1688,6 +1791,31 @@ export async function handleWithdrawCommand(
         );
         verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
 
+        // Pre-proof quote freshness check: if less than 30 seconds remain,
+        // refresh proactively so the quote doesn't expire during proof generation.
+        {
+          const preProofSecondsLeft = Math.max(
+            0,
+            Math.floor((expirationMs - Date.now()) / 1000),
+          );
+          if (preProofSecondsLeft < 30) {
+            verbose(
+              `Quote has only ${preProofSecondsLeft}s remaining before proof generation, refreshing proactively...`,
+              isVerbose,
+              silent,
+            );
+            const previousFeeBPS = quote.feeBPS;
+            await fetchFreshQuote("Quote nearly expired before proof. Refreshing...");
+            if (Number(quote.feeBPS) !== Number(previousFeeBPS)) {
+              throw new CLIError(
+                `Relayer fee changed during pre-proof refresh (${previousFeeBPS} → ${quote.feeBPS} BPS). Re-run the withdrawal.`,
+                "RELAYER",
+                "The proof must be bound to a stable fee. Re-run the withdrawal command to start with a fresh quote.",
+              );
+            }
+          }
+        }
+
         // Re-verify parity right before proving
         writeWithdrawProgress(2, "Building the relayed withdrawal proof.");
         await assertLatestRootUnchanged(
@@ -1695,9 +1823,10 @@ export async function handleWithdrawCommand(
           "Re-run the withdrawal command to generate a fresh proof.",
         );
 
+        const quoteValidLabel = formatRemainingTime(expirationMs);
         const proof = await withProofProgress(
           spin,
-          "Generating ZK proof",
+          `Generating ZK proof (quote valid for ${quoteValidLabel})`,
           (progress) =>
             proveWithdrawal(commitment, {
               context,

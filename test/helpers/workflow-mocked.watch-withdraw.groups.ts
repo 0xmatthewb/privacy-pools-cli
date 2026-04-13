@@ -198,7 +198,9 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
           expect(snapshot.phase).toBe("completed");
           expect(state.depositErc20Calls).toBe(1);
           expect(state.approveErc20Calls).toBe(1);
-          expect(getWorkflowStatus({ workflowId: "wf-funded-later" }).withdrawTxHash).toBe(
+          // Use the returned snapshot instead of reloading from disk,
+          // since completed workflows are now cleaned up for privacy (B2).
+          expect(snapshot.withdrawTxHash).toBe(
             state.relayTxHash,
           );
         } finally {

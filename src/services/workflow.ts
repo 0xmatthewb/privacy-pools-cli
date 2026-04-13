@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import chalk from "chalk";
 import {
   chmodSync,
   existsSync,
@@ -77,6 +78,8 @@ import {
 import {
   deriveTokenPrice,
   formatAmount,
+  formatElapsed,
+  formatRemainingTime,
   info,
   spinner,
   verbose,
@@ -104,7 +107,7 @@ import {
   type FlowPrivacyDelayProfile,
 } from "../utils/flow-privacy-delay.js";
 import { ensurePromptInteractionAvailable } from "../utils/prompt-cancellation.js";
-import { validateAddress, parseAmount, resolveChain, validatePositive } from "../utils/validation.js";
+import { validateAddress, parseAmount, resolveChain, validatePositive, resolveAddressOrEns } from "../utils/validation.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import {
   getRelayedWithdrawalRemainderAdvisory,
@@ -621,6 +624,22 @@ export function deleteWorkflowSecretRecord(workflowId: string): void {
   }
 }
 
+/**
+ * Delete the workflow snapshot file.
+ * The snapshot contains deposit-to-withdrawal transaction linking data
+ * (deposit tx hash, withdrawal tx hash, recipient) that could defeat
+ * privacy guarantees if the file is accessed after the workflow completes.
+ */
+export function deleteWorkflowSnapshotFile(workflowId: string): void {
+  const filePath = getWorkflowFilePath(workflowId);
+  if (!existsSync(filePath)) return;
+  try {
+    unlinkSync(filePath);
+  } catch {
+    // Best effort cleanup only.
+  }
+}
+
 export function loadWorkflowSecretRecord(workflowId: string): FlowSecretRecord {
   const filePath = getWorkflowSecretFilePath(workflowId);
   if (!existsSync(filePath)) {
@@ -799,16 +818,33 @@ async function saveWorkflowSnapshotIfChangedWithLock(
   return withProcessLock(async () => saveWorkflowSnapshot(normalizedNext));
 }
 
-export function cleanupTerminalWorkflowSecret(snapshot: FlowSnapshot): void {
-  if (
-    isNewWalletFlow(snapshot) &&
-    (snapshot.phase === "completed" ||
-      snapshot.phase === "completed_public_recovery" ||
-      snapshot.phase === "stopped_external")
-  ) {
+/**
+ * Clean up terminal workflow files.
+ *
+ * Secret files are deleted for new-wallet flows (they contain the
+ * per-workflow private key). Snapshot files are deleted for ALL terminal
+ * workflows because they contain deposit-to-withdrawal transaction linking
+ * data that could defeat privacy guarantees if the disk is later accessed.
+ */
+export function cleanupTerminalWorkflowFiles(snapshot: FlowSnapshot): void {
+  const isTerminal =
+    snapshot.phase === "completed" ||
+    snapshot.phase === "completed_public_recovery" ||
+    snapshot.phase === "stopped_external";
+  if (!isTerminal) return;
+
+  // Always delete the snapshot — it contains tx hash linkage data.
+  deleteWorkflowSnapshotFile(snapshot.workflowId);
+
+  // Delete the secret only for new-wallet flows (configured wallets don't
+  // store a per-workflow key).
+  if (isNewWalletFlow(snapshot)) {
     deleteWorkflowSecretRecord(snapshot.workflowId);
   }
 }
+
+/** @deprecated Use cleanupTerminalWorkflowFiles instead. */
+export const cleanupTerminalWorkflowSecret = cleanupTerminalWorkflowFiles;
 
 async function withProcessLock<T>(fn: () => Promise<T>): Promise<T> {
   const releaseLock = acquireProcessLock();
@@ -1526,8 +1562,9 @@ export function buildFlowLastError(
   };
 }
 
-function validateFlowRecipient(value: string): Address {
-  return validateAddress(value, "Recipient") as Address;
+async function validateFlowRecipient(value: string): Promise<{ address: Address; ensName?: string }> {
+  const resolved = await resolveAddressOrEns(value, "Recipient");
+  return { address: resolved.address as Address, ensName: resolved.ensName };
 }
 
 export function getFlowSignerPrivateKey(snapshot: FlowSnapshot): Hex {
@@ -3953,7 +3990,10 @@ export async function startWorkflow(
     params;
   const silent = mode.isQuiet || mode.isJson;
   const skipPrompts = mode.skipPrompts;
-  const validatedRecipient = validateFlowRecipient(recipient);
+  const { address: validatedRecipient, ensName: recipientEnsName } = await validateFlowRecipient(recipient);
+  if (recipientEnsName) {
+    info(`Resolved ${recipientEnsName} \u2192 ${validatedRecipient}`, silent);
+  }
   const resolvedPrivacyDelayProfile = resolveFlowPrivacyDelayProfile(
     privacyDelayProfile,
     "balanced",
@@ -4252,6 +4292,11 @@ export async function watchWorkflow(
   return withWorkflowOperationLock(workflowId, "watch", async () => {
     let delayMs = initialPollDelayMs(loadWorkflowSnapshot(workflowId).phase);
 
+    // Phase elapsed tracking (D8): record when each phase was entered
+    // so we can display durations on phase transitions.
+    let previousPhase: FlowPhase | null = null;
+    let phaseEnteredAt: number = performance.now();
+
     while (true) {
       let snapshot = loadWorkflowSnapshot(workflowId);
       let privacyDelayUpdateMessage: string | null = null;
@@ -4312,8 +4357,29 @@ export async function watchWorkflow(
         );
 
         if (!result.continueWatching) {
+          // Log elapsed time for the final phase transition
+          if (previousPhase !== null && previousPhase !== result.snapshot.phase) {
+            const phaseElapsed = performance.now() - phaseEnteredAt;
+            if (phaseElapsed >= 1000 && !silent) {
+              process.stderr.write(
+                `${chalk.dim(`  ${previousPhase} completed in ${formatElapsed(Math.round(phaseElapsed))}`)}\n`,
+              );
+            }
+          }
           return result.snapshot;
         }
+
+        // D8: Show elapsed time when transitioning between phases.
+        if (previousPhase !== null && previousPhase !== result.snapshot.phase) {
+          const phaseElapsed = performance.now() - phaseEnteredAt;
+          if (phaseElapsed >= 1000 && !silent) {
+            process.stderr.write(
+              `${chalk.dim(`  ${previousPhase} completed in ${formatElapsed(Math.round(phaseElapsed))}`)}\n`,
+            );
+          }
+          phaseEnteredAt = performance.now();
+        }
+        previousPhase = result.snapshot.phase;
 
         if (result.snapshot.phase === "approved_ready_to_withdraw") {
           info("ASP approval confirmed. Preparing the private withdrawal now.", silent);
@@ -4343,8 +4409,16 @@ export async function watchWorkflow(
           const delaySummary =
             describeFlowPrivacyDelayDeadline(result.snapshot.privacyDelayUntil) ??
             result.snapshot.privacyDelayUntil;
+          // D8: Show a compact countdown for the privacy delay.
+          const privDelayMs = Date.parse(result.snapshot.privacyDelayUntil);
+          const countdownLabel = Number.isFinite(privDelayMs)
+            ? formatRemainingTime(privDelayMs)
+            : null;
+          const countdownSuffix = countdownLabel && countdownLabel !== "expired"
+            ? ` Privacy delay: ${countdownLabel} remaining.`
+            : "";
           info(
-            `ASP approval is confirmed, and this workflow is waiting until ${delaySummary} before requesting the private withdrawal. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+            `ASP approval is confirmed, and this workflow is waiting until ${delaySummary} before requesting the private withdrawal.${countdownSuffix} Checking again in ${humanPollDelayLabel(sleepMs)}.`,
             silent,
           );
         } else {
