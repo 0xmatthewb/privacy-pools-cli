@@ -9,12 +9,14 @@ import { parseRootArgv, type ParsedRootArgv } from "../utils/root-argv.js";
 
 export function staticGlobalOptsFromParsedRootArgv(
   parsed: ParsedRootArgv,
+  preludeGlobalOpts?: GlobalOptions,
 ): GlobalOptions {
   return {
-    json: parsed.isJson || undefined,
+    json: preludeGlobalOpts?.json ?? (parsed.isJson || undefined),
     agent: parsed.isAgent || undefined,
     quiet: parsed.isQuiet || undefined,
     format: parsed.formatFlagValue ?? undefined,
+    jq: preludeGlobalOpts?.jq,
   };
 }
 

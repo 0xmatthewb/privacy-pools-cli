@@ -1,4 +1,5 @@
 import { CLIError } from "../utils/errors.js";
+import type { GlobalOptions } from "../types.js";
 import { GENERATED_STATIC_LOCAL_COMMANDS } from "../utils/command-routing-static.js";
 import {
   parseValidatedRootPrelude,
@@ -37,7 +38,7 @@ export function parseStaticCommand(argv: string[]): ParsedStaticCommand | null {
   if (!prelude) {
     return null;
   }
-  return parseStaticCommandFromRootArgv(prelude.parsed);
+  return parseStaticCommandFromRootArgv(prelude.parsed, prelude.globalOpts);
 }
 
 export function hasValidStaticRootPrelude(argv: string[]): boolean {
@@ -46,6 +47,7 @@ export function hasValidStaticRootPrelude(argv: string[]): boolean {
 
 export function parseStaticCommandFromRootArgv(
   parsed: ParsedRootArgv,
+  preludeGlobalOpts?: GlobalOptions,
 ): ParsedStaticCommand | null {
   const commandToken = parsed.firstCommandToken;
   if (!commandToken || parsed.isHelpLike || parsed.isVersionLike) return null;
@@ -60,7 +62,7 @@ export function parseStaticCommandFromRootArgv(
   return {
     command,
     commandTokens,
-    globalOpts: staticGlobalOptsFromParsedRootArgv(parsed),
+    globalOpts: staticGlobalOptsFromParsedRootArgv(parsed, preludeGlobalOpts),
   };
 }
 

@@ -6,8 +6,8 @@
     "welcomeBoolean": false
   },
   {
-    "flag": "-j, --json",
-    "description": "Machine-readable JSON output on stdout",
+    "flag": "-j, --json [fields]",
+    "description": "JSON output on stdout. Optionally specify comma-separated field names to select.",
     "takesValue": false,
     "welcomeBoolean": false
   },
@@ -56,6 +56,12 @@
   {
     "flag": "--timeout <seconds>",
     "description": "Network/transaction timeout in seconds (default: 30)",
+    "takesValue": true,
+    "welcomeBoolean": false
+  },
+  {
+    "flag": "--jq <expression>",
+    "description": "Filter JSON output with a JMESPath expression (implies --json)",
     "takesValue": true,
     "welcomeBoolean": false
   },

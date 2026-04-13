@@ -4,6 +4,7 @@ import {
   parseRootPreludeLongOption,
   parseRootPreludeShortFlagBundle,
   parseRootPreludeShortOption,
+  parseValidatedRootPrelude,
   type ParsedRootArgv,
 } from "./utils/root-argv.js";
 import { resolveGlobalMode } from "./utils/mode.js";
@@ -41,8 +42,12 @@ export async function runStaticDiscoveryCommand(
 ): Promise<boolean> {
   let parsed: ParsedStaticCommand | null = null;
   try {
+    // When entering via the fast-path (parsedRootArgv provided), try to
+    // also parse the prelude to recover --json [fields] and --jq values
+    // that the simple ParsedRootArgv does not carry.
+    const prelude = parseValidatedRootPrelude(argv);
     parsed = parsedRootArgv
-      ? parseStaticCommandFromRootArgv(parsedRootArgv)
+      ? parseStaticCommandFromRootArgv(parsedRootArgv, prelude?.globalOpts)
       : parseStaticCommand(argv);
     if (!parsed) return false;
     assertSupportedOutputFormat(parsed.globalOpts);
