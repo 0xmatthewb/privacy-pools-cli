@@ -196,8 +196,8 @@ describe("checkErc20Balance", () => {
 });
 
 describe("checkHasGas", () => {
-  test("passes when balance > 0", async () => {
-    const client = mockPublicClient(1n);
+  test("passes when balance >= gas buffer for single tx", async () => {
+    const client = mockPublicClient(FALLBACK_GAS_BUFFER);
     await expect(
       checkHasGas(client, SIGNER)
     ).resolves.toBeUndefined();
@@ -223,6 +223,44 @@ describe("checkHasGas", () => {
       expect(cliErr.message).toContain("zero");
       expect(cliErr.message).toContain("ETH");
     }
+  });
+
+  test("throws CLIError with INPUT_INSUFFICIENT_GAS when below gas estimate", async () => {
+    const client = mockPublicClient(FALLBACK_GAS_BUFFER - 1n);
+    try {
+      await checkHasGas(client, SIGNER);
+      expect(true).toBe(false);
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      const cliErr = err as CLIError;
+      expect(cliErr.code).toBe("INPUT_INSUFFICIENT_GAS");
+      expect(cliErr.category).toBe("INPUT");
+      expect(cliErr.message).toContain("Insufficient");
+    }
+  });
+
+  test("scales gas estimate by txCount for multi-tx flows", async () => {
+    // Enough for 1 tx but not 2
+    const client = mockPublicClient(FALLBACK_GAS_BUFFER);
+    await expect(
+      checkHasGas(client, SIGNER, "ETH", 1)
+    ).resolves.toBeUndefined();
+
+    try {
+      await checkHasGas(client, SIGNER, "ETH", 2);
+      expect(true).toBe(false);
+    } catch (err) {
+      expect(err).toBeInstanceOf(CLIError);
+      const cliErr = err as CLIError;
+      expect(cliErr.code).toBe("INPUT_INSUFFICIENT_GAS");
+      expect(cliErr.message).toContain("2 transactions");
+    }
+
+    // Enough for 2 txs
+    const client2 = mockPublicClient(FALLBACK_GAS_BUFFER * 2n);
+    await expect(
+      checkHasGas(client2, SIGNER, "ETH", 2)
+    ).resolves.toBeUndefined();
   });
 
   test("uses custom symbol in error message", async () => {

@@ -74,21 +74,38 @@ export async function checkErc20Balance(
 }
 
 /**
- * Lightweight gas check - verifies the signer has *some* native balance for gas.
- * Does not estimate exact gas cost (that would require a simulation call).
+ * Verifies the signer has enough native balance to cover gas for one or more
+ * transactions.  Pass `txCount` > 1 for multi-step flows (e.g. ERC20 approve + deposit).
  */
 export async function checkHasGas(
   publicClient: PublicClient,
   signerAddress: Address,
-  symbol: string = "ETH"
+  symbol: string = "ETH",
+  txCount: number = 1
 ): Promise<void> {
-  const balance = await publicClient.getBalance({ address: signerAddress });
+  const [balance, singleTxGas] = await Promise.all([
+    publicClient.getBalance({ address: signerAddress }),
+    estimateGasBuffer(publicClient),
+  ]);
+  const requiredGas = singleTxGas * BigInt(txCount);
+
   if (balance === 0n) {
     throw new CLIError(
       `Wallet has zero ${symbol} balance - cannot pay gas.`,
       "INPUT",
       `Send some ${symbol} to ${signerAddress} for transaction gas fees.`,
       "INPUT_NO_GAS"
+    );
+  }
+
+  if (balance < requiredGas) {
+    const have = formatUnits(balance, 18);
+    const need = formatUnits(requiredGas, 18);
+    throw new CLIError(
+      `Insufficient ${symbol} for gas: have ${have}, need ~${need}${txCount > 1 ? ` (${txCount} transactions)` : ""}.`,
+      "INPUT",
+      `Top up your wallet (${signerAddress}) with ${symbol} to cover gas fees.`,
+      "INPUT_INSUFFICIENT_GAS"
     );
   }
 }
