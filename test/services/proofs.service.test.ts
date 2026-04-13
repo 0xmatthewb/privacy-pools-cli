@@ -90,6 +90,7 @@ const {
   deriveWithdrawalTreeDepths,
   proveCommitment,
   proveWithdrawal,
+  resetSnarkjsCurveCachesForTests,
   WITHDRAW_CIRCUIT_MAX_TREE_DEPTH,
 } = await import(
   "../../src/services/proofs.ts"
@@ -130,20 +131,13 @@ describe("proofs service", () => {
     };
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     proofTestsActive = false;
     artifactsShouldThrow = null;
     witnessCalculateShouldThrow = null;
     groth16ProveShouldThrow = null;
     capturedGroth16Options = null;
-    (globalThis as typeof globalThis & {
-      curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
-      curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
-    }).curve_bn128 = null;
-    (globalThis as typeof globalThis & {
-      curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
-      curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
-    }).curve_bls12381 = null;
+    await resetSnarkjsCurveCachesForTests();
   });
 
   describe("proveCommitment", () => {
@@ -183,7 +177,7 @@ describe("proofs service", () => {
       expect(result.publicSignals).toBe(mockFullProveResult.publicSignals);
     });
 
-    test("terminates cached snarkjs worker curves after proving", async () => {
+    test("keeps cached snarkjs worker curves alive after proving", async () => {
       (globalThis as typeof globalThis & {
         curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
         curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
@@ -195,8 +189,8 @@ describe("proofs service", () => {
 
       await proveCommitment(1n, 2n, 3n, 4n);
 
-      expect(terminateBn128CurveMock).toHaveBeenCalledTimes(1);
-      expect(terminateBls12381CurveMock).toHaveBeenCalledTimes(1);
+      expect(terminateBn128CurveMock).not.toHaveBeenCalled();
+      expect(terminateBls12381CurveMock).not.toHaveBeenCalled();
     });
 
     test("wraps snarkjs errors in CLIError with PROOF category", async () => {
@@ -423,7 +417,7 @@ describe("proofs service", () => {
       });
     });
 
-    test("terminates cached snarkjs worker curves even when proving fails", async () => {
+    test("keeps cached snarkjs worker curves alive when proving fails", async () => {
       groth16ProveShouldThrow = new Error("Invalid witness");
       (globalThis as typeof globalThis & {
         curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
@@ -440,8 +434,30 @@ describe("proofs service", () => {
         code: "PROOF_GENERATION_FAILED",
       });
 
+      expect(terminateBn128CurveMock).not.toHaveBeenCalled();
+      expect(terminateBls12381CurveMock).not.toHaveBeenCalled();
+    });
+
+    test("test cleanup terminates cached snarkjs worker curves", async () => {
+      (globalThis as typeof globalThis & {
+        curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+        curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+      }).curve_bn128 = { terminate: terminateBn128CurveMock };
+      (globalThis as typeof globalThis & {
+        curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+        curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+      }).curve_bls12381 = { terminate: terminateBls12381CurveMock };
+
+      await resetSnarkjsCurveCachesForTests();
+
       expect(terminateBn128CurveMock).toHaveBeenCalledTimes(1);
       expect(terminateBls12381CurveMock).toHaveBeenCalledTimes(1);
+      expect((globalThis as typeof globalThis & {
+        curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+      }).curve_bn128).toBeNull();
+      expect((globalThis as typeof globalThis & {
+        curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+      }).curve_bls12381).toBeNull();
     });
 
     test("re-throws CLIError from getCircuitArtifactPaths without wrapping", async () => {

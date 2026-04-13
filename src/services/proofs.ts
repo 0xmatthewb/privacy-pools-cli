@@ -118,6 +118,17 @@ async function cleanupSnarkjsCurveCaches(): Promise<void> {
   await Promise.all(cleanupTasks);
 }
 
+export async function resetSnarkjsCurveCachesForTests(): Promise<void> {
+  await cleanupSnarkjsCurveCaches();
+
+  const globalCurves = globalThis as typeof globalThis & {
+    curve_bn128?: TerminableSnarkjsCurve | null;
+    curve_bls12381?: TerminableSnarkjsCurve | null;
+  };
+  globalCurves.curve_bn128 = null;
+  globalCurves.curve_bls12381 = null;
+}
+
 export async function proveCommitment(
   value: bigint,
   label: bigint,
@@ -142,8 +153,6 @@ export async function proveCommitment(
       ),
       "PROOF_GENERATION_FAILED"
     );
-  } finally {
-    await cleanupSnarkjsCurveCaches();
   }
 }
 
@@ -242,7 +251,5 @@ export async function proveWithdrawal(
       ),
       "PROOF_GENERATION_FAILED"
     );
-  } finally {
-    await cleanupSnarkjsCurveCaches();
   }
 }
