@@ -3,11 +3,11 @@ use super::model::{
     PoolsRenderData,
 };
 use crate::output::{
-    build_next_action, format_address, format_callout, format_command_heading, format_count_number,
-    format_key_value_rows, format_muted_block, format_section_heading,
-    format_activity_direction_label, insert_optional_f64, insert_optional_string,
-    insert_optional_u64, print_csv, print_json_success, print_table, render_next_steps,
-    write_info, write_stderr_text, CalloutKind,
+    build_next_action, format_activity_direction_label, format_address, format_callout,
+    format_command_heading, format_count_number, format_key_value_rows, format_muted_block,
+    format_section_heading, insert_optional_f64, insert_optional_string, insert_optional_u64,
+    print_csv, print_json_success, print_table, render_next_steps, write_info, write_stderr_text,
+    CalloutKind,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
@@ -271,7 +271,8 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
                 write_info(&format!("No pools matched search query \"{search}\"."));
                 let mut status_options = Map::new();
                 if !data.all_chains {
-                    status_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+                    status_options
+                        .insert("chain".to_string(), Value::String(data.chain_name.clone()));
                 }
                 render_next_steps(&[build_next_action(
                     "status",
@@ -513,14 +514,16 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
         write_stderr_text(&format_key_value_rows(&summary));
         write_stderr_text(&format_callout(
             CalloutKind::Success,
-            &[if my_funds.pending_count == 0
-                && my_funds.poa_required_count == 0
-                && my_funds.declined_count == 0
-            {
-                "Wallet funds loaded successfully. Approved Pool Accounts in this pool are ready for withdraw.".to_string()
-            } else {
-                "Wallet funds loaded successfully. Review each Pool Account status below before choosing withdraw or ragequit.".to_string()
-            }],
+            &[
+                if my_funds.pending_count == 0
+                    && my_funds.poa_required_count == 0
+                    && my_funds.declined_count == 0
+                {
+                    "Wallet funds loaded successfully. Approved Pool Accounts in this pool are ready for withdraw.".to_string()
+                } else {
+                    "Wallet funds loaded successfully. Review each Pool Account status below before choosing withdraw or ragequit.".to_string()
+                },
+            ],
         ));
 
         if !my_funds.accounts.is_empty() {
@@ -548,16 +551,16 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
         if my_funds.declined_count > 0 {
             write_stderr_text(&format_callout(
                 CalloutKind::Danger,
-                &[format!(
-                    "Declined Pool Accounts cannot use withdraw. Use ragequit for public recovery to the original deposit address."
+                &[String::from(
+                    "Declined Pool Accounts cannot use withdraw. Use ragequit for public recovery to the original deposit address.",
                 )],
             ));
         }
         if my_funds.poa_required_count > 0 {
             write_stderr_text(&format_callout(
                 CalloutKind::Recovery,
-                &[format!(
-                    "PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association first, or recover publicly instead."
+                &[String::from(
+                    "PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association first, or recover publicly instead.",
                 )],
             ));
         }
@@ -566,17 +569,16 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
     } else {
         write_stderr_text(&format_callout(
             CalloutKind::ReadOnly,
-            &[format!("Run privacy-pools init to load your wallet funds here.")],
+            &[String::from(
+                "Run privacy-pools init to load your wallet funds here.",
+            )],
         ));
     }
 
     write_stderr_text(&format_section_heading("Recent activity"));
     match data.recent_activity.clone() {
         Some(events) if !events.is_empty() => {
-            let rows = events
-                .iter()
-                .map(activity_row)
-                .collect::<Vec<_>>();
+            let rows = events.iter().map(activity_row).collect::<Vec<_>>();
             print_table(vec!["Type", "Amount", "Time", "Status"], rows);
         }
         _ => {
@@ -763,7 +765,11 @@ fn format_pool_deposits_count(entry: &PoolListingEntry) -> String {
         .unwrap_or_else(|| "-".to_string())
 }
 
-fn format_review_summary(pending_count: u64, poa_required_count: u64, declined_count: u64) -> String {
+fn format_review_summary(
+    pending_count: u64,
+    poa_required_count: u64,
+    declined_count: u64,
+) -> String {
     let mut parts = Vec::new();
     if pending_count > 0 {
         parts.push(format!("{} pending", format_count_number(pending_count)));
@@ -980,7 +986,10 @@ mod extended_tests {
 
         assert_eq!(payload["chain"], Value::String("sepolia".to_string()));
         assert_eq!(payload["pools"], Value::Array(vec![]));
-        assert_eq!(payload["nextActions"][0]["command"], Value::String("status".to_string()));
+        assert_eq!(
+            payload["nextActions"][0]["command"],
+            Value::String("status".to_string())
+        );
         assert_eq!(
             payload["nextActions"][0]["when"],
             Value::String("no_pools_found".to_string())

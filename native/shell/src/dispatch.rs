@@ -9,8 +9,7 @@ use crate::completion::{
 use crate::contract::{CompletionCommandSpec, CompletionOptionSpec, Manifest};
 use crate::error::CliError;
 use crate::output::{
-    print_json_success, write_stderr_human_block_text, write_stderr_human_text,
-    write_stdout_text,
+    print_json_success, write_stderr_human_block_text, write_stderr_human_text, write_stdout_text,
 };
 use crate::root_argv::ParsedRootArgv;
 use crate::routing::{is_static_quiet_mode, resolve_command_path};
@@ -452,7 +451,9 @@ mod tests {
         let missing = handle_describe(&parsed(&["describe"]), manifest)
             .expect_err("missing path should fail");
         assert_eq!(missing.code, "INPUT_ERROR");
-        assert!(missing.message.contains("Missing command path for describe"));
+        assert!(missing
+            .message
+            .contains("Missing command path for describe"));
         assert!(missing
             .hint
             .as_deref()

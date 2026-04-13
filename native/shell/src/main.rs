@@ -29,7 +29,7 @@ use routing::{
 };
 use std::env;
 
-const OUTPUT_FORMAT_CHOICES: &str = "table, csv, json";
+const OUTPUT_FORMAT_CHOICES: &str = "table, csv, json, wide";
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
@@ -215,6 +215,13 @@ mod tests {
         let error = run(&argv, &parsed).expect_err("invalid format should fail");
         assert_eq!(error.code, "INPUT_ERROR");
         assert!(error.message.contains("argument 'yaml' is invalid"));
+    }
+
+    #[test]
+    fn run_accepts_wide_output_format_for_native_help_paths() {
+        let argv = argv(&["--format", "wide", "guide"]);
+        let parsed = parse_root_argv(&argv);
+        assert_eq!(run(&argv, &parsed).unwrap(), 0);
     }
 
     #[test]

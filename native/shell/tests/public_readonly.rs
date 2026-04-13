@@ -2,8 +2,8 @@ mod support;
 
 use serde_json::Value;
 use support::{
-    launch_fixture_server, launch_fixture_server_with_behavior, live_bridge_env,
-    parse_stdout_json, run_native_with_env, stderr_string, stdout_string, FixtureBehavior,
+    launch_fixture_server, launch_fixture_server_with_behavior, live_bridge_env, parse_stdout_json,
+    run_native_with_env, stderr_string, stdout_string, FixtureBehavior,
 };
 
 #[test]
@@ -428,8 +428,7 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     assert!(stdout_string(&human_pools).is_empty());
     assert!(stderr_string(&human_pools).contains("Pools on sepolia:"));
 
-    let human_pool_detail =
-        run_native_with_env(&["--chain", "sepolia", "pools", "ETH"], &env);
+    let human_pool_detail = run_native_with_env(&["--chain", "sepolia", "pools", "ETH"], &env);
     assert!(human_pool_detail.status.success());
     assert!(stdout_string(&human_pool_detail).is_empty());
     let human_pool_detail_stderr = stderr_string(&human_pool_detail);

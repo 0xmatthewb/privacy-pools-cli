@@ -270,10 +270,7 @@ fn parse_pool_detail_render_data(payload: &Value) -> Result<PoolDetailRenderData
         token_address: required_string(root, "tokenAddress")?,
         pool: required_string(root, "pool")?,
         scope: required_string(root, "scope")?,
-        decimals: root
-            .get("decimals")
-            .and_then(Value::as_u64)
-            .unwrap_or(18) as u32,
+        decimals: root.get("decimals").and_then(Value::as_u64).unwrap_or(18) as u32,
         minimum_deposit: required_string(root, "minimumDeposit")?,
         vetting_fee_bps: required_string(root, "vettingFeeBPS")?,
         max_relay_fee_bps: required_string(root, "maxRelayFeeBPS")?,
@@ -290,7 +287,9 @@ fn parse_pool_detail_render_data(payload: &Value) -> Result<PoolDetailRenderData
     })
 }
 
-fn parse_pool_detail_my_funds(value: Option<&Value>) -> Result<Option<PoolDetailMyFunds>, CliError> {
+fn parse_pool_detail_my_funds(
+    value: Option<&Value>,
+) -> Result<Option<PoolDetailMyFunds>, CliError> {
     let Some(value) = value else {
         return Ok(None);
     };
@@ -324,13 +323,22 @@ fn parse_pool_detail_my_funds(value: Option<&Value>) -> Result<Option<PoolDetail
     Ok(Some(PoolDetailMyFunds {
         balance: required_string(object, "balance")?,
         usd_value: optional_string(object, "usdValue"),
-        pool_accounts: object.get("poolAccounts").and_then(Value::as_u64).unwrap_or(0),
-        pending_count: object.get("pendingCount").and_then(Value::as_u64).unwrap_or(0),
+        pool_accounts: object
+            .get("poolAccounts")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        pending_count: object
+            .get("pendingCount")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
         poa_required_count: object
             .get("poaRequiredCount")
             .and_then(Value::as_u64)
             .unwrap_or(0),
-        declined_count: object.get("declinedCount").and_then(Value::as_u64).unwrap_or(0),
+        declined_count: object
+            .get("declinedCount")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
         accounts,
     }))
 }
@@ -372,10 +380,7 @@ fn parse_pool_detail_activity(
     ))
 }
 
-fn required_string(
-    object: &serde_json::Map<String, Value>,
-    key: &str,
-) -> Result<String, CliError> {
+fn required_string(object: &serde_json::Map<String, Value>, key: &str) -> Result<String, CliError> {
     object
         .get(key)
         .and_then(Value::as_str)

@@ -122,8 +122,8 @@ pub fn encode_bridge_descriptor(value: Value) -> String {
 
 pub fn live_bridge_env() -> (String, String) {
     let contract = runtime_contract_fixture();
-    let worker_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../dist/runtime/v1/worker-main.js");
+    let worker_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../dist/runtime/v1/worker-main.js");
     assert!(
         worker_path.exists(),
         "worker-main.js should exist at {}",

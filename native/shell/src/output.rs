@@ -16,8 +16,7 @@ const MAX_RENDER_WIDTH: usize = 120;
 const MIN_RENDER_WIDTH: usize = 40;
 const SPINNER_INTERVAL_MS: u64 = 80;
 const ASCII_SPINNER_FRAMES: [&str; 4] = ["-", "\\", "|", "/"];
-const UNICODE_SPINNER_FRAMES: [&str; 10] =
-    ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const UNICODE_SPINNER_FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 static SUPPRESS_HEADERS: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -240,7 +239,11 @@ pub fn format_callout(kind: CalloutKind, lines: &[String]) -> String {
         return String::new();
     }
 
-    let gutter = if supports_unicode_output() { "│" } else { "|" };
+    let gutter = if supports_unicode_output() {
+        "│"
+    } else {
+        "|"
+    };
     let heading = match kind {
         CalloutKind::Success => styled_bold(&format!("{}:", styled_success("Success"))),
         CalloutKind::Warning => styled_bold(&format!("{}:", styled_notice("Warning"))),
@@ -318,10 +321,11 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
     } else if !quiet {
         match error.presentation {
             ErrorPresentation::Inline => {
-                write_stderr_text(&format!(
-                    "{}",
-                    styled_danger(&format!("Error [{}]: {}", error.category.as_str(), error.message))
-                ));
+                write_stderr_text(&styled_danger(&format!(
+                    "Error [{}]: {}",
+                    error.category.as_str(),
+                    error.message
+                )));
                 if let Some(hint) = &error.hint {
                     write_stderr_text(&styled_notice(&format!("Hint: {hint}")));
                 }
@@ -437,7 +441,11 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
     }
 
     let gap = "   ";
-    let fill = if supports_unicode_output() { '─' } else { '-' };
+    let fill = if supports_unicode_output() {
+        '─'
+    } else {
+        '-'
+    };
     let body_rows = rows
         .iter()
         .map(|row| {
@@ -486,7 +494,11 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
 
 fn print_stacked_table(headers: &[String], rows: &[Vec<String>]) {
     let mut output = String::new();
-    let label_width = headers.iter().map(|header| header.len() + 1).max().unwrap_or(0);
+    let label_width = headers
+        .iter()
+        .map(|header| header.len() + 1)
+        .max()
+        .unwrap_or(0);
 
     for (row_index, row) in rows.iter().enumerate() {
         if row_index > 0 {
@@ -688,42 +700,6 @@ fn escape_csv_field(value: &str) -> String {
     }
 }
 
-fn table_border(left: char, middle: char, right: char, widths: &[usize]) -> String {
-    let segments = widths
-        .iter()
-        .map(|width| table_horizontal_segment(*width + 2))
-        .collect::<Vec<_>>();
-    format!("{left}{}{right}", segments.join(&middle.to_string()))
-}
-
-fn style_table_border(value: &str) -> String {
-    styled_dim(value)
-}
-
-fn table_row(row: &[String], widths: &[usize]) -> String {
-    table_row_with_style(row, widths, None)
-}
-
-fn table_row_with_style(
-    row: &[String],
-    widths: &[usize],
-    style: Option<fn(&str) -> String>,
-) -> String {
-    let vertical = table_chars().vertical;
-    let cells = row
-        .iter()
-        .enumerate()
-        .map(|(index, cell)| {
-            let padding = widths[index].saturating_sub(visible_width(cell));
-            let rendered = style
-                .map(|apply| apply(cell))
-                .unwrap_or_else(|| cell.clone());
-            format!(" {rendered}{} ", " ".repeat(padding))
-        })
-        .collect::<Vec<_>>();
-    format!("{vertical}{}{vertical}", cells.join(&vertical.to_string()))
-}
-
 fn visible_width(value: &str) -> usize {
     strip_ansi_codes(value).chars().count()
 }
@@ -795,9 +771,7 @@ fn current_terminal_columns() -> usize {
 }
 
 fn current_render_width() -> usize {
-    current_terminal_columns()
-        .min(MAX_RENDER_WIDTH)
-        .max(MIN_RENDER_WIDTH)
+    current_terminal_columns().clamp(MIN_RENDER_WIDTH, MAX_RENDER_WIDTH)
 }
 
 fn output_width_class(columns: usize) -> OutputWidthClass {
@@ -839,7 +813,11 @@ fn supports_unicode_output() -> bool {
 }
 
 fn section_divider_line() -> String {
-    let divider_char = if supports_unicode_output() { '─' } else { '-' };
+    let divider_char = if supports_unicode_output() {
+        '─'
+    } else {
+        '-'
+    };
     divider_char.to_string().repeat(current_render_width())
 }
 
@@ -866,54 +844,6 @@ pub fn format_activity_direction_label(event_type: &str) -> String {
         "withdraw" | "withdrawal" => "Withdraw".to_string(),
         "ragequit" | "exit" | "recovery" => "Ragequit".to_string(),
         _ => title_case_words(event_type),
-    }
-}
-
-fn table_horizontal_segment(width: usize) -> String {
-    let fill = if supports_unicode_output() { '─' } else { '-' };
-    fill.to_string().repeat(width)
-}
-
-struct TableChars {
-    top_left: char,
-    top_mid: char,
-    top_right: char,
-    mid_left: char,
-    mid_mid: char,
-    mid_right: char,
-    bottom_left: char,
-    bottom_mid: char,
-    bottom_right: char,
-    vertical: char,
-}
-
-fn table_chars() -> TableChars {
-    if supports_unicode_output() {
-        TableChars {
-            top_left: '┌',
-            top_mid: '┬',
-            top_right: '┐',
-            mid_left: '├',
-            mid_mid: '┼',
-            mid_right: '┤',
-            bottom_left: '└',
-            bottom_mid: '┴',
-            bottom_right: '┘',
-            vertical: '│',
-        }
-    } else {
-        TableChars {
-            top_left: '+',
-            top_mid: '+',
-            top_right: '+',
-            mid_left: '+',
-            mid_mid: '+',
-            mid_right: '+',
-            bottom_left: '+',
-            bottom_mid: '+',
-            bottom_right: '+',
-            vertical: '|',
-        }
     }
 }
 
@@ -1061,17 +991,48 @@ fn wrap_text(value: &str, max_width: usize) -> Vec<String> {
 
 fn format_boxed_error(error: &CliError) -> String {
     let width = current_render_width().saturating_sub(4).max(24);
-    let horizontal = if supports_unicode_output() { '─' } else { '-' };
-    let vertical = if supports_unicode_output() { '│' } else { '|' };
-    let top_left = if supports_unicode_output() { '╭' } else { '+' };
-    let top_right = if supports_unicode_output() { '╮' } else { '+' };
-    let bottom_left = if supports_unicode_output() { '╰' } else { '+' };
-    let bottom_right = if supports_unicode_output() { '╯' } else { '+' };
-    let failure_glyph = if supports_unicode_output() { "✗" } else { "x" };
+    let horizontal = if supports_unicode_output() {
+        '─'
+    } else {
+        '-'
+    };
+    let vertical = if supports_unicode_output() {
+        '│'
+    } else {
+        '|'
+    };
+    let top_left = if supports_unicode_output() {
+        '╭'
+    } else {
+        '+'
+    };
+    let top_right = if supports_unicode_output() {
+        '╮'
+    } else {
+        '+'
+    };
+    let bottom_left = if supports_unicode_output() {
+        '╰'
+    } else {
+        '+'
+    };
+    let bottom_right = if supports_unicode_output() {
+        '╯'
+    } else {
+        '+'
+    };
+    let failure_glyph = if supports_unicode_output() {
+        "✗"
+    } else {
+        "x"
+    };
     let mut content = Vec::new();
     let heading = styled_bold(&format!(
         "{}: {}",
-        styled_danger(&format!("{failure_glyph} Error [{}]", error.category.as_str())),
+        styled_danger(&format!(
+            "{failure_glyph} Error [{}]",
+            error.category.as_str()
+        )),
         error.message
     ));
     content.extend(wrap_text(&heading, width));
@@ -1084,7 +1045,10 @@ fn format_boxed_error(error: &CliError) -> String {
         .max()
         .unwrap_or(24)
         .max(24);
-    let top = format!("{top_left}{}{top_right}", horizontal.to_string().repeat(content_width + 2));
+    let top = format!(
+        "{top_left}{}{top_right}",
+        horizontal.to_string().repeat(content_width + 2)
+    );
     let bottom = format!(
         "{bottom_left}{}{bottom_right}",
         horizontal.to_string().repeat(content_width + 2)
@@ -1107,14 +1071,19 @@ mod tests {
 
     #[test]
     fn format_callout_supports_success_and_privacy_labels() {
-        let success = format_callout(CalloutKind::Success, &[String::from("Updated successfully.")]);
+        let success = format_callout(
+            CalloutKind::Success,
+            &[String::from("Updated successfully.")],
+        );
         assert!(success.contains("Success:"));
         assert!(success.contains("Updated successfully."));
         assert!(success.contains("│") || success.contains("|"));
 
         let privacy = format_callout(
             CalloutKind::Privacy,
-            &[String::from("Private withdrawals still require approved balances.")],
+            &[String::from(
+                "Private withdrawals still require approved balances.",
+            )],
         );
         assert!(privacy.contains("Privacy note:"));
         assert!(privacy.contains("approved balances"));

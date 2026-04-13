@@ -132,7 +132,10 @@ fn resolve_js_worker_launch() -> Result<(String, Vec<String>, String, String), C
     ))
 }
 
-fn encode_worker_request(argv: &[String], worker_protocol_version: &str) -> Result<String, CliError> {
+fn encode_worker_request(
+    argv: &[String],
+    worker_protocol_version: &str,
+) -> Result<String, CliError> {
     let request = json!({
         "protocolVersion": worker_protocol_version,
         "argv": argv,

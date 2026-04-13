@@ -32,7 +32,7 @@ impl ParsedRootArgv {
     pub(crate) fn has_invalid_output_format(&self) -> bool {
         self.format_flag_value
             .as_deref()
-            .map(|value| value != "table" && value != "csv" && value != "json")
+            .map(|value| value != "table" && value != "csv" && value != "json" && value != "wide")
             .unwrap_or(false)
     }
 }
@@ -488,6 +488,15 @@ mod tests {
         let parsed = parse_root_argv(&argv(&["--json", "--format", "csv", "capabilities"]));
         assert!(!parsed.is_csv_mode);
         assert!(parsed.is_structured_output_mode);
+    }
+
+    #[test]
+    fn wide_output_format_is_treated_as_valid_table_mode() {
+        let parsed = parse_root_argv(&argv(&["--format", "wide", "guide"]));
+        assert_eq!(parsed.format_flag_value.as_deref(), Some("wide"));
+        assert!(!parsed.has_invalid_output_format());
+        assert!(!parsed.is_csv_mode);
+        assert!(!parsed.is_structured_output_mode);
     }
 
     #[test]
