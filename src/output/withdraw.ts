@@ -110,7 +110,7 @@ export function formatRelayedWithdrawalReview(
       ...(data.extraGasFundAmount
         ? [
             {
-              label: "Gas token drop",
+              label: "Gas token received",
               value: formatAmount(
                 data.extraGasFundAmount,
                 18,
@@ -123,7 +123,7 @@ export function formatRelayedWithdrawalReview(
         : data.extraGasRequested
           ? [
               {
-                label: "Gas token drop",
+                label: "Gas token received",
                 value: "Requested with the withdrawal",
                 valueTone: "accent" as const,
               },
@@ -331,7 +331,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
           : []),
         ...(data.withdrawMode === "relayed" && data.extraGas
           ? [{
-              label: "Gas token drop",
+              label: "Gas token received",
               value: "enabled (receive ETH for gas)",
             }]
           : []),
@@ -487,7 +487,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
           : []),
         ...(data.withdrawMode === "relayed" && data.extraGas
           ? [{
-              label: "Gas token drop",
+              label: "Gas token received",
               value: "ETH included with withdrawal",
             }]
           : []),
@@ -676,7 +676,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
         value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`,
       },
       ...(extraGasFundFormatted
-        ? [{ label: "Gas token drop", value: extraGasFundFormatted }]
+        ? [{ label: "Gas token received", value: extraGasFundFormatted }]
         : []),
       {
         label: "You receive",
@@ -700,7 +700,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
         : []),
       ...(data.extraGas && !extraGasFundFormatted
         ? [{
-            label: "Gas token drop",
+            label: "Gas token received",
             value: "enabled (receive ETH for gas)",
           }]
         : []),

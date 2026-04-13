@@ -817,7 +817,7 @@ describe("renderWithdrawSuccess parity", () => {
     const data = { ...STUB_WITHDRAW_SUCCESS_RELAYED, extraGas: true };
     const { stderr } = captureOutput(() => renderWithdrawSuccess(ctx, data));
 
-    expect(stderr).toContain("Gas token drop:");
+    expect(stderr).toContain("Gas token received:");
   });
 
   test("human mode (relayed): omits gas token received when extraGas is falsy", () => {
@@ -826,7 +826,7 @@ describe("renderWithdrawSuccess parity", () => {
       renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_RELAYED),
     );
 
-    expect(stderr).not.toContain("Gas token drop");
+    expect(stderr).not.toContain("Gas token received");
   });
 
   test("human mode: shows USD values when tokenPrice is provided", () => {

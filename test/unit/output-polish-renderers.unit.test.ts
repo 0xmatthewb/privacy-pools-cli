@@ -61,7 +61,7 @@ describe("formatRelayedWithdrawalReview", () => {
     expect(output).toContain("Source PA");
     expect(output).toContain("PA-7");
     expect(output).toContain("Relayer fee");
-    expect(output).toContain("Gas token drop");
+    expect(output).toContain("Gas token received");
     expect(output).toContain("Net received");
     expect(output).toContain("Quote expiry");
     expect(output).toContain("The remaining balance would fall below the relayer minimum.");

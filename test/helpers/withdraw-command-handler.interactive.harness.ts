@@ -313,8 +313,8 @@ export function registerWithdrawInteractiveReviewTests(): void {
       ),
     );
 
-    expect(stderr).toContain("Gas token drop:");
-    expect(stderr).not.toContain("Gas token received");
+    expect(stderr).toContain("Gas token received:");
+    expect(stderr).not.toContain("Gas token drop");
     expect(stderr).toContain("Withdrawal cancelled.");
   });
 
