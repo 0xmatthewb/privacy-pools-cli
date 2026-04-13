@@ -109,6 +109,7 @@ describe("shared runtime review renderers", () => {
       amount: 100_000_000_000_000_000n,
       feeAmount: 5_000_000_000_000_000n,
       estimatedCommitted: 95_000_000_000_000_000n,
+      vettingFeeBPS: 500n,
       asset: "ETH",
       chain: "sepolia",
       decimals: 18,

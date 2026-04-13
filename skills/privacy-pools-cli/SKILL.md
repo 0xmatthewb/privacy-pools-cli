@@ -291,7 +291,7 @@ If `status --agent --check` returns `recommendedMode: "read-only"`, follow the s
 
 `flow start` follows the same machine-mode non-round amount privacy guard as `deposit`, so use round amounts in agent/non-interactive runs. A round deposit input can still become a non-round committed balance after the vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. `flow start --new-wallet` is a flow-scoped convenience path, not a general wallet manager. It generates a dedicated wallet for one workflow, requires a backup before continuing, and then waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts. The workflow key is also stored locally under `~/.privacy-pools/workflow-secrets/` until the workflow completes, public-recovers, or is externally stopped, so the export file is a backup copy rather than the only retained secret.
 
-For saved-workflow public recovery, `flow ragequit` uses the stored workflow wallet key for `walletMode = "new_wallet"`, but configured-wallet recovery only works when the active signer still matches the original depositor address saved with the workflow. If a saved workflow is `paused_poi_required`, agents can either resume privately after the external PoA step or choose `flow ragequit` for public recovery instead.
+For saved-workflow public recovery, `flow ragequit` uses the stored workflow wallet key for `walletMode = "new_wallet"`, but configured-wallet recovery only works when the active signer still matches the original depositor address saved with the workflow. If a saved workflow is `paused_poa_required`, agents can either resume privately after the external PoA step or choose `flow ragequit` for public recovery instead.
 
 Manual path remains available when you need custom Pool Account selection, partial withdrawals, direct withdrawals, unsigned payloads, or dry-runs:
 
@@ -299,7 +299,7 @@ Manual path remains available when you need custom Pool Account selection, parti
 1. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
 2. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
 3. privacy-pools accounts --agent --chain <chain> --pending-only        # Poll while pending; reviewed entries disappear from this view
-4. privacy-pools accounts --agent --chain <chain>                       # Confirm approved vs declined vs poi_required
+4. privacy-pools accounts --agent --chain <chain>                       # Confirm approved vs declined vs poa_required
 5. privacy-pools withdraw --all ETH --to <addr> --agent                 # Withdraw the full approved remainder
 ```
 
@@ -324,7 +324,7 @@ Recommended retry strategy:
 - `CONTRACT_INCORRECT_ASP_ROOT` / `CONTRACT_UNKNOWN_STATE_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent` first, then retry.
 - `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR` / `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` / `CONTRACT_NOT_YET_RAGEQUITTEABLE`: wait 30-60s or request a fresh quote, then retry.
 - `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
-- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poi_required`, complete Proof of Association at the Privacy Pools portal first. If it is `declined`, the manual recovery path is `ragequit` and the saved easy-path recovery is `flow ragequit <workflowId>`.
+- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poa_required`, complete Proof of Association at the Privacy Pools portal first. If it is `declined`, the manual recovery path is `ragequit` and the saved easy-path recovery is `flow ragequit <workflowId>`.
 
 ---
 

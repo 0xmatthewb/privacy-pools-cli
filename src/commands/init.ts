@@ -567,7 +567,12 @@ export async function handleInitCommand(
       );
       process.stderr.write(
         chalk.dim(
-          "You can skip this and set it later via PRIVACY_POOLS_PRIVATE_KEY environment variable.",
+          "Without a signer key, you can only view accounts and balances but cannot deposit, withdraw, or ragequit.",
+        ) + "\n",
+      );
+      process.stderr.write(
+        chalk.dim(
+          "You can set it later via the PRIVACY_POOLS_PRIVATE_KEY environment variable or by re-running init.",
         ) + "\n",
       );
       process.stderr.write("\n");
