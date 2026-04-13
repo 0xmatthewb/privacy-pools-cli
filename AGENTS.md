@@ -35,7 +35,7 @@ privacy-pools flow ragequit latest --agent    # saved-workflow public recovery i
 # Manual workflow
 privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
-privacy-pools accounts --agent --chain mainnet                  # once pending disappears, confirm approved vs declined vs poi_required
+privacy-pools accounts --agent --chain mainnet                  # once pending disappears, confirm approved vs declined vs poa_required
 privacy-pools migrate status --agent --all-chains               # read-only legacy migration or recovery check on CLI-supported chains
 privacy-pools withdraw --all ETH --to 0xRecipient --agent
 ```
@@ -81,7 +81,271 @@ Parse `success` first. On failure, read `errorCode` for programmatic handling an
 
 Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
-For a stable bundled machine-contract path inside the installed package, prefer `docs/contracts/cli-json-contract.current.json`. Installed packages include that stable path plus the active schema snapshot for the packaged CLI version. The repository may retain older versioned snapshots for historical reference, and runtime discovery metadata may still point at the exact versioned snapshot for the active schema.
+The complete JSON output contract is defined in [`docs/contracts/cli-json-contract.v2.0.0.json`](docs/contracts/cli-json-contract.v2.0.0.json). For a stable bundled machine-contract path inside the installed package, prefer `docs/contracts/cli-json-contract.current.json`. Installed packages include that stable path plus the active schema snapshot for the packaged CLI version. The repository may retain older versioned snapshots for historical reference, and runtime discovery metadata may still point at the exact versioned snapshot for the active schema.
+
+### NextActions Specification
+
+`nextActions` are included in success JSON responses from most commands. They are omitted in `--quiet` mode and from read-only listing commands like `pools`.
+
+**`when` discriminator values:**
+
+Each `nextActions` entry carries a `when` field from the `NextActionWhen` discriminator. Agents use this to decide programmatically whether a suggested action is relevant.
+
+| `when` value | Fires when |
+| --- | --- |
+| `after_init` | After successful initialization (new wallet or restore) |
+| `after_restore` | After importing an existing recovery phrase |
+| `after_deposit` | After a deposit transaction is confirmed onchain |
+| `after_dry_run` | After a successful dry-run validation (no tx submitted) |
+| `after_quote` | After a relayed withdrawal fee quote is returned |
+| `after_withdraw` | After a withdrawal is finalized onchain |
+| `after_ragequit` | After a public recovery (ragequit) is confirmed |
+| `has_pending` | When pending deposits exist that need ASP review monitoring |
+| `status_not_ready` | When status detects setup is incomplete (no init) |
+| `status_unsigned_no_accounts` | Status shows unsigned-only mode, no accounts yet |
+| `status_unsigned_has_accounts` | Status shows unsigned-only mode, accounts exist |
+| `status_ready_no_accounts` | Status shows full readiness, no accounts yet |
+| `status_ready_has_accounts` | Status shows full readiness, accounts exist |
+| `status_degraded_health` | Status detects degraded RPC or ASP connectivity |
+| `status_restore_discovery` | Status suggests restore/discovery for imported phrases |
+| `after_sync` | After a forced or auto sync of local account state |
+| `after_pools` | After listing available pools |
+| `after_upgrade` | After checking for or performing a CLI upgrade |
+| `after_activity` | After viewing the public activity feed |
+| `flow_manual_followup` | Flow requires a manual agent action to continue |
+| `flow_public_recovery_pending` | Flow public recovery (ragequit) is in progress |
+| `flow_public_recovery_required` | Flow must use public recovery (e.g., below relayer minimum) |
+| `flow_resume` | Saved flow can be resumed with `flow watch` |
+| `flow_public_recovery_optional` | Public recovery is available as an alternative path |
+| `flow_declined` | Flow deposit was declined by the ASP |
+
+**`runnable` semantics:**
+
+When `runnable: true` (or omitted, which defaults to `true`), the `cliCommand` field contains a complete, executable CLI invocation that the agent can run directly. When `runnable: false`, the action is a template -- some arguments (e.g., recipient address, amount) must be filled in by the agent before execution.
+
+**Agent decision tree for nextActions:**
+
+```
+1. Parse the `nextActions` array from the JSON response
+2. For each action:
+   a. Check `when` -- does this apply to the current agent state?
+   b. Check `runnable`:
+      - true  -> execute `cliCommand` directly
+      - false -> fill in template arguments, then execute
+   c. If multiple actions match, prefer the first one (highest priority)
+3. If no actions match, the workflow is complete or requires human input
+```
+
+### JSON Output Schemas
+
+Every JSON response wraps command-specific data in a standard envelope:
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "...commandPayload": "...",
+  "nextActions": [{ "command": "string", "reason": "string", "when": "string", "cliCommand": "string", "runnable": true }]
+}
+```
+
+**`init` (success):**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "defaultChain": "mainnet",
+  "signerKeySet": true,
+  "recoveryPhrase": "word1 word2 ... (only with --show-recovery-phrase)",
+  "recoveryPhraseRedacted": true,
+  "warning": "string | absent",
+  "nextActions": [...]
+}
+```
+
+**`deposit` (success):**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "operation": "deposit",
+  "txHash": "0x...",
+  "amount": "100000000000000000",
+  "committedValue": "99500000000000000 | null",
+  "asset": "ETH",
+  "chain": "mainnet",
+  "poolAccountNumber": 1,
+  "poolAccountId": "PA-1",
+  "poolAddress": "0x...",
+  "scope": "123...",
+  "label": "456... | null",
+  "blockNumber": "12345678",
+  "explorerUrl": "https://etherscan.io/tx/0x...",
+  "nextActions": [...]
+}
+```
+
+**`withdraw` (success, relayed):**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "operation": "withdraw",
+  "mode": "relayed",
+  "txHash": "0x...",
+  "blockNumber": "12345678",
+  "amount": "99500000000000000",
+  "recipient": "0x...",
+  "explorerUrl": "https://etherscan.io/tx/0x...",
+  "poolAddress": "0x...",
+  "scope": "123...",
+  "asset": "ETH",
+  "chain": "mainnet",
+  "poolAccountNumber": 1,
+  "poolAccountId": "PA-1",
+  "feeBPS": "50",
+  "extraGas": "boolean | absent",
+  "remainingBalance": "0",
+  "anonymitySet": "{ eligible, total, percentage } | absent",
+  "nextActions": [...]
+}
+```
+
+**`ragequit` (success):**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "operation": "ragequit",
+  "txHash": "0x...",
+  "amount": "99500000000000000",
+  "asset": "ETH",
+  "chain": "mainnet",
+  "poolAccountNumber": 1,
+  "poolAccountId": "PA-1",
+  "poolAddress": "0x...",
+  "scope": "123...",
+  "blockNumber": "12345678",
+  "explorerUrl": "https://etherscan.io/tx/0x...",
+  "destinationAddress": "0x... | absent",
+  "nextActions": [...]
+}
+```
+
+**`accounts` (default):**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "chain": "mainnet",
+  "accounts": [
+    {
+      "poolAccountNumber": 1,
+      "poolAccountId": "PA-1",
+      "status": "active",
+      "aspStatus": "approved",
+      "asset": "ETH",
+      "scope": "123...",
+      "value": "99500000000000000",
+      "hash": "0x...",
+      "label": "456...",
+      "blockNumber": 12345678,
+      "txHash": "0x...",
+      "explorerUrl": "https://etherscan.io/tx/0x..."
+    }
+  ],
+  "balances": [
+    { "asset": "ETH", "balance": "99500000000000000", "usdValue": "$250.00", "poolAccounts": 1 }
+  ],
+  "pendingCount": 0,
+  "nextActions": [...]
+}
+```
+
+**`pools`:**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "chain": "mainnet",
+  "search": null,
+  "sort": "tvl-desc",
+  "pools": [
+    {
+      "asset": "ETH",
+      "tokenAddress": "0x...",
+      "pool": "0x...",
+      "scope": "123...",
+      "decimals": 18,
+      "minimumDeposit": "10000000000000000",
+      "vettingFeeBPS": "50",
+      "maxRelayFeeBPS": "500",
+      "totalInPoolValue": "1000000000000000000000",
+      "totalInPoolValueUsd": "$2,500,000.00",
+      "totalDepositsCount": 500,
+      "acceptedDepositsCount": 480,
+      "pendingDepositsCount": 20,
+      "growth24h": 2.5
+    }
+  ]
+}
+```
+
+**`status`:**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "configExists": true,
+  "configDir": "/home/user/.privacy-pools",
+  "defaultChain": "mainnet",
+  "selectedChain": "mainnet",
+  "rpcUrl": "https://...",
+  "rpcIsCustom": false,
+  "recoveryPhraseSet": true,
+  "signerKeySet": true,
+  "signerKeyValid": true,
+  "signerAddress": "0x...",
+  "entrypoint": "0x...",
+  "aspHost": "https://...",
+  "accountFiles": [{ "chain": "mainnet", "chainId": 1 }],
+  "readyForDeposit": true,
+  "readyForWithdraw": true,
+  "readyForUnsigned": true,
+  "recommendedMode": "ready",
+  "blockingIssues": [],
+  "warnings": [],
+  "aspLive": true,
+  "rpcLive": true,
+  "rpcBlockNumber": "21000000",
+  "nextActions": [...]
+}
+```
+
+**Error response (all commands):**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": false,
+  "errorCode": "RPC_NETWORK_ERROR",
+  "errorMessage": "Network error: ...",
+  "error": {
+    "code": "RPC_NETWORK_ERROR",
+    "category": "RPC",
+    "message": "Network error: ...",
+    "hint": "Check your RPC URL and network connectivity.",
+    "retryable": true
+  }
+}
+```
 
 ## Preflight Check
 
@@ -119,7 +383,7 @@ When a human delegates CLI operations to an agent:
 | `-r, --rpc-url <url>` | Override RPC URL |
 | `-q, --quiet` | Suppress human-oriented stderr output |
 | `-v, --verbose` | Enable verbose/debug output |
-| `--no-banner` | Disable ASCII banner output |
+| `--no-banner` | Disable ASCII banner output. For deterministic output in CI/container environments, use `--no-banner` or `--agent` (which implies `--quiet`, suppressing the banner). The banner uses a session marker in `/tmp` that may not persist across container restarts. |
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
 | `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |
 
@@ -230,7 +494,14 @@ privacy-pools capabilities --agent
 
 JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }`
 
-`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, and `preferredSafeVariant?`. `exitCodes[]` enumerates the CLI's success/error exit contract and `envVars[]` enumerates the supported environment variables and aliases that affect runtime behavior. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package. For a stable package path, use `docs/contracts/cli-json-contract.current.json`; `documentation.jsonContract` may still expose the exact versioned snapshot path for the active schema.
+`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, and `preferredSafeVariant?`. The `sideEffectClass` values are:
+
+- `read_only` -- Command only reads data, no side effects (e.g., `pools`, `accounts`, `status`)
+- `local_state_write` -- Command writes to the local filesystem (e.g., `init`, `sync`)
+- `network_write` -- Command submits on-chain transactions that do not directly move user funds
+- `fund_movement` -- Command may move funds via deposits, withdrawals, or public recoveries (e.g., `deposit`, `withdraw`, `ragequit`)
+
+`exitCodes[]` enumerates the CLI's success/error exit contract and `envVars[]` enumerates the supported environment variables and aliases that affect runtime behavior. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package. For a stable package path, use `docs/contracts/cli-json-contract.current.json`; `documentation.jsonContract` may still expose the exact versioned snapshot path for the active schema.
 
 #### `describe`
 
@@ -306,13 +577,82 @@ Saved flows persist local state under `~/.privacy-pools/workflows/`. `flow --new
 
 The saved workflow spends the full remaining Pool Account balance. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.
 
-`flow watch` re-checks the saved workflow and advances it using the same real branches as the frontend and protocol. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation. Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poi_required`, and `stopped_external`. Deposit review state from the ASP (the approval service) remains available separately in `aspStatus`. When the Pool Account is approved, `flow watch` either waits through the saved privacy-delay window or performs the relayed private withdrawal automatically after approval and any configured privacy delay. Passing `flow watch --privacy-delay ...` updates the saved workflow policy persistently: `off` clears any saved hold immediately, and switching between `balanced` and `aggressive` resamples from the override time. If the workflow is `declined`, it pauses and surfaces `flow ragequit` as the canonical public recovery path. If it is `poi_required`, complete Proof of Association externally to continue privately, or use `flow ragequit` to recover publicly instead. If the saved full-balance withdrawal falls below the relayer minimum, `flow watch` surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextActions` path while the workflow is still progressing normally. `flow watch` is intentionally unbounded; agents that need a wall-clock limit should wrap it in their own external timeout.
+`flow watch` re-checks the saved workflow and advances it using the same real branches as the frontend and protocol. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation. Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`. Deposit review state from the ASP (the approval service) remains available separately in `aspStatus`. When the Pool Account is approved, `flow watch` either waits through the saved privacy-delay window or performs the relayed private withdrawal automatically after approval and any configured privacy delay. Passing `flow watch --privacy-delay ...` updates the saved workflow policy persistently: `off` clears any saved hold immediately, and switching between `balanced` and `aggressive` resamples from the override time. If the workflow is `declined`, it pauses and surfaces `flow ragequit` as the canonical public recovery path. If it is `poa_required`, complete Proof of Association externally to continue privately, or use `flow ragequit` to recover publicly instead. If the saved full-balance withdrawal falls below the relayer minimum, `flow watch` surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextActions` path while the workflow is still progressing normally. `flow watch` is intentionally unbounded; agents that need a wall-clock limit should wrap it in their own external timeout.
 
 `flow ragequit` performs the public recovery path for a saved workflow. Once the public deposit exists, it remains available as an optional public recovery path until the workflow reaches a terminal state. If the saved full-balance withdrawal can no longer satisfy the relayer minimum, it becomes the required recovery path because the saved flow only supports relayed private withdrawal. For `walletMode = "new_wallet"` it uses the stored workflow wallet key. For `walletMode = "configured"` it must use the original depositor signer that created the saved workflow.
 
 JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "ragequit", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, warnings?: [{ code, category: "privacy", message }], withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 Paused workflow states are successful command results, not CLI errors. `Ctrl-C` during `flow watch` detaches cleanly without deleting the saved workflow. For ERC20 relayed withdrawals inside `flow`, the CLI requests extra gas by default, matching `withdraw`. `warnings` are advisory only and currently cover amount-linkability guidance for full non-round auto-withdrawals plus explicit `--privacy-delay off`; they appear on `flow start`, `flow watch`, and `flow status`, while `flow ragequit` omits them. `privacyDelayConfigured = false` means a legacy workflow was normalized to `off` without an explicitly saved policy.
+
+**Flow state machine:**
+
+The `phase` field in the flow JSON payload tracks the workflow through the following state transitions. Agents should use `phase` to determine what action is needed next.
+
+```
+                      +-------------------+
+                      | awaiting_funding  |  (--new-wallet: waiting for ETH/token deposit)
+                      +--------+----------+
+                               |
+                               v
+                      +-------------------+
+                      |depositing_publicly|  (public deposit tx pending or unconfirmed)
+                      +--------+----------+
+                               |
+                               v
+                      +-------------------+
+                      |   awaiting_asp    |  (deposit confirmed, waiting for ASP review)
+                      +--------+----------+
+                               |
+              +----------------+----------------+
+              |                |                |
+              v                v                v
+  +-----------+---+  +---------+-------+  +----+--------------+
+  |paused_declined|  |paused_poi_      |  |approved_waiting_  |
+  |               |  |required         |  |privacy_delay      |
+  +-------+-------+  +--------+--------+  +--------+----------+
+          |                    |                    |
+          |                    |                    v
+          |                    |           +--------+----------+
+          |                    |           |approved_ready_    |
+          |                    |           |to_withdraw        |
+          |                    |           +--------+----------+
+          |                    |                    |
+          |                    |                    v
+          |                    |           +--------+----------+
+          |                    |           |    withdrawing    |
+          |                    |           +--------+----------+
+          |                    |                    |
+          v                    v                    v
+  +-------+--------------------+--------------------+-------+
+  |                    Terminal states                       |
+  |  completed  |  completed_public_recovery  |  stopped_   |
+  |             |  (via ragequit)             |  external   |
+  +---------------------------------------------------------+
+```
+
+**Phase descriptions:**
+
+| Phase | Description |
+| --- | --- |
+| `awaiting_funding` | `--new-wallet` mode: waiting for ETH and/or token funding |
+| `depositing_publicly` | Public deposit transaction is pending or being confirmed |
+| `awaiting_asp` | Deposit confirmed onchain, waiting for ASP review |
+| `approved_waiting_privacy_delay` | ASP approved, waiting through the configured privacy delay |
+| `approved_ready_to_withdraw` | Privacy delay complete (or off), ready for relayed withdrawal |
+| `withdrawing` | Relayed withdrawal submitted, waiting for confirmation |
+| `completed` | Private withdrawal confirmed; terminal |
+| `paused_declined` | ASP declined the deposit; use `flow ragequit` to recover publicly |
+| `paused_poa_required` | Proof of Association required; complete PoA externally or use `flow ragequit` |
+| `completed_public_recovery` | Public recovery (ragequit) confirmed; terminal |
+| `stopped_external` | External intervention detected (e.g., funds spent outside this workflow); terminal |
+
+**Pause and recovery paths:**
+
+- `paused_declined` -> `flow ragequit` -> `completed_public_recovery`
+- `paused_poa_required` -> complete PoA externally, then `flow watch` resumes, OR `flow ragequit` -> `completed_public_recovery`
+- Any non-terminal phase -> `flow ragequit` (optional manual public recovery) -> `completed_public_recovery`
+- Any non-terminal phase -> external spend detected -> `stopped_external`
 
 #### `deposit`
 
@@ -326,7 +666,7 @@ JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, ch
 
 All numeric values are strings (wei). `committedValue` and `label` may be `null`.
 
-`nextActions` provides the canonical structured guidance: poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending, then re-run `accounts --agent --chain <chain>` to confirm whether it was approved, declined, or `poi_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` scope for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without `--chain`.
+`nextActions` provides the canonical structured guidance: poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending, then re-run `accounts --agent --chain <chain>` to confirm whether it was approved, declined, or `poa_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` scope for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without `--chain`.
 
 Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). A vetting fee is deducted from the deposit amount by the ASP. Only approved deposits can use `withdraw` (relayed or direct). Declined deposits must `ragequit` publicly to the deposit address.
 
@@ -349,7 +689,7 @@ JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, block
 
 JSON payload (direct): same but `mode: "direct"`, `feeBPS: null`, no `extraGas`. Human output includes a privacy note about direct withdrawals linking deposit and withdrawal onchain.
 
-> **Note**: Direct withdrawals (`--direct`) are not privacy-preserving. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poi_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
+> **Note**: Direct withdrawals (`--direct`) are not privacy-preserving. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poa_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
 
 **Amount shortcuts:**
 - `--all`: Withdraw the entire Pool Account balance
@@ -401,11 +741,11 @@ In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `
 
 `balances` contains per-pool totals for Pool Accounts with remaining balance. `balance` is the total amount in wei (string). `usdValue` is a formatted USD string (or null if price data is unavailable).
 
-`--summary` JSON payload: `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poiRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+`--summary` JSON payload: `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 `--pending-only` JSON payload: `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
-**Poll pending approvals**: After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Because this mode only returns pending accounts, reviewed entries disappear from the response instead of changing in place. Once it disappears, re-run `accounts --agent --chain <chain>` to confirm whether it became `"approved"`, `"declined"`, or `"poi_required"`. Withdraw only after approval; if declined, use `ragequit`; if `poi_required`, complete Proof of Association first. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
+**Poll pending approvals**: After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Because this mode only returns pending accounts, reviewed entries disappear from the response instead of changing in place. Once it disappears, re-run `accounts --agent --chain <chain>` to confirm whether it became `"approved"`, `"declined"`, or `"poa_required"`. Withdraw only after approval; if declined, use `ragequit`; if `poa_required`, complete Proof of Association first. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
 
 #### `migrate status`
 
@@ -471,7 +811,7 @@ After depositing, poll `accounts --agent --chain <chain> --pending-only` while t
 - **Initial interval**: 60 seconds
 - **Backoff**: exponential, max 5 minutes between polls
 - **Most deposits are approved within 1 hour, but some may take longer (up to 7 days)**
-- Once the Pool Account disappears from pending-only results, re-run `accounts --agent --chain <chain>` to confirm whether it is approved, declined, or `poi_required` before choosing `withdraw` or `ragequit`
+- Once the Pool Account disappears from pending-only results, re-run `accounts --agent --chain <chain>` to confirm whether it is approved, declined, or `poa_required` before choosing `withdraw` or `ragequit`
 - Always preserve `--chain`; bare `accounts` only covers the mainnet chains, so testnet deposits are invisible without it
 
 ## Crash Recovery
@@ -483,6 +823,8 @@ For withdrawals: if the CLI crashes after proof generation but before relay subm
 ## Unsigned Transaction Mode
 
 For agents that manage their own signing (e.g., custodial wallets, multisigs, MPC signers), `--unsigned` builds ready-to-sign transaction payloads without submitting them.
+
+> **Important:** When using `--unsigned` (default), the output follows the standard JSON envelope format (`{ schemaVersion, success, ... }`). When using `--unsigned tx`, the output is a **raw transaction array** without the envelope wrapper. Agents parsing unsigned output must check which format was requested.
 
 ### Envelope format (default)
 
@@ -572,48 +914,49 @@ Dry-run responses include `"dryRun": true` and all validation results.
 
 ## Error Handling
 
-### Error codes
+### Error Reference
 
-| Code                                 | Category | Retryable | Meaning                                    |
-| ------------------------------------ | -------- | --------- | ------------------------------------------ |
-| `INPUT_ERROR`                        | INPUT    | No        | Bad arguments, missing flags               |
-| `RPC_ERROR`                          | RPC      | No        | RPC call failure                            |
-| `RPC_NETWORK_ERROR`                  | RPC      | Yes       | Network connectivity issue                  |
-| `RPC_RATE_LIMITED`                   | RPC      | Yes       | RPC provider rate limit (429); use --rpc-url|
-| `RPC_POOL_RESOLUTION_FAILED`         | RPC      | Yes       | Pool resolution failed (ASP + RPC both down)|
-| `ASP_ERROR`                          | ASP      | No        | ASP service failure                         |
-| `RELAYER_ERROR`                      | RELAYER  | No        | Relayer request failure                     |
-| `PROOF_ERROR`                        | PROOF    | No        | Proof generation failure                    |
-| `PROOF_GENERATION_FAILED`            | PROOF    | No        | ZK proof could not be generated             |
-| `PROOF_MERKLE_ERROR`                 | PROOF    | Yes       | Commitment not in Merkle tree (sync first)  |
-| `PROOF_MALFORMED`                    | PROOF    | No        | Corrupt proof data                          |
-| `CONTRACT_NULLIFIER_ALREADY_SPENT`   | CONTRACT | No        | Pool Account already withdrawn              |
-| `CONTRACT_INCORRECT_ASP_ROOT`        | CONTRACT | Yes       | State changed, regenerate proof             |
-| `CONTRACT_UNKNOWN_STATE_ROOT`        | CONTRACT | Yes       | State root changed, regenerate proof        |
-| `CONTRACT_CONTEXT_MISMATCH`          | CONTRACT | No        | Proof context does not match withdrawal     |
-| `CONTRACT_INVALID_PROOF`             | CONTRACT | No        | Proof rejected onchain                      |
-| `CONTRACT_INVALID_PROCESSOOOR`       | CONTRACT | No        | Wrong withdrawal mode                       |
-| `CONTRACT_INVALID_COMMITMENT`        | CONTRACT | No        | Selected Pool Account is no longer valid    |
-| `CONTRACT_PRECOMMITMENT_ALREADY_USED`| CONTRACT | No        | Duplicate precommitment, retry deposit      |
-| `CONTRACT_ONLY_ORIGINAL_DEPOSITOR`   | CONTRACT | No        | Wrong signer for exit                       |
-| `CONTRACT_NOT_YET_RAGEQUITTEABLE`    | CONTRACT | Yes       | Pool Account cannot be exited yet           |
-| `CONTRACT_MAX_TREE_DEPTH_REACHED`    | CONTRACT | No        | Pool has reached max deposit capacity       |
-| `CONTRACT_NO_ROOTS_AVAILABLE`        | CONTRACT | Yes       | Pool not ready, wait and retry              |
-| `CONTRACT_MINIMUM_DEPOSIT_AMOUNT`    | CONTRACT | No        | Deposit amount is below the pool minimum    |
-| `CONTRACT_INVALID_DEPOSIT_VALUE`     | CONTRACT | No        | Deposit amount is too large                 |
-| `CONTRACT_INVALID_WITHDRAWAL_AMOUNT` | CONTRACT | No        | Withdrawal amount is invalid                |
-| `CONTRACT_POOL_NOT_FOUND`            | CONTRACT | No        | Requested pool is unavailable on this chain |
-| `CONTRACT_POOL_IS_DEAD`              | CONTRACT | No        | Pool no longer accepts activity             |
-| `CONTRACT_RELAY_FEE_GREATER_THAN_MAX`| CONTRACT | Yes       | Relayer fee exceeds pool maximum            |
-| `CONTRACT_INVALID_TREE_DEPTH`        | CONTRACT | No        | Proof inputs do not match pool tree depth   |
-| `CONTRACT_NATIVE_ASSET_TRANSFER_FAILED`| CONTRACT | No      | Native asset transfer to the destination failed |
-| `CONTRACT_INSUFFICIENT_FUNDS`        | CONTRACT | No        | Wallet lacks ETH for amount + gas           |
-| `CONTRACT_NONCE_ERROR`               | CONTRACT | Yes       | Nonce conflict; pending tx may be stuck     |
-| `ACCOUNT_MIGRATION_REQUIRED`         | INPUT    | No        | Legacy pre-upgrade account must be migrated in the website before CLI restore/sync |
-| `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`  | INPUT    | No        | Legacy declined deposits require website-based recovery before CLI restore/sync |
-| `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`| ASP      | Yes       | Legacy ASP review data is incomplete; retry before acting on restore/sync |
-| `ACCOUNT_NOT_APPROVED`               | ASP      | No        | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
-| `UNKNOWN_ERROR`                      | UNKNOWN  | No        | Unexpected error                            |
+| Error Code | Category | Retryable | Typical Cause |
+| --- | --- | --- | --- |
+| `INPUT_ERROR` | INPUT | No | Invalid flag, missing argument, or bad input value |
+| `PROMPT_CANCELLED` | INPUT | No | User cancelled an interactive prompt |
+| `RPC_ERROR` | RPC | No | RPC call failure (non-transient) |
+| `RPC_NETWORK_ERROR` | RPC | Yes | Network connectivity issue, DNS failure, or timeout |
+| `RPC_RATE_LIMITED` | RPC | Yes | RPC provider rate limit (HTTP 429); switch to dedicated RPC with `--rpc-url` |
+| `RPC_POOL_RESOLUTION_FAILED` | RPC | Yes | Pool resolution failed because both ASP and RPC are unreachable |
+| `ASP_ERROR` | ASP | No | ASP (approval service) request failure |
+| `RELAYER_ERROR` | RELAYER | No | Relayer service request failure |
+| `PROOF_ERROR` | PROOF | No | Generic proof generation failure |
+| `PROOF_GENERATION_FAILED` | PROOF | No | ZK proof could not be generated; stale state or spent account |
+| `PROOF_MERKLE_ERROR` | PROOF | Yes | Pool Account commitment not found in Merkle tree; run `sync` first |
+| `PROOF_MALFORMED` | PROOF | No | Corrupt or invalid proof data |
+| `CONTRACT_NULLIFIER_ALREADY_SPENT` | CONTRACT | No | Pool Account has already been withdrawn |
+| `CONTRACT_INCORRECT_ASP_ROOT` | CONTRACT | Yes | Pool state changed since proof generation; regenerate proof |
+| `CONTRACT_UNKNOWN_STATE_ROOT` | CONTRACT | Yes | State root is outdated; run `sync` and retry |
+| `CONTRACT_CONTEXT_MISMATCH` | CONTRACT | No | Proof context does not match the withdrawal parameters |
+| `CONTRACT_INVALID_PROOF` | CONTRACT | No | ZK proof verification failed onchain |
+| `CONTRACT_INVALID_PROCESSOOOR` | CONTRACT | No | Withdrawal type mismatch (e.g., used `--direct` when relayed was expected) |
+| `CONTRACT_INVALID_COMMITMENT` | CONTRACT | No | Selected Pool Account commitment is no longer in pool state |
+| `CONTRACT_PRECOMMITMENT_ALREADY_USED` | CONTRACT | No | Precommitment hash reused; run a new deposit |
+| `CONTRACT_ONLY_ORIGINAL_DEPOSITOR` | CONTRACT | No | Wrong signer address for ragequit; must use original depositor |
+| `CONTRACT_NOT_YET_RAGEQUITTEABLE` | CONTRACT | Yes | Deposit must be onchain for a minimum period before public recovery |
+| `CONTRACT_MAX_TREE_DEPTH_REACHED` | CONTRACT | No | Pool has reached maximum deposit capacity |
+| `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | Pool state not ready for withdrawals; wait for first state root |
+| `CONTRACT_MINIMUM_DEPOSIT_AMOUNT` | CONTRACT | No | Deposit amount is below the pool minimum |
+| `CONTRACT_INVALID_DEPOSIT_VALUE` | CONTRACT | No | Deposit amount is too large for this pool |
+| `CONTRACT_INVALID_WITHDRAWAL_AMOUNT` | CONTRACT | No | Withdrawal amount is invalid for the selected Pool Account |
+| `CONTRACT_POOL_NOT_FOUND` | CONTRACT | No | Requested pool is not available on this chain |
+| `CONTRACT_POOL_IS_DEAD` | CONTRACT | No | Pool is no longer accepting new activity |
+| `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` | CONTRACT | Yes | Relayer fee exceeds pool's configured maximum; request fresh quote |
+| `CONTRACT_INVALID_TREE_DEPTH` | CONTRACT | No | Proof inputs do not match pool tree configuration |
+| `CONTRACT_NATIVE_ASSET_TRANSFER_FAILED` | CONTRACT | No | Native ETH transfer to destination failed; recipient may not accept ETH |
+| `CONTRACT_INSUFFICIENT_FUNDS` | CONTRACT | No | Wallet lacks ETH for deposit amount plus gas fees |
+| `CONTRACT_NONCE_ERROR` | CONTRACT | Yes | Transaction nonce conflict; previous tx may be pending or stuck |
+| `ACCOUNT_MIGRATION_REQUIRED` | INPUT | No | Legacy pre-upgrade account must be migrated in the website first |
+| `ACCOUNT_WEBSITE_RECOVERY_REQUIRED` | INPUT | No | Legacy declined deposits require website-based recovery first |
+| `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | Legacy ASP review data is incomplete; retry when ASP is healthy |
+| `ACCOUNT_NOT_APPROVED` | ASP | No | Deposit is not approved; may be pending, require PoA, or be declined |
+| `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error; try `sync` and retry, or report the issue |
 
 ### Exit codes
 
@@ -641,7 +984,7 @@ When `retryable: false` (non-retryable):
 4. For `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
 5. For `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
 6. For `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
-7. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poi_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
+7. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poa_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit --chain <chain> --asset <symbol> --from-pa <PA-#>`.
 
 ## Supported Chains
 
