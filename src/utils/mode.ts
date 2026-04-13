@@ -68,7 +68,9 @@ export function resolveGlobalMode(
   const isCsv = format === "csv";
   const isQuiet = (globalOpts?.quiet ?? false) || isAgent;
   // JSON/CSV/machine mode must never block on interactive prompts.
-  const skipPrompts = (globalOpts?.yes ?? false) || isAgent || isJson || isCsv;
+  // Also auto-detect CI environments (CI=true or CI=1) to prevent hanging.
+  const isCI = process.env.CI === "true" || process.env.CI === "1";
+  const skipPrompts = (globalOpts?.yes ?? false) || isAgent || isJson || isCsv || isCI;
 
   // Parse --json-fields <fields> comma-separated field selection.
   const jsonFields: string[] | null =

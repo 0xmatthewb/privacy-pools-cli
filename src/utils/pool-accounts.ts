@@ -38,6 +38,8 @@ interface UnknownPoolAccountErrorParams {
   symbol: string;
   chainName: string;
   knownPoolAccountsCount: number;
+  /** Optional list of known PA IDs for the error hint (e.g. ["PA-1", "PA-2"]). */
+  availablePaIds?: string[];
 }
 
 function commitmentKey(commitment: Pick<AccountCommitment, "label" | "hash">): string {
@@ -271,9 +273,12 @@ export function getUnknownPoolAccountError(
     };
   }
 
+  const availableList = params.availablePaIds?.length
+    ? ` Available: ${params.availablePaIds.join(", ")}.`
+    : "";
   return {
     message: `Unknown Pool Account ${paId} for ${symbol}.`,
-    hint: `Run 'privacy-pools accounts --chain ${chainName}' to list available Pool Accounts.`,
+    hint: `Run 'privacy-pools accounts --chain ${chainName}' to list available Pool Accounts.${availableList}`,
   };
 }
 

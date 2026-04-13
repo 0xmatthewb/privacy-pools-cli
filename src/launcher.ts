@@ -65,8 +65,13 @@ function resolveCliPackageInfo(
 }
 
 function applyLauncherEnvironment(argv: string[]): void {
-  if (argv.includes("--no-color")) {
+  if (argv.includes("--no-color") || process.env.TERM === "dumb") {
     process.env.NO_COLOR = "1";
+  }
+  // CLICOLOR_FORCE=1 forces color even in piped/non-TTY contexts (unless NO_COLOR wins).
+  if (process.env.CLICOLOR_FORCE === "1" && !process.env.NO_COLOR) {
+    // chalk respects FORCE_COLOR env var internally
+    process.env.FORCE_COLOR = "3";
   }
 }
 

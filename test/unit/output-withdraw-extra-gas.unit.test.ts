@@ -114,7 +114,7 @@ describe("renderWithdrawDryRun extra-gas", () => {
     const data = { ...BASE_DRY_RUN, extraGas: true };
     const { stderr } = captureOutput(() => renderWithdrawDryRun(ctx, data));
 
-    expect(stderr).toMatch(/Gas token received:\s+enabled/);
+    expect(stderr).toMatch(/Gas token drop:\s+enabled/);
   });
 
   test("human mode: no extra gas line when extraGas=false", () => {
@@ -122,7 +122,7 @@ describe("renderWithdrawDryRun extra-gas", () => {
     const data = { ...BASE_DRY_RUN, extraGas: false };
     const { stderr } = captureOutput(() => renderWithdrawDryRun(ctx, data));
 
-    expect(stderr).not.toContain("Gas token received");
+    expect(stderr).not.toContain("Gas token drop");
   });
 });
 
@@ -208,7 +208,7 @@ describe("renderWithdrawQuote extra-gas", () => {
     const data: WithdrawQuoteData = { ...BASE_QUOTE, extraGas: true };
     const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
 
-    expect(stderr).toMatch(/Gas token received:\s+enabled/);
+    expect(stderr).toMatch(/Gas token drop:\s+enabled/);
   });
 
   test("human mode: no gas token received when extraGas is falsy", () => {
@@ -216,6 +216,6 @@ describe("renderWithdrawQuote extra-gas", () => {
     const data: WithdrawQuoteData = { ...BASE_QUOTE, extraGas: false };
     const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
 
-    expect(stderr).not.toContain("Gas token received");
+    expect(stderr).not.toContain("Gas token drop");
   });
 });

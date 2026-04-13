@@ -242,7 +242,7 @@ function renderBoxedError(error: CLIError): string {
   const bottomLeft = supportsUnicodeOutput() ? "╰" : "+";
   const bottomRight = supportsUnicodeOutput() ? "╯" : "+";
   const heading = chalk.bold(
-    `${chalk.bold(dangerTone(`Error [${error.category}]`))}: ${error.message}`,
+    `${dangerTone(`Error [${error.category}]`)}: ${error.message}`,
   );
   const body = [
     ...wrapDisplayText(heading, width),
@@ -311,6 +311,12 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "Pool state root is outdated or unknown.",
     hint: "Run 'privacy-pools sync --chain <chain>' and retry to generate a fresh proof against the latest state root.",
     code: "CONTRACT_UNKNOWN_STATE_ROOT",
+    retryable: true,
+  },
+  ScopeMismatch: {
+    message: "Invalid scope for this privacy pool.",
+    hint: "Run 'privacy-pools sync' to refresh pool data and retry.",
+    code: "CONTRACT_SCOPE_MISMATCH",
     retryable: true,
   },
   ContextMismatch: {
@@ -542,7 +548,7 @@ function argvRequestsQuiet(argv: readonly string[] = process.argv.slice(2)): boo
   return argv.some((token) => token === "--quiet" || /^-[^-]*q[^-]*$/.test(token));
 }
 
-export function printError(error: unknown, json: boolean = false): void {
+export function printError(error: unknown, json: boolean = false, quiet?: boolean): void {
   const classified = classifyError(error);
 
   if (json) {
@@ -556,7 +562,7 @@ export function printError(error: unknown, json: boolean = false): void {
       },
       false
     );
-  } else if (!argvRequestsQuiet()) {
+  } else if (!(quiet ?? argvRequestsQuiet())) {
     if (classified.presentation === "boxed") {
       process.stderr.write(renderBoxedError(classified));
     } else {

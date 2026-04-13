@@ -436,19 +436,21 @@ function renderSummaryCsv(
           poolAccounts: 0,
           ...(includeChainFields ? { chain: "" } : {}),
         }];
-  const rows = sourceRows.map((balance) => {
+  // Global status counts are totals, not per-asset. Only include them on the
+  // first row to prevent inflated sums when consumers aggregate the CSV.
+  const rows = sourceRows.map((balance, index) => {
     const baseRow = [
       balance.asset,
       balance.balance,
       balance.usdValue ?? "",
       String(balance.poolAccounts),
-      String(summary.pendingCount),
-      String(summary.approvedCount),
-      String(summary.poaRequiredCount),
-      String(summary.declinedCount),
-      String(summary.unknownCount),
-      String(summary.spentCount),
-      String(summary.exitedCount),
+      index === 0 ? String(summary.pendingCount) : "",
+      index === 0 ? String(summary.approvedCount) : "",
+      index === 0 ? String(summary.poaRequiredCount) : "",
+      index === 0 ? String(summary.declinedCount) : "",
+      index === 0 ? String(summary.unknownCount) : "",
+      index === 0 ? String(summary.spentCount) : "",
+      index === 0 ? String(summary.exitedCount) : "",
     ];
     return includeChainFields ? [balance.chain ?? "", ...baseRow] : baseRow;
   });
@@ -535,21 +537,13 @@ function renderHumanGroupTable(
   const hasUsd = group.tokenPrice !== null;
   if (showDetails) {
     const isWide = ctx.mode.isWide;
-    const detailHeaders = ctx.isVerbose
-      ? hasUsd
-        ? isWide
-          ? ["PA", "State", "Review", "Value", "USD", "Commitment", "Label", "Block", "Tx", "Pool"]
-          : ["PA", "State", "Review", "Value", "USD", "Commitment", "Label", "Block", "Tx"]
-        : isWide
-          ? ["PA", "State", "Review", "Value", "Commitment", "Label", "Block", "Tx", "Pool"]
-          : ["PA", "State", "Review", "Value", "Commitment", "Label", "Block", "Tx"]
-      : hasUsd
-        ? isWide
-          ? ["PA", "State", "Review", "Value", "USD", "Tx", "Pool", "Block"]
-          : ["PA", "State", "Review", "Value", "USD", "Tx"]
-        : isWide
-          ? ["PA", "State", "Review", "Value", "Tx", "Pool", "Block"]
-          : ["PA", "State", "Review", "Value", "Tx"];
+    // Build headers programmatically instead of a nested conditional tree.
+    const detailHeaders: string[] = ["PA", "State", "Review", "Value"];
+    if (hasUsd) detailHeaders.push("USD");
+    if (ctx.isVerbose) detailHeaders.push("Commitment", "Label", "Block");
+    detailHeaders.push("Tx");
+    if (isWide) detailHeaders.push("Pool");
+    if (!ctx.isVerbose && isWide) detailHeaders.push("Block");
     printTable(
       detailHeaders,
       group.poolAccounts.map((pa) => {
@@ -957,29 +951,19 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
   }
 
   if (!silent) {
-    if (includeChainFields) {
-      info(
-        "PA IDs are chain-local. Re-run with --chain <name> before using PA-# with withdraw or ragequit.",
-        silent,
-      );
-    } else {
-      info("PA = Pool Account. Use -p PA-1 with withdraw or ragequit to target one.", silent);
-    }
+    // Consolidated tip — only show contextual guidance when relevant.
     if (showPendingOnly) {
       info(
-        "Pending-only mode hides final states once review completes. Re-run without --pending-only to confirm whether a disappeared PA was approved, declined, or needs Proof of Association.",
+        "Pending-only mode: re-run without --pending-only to see final states (approved, declined, POA Needed).",
         silent,
       );
-    } else {
-      if (!showDetails) {
-        info("Use --details to show transaction hashes and ASP status breakdown.", silent);
-      }
-      if (showDetails && !ctx.isVerbose) {
-        info(
-          "Use --verbose with --details to show commitment, label, and block metadata for troubleshooting.",
-          silent,
-        );
-      }
+    }
+    const tipParts: string[] = [];
+    if (includeChainFields) tipParts.push("--chain <name> to scope PA-# IDs");
+    if (!showDetails) tipParts.push("--details for tx hashes");
+    if (showDetails && !ctx.isVerbose) tipParts.push("--verbose for troubleshooting metadata");
+    if (tipParts.length > 0) {
+      info(`Tip: Use ${tipParts.join(", ")}.`, silent);
     }
   }
 

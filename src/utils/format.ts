@@ -205,6 +205,7 @@ export function printTable(
 }
 
 function formatStackedTable(headers: string[], rows: string[][]): string {
+  const divider = chalk.dim("  ───");
   return `${rows
     .map((row) =>
       headers
@@ -213,7 +214,7 @@ function formatStackedTable(headers: string[], rows: string[][]): string {
         )
         .join("\n"),
     )
-    .join("\n\n")}\n`;
+    .join(`\n${divider}\n`)}\n`;
 }
 
 /** Format elapsed milliseconds into a compact label like "1.2s" or "342ms". */

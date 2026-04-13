@@ -26,6 +26,7 @@ import {
   formatSectionHeading,
 } from "./layout.js";
 import { formatReviewSurface } from "./review.js";
+import { accent } from "../utils/theme.js";
 
 export interface InitRenderResult {
   defaultChain: string;
@@ -266,6 +267,15 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
         ),
       );
     }
+  }
+  // Prominent "What's next?" for interactive users who just finished a fresh init (not restore).
+  if (!isSilent(ctx) && !ctx.mode.skipPrompts && !result.mnemonicImported) {
+    process.stderr.write(formatSectionHeading("What's next?", { divider: true }));
+    process.stderr.write(
+      `  1. Browse pools:    ${accent("privacy-pools pools")}\n` +
+      `  2. Start a flow:    ${accent("privacy-pools flow start <amount> <asset> --to <address>")}\n` +
+      `  3. Read the guide:  ${accent("privacy-pools guide quickstart")}\n\n`,
+    );
   }
   renderNextSteps(ctx, humanNextActions);
 }

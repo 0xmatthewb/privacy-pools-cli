@@ -272,7 +272,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     ),
     createNextAction(
       "ragequit",
-      `If ${humanConfirmCommand} later shows ${data.poolAccountId} as declined, or if you do not want to wait for approval, ragequit remains available for public recovery. Complete Proof of Association at ${POA_PORTAL_URL} first if needed for a private withdrawal instead.`,
+      `If declined or you prefer not to wait, ragequit is available for public recovery. POA portal: ${POA_PORTAL_URL}`,
       "after_deposit",
       {
         args: [data.asset],
@@ -319,10 +319,10 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         url: data.explorerUrl,
       }),
     );
-    if (data.poolAccountNumber === 1) {
-      process.stderr.write(`  ${chalk.dim("Welcome to the pool.")}\n`);
-    }
     const summaryRows = [
+      ...(data.poolAccountNumber === 1
+        ? [{ label: "", value: chalk.dim("Welcome to the pool.") }]
+        : []),
       { label: "Chain", value: data.chain },
       { label: "Pool Account", value: data.poolAccountId },
       {

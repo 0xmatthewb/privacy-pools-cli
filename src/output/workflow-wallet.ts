@@ -14,7 +14,7 @@ interface WorkflowWalletBackupBaseData {
 }
 
 function formatWorkflowWalletHeading(title: string): string {
-  return `\n${accentBold(title)}\n${chalk.dim("─".repeat(44))}\n`;
+  return formatSectionHeading(title, { divider: true });
 }
 
 function formatWorkflowWalletSummary(

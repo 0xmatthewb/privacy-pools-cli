@@ -635,7 +635,7 @@ describe("read-only output renderers", () => {
     expect(stderr).toContain("mainnet:");
     expect(stderr).toContain("ETH Pool");
     expect(stderr).toContain("USDC Pool");
-    expect(stderr).toContain("PA IDs are chain-local");
-    expect(stderr).toContain("Pending-only mode hides final states once review completes");
+    expect(stderr).toContain("--chain <name> to scope PA-# IDs");
+    expect(stderr).toContain("Pending-only mode");
   });
 });
