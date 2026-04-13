@@ -10,10 +10,6 @@ export const CANONICAL_DEPOSIT_EVENT = parseAbiItem(
   CANONICAL_DEPOSIT_EVENT_SIGNATURE,
 );
 
-const SDK_COMPAT_DEPOSIT_EVENT = parseAbiItem(
-  SDK_COMPAT_DEPOSIT_EVENT_SIGNATURE,
-);
-
 type DepositEventArgs = {
   _depositor?: string;
   _commitment?: bigint;
@@ -47,6 +43,8 @@ export function normalizeDepositEventArgs(
     args._commitment === null ||
     args._label === undefined ||
     args._label === null ||
+    args._value === undefined ||
+    args._value === null ||
     precommitment === undefined ||
     precommitment === null
   ) {
@@ -57,26 +55,18 @@ export function normalizeDepositEventArgs(
     depositor: args._depositor.toLowerCase() as Address,
     commitment: args._commitment,
     label: args._label,
-    value: args._value ?? 0n,
+    value: args._value,
     precommitment,
   };
 }
 
 function tryDecodeDepositEventArgs(log: DepositReceiptLog): DepositEventArgs {
-  for (const abiItem of [CANONICAL_DEPOSIT_EVENT, SDK_COMPAT_DEPOSIT_EVENT]) {
-    try {
-      const decoded = decodeEventLog({
-        abi: [abiItem],
-        data: log.data,
-        topics: [...log.topics] as [Hex, ...Hex[]],
-      });
-      return decoded.args as DepositEventArgs;
-    } catch {
-      // Try the next compatible ABI variant.
-    }
-  }
-
-  throw new Error("Malformed deposit log");
+  const decoded = decodeEventLog({
+    abi: [CANONICAL_DEPOSIT_EVENT],
+    data: log.data,
+    topics: [...log.topics] as [Hex, ...Hex[]],
+  });
+  return decoded.args as DepositEventArgs;
 }
 
 export function decodeDepositReceiptLog(

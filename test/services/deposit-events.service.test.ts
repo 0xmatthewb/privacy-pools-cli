@@ -87,6 +87,17 @@ describe("deposit event compatibility", () => {
     ).toThrow("Malformed deposit log");
   });
 
+  test("fails closed when the deposit amount is missing", () => {
+    expect(() =>
+      normalizeDepositEventArgs({
+        _depositor: DEPOSITOR,
+        _commitment: 11n,
+        _label: 22n,
+        _precommitmentHash: 44n,
+      }),
+    ).toThrow("Malformed deposit log");
+  });
+
   test("decodes canonical receipt logs", () => {
     expect(
       decodeDepositReceiptLog(
