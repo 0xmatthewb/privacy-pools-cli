@@ -100,6 +100,11 @@ function getPoolAccountsForScope(
     return directMatch;
   }
 
+  const stringKeyMatch = asPoolAccounts(map.get(scope.toString()));
+  if (stringKeyMatch) {
+    return stringKeyMatch;
+  }
+
   for (const [key, value] of map.entries()) {
     const compatibleMatch = asPoolAccounts(value);
     if (key.toString() === scope.toString() && compatibleMatch) {

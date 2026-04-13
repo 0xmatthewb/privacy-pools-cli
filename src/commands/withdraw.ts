@@ -112,7 +112,10 @@ import {
   renderNarrativeSteps,
 } from "../output/progress.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
-import { assertKnownPoolRoot } from "../services/pool-roots.js";
+import {
+  assertKnownPoolRoot,
+  poolRootCacheScopeKey,
+} from "../services/pool-roots.js";
 import {
   guardCriticalSection,
   releaseCriticalSection,
@@ -1278,6 +1281,7 @@ export async function handleWithdrawCommand(
       );
       await assertKnownPoolRoot({
         publicClient,
+        cacheScopeKey: poolRootCacheScopeKey(chainConfig.id, globalOpts?.rpcUrl),
         poolAddress: pool.pool,
         proofRoot: stateProofRoot,
         message: "Pool data is out of date.",

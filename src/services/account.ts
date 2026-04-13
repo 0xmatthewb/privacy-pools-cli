@@ -927,14 +927,25 @@ export async function syncAccountEvents(
       chainId,
       opts.allowLegacyRecoveryVisibility ?? false,
     );
+    const poolAddressByScope = new Map(
+      poolInfos.map((info) => [info.scope, info.address.toLowerCase()]),
+    );
+    const poolSymbolByAddress = new Map(
+      pools.map((pool) => [pool.pool.toLowerCase(), pool.symbol]),
+    );
+    const poolSymbolByScope = new Map(
+      poolInfos.map((info) => [
+        info.scope,
+        poolSymbolByAddress.get(info.address.toLowerCase()) ?? info.scope.toString(),
+      ]),
+    );
 
     if (errors.length > 0) {
       for (const error of errors) {
         const symbol =
-          pools.find((pool) => {
-            const poolInfo = poolInfos.find((info) => info.scope === error.scope);
-            return poolInfo ? pool.pool.toLowerCase() === poolInfo.address.toLowerCase() : false;
-          })?.symbol ?? error.scope.toString();
+          poolSymbolByScope.get(error.scope)
+          ?? poolSymbolByAddress.get(poolAddressByScope.get(error.scope) ?? "")
+          ?? error.scope.toString();
         warn(
           `Sync failed for ${symbol} pool: ${sanitizeDiagnosticText(error.reason)}`,
           opts.silent,

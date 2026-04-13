@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import type { Address } from "viem";
 import {
   isKnownPoolRoot,
+  poolRootCacheScopeKey,
   resetPoolRootCacheForTests,
 } from "../../src/services/pool-roots.ts";
 
@@ -182,5 +183,68 @@ describe("pool roots service", () => {
     expect(first).toBe(true);
     expect(second).toBe(true);
     expect(rootsReads).toBe(4);
+  });
+
+  test("reuses the cached root history window across distinct clients in the same cache scope", async () => {
+    const historicalRoot = 42n;
+    let rootsReads = 0;
+    const cacheScopeKey = poolRootCacheScopeKey(1, "https://rpc.example");
+    const createPublicClient = () => ({
+      async readContract(args: { functionName: string; args?: readonly unknown[] }) {
+        if (args.functionName === "currentRoot") {
+          return 7n;
+        }
+        if (args.functionName === "ROOT_HISTORY_SIZE") {
+          return 4;
+        }
+        if (args.functionName === "roots") {
+          rootsReads += 1;
+          const index = Number(args.args?.[0] ?? -1);
+          return index === 2 ? historicalRoot : 0n;
+        }
+        throw new Error(`unexpected function ${args.functionName}`);
+      },
+    });
+
+    await expect(
+      isKnownPoolRoot(createPublicClient(), poolAddress, historicalRoot, cacheScopeKey),
+    ).resolves.toBe(true);
+    await expect(
+      isKnownPoolRoot(createPublicClient(), poolAddress, historicalRoot, cacheScopeKey),
+    ).resolves.toBe(true);
+
+    expect(rootsReads).toBe(4);
+  });
+
+  test("resetPoolRootCacheForTests clears both client-scoped and stable-scope caches", async () => {
+    const historicalRoot = 42n;
+    let rootsReads = 0;
+    const cacheScopeKey = poolRootCacheScopeKey(1, "https://rpc.example");
+    const createPublicClient = () => ({
+      async readContract(args: { functionName: string; args?: readonly unknown[] }) {
+        if (args.functionName === "currentRoot") {
+          return 7n;
+        }
+        if (args.functionName === "ROOT_HISTORY_SIZE") {
+          return 4;
+        }
+        if (args.functionName === "roots") {
+          rootsReads += 1;
+          const index = Number(args.args?.[0] ?? -1);
+          return index === 2 ? historicalRoot : 0n;
+        }
+        throw new Error(`unexpected function ${args.functionName}`);
+      },
+    });
+
+    await expect(
+      isKnownPoolRoot(createPublicClient(), poolAddress, historicalRoot, cacheScopeKey),
+    ).resolves.toBe(true);
+    resetPoolRootCacheForTests();
+    await expect(
+      isKnownPoolRoot(createPublicClient(), poolAddress, historicalRoot, cacheScopeKey),
+    ).resolves.toBe(true);
+
+    expect(rootsReads).toBe(8);
   });
 });

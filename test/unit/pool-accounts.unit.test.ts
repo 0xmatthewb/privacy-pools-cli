@@ -146,6 +146,80 @@ describe("pool account mapping", () => {
     expect(getNextPoolAccountNumber(account, scope)).toBe(2);
   });
 
+  test("uses direct string-key compatibility lookups before scanning map entries", () => {
+    const scope = 4444n;
+    const live = commitment(
+      3n,
+      33n,
+      300n,
+      30n,
+      "0x3333333333333333333333333333333333333333333333333333333333333333",
+    );
+
+    class CountingMap<K, V> extends Map<K, V> {
+      getCalls = 0;
+      entriesCalls = 0;
+
+      override get(key: K): V | undefined {
+        this.getCalls += 1;
+        return super.get(key);
+      }
+
+      override entries(): IterableIterator<[K, V]> {
+        this.entriesCalls += 1;
+        return super.entries();
+      }
+    }
+
+    const poolAccounts = new CountingMap<any, any>([
+      [scope.toString(), [{ label: live.label as any, deposit: live, children: [] }]],
+    ]);
+    const account: PrivacyPoolAccount = {
+      masterKeys: [1n as any, 2n as any],
+      poolAccounts: poolAccounts as any,
+    };
+
+    expect(buildAllPoolAccountRefs(account, scope, [live])).toHaveLength(1);
+    expect(poolAccounts.getCalls).toBeGreaterThanOrEqual(2);
+    expect(poolAccounts.entriesCalls).toBe(0);
+  });
+
+  test("keeps the compatibility scan for exotic legacy scope keys", () => {
+    const scope = 5555n;
+    const live = commitment(
+      4n,
+      44n,
+      400n,
+      40n,
+      "0x4444444444444444444444444444444444444444444444444444444444444444",
+    );
+
+    class CountingMap<K, V> extends Map<K, V> {
+      entriesCalls = 0;
+
+      override entries(): IterableIterator<[K, V]> {
+        this.entriesCalls += 1;
+        return super.entries();
+      }
+    }
+
+    const exoticScopeKey = {
+      toString() {
+        return scope.toString();
+      },
+    };
+    const poolAccounts = new CountingMap<any, any>([
+      [exoticScopeKey, [{ label: live.label as any, deposit: live, children: [] }]],
+    ]);
+    const account: PrivacyPoolAccount = {
+      masterKeys: [1n as any, 2n as any],
+      poolAccounts: poolAccounts as any,
+    };
+
+    expect(buildAllPoolAccountRefs(account, scope, [live])).toHaveLength(1);
+    expect(poolAccounts.entriesCalls).toBeGreaterThan(0);
+  });
+
   test("parsePoolAccountSelector accepts PA and numeric forms", () => {
     expect(parsePoolAccountSelector("PA-1")).toBe(1);
     expect(parsePoolAccountSelector("pa-12")).toBe(12);

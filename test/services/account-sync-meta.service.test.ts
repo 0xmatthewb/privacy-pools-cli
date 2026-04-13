@@ -399,4 +399,79 @@ describe("account sync metadata + event syncing", () => {
 
     expect(loadSyncMeta(1)).toBeNull();
   });
+
+  test("syncAccountEvents keeps scope-to-symbol warnings stable without nested lookups", async () => {
+    useIsolatedHome();
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: {
+          masterKeys: [1n, 2n],
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+          poolAccounts: new Map(),
+        },
+      } as never,
+      errors: [{ scope: 2n, reason: "rpc down" }],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const accountService = {
+      account: {
+        masterKeys: [1n, 2n],
+        creationTimestamp: 0n,
+        lastUpdateTimestamp: 0n,
+        poolAccounts: new Map(),
+      },
+    };
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    let captured = "";
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      captured += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      await expect(
+        syncAccountEvents(
+          accountService as never,
+          [
+            {
+              chainId: 1,
+              address: "0x1111111111111111111111111111111111111111",
+              scope: 1n,
+              deploymentBlock: 1n,
+            },
+            {
+              chainId: 1,
+              address: "0x2222222222222222222222222222222222222222",
+              scope: 2n,
+              deploymentBlock: 1n,
+            },
+          ],
+          [
+            { pool: "0x1111111111111111111111111111111111111111", symbol: "ETH" },
+            { pool: "0x2222222222222222222222222222222222222222", symbol: "USDC" },
+          ],
+          1,
+          {
+            skip: false,
+            force: true,
+            silent: false,
+            isJson: true,
+            isVerbose: false,
+            errorLabel: "Account",
+            dataService: {} as never,
+            mnemonic: MNEMONIC,
+          },
+        ),
+      ).rejects.toMatchObject({
+        category: "RPC",
+        code: "RPC_ERROR",
+        retryable: true,
+      } satisfies Partial<CLIError>);
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+
+    expect(captured).toContain("Sync failed for USDC pool");
+  });
 });

@@ -35,6 +35,7 @@ const ROOT_HISTORY_SCAN_CAP = 64;
 const ROOT_HISTORY_BATCH_SIZE = 8;
 const ROOT_HISTORY_BATCH_CONCURRENCY = 2;
 let historicalRootCache = new WeakMap<object, Map<string, Promise<Set<bigint>>>>();
+let scopedHistoricalRootCache = new Map<string, Map<string, Promise<Set<bigint>>>>();
 
 interface PoolRootReader {
   readContract(args: {
@@ -47,7 +48,18 @@ interface PoolRootReader {
 
 function getHistoricalRootCache(
   publicClient: PoolRootReader,
+  cacheScopeKey?: string,
 ): Map<string, Promise<Set<bigint>>> | null {
+  const normalizedScopeKey = cacheScopeKey?.trim();
+  if (normalizedScopeKey) {
+    let cache = scopedHistoricalRootCache.get(normalizedScopeKey);
+    if (!cache) {
+      cache = new Map<string, Promise<Set<bigint>>>();
+      scopedHistoricalRootCache.set(normalizedScopeKey, cache);
+    }
+    return cache;
+  }
+
   if (typeof publicClient !== "object" || publicClient === null) {
     return null;
   }
@@ -118,14 +130,24 @@ async function readHistoricalRoots(
   return knownRoots;
 }
 
+export function poolRootCacheScopeKey(
+  chainId: number,
+  rpcOverride?: string,
+): string {
+  const normalizedRpcOverride = rpcOverride?.trim();
+  return `${chainId}:${normalizedRpcOverride && normalizedRpcOverride.length > 0 ? normalizedRpcOverride : "__default__"}`;
+}
+
 export function resetPoolRootCacheForTests(): void {
   historicalRootCache = new WeakMap<object, Map<string, Promise<Set<bigint>>>>();
+  scopedHistoricalRootCache = new Map<string, Map<string, Promise<Set<bigint>>>>();
 }
 
 export async function isKnownPoolRoot(
   publicClient: PoolRootReader,
   poolAddress: Address,
   root: bigint,
+  cacheScopeKey?: string,
 ): Promise<boolean> {
   if (root === 0n) {
     return false;
@@ -157,7 +179,7 @@ export async function isKnownPoolRoot(
     return false;
   }
 
-  const cache = getHistoricalRootCache(publicClient);
+  const cache = getHistoricalRootCache(publicClient, cacheScopeKey);
   const cacheKey = historicalRootCacheKey(poolAddress, currentRoot, rootHistorySize);
   const cachedRoots =
     cache?.get(cacheKey)
@@ -187,11 +209,13 @@ export async function assertKnownPoolRoot(params: {
   proofRoot: bigint;
   message: string;
   hint: string;
+  cacheScopeKey?: string;
 }): Promise<void> {
   const known = await isKnownPoolRoot(
     params.publicClient,
     params.poolAddress,
     params.proofRoot,
+    params.cacheScopeKey,
   );
 
   if (!known) {

@@ -140,7 +140,10 @@ import {
   createNarrativeSteps,
   renderNarrativeSteps,
 } from "../output/progress.js";
-import { assertKnownPoolRoot } from "./pool-roots.js";
+import {
+  assertKnownPoolRoot,
+  poolRootCacheScopeKey,
+} from "./pool-roots.js";
 import {
   LEGACY_WORKFLOW_SECRET_RECORD_VERSIONS,
   LEGACY_WORKFLOW_SNAPSHOT_VERSIONS,
@@ -2974,6 +2977,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
   );
   await assertKnownPoolRoot({
     publicClient,
+    cacheScopeKey: poolRootCacheScopeKey(chainConfig.id, globalOpts?.rpcUrl),
     poolAddress: pool.pool,
     proofRoot: stateProofRoot,
     message: "Pool data is out of date.",
