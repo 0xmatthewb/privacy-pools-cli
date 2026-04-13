@@ -103,6 +103,18 @@ export function renderCompletionInstallReview(
             ? installActionLabel(plan.profileWillCreate, plan.profileWillUpdate)
             : "not needed",
         },
+        ...(plan.bootstrapProfilePath
+          ? [
+              { label: "Bash login shim", value: plan.bootstrapProfilePath },
+              {
+                label: "Shim action",
+                value: installActionLabel(
+                  plan.bootstrapProfileWillCreate,
+                  plan.bootstrapProfileWillUpdate,
+                ),
+              },
+            ]
+          : []),
       ],
       primaryCallout: {
         kind: "recovery",
@@ -155,6 +167,19 @@ export function renderCompletionInstallResult(
               },
             ]
           : [{ label: "Shell profile", value: "fish auto-load directory" }]),
+        ...(result.bootstrapProfilePath
+          ? [
+              { label: "Bash login shim", value: result.bootstrapProfilePath },
+              {
+                label: "Shim result",
+                value: result.bootstrapProfileCreated
+                  ? "created"
+                  : result.bootstrapProfileUpdated
+                    ? "updated"
+                    : "unchanged",
+              },
+            ]
+          : []),
         { label: "Reload", value: result.reloadHint },
       ],
       primaryCallout: {

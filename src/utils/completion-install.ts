@@ -1,5 +1,4 @@
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -13,6 +12,10 @@ const execFileAsync = promisify(execFile);
 
 export const COMPLETION_MANAGED_BLOCK_START = "# >>> privacy-pools completion >>>";
 export const COMPLETION_MANAGED_BLOCK_END = "# <<< privacy-pools completion <<<";
+export const BASH_BOOTSTRAP_MANAGED_BLOCK_START =
+  "# >>> privacy-pools bash bootstrap >>>";
+export const BASH_BOOTSTRAP_MANAGED_BLOCK_END =
+  "# <<< privacy-pools bash bootstrap <<<";
 
 export interface CompletionInstallPlan {
   shell: CompletionShell;
@@ -20,10 +23,14 @@ export interface CompletionInstallPlan {
   scriptContent: string;
   profilePath?: string;
   profileContent?: string;
+  bootstrapProfilePath?: string;
+  bootstrapProfileContent?: string;
   scriptWillCreate: boolean;
   scriptWillUpdate: boolean;
   profileWillCreate: boolean;
   profileWillUpdate: boolean;
+  bootstrapProfileWillCreate: boolean;
+  bootstrapProfileWillUpdate: boolean;
   reloadHint: string;
 }
 
@@ -36,6 +43,9 @@ export interface CompletionInstallResult {
   scriptUpdated: boolean;
   profileCreated: boolean;
   profileUpdated: boolean;
+  bootstrapProfilePath?: string;
+  bootstrapProfileCreated?: boolean;
+  bootstrapProfileUpdated?: boolean;
   reloadHint: string;
 }
 
@@ -90,19 +100,57 @@ function completionScriptPath(
   return join(baseHome, "shell", filename);
 }
 
-async function resolveBashProfilePath(): Promise<string> {
-  const home = resolveUserHome();
+async function resolveBashProfilePath(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<{
+  profilePath: string;
+  existingProfile: string | null;
+  bootstrapProfilePath?: string;
+  existingBootstrapProfile: string | null;
+}> {
+  const home = resolveUserHome(env);
   const bashrc = join(home, ".bashrc");
-  if (existsSync(bashrc)) return bashrc;
-
   const bashProfile = join(home, ".bash_profile");
-  if (existsSync(bashProfile)) return bashProfile;
+  const existingBashrc = await readTextIfExists(bashrc);
+  const existingBashProfile = await readTextIfExists(bashProfile);
+  const bashProfileHasBootstrap = hasManagedBlock(
+    existingBashProfile,
+    BASH_BOOTSTRAP_MANAGED_BLOCK_START,
+    BASH_BOOTSTRAP_MANAGED_BLOCK_END,
+  );
 
-  return bashrc;
+  if (existingBashProfile !== null && !bashProfileHasBootstrap) {
+    return {
+      profilePath: bashProfile,
+      existingProfile: existingBashProfile,
+      existingBootstrapProfile: null,
+    };
+  }
+
+  const shouldManageBashrc = existingBashrc !== null || bashProfileHasBootstrap;
+  if (shouldManageBashrc) {
+    return {
+      profilePath: bashrc,
+      existingProfile: existingBashrc,
+      bootstrapProfilePath: bashProfileHasBootstrap ? bashProfile : undefined,
+      existingBootstrapProfile: bashProfileHasBootstrap
+        ? existingBashProfile
+        : null,
+    };
+  }
+
+  return {
+    profilePath: bashrc,
+    existingProfile: null,
+    bootstrapProfilePath: bashProfile,
+    existingBootstrapProfile: null,
+  };
 }
 
-function resolveZshProfilePath(): string {
-  return join(resolveUserHome(), ".zshrc");
+function resolveZshProfilePath(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return join(resolveUserHome(env), ".zshrc");
 }
 
 async function resolvePowerShellProfilePath(
@@ -143,50 +191,93 @@ function buildManagedProfileBlock(
 ): string {
   if (shell === "bash") {
     const escapedPath = shellQuoteDouble(scriptPath);
-    return [
+    return buildManagedBlock(
       COMPLETION_MANAGED_BLOCK_START,
-      `[ -f "${escapedPath}" ] && . "${escapedPath}"`,
       COMPLETION_MANAGED_BLOCK_END,
-    ].join("\n");
+      [`[ -f "${escapedPath}" ] && . "${escapedPath}"`],
+    );
   }
 
   if (shell === "zsh") {
     const escapedPath = shellQuoteDouble(scriptPath);
-    return [
+    return buildManagedBlock(
       COMPLETION_MANAGED_BLOCK_START,
-      "autoload -Uz compinit",
-      "if ! typeset -f compdef >/dev/null 2>&1; then",
-      "  compinit",
-      "fi",
-      `[[ -f "${escapedPath}" ]] && source "${escapedPath}"`,
       COMPLETION_MANAGED_BLOCK_END,
-    ].join("\n");
+      [
+        "autoload -Uz compinit",
+        "if ! typeset -f compdef >/dev/null 2>&1; then",
+        "  compinit",
+        "fi",
+        `[[ -f "${escapedPath}" ]] && source "${escapedPath}"`,
+      ],
+    );
   }
 
   const escapedPath = shellQuoteSingle(scriptPath);
-  return [
+  return buildManagedBlock(
     COMPLETION_MANAGED_BLOCK_START,
-    `if (Test-Path '${escapedPath}') {`,
-    `  . '${escapedPath}'`,
-    "}",
     COMPLETION_MANAGED_BLOCK_END,
-  ].join("\n");
+    [
+      `if (Test-Path '${escapedPath}') {`,
+      `  . '${escapedPath}'`,
+      "}",
+    ],
+  );
 }
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function buildManagedBlock(
+  startMarker: string,
+  endMarker: string,
+  lines: readonly string[],
+): string {
+  return [startMarker, ...lines, endMarker].join("\n");
+}
+
+function buildManagedBlockPattern(
+  startMarker: string,
+  endMarker: string,
+): RegExp {
+  return new RegExp(
+    `${escapeRegex(startMarker)}[\\s\\S]*?${escapeRegex(endMarker)}\\n?`,
+    "m",
+  );
+}
+
+function hasManagedBlock(
+  existingContent: string | null,
+  startMarker: string,
+  endMarker: string,
+): boolean {
+  return buildManagedBlockPattern(startMarker, endMarker).test(
+    normalizeNewlines(existingContent ?? ""),
+  );
+}
+
 export function applyManagedProfileBlock(
   existingContent: string | null,
   block: string,
 ): string {
+  return applyManagedBlock(
+    existingContent,
+    block,
+    COMPLETION_MANAGED_BLOCK_START,
+    COMPLETION_MANAGED_BLOCK_END,
+  );
+}
+
+function applyManagedBlock(
+  existingContent: string | null,
+  block: string,
+  startMarker: string,
+  endMarker: string,
+): string {
   const normalizedBlock = ensureTrailingNewline(normalizeNewlines(block));
   const normalizedExisting = normalizeNewlines(existingContent ?? "");
-  const blockPattern = new RegExp(
-    `${escapeRegex(COMPLETION_MANAGED_BLOCK_START)}[\\s\\S]*?${escapeRegex(COMPLETION_MANAGED_BLOCK_END)}\\n?`,
-    "m",
-  );
+  const blockPattern = buildManagedBlockPattern(startMarker, endMarker);
 
   if (blockPattern.test(normalizedExisting)) {
     return ensureTrailingNewline(
@@ -200,6 +291,15 @@ export function applyManagedProfileBlock(
 
   return ensureTrailingNewline(
     `${normalizedExisting.trimEnd()}\n\n${normalizedBlock.trimEnd()}`,
+  );
+}
+
+function buildBashBootstrapProfileBlock(bashrcPath: string): string {
+  const escapedPath = shellQuoteDouble(bashrcPath);
+  return buildManagedBlock(
+    BASH_BOOTSTRAP_MANAGED_BLOCK_START,
+    BASH_BOOTSTRAP_MANAGED_BLOCK_END,
+    [`[ -f "${escapedPath}" ] && . "${escapedPath}"`],
   );
 }
 
@@ -231,27 +331,48 @@ export async function buildCompletionInstallPlan(
 
   let profilePath: string | undefined;
   let profileContent: string | undefined;
+  let existingProfile: string | null = null;
+  let bootstrapProfilePath: string | undefined;
+  let bootstrapProfileContent: string | undefined;
+  let existingBootstrapProfile: string | null = null;
 
   if (shell === "bash") {
-    profilePath = await resolveBashProfilePath();
+    const bashPaths = await resolveBashProfilePath(env);
+    profilePath = bashPaths.profilePath;
+    existingProfile = bashPaths.existingProfile;
+    bootstrapProfilePath = bashPaths.bootstrapProfilePath;
+    existingBootstrapProfile = bashPaths.existingBootstrapProfile;
   } else if (shell === "zsh") {
-    profilePath = resolveZshProfilePath();
+    profilePath = resolveZshProfilePath(env);
   } else if (shell === "powershell") {
     profilePath = await resolvePowerShellProfilePath(env);
   }
 
   if (profilePath) {
-    const existingProfile = await readTextIfExists(profilePath);
+    if (shell !== "bash") {
+      existingProfile = await readTextIfExists(profilePath);
+    }
     profileContent = applyManagedProfileBlock(
       existingProfile,
       buildManagedProfileBlock(shell as Exclude<CompletionShell, "fish">, scriptPath),
     );
+    if (shell === "bash" && bootstrapProfilePath) {
+      bootstrapProfileContent = applyManagedBlock(
+        existingBootstrapProfile,
+        buildBashBootstrapProfileBlock(profilePath),
+        BASH_BOOTSTRAP_MANAGED_BLOCK_START,
+        BASH_BOOTSTRAP_MANAGED_BLOCK_END,
+      );
+    }
+
     return {
       shell,
       scriptPath,
       scriptContent,
       profilePath,
       profileContent,
+      bootstrapProfilePath,
+      bootstrapProfileContent,
       scriptWillCreate: existingScript === null,
       scriptWillUpdate:
         existingScript !== null &&
@@ -260,6 +381,15 @@ export async function buildCompletionInstallPlan(
       profileWillUpdate:
         existingProfile !== null &&
         normalizeNewlines(existingProfile) !== normalizeNewlines(profileContent),
+      bootstrapProfileWillCreate:
+        bootstrapProfilePath !== undefined &&
+        existingBootstrapProfile === null,
+      bootstrapProfileWillUpdate:
+        bootstrapProfilePath !== undefined &&
+        existingBootstrapProfile !== null &&
+        bootstrapProfileContent !== undefined &&
+        normalizeNewlines(existingBootstrapProfile) !==
+          normalizeNewlines(bootstrapProfileContent),
       reloadHint: reloadHintFor(shell, profilePath),
     };
   }
@@ -274,6 +404,8 @@ export async function buildCompletionInstallPlan(
       normalizeNewlines(existingScript) !== normalizeNewlines(scriptContent),
     profileWillCreate: false,
     profileWillUpdate: false,
+    bootstrapProfileWillCreate: false,
+    bootstrapProfileWillUpdate: false,
     reloadHint: reloadHintFor(shell, undefined),
   };
 }
@@ -292,6 +424,15 @@ export async function performCompletionInstall(
     await writeFile(plan.profilePath, plan.profileContent, "utf8");
   }
 
+  if (
+    plan.bootstrapProfilePath &&
+    plan.bootstrapProfileContent &&
+    (plan.bootstrapProfileWillCreate || plan.bootstrapProfileWillUpdate)
+  ) {
+    await mkdir(dirname(plan.bootstrapProfilePath), { recursive: true });
+    await writeFile(plan.bootstrapProfilePath, plan.bootstrapProfileContent, "utf8");
+  }
+
   return {
     mode: "completion-install",
     shell: plan.shell,
@@ -301,6 +442,14 @@ export async function performCompletionInstall(
     scriptUpdated: plan.scriptWillUpdate,
     profileCreated: plan.profileWillCreate,
     profileUpdated: plan.profileWillUpdate,
+    ...(plan.bootstrapProfilePath &&
+    (plan.bootstrapProfileWillCreate || plan.bootstrapProfileWillUpdate)
+      ? {
+          bootstrapProfilePath: plan.bootstrapProfilePath,
+          bootstrapProfileCreated: plan.bootstrapProfileWillCreate,
+          bootstrapProfileUpdated: plan.bootstrapProfileWillUpdate,
+        }
+      : {}),
     reloadHint: plan.reloadHint,
   };
 }
@@ -308,6 +457,7 @@ export async function performCompletionInstall(
 export const completionInstallInternals = {
   applyManagedProfileBlock,
   buildManagedProfileBlock,
+  buildBashBootstrapProfileBlock,
   completionScriptPath,
   reloadHintFor,
 };

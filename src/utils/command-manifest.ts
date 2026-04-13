@@ -2897,7 +2897,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
         "privacy-pools completion powershell >> $PROFILE"
       ],
-      "jsonFields": "{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, reloadHint? }",
+      "jsonFields": "{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, bootstrapProfilePath?, bootstrapProfileCreated?, bootstrapProfileUpdated?, reloadHint? }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,

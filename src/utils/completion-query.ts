@@ -49,10 +49,14 @@ export function isCompletionShell(value: string): value is CompletionShell {
 
 export function detectCompletionShell(
   envShell: string | undefined = process.env.SHELL,
+  platform: NodeJS.Platform = process.platform,
 ): CompletionShell {
   const raw = (envShell ?? "").toLowerCase();
   if (raw.includes("zsh")) return "zsh";
   if (raw.includes("fish")) return "fish";
+  if (raw.includes("pwsh") || raw.includes("powershell")) return "powershell";
+  if (raw.includes("bash")) return "bash";
+  if (platform === "win32") return "powershell";
   return "bash";
 }
 

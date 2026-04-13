@@ -21,7 +21,7 @@ describe("completion query helpers", () => {
     }
   });
 
-  test("detects supported shells and falls back to bash", () => {
+  test("detects supported shells and defaults Windows to PowerShell", () => {
     expect(isCompletionShell("bash")).toBe(true);
     expect(isCompletionShell("zsh")).toBe(true);
     expect(isCompletionShell("fish")).toBe(true);
@@ -31,7 +31,11 @@ describe("completion query helpers", () => {
     expect(detectCompletionShell("/bin/zsh")).toBe("zsh");
     expect(detectCompletionShell("/opt/homebrew/bin/fish")).toBe("fish");
     expect(detectCompletionShell("/bin/bash")).toBe("bash");
+    expect(detectCompletionShell("C:/Program Files/PowerShell/7/pwsh.exe")).toBe(
+      "powershell",
+    );
     expect(detectCompletionShell("")).toBe("bash");
+    expect(detectCompletionShell("", "win32")).toBe("powershell");
   });
 
   test("suggests top-level commands and global flags", () => {

@@ -784,7 +784,7 @@ privacy-pools completion powershell >> $PROFILE
 | `-s, --shell <shell>` | Target shell |
 | `--install` | Install shell completion for your current shell |
 
-**JSON output:** `{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, reloadHint? }`
+**JSON output:** `{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, bootstrapProfilePath?, bootstrapProfileCreated?, bootstrapProfileUpdated?, reloadHint? }`
 
 ### `capabilities`
 
