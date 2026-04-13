@@ -79,6 +79,61 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 }
 
 #[test]
+fn native_wide_output_changes_human_read_only_layouts() {
+    let fixture = launch_fixture_server();
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let env = [
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
+        ("LANG", "en_US.UTF-8"),
+        ("COLUMNS", "80"),
+    ];
+
+    let default_pools = run_native_with_env(&["--chain", "sepolia", "pools"], &env);
+    assert!(default_pools.status.success());
+    let default_pools_stderr = stderr_string(&default_pools);
+    assert!(!default_pools_stderr.contains("Pool Address"));
+
+    let wide_pools =
+        run_native_with_env(&["--format", "wide", "--chain", "sepolia", "pools"], &env);
+    assert!(wide_pools.status.success());
+    let wide_pools_stderr = stderr_string(&wide_pools);
+    assert!(wide_pools_stderr.contains("Pool Address"));
+    assert!(wide_pools_stderr.contains("Scope"));
+    assert!(wide_pools_stderr.contains("12345"));
+
+    let default_activity = run_native_with_env(&["--chain", "sepolia", "activity"], &env);
+    assert!(default_activity.status.success());
+    let default_activity_stderr = stderr_string(&default_activity);
+    assert!(!default_activity_stderr.contains("Pool Address"));
+
+    let wide_activity = run_native_with_env(
+        &["--format", "wide", "--chain", "sepolia", "activity"],
+        &env,
+    );
+    assert!(wide_activity.status.success());
+    let wide_activity_stderr = stderr_string(&wide_activity);
+    assert!(wide_activity_stderr.contains("Pool Address"));
+    assert!(wide_activity_stderr.contains("Chain"));
+    assert!(wide_activity_stderr.contains("11155111"));
+
+    let default_stats = run_native_with_env(&["stats"], &env);
+    assert!(default_stats.status.success());
+    let default_stats_stderr = stderr_string(&default_stats);
+    assert!(default_stats_stderr.contains("All time:"));
+    assert!(default_stats_stderr.contains("Last 24h:"));
+    assert!(!default_stats_stderr.contains("Metric   All Time   Last 24h"));
+
+    let wide_stats = run_native_with_env(&["--format", "wide", "stats"], &env);
+    assert!(wide_stats.status.success());
+    let wide_stats_stderr = stderr_string(&wide_stats);
+    assert!(wide_stats_stderr.contains("Metric"));
+    assert!(wide_stats_stderr.contains("All Time"));
+    assert!(wide_stats_stderr.contains("Last 24h"));
+}
+
+#[test]
 fn native_activity_human_output_uses_text_labels() {
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();

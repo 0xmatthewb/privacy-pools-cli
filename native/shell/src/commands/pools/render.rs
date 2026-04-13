@@ -232,7 +232,7 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         let rows = data
             .filtered_pools
             .iter()
-            .map(|entry| pool_listing_row(entry, data.all_chains))
+            .map(|entry| pool_listing_row(entry, data.all_chains, false))
             .collect::<Vec<_>>();
         print_csv(headers, rows);
         return;
@@ -351,7 +351,7 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
     write_stderr_text(&format_section_heading("Summary"));
     write_stderr_text(&format_key_value_rows(&summary_rows));
 
-    let headers = if data.all_chains {
+    let mut headers = if data.all_chains {
         vec![
             "Chain",
             "Asset",
@@ -373,10 +373,13 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
             "Vetting Fee",
         ]
     };
+    if mode.is_wide() {
+        headers.extend(["Pool Address", "Scope"]);
+    }
     let rows = data
         .filtered_pools
         .iter()
-        .map(|entry| pool_listing_row(entry, data.all_chains))
+        .map(|entry| pool_listing_row(entry, data.all_chains, mode.is_wide()))
         .collect::<Vec<_>>();
     print_table(headers, rows);
     write_stderr_text(&format_muted_block(
@@ -727,7 +730,7 @@ fn chain_summary_to_json(summary: ChainSummary) -> Value {
     })
 }
 
-fn pool_listing_row(entry: &PoolListingEntry, include_chain: bool) -> Vec<String> {
+fn pool_listing_row(entry: &PoolListingEntry, include_chain: bool, is_wide: bool) -> Vec<String> {
     let mut row = Vec::new();
     if include_chain {
         row.push(entry.chain.clone());
@@ -755,6 +758,10 @@ fn pool_listing_row(entry: &PoolListingEntry, include_chain: bool) -> Vec<String
     ));
     row.push(format_pool_minimum_deposit(entry));
     row.push(format_bps_value(&entry.vetting_fee_bps));
+    if is_wide {
+        row.push(format_address(&entry.pool, 8));
+        row.push(entry.scope.clone());
+    }
     row
 }
 
@@ -936,7 +943,7 @@ mod extended_tests {
     #[test]
     fn listing_rows_format_amounts_usd_and_fees_for_single_and_multi_chain() {
         let entry = sample_entry();
-        let single = pool_listing_row(&entry, false);
+        let single = pool_listing_row(&entry, false, false);
         assert_eq!(single[0], "ETH");
         assert_eq!(single[1], "42");
         assert_eq!(single[2], "5 ETH");
@@ -945,9 +952,13 @@ mod extended_tests {
         assert_eq!(single[5], "0.001 ETH");
         assert_eq!(single[6], "0.50%");
 
-        let multi = pool_listing_row(&entry, true);
+        let multi = pool_listing_row(&entry, true, false);
         assert_eq!(multi[0], "mainnet");
         assert_eq!(multi[1], "ETH");
+
+        let wide = pool_listing_row(&entry, false, true);
+        assert_eq!(wide[7], "0x22222222...22222222");
+        assert_eq!(wide[8], "12345");
     }
 
     #[test]

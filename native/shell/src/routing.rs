@@ -4,6 +4,7 @@ use crate::root_argv::{all_non_option_tokens, ParsedRootArgv};
 #[derive(Debug, Clone)]
 pub(crate) struct NativeMode {
     pub(crate) format: OutputFormat,
+    pub(crate) is_wide: bool,
     pub(crate) is_quiet: bool,
 }
 
@@ -14,6 +15,10 @@ impl NativeMode {
 
     pub(crate) fn is_csv(&self) -> bool {
         matches!(self.format, OutputFormat::Csv)
+    }
+
+    pub(crate) fn is_wide(&self) -> bool {
+        self.is_wide
     }
 }
 
@@ -35,6 +40,7 @@ pub(crate) fn resolve_mode(parsed: &ParsedRootArgv) -> NativeMode {
 
     NativeMode {
         format,
+        is_wide: parsed.format_flag_value.as_deref() == Some("wide"),
         is_quiet: parsed.is_quiet || parsed.is_agent,
     }
 }
@@ -328,6 +334,7 @@ mod tests {
         let mode = resolve_mode(&parsed);
         assert!(mode.is_json());
         assert!(!mode.is_csv());
+        assert!(!mode.is_wide());
         assert!(mode.is_quiet);
     }
 
@@ -383,6 +390,17 @@ mod tests {
         let mode = resolve_mode(&parsed);
         assert!(!mode.is_json());
         assert!(!mode.is_csv());
+        assert!(!mode.is_wide());
+        assert!(!mode.is_quiet);
+    }
+
+    #[test]
+    fn resolve_mode_preserves_wide_format_for_human_output() {
+        let parsed = parse_root_argv(&argv(&["--format", "wide", "activity"]));
+        let mode = resolve_mode(&parsed);
+        assert!(!mode.is_json());
+        assert!(!mode.is_csv());
+        assert!(mode.is_wide());
         assert!(!mode.is_quiet);
     }
 

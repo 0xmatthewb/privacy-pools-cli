@@ -1,9 +1,9 @@
 use super::format::{format_asp_approval_status_label, format_tx_hash_short};
 use super::model::{ActivityRenderData, NormalizedActivityEvent};
 use crate::output::{
-    build_next_action, format_activity_direction_label, format_callout, format_command_heading,
-    format_key_value_rows, format_section_heading, format_time_ago, print_csv, print_json_success,
-    print_table, render_next_steps, write_stderr_text, CalloutKind,
+    build_next_action, format_activity_direction_label, format_address, format_callout,
+    format_command_heading, format_key_value_rows, format_section_heading, format_time_ago,
+    print_csv, print_json_success, print_table, render_next_steps, write_stderr_text, CalloutKind,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
@@ -200,17 +200,47 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
         .events
         .iter()
         .map(|event| {
-            vec![
+            let mut row = vec![
                 format_activity_direction_label(&event.event_type),
                 activity_pool_label(event),
                 event.amount_formatted.clone(),
                 format_asp_approval_status_label(&event.review_status),
                 format_time_ago(event.timestamp_ms),
                 format_tx_hash_short(event.tx_hash.as_deref()),
-            ]
+            ];
+            if mode.is_wide() {
+                row.push(
+                    event
+                        .pool_address
+                        .as_deref()
+                        .map(|value| format_address(value, 8))
+                        .unwrap_or_else(|| "-".to_string()),
+                );
+                row.push(
+                    event
+                        .chain_id
+                        .map(|value| value.to_string())
+                        .unwrap_or_else(|| "-".to_string()),
+                );
+            }
+            row
         })
         .collect::<Vec<_>>();
-    print_table(vec!["Type", "Pool", "Amount", "Status", "Time", "Tx"], rows);
+    let headers = if mode.is_wide() {
+        vec![
+            "Type",
+            "Pool",
+            "Amount",
+            "Status",
+            "Time",
+            "Tx",
+            "Pool Address",
+            "Chain",
+        ]
+    } else {
+        vec!["Type", "Pool", "Amount", "Status", "Time", "Tx"]
+    };
+    print_table(headers, rows);
 
     let mut next_actions = Vec::<Value>::new();
     if let Some(total_pages) = data.total_pages {

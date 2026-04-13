@@ -32,6 +32,35 @@ const nativeManifestPath = join(
   "generated",
   "manifest.json",
 );
+const jsPoolsRendererPath = join(repoRoot, "src", "output", "pools.ts");
+const jsActivityRendererPath = join(repoRoot, "src", "output", "activity.ts");
+const jsStatsRendererPath = join(repoRoot, "src", "output", "stats.ts");
+const nativePoolsRendererPath = join(
+  repoRoot,
+  "native",
+  "shell",
+  "src",
+  "commands",
+  "pools",
+  "render.rs",
+);
+const nativeActivityRendererPath = join(
+  repoRoot,
+  "native",
+  "shell",
+  "src",
+  "commands",
+  "activity",
+  "render.rs",
+);
+const nativeStatsRendererPath = join(
+  repoRoot,
+  "native",
+  "shell",
+  "src",
+  "commands",
+  "stats.rs",
+);
 
 describe("output format parity conformance", () => {
   const sorted = (values: readonly string[]) => [...values].sort();
@@ -84,5 +113,24 @@ describe("output format parity conformance", () => {
     expect(nativeManifest.structuredRootHelp).toContain(
       `(choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`,
     );
+  });
+
+  test("wide renderer contracts stay aligned between js and native fast paths", () => {
+    const jsPoolsRenderer = readFileSync(jsPoolsRendererPath, "utf8");
+    const jsActivityRenderer = readFileSync(jsActivityRendererPath, "utf8");
+    const jsStatsRenderer = readFileSync(jsStatsRendererPath, "utf8");
+    const nativePoolsRenderer = readFileSync(nativePoolsRendererPath, "utf8");
+    const nativeActivityRenderer = readFileSync(nativeActivityRendererPath, "utf8");
+    const nativeStatsRenderer = readFileSync(nativeStatsRendererPath, "utf8");
+
+    expect(jsPoolsRenderer).toContain('"Pool Address", "Scope"');
+    expect(nativePoolsRenderer).toContain('"Pool Address", "Scope"');
+
+    expect(jsActivityRenderer).toContain('"Pool Address", "Chain"');
+    expect(nativeActivityRenderer).toContain('"Pool Address", "Chain"');
+
+    expect(jsStatsRenderer).toContain('ctx.mode.isWide');
+    expect(nativeStatsRenderer).toContain("mode.is_wide()");
+    expect(nativeStatsRenderer).toContain("should_render_wide_tables");
   });
 });

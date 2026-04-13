@@ -5,7 +5,7 @@ use crate::error::CliError;
 use crate::output::{
     build_next_action, format_command_heading, format_count_number, format_key_value_rows,
     format_section_heading, print_csv, print_json_success, print_table, render_next_steps,
-    start_spinner, write_stderr_text,
+    should_render_wide_tables, start_spinner, write_stderr_text,
 };
 use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_statistics, fetch_pool_statistics};
@@ -195,7 +195,7 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
         summary_rows.push(("Cache timestamp", cache_timestamp));
     }
     write_stderr_text(&format_key_value_rows(&summary_rows));
-    print_table(vec!["Metric", "All Time", "Last 24h"], rows);
+    render_stats_human_rows(mode, &rows);
 
     render_next_steps(&[build_next_action(
         "pools",
@@ -243,7 +243,7 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
         summary_rows.push(("Cache timestamp", cache_timestamp));
     }
     write_stderr_text(&format_key_value_rows(&summary_rows));
-    print_table(vec!["Metric", "All Time", "Last 24h"], rows);
+    render_stats_human_rows(mode, &rows);
 
     let mut options = Map::new();
     options.insert("chain".to_string(), Value::String(data.chain.clone()));
@@ -281,6 +281,37 @@ fn stats_rows(all_time: &Value, last_24h: &Value) -> Vec<Vec<String>> {
             parse_count_value(last_24h.get("totalWithdrawalsCount")),
         ],
     ]
+}
+
+fn render_stats_human_rows(mode: &NativeMode, rows: &[Vec<String>]) {
+    if should_render_wide_tables(mode.is_wide()) {
+        print_table(vec!["Metric", "All Time", "Last 24h"], rows.to_vec());
+        return;
+    }
+
+    let all_time_rows = rows
+        .iter()
+        .map(|row| {
+            (
+                row.first().map(String::as_str).unwrap_or("Metric"),
+                row.get(1).cloned().unwrap_or_else(|| "-".to_string()),
+            )
+        })
+        .collect::<Vec<_>>();
+    let last_24h_rows = rows
+        .iter()
+        .map(|row| {
+            (
+                row.first().map(String::as_str).unwrap_or("Metric"),
+                row.get(2).cloned().unwrap_or_else(|| "-".to_string()),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    write_stderr_text(&format_section_heading("All time"));
+    write_stderr_text(&format_key_value_rows(&all_time_rows));
+    write_stderr_text(&format_section_heading("Last 24h"));
+    write_stderr_text(&format_key_value_rows(&last_24h_rows));
 }
 
 fn parse_usd_value(value: Option<&Value>) -> String {

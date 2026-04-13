@@ -492,6 +492,14 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
     write_stderr_text(output.trim_end());
 }
 
+pub fn should_render_wide_tables(force_wide: bool) -> bool {
+    force_wide
+        || matches!(
+            output_width_class(current_terminal_columns()),
+            OutputWidthClass::Wide
+        )
+}
+
 fn print_stacked_table(headers: &[String], rows: &[Vec<String>]) {
     let mut output = String::new();
     let label_width = headers
