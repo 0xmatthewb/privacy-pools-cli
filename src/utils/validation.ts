@@ -12,8 +12,16 @@ export function resolveChain(
 ): ChainConfig {
   const name = chainName ?? defaultChain ?? "mainnet";
 
-  const normalized = name.toLowerCase();
-  const resolvedName = normalized === "ethereum" ? "mainnet" : normalized;
+  const normalized = name.toLowerCase().trim();
+
+  // Accept viem canonical names (as shown in the website) alongside CLI short names.
+  const CHAIN_ALIASES: Record<string, string> = {
+    ethereum: "mainnet",
+    "arbitrum one": "arbitrum",
+    "op mainnet": "optimism",
+    "op sepolia": "op-sepolia",
+  };
+  const resolvedName = CHAIN_ALIASES[normalized] ?? normalized;
   const config = CHAINS[resolvedName];
   if (!config) {
     const suggestion = didYouMean(name, CHAIN_NAMES);

@@ -31,7 +31,7 @@ defineScenarioSuite("stats acceptance", [
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("--asset");
+      expect(json.error.message).toContain("asset");
     }),
     runCliStep(["--json", "--chain", "mainnet", "stats", "global"], {
       timeoutMs: 10_000,
@@ -174,7 +174,7 @@ defineScenarioSuite("stats acceptance", [
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("--asset");
+      expect(json.error.message).toContain("asset");
     }),
     runCliStep(["--agent", "stats", "global"], {
       timeoutMs: 10_000,

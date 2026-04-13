@@ -14,10 +14,18 @@ pub struct CliConfig {
 }
 
 pub fn resolve_chain(name: &str, manifest: &Manifest) -> Result<ChainDefinition, CliError> {
+    // Accept viem canonical names (as shown in the website) alongside CLI short names.
+    let resolved = match name.to_lowercase().trim() {
+        "ethereum" => "mainnet",
+        "arbitrum one" => "arbitrum",
+        "op mainnet" => "optimism",
+        "op sepolia" => "op-sepolia",
+        _ => name,
+    };
     let base = manifest
         .runtime_config
         .chains
-        .get(name)
+        .get(resolved)
         .cloned()
         .ok_or_else(|| {
             CliError::input(

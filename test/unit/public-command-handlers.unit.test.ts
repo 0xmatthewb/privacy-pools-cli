@@ -349,7 +349,7 @@ describe("public read-only command handlers", () => {
       saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
 
       const { json } = await captureAsyncJsonOutput(() =>
-        handleActivityCommand({}, fakeCommand({ json: true })),
+        handleActivityCommand(undefined, {}, fakeCommand({ json: true })),
       );
 
       expect(json.success).toBe(true);
@@ -372,7 +372,8 @@ describe("public read-only command handlers", () => {
 
       const { json } = await captureAsyncJsonOutput(() =>
         handleActivityCommand(
-          { asset: "ETHX", page: "1", limit: "5" },
+          "ETHX",
+          { page: "1", limit: "5" },
           fakeCommand({ json: true, chain: "sepolia" }),
         ),
       );
@@ -418,7 +419,8 @@ describe("public read-only command handlers", () => {
 
       const { json } = await captureAsyncJsonOutput(() =>
         handlePoolStatsCommand(
-          { asset: "ETHX" },
+          "ETHX",
+          {},
           fakeStatsSubcommand({ json: true, chain: "sepolia" }),
         ),
       );

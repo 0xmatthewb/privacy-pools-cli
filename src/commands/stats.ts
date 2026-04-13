@@ -4,7 +4,7 @@ import { loadConfig } from "../services/config.js";
 import { resolvePool } from "../services/pools.js";
 import { fetchGlobalStatistics, fetchPoolStatistics } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
-import { spinner } from "../utils/format.js";
+import { spinner, warn } from "../utils/format.js";
 import type {
   GlobalOptions,
   PoolStatisticsResponse,
@@ -84,25 +84,34 @@ export async function handleGlobalStatsCommand(
 }
 
 export async function handlePoolStatsCommand(
+  positionalAsset: string | undefined,
   opts: PoolStatsCommandOptions,
   subCmd: Command,
 ): Promise<void> {
   const globalOpts = subCmd.parent?.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
+  const isQuiet = mode.isQuiet;
+  const silent = isQuiet || isJson;
+
+  // Resolve positional vs deprecated --asset flag.
+  const asset = positionalAsset ?? opts.asset;
+  if (opts.asset !== undefined && positionalAsset === undefined) {
+    warn("--asset is deprecated. Use: privacy-pools stats pool <asset> (e.g. privacy-pools stats pool ETH)", silent);
+  }
 
   try {
-    if (!opts.asset) {
+    if (!asset) {
       throw new CLIError(
-        "Missing required --asset <symbol|address>.",
+        "Missing asset argument.",
         "INPUT",
-        "Example: privacy-pools stats pool --asset ETH",
+        "Example: privacy-pools stats pool ETH",
       );
     }
 
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
-    const pool = await resolvePool(chainConfig, opts.asset, globalOpts?.rpcUrl);
+    const pool = await resolvePool(chainConfig, asset, globalOpts?.rpcUrl);
     const silent = isJson || mode.isQuiet;
 
     if (

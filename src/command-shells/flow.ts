@@ -20,7 +20,7 @@ export function createFlowCommand(): Command {
     .description(startMetadata.description)
     .argument("<amount>", "Amount to deposit (e.g. 0.1)")
     .argument("<asset>", "Asset symbol (e.g. ETH, USDC)")
-    .option("-t, --to <address>", "Recipient address for the later private withdrawal")
+    .option("-t, --to <address>", "Recipient address for private withdrawal (prompted interactively; required in --agent mode)")
     .addOption(
       new Option(
         "--privacy-delay <profile>",

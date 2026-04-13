@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
@@ -25,9 +25,12 @@ export function createStatsCommand(): Command {
   command
     .command("pool")
     .description(poolMetadata.description)
-    .option(
-      "-a, --asset <symbol|address>",
-      "Pool asset (symbol like ETH, USDC, or token address)",
+    .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
+    .addOption(
+      new Option(
+        "-a, --asset <symbol|address>",
+        "Deprecated: use positional argument instead",
+      ).hideHelp(),
     )
     .addHelpText("after", commandHelpText(poolMetadata.help ?? {}))
     .action(

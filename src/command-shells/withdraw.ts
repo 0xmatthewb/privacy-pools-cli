@@ -8,9 +8,9 @@ export function createWithdrawCommand(): Command {
   const quoteMetadata = getCommandMetadata("withdraw quote");
   const command = new Command("withdraw")
     .description(metadata.description)
-    .argument("[amount]", "Amount to withdraw (e.g. 0.05, 50%)")
+    .argument("[amount]", "Amount to withdraw (e.g. 0.05, 50%, 100%) or omit for interactive")
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
-    .option("-t, --to <address>", "Recipient address (required for relayed)")
+    .option("-t, --to <address>", "Recipient address (required unless --direct; prompted interactively)")
     .option(
       "-p, --pool-account <PA-#|#>",
       "Withdraw from a specific Pool Account (e.g. PA-2)",
@@ -25,7 +25,7 @@ export function createWithdrawCommand(): Command {
     .addOption(
       new Option(
         "--unsigned [format]",
-        "Build unsigned transaction without submitting; format: envelope (default) or tx",
+        "Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx)",
       ).choices(["envelope", "tx"]),
     )
     .option(
@@ -38,7 +38,7 @@ export function createWithdrawCommand(): Command {
         "Deprecated: use positional argument instead",
       ).hideHelp(),
     )
-    .option("--all", "Withdraw entire Pool Account balance")
+    .option("--all", "Withdraw entire Pool Account balance (requires asset: withdraw --all ETH)")
     .option(
       "--extra-gas",
       "Request gas tokens with withdrawal (default: true for ERC20)",
@@ -60,7 +60,12 @@ export function createWithdrawCommand(): Command {
       "Amount to withdraw (or asset symbol, see examples)",
     )
     .argument("[amount]", "Amount (when asset is the first argument)")
-    .option("-a, --asset <symbol|address>", "Asset to quote")
+    .addOption(
+      new Option(
+        "-a, --asset <symbol|address>",
+        "Deprecated: use positional argument instead",
+      ).hideHelp(),
+    )
     .option(
       "-t, --to <address>",
       "Recipient address (recommended for an accurate fee quote)",

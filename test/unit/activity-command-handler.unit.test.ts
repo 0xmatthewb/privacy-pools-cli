@@ -244,7 +244,8 @@ describe("activity command handler", () => {
   test("returns pool activity for an explicit asset on a single chain", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       handleActivityCommand(
-        { asset: "ETH", page: "2", limit: "5" },
+        "ETH",
+        { page: "2", limit: "5" },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
     );
@@ -278,7 +279,7 @@ describe("activity command handler", () => {
     const resolvePoolCallsBefore = resolvePoolMock.mock.calls.length;
 
     const { json, stderr } = await captureAsyncJsonOutput(() =>
-      handleActivityCommand({}, fakeCommand({ json: true })),
+      handleActivityCommand(undefined, {}, fakeCommand({ json: true })),
     );
 
     expect(json.success).toBe(true);
@@ -295,7 +296,7 @@ describe("activity command handler", () => {
 
   test("filters global activity to the selected chain and keeps null-chain events", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
-      handleActivityCommand({}, fakeCommand({ json: true, chain: "optimism" })),
+      handleActivityCommand(undefined, {}, fakeCommand({ json: true, chain: "optimism" })),
     );
 
     expect(json.success).toBe(true);
@@ -316,6 +317,7 @@ describe("activity command handler", () => {
   test("prints a structured INPUT error when page or limit is invalid", async () => {
     const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleActivityCommand(
+        undefined,
         { page: "0", limit: "-1" },
         fakeCommand({ json: true }),
       ),
@@ -332,7 +334,7 @@ describe("activity command handler", () => {
 
   test("renders human output for single-chain global activity", async () => {
     const { stdout, stderr } = await captureAsyncOutput(() =>
-      handleActivityCommand({}, fakeCommand({ chain: "optimism" })),
+      handleActivityCommand(undefined, {}, fakeCommand({ chain: "optimism" })),
     );
 
     expect(stdout).toBe("");

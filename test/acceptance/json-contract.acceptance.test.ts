@@ -242,11 +242,11 @@ defineScenarioSuite("json-contract acceptance", [
       expect(json.success).toBe(false);
       expect(json.errorCode).toBe("INPUT_ERROR");
       expect(json.errorMessage).toBe(
-        "Missing required --asset <symbol|address>.",
+        "Missing asset argument.",
       );
       expect(json.error.category).toBe("INPUT");
       expect(json.error.code).toBe("INPUT_ERROR");
-      expect(json.error.hint).toContain("stats pool --asset ETH");
+      expect(json.error.hint).toContain("stats pool ETH");
     }),
   ]),
   defineScenario("init keeps the semantic setup contract", [

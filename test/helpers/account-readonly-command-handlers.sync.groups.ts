@@ -40,7 +40,7 @@ export function registerReadonlySyncTests(): void {
     );
 
     const { json } = await captureAsyncJsonOutput(() =>
-      handleSyncCommand({}, fakeCommand({ json: true })),
+      handleSyncCommand(undefined, {}, fakeCommand({ json: true })),
     );
 
     expect(json.success).toBe(true);

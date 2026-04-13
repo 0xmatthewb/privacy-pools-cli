@@ -330,7 +330,7 @@ describe("account command error boundaries", () => {
       throw realErrors.accountMigrationRequiredError();
     });
 
-    await handleSyncCommand({}, fakeCommand({ json: true, chain: "sepolia" }));
+    await handleSyncCommand(undefined, {}, fakeCommand({ json: true, chain: "sepolia" }));
 
     expect(printErrorMock).toHaveBeenCalledTimes(1);
     const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
@@ -352,14 +352,14 @@ describe("account command error boundaries", () => {
       );
     });
 
-    await handleSyncCommand({}, fakeCommand({ chain: "sepolia" }));
+    await handleSyncCommand(undefined, {}, fakeCommand({ chain: "sepolia" }));
 
     expect(printErrorMock).toHaveBeenCalledTimes(1);
     expect(renderSyncCompleteMock).not.toHaveBeenCalled();
   });
 
   test("sync requests strict initialization before running event sync", async () => {
-    await handleSyncCommand({}, fakeCommand({ json: true, chain: "sepolia" }));
+    await handleSyncCommand(undefined, {}, fakeCommand({ json: true, chain: "sepolia" }));
 
     expect(initializeAccountServiceWithStateMock).toHaveBeenCalledTimes(1);
     expect(initializeAccountServiceWithStateMock).toHaveBeenCalledWith(

@@ -11,7 +11,7 @@ import {
 } from "../services/account.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
-import { spinner, verbose } from "../utils/format.js";
+import { spinner, verbose, warn } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -22,6 +22,7 @@ import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 export { createSyncCommand } from "../command-shells/sync.js";
 
 export async function handleSyncCommand(
+  positionalAsset: string | undefined,
   opts: { asset?: string },
   cmd: Command,
 ): Promise<void> {
@@ -30,6 +31,12 @@ export async function handleSyncCommand(
   const isVerbose = globalOpts?.verbose ?? false;
   const ctx = createOutputContext(mode, isVerbose);
   const silent = isSilent(ctx);
+
+  // Resolve positional vs deprecated --asset flag.
+  const asset = positionalAsset ?? opts.asset;
+  if (opts.asset !== undefined && positionalAsset === undefined) {
+    warn("--asset is deprecated. Use: privacy-pools sync <asset> (e.g. privacy-pools sync ETH)", silent);
+  }
 
   try {
     if (await maybeRenderPreviewScenario("sync")) {
@@ -42,8 +49,8 @@ export async function handleSyncCommand(
     const spin = spinner("Resolving pools for sync...", silent);
     spin.start();
 
-    const pools = opts.asset
-      ? [await resolvePool(chainConfig, opts.asset, globalOpts?.rpcUrl)]
+    const pools = asset
+      ? [await resolvePool(chainConfig, asset, globalOpts?.rpcUrl)]
       : await listPools(chainConfig, globalOpts?.rpcUrl);
 
     if (pools.length === 0) {

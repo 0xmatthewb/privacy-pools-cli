@@ -221,8 +221,9 @@ export function getRelayedWithdrawalRemainderAdvisory(params: {
   return (
     `${poolAccountId} would keep ${formatAmount(remainingBalance, decimals, assetSymbol)}, ` +
     `which is below the relayer minimum (${formatAmount(minWithdrawAmount, decimals, assetSymbol)}). ` +
-    "Withdraw less to keep a privately withdrawable remainder, use --all/100% to fully withdraw it, " +
-    "or ragequit the remainder publicly later."
+    "Options: withdraw a smaller amount to keep a privately withdrawable remainder, " +
+    "use --all/100% to withdraw the entire balance, " +
+    "or proceed and ragequit the remainder later (compromises privacy for the remainder)."
   );
 }
 
@@ -789,6 +790,7 @@ export async function handleWithdrawCommand(
             symbol: pool.symbol,
             chainName: chainConfig.name,
             knownPoolAccountsCount: allKnownPoolAccounts.length,
+            availablePaIds: allKnownPoolAccounts.map((pa) => pa.paId),
           });
           throw new CLIError(
             unknownPoolAccount.message,
@@ -961,6 +963,7 @@ export async function handleWithdrawCommand(
             symbol: pool.symbol,
             chainName: chainConfig.name,
             knownPoolAccountsCount: allPoolAccounts.length,
+            availablePaIds: allPoolAccounts.map((pa) => pa.paId),
           });
           throw new CLIError(
             unknownPoolAccount.message,
@@ -2076,7 +2079,7 @@ export async function handleWithdrawQuoteCommand(
 
   // Commander.js consumes --asset / --to at the parent `withdraw` command
   // before the `quote` subcommand sees them.  Fall back to parent opts so
-  // that `withdraw quote 0.1 --asset ETH --to 0x...` works as documented.
+  // that `withdraw quote 0.1 --asset ETH --to 0x...` still works.
   const withdrawOpts = subCmd.parent?.opts() as
     | Record<string, unknown>
     | undefined;
@@ -2084,6 +2087,11 @@ export async function handleWithdrawQuoteCommand(
     | string
     | undefined;
   const effectiveTo = (opts.to ?? withdrawOpts?.to) as string | undefined;
+
+  // Deprecation notice for --asset flag.
+  if (effectiveAsset !== undefined) {
+    warn("--asset is deprecated for withdraw quote. Use: privacy-pools withdraw quote <amount> <asset>", silent);
+  }
 
   try {
     if (await maybeRenderPreviewScenario("withdraw quote")) {

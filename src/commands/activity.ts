@@ -8,7 +8,7 @@ import {
 import { resolvePool } from "../services/pools.js";
 import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
-import { spinner } from "../utils/format.js";
+import { spinner, warn } from "../utils/format.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
@@ -50,6 +50,7 @@ export function parsePositiveInt(
 export { parseNumberishValue as parseNumberish };
 
 export async function handleActivityCommand(
+  positionalAsset: string | undefined,
   opts: ActivityCommandOptions,
   cmd: Command,
 ): Promise<void> {
@@ -58,6 +59,12 @@ export async function handleActivityCommand(
   const isJson = mode.isJson;
   const isQuiet = mode.isQuiet;
   const silent = isQuiet || isJson;
+
+  // Resolve positional vs deprecated --asset flag.
+  const resolvedAsset = positionalAsset ?? opts.asset;
+  if (opts.asset !== undefined && positionalAsset === undefined) {
+    warn("--asset is deprecated. Use: privacy-pools activity <asset> (e.g. privacy-pools activity ETH)", silent);
+  }
 
   try {
     if (await maybeRenderPreviewScenario("activity")) {
@@ -81,12 +88,12 @@ export async function handleActivityCommand(
     const spin = spinner("Fetching public activity...", silent);
     spin.start();
 
-    // --asset requires a single chain for pool resolution
-    if (opts.asset) {
+    // Asset filter requires a single chain for pool resolution
+    if (resolvedAsset) {
       const chainConfig = resolveChain(explicitChain, config.defaultChain);
       const pool = await resolvePool(
         chainConfig,
-        opts.asset,
+        resolvedAsset,
         globalOpts?.rpcUrl,
       );
       const response = await fetchPoolEvents(
