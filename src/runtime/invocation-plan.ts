@@ -1,6 +1,6 @@
 import type { CliPackageInfo } from "../package-info.js";
 import type { ParsedRootArgv } from "../utils/root-argv.js";
-import { parseRootArgv } from "../utils/root-argv.js";
+import { hasLongFlag, parseRootArgv } from "../utils/root-argv.js";
 import {
   GENERATED_COMMAND_ALIAS_MAP,
   GENERATED_COMMAND_ROUTES,
@@ -131,6 +131,10 @@ export function invocationRequiresJsWorker(parsed: ParsedRootArgv): boolean {
   const route = resolveCommandRoute(parsed.nonOptionTokens);
   if (!route) {
     return parsed.firstCommandToken !== undefined || parsed.nonOptionTokens.length === 0;
+  }
+
+  if (route === "completion" && hasLongFlag(parsed.argv, "--install")) {
+    return true;
   }
 
   const commandRoute = GENERATED_COMMAND_ROUTES[

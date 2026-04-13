@@ -89,7 +89,7 @@ export function formatDepositReview(data: DepositReviewData): string {
       kind: "privacy",
       lines: [
         "Deposits are always public on-chain.",
-        "ASP approval unlocks private withdrawal via relayer.",
+        "Association Set Provider (ASP) approval unlocks private withdrawal via relayer.",
       ],
     },
     secondaryCallout: data.isErc20
@@ -346,7 +346,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       formatCallout(
         "warning",
         [
-          "Your deposit is now under ASP review. Private withdrawal unlocks after approval.",
+          "Your deposit is now under Association Set Provider (ASP) review. Private withdrawal unlocks after ASP approval.",
           `${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
         ],
       ),

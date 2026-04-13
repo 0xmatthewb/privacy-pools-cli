@@ -58,6 +58,24 @@ describe("help content", () => {
     expect(guide).toContain("AGENTS.md");
   });
 
+  test("guideText highlights website recovery import in quickstart guidance", () => {
+    const guide = guideText("quickstart");
+    expect(guide).toContain(
+      "privacy-pools init --recovery-phrase-file <downloaded-file>",
+    );
+    expect(guide).toContain(
+      "cat <downloaded-file> | privacy-pools init --recovery-phrase-stdin",
+    );
+  });
+
+  test("guideText formats unknown topics cleanly and lists valid topics once", () => {
+    const guide = guideText("definitely-not-a-topic");
+    expect(guide).toContain("Unknown guide topic: definitely-not-a-topic");
+    expect(guide).toContain("Available topics\n");
+    expect(guide).not.toContain("Available topics::");
+    expect(guide).not.toContain("topics.:");
+  });
+
   test("welcomeScreen includes npm link hint when running from source", () => {
     process.env.npm_lifecycle_event = "dev";
     process.env.npm_execpath = "/usr/local/bin/npm";
@@ -109,5 +127,13 @@ describe("help content", () => {
     } finally {
       rmSync(packageRoot, { recursive: true, force: true });
     }
+  });
+
+  test("welcomeScreen surfaces status and website restore commands", () => {
+    const welcome = welcomeScreen();
+    expect(welcome).toContain("privacy-pools status");
+    expect(welcome).toContain(
+      "privacy-pools init --recovery-phrase-file <downloaded-file>",
+    );
   });
 });

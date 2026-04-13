@@ -10,7 +10,8 @@
  * Display: a single dim line shown only on the welcome screen.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 import { resolveConfigHome } from "../runtime/config-paths.js";
 
@@ -20,6 +21,8 @@ export const CLI_NPM_PACKAGE_NAME = "privacy-pools-cli";
 export const REGISTRY_URL = `https://registry.npmjs.org/${CLI_NPM_PACKAGE_NAME}/latest`;
 export const UPDATE_CHECK_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 export const UPDATE_CHECK_FETCH_TIMEOUT_MS = 5_000;
+export const ENV_SUPPRESS_POST_COMMAND_UPDATE_NOTICE =
+  "PRIVACY_POOLS_CLI_SUPPRESS_POST_COMMAND_UPDATE_NOTICE";
 
 function registryUrl(): string {
   return process.env.PRIVACY_POOLS_NPM_REGISTRY_URL?.trim() || REGISTRY_URL;
@@ -31,6 +34,53 @@ function configDir(): string {
 
 function cachePath(): string {
   return join(configDir(), ".update-check.json");
+}
+
+function sanitizeForFilename(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
+}
+
+function getSessionIdentifier(): string | null {
+  const envSession =
+    process.env.TERM_SESSION_ID ||
+    process.env.ITERM_SESSION_ID ||
+    process.env.WT_SESSION ||
+    process.env.TMUX ||
+    process.env.STY ||
+    process.env.SSH_TTY;
+
+  if (envSession && envSession.trim().length > 0) {
+    return envSession.trim();
+  }
+
+  if (process.ppid > 1) {
+    return `ppid-${process.ppid}`;
+  }
+
+  return null;
+}
+
+function updateNoticeMarkerPath(): string {
+  const sessionId = getSessionIdentifier();
+  if (sessionId) {
+    return join(
+      tmpdir(),
+      `privacy-pools-update-notice-${sanitizeForFilename(sessionId)}.shown`,
+    );
+  }
+  return join(tmpdir(), "privacy-pools-update-notice-fallback.shown");
+}
+
+function hasShownUpdateNoticeThisSession(): boolean {
+  return existsSync(updateNoticeMarkerPath());
+}
+
+function markUpdateNoticeShownThisSession(): void {
+  try {
+    writeFileSync(updateNoticeMarkerPath(), "", { mode: 0o600 });
+  } catch {
+    // Best effort.
+  }
 }
 
 // ── Cache types ──────────────────────────────────────────────────────────────
@@ -104,6 +154,61 @@ export function getUpdateNotice(currentVersion: string): string | null {
     `  Update available: ${currentVersion} \u2192 ${cache.latestVersion}  ` +
     `(npm i -g ${CLI_NPM_PACKAGE_NAME}@${cache.latestVersion})`
   );
+}
+
+export interface PostCommandUpdateNoticeEligibility {
+  firstCommandToken?: string;
+  route?: string | null;
+  isWelcome: boolean;
+  isMachineMode: boolean;
+  isQuiet: boolean;
+  isHelpLike: boolean;
+  isVersionLike: boolean;
+}
+
+export function shouldShowPostCommandUpdateNotice(
+  eligibility: PostCommandUpdateNoticeEligibility,
+): boolean {
+  if (process.env[ENV_SUPPRESS_POST_COMMAND_UPDATE_NOTICE] === "1") {
+    return false;
+  }
+  if (eligibility.isWelcome || eligibility.isMachineMode || eligibility.isQuiet) {
+    return false;
+  }
+  if (eligibility.isHelpLike || eligibility.isVersionLike) {
+    return false;
+  }
+
+  const topLevelCommand = (
+    eligibility.route?.split(" ")[0] ??
+    eligibility.firstCommandToken ??
+    ""
+  ).trim();
+  if (topLevelCommand === "upgrade" || topLevelCommand === "completion") {
+    return false;
+  }
+
+  if (!process.stdout.isTTY || !process.stderr.isTTY) {
+    return false;
+  }
+
+  return true;
+}
+
+export function consumePostCommandUpdateNotice(
+  currentVersion: string,
+): string | null {
+  if (hasShownUpdateNoticeThisSession()) {
+    return null;
+  }
+
+  const notice = getUpdateNotice(currentVersion);
+  if (!notice) {
+    return null;
+  }
+
+  markUpdateNoticeShownThisSession();
+  return notice;
 }
 
 /**

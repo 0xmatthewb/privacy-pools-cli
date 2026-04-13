@@ -860,6 +860,7 @@ const STUB_POOL_DETAIL_DATA: PoolDetailRenderData = {
   chain: "sepolia",
   pool: STUB_POOL_DETAIL_POOL,
   tokenPrice: 2000,
+  walletState: "available",
   myPoolAccounts: [STUB_POOL_ACCOUNT_REF],
   recentActivity: STUB_ACTIVITY,
 };
@@ -894,7 +895,11 @@ describe("renderPoolDetail parity", () => {
 
   test("JSON mode: myFunds is null when myPoolAccounts is null", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const data: PoolDetailRenderData = { ...STUB_POOL_DETAIL_DATA, myPoolAccounts: null };
+    const data: PoolDetailRenderData = {
+      ...STUB_POOL_DETAIL_DATA,
+      walletState: "setup_required",
+      myPoolAccounts: null,
+    };
     const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
 
     const json = parseCapturedJson(stdout);
@@ -932,6 +937,7 @@ describe("renderPoolDetail parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: PoolDetailRenderData = {
       ...STUB_POOL_DETAIL_DATA,
+      walletState: "load_failed",
       myPoolAccounts: null,
       myFundsWarning: "Could not load your wallet state right now: boom",
     };
@@ -982,7 +988,11 @@ describe("renderPoolDetail parity", () => {
 
   test("human mode: shows init prompt when myPoolAccounts is null", () => {
     const ctx = createOutputContext(makeMode());
-    const data: PoolDetailRenderData = { ...STUB_POOL_DETAIL_DATA, myPoolAccounts: null };
+    const data: PoolDetailRenderData = {
+      ...STUB_POOL_DETAIL_DATA,
+      walletState: "setup_required",
+      myPoolAccounts: null,
+    };
     const { stderr } = captureOutput(() => renderPoolDetail(ctx, data));
 
     expect(stderr).toContain("privacy-pools init");
@@ -992,6 +1002,7 @@ describe("renderPoolDetail parity", () => {
     const ctx = createOutputContext(makeMode());
     const data: PoolDetailRenderData = {
       ...STUB_POOL_DETAIL_DATA,
+      walletState: "load_failed",
       myPoolAccounts: null,
       myFundsWarning: "Could not load your wallet state right now: Stored recovery phrase is invalid or corrupted.",
     };

@@ -188,20 +188,25 @@ export function printTable(
   }
 
   const fill = supportsUnicodeOutput() ? "─" : "-";
-  const headerRow = `  ${headers
-    .map((header, index) => chalk.bold(padDisplay(header, widths[index])))
-    .join(gap)}`;
-  const underlineRow = `  ${widths
-    .map((width) => chalk.dim(fill.repeat(width)))
-    .join(gap)}`;
   const bodyRows = rows.map(
     (row) =>
       `  ${row
         .map((cell, index) => padDisplay(cell ?? "-", widths[index]))
         .join(gap)}`,
   );
+  const lines: string[] = [];
 
-  process.stderr.write(`${headerRow}\n${underlineRow}\n${bodyRows.join("\n")}\n`);
+  if (!_suppressHeaders) {
+    lines.push(`  ${headers
+      .map((header, index) => chalk.bold(padDisplay(header, widths[index])))
+      .join(gap)}`);
+    lines.push(`  ${widths
+      .map((width) => chalk.dim(fill.repeat(width)))
+      .join(gap)}`);
+  }
+
+  lines.push(...bodyRows);
+  process.stderr.write(lines.filter((line) => line.length > 0).join("\n") + "\n");
 }
 
 function formatStackedTable(headers: string[], rows: string[][]): string {
@@ -335,13 +340,27 @@ function createStaticSpinner(text: string, quiet: boolean): Ora {
 
 // Module-level flag: when true, spinner() returns a silent/static spinner.
 let _suppressProgress = false;
+let _suppressHeaders = false;
 /** Called by resolveGlobalMode() when --no-progress is active. */
 export function setSuppressProgress(value: boolean): void {
   _suppressProgress = value;
 }
 
+/** Called by resolveGlobalMode() when --no-header is active. */
+export function setSuppressHeaders(value: boolean): void {
+  _suppressHeaders = value;
+}
+
+export function shouldSuppressHeaders(): boolean {
+  return _suppressHeaders;
+}
+
 export function spinner(text: string, quiet: boolean = false) {
-  if (_suppressProgress || process.env.PRIVACY_POOLS_CLI_STATIC_SPINNER === "1") {
+  if (
+    _suppressProgress ||
+    process.env.PRIVACY_POOLS_CLI_STATIC_SPINNER === "1" ||
+    process.stderr.isTTY !== true
+  ) {
     return withElapsedTracking(createStaticSpinner(text, _suppressProgress || quiet) as Ora);
   }
 

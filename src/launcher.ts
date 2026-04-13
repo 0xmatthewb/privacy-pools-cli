@@ -47,6 +47,12 @@ import { hasValidNativeChecksum } from "./native-package-metadata.js";
 import { CLIError, printError } from "./utils/errors.js";
 import type { ParsedRootArgv } from "./utils/root-argv.js";
 import { parseRootArgv } from "./utils/root-argv.js";
+import { installOutputAnsiGuards } from "./utils/terminal.js";
+import {
+  consumePostCommandUpdateNotice,
+  ENV_SUPPRESS_POST_COMMAND_UPDATE_NOTICE,
+  shouldShowPostCommandUpdateNotice,
+} from "./utils/update-check.js";
 
 const SIGNAL_EXIT_CODES: Partial<Record<NodeJS.Signals, number>> = {
   SIGINT: 130,
@@ -80,11 +86,49 @@ async function runJsWorkerInline(
   argv: string[],
 ): Promise<void> {
   const { runWorkerRequest } = await import("./runtime/v1/worker.js");
-  await runWorkerRequest(
-    createCurrentWorkerRequest(argv),
-    resolveCliPackageInfo(pkg),
-    { installConsoleGuard: true },
-  );
+  const previous = process.env[ENV_SUPPRESS_POST_COMMAND_UPDATE_NOTICE];
+  process.env[ENV_SUPPRESS_POST_COMMAND_UPDATE_NOTICE] = "1";
+  try {
+    await runWorkerRequest(
+      createCurrentWorkerRequest(argv),
+      resolveCliPackageInfo(pkg),
+      { installConsoleGuard: true },
+    );
+  } finally {
+    if (previous === undefined) {
+      delete process.env[ENV_SUPPRESS_POST_COMMAND_UPDATE_NOTICE];
+    } else {
+      process.env[ENV_SUPPRESS_POST_COMMAND_UPDATE_NOTICE] = previous;
+    }
+  }
+}
+
+async function maybeWritePostCommandUpdateNotice(
+  pkg: CliPackageInfoSource,
+  parsed: ParsedRootArgv,
+  route: string | null,
+): Promise<void> {
+  if (
+    !shouldShowPostCommandUpdateNotice({
+      firstCommandToken: parsed.firstCommandToken,
+      route,
+      isWelcome: parsed.isWelcome,
+      isMachineMode: parsed.isMachineMode,
+      isQuiet: parsed.isQuiet,
+      isHelpLike: parsed.isHelpLike,
+      isVersionLike: parsed.isVersionLike,
+    })
+  ) {
+    return;
+  }
+
+  const notice = consumePostCommandUpdateNotice(resolveCliPackageInfo(pkg).version);
+  if (!notice) {
+    return;
+  }
+
+  const chalk = (await import("chalk")).default;
+  process.stderr.write(chalk.dim(notice) + "\n");
 }
 
 async function spawnLaunchTarget(target: LaunchTarget): Promise<void> {
@@ -139,6 +183,7 @@ export async function runLauncher(
   pkg: CliPackageInfoSource,
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
+  installOutputAnsiGuards();
   applyLauncherEnvironment(argv);
 
   const parsed = parseRootArgv(argv);
@@ -197,6 +242,7 @@ export async function runLauncher(
 
     if (plan.kind === "spawn-js-worker") {
       validateJsWorkerPath(target.env);
+      target.env[ENV_SUPPRESS_POST_COMMAND_UPDATE_NOTICE] = "1";
     }
 
     if (plan.kind === "spawn-native") {
@@ -206,6 +252,7 @@ export async function runLauncher(
         command: target.command,
       });
       await spawnLaunchTarget(target);
+      await maybeWritePostCommandUpdateNotice(pkg, parsed, plan.route);
       emitRuntimeDiagnostic("complete", {
         kind: plan.kind,
         route: plan.route ?? "<none>",
@@ -220,6 +267,7 @@ export async function runLauncher(
         route: plan.route ?? "<none>",
       });
       await runJsWorkerInline(pkg, argv);
+      await maybeWritePostCommandUpdateNotice(pkg, parsed, plan.route);
       emitRuntimeDiagnostic("complete", {
         kind: plan.kind,
         route: plan.route ?? "<none>",
@@ -234,6 +282,7 @@ export async function runLauncher(
       command: target.command,
     });
     await spawnLaunchTarget(target);
+    await maybeWritePostCommandUpdateNotice(pkg, parsed, plan.route);
     emitRuntimeDiagnostic("complete", {
       kind: plan.kind,
       route: plan.route ?? "<none>",

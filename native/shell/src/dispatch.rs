@@ -75,7 +75,13 @@ pub fn handle_describe(parsed: &ParsedRootArgv, manifest: &Manifest) -> Result<i
         .collect::<Vec<_>>();
 
     if command_tokens.is_empty() {
-        return forward_to_js_worker(&parsed.argv);
+        return Err(CliError::input(
+            "Missing command path for describe.".to_string(),
+            Some(format!(
+                "Valid command paths: {}",
+                manifest.command_paths.join(", ")
+            )),
+        ));
     }
 
     let Some(command_path) = resolve_command_path(&command_tokens, manifest) else {
@@ -151,6 +157,9 @@ pub fn handle_completion(
     }
 
     let spec = parse_completion_script_spec(argv)?;
+    if spec.install {
+        return forward_to_js_worker(argv);
+    }
     let shell = spec.shell.unwrap_or_else(detect_completion_shell);
     let script = manifest
         .completion_scripts
@@ -440,6 +449,16 @@ mod tests {
     #[test]
     fn describe_reports_unknown_paths_and_missing_descriptors() {
         let manifest = manifest();
+        let missing = handle_describe(&parsed(&["describe"]), manifest)
+            .expect_err("missing path should fail");
+        assert_eq!(missing.code, "INPUT_ERROR");
+        assert!(missing.message.contains("Missing command path for describe"));
+        assert!(missing
+            .hint
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Valid command paths:"));
+
         let unknown = handle_describe(&parsed(&["describe", "missing"]), manifest)
             .expect_err("unknown path should fail");
         assert_eq!(unknown.code, "INPUT_ERROR");

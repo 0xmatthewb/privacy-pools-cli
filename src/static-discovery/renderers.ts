@@ -61,6 +61,13 @@ export async function renderStaticDescribe(
     resolveStaticCommandPath,
     STATIC_CAPABILITIES_PAYLOAD,
   } = await import("../utils/command-discovery-static.js");
+  if (commandTokens.length === 0) {
+    throw new CLIError(
+      "Missing command path for describe.",
+      "INPUT",
+      `Valid command paths: ${listStaticCommandPaths().join(", ")}`,
+    );
+  }
   const commandPath = resolveStaticCommandPath(commandTokens);
   if (!commandPath) {
     throw new CLIError(

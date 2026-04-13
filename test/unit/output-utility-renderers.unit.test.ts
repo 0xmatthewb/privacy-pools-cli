@@ -618,6 +618,8 @@ describe("renderStatus parity", () => {
     const { stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
 
     expect(stderr).toMatch(/Checks:\s+skipped/);
+    expect(stderr).toContain("--check to force both");
+    expect(stderr).toContain("--no-check to disable both");
   });
 
   test("human mode: shows setup complete when config+mnemonic+signer present", () => {
@@ -656,6 +658,10 @@ describe("renderStatus parity", () => {
 
     expect(stderr).toContain("Setup required");
     expect(stderr).toContain("privacy-pools init");
+    expect(stderr).toContain(
+      "privacy-pools init --recovery-phrase-file <downloaded-file>",
+    );
+    expect(stderr).toContain("--recovery-phrase-stdin");
   });
 });
 

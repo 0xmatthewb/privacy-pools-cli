@@ -1,7 +1,9 @@
 import type { CliPackageInfo } from "./package-info.js";
 import {
   checkForUpdateInBackground,
+  consumePostCommandUpdateNotice,
   getUpdateNotice,
+  shouldShowPostCommandUpdateNotice,
 } from "./utils/update-check.js";
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { createRootProgram } from "./program.js";
@@ -17,6 +19,7 @@ import { setActiveProfile } from "./runtime/config-paths.js";
 import {
   cliMainHelperInternals,
 } from "./runtime/cli-main-helpers.js";
+import { installOutputAnsiGuards } from "./utils/terminal.js";
 
 const {
   normalizeRepositoryUrl,
@@ -35,6 +38,8 @@ export async function runCli(
   pkg: CliPackageInfo,
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
+  installOutputAnsiGuards();
+
   // Activate --profile before any config loading.
   const profileValue = readLongOptionValue(argv, "--profile");
   if (profileValue) {
@@ -127,6 +132,21 @@ export async function runCli(
       isVersionLike,
       firstCommandToken,
     });
+    if (
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken,
+        isWelcome,
+        isMachineMode,
+        isQuiet,
+        isHelpLike,
+        isVersionLike,
+      })
+    ) {
+      const notice = consumePostCommandUpdateNotice(pkg.version);
+      if (notice) {
+        process.stderr.write(chalk!.dim(notice) + "\n");
+      }
+    }
   } catch (err) {
     if (
       typeof err === "object" &&

@@ -12,23 +12,43 @@ use crate::output::{
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
 
+fn build_pools_empty_json_payload(data: &PoolsRenderData) -> Value {
+    let mut status_options = Map::new();
+    status_options.insert("agent".to_string(), Value::Bool(true));
+    if !data.all_chains {
+        status_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+    }
+    let next_actions = Value::Array(vec![build_next_action(
+        "status",
+        "Check CLI and chain connectivity.",
+        "no_pools_found",
+        None,
+        Some(&status_options),
+        None,
+    )]);
+
+    if data.all_chains {
+        json!({
+            "allChains": true,
+            "search": data.search,
+            "sort": data.sort,
+            "pools": [],
+            "nextActions": next_actions,
+        })
+    } else {
+        json!({
+            "chain": data.chain_name,
+            "search": data.search,
+            "sort": data.sort,
+            "pools": [],
+            "nextActions": next_actions,
+        })
+    }
+}
+
 pub(super) fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData) {
     if mode.is_json() {
-        if data.all_chains {
-            print_json_success(json!({
-                "allChains": true,
-                "search": data.search,
-                "sort": data.sort,
-                "pools": [],
-            }));
-        } else {
-            print_json_success(json!({
-                "chain": data.chain_name,
-                "search": data.search,
-                "sort": data.sort,
-                "pools": [],
-            }));
-        }
+        print_json_success(build_pools_empty_json_payload(&data));
         return;
     }
 
@@ -80,7 +100,7 @@ pub(super) fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData
     next_actions.push(build_next_action(
         "status",
         "Check wallet and connection readiness.",
-        "no_pools",
+        "no_pools_found",
         None,
         (!status_options.is_empty()).then_some(&status_options),
         None,
@@ -97,7 +117,7 @@ pub(super) fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData
         } else {
             "Review public activity on this chain before depositing."
         },
-        "no_pools",
+        "no_pools_found",
         None,
         (!activity_options.is_empty()).then_some(&activity_options),
         None,
@@ -944,5 +964,30 @@ mod extended_tests {
         assert_eq!(parse_usd_string(Some("bad")), "-");
         assert_eq!(parse_usd_string(Some("  ")), "-");
         assert_eq!(parse_usd_string(None), "-");
+    }
+
+    #[test]
+    fn empty_pools_json_payload_includes_parity_next_actions() {
+        let payload = build_pools_empty_json_payload(&PoolsRenderData {
+            all_chains: false,
+            chain_name: "sepolia".to_string(),
+            search: None,
+            sort: "tvl-desc".to_string(),
+            filtered_pools: vec![],
+            chain_summaries: None,
+            warnings: vec![],
+        });
+
+        assert_eq!(payload["chain"], Value::String("sepolia".to_string()));
+        assert_eq!(payload["pools"], Value::Array(vec![]));
+        assert_eq!(payload["nextActions"][0]["command"], Value::String("status".to_string()));
+        assert_eq!(
+            payload["nextActions"][0]["when"],
+            Value::String("no_pools_found".to_string())
+        );
+        assert_eq!(
+            payload["nextActions"][0]["cliCommand"],
+            Value::String("privacy-pools status --agent --chain sepolia".to_string())
+        );
     }
 }

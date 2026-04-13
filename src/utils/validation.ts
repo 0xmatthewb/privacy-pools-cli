@@ -66,7 +66,7 @@ export function parseAmount(
   decimals: number
 ): bigint {
   const trimmed = value.trim();
-  if (!/^\d*\.?\d+$/.test(trimmed)) {
+  if (!/^-?\d*\.?\d+$/.test(trimmed)) {
     throw new CLIError(
       `Invalid amount: ${value}`,
       "INPUT",
@@ -74,7 +74,9 @@ export function parseAmount(
     );
   }
 
-  const fraction = trimmed.split(".")[1] ?? "";
+  const negative = trimmed.startsWith("-");
+  const normalized = negative ? trimmed.slice(1) : trimmed;
+  const fraction = normalized.split(".")[1] ?? "";
   if (fraction.length > decimals) {
     throw new CLIError(
       `Invalid amount precision: ${value}`,
@@ -84,7 +86,8 @@ export function parseAmount(
   }
 
   try {
-    return parseUnits(trimmed, decimals);
+    const parsed = parseUnits(normalized, decimals);
+    return negative ? -parsed : parsed;
   } catch {
     throw new CLIError(
       `Invalid amount: ${value}`,

@@ -7,10 +7,10 @@ export function createStatusCommand(): Command {
   const metadata = getCommandMetadata("status");
   return new Command("status")
     .description(metadata.description)
-    .option("--check", "Run both RPC and ASP health checks")
-    .option("--no-check", "Suppress default health checks")
-    .option("--check-rpc", "Actively test RPC connectivity")
-    .option("--check-asp", "Actively test ASP liveness")
+    .option("--check", "Force both RPC and ASP health checks (default when a chain is selected)")
+    .option("--no-check", "Disable the default RPC and ASP health checks")
+    .option("--check-rpc", "Run only the RPC health check")
+    .option("--check-asp", "Run only the ASP health check")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

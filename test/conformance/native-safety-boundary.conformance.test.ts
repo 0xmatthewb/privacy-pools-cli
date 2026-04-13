@@ -34,7 +34,7 @@ const EXPECTED_NON_JS_ROUTES = {
     nativeModes: ["default", "help"],
   },
   completion: {
-    owner: "native-shell",
+    owner: "hybrid",
     nativeModes: ["default", "help"],
   },
   describe: {

@@ -13,6 +13,7 @@ export function createCompletionCommand(): Command {
         ...SUPPORTED_COMPLETION_SHELLS,
       ]),
     )
+    .addOption(new Option("--install", "Install shell completion for your current shell"))
     .addOption(new Option("--query", "Internal: query completion candidates").hideHelp())
     .addOption(new Option("--cword <index>", "Internal: current word index").hideHelp())
     .argument("[shell]", "Target shell (bash|zsh|fish|powershell)")

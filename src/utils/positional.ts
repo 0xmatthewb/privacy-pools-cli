@@ -1,6 +1,6 @@
 import { CLIError } from "./errors.js";
 
-const AMOUNT_LIKE = /^(?:\d+(?:\.\d+)?|\.\d+)%?$/;
+const AMOUNT_LIKE = /^-?(?:\d+(?:\.\d+)?|\.\d+)%?$/;
 
 function isAmountLike(value: string): boolean {
   return AMOUNT_LIKE.test(value.trim());
@@ -75,4 +75,3 @@ export function resolveOptionalAssetInput(
   }
   return flaggedAsset ?? positionalAsset;
 }
-

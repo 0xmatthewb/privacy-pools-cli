@@ -11,12 +11,20 @@ import { printError, CLIError } from "../utils/errors.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 
 export async function handleDescribeCommand(...args: unknown[]): Promise<void> {
-  const commandTokens = args[0] as string[];
+  const commandTokens = (args[0] as string[] | undefined) ?? [];
   const cmd = args[args.length - 1] as Command;
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
 
   try {
+    if (commandTokens.length === 0) {
+      throw new CLIError(
+        "Missing command path for describe.",
+        "INPUT",
+        `Valid command paths: ${listStaticCommandPaths().join(", ")}`,
+      );
+    }
+
     const commandPath = resolveStaticCommandPath(commandTokens);
     if (!commandPath) {
       throw new CLIError(

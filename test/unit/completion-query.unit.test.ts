@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   detectCompletionShell,
   isCompletionShell,
@@ -7,7 +10,17 @@ import {
   type CompletionCommandSpec,
 } from "../../src/utils/completion-query.ts";
 
+const ORIGINAL_PRIVACY_POOLS_HOME = process.env.PRIVACY_POOLS_HOME;
+
 describe("completion query helpers", () => {
+  afterEach(() => {
+    if (ORIGINAL_PRIVACY_POOLS_HOME === undefined) {
+      delete process.env.PRIVACY_POOLS_HOME;
+    } else {
+      process.env.PRIVACY_POOLS_HOME = ORIGINAL_PRIVACY_POOLS_HOME;
+    }
+  });
+
   test("detects supported shells and falls back to bash", () => {
     expect(isCompletionShell("bash")).toBe(true);
     expect(isCompletionShell("zsh")).toBe(true);
@@ -57,6 +70,49 @@ describe("completion query helpers", () => {
     expect(
       queryCompletionCandidates(["privacy-pools", "--rpc-url", ""], 2),
     ).toEqual([]);
+  });
+
+  test("suggests local asset symbols for positional and flag-based asset slots", () => {
+    const configHome = join(tmpdir(), `pp-completion-assets-${Date.now()}`);
+    mkdirSync(configHome, { recursive: true });
+    writeFileSync(
+      join(configHome, "config.json"),
+      JSON.stringify({ defaultChain: "sepolia" }),
+      "utf8",
+    );
+    process.env.PRIVACY_POOLS_HOME = configHome;
+
+    try {
+      expect(
+        queryCompletionCandidates(
+          ["privacy-pools", "deposit", "0.1", ""],
+          3,
+        ),
+      ).toEqual(expect.arrayContaining(["ETH", "USDC", "USDT"]));
+
+      expect(
+        queryCompletionCandidates(
+          ["privacy-pools", "withdraw", "--all", ""],
+          3,
+        ),
+      ).toEqual(expect.arrayContaining(["ETH", "USDC", "USDT"]));
+
+      expect(
+        queryCompletionCandidates(
+          ["privacy-pools", "withdraw", "quote", "0.1", "--asset", ""],
+          5,
+        ),
+      ).toEqual(expect.arrayContaining(["ETH", "USDC", "USDT"]));
+
+      expect(
+        queryCompletionCandidates(
+          ["privacy-pools", "ragequit", ""],
+          2,
+        ),
+      ).toEqual(expect.arrayContaining(["ETH", "USDC", "USDT"]));
+    } finally {
+      rmSync(configHome, { recursive: true, force: true });
+    }
   });
 
   test("normalizes alternate binary names and custom specs", () => {

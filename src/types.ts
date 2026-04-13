@@ -33,6 +33,7 @@ export interface GlobalOptions {
   yes?: boolean;
   verbose?: boolean;
   noProgress?: boolean;
+  noHeader?: boolean;
   timeout?: string;
   format?: string;
   jq?: string;

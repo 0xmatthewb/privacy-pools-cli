@@ -479,7 +479,7 @@ describe("bootstrap runtime coverage", () => {
 
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-    expect(stderr).toContain("missing required argument 'command'");
+    expect(stderr).toContain("Missing command path for describe");
   });
 
   test("runCli quiet welcome exits cleanly without banner or welcome output", async () => {
@@ -628,6 +628,8 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: getUpdateNoticeMock,
+      consumePostCommandUpdateNotice: () => null,
+      shouldShowPostCommandUpdateNotice: () => false,
     }));
 
     const { runCli } = await import("../../src/cli-main.ts?update-check-runtime");
@@ -648,6 +650,8 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: () => null,
+      consumePostCommandUpdateNotice: () => null,
+      shouldShowPostCommandUpdateNotice: () => false,
     }));
 
     const { runCli } = await import("../../src/cli-main.ts?update-check-static-local");
@@ -668,6 +672,8 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: () => null,
+      consumePostCommandUpdateNotice: () => null,
+      shouldShowPostCommandUpdateNotice: () => false,
     }));
 
     const { runCli } = await import("../../src/cli-main.ts?update-check-ci");
@@ -742,6 +748,33 @@ describe("bootstrap runtime coverage", () => {
     expect(child.exitOverride).toHaveBeenCalledTimes(1);
   });
 
+  test("runCli shows a cached post-command update notice after a successful interactive command", async () => {
+    const program = makeProgram(() => async () => undefined);
+    const checkForUpdateInBackgroundMock = mock(() => undefined);
+    setTty(true);
+    delete process.env.CI;
+    delete process.env.CODESPACES;
+
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+    mock.module("../../src/utils/update-check.ts", () => ({
+      checkForUpdateInBackground: checkForUpdateInBackgroundMock,
+      getUpdateNotice: () => null,
+      consumePostCommandUpdateNotice: () => "cached update available",
+      shouldShowPostCommandUpdateNotice: () => true,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?post-command-update-notice");
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      runCli({ version: "1.2.3" }, ["status"]),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("cached update available");
+    expect(checkForUpdateInBackgroundMock).not.toHaveBeenCalled();
+  });
+
   test("runCli welcome output includes the current update notice for interactive users", async () => {
     const program = makeProgram(() => async () => {
       throw makeCommanderExit("commander.helpDisplayed");
@@ -765,6 +798,8 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: () => "new version available",
+      consumePostCommandUpdateNotice: () => null,
+      shouldShowPostCommandUpdateNotice: () => false,
     }));
 
     const { runCli } = await import("../../src/cli-main.ts?welcome-update-notice");

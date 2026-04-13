@@ -155,9 +155,9 @@ defineScenarioSuite("agent improvements acceptance", [
           buildRuntimeCompatibilityDescriptor(CLI_VERSION),
         );
         expect(json.commandDetails.guide?.safeReadOnly).toBe(true);
-        expect(json.commandDetails.completion?.safeReadOnly).toBe(true);
+        expect(json.commandDetails.completion?.safeReadOnly).toBe(false);
         expect(json.safeReadOnlyCommands).toContain("guide");
-        expect(json.safeReadOnlyCommands).toContain("completion");
+        expect(json.safeReadOnlyCommands).not.toContain("completion");
       }),
       runCliStep(["capabilities", "--agent", "--chain", "mainnet"]),
       assertExit(0),

@@ -176,6 +176,9 @@ export function parseRootPreludeLongOption(
     case "--no-progress":
       globalOpts.noProgress = true;
       return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--no-header":
+      globalOpts.noHeader = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
     case "--no-banner":
     case "--no-color":
       return { consumedNext: false, helpLike: false, versionLike: false };

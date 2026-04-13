@@ -2,9 +2,10 @@
  * Unit tests for CSV output: printCsv utility and renderer CSV branches.
  */
 
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { createOutputContext } from "../../src/output/common.ts";
 import { printCsv } from "../../src/output/csv.ts";
+import { printTable, setSuppressHeaders } from "../../src/utils/format.ts";
 import { renderPoolsEmpty, renderPools, type PoolsRenderData } from "../../src/output/pools.ts";
 import { renderAccountsNoPools, renderAccounts, type AccountPoolGroup } from "../../src/output/accounts.ts";
 import { renderHistoryNoPools, renderHistory } from "../../src/output/history.ts";
@@ -15,6 +16,11 @@ import { makeMode, captureOutput } from "../helpers/output.ts";
 function csvMode() {
   return makeMode({ isCsv: true, format: "csv" });
 }
+
+afterEach(() => {
+  setSuppressHeaders(false);
+  delete process.env.COLUMNS;
+});
 
 // ── printCsv utility ─────────────────────────────────────────────────────────
 
@@ -53,6 +59,49 @@ describe("printCsv", () => {
       printCsv(["A", "B"], []),
     );
     expect(stdout).toBe("A,B\n");
+  });
+
+  test("suppresses headers when --no-header is active", () => {
+    setSuppressHeaders(true);
+    const { stdout } = captureOutput(() =>
+      printCsv(["Name", "Value"], [["Alice", "100"], ["Bob", "200"]]),
+    );
+    expect(stdout).toBe("Alice,100\nBob,200\n");
+  });
+
+  test("emits empty stdout for zero-row CSV output when headers are suppressed", () => {
+    setSuppressHeaders(true);
+    const { stdout } = captureOutput(() =>
+      printCsv(["A", "B"], []),
+    );
+    expect(stdout).toBe("");
+  });
+});
+
+describe("printTable", () => {
+  test("suppresses header rows in wide/tabular mode when --no-header is active", () => {
+    setSuppressHeaders(true);
+    process.env.COLUMNS = "120";
+
+    const { stderr } = captureOutput(() =>
+      printTable(["Asset", "Balance"], [["ETH", "1.00"]]),
+    );
+
+    expect(stderr).toContain("ETH");
+    expect(stderr).not.toContain("Asset");
+    expect(stderr).not.toContain("Balance");
+  });
+
+  test("keeps stacked labels in narrow mode even when headers are suppressed", () => {
+    setSuppressHeaders(true);
+    process.env.COLUMNS = "40";
+
+    const { stderr } = captureOutput(() =>
+      printTable(["Asset", "Balance"], [["ETH", "1.00"]]),
+    );
+
+    expect(stderr).toContain("Asset");
+    expect(stderr).toContain("Balance");
   });
 });
 

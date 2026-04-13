@@ -16,6 +16,7 @@ export function staticGlobalOptsFromParsedRootArgv(
     agent: parsed.isAgent || undefined,
     quiet: parsed.isQuiet || undefined,
     format: parsed.formatFlagValue ?? undefined,
+    noHeader: preludeGlobalOpts?.noHeader,
     jq: preludeGlobalOpts?.jq,
   };
 }

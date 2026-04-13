@@ -24,6 +24,7 @@ import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderHistoryNoPools, renderHistory } from "../output/history.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 
 export interface HistoryEvent {
   type: "deposit" | "migration" | "withdrawal" | "ragequit";
@@ -471,6 +472,9 @@ export async function handleHistoryCommand(
       avgBlockTimeSec: chainConfig.avgBlockTimeSec,
     });
   } catch (error) {
+    if (await maybeRecoverMissingWalletSetup(error, cmd)) {
+      return;
+    }
     printError(error, mode.isJson);
   }
 }

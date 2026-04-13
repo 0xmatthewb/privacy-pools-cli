@@ -103,6 +103,7 @@ describe("renderInitResult parity", () => {
         defaultChain: "sepolia",
         signerKeySet: true,
         mnemonicImported: false,
+        showCompletionTip: true,
         showMnemonic: false,
       }),
     );
@@ -114,6 +115,22 @@ describe("renderInitResult parity", () => {
     expect(stderr).toContain("Next steps:");
     expect(stderr).not.toContain("privacy-pools status");
     expect(stderr).toContain("privacy-pools pools");
+    expect(stderr).toContain("privacy-pools completion --help");
+  });
+
+  test("human mode: omits the completion tip after restore", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderInitResult(ctx, {
+        defaultChain: "sepolia",
+        signerKeySet: true,
+        mnemonicImported: true,
+        showCompletionTip: false,
+        showMnemonic: false,
+      }),
+    );
+
+    expect(stderr).not.toContain("privacy-pools completion --help");
   });
 
   test("quiet mode: emits nothing", () => {
@@ -296,7 +313,8 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("after vetting fee");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
-    expect(stderr).toContain("under ASP review");
+    expect(stderr).toContain("under Association Set Provider (ASP) review");
+    expect(stderr).toContain("Association Set Provider (ASP)");
     expect(stderr).toContain("Deposited 0.1 ETH -> sepolia ETH pool");
     expect(countMatches(stderr, /Deposited 0\.1 ETH/g)).toBe(1);
     expect(stderr).toContain("Next steps:");

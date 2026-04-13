@@ -15,6 +15,7 @@ pub(crate) struct ParsedRootArgv {
     pub(crate) is_version_like: bool,
     pub(crate) is_root_help_invocation: bool,
     pub(crate) is_quiet: bool,
+    pub(crate) is_no_header: bool,
 }
 
 impl ParsedRootArgv {
@@ -140,6 +141,7 @@ pub(crate) fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
         && (non_option_tokens.is_empty()
             || (non_option_tokens.len() == 1 && non_option_tokens[0] == "help"));
     let is_quiet = root_args.iter().any(|token| token == "--quiet") || has_short_flag(argv, 'q');
+    let is_no_header = root_args.iter().any(|token| token == "--no-header");
     let _is_welcome = is_welcome_flag_only_invocation(argv) && !is_machine_mode;
 
     ParsedRootArgv {
@@ -154,6 +156,7 @@ pub(crate) fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
         is_version_like,
         is_root_help_invocation,
         is_quiet,
+        is_no_header,
     }
 }
 

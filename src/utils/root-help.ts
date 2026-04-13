@@ -40,6 +40,7 @@ const ROOT_HELP_BASE_LINES = [
   "  -q, --quiet          Suppress human-oriented stderr output",
   "  -v, --verbose        Enable verbose/debug output (-v info, -vv debug, -vvv trace)",
   "  --no-progress        Suppress spinners/progress indicators (useful in CI)",
+  "  --no-header          Suppress header rows in CSV and wide/tabular table output",
   "  --no-banner          Disable ASCII banner output",
   "  --no-color           Disable colored output (also respects NO_COLOR env var)",
   "  --timeout <seconds>  Network/transaction timeout in seconds (default: 30)",
@@ -69,7 +70,7 @@ const ROOT_HELP_BASE_LINES = [
   "  guide                Show usage guide, workflow, and reference",
   "  capabilities         Describe CLI capabilities for agent discovery",
   "  describe             Describe one command for runtime agent introspection",
-  "  completion           Generate shell completion script",
+  "  completion           Generate or install shell completion",
   "  help                 display help for command",
 ];
 

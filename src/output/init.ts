@@ -33,6 +33,8 @@ export interface InitRenderResult {
   signerKeySet: boolean;
   /** True when mnemonic was imported (not generated). */
   mnemonicImported: boolean;
+  /** True only for the very first setup on this profile/home. */
+  showCompletionTip?: boolean;
   /** True when --show-mnemonic was passed. */
   showMnemonic: boolean;
   /** The recovery phrase (included only when showMnemonic && !mnemonicImported). */
@@ -235,7 +237,9 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   success("Setup complete!", silent);
-  info("Tip: Run 'privacy-pools completion --help' to set up shell tab completion.", silent);
+  if (result.showCompletionTip) {
+    info("Tip: Run 'privacy-pools completion --help' to set up shell tab completion.", silent);
+  }
   if (!silent) {
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(

@@ -188,6 +188,11 @@ describe("launcher runtime coverage", () => {
         parseRootArgv(["activity", "--format", "csv"]),
       ),
     ).toBe(false);
+    expect(
+      launcherTestInternals.invocationRequiresJsWorker(
+        parseRootArgv(["completion", "--install", "bash"]),
+      ),
+    ).toBe(true);
   });
 
   test("resolveJsRuntimeCommand ignores bun-like npm_node_execpath values", () => {

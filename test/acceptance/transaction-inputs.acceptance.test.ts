@@ -169,6 +169,29 @@ defineScenarioSuite("transaction inputs acceptance", [
       expect(json.error.message).toContain("No asset specified");
     }),
   ]),
+  defineScenario("negative deposit amounts fail with the standard positive-amount validation", [
+    seedHome("sepolia"),
+    runCliStep(["--json", "deposit", "-1", "ETH", "--yes"], {
+      timeoutMs: 10_000,
+    }),
+    assertExit(2),
+    assertStderrEmpty(),
+    assertJson<{
+      success: boolean;
+      errorCode: string;
+      error: { category: string; message: string };
+    }>((json) => {
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.message).toContain(
+        "Deposit amount must be greater than zero",
+      );
+      expect(json.error.message).not.toContain(
+        "Could not infer amount/asset positional arguments",
+      );
+    }),
+  ]),
   defineScenario("positional aliases and ambiguity guards stay stable", [
     seedHome("mainnet"),
     runCliStep(

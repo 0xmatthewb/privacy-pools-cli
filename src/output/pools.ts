@@ -363,6 +363,7 @@ export interface PoolDetailRenderData {
   chain: string;
   pool: PoolStats;
   tokenPrice: number | null;
+  walletState: "available" | "setup_required" | "load_failed";
   myPoolAccounts: PoolAccountRef[] | null;
   myFundsWarning?: string | null;
   recentActivity: PoolDetailActivityEvent[] | null;
@@ -387,10 +388,37 @@ function formatReviewSummary(poolAccounts: PoolAccountRef[]): string {
  * Render pool detail view: `pools <asset>`.
  */
 export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData): void {
-  const { chain, pool, tokenPrice, myPoolAccounts, myFundsWarning, recentActivity } = data;
+  const {
+    chain,
+    pool,
+    tokenPrice,
+    walletState,
+    myPoolAccounts,
+    myFundsWarning,
+    recentActivity,
+  } = data;
   const dd = displayDecimals(pool.decimals);
   const hasUsd = tokenPrice !== null;
   const widthClass = getOutputWidthClass();
+  const humanNextActions = walletState === "available"
+    ? [
+        createNextAction(
+          "accounts",
+          `View your Pool Account balances on ${chain}.`,
+          "after_pool_detail",
+          { options: { chain } },
+        ),
+      ]
+    : walletState === "setup_required"
+    ? [
+        createNextAction(
+          "init",
+          "Set up or restore your wallet before checking balances here.",
+          "after_pool_detail",
+          { options: { defaultChain: chain } },
+        ),
+      ]
+    : undefined;
 
   guardCsvUnsupported(ctx, "pools <asset>");
 
@@ -602,4 +630,5 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     );
   }
 
+  renderNextSteps(ctx, humanNextActions);
 }

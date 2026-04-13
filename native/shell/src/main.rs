@@ -21,7 +21,7 @@ use commands::stats::handle_stats_native;
 use contract::{manifest, runtime_contract};
 use dispatch::{handle_capabilities, handle_completion, handle_describe, handle_guide};
 use error::CliError;
-use output::{emit_help, emit_version, print_error_and_exit};
+use output::{emit_help, emit_version, print_error_and_exit, set_suppress_headers};
 use root_argv::{parse_root_argv, read_long_option_value, root_argv_slice, ParsedRootArgv};
 use routing::{
     activity_native_mode, is_known_root_command, manifest_allows_native_mode, pools_native_mode,
@@ -49,6 +49,7 @@ fn main() {
 }
 
 fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
+    set_suppress_headers(parsed.is_no_header);
     let manifest = manifest();
     let runtime_contract = runtime_contract();
     if manifest.manifest_version.trim().is_empty() || manifest.runtime_version.trim().is_empty() {

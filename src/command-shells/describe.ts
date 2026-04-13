@@ -7,7 +7,7 @@ export function createDescribeCommand(): Command {
   const metadata = getCommandMetadata("describe");
   return new Command("describe")
     .description(metadata.description)
-    .argument("<command...>", "Command path to describe")
+    .argument("[command...]", "Command path to describe")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

@@ -18,6 +18,7 @@ const SPINNER_INTERVAL_MS: u64 = 80;
 const ASCII_SPINNER_FRAMES: [&str; 4] = ["-", "\\", "|", "/"];
 const UNICODE_SPINNER_FRAMES: [&str; 10] =
     ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+static SUPPRESS_HEADERS: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SectionTone {
@@ -170,6 +171,10 @@ pub fn start_spinner(message: &str) -> Spinner {
         handle: Some(handle),
         line_width,
     }
+}
+
+pub fn set_suppress_headers(value: bool) {
+    SUPPRESS_HEADERS.store(value, Ordering::SeqCst);
 }
 
 pub fn format_section_heading(title: &str) -> String {
@@ -383,13 +388,15 @@ pub fn format_time_ago(timestamp_ms: Option<u64>) -> String {
 
 pub fn print_csv(headers: Vec<&str>, rows: Vec<Vec<String>>) {
     let mut lines = Vec::with_capacity(rows.len() + 1);
-    lines.push(
-        headers
-            .into_iter()
-            .map(escape_csv_field)
-            .collect::<Vec<_>>()
-            .join(","),
-    );
+    if !SUPPRESS_HEADERS.load(Ordering::SeqCst) {
+        lines.push(
+            headers
+                .into_iter()
+                .map(escape_csv_field)
+                .collect::<Vec<_>>()
+                .join(","),
+        );
+    }
     for row in rows {
         lines.push(
             row.iter()
@@ -397,6 +404,9 @@ pub fn print_csv(headers: Vec<&str>, rows: Vec<Vec<String>>) {
                 .collect::<Vec<_>>()
                 .join(","),
         );
+    }
+    if lines.is_empty() {
+        return;
     }
     write_stdout_text(&lines.join("\n"));
 }
@@ -428,23 +438,6 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
 
     let gap = "   ";
     let fill = if supports_unicode_output() { '─' } else { '-' };
-    let header_row = format!(
-        "  {}",
-        headers
-            .iter()
-            .enumerate()
-            .map(|(index, header)| styled_bold(&pad_display(header, widths[index])))
-            .collect::<Vec<_>>()
-            .join(gap)
-    );
-    let underline_row = format!(
-        "  {}",
-        widths
-            .iter()
-            .map(|width| styled_dim(&fill.to_string().repeat(*width)))
-            .collect::<Vec<_>>()
-            .join(gap)
-    );
     let body_rows = rows
         .iter()
         .map(|row| {
@@ -460,14 +453,35 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
         .collect::<Vec<_>>();
 
     let mut output = String::new();
-    output.push_str(&header_row);
-    output.push('\n');
-    output.push_str(&underline_row);
-    if !body_rows.is_empty() {
+    if !SUPPRESS_HEADERS.load(Ordering::SeqCst) {
+        let header_row = format!(
+            "  {}",
+            headers
+                .iter()
+                .enumerate()
+                .map(|(index, header)| styled_bold(&pad_display(header, widths[index])))
+                .collect::<Vec<_>>()
+                .join(gap)
+        );
+        let underline_row = format!(
+            "  {}",
+            widths
+                .iter()
+                .map(|width| styled_dim(&fill.to_string().repeat(*width)))
+                .collect::<Vec<_>>()
+                .join(gap)
+        );
+        output.push_str(&header_row);
         output.push('\n');
+        output.push_str(&underline_row);
+    }
+    if !body_rows.is_empty() {
+        if !output.is_empty() {
+            output.push('\n');
+        }
         output.push_str(&body_rows.join("\n"));
     }
-    write_stderr_text(&output);
+    write_stderr_text(output.trim_end());
 }
 
 fn print_stacked_table(headers: &[String], rows: &[Vec<String>]) {
@@ -757,6 +771,10 @@ fn stderr_supports_style() -> bool {
 fn stream_supports_style(is_terminal: bool) -> bool {
     if env::var_os("NO_COLOR").is_some() {
         return false;
+    }
+
+    if matches!(env::var("CLICOLOR_FORCE").as_deref(), Ok("1")) {
+        return true;
     }
 
     match env::var("FORCE_COLOR") {
@@ -1083,8 +1101,9 @@ fn format_boxed_error(error: &CliError) -> String {
 mod tests {
     use super::{
         format_activity_direction_label, format_callout, format_section_heading, print_table,
-        CalloutKind,
+        stream_supports_style, CalloutKind,
     };
+    use crate::test_env::env_lock;
 
     #[test]
     fn format_callout_supports_success_and_privacy_labels() {
@@ -1115,6 +1134,30 @@ mod tests {
             vec!["Asset", "Balance"],
             vec![vec!["ETH".to_string(), "1.00".to_string()]],
         );
+    }
+
+    #[test]
+    fn stream_supports_style_respects_env_precedence() {
+        let _guard = env_lock().lock().unwrap();
+        std::env::remove_var("NO_COLOR");
+        std::env::remove_var("CLICOLOR_FORCE");
+        std::env::remove_var("FORCE_COLOR");
+
+        assert!(stream_supports_style(true));
+        assert!(!stream_supports_style(false));
+
+        std::env::set_var("CLICOLOR_FORCE", "1");
+        assert!(stream_supports_style(false));
+
+        std::env::set_var("FORCE_COLOR", "0");
+        assert!(stream_supports_style(false));
+
+        std::env::set_var("NO_COLOR", "1");
+        assert!(!stream_supports_style(true));
+
+        std::env::remove_var("NO_COLOR");
+        std::env::remove_var("CLICOLOR_FORCE");
+        std::env::remove_var("FORCE_COLOR");
     }
 
     #[test]

@@ -23,6 +23,7 @@ import {
   PreviewScenarioRenderedError,
 } from "../preview/runtime.js";
 import { confirmActionWithSeverity } from "../utils/prompts.js";
+import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 
 interface FlowStartCommandOptions {
   to?: string;
@@ -57,10 +58,15 @@ function flowCancelledCliError(): CLIError {
   );
 }
 
-function handleFlowCommandError(
+async function handleFlowCommandError(
   error: unknown,
-  options: { json: boolean; silent: boolean },
-): void {
+  options: {
+    cmd: Command;
+    json: boolean;
+    silent: boolean;
+    allowSetupRecovery?: boolean;
+  },
+): Promise<void> {
   if (error instanceof PreviewScenarioRenderedError) {
     return;
   }
@@ -81,6 +87,13 @@ function handleFlowCommandError(
     } else {
       info("Flow cancelled.", options.silent);
     }
+    return;
+  }
+
+  if (
+    options.allowSetupRecovery !== false &&
+    await maybeRecoverMissingWalletSetup(error, options.cmd)
+  ) {
     return;
   }
 
@@ -163,7 +176,8 @@ export async function handleFlowStartCommand(
       snapshot,
     });
   } catch (error) {
-    handleFlowCommandError(error, {
+    await handleFlowCommandError(error, {
+      cmd,
       json: mode.isJson,
       silent: mode.isQuiet,
     });
@@ -222,7 +236,8 @@ export async function handleFlowRagequitCommand(
       snapshot,
     });
   } catch (error) {
-    handleFlowCommandError(error, {
+    await handleFlowCommandError(error, {
+      cmd,
       json: mode.isJson,
       silent: mode.isQuiet,
     });
@@ -273,7 +288,8 @@ export async function handleFlowWatchCommand(
         // cannot be reloaded cleanly.
       }
     }
-    handleFlowCommandError(error, {
+    await handleFlowCommandError(error, {
+      cmd,
       json: mode.isJson,
       silent: mode.isQuiet,
     });
@@ -301,9 +317,11 @@ export async function handleFlowStatusCommand(
       snapshot,
     });
   } catch (error) {
-    handleFlowCommandError(error, {
+    await handleFlowCommandError(error, {
+      cmd,
       json: mode.isJson,
       silent: mode.isQuiet,
+      allowSetupRecovery: false,
     });
   }
 }

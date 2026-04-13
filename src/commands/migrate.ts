@@ -39,6 +39,7 @@ import {
   withSuppressedSdkStdout,
 } from "../services/account.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 
 interface MigrateStatusCommandOptions {
   allChains?: boolean;
@@ -468,6 +469,9 @@ export async function handleMigrateStatusCommand(
     renderMigrationStatus(outCtx, renderData);
   } catch (error) {
     spin?.stop();
+    if (await maybeRecoverMissingWalletSetup(error, cmd)) {
+      return;
+    }
     printError(error, mode.isJson);
   }
 }

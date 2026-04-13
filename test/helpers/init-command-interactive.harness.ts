@@ -258,6 +258,23 @@ export function registerInitImportVisibleSecretTests(): void {
     );
   });
 
+  test("treats first-run interactive import as a restore flow", async () => {
+    useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "import")
+      .mockImplementationOnce(async () => "mainnet");
+    passwordPromptMock.mockImplementationOnce(async () => VALID_MNEMONIC);
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("privacy-pools migrate status --all-chains");
+    expect(stderr).not.toContain("privacy-pools completion --help");
+    expect(stderr).not.toContain("privacy-pools pools");
+  });
+
   test("warns humans when secrets are supplied through visible command flags", async () => {
     useIsolatedHome();
 

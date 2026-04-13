@@ -12,6 +12,7 @@ pub(crate) struct CompletionQuerySpec {
 #[derive(Debug, Clone)]
 pub(crate) struct CompletionScriptSpec {
     pub(crate) shell: Option<String>,
+    pub(crate) install: bool,
 }
 
 pub(crate) fn parse_completion_query(
@@ -167,11 +168,17 @@ pub(crate) fn parse_completion_script_spec(
         .unwrap_or(argv.len());
     let mut positional_shell: Option<String> = None;
     let mut shell_flag: Option<String> = None;
+    let mut install = false;
 
     while index < argv.len() {
         let token = &argv[index];
         if token == "--" {
             break;
+        }
+        if token == "--install" {
+            install = true;
+            index += 1;
+            continue;
         }
         if token == "--query" {
             index += 1;
@@ -233,7 +240,7 @@ pub(crate) fn parse_completion_script_spec(
         (None, Some(shell)) => Some(parse_completion_shell(&shell)?),
         (None, None) => None,
     };
-    Ok(CompletionScriptSpec { shell })
+    Ok(CompletionScriptSpec { shell, install })
 }
 
 pub(crate) fn parse_completion_shell(value: &str) -> Result<String, CliError> {

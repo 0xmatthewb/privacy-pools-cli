@@ -108,6 +108,7 @@ import {
   createNarrativeSteps,
   renderNarrativeSteps,
 } from "../output/progress.js";
+import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 import { assertKnownPoolRoot } from "../services/pool-roots.js";
 import {
   guardCriticalSection,
@@ -2058,6 +2059,9 @@ export async function handleWithdrawCommand(
         info(PROMPT_CANCELLATION_MESSAGE, silent);
         process.exitCode = 0;
       }
+      return;
+    }
+    if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
     printError(error, isJson || isUnsigned);

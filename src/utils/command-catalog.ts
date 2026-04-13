@@ -72,6 +72,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       overview: [
         "Creates or imports the local Privacy Pools wallet state under ~/.privacy-pools/. The recovery phrase controls deposit privacy and account restoration, while the signer key pays gas and submits transactions; they are intentionally separate secrets.",
         "When you generate a fresh wallet, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored.",
+        "If you are moving from the website to the CLI, the smoothest restore path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download).",
         "Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.",
       ],
       examples: [
@@ -674,6 +675,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only.",
+        "When a chain is selected, status runs both RPC and ASP health checks by default. Use --check to force both, --no-check to disable both, or --check-rpc / --check-asp to run only one check.",
         "When status falls back to recommendedMode = read-only because RPC health is degraded, nextActions stays on public discovery and avoids account-state guidance until connectivity is restored.",
         "When only the ASP is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow.",
       ],
@@ -1133,27 +1135,31 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `sync`",
   },
   completion: {
-    description: "Generate shell completion script",
+    description: "Generate or install shell completion",
     help: {
       overview: [
-        "Generates shell-specific completion scripts for the installed CLI. The output is intended to be redirected into your shell’s completion directory or profile setup, not executed directly.",
+        "Generates shell-specific completion scripts for the installed CLI. The default mode prints the raw script to stdout so you can inspect or redirect it manually.",
+        "Use --install to set up a managed shell-completion block automatically. That mode writes only local shell/profile files and does not touch wallet state, recovery data, circuits, contracts, or funds.",
       ],
       examples: [
+        "privacy-pools completion --install",
+        "privacy-pools completion --install zsh",
         "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
         "privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools",
         "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
         "privacy-pools completion powershell >> $PROFILE",
       ],
-      jsonFields: "{ mode, shell, completionScript }",
+      jsonFields:
+        "{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, reloadHint? }",
       seeAlso: ["init","guide"],
     },
     capabilities: {
-      flags: ["[shell]", "--shell <shell>"],
-      agentFlags: "--agent <shell>",
+      flags: ["[shell]", "--shell <shell>", "--install"],
+      agentFlags: "--agent [shell] [--install]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
-    safeReadOnly: true,
+    safeReadOnly: false,
   },
 };
 

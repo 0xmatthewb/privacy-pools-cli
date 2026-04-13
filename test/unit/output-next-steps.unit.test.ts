@@ -217,6 +217,7 @@ const STUB_POOL_DETAIL: PoolDetailRenderData = {
     maxRelayFeeBPS: 100n,
   } as any,
   tokenPrice: null,
+  walletState: "setup_required",
   myPoolAccounts: null,
   recentActivity: null,
 };
@@ -460,7 +461,7 @@ describe("next-step parity across renderers", () => {
   }
 });
 
-describe("surfaces without next steps stay quiet", () => {
+describe("pool detail next steps stay aligned across JSON and human output", () => {
   const cases: Array<{ name: string; render: (json: boolean) => { stdout: string; stderr: string } }> = [
     {
       name: "renderPoolDetail",
@@ -472,14 +473,17 @@ describe("surfaces without next steps stay quiet", () => {
   ];
 
   for (const { name, render } of cases) {
-    test(`${name}: JSON includes nextActions, human output omits next-step section`, () => {
+    test(`${name}: JSON includes nextActions and human output exposes runnable next steps`, () => {
       const jsonResult = render(true);
       const jsonCommands = getJsonNextActionCommands(jsonResult.stdout);
       // Pool detail now includes navigational nextActions in JSON for agents.
       expect(jsonCommands.length).toBeGreaterThan(0);
 
       const humanResult = render(false);
-      expect(stderrContainsNextSteps(humanResult.stderr)).toBe(false);
+      expect(stderrContainsNextSteps(humanResult.stderr)).toBe(true);
+      expect(humanResult.stderr).toContain(
+        "privacy-pools init --default-chain sepolia",
+      );
     });
   }
 });

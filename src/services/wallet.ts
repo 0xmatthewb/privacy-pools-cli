@@ -95,7 +95,7 @@ export function loadMnemonic(): string {
     throw new CLIError(
       "No recovery phrase found. Run 'privacy-pools init' first.",
       "INPUT",
-      "Initialize your wallet with: privacy-pools init"
+      "Initialize with 'privacy-pools init'. If you're restoring from the website, use 'privacy-pools init --recovery-phrase-file <downloaded-file>' or pipe the file into '--recovery-phrase-stdin'."
     );
   }
   if (!validateMnemonic(mnemonic)) {
@@ -114,7 +114,7 @@ export function loadPrivateKey(): `0x${string}` {
     throw new CLIError(
       "No signer key found. Run 'privacy-pools init' or set PRIVACY_POOLS_PRIVATE_KEY.",
       "INPUT",
-      "Set via env: export PRIVACY_POOLS_PRIVATE_KEY=0x..."
+      "Set PRIVACY_POOLS_PRIVATE_KEY, use 'privacy-pools init --private-key-file <path>', or rerun 'privacy-pools init'."
     );
   }
 

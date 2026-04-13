@@ -5,6 +5,8 @@
  * redirection work the same way: `privacy-pools pools --format csv > pools.csv`
  */
 
+import { shouldSuppressHeaders } from "../utils/format.js";
+
 /**
  * Escape a single CSV field per RFC 4180.
  * Fields containing commas, double-quotes, or newlines are double-quoted
@@ -33,9 +35,14 @@ function stripAnsi(str: string): string {
  */
 export function printCsv(headers: string[], rows: string[][]): void {
   const lines: string[] = [];
-  lines.push(headers.map((h) => escapeField(stripAnsi(h))).join(","));
+  if (!shouldSuppressHeaders()) {
+    lines.push(headers.map((h) => escapeField(stripAnsi(h))).join(","));
+  }
   for (const row of rows) {
     lines.push(row.map((cell) => escapeField(stripAnsi(cell))).join(","));
+  }
+  if (lines.length === 0) {
+    return;
   }
   process.stdout.write(lines.join("\n") + "\n");
 }

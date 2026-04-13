@@ -7,6 +7,7 @@ import {
   defineScenario,
   defineScenarioSuite,
   runCliStep,
+  seedHome,
 } from "./framework.ts";
 
 const BANNER_SENTINEL =
@@ -276,6 +277,47 @@ defineScenarioSuite("completion acceptance", [
     ),
     assertExit(0),
     assertCompletionLines(["envelope", "tx"]),
+  ]),
+  defineScenario("query mode suggests local asset symbols for positional and flag-based asset slots", [
+    seedHome("sepolia"),
+    runCliStep(
+      [
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--cword",
+        "3",
+        "--",
+        "privacy-pools",
+        "deposit",
+        "0.1",
+        "",
+      ],
+      { timeoutMs: 10_000 },
+    ),
+    assertExit(0),
+    assertCompletionLines(["ETH", "USDC", "USDT"]),
+    runCliStep(
+      [
+        "completion",
+        "--query",
+        "--shell",
+        "bash",
+        "--cword",
+        "5",
+        "--",
+        "privacy-pools",
+        "withdraw",
+        "quote",
+        "0.1",
+        "--asset",
+        "",
+      ],
+      { timeoutMs: 10_000 },
+    ),
+    assertExit(0),
+    assertCompletionLines(["ETH", "USDC", "USDT"]),
   ]),
   defineScenario("unsupported shells keep human and machine input contracts", [
     runCliStep(["completion", "tcsh"]),

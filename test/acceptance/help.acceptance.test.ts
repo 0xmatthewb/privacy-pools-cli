@@ -5,6 +5,7 @@ import {
   assertStderr,
   assertStderrEmpty,
   assertStdout,
+  assertStdoutEmpty,
   assertStdoutOnlyStep,
   defineScenario,
   defineScenarioSuite,
@@ -45,6 +46,28 @@ defineScenarioSuite("help acceptance", [
     assertStdout((stdout) => {
       expect(stdout).toContain("Request relayer quote and limits");
       expect(stdout).toContain("--asset");
+    }),
+  ]),
+  defineScenario("guide topic help formats unknown topics cleanly", [
+    runCliStep(["guide", "definitely-not-a-topic"]),
+    assertExit(0),
+    assertStdoutEmpty(),
+    assertStderr((stderr) => {
+      expect(stderr).toContain("Unknown guide topic: definitely-not-a-topic");
+      expect(stderr).toContain("Available topics:");
+      expect(stderr).not.toContain("Available topics::");
+      expect(stderr).not.toContain("topics.:");
+    }),
+  ]),
+  defineScenario("describe without a command path returns a targeted input error", [
+    runCliStep(["describe"]),
+    assertExit(2),
+    assertStdout((stdout) => {
+      expect(stdout.trim()).toBe("");
+    }),
+    assertStderr((stderr) => {
+      expect(stderr).toContain("Missing command path for describe");
+      expect(stderr).toContain("Valid command paths:");
     }),
   ]),
   defineScenario("json help stays machine-readable", [

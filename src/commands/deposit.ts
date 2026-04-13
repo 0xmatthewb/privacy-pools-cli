@@ -88,6 +88,7 @@ import {
   createNarrativeSteps,
   renderNarrativeSteps,
 } from "../output/progress.js";
+import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 
 const depositedEventAbi = parseAbi([
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -672,6 +673,9 @@ export async function handleDepositCommand(
         info(PROMPT_CANCELLATION_MESSAGE, silent);
         process.exitCode = 0;
       }
+      return;
+    }
+    if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
     printError(error, isJson || isUnsigned);

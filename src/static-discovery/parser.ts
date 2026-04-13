@@ -57,7 +57,6 @@ export function parseStaticCommandFromRootArgv(
   const commandTokens = parsed.nonOptionTokens.slice(1);
   if (command === "guide" && commandTokens.length > 0) return null;
   if (command === "capabilities" && commandTokens.length > 0) return null;
-  if (command === "describe" && commandTokens.length === 0) return null;
 
   return {
     command,

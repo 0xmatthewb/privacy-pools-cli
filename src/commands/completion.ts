@@ -12,11 +12,18 @@ import { renderCompletionScript as generateCompletionScript } from "../utils/com
 import { createOutputContext } from "../output/common.js";
 import {
   renderCompletionScript as outputCompletionScript,
+  renderCompletionInstallResult,
+  renderCompletionInstallReview,
   renderCompletionQuery,
 } from "../output/completion.js";
+import {
+  buildCompletionInstallPlan,
+  performCompletionInstall,
+} from "../utils/completion-install.js";
 
 interface CompletionCommandOptions {
   shell?: string;
+  install?: boolean;
   query?: boolean;
   cword?: string;
 }
@@ -58,6 +65,14 @@ export async function handleCompletionCommand(
   const words = cmd.args as string[];
 
   try {
+    if (opts.install && opts.query) {
+      throw new CLIError(
+        "--install and --query cannot be used together.",
+        "INPUT",
+        "Use 'privacy-pools completion --install' to set up shell config, or '--query' for the internal completion protocol.",
+      );
+    }
+
     if (opts.query) {
       const shellName = opts.shell ? parseShell(opts.shell) : detectCompletionShell();
       const cword = parseCword(opts.cword);
@@ -97,6 +112,34 @@ export async function handleCompletionCommand(
       shellName = parseShell(shellArg);
     } else {
       shellName = detectCompletionShell();
+    }
+
+    if (opts.install) {
+      const plan = await buildCompletionInstallPlan(shellName);
+      if (
+        !mode.skipPrompts &&
+        process.stdin.isTTY &&
+        process.stdout.isTTY &&
+        process.stderr.isTTY
+      ) {
+        renderCompletionInstallReview(ctx, plan);
+        const { confirm } = await import("@inquirer/prompts");
+        const approved = await confirm({
+          message: "Install shell completion now?",
+          default: true,
+        });
+        if (!approved) {
+          throw new CLIError(
+            "Completion install cancelled.",
+            "INPUT",
+            "Re-run 'privacy-pools completion --install' when you're ready.",
+          );
+        }
+      }
+
+      const result = await performCompletionInstall(plan);
+      renderCompletionInstallResult(ctx, result);
+      return;
     }
 
     const script = generateCompletionScript(shellName);

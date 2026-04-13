@@ -96,6 +96,7 @@ import {
   createNarrativeSteps,
   renderNarrativeSteps,
 } from "../output/progress.js";
+import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 
 const poolDepositorAbi = [
   {
@@ -1037,6 +1038,9 @@ export async function handleRagequitCommand(
         info(PROMPT_CANCELLATION_MESSAGE, silent);
         process.exitCode = 0;
       }
+      return;
+    }
+    if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
     printError(error, isJson || isUnsigned);

@@ -185,6 +185,12 @@ export async function createRootProgram(
   );
   program.addOption(
     new Option(
+      "--no-header",
+      rootGlobalFlagDescription("--no-header"),
+    ),
+  );
+  program.addOption(
+    new Option(
       "--no-banner",
       rootGlobalFlagDescription("--no-banner"),
     ),

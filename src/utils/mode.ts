@@ -1,6 +1,6 @@
 import type { GlobalOptions } from "../types.js";
 import { configureJsonOutput } from "./json.js";
-import { setSuppressProgress } from "./format.js";
+import { setSuppressHeaders, setSuppressProgress } from "./format.js";
 import { getParsedVerboseLevel } from "./root-argv.js";
 import { setActiveProfile } from "../runtime/config-paths.js";
 
@@ -17,6 +17,7 @@ export interface ResolvedGlobalMode {
   isWide: boolean;
   isQuiet: boolean;
   noProgress: boolean;
+  noHeader: boolean;
   isVerbose: boolean;
   verboseLevel: number;
   format: OutputFormat;
@@ -103,12 +104,19 @@ export function resolveGlobalMode(
     (globalOpts as Record<string, unknown> | undefined)?.progress === false;
   if (noProgress) {
     setSuppressProgress(true);
+  } else {
+    setSuppressProgress(false);
   }
+
+  const noHeader =
+    globalOpts?.noHeader === true ||
+    (globalOpts as Record<string, unknown> | undefined)?.header === false;
+  setSuppressHeaders(noHeader);
 
   // Configure the JSON output module with field selection and jq filtering.
   configureJsonOutput(jsonFields, jqExpression);
 
-  return { isAgent, isJson, isCsv, isWide, isQuiet, noProgress, isVerbose, verboseLevel, format, skipPrompts, jsonFields, jqExpression };
+  return { isAgent, isJson, isCsv, isWide, isQuiet, noProgress, noHeader, isVerbose, verboseLevel, format, skipPrompts, jsonFields, jqExpression };
 }
 
 const DEFAULT_NETWORK_TIMEOUT_MS = 30_000;

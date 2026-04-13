@@ -144,7 +144,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "completion",
     "aliases": [],
-    "description": "Generate shell completion script"
+    "description": "Generate or install shell completion"
   }
 ] as const;
 
@@ -379,7 +379,7 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "completion": {
-    "owner": "native-shell",
+    "owner": "hybrid",
     "nativeModes": [
       "default",
       "help"
@@ -753,13 +753,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "completion",
-      "description": "Generate shell completion script",
+      "description": "Generate or install shell completion",
       "usage": "completion",
       "flags": [
         "[shell]",
-        "--shell <shell>"
+        "--shell <shell>",
+        "--install"
       ],
-      "agentFlags": "--agent <shell>",
+      "agentFlags": "--agent [shell] [--install]",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -808,6 +809,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -884,6 +886,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -960,6 +963,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1009,6 +1013,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1058,6 +1063,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1110,6 +1116,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1162,6 +1169,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1209,6 +1217,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1256,6 +1265,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1303,6 +1313,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1355,6 +1366,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1414,6 +1426,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1503,6 +1516,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1580,6 +1594,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1632,6 +1647,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1697,6 +1713,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1775,6 +1792,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1840,6 +1858,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1890,6 +1909,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1942,6 +1962,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -1994,6 +2015,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2055,6 +2077,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2105,6 +2128,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2154,6 +2178,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2206,6 +2231,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2299,6 +2325,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2396,6 +2423,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2455,6 +2483,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2533,6 +2562,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2611,6 +2641,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2663,6 +2694,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2722,6 +2754,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2785,6 +2818,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2815,10 +2849,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "completion": {
       "command": "completion",
-      "description": "Generate shell completion script",
+      "description": "Generate or install shell completion",
       "aliases": [],
       "execution": {
-        "owner": "native-shell",
+        "owner": "hybrid",
         "nativeModes": [
           "default",
           "help"
@@ -2827,7 +2861,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "completion",
       "flags": [
         "[shell]",
-        "--shell <shell>"
+        "--shell <shell>",
+        "--install"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -2841,6 +2876,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-banner",
         "-v, --verbose",
         "--no-progress",
+        "--no-header",
         "--timeout <seconds>",
         "--jq <expression>",
         "--no-color",
@@ -2848,18 +2884,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast",
-      "safeReadOnly": true,
-      "sideEffectClass": "read_only",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
       "touchesFunds": false,
       "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
+        "privacy-pools completion --install",
+        "privacy-pools completion --install zsh",
         "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
         "privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools",
         "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
         "privacy-pools completion powershell >> $PROFILE"
       ],
-      "jsonFields": "{ mode, shell, completionScript }",
+      "jsonFields": "{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, reloadHint? }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -3087,7 +3125,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ]
     },
     "completion": {
-      "owner": "native-shell",
+      "owner": "hybrid",
       "nativeModes": [
         "default",
         "help"
@@ -3138,6 +3176,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "flag": "--no-progress",
       "description": "Suppress spinners/progress indicators (useful in CI)"
+    },
+    {
+      "flag": "--no-header",
+      "description": "Suppress header rows in CSV and wide/tabular table output"
     },
     {
       "flag": "--timeout <seconds>",
@@ -3451,8 +3493,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "describe",
     "guide",
     "migrate",
-    "migrate status",
-    "completion"
+    "migrate status"
   ],
   "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "documentation": {

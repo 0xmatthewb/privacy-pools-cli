@@ -275,6 +275,7 @@ export async function handlePoolsCommand(
       const tokenPrice = deriveTokenPrice(pool);
 
       // Try to load wallet and accounts (non-fatal).
+      let walletState: "available" | "setup_required" | "load_failed" = "setup_required";
       let myPoolAccounts: PoolAccountRef[] | null = null;
       let myFundsWarning: string | null = null;
       try {
@@ -320,8 +321,12 @@ export async function handlePoolsCommand(
           aspReviewState.approvedLabels,
           aspReviewState.reviewStatuses,
         );
+        walletState = "available";
       } catch (error) {
-        if (!isPoolDetailInitRequiredError(error)) {
+        if (isPoolDetailInitRequiredError(error)) {
+          walletState = "setup_required";
+        } else {
+          walletState = "load_failed";
           const classified = classifyError(error);
           verbose(
             `Pool detail wallet-state load failed: ${classified.code}: ${classified.message}` +
@@ -362,6 +367,7 @@ export async function handlePoolsCommand(
         chain: chainConfig.name,
         pool,
         tokenPrice,
+        walletState,
         myPoolAccounts,
         myFundsWarning,
         recentActivity,

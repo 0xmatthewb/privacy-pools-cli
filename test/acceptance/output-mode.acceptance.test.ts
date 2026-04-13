@@ -30,6 +30,7 @@ defineScenarioSuite("output-mode acceptance", [
     assertStderr((stderr) => {
       expect(stderr).toContain("Quick Start");
       expect(stderr).toContain("Workflow");
+      expect(stderr).not.toContain("\u001b[");
     }),
   ]),
   defineScenario("guide stays fully silent in quiet mode", [
@@ -87,6 +88,9 @@ defineScenarioSuite("output-mode acceptance", [
       expect(stderr).toContain("Privacy Pools CLI Status");
       expect(stderr).toMatch(/Config:\s+not found/);
       expect(stderr).toContain("Run 'privacy-pools init'");
+      expect(stderr).toContain(
+        "privacy-pools init --recovery-phrase-file <downloaded-file>",
+      );
     }),
   ]),
   defineScenario("status with init writes wallet readiness details to stderr", [

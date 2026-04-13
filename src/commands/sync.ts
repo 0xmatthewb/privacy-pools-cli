@@ -18,6 +18,7 @@ import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
 import { renderSyncEmpty, renderSyncComplete } from "../output/sync.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 
 export { createSyncCommand } from "../command-shells/sync.js";
 
@@ -135,6 +136,9 @@ export async function handleSyncCommand(
       chainOverridden: !!globalOpts?.chain,
     });
   } catch (error) {
+    if (await maybeRecoverMissingWalletSetup(error, cmd)) {
+      return;
+    }
     printError(error, mode.isJson);
   }
 }

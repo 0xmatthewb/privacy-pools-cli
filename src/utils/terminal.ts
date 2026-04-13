@@ -1,5 +1,9 @@
 export type OutputWidthClass = "wide" | "compact" | "narrow";
 
+type OutputStreamName = "stdout" | "stderr";
+
+let outputAnsiGuardsInstalled = false;
+
 export function supportsUnicodeOutput(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
@@ -63,6 +67,89 @@ export function inlineSeparator(): string {
 
 export function stripAnsiCodes(value: string): string {
   return value.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
+}
+
+function streamSupportsForcedColor(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (env.NO_COLOR || env.TERM === "dumb") {
+    return false;
+  }
+
+  if (env.CLICOLOR_FORCE === "1") {
+    return true;
+  }
+
+  const forceColor = env.FORCE_COLOR;
+  if (typeof forceColor === "string") {
+    return forceColor !== "0";
+  }
+
+  return false;
+}
+
+function shouldStripAnsiForStream(
+  streamName: OutputStreamName,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (streamSupportsForcedColor(env)) {
+    return false;
+  }
+
+  const stream = streamName === "stdout" ? process.stdout : process.stderr;
+  return stream.isTTY !== true;
+}
+
+function createAnsiGuardedWrite(
+  streamName: OutputStreamName,
+): typeof process.stdout.write {
+  const stream = streamName === "stdout" ? process.stdout : process.stderr;
+  const originalWrite = stream.write.bind(stream);
+
+  return ((chunk: unknown, encoding?: unknown, cb?: unknown) => {
+    if (!shouldStripAnsiForStream(streamName)) {
+      return originalWrite(
+        chunk as never,
+        encoding as never,
+        cb as never,
+      );
+    }
+
+    if (typeof chunk === "string") {
+      return originalWrite(
+        stripAnsiCodes(chunk) as never,
+        encoding as never,
+        cb as never,
+      );
+    }
+
+    if (Buffer.isBuffer(chunk) || chunk instanceof Uint8Array) {
+      const normalizedEncoding =
+        typeof encoding === "string" ? encoding : "utf8";
+      const stripped = stripAnsiCodes(
+        Buffer.from(chunk).toString(normalizedEncoding as BufferEncoding),
+      );
+      return originalWrite(
+        Buffer.from(stripped, normalizedEncoding as BufferEncoding) as never,
+        encoding as never,
+        cb as never,
+      );
+    }
+
+    return originalWrite(
+      chunk as never,
+      encoding as never,
+      cb as never,
+    );
+  }) as typeof process.stdout.write;
+}
+
+export function installOutputAnsiGuards(): void {
+  if (outputAnsiGuardsInstalled) return;
+
+  process.stdout.write = createAnsiGuardedWrite("stdout");
+  process.stderr.write = createAnsiGuardedWrite("stderr");
+  outputAnsiGuardsInstalled = true;
 }
 
 export function visibleWidth(value: string): number {

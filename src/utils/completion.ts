@@ -47,9 +47,6 @@ function toOptionSpec(option: Option): CompletionOptionSpec | null {
   if (option.long && INTERNAL_COMPLETION_OPTION_NAMES.has(option.long)) {
     return null;
   }
-  if (option.hidden) {
-    return null;
-  }
 
   const names = [option.short, option.long].filter(
     (name): name is string => typeof name === "string" && name.length > 0,

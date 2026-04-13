@@ -10,10 +10,10 @@
  * swallowing — not worth the mocking complexity).
  */
 
-import { describe, expect, test, beforeEach } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createTrackedTempDir } from "../helpers/temp.ts";
+import { cleanupTrackedTempDirs, createTrackedTempDir } from "../helpers/temp.ts";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -42,12 +42,46 @@ function writeCacheFile(
 let importCounter = 0;
 async function importUpdateCheck(): Promise<{
   getUpdateNotice: (currentVersion: string) => string | null;
-  checkForUpdateInBackground: (currentVersion: string) => void;
+  checkForUpdateInBackground: () => void;
+  consumePostCommandUpdateNotice: (currentVersion: string) => string | null;
+  shouldShowPostCommandUpdateNotice: (params: {
+    firstCommandToken?: string;
+    route?: string | null;
+    isWelcome: boolean;
+    isMachineMode: boolean;
+    isQuiet: boolean;
+    isHelpLike: boolean;
+    isVersionLike: boolean;
+  }) => boolean;
 }> {
   importCounter++;
   // Dynamic import with unique query string to bypass module cache.
   return import(`../../src/utils/update-check.ts?bust=${importCounter}`);
 }
+
+const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+const ORIGINAL_DISABLE = process.env.PP_NO_UPDATE_CHECK;
+const ORIGINAL_TERM_SESSION_ID = process.env.TERM_SESSION_ID;
+const ORIGINAL_STDOUT_IS_TTY = process.stdout.isTTY;
+const ORIGINAL_STDERR_IS_TTY = process.stderr.isTTY;
+
+afterEach(() => {
+  cleanupTrackedTempDirs();
+  if (ORIGINAL_HOME === undefined) delete process.env.PRIVACY_POOLS_HOME;
+  else process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+  if (ORIGINAL_DISABLE === undefined) delete process.env.PP_NO_UPDATE_CHECK;
+  else process.env.PP_NO_UPDATE_CHECK = ORIGINAL_DISABLE;
+  if (ORIGINAL_TERM_SESSION_ID === undefined) delete process.env.TERM_SESSION_ID;
+  else process.env.TERM_SESSION_ID = ORIGINAL_TERM_SESSION_ID;
+  Object.defineProperty(process.stdout, "isTTY", {
+    configurable: true,
+    value: ORIGINAL_STDOUT_IS_TTY,
+  });
+  Object.defineProperty(process.stderr, "isTTY", {
+    configurable: true,
+    value: ORIGINAL_STDERR_IS_TTY,
+  });
+});
 
 // ── PP_NO_UPDATE_CHECK=1 disables everything ────────────────────────────────
 
@@ -83,7 +117,7 @@ describe("PP_NO_UPDATE_CHECK", () => {
       process.env.PRIVACY_POOLS_HOME = join(home, ".privacy-pools");
       const { checkForUpdateInBackground } = await importUpdateCheck();
       // Should return immediately without throwing.
-      checkForUpdateInBackground("1.0.0");
+      checkForUpdateInBackground();
     } finally {
       if (prev === undefined) delete process.env.PP_NO_UPDATE_CHECK;
       else process.env.PP_NO_UPDATE_CHECK = prev;
@@ -270,5 +304,67 @@ describe("version comparison via getUpdateNotice", () => {
 
   test("returns null for unparseable current version", async () => {
     expect(await noticeFor("2.0.0", "garbage")).toBeNull();
+  });
+});
+
+describe("post-command update notices", () => {
+  test("shows a cached notice only once per terminal session", async () => {
+    const home = freshHome();
+    writeCacheFile(home, {
+      latestVersion: "9.9.9",
+      checkedAt: Date.now(),
+    });
+    process.env.PRIVACY_POOLS_HOME = join(home, ".privacy-pools");
+    process.env.TERM_SESSION_ID = `pp-update-test-${Date.now()}`;
+
+    const { consumePostCommandUpdateNotice } = await importUpdateCheck();
+    expect(consumePostCommandUpdateNotice("1.0.0")).toContain("9.9.9");
+    expect(consumePostCommandUpdateNotice("1.0.0")).toBeNull();
+  });
+
+  test("gates post-command notices to successful human TTY commands", async () => {
+    Object.defineProperty(process.stdout, "isTTY", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(process.stderr, "isTTY", {
+      configurable: true,
+      value: true,
+    });
+
+    const { shouldShowPostCommandUpdateNotice } = await importUpdateCheck();
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "status",
+        route: "status",
+        isWelcome: false,
+        isMachineMode: false,
+        isQuiet: false,
+        isHelpLike: false,
+        isVersionLike: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "completion",
+        route: "completion",
+        isWelcome: false,
+        isMachineMode: false,
+        isQuiet: false,
+        isHelpLike: false,
+        isVersionLike: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "status",
+        route: "status",
+        isWelcome: false,
+        isMachineMode: true,
+        isQuiet: false,
+        isHelpLike: false,
+        isVersionLike: false,
+      }),
+    ).toBe(false);
   });
 });

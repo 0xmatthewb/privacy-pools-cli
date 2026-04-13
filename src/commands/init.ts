@@ -686,7 +686,7 @@ export async function handleInitCommand(
     const ctx = createOutputContext(mode);
 
     // Warn agent users about mnemonic capture
-    const mnemonicGenerated = !mnemonicSource;
+    const mnemonicGenerated = !importedMnemonic;
     const mnemonicWarning =
       mnemonicGenerated && isJson && !showPhrase
         ? "Recovery phrase generated but not included in output. Re-run with --show-recovery-phrase to capture it. Without the recovery phrase, deposited funds cannot be recovered."
@@ -695,7 +695,8 @@ export async function handleInitCommand(
     renderInitResult(ctx, {
       defaultChain: config.defaultChain,
       signerKeySet: !!resolvedSignerKey,
-      mnemonicImported: !!mnemonicSource,
+      mnemonicImported: importedMnemonic,
+      showCompletionTip: !hasExisting && !importedMnemonic,
       showMnemonic: !!showPhrase,
       mnemonic,
       warning: mnemonicWarning,

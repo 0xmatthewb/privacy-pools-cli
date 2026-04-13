@@ -39,10 +39,16 @@ function defaultExecutionMetadata(path: CommandPath): CommandExecutionDescriptor
     path === "guide"
     || path === "capabilities"
     || path === "describe"
-    || path === "completion"
   ) {
     return {
       owner: "native-shell",
+      nativeModes: ["default", "help"],
+    };
+  }
+
+  if (path === "completion") {
+    return {
+      owner: "hybrid",
       nativeModes: ["default", "help"],
     };
   }
@@ -349,7 +355,6 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
   "guide",
   "capabilities",
   "describe",
-  "completion",
   "config",
   "config list",
   "config get",
@@ -369,6 +374,7 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
 const LOCAL_STATE_WRITE_COMMANDS = new Set<CommandPath>([
   "upgrade",
   "init",
+  "completion",
   "config set",
   "accounts",
   "history",

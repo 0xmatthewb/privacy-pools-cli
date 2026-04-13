@@ -282,7 +282,7 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "completion": {
-    "owner": "native-shell",
+    "owner": "hybrid",
     "nativeModes": [
       "default",
       "help"

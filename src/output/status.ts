@@ -590,7 +590,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       result.rpcLive === undefined
         ? [{
             label: "Checks",
-            value: "skipped. Use --check-rpc and/or --check-asp.",
+            value: "skipped. Checks run by default when a chain is selected; use --check to force both or --no-check to disable both.",
             valueTone: "muted" as const,
           }]
         : []),
@@ -633,6 +633,19 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         formatCallout(
           "danger",
           preflight.blockingIssues.map((issue) => issue.message),
+        ),
+      );
+    }
+
+    if (notReady) {
+      process.stderr.write(
+        formatCallout(
+          "recovery",
+          [
+            "New wallet: privacy-pools init",
+            "Restore from the website: privacy-pools init --recovery-phrase-file <downloaded-file>",
+            "Stdin alternative: cat <downloaded-file> | privacy-pools init --recovery-phrase-stdin",
+          ],
         ),
       );
     }

@@ -32,6 +32,7 @@ export function makeMode(
     isWide: false,
     isQuiet: false,
     noProgress: false,
+    noHeader: false,
     isVerbose: false,
     verboseLevel: 0,
     format: "table" as const,

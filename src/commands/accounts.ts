@@ -47,6 +47,7 @@ import { createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
+import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -596,6 +597,9 @@ export async function handleAccountsCommand(
       lastSyncTime,
     });
   } catch (error) {
+    if (await maybeRecoverMissingWalletSetup(error, cmd)) {
+      return;
+    }
     printError(error, mode.isJson);
   }
 }

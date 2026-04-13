@@ -16,14 +16,20 @@ export function getActiveProfile(): string | undefined {
   return _activeProfile;
 }
 
+export function resolveBaseConfigHome(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  return (
+    env.PRIVACY_POOLS_HOME?.trim() ||
+    env.PRIVACY_POOLS_CONFIG_DIR?.trim() ||
+    join(homedir(), ".privacy-pools")
+  );
+}
+
 export function resolveConfigHome(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
-  const base =
-    env.PRIVACY_POOLS_HOME?.trim() ||
-    env.PRIVACY_POOLS_CONFIG_DIR?.trim() ||
-    join(homedir(), ".privacy-pools");
-
+  const base = resolveBaseConfigHome(env);
   if (_activeProfile && _activeProfile !== "default") {
     return join(base, "profiles", _activeProfile);
   }

@@ -266,9 +266,16 @@ describe("static discovery runtime", () => {
     expect(staticDiscoveryTestInternals.parseStaticCommand(["guide", "extra"])).toBe(
       null,
     );
-    expect(staticDiscoveryTestInternals.parseStaticCommand(["describe"])).toBe(
-      null,
-    );
+    expect(staticDiscoveryTestInternals.parseStaticCommand(["describe"])).toEqual({
+      command: "describe",
+      commandTokens: [],
+      globalOpts: {
+        json: undefined,
+        agent: undefined,
+        quiet: undefined,
+        format: undefined,
+      },
+    });
     expect(staticDiscoveryTestInternals.parseStaticCommand(["help", "guide"])).toBe(
       null,
     );
@@ -451,6 +458,25 @@ describe("static discovery runtime", () => {
     expect(stderr).toBe("");
   });
 
+  test("returns a structured error for describe without a command path", async () => {
+    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(
+      async () => {
+        const handled = await runStaticDiscoveryCommand([
+          "--json",
+          "describe",
+        ]);
+        expect(handled).toBe(true);
+      },
+    );
+
+    expect(exitCode).toBe(2);
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message).toContain("Missing command path for describe");
+    expect(json.error.hint).toContain("Valid command paths:");
+    expect(stderr).toBe("");
+  });
+
   test("rejects csv mode for static discovery commands", async () => {
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(async () => {
       const handled = await runStaticDiscoveryCommand([
@@ -523,7 +549,6 @@ describe("static discovery runtime", () => {
       ["--version"],
       ["guide", "extra"],
       ["capabilities", "extra"],
-      ["describe"],
       ["--chain"],
       ["-c"],
       ["-ch", "guide"],

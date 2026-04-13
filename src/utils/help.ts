@@ -35,9 +35,11 @@ export function welcomeScreen(
     chalk.dim("A compliant way to transact privately on Ethereum."),
     versionLine,
     "",
-    `${accent("privacy-pools init")}    ${chalk.dim("get started")}`,
-    `${accent("privacy-pools guide")}   ${chalk.dim("full guide")}`,
-    `${accent("privacy-pools --help")}  ${chalk.dim("all commands")}`,
+    `${accent("privacy-pools status")}                                      ${chalk.dim("check setup and chain health")}`,
+    `${accent("privacy-pools init")}                                        ${chalk.dim("create a new wallet")}`,
+    `${accent("privacy-pools init --recovery-phrase-file <downloaded-file>")} ${chalk.dim("restore from the website")}`,
+    `${accent("privacy-pools guide")}                                       ${chalk.dim("full guide")}`,
+    `${accent("privacy-pools --help")}                                      ${chalk.dim("all commands")}`,
   ];
 
   // Nudge from-source users to register the CLI commands on their PATH.
@@ -88,6 +90,8 @@ const guideSections: Record<string, () => string[]> = {
     "",
     chalk.bold("Quick Start"),
     `  ${accent("privacy-pools init")}`,
+    `  ${accent("privacy-pools init --recovery-phrase-file <downloaded-file>")} ${chalk.dim("(restore a website-exported recovery phrase)")}`,
+    `  ${accent("cat <downloaded-file> | privacy-pools init --recovery-phrase-stdin")} ${chalk.dim("(stdin alternative)")}`,
     `  ${accent("privacy-pools flow start 0.1 ETH --to 0xRecipient")}          ${chalk.dim("(easy path: deposit now, withdraw later)")}`,
     `  ${accent("privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet")}  ${chalk.dim("(easy path with a dedicated workflow wallet)")}`,
     `  ${accent("privacy-pools pools")}                                          ${chalk.dim("(browse available pools)")}`,
@@ -168,6 +172,7 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("-q, --quiet")}           Suppress human-oriented stderr output`,
     `  ${notice("-v, --verbose")}         Enable verbose/debug output (-v info, -vv debug, -vvv trace)`,
     `  ${notice("--no-progress")}        Suppress spinners/progress indicators (useful in CI)`,
+    `  ${notice("--no-header")}          Suppress header rows in CSV and wide/tabular table output`,
     `  ${notice("--agent")}               Alias for --json --yes --quiet (agent/automation mode)`,
     `  ${notice("--timeout <seconds>")}  Network/transaction timeout (default: 30)`,
     `  ${notice("--no-banner")}           Disable ASCII banner`,
@@ -210,10 +215,10 @@ const guideSections: Record<string, () => string[]> = {
     "  Native fallback?  Set PRIVACY_POOLS_CLI_DISABLE_NATIVE=1 to force the JS launcher,",
     "                   or see docs/runtime-upgrades.md for runtime troubleshooting and overrides.",
     `  Upgrade path?     Run ${accent("privacy-pools upgrade")} to check npm for updates or upgrade this CLI.`,
-    "  Not approved?     Deposits are reviewed by the ASP. Most deposits are",
-    "                   approved within 1 hour, but some may take longer",
-    "                   (up to 7 days). Some may require Proof of Association",
-    "                   or be declined. Declined deposits can be recovered",
+    "  Not approved?     Deposits are reviewed by the ASP.",
+    `                   ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
+    "                   Some may require Proof of Association or be",
+    "                   declined. Declined deposits can be recovered",
     "                   publicly via ragequit.",
     "  Custom RPC?       Pass --rpc-url on any command, or save per-chain overrides in",
     `                   ~/.privacy-pools/config.json under ${chalk.dim('"rpcOverrides": { "<chainId>": "https://..." }')}.`,
@@ -283,10 +288,10 @@ export function guideText(topic?: string): string {
       return [
         `Unknown guide topic: ${topic}`,
         "",
-        chalk.bold("Available topics:"),
+        "Available topics",
         available,
         "",
-        chalk.dim("Run 'privacy-pools guide' with no topic for the full guide."),
+        chalk.dim("  Run 'privacy-pools guide' with no topic for the full guide."),
       ].join("\n");
     }
     return [accentBold(`Privacy Pools: ${topic}`), "", ...builder()].join("\n");

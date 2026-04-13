@@ -66,6 +66,12 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
     welcomeBoolean: true,
   },
   {
+    flag: "--no-header",
+    description: "Suppress header rows in CSV and wide/tabular table output",
+    takesValue: false,
+    welcomeBoolean: true,
+  },
+  {
     flag: "--timeout <seconds>",
     description: "Network/transaction timeout in seconds (default: 30)",
     takesValue: true,

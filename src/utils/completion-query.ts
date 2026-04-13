@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { CHAIN_NAMES, CHAINS } from "../config/chains.js";
+import { CHAIN_NAMES, CHAINS, KNOWN_POOLS } from "../config/chains.js";
 import { FLOW_PRIVACY_DELAY_PROFILES } from "./flow-privacy-delay.js";
 import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
 import { resolveConfigHome } from "../runtime/config-paths.js";
@@ -36,7 +36,7 @@ interface CompletionCommandNode {
   subcommands: Map<string, CompletionCommandNode>;
 }
 
-const OUTPUT_FORMAT_VALUES = ["table", "csv", "json"] as const;
+const OUTPUT_FORMAT_VALUES = ["table", "csv", "json", "wide"] as const;
 const UNSIGNED_FORMAT_VALUES = ["envelope", "tx"] as const;
 
 function uniqueSorted(values: string[]): string[] {
@@ -96,6 +96,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
     options: [
       completionOption("-c, --chain <name>", CHAIN_NAMES),
       completionOption("-j, --json"),
+      completionOption("--json-fields <fields>"),
       completionOption("--format <format>", OUTPUT_FORMAT_VALUES),
       completionOption("-y, --yes"),
       completionOption("-r, --rpc-url <url>"),
@@ -104,7 +105,9 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionOption("--no-banner"),
       completionOption("-v, --verbose"),
       completionOption("--no-progress"),
+      completionOption("--no-header"),
       completionOption("--timeout <seconds>"),
+      completionOption("--jq <expression>"),
       completionOption("--no-color"),
       completionOption("--profile <name>"),
       completionOption("-V, --version"),
@@ -112,6 +115,10 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
     subcommands: [
       completionCommand("init", {
         options: [
+          completionOption("--mnemonic <phrase>"),
+          completionOption("--mnemonic-file <path>"),
+          completionOption("--mnemonic-stdin"),
+          completionOption("--show-mnemonic"),
           completionOption("--recovery-phrase <phrase>"),
           completionOption("--recovery-phrase-file <path>"),
           completionOption("--recovery-phrase-stdin"),
@@ -122,10 +129,33 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--default-chain <chain>", CHAIN_NAMES),
           completionOption("--rpc-url <url>"),
           completionOption("--force"),
+          completionOption("--skip-circuits"),
         ],
       }),
       completionCommand("upgrade", {
         options: [completionOption("--check"), completionOption("--changelog")],
+      }),
+      completionCommand("config", {
+        subcommands: [
+          completionCommand("list"),
+          completionCommand("get", {
+            options: [completionOption("--reveal")],
+          }),
+          completionCommand("set", {
+            options: [
+              completionOption("--file <path>"),
+              completionOption("--stdin"),
+            ],
+          }),
+          completionCommand("path"),
+          completionCommand("profile", {
+            subcommands: [
+              completionCommand("list"),
+              completionCommand("create"),
+              completionCommand("active"),
+            ],
+          }),
+        ],
       }),
       completionCommand("flow", {
         subcommands: [
@@ -184,6 +214,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-t, --to <address>"),
           completionOption("-p, --pool-account <PA-#|#>"),
+          completionOption("--from-pa <PA-#|#>"),
           completionOption("--direct"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
@@ -206,6 +237,8 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-a, --asset <symbol|address>"),
           completionOption("-p, --pool-account <PA-#|#>"),
+          completionOption("--from-pa <PA-#|#>"),
+          completionOption("-i, --commitment <index>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
         ],
@@ -231,7 +264,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-a, --asset <symbol|address>"),
           completionOption("--page <n>"),
-          completionOption("--limit <n>"),
+          completionOption("-n, --limit <n>"),
         ],
       }),
       completionCommand("stats", {
@@ -248,6 +281,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("completion", {
         options: [
           completionOption("-s, --shell <shell>", SUPPORTED_COMPLETION_SHELLS),
+          completionOption("--install"),
         ],
       }),
     ],
@@ -341,16 +375,26 @@ function normalizeCword(cword: number | undefined, wordsLength: number): number 
   return Math.max(0, Math.min(normalized, wordsLength));
 }
 
+function looksLikeNegativePositionalToken(token: string): boolean {
+  return /^-\d+(?:\.\d+)?$/.test(token);
+}
+
 function resolveContext(
   root: CompletionCommandNode,
   words: string[],
   cword: number,
 ): {
   current: CompletionCommandNode;
+  commandPath: string[];
   expectingValueFor?: CompletionOptionSpec;
+  consumedOptionNames: Set<string>;
+  positionalsBeforeCurrent: string[];
 } {
   let current = root;
+  const commandPath: string[] = [];
   let expectingValueFor: CompletionOptionSpec | undefined;
+  const consumedOptionNames = new Set<string>();
+  const positionalsBeforeCurrent: string[] = [];
 
   const boundary = Math.max(1, Math.min(cword, words.length));
 
@@ -362,10 +406,15 @@ function resolveContext(
       continue;
     }
 
-    if (token.startsWith("-")) {
+    if (token.startsWith("-") && !looksLikeNegativePositionalToken(token)) {
       const equalsIndex = token.indexOf("=");
       const flag = equalsIndex >= 0 ? token.slice(0, equalsIndex) : token;
       const option = findOption(flag, current, root);
+      if (option) {
+        for (const name of option.names) {
+          consumedOptionNames.add(name);
+        }
+      }
       if (option && option.takesValue && equalsIndex < 0) {
         expectingValueFor = option;
       }
@@ -375,10 +424,20 @@ function resolveContext(
     const subcommand = current.subcommands.get(token);
     if (subcommand) {
       current = subcommand;
+      commandPath.push(token);
+      continue;
     }
+
+    positionalsBeforeCurrent.push(token);
   }
 
-  return { current, expectingValueFor };
+  return {
+    current,
+    commandPath,
+    consumedOptionNames,
+    expectingValueFor,
+    positionalsBeforeCurrent,
+  };
 }
 
 function filterByPrefix(candidates: string[], prefix: string): string[] {
@@ -390,6 +449,94 @@ function filterByPrefix(candidates: string[], prefix: string): string[] {
 
 function isPoolAccountOption(option: CompletionOptionSpec): boolean {
   return option.names.some((n) => n === "--pool-account" || n === "-p");
+}
+
+function isAssetOption(option: CompletionOptionSpec): boolean {
+  return option.names.some((n) => n === "--asset" || n === "-a");
+}
+
+function configuredDefaultChainName(configHome: string): string | null {
+  try {
+    const configPath = join(configHome, "config.json");
+    if (!existsSync(configPath)) return null;
+
+    const raw = readFileSync(configPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    const defaultChain = parsed?.defaultChain;
+    return typeof defaultChain === "string" && CHAINS[defaultChain]
+      ? defaultChain
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveCompletionChainName(words: string[]): string | null {
+  try {
+    for (let i = 0; i < words.length; i++) {
+      const token = words[i];
+      if (token === "--chain" || token === "-c") {
+        const chainName = words[i + 1];
+        if (chainName && CHAINS[chainName]) {
+          return chainName;
+        }
+      } else if (token.startsWith("--chain=")) {
+        const chainName = token.slice("--chain=".length);
+        if (chainName && CHAINS[chainName]) {
+          return chainName;
+        }
+      }
+    }
+
+    return configuredDefaultChainName(resolveConfigHome());
+  } catch {
+    return null;
+  }
+}
+
+function dynamicAssetCandidates(words: string[]): string[] {
+  const resolvedChain = resolveCompletionChainName(words);
+  if (resolvedChain) {
+    const chainId = CHAINS[resolvedChain]?.id;
+    if (chainId && KNOWN_POOLS[chainId]) {
+      return uniqueSorted(Object.keys(KNOWN_POOLS[chainId]));
+    }
+  }
+
+  return uniqueSorted(
+    Object.values(KNOWN_POOLS).flatMap((chainPools) => Object.keys(chainPools)),
+  );
+}
+
+function currentTokenLooksLikeAssetPosition(
+  commandPath: string[],
+  positionalsBeforeCurrent: string[],
+  consumedOptionNames: ReadonlySet<string>,
+): boolean {
+  const path = commandPath.join(" ");
+  const hasAllFlag = consumedOptionNames.has("--all");
+
+  if (path === "deposit") {
+    return positionalsBeforeCurrent.length === 1;
+  }
+
+  if (path === "withdraw") {
+    return hasAllFlag
+      ? positionalsBeforeCurrent.length === 0
+      : positionalsBeforeCurrent.length === 1;
+  }
+
+  if (path === "withdraw quote") {
+    return hasAllFlag
+      ? positionalsBeforeCurrent.length === 0
+      : positionalsBeforeCurrent.length === 1;
+  }
+
+  if (path === "ragequit") {
+    return positionalsBeforeCurrent.length === 0;
+  }
+
+  return false;
 }
 
 /**
@@ -416,14 +563,9 @@ function dynamicPoolAccountCandidates(words: string[]): string[] {
     if (chainId === null) {
       // Try default chain from config.
       try {
-        const configPath = join(configHome, "config.json");
-        if (existsSync(configPath)) {
-          const raw = readFileSync(configPath, "utf-8");
-          const parsed = JSON.parse(raw);
-          const defaultChain = parsed?.defaultChain;
-          if (typeof defaultChain === "string" && CHAINS[defaultChain]) {
-            chainId = CHAINS[defaultChain].id;
-          }
+        const defaultChain = configuredDefaultChainName(configHome);
+        if (defaultChain) {
+          chainId = CHAINS[defaultChain].id;
         }
       } catch { /* silent */ }
     }
@@ -483,7 +625,13 @@ export function queryCompletionCandidates(
   const cword = normalizeCword(cwordInput, words.length);
   const currentToken = cword < words.length ? words[cword] ?? "" : "";
 
-  const { current, expectingValueFor } = resolveContext(tree, words, cword);
+  const {
+    current,
+    commandPath,
+    consumedOptionNames,
+    expectingValueFor,
+    positionalsBeforeCurrent,
+  } = resolveContext(tree, words, cword);
 
   if (currentToken.startsWith("-") && currentToken.includes("=")) {
     const equalsIndex = currentToken.indexOf("=");
@@ -493,7 +641,9 @@ export function queryCompletionCandidates(
     if (option) {
       const values = isPoolAccountOption(option)
         ? dynamicPoolAccountCandidates(words)
-        : option.values;
+        : isAssetOption(option)
+          ? dynamicAssetCandidates(words)
+          : option.values;
       if (values.length > 0) {
         return filterByPrefix(values, valuePrefix).map(
           (value) => `${flag}=${value}`,
@@ -509,8 +659,29 @@ export function queryCompletionCandidates(
         return filterByPrefix(dynamicValues, currentToken);
       }
     }
+    if (isAssetOption(expectingValueFor)) {
+      const dynamicValues = dynamicAssetCandidates(words);
+      if (dynamicValues.length > 0) {
+        return filterByPrefix(dynamicValues, currentToken);
+      }
+    }
     if (expectingValueFor.values.length === 0) return [];
     return filterByPrefix(expectingValueFor.values, currentToken);
+  }
+
+  if (
+    !currentToken.startsWith("-")
+    && currentToken.indexOf("=") < 0
+    && currentTokenLooksLikeAssetPosition(
+      commandPath,
+      positionalsBeforeCurrent,
+      consumedOptionNames,
+    )
+  ) {
+    const dynamicValues = dynamicAssetCandidates(words);
+    if (dynamicValues.length > 0) {
+      return filterByPrefix(dynamicValues, currentToken);
+    }
   }
 
   const subcommands = Array.from(current.subcommands.keys());
