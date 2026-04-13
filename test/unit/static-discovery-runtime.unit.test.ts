@@ -42,11 +42,19 @@ describe("static discovery runtime", () => {
         "/usr/local/bin/fish",
       ),
     ).toBe("fish");
+    expect(
+      staticDiscoveryTestInternals.detectStaticCompletionShell(
+        "C:/Program Files/PowerShell/7/pwsh.exe",
+      ),
+    ).toBe("powershell");
     const originalShell = process.env.SHELL;
     delete process.env.SHELL;
     expect(staticDiscoveryTestInternals.detectStaticCompletionShell()).toBe(
       "bash",
     );
+    expect(
+      staticDiscoveryTestInternals.detectStaticCompletionShell("", "win32"),
+    ).toBe("powershell");
     if (originalShell === undefined) {
       delete process.env.SHELL;
     } else {

@@ -6,15 +6,12 @@ import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
 import { resolveConfigHome } from "../runtime/config-paths.js";
 import { loadAccount } from "../services/account-storage.js";
 import { OUTPUT_FORMATS } from "./mode.js";
-
-export const SUPPORTED_COMPLETION_SHELLS = [
-  "bash",
-  "zsh",
-  "fish",
-  "powershell",
-] as const;
-
-export type CompletionShell = (typeof SUPPORTED_COMPLETION_SHELLS)[number];
+import {
+  detectCompletionShell,
+  isCompletionShell,
+  SUPPORTED_COMPLETION_SHELLS,
+  type CompletionShell,
+} from "./completion-shell.js";
 
 export const PUBLISHED_BINARY_NAMES = ["privacy-pools"] as const;
 
@@ -38,26 +35,10 @@ interface CompletionCommandNode {
 }
 
 const UNSIGNED_FORMAT_VALUES = ["envelope", "tx"] as const;
+const poolAccountCountCache = new Map<string, number>();
 
 function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
-}
-
-export function isCompletionShell(value: string): value is CompletionShell {
-  return (SUPPORTED_COMPLETION_SHELLS as readonly string[]).includes(value);
-}
-
-export function detectCompletionShell(
-  envShell: string | undefined = process.env.SHELL,
-  platform: NodeJS.Platform = process.platform,
-): CompletionShell {
-  const raw = (envShell ?? "").toLowerCase();
-  if (raw.includes("zsh")) return "zsh";
-  if (raw.includes("fish")) return "fish";
-  if (raw.includes("pwsh") || raw.includes("powershell")) return "powershell";
-  if (raw.includes("bash")) return "bash";
-  if (platform === "win32") return "powershell";
-  return "bash";
 }
 
 function completionOption(
@@ -581,13 +562,13 @@ function dynamicPoolAccountCandidates(words: string[]): string[] {
       for (const file of files) {
         const cid = Number(file.replace(".json", ""));
         if (!Number.isInteger(cid)) continue;
-        const count = countPoolAccounts(cid);
+        const count = countPoolAccounts(configHome, cid);
         for (let i = 1; i <= count; i++) allPaNums.add(i);
       }
       return Array.from(allPaNums).sort((a, b) => a - b).map((n) => `PA-${n}`);
     }
 
-    const count = countPoolAccounts(chainId);
+    const count = countPoolAccounts(configHome, chainId);
     if (count === 0) return [];
     return Array.from({ length: count }, (_, i) => `PA-${i + 1}`);
   } catch {
@@ -595,7 +576,13 @@ function dynamicPoolAccountCandidates(words: string[]): string[] {
   }
 }
 
-function countPoolAccounts(chainId: number): number {
+function countPoolAccounts(configHome: string, chainId: number): number {
+  const cacheKey = `${configHome}:${chainId}`;
+  const cached = poolAccountCountCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
   try {
     const account = loadAccount(chainId);
     if (!account) return 0;
@@ -605,11 +592,19 @@ function countPoolAccounts(chainId: number): number {
     for (const [, value] of poolAccounts) {
       if (Array.isArray(value)) total += value.length;
     }
+    poolAccountCountCache.set(cacheKey, total);
     return total;
   } catch {
     return 0;
   }
 }
+
+export {
+  detectCompletionShell,
+  isCompletionShell,
+  SUPPORTED_COMPLETION_SHELLS,
+  type CompletionShell,
+};
 
 export function queryCompletionCandidates(
   wordsInput: string[],

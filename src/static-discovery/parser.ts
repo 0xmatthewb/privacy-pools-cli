@@ -8,6 +8,10 @@ import {
 import {
   staticGlobalOptsFromParsedRootArgv,
 } from "./guards.js";
+import {
+  detectCompletionShell,
+  isCompletionShell,
+} from "../utils/completion-shell.js";
 import type {
   ParsedStaticCommand,
   ParsedStaticCompletionQuery,
@@ -21,16 +25,14 @@ const STATIC_DISCOVERY_COMMAND_SET = new Set<string>(STATIC_DISCOVERY_COMMANDS);
 export function isKnownCompletionShell(
   value: string,
 ): value is ParsedStaticCompletionQuery["shell"] {
-  return value === "bash" || value === "zsh" || value === "fish" || value === "powershell";
+  return isCompletionShell(value);
 }
 
 export function detectStaticCompletionShell(
   envShell: string | undefined = process.env.SHELL,
+  platform: NodeJS.Platform = process.platform,
 ): ParsedStaticCompletionQuery["shell"] {
-  const raw = (envShell ?? "").toLowerCase();
-  if (raw.includes("zsh")) return "zsh";
-  if (raw.includes("fish")) return "fish";
-  return "bash";
+  return detectCompletionShell(envShell, platform);
 }
 
 export function parseStaticCommand(argv: string[]): ParsedStaticCommand | null {

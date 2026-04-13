@@ -259,11 +259,21 @@ pub(crate) fn detect_completion_shell() -> String {
 }
 
 fn detect_completion_shell_from_value(shell: &str) -> String {
+    detect_completion_shell_from_value_for_platform(shell, cfg!(windows))
+}
+
+fn detect_completion_shell_from_value_for_platform(shell: &str, is_windows: bool) -> String {
     let shell = shell.to_lowercase();
     if shell.contains("zsh") {
         "zsh".to_string()
     } else if shell.contains("fish") {
         "fish".to_string()
+    } else if shell.contains("pwsh") || shell.contains("powershell") {
+        "powershell".to_string()
+    } else if shell.contains("bash") {
+        "bash".to_string()
+    } else if is_windows {
+        "powershell".to_string()
     } else {
         "bash".to_string()
     }
@@ -487,6 +497,17 @@ mod tests {
         assert_eq!(detect_completion_shell_from_value("/bin/zsh"), "zsh");
         assert_eq!(detect_completion_shell_from_value("/usr/bin/fish"), "fish");
         assert_eq!(detect_completion_shell_from_value("/bin/bash"), "bash");
-        assert_eq!(detect_completion_shell_from_value(""), "bash");
+        assert_eq!(
+            detect_completion_shell_from_value("C:/Program Files/PowerShell/7/pwsh.exe"),
+            "powershell"
+        );
+        assert_eq!(
+            detect_completion_shell_from_value_for_platform("", false),
+            "bash"
+        );
+        assert_eq!(
+            detect_completion_shell_from_value_for_platform("", true),
+            "powershell"
+        );
     }
 }

@@ -36,6 +36,7 @@ describe("completion query helpers", () => {
     );
     expect(detectCompletionShell("")).toBe("bash");
     expect(detectCompletionShell("", "win32")).toBe("powershell");
+    expect(detectCompletionShell("", "linux")).toBe("bash");
   });
 
   test("suggests top-level commands and global flags", () => {
