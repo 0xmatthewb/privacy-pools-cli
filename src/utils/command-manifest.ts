@@ -17,6 +17,9 @@ export const GENERATED_COMMAND_PATHS = [
   "config get",
   "config set",
   "config path",
+  "config profile list",
+  "config profile create",
+  "config profile active",
   "flow",
   "flow start",
   "flow watch",
@@ -194,6 +197,24 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "config path": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config profile list": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config profile create": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config profile active": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -534,11 +555,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Show public activity feed",
       "usage": "activity",
       "flags": [
-        "--asset <symbol|address>",
+        "[asset]",
         "--page <n>",
         "--limit <n>"
       ],
-      "agentFlags": "--agent [--asset <symbol>] [--page <n>] [--limit <n>]",
+      "agentFlags": "--agent [<asset>] [--page <n>] [--limit <n>]",
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -1164,6 +1185,147 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": []
     },
+    "config profile list": {
+      "command": "config profile list",
+      "description": "List available profiles",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config profile list",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config profile list",
+        "privacy-pools config profile list --agent"
+      ],
+      "jsonFields": "{ profiles, active }",
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "config profile create": {
+      "command": "config profile create",
+      "description": "Create a new named profile",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config profile create <name>",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config profile create trading",
+        "privacy-pools config profile create ops --agent"
+      ],
+      "jsonFields": "{ profile, created, profileDir }",
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "config profile active": {
+      "command": "config profile active",
+      "description": "Show the currently active profile",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config profile active",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--format <format>",
+        "-y, --yes",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--timeout <seconds>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config profile active",
+        "privacy-pools config profile active --agent"
+      ],
+      "jsonFields": "{ profile, configDir }",
+      "jsonVariants": [],
+      "safetyNotes": [],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
     "flow": {
       "command": "flow",
       "description": "Guided deposit-to-private-withdrawal workflow",
@@ -1597,7 +1759,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "activity",
       "flags": [
-        "--asset <symbol|address>",
+        "[asset]",
         "--page <n>",
         "--limit <n>"
       ],
@@ -2748,6 +2910,24 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
+    "config profile list": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "config profile create": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "config profile active": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
     "flow": {
       "owner": "js-runtime",
       "nativeModes": [
@@ -3257,6 +3437,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config list",
     "config get",
     "config path",
+    "config profile list",
+    "config profile active",
     "flow",
     "flow status",
     "pools",

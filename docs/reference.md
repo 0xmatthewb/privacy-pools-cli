@@ -214,7 +214,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 
 | Flag | Description |
 |------|-------------|
-| `-t, --to <address>` | Recipient address for the later private withdrawal |
+| `-t, --to <address>` | Recipient address for private withdrawal (prompted interactively; required in --agent mode) |
 | `--privacy-delay <profile>` | Privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized) |
 | `--new-wallet` | Create and use a dedicated wallet for this workflow |
 | `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
@@ -337,7 +337,7 @@ privacy-pools pools --agent --chain mainnet
 
 | Flag | Description |
 |------|-------------|
-| `--all-chains` | Include testnet chains (mainnet chains shown by default) |
+| `--all-chains` | Include testnet chains (default: Ethereum, Arbitrum, Optimism mainnets only) |
 | `--search <query>` | Filter by chain/symbol/address/scope |
 | `--sort <mode>` | Sort mode (default, asset-asc, asset-desc, tvl-desc, tvl-asc, deposits-desc, deposits-asc, chain-asset) |
 
@@ -350,6 +350,10 @@ privacy-pools pools --agent --chain mainnet
 ### `activity`
 
 Show public activity feed
+
+**Usage:** `privacy-pools activity [asset] [options]`
+
+Shows the public onchain event feed across Privacy Pools — deposits and withdrawals from all participants. For your own private transaction history, use 'history' instead.
 
 **Basic:**
 
@@ -368,7 +372,6 @@ privacy-pools activity --asset USDC --agent --chain mainnet
 
 | Flag | Description |
 |------|-------------|
-| `-a, --asset <symbol\|address>` | Filter to one pool asset on the selected chain |
 | `--page <n>` | Page number |
 | `-n, --limit <n>` | Items per page |
 
@@ -401,6 +404,8 @@ privacy-pools stats global --agent
 
 Show statistics for a specific pool (all-time and last 24h)
 
+**Usage:** `privacy-pools stats pool [asset] [options]`
+
 ```bash
 privacy-pools stats pool --asset ETH
 privacy-pools stats pool --asset USDC --agent --chain mainnet
@@ -408,7 +413,7 @@ privacy-pools stats pool --asset USDC --agent --chain mainnet
 
 | Flag | Description |
 |------|-------------|
-| `-a, --asset <symbol\|address>` | Pool asset (symbol like ETH, USDC, or token address) |
+| `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
 
 **JSON output:** `{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }`
 
@@ -461,7 +466,7 @@ privacy-pools deposit 0.1 ETH --unsigned
 | Flag | Description |
 |------|-------------|
 | `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
-| `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
+| `--unsigned [format]` | Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx) |
 | `--dry-run` | Validate and preview the transaction without submitting |
 | `--ignore-unique-amount` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
 
@@ -514,13 +519,13 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 
 | Flag | Description |
 |------|-------------|
-| `-t, --to <address>` | Recipient address (required for relayed) |
+| `-t, --to <address>` | Recipient address (required unless --direct; prompted interactively) |
 | `-p, --pool-account <PA-#\|#>` | Withdraw from a specific Pool Account (e.g. PA-2) |
 | `--direct` | NOT recommended. Withdraw directly onchain, publicly linking deposit and withdrawal addresses. Use relayed mode (default) for privacy. |
-| `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
+| `--unsigned [format]` | Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx) |
 | `--dry-run` | Generate and verify withdrawal artifacts without submitting |
 | `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
-| `--all` | Withdraw entire Pool Account balance |
+| `--all` | Withdraw entire Pool Account balance (requires asset: withdraw --all ETH) |
 | `--extra-gas` | Request gas tokens with withdrawal (default: true for ERC20) |
 | `--no-extra-gas` | Disable extra gas request |
 
@@ -550,7 +555,7 @@ privacy-pools withdraw quote 100 USDC --agent --chain mainnet
 
 | Flag | Description |
 |------|-------------|
-| `-a, --asset <symbol\|address>` | Asset to quote |
+| `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
 | `-t, --to <address>` | Recipient address (recommended for an accurate fee quote) |
 
 **JSON output:** `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
@@ -587,7 +592,7 @@ privacy-pools accounts --no-sync --chain mainnet
 | Flag | Description |
 |------|-------------|
 | `--no-sync` | Use cached data (faster, but may be stale) |
-| `--all-chains` | Include testnet chains (mainnet chains shown by default) |
+| `--all-chains` | Include testnet chains (default: Ethereum, Arbitrum, Optimism mainnets only) |
 | `--details` | Show additional details per Pool Account |
 | `--summary` | Show counts and balances only |
 | `--pending-only` | Show only pending ASP approvals |
@@ -662,6 +667,8 @@ privacy-pools history --no-sync --chain mainnet
 
 Force-sync local account state from onchain events
 
+**Usage:** `privacy-pools sync [asset] [options]`
+
 Most wallet-aware commands already auto-sync with a 2-minute freshness window, so explicit sync is mainly a crash-recovery or reconciliation tool rather than a command you should need on every workflow step.
 
 ```bash
@@ -669,10 +676,6 @@ privacy-pools sync
 privacy-pools sync --asset ETH --agent
 privacy-pools sync --chain mainnet
 ```
-
-| Flag | Description |
-|------|-------------|
-| `-a, --asset <symbol\|address>` | Sync only a single pool asset |
 
 **JSON output:** `{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
@@ -734,7 +737,7 @@ privacy-pools ragequit ETH --dry-run --pool-account PA-1
 |------|-------------|
 | `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
 | `-p, --pool-account <PA-#\|#>` | Ragequit a specific Pool Account (e.g. PA-2) |
-| `--unsigned [format]` | Build unsigned transaction without submitting; format: envelope (default) or tx |
+| `--unsigned [format]` | Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx) |
 | `--dry-run` | Generate proof and validate without submitting |
 
 **Safety:** Ragequit is always available as your self-custody guarantee, but it is public and irreversible and reveals the original deposit address onchain.
@@ -749,6 +752,8 @@ privacy-pools ragequit ETH --dry-run --pool-account PA-1
 ### `guide`
 
 Show usage guide, workflow, and reference
+
+**Usage:** `privacy-pools guide [topic] [options]`
 
 ```bash
 privacy-pools guide
