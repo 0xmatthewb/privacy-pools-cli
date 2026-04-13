@@ -62,6 +62,10 @@ const nativeStatsRendererPath = join(
   "stats.rs",
 );
 
+function normalizeSourceWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 describe("output format parity conformance", () => {
   const sorted = (values: readonly string[]) => [...values].sort();
 
@@ -124,10 +128,14 @@ describe("output format parity conformance", () => {
     const nativeStatsRenderer = readFileSync(nativeStatsRendererPath, "utf8");
 
     expect(jsPoolsRenderer).toContain('"Pool Address", "Scope"');
-    expect(nativePoolsRenderer).toContain('"Pool Address", "Scope"');
+    expect(normalizeSourceWhitespace(nativePoolsRenderer)).toContain(
+      '"Pool Address", "Scope"',
+    );
 
     expect(jsActivityRenderer).toContain('"Pool Address", "Chain"');
-    expect(nativeActivityRenderer).toContain('"Pool Address", "Chain"');
+    expect(normalizeSourceWhitespace(nativeActivityRenderer)).toContain(
+      '"Pool Address", "Chain"',
+    );
 
     expect(jsStatsRenderer).toContain('ctx.mode.isWide');
     expect(nativeStatsRenderer).toContain("mode.is_wide()");
