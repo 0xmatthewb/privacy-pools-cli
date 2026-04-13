@@ -63,6 +63,7 @@ const resolveGlobalModeMock = mock((globalOpts: Record<string, unknown> = {}) =>
   isAgent: Boolean(globalOpts.agent),
   isJson: Boolean(globalOpts.json),
   isCsv: false,
+  isWide: false,
   isQuiet: Boolean(globalOpts.quiet),
   format: globalOpts.json ? "json" : "table",
   skipPrompts: Boolean(globalOpts.json || globalOpts.agent || globalOpts.yes),

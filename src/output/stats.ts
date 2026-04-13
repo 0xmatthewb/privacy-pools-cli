@@ -148,7 +148,7 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
 
   const silent = isSilent(ctx);
   if (silent) return;
-  const renderTable = getOutputWidthClass() === "wide";
+  const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
 
   if (data.perChain && data.perChain.length > 0) {
     for (const entry of data.perChain) {
@@ -216,7 +216,7 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
 
   const silent = isSilent(ctx);
   if (!silent) {
-    const renderTable = getOutputWidthClass() === "wide";
+    const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
     process.stderr.write(`\n${accentBold(`Pool statistics for ${data.asset} on ${data.chain}:`)}\n\n`);
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(

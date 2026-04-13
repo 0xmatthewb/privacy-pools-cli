@@ -8,7 +8,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printCsv, printTable, info, isSilent } from "./common.js";
-import { formatAmount, formatTxHash, displayDecimals, formatApproxBlockTimeAgo } from "../utils/format.js";
+import { formatAddress, formatAmount, formatTxHash, displayDecimals, formatApproxBlockTimeAgo } from "../utils/format.js";
 import {
   accentBold,
 } from "../utils/theme.js";
@@ -127,11 +127,15 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
       },
     ]),
   );
+  const isWideFormat = ctx.mode.isWide;
+  const historyHeaders = isWideFormat
+    ? ["Type", "PA", "Amount", "Tx", "Time", "Block", "Pool"]
+    : ["Type", "PA", "Amount", "Tx", "Time"];
   printTable(
-    ["Type", "PA", "Amount", "Tx", "Time"],
+    historyHeaders,
     events.map((e) => {
       const pool = poolByAddress.get(e.poolAddress);
-      return [
+      const row = [
         renderHistoryType(e.type),
         e.paId,
         formatAmount(e.value, pool?.decimals ?? 18, e.asset, displayDecimals(pool?.decimals ?? 18)),
@@ -140,6 +144,10 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
           ? formatApproxBlockTimeAgo(currentBlock, e.blockNumber, avgBlockTimeSec)
           : "-",
       ];
+      if (isWideFormat) {
+        row.push(e.blockNumber.toString(), formatAddress(e.poolAddress, 8));
+      }
+      return row;
     }),
   );
   process.stderr.write("\n");

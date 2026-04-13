@@ -12,8 +12,14 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
     welcomeBoolean: false,
   },
   {
+    flag: "--json-fields <fields>",
+    description: "Select specific JSON fields (comma-separated, implies --json)",
+    takesValue: true,
+    welcomeBoolean: false,
+  },
+  {
     flag: "--format <format>",
-    description: "Output format: table (default), csv, json",
+    description: "Output format: table (default), csv, json, wide",
     takesValue: true,
     welcomeBoolean: false,
   },
@@ -56,6 +62,12 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
   {
     flag: "--timeout <seconds>",
     description: "Network/transaction timeout in seconds (default: 30)",
+    takesValue: true,
+    welcomeBoolean: false,
+  },
+  {
+    flag: "--jq <expression>",
+    description: "Filter JSON output with a JMESPath expression (implies --json)",
     takesValue: true,
     welcomeBoolean: false,
   },

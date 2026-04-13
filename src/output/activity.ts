@@ -240,18 +240,29 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     return;
   }
 
+  const isWideFormat = ctx.mode.isWide;
+  const activityHeaders = isWideFormat
+    ? ["Type", "Pool", "Amount", "Status", "Time", "Tx", "Pool Address", "Chain"]
+    : ["Type", "Pool", "Amount", "Status", "Time", "Tx"];
   printTable(
-    ["Type", "Pool", "Amount", "Status", "Time", "Tx"],
-      data.events.map((e) => [
-        // Completed withdrawals, ragequits, and migrations show "Completed".
-        // Missing deposit review status defaults to pending.
-        renderActivityType(e.type),
-        eventPoolLabel(e),
-        e.amountFormatted,
-        renderActivityStatus(e.type, e.reviewStatus),
-      e.timeLabel,
-      e.txHash ? formatAddress(e.txHash, 8) : "-",
-    ]),
+    activityHeaders,
+      data.events.map((e) => {
+        const row = [
+          renderActivityType(e.type),
+          eventPoolLabel(e),
+          e.amountFormatted,
+          renderActivityStatus(e.type, e.reviewStatus),
+          e.timeLabel,
+          e.txHash ? formatAddress(e.txHash, 8) : "-",
+        ];
+        if (isWideFormat) {
+          row.push(
+            e.poolAddress ? formatAddress(e.poolAddress, 8) : "-",
+            e.chainId !== null ? String(e.chainId) : "-",
+          );
+        }
+        return row;
+      }),
   );
 
   // Pagination footer

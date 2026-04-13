@@ -29,6 +29,7 @@ export function makeMode(
     isAgent: false,
     isJson: false,
     isCsv: false,
+    isWide: false,
     isQuiet: false,
     format: "table" as const,
     skipPrompts: false,

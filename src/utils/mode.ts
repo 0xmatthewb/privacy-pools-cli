@@ -1,6 +1,7 @@
 import type { GlobalOptions } from "../types.js";
+import { configureJsonOutput } from "./json.js";
 
-export const OUTPUT_FORMATS = ["table", "csv", "json"] as const;
+export const OUTPUT_FORMATS = ["table", "csv", "json", "wide"] as const;
 
 export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 
@@ -10,9 +11,12 @@ export interface ResolvedGlobalMode {
   isAgent: boolean;
   isJson: boolean;
   isCsv: boolean;
+  isWide: boolean;
   isQuiet: boolean;
   format: OutputFormat;
   skipPrompts: boolean;
+  jsonFields: string[] | null;
+  jqExpression: string | null;
 }
 
 export function normalizeOutputFormat(
@@ -39,24 +43,40 @@ export function resolveGlobalMode(
   globalOpts?: GlobalOptions
 ): ResolvedGlobalMode {
   const isAgent = globalOpts?.agent ?? false;
-  const hasStructuredJsonFlag = (globalOpts?.json ?? false) || isAgent;
+  const hasJq = typeof globalOpts?.jq === "string";
+  const hasJsonFieldsFlag = typeof globalOpts?.jsonFields === "string";
+  const hasStructuredJsonFlag =
+    (globalOpts?.json ?? false) || isAgent || hasJq || hasJsonFieldsFlag;
   const explicitFormat = normalizeOutputFormat(globalOpts?.format);
+  const isWide = explicitFormat === "wide";
   const format: OutputFormat =
     explicitFormat === "json" || hasStructuredJsonFlag ? "json" :
     explicitFormat === "csv" ? "csv" :
-    "table";
+    "table"; // "wide" also uses table rendering
   const isJson = format === "json";
   const isCsv = format === "csv";
   const isQuiet = (globalOpts?.quiet ?? false) || isAgent;
   // JSON/CSV/machine mode must never block on interactive prompts.
   const skipPrompts = (globalOpts?.yes ?? false) || isAgent || isJson || isCsv;
 
+  // Parse --json-fields <fields> comma-separated field selection.
+  const jsonFields: string[] | null =
+    typeof globalOpts?.jsonFields === "string"
+      ? globalOpts.jsonFields.split(",").map((f) => f.trim()).filter(Boolean)
+      : null;
+
+  // Parse --jq <expression>.
+  const jqExpression: string | null = hasJq ? globalOpts!.jq! : null;
+
   // Persist timeout from global flags for services to pick up.
   if (globalOpts?.timeout !== undefined) {
     setNetworkTimeoutMs(parseTimeoutFlag(globalOpts.timeout));
   }
 
-  return { isAgent, isJson, isCsv, isQuiet, format, skipPrompts };
+  // Configure the JSON output module with field selection and jq filtering.
+  configureJsonOutput(jsonFields, jqExpression);
+
+  return { isAgent, isJson, isCsv, isWide, isQuiet, format, skipPrompts, jsonFields, jqExpression };
 }
 
 const DEFAULT_NETWORK_TIMEOUT_MS = 30_000;

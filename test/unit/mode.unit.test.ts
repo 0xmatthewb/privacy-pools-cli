@@ -4,26 +4,24 @@ import { resolveGlobalMode } from "../../src/utils/mode.ts";
 describe("resolveGlobalMode", () => {
   test("defaults all flags to false when no options", () => {
     const result = resolveGlobalMode(undefined);
-    expect(result).toEqual({
-      isAgent: false,
-      isJson: false,
-      isCsv: false,
-      isQuiet: false,
-      format: "table",
-      skipPrompts: false,
-    });
+    expect(result.isAgent).toBe(false);
+    expect(result.isJson).toBe(false);
+    expect(result.isCsv).toBe(false);
+    expect(result.isWide).toBe(false);
+    expect(result.isQuiet).toBe(false);
+    expect(result.format).toBe("table");
+    expect(result.skipPrompts).toBe(false);
   });
 
   test("defaults all flags to false with empty options", () => {
     const result = resolveGlobalMode({});
-    expect(result).toEqual({
-      isAgent: false,
-      isJson: false,
-      isCsv: false,
-      isQuiet: false,
-      format: "table",
-      skipPrompts: false,
-    });
+    expect(result.isAgent).toBe(false);
+    expect(result.isJson).toBe(false);
+    expect(result.isCsv).toBe(false);
+    expect(result.isWide).toBe(false);
+    expect(result.isQuiet).toBe(false);
+    expect(result.format).toBe("table");
+    expect(result.skipPrompts).toBe(false);
   });
 
   test("--agent implies json, quiet, and skipPrompts", () => {
@@ -109,5 +107,22 @@ describe("resolveGlobalMode", () => {
     const result = resolveGlobalMode({ json: true });
     expect(result.format).toBe("json");
     expect(result.isJson).toBe(true);
+  });
+
+  test("--format wide sets isWide and uses table format", () => {
+    const result = resolveGlobalMode({ format: "wide" });
+    expect(result.isWide).toBe(true);
+    expect(result.isJson).toBe(false);
+    expect(result.isCsv).toBe(false);
+    expect(result.format).toBe("table");
+    expect(result.skipPrompts).toBe(false);
+  });
+
+  test("--agent takes precedence over --format wide", () => {
+    const result = resolveGlobalMode({ agent: true, format: "wide" });
+    expect(result.isAgent).toBe(true);
+    expect(result.isJson).toBe(true);
+    expect(result.isWide).toBe(true);
+    expect(result.format).toBe("json");
   });
 });

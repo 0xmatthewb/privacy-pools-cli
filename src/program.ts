@@ -142,7 +142,7 @@ export async function createRootProgram(
       new Option(
         "--format <format>",
         rootGlobalFlagDescription("--format <format>"),
-      ).choices(["table", "csv", "json"]),
+      ).choices(["table", "csv", "json", "wide"]),
     )
     .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"));
 
@@ -152,6 +152,12 @@ export async function createRootProgram(
     new Option(
       "-r, --rpc-url <url>",
       rootGlobalFlagDescription("-r, --rpc-url <url>"),
+    ),
+  );
+  program.addOption(
+    new Option(
+      "--json-fields <fields>",
+      rootGlobalFlagDescription("--json-fields <fields>"),
     ),
   );
   program.addOption(
@@ -182,6 +188,12 @@ export async function createRootProgram(
     new Option(
       "--timeout <seconds>",
       rootGlobalFlagDescription("--timeout <seconds>"),
+    ),
+  );
+  program.addOption(
+    new Option(
+      "--jq <expression>",
+      rootGlobalFlagDescription("--jq <expression>"),
     ),
   );
 
