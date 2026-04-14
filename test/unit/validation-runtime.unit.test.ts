@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { CLIError } from "../../src/utils/errors.ts";
-import { resolveAddressOrEns } from "../../src/utils/validation.ts";
+import {
+  parseAmount,
+  resolveAddressOrEns,
+  validateAddress,
+  validatePositive,
+} from "../../src/utils/validation.ts";
 
 afterEach(() => {
   mock.restore();
@@ -74,6 +79,32 @@ describe("validation runtime coverage", () => {
     );
   });
 
+  test("resolveAddressOrEns fails closed when ENS lookup returns no address", async () => {
+    const realViem = await import("viem");
+
+    mock.module("viem", () => ({
+      ...realViem,
+      createPublicClient: () => ({
+        getEnsAddress: async () => null,
+      }),
+      http: () => "mock-transport",
+    }));
+    mock.module("viem/chains", () => ({
+      mainnet: { id: 1, name: "Ethereum" },
+    }));
+    mock.module("viem/ens", () => ({
+      normalize: (value: string) => value,
+    }));
+
+    await expect(resolveAddressOrEns("unknown.eth", "Recipient")).rejects.toThrow(
+      new CLIError(
+        'Could not resolve ENS name "unknown.eth".',
+        "INPUT",
+        "Verify the name exists and try again. ENS resolution requires mainnet connectivity.",
+      ),
+    );
+  });
+
   test("resolveAddressOrEns falls back to address validation for non-ENS strings", async () => {
     await expect(
       resolveAddressOrEns("not-an-address", "Recipient"),
@@ -82,6 +113,35 @@ describe("validation runtime coverage", () => {
         "Recipient is not a valid Ethereum address: not-an-address",
         "INPUT",
         "Provide a 0x-prefixed, 42-character hex address (e.g. 0xAbC...123).",
+      ),
+    );
+  });
+
+  test("validateAddress rejects the zero address with the burn-funds hint", () => {
+    expect(() =>
+      validateAddress("0x0000000000000000000000000000000000000000", "Recipient"),
+    ).toThrow(
+      new CLIError(
+        "Recipient cannot be the zero address.",
+        "INPUT",
+        "Provide a non-zero destination address. Using 0x000...000 would burn funds.",
+      ),
+    );
+  });
+
+  test("parseAmount supports negative values only when explicitly allowed", () => {
+    expect(parseAmount("-1.5", 18, { allowNegative: true })).toBe(
+      -1500000000000000000n,
+    );
+    expect(() => parseAmount("-1.5", 18)).toThrow(CLIError);
+  });
+
+  test("validatePositive preserves the caller label in the CLI error", () => {
+    expect(() => validatePositive(0n, "Withdrawal amount")).toThrow(
+      new CLIError(
+        "Withdrawal amount must be greater than zero.",
+        "INPUT",
+        "Enter a positive number (e.g. 0.1, 10).",
       ),
     );
   });
