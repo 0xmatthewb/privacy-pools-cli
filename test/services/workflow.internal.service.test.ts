@@ -1452,6 +1452,43 @@ describe("workflow internal helpers", () => {
     ).rejects.toThrow("Pool state changed while preparing the workflow proof.");
   });
 
+  test("executeRelayedWithdrawalForFlow fails closed when local proof verification fails", async () => {
+    const proofError = new CLIError(
+      "Generated withdrawal proof failed local verification.",
+      "PROOF",
+      "Re-run 'privacy-pools flow watch' to generate a fresh proof.",
+      "PROOF_VERIFICATION_FAILED",
+    );
+    proveWithdrawalMock.mockImplementationOnce(async () => {
+      throw proofError;
+    });
+
+    const context = await loadWorkflowPoolAccountContext(
+      sampleSnapshot({
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+      }),
+      undefined,
+      true,
+    );
+
+    await expect(
+      executeRelayedWithdrawalForFlow({
+        snapshot: sampleSnapshot({
+          phase: "approved_ready_to_withdraw",
+          aspStatus: "approved",
+        }),
+        context,
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toBe(proofError);
+
+    expect(submitRelayRequestMock).not.toHaveBeenCalled();
+    expect(saveAccountMock).not.toHaveBeenCalled();
+    expect(saveSyncMetaMock).not.toHaveBeenCalled();
+  });
+
   test("executeRelayedWithdrawalForFlow refreshes an expired quote after proof generation when the fee is unchanged", async () => {
     const originalDateNow = Date.now;
     Date.now = () => {

@@ -580,6 +580,24 @@ describe("flow command handlers", () => {
     expect(printErrorMock).toHaveBeenCalledWith(boom, true);
   });
 
+  test("watch surfaces proof verification failures without trying to reload the workflow", async () => {
+    const proofError = new realErrors.CLIError(
+      "Generated withdrawal proof failed local verification.",
+      "PROOF",
+      "Re-run 'privacy-pools flow watch' to generate a fresh proof.",
+      "PROOF_VERIFICATION_FAILED",
+    );
+    watchWorkflowMock.mockImplementationOnce(async () => {
+      throw proofError;
+    });
+
+    await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true }));
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(getWorkflowStatusMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledWith(proofError, true);
+  });
+
   test("watch re-renders the saved snapshot when the relayer minimum blocks the private path", async () => {
     watchWorkflowMock.mockImplementationOnce(async () => {
       throw new realErrors.CLIError(
@@ -712,6 +730,24 @@ describe("flow command handlers", () => {
     expect(renderFlowResultMock).not.toHaveBeenCalled();
     expect(printErrorMock).not.toHaveBeenCalled();
     expect(infoMock).toHaveBeenCalledWith("Flow cancelled.", false);
+  });
+
+  test("ragequit surfaces proof verification failures without rendering success output", async () => {
+    inputPromptMock.mockImplementationOnce(async () => "RAGEQUIT");
+    const proofError = new realErrors.CLIError(
+      "Generated commitment proof failed local verification.",
+      "PROOF",
+      "Re-run 'privacy-pools flow ragequit' to generate a fresh proof.",
+      "PROOF_VERIFICATION_FAILED",
+    );
+    ragequitWorkflowMock.mockImplementationOnce(async () => {
+      throw proofError;
+    });
+
+    await handleFlowRagequitCommand("wf-ragequit", undefined, fakeCommand({ json: true }));
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledWith(proofError, true);
   });
 
   test("ragequit cancels cleanly when the confirmation is declined", async () => {
