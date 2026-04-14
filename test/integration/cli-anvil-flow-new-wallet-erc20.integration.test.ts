@@ -28,8 +28,8 @@ import {
   terminateChildProcess,
 } from "../helpers/process.ts";
 import {
+  assertWorkflowSnapshotRemains,
   waitForWorkflowSnapshotPhase,
-  readWorkflowSnapshot,
 } from "../helpers/workflow-snapshot.ts";
 import {
   loadSharedAnvilEnv,
@@ -400,8 +400,17 @@ describe("flow and manual ERC20 journeys on shared Anvil", () => {
         BigInt(awaitingFunding.requiredNativeFunding as string) + EXTRA_ETH_BUFFER,
       );
 
-      await new Promise((resolve) => setTimeout(resolve, 2_000));
-      const snapshot = readWorkflowSnapshot(home, awaitingFunding.workflowId as string);
+      const snapshot = await assertWorkflowSnapshotRemains(
+        home,
+        awaitingFunding.workflowId as string,
+        (current) =>
+          current.phase === "awaiting_funding"
+          && current.requiredTokenFunding === awaitingFunding.requiredTokenFunding,
+        {
+          description:
+            "the workflow to remain in awaiting_funding until ERC20 funding arrives",
+        },
+      );
       expect(snapshot.phase).toBe("awaiting_funding");
       expect(snapshot.requiredTokenFunding).toBe(awaitingFunding.requiredTokenFunding);
     } finally {
@@ -429,8 +438,17 @@ describe("flow and manual ERC20 journeys on shared Anvil", () => {
         BigInt(awaitingFunding.requiredNativeFunding as string) + EXTRA_ETH_BUFFER,
       );
 
-      await new Promise((resolve) => setTimeout(resolve, 2_000));
-      const snapshot = readWorkflowSnapshot(home, awaitingFunding.workflowId as string);
+      const snapshot = await assertWorkflowSnapshotRemains(
+        home,
+        awaitingFunding.workflowId as string,
+        (current) =>
+          current.phase === "awaiting_funding"
+          && current.requiredTokenFunding === awaitingFunding.requiredTokenFunding,
+        {
+          description:
+            "the native workflow to remain in awaiting_funding until ERC20 funding arrives",
+        },
+      );
       expect(snapshot.phase).toBe("awaiting_funding");
       expect(snapshot.requiredTokenFunding).toBe(awaitingFunding.requiredTokenFunding);
     } finally {

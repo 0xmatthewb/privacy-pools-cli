@@ -106,3 +106,58 @@ export async function waitForWorkflowSnapshotPhase(
 
   throw new Error(`Timed out waiting for workflow phase ${phase}`);
 }
+
+export async function assertWorkflowSnapshotRemains(
+  home: string,
+  workflowId: string,
+  predicate: (snapshot: WorkflowSnapshot) => boolean,
+  options: {
+    stableForMs?: number;
+    intervalMs?: number;
+    description?: string;
+  } = {},
+): Promise<WorkflowSnapshot> {
+  const {
+    stableForMs = 1_500,
+    intervalMs = 100,
+    description = "workflow snapshot condition",
+  } = options;
+  const deadline = Date.now() + stableForMs;
+  let latestSnapshot: WorkflowSnapshot | null = null;
+  let lastReadError: Error | null = null;
+
+  while (Date.now() < deadline) {
+    try {
+      latestSnapshot = readWorkflowSnapshot(home, workflowId);
+      lastReadError = null;
+      if (!predicate(latestSnapshot)) {
+        throw new Error(
+          `Workflow snapshot stopped satisfying ${description}`,
+        );
+      }
+    } catch (error) {
+      if (
+        error instanceof Error
+        && error.message === `Workflow snapshot stopped satisfying ${description}`
+      ) {
+        throw error;
+      }
+      lastReadError =
+        error instanceof Error ? error : new Error(String(error));
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  if (lastReadError) {
+    throw new Error(
+      `Timed out waiting for ${description}: ${lastReadError.message}`,
+    );
+  }
+
+  if (!latestSnapshot) {
+    throw new Error(`Timed out waiting for ${description}`);
+  }
+
+  return latestSnapshot;
+}

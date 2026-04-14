@@ -23,6 +23,7 @@ import {
 import { isSupportedInstallNodeVersion } from "../../scripts/lib/install-verification.mjs";
 
 const PREPARED_CLI_TARBALL = process.env.PP_INSTALL_CLI_TARBALL?.trim() || null;
+const PACK_RETRY_DELAY_MS = 250;
 
 function packedBaseNames(paths: Set<string>, prefix: string): string[] {
   return Array.from(
@@ -87,6 +88,24 @@ function runPackCommand(packRoot: string) {
       env: buildChildProcessEnv(),
     },
   );
+}
+
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function runPackWithRetries(
+  packRoot: string,
+  attempts: number = 3,
+): ReturnType<typeof spawnSync> {
+  let lastResult = runPackCommand(packRoot);
+
+  for (let attempt = 1; attempt < attempts && lastResult.status !== 0; attempt += 1) {
+    sleepSync(PACK_RETRY_DELAY_MS);
+    lastResult = runPackCommand(packRoot);
+  }
+
+  return lastResult;
 }
 
 function assertSuccessfulPack(
@@ -168,10 +187,7 @@ function packAndExtractCli(
 
   if (!tarballPath) {
     localPackRoot = packRoot ?? createBuiltWorkspaceSnapshot();
-    let pack = runPackCommand(localPackRoot);
-    if (pack.status !== 0) {
-      pack = runPackCommand(localPackRoot);
-    }
+    const pack = runPackWithRetries(localPackRoot);
 
     const tarballName = assertSuccessfulPack(localPackRoot, pack);
     tarballPath = join(localPackRoot, tarballName!);
