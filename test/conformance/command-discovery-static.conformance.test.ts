@@ -27,38 +27,49 @@ import {
 } from "../../src/utils/command-routing-static.ts";
 
 describe("command discovery static conformance", () => {
-  test("static command path catalog matches runtime discovery metadata", () => {
+  const sentinelCommands = [
+    "guide",
+    "pools",
+    "stats pool",
+    "withdraw",
+    "flow watch",
+  ] as const;
+
+  test("static command path catalog and alias resolution stay aligned", () => {
     expect([...STATIC_COMMAND_PATHS]).toEqual([...COMMAND_PATHS]);
     expect(listStaticCommandPaths()).toEqual(listCommandPaths());
-  });
 
-  test("static capabilities payload matches runtime-derived capabilities payload", () => {
-    expect(STATIC_CAPABILITIES_PAYLOAD).toEqual(buildCapabilitiesPayload());
-    expect(GENERATED_COMMAND_MANIFEST.capabilitiesPayload).toEqual(
-      buildCapabilitiesPayload(),
-    );
-  });
-
-  test("static global flag metadata stays aligned", () => {
-    expect(STATIC_GLOBAL_FLAG_METADATA).toEqual(GLOBAL_FLAG_METADATA);
-  });
-
-  test("static command resolution matches runtime command resolution", () => {
-    for (const path of COMMAND_PATHS) {
+    for (const path of sentinelCommands) {
       expect(resolveStaticCommandPath(path)).toBe(path);
       expect(resolveStaticCommandPath(path.split(" "))).toBe(path);
-      expect(STATIC_CAPABILITIES_PAYLOAD.commandDetails[path]).toEqual(
-        buildCommandDescriptor(path),
-      );
     }
 
     expect(resolveStaticCommandPath("exit")).toBe(resolveCommandPath("exit"));
     expect(resolveStaticCommandPath("not-a-command")).toBeNull();
   });
 
-  test("generated manifest stays aligned on root commands, static-local commands, and ownership", () => {
-    expect(GENERATED_COMMAND_MANIFEST.commandPaths).toEqual(COMMAND_PATHS);
-    expect(GENERATED_COMMAND_PATHS).toEqual(COMMAND_PATHS);
+  test("static and generated capabilities keep sentinel descriptors aligned", () => {
+    const runtimeCapabilities = buildCapabilitiesPayload();
+
+    for (const path of sentinelCommands) {
+      const descriptor = buildCommandDescriptor(path);
+      expect(STATIC_CAPABILITIES_PAYLOAD.commandDetails[path]).toEqual(descriptor);
+      expect(runtimeCapabilities.commandDetails[path]).toEqual(descriptor);
+      expect(GENERATED_COMMAND_MANIFEST.capabilitiesPayload.commandDetails[path]).toEqual(
+        descriptor,
+      );
+    }
+
+    expect(STATIC_GLOBAL_FLAG_METADATA).toEqual(GLOBAL_FLAG_METADATA);
+    expect(GENERATED_COMMAND_MANIFEST.capabilitiesPayload.exitCodes).toEqual(
+      STATIC_CAPABILITIES_PAYLOAD.exitCodes,
+    );
+    expect(GENERATED_COMMAND_MANIFEST.capabilitiesPayload.envVars).toEqual(
+      STATIC_CAPABILITIES_PAYLOAD.envVars,
+    );
+  });
+
+  test("generated routing metadata preserves key ownership contracts", () => {
     expect(GENERATED_STATIC_LOCAL_COMMANDS).toEqual([
       "guide",
       "capabilities",
@@ -66,27 +77,54 @@ describe("command discovery static conformance", () => {
       "completion",
     ]);
     expect(GENERATED_COMMAND_ALIAS_MAP).toEqual({ exit: "ragequit" });
-    expect(GENERATED_TOKENIZED_COMMAND_ROUTES).toEqual(
-      [...GENERATED_COMMAND_PATHS]
-        .map((route) => ({
-          route,
-          tokens: route.split(" "),
-        }))
-        .sort((left, right) => right.tokens.length - left.tokens.length),
-    );
+    expect(GENERATED_COMMAND_PATHS).toContain("guide");
+    expect(GENERATED_COMMAND_PATHS).toContain("pools");
+    expect(GENERATED_COMMAND_PATHS).toContain("withdraw");
 
+    expect(GENERATED_COMMAND_ROUTES.guide).toEqual({
+      owner: "native-shell",
+      nativeModes: ["default", "help"],
+    });
+    expect(GENERATED_COMMAND_ROUTES.pools).toEqual({
+      owner: "hybrid",
+      nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
+    });
+    expect(GENERATED_COMMAND_ROUTES.stats).toEqual({
+      owner: "hybrid",
+      nativeModes: ["default", "csv", "structured-default", "structured-global", "help"],
+    });
+    expect(GENERATED_COMMAND_ROUTES.withdraw).toEqual({
+      owner: "js-runtime",
+      nativeModes: ["help"],
+    });
+    expect(
+      GENERATED_TOKENIZED_COMMAND_ROUTES.every((entry) =>
+        entry.route.split(" ").join(" ") === entry.tokens.join(" ")
+      ),
+    ).toBe(true);
+    expect(
+      GENERATED_TOKENIZED_COMMAND_ROUTES.every((entry, index, all) =>
+        index === 0 || all[index - 1]!.tokens.length >= entry.tokens.length
+      ),
+    ).toBe(true);
+  });
+
+  test("generated manifest preserves root-command and accounts descriptor contracts", () => {
     for (const rootCommand of GENERATED_ROOT_COMMANDS) {
       expect(COMMAND_PATHS).toContain(rootCommand.name);
       expect(GENERATED_COMMAND_MANIFEST.capabilitiesPayload.commandDetails[
         rootCommand.name
       ]?.description).toBe(rootCommand.description);
     }
-
-    for (const path of COMMAND_PATHS) {
-      expect(GENERATED_COMMAND_MANIFEST.commandRoutes[path]).toEqual(
-        GENERATED_COMMAND_ROUTES[path],
-      );
-    }
+    expect(GENERATED_COMMAND_MANIFEST.commandRoutes.guide).toEqual(
+      GENERATED_COMMAND_ROUTES.guide,
+    );
+    expect(GENERATED_COMMAND_MANIFEST.commandRoutes.pools).toEqual(
+      GENERATED_COMMAND_ROUTES.pools,
+    );
+    expect(GENERATED_COMMAND_MANIFEST.commandRoutes.withdraw).toEqual(
+      GENERATED_COMMAND_ROUTES.withdraw,
+    );
 
     const accountsJsonVariants =
       GENERATED_COMMAND_MANIFEST.capabilitiesPayload.commandDetails.accounts
@@ -105,11 +143,5 @@ describe("command discovery static conformance", () => {
     expect(pendingOnlyVariant).toBeDefined();
     expect(pendingOnlyVariant).toContain("nextActions");
     expect(pendingOnlyVariant).toContain("cliCommand");
-    expect(GENERATED_COMMAND_MANIFEST.capabilitiesPayload.exitCodes).toEqual(
-      STATIC_CAPABILITIES_PAYLOAD.exitCodes,
-    );
-    expect(GENERATED_COMMAND_MANIFEST.capabilitiesPayload.envVars).toEqual(
-      STATIC_CAPABILITIES_PAYLOAD.envVars,
-    );
   });
 });

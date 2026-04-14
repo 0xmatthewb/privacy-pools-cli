@@ -36,13 +36,15 @@ const nativeManifestPath = join(
 describe("output format parity conformance", () => {
   const sorted = (values: readonly string[]) => [...values].sort();
 
-  test("js parsing, completion metadata, and native generated contracts stay aligned", () => {
+  test("runtime parsing accepts only declared output formats", () => {
     for (const format of OUTPUT_FORMATS) {
       expect(normalizeOutputFormat(format)).toBe(format);
     }
     expect(normalizeOutputFormat("yaml")).toBeNull();
     expect(invalidOutputFormatMessage("yaml")).toContain(OUTPUT_FORMAT_CHOICES_TEXT);
+  });
 
+  test("completion and root flag metadata expose the same format choices", () => {
     const formatOption = STATIC_COMPLETION_SPEC.options?.find((option) =>
       option.names.includes("--format"),
     );
@@ -55,7 +57,9 @@ describe("output format parity conformance", () => {
       ROOT_GLOBAL_FLAG_METADATA.find((flag) => flag.flag === "--format <format>")
         ?.values,
     ).toEqual([...OUTPUT_FORMATS]);
+  });
 
+  test("human and generated help advertise the format contract", () => {
     const rootHelp = rootHelpBaseText();
     expect(rootHelp).toContain(OUTPUT_FORMAT_DESCRIPTION);
     expect(rootHelp).toContain(`(choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`);
@@ -69,7 +73,9 @@ describe("output format parity conformance", () => {
     expect(
       nativeRootFlags.find((flag) => flag.flag === "--format <format>")?.values,
     ).toEqual([...OUTPUT_FORMATS]);
+  });
 
+  test("native manifest help surfaces keep the same format description", () => {
     const nativeManifest = JSON.parse(
       readFileSync(nativeManifestPath, "utf8"),
     ) as {
