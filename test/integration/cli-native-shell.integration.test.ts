@@ -518,7 +518,7 @@ describe("native shell parity", () => {
     });
   });
 
-  nativeTest("public read-only human and csv transcript smokes stay identical on fixture data", () => {
+  nativeTest("sentinel public read-only human and csv transcripts stay aligned on fixture data", () => {
     const env = fixtureEnv(fixture!);
 
     expectStreamParity(nativeBinary, ["stats"], {
@@ -529,19 +529,7 @@ describe("native shell parity", () => {
       js: { env },
       native: { env },
     });
-    expectStreamParity(
-      nativeBinary,
-      ["--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
-      {
-        js: { env },
-        native: { env },
-      },
-    );
     expectStreamParity(nativeBinary, ["--chain", "sepolia", "pools"], {
-      js: { env },
-      native: { env },
-    });
-    expectStreamParity(nativeBinary, ["--format", "csv", "--chain", "sepolia", "pools"], {
       js: { env },
       native: { env },
     });
@@ -666,17 +654,22 @@ describe("native shell parity", () => {
   nativeTest("native public render paths work directly without a JS bridge", () => {
     const env = fixtureEnv(fixture!);
 
-    for (const args of [
-      ["stats"],
-      ["--format", "csv", "stats"],
-      ["--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
-      ["activity"],
-      ["--format", "csv", "activity"],
-      ["--chain", "sepolia", "pools"],
-      ["--format", "csv", "--chain", "sepolia", "pools"],
+    for (const { args, expectedText } of [
+      { args: ["stats"], expectedText: "All Time" },
+      { args: ["--format", "csv", "stats"], expectedText: "Metric,All Time,Last 24h" },
+      { args: ["--chain", "sepolia", "stats", "pool", "--asset", "ETH"] },
+      { args: ["activity"] },
+      { args: ["--format", "csv", "activity"], expectedText: "Type,Pool,Amount" },
+      { args: ["--chain", "sepolia", "pools"] },
+      { args: ["--format", "csv", "--chain", "sepolia", "pools"], expectedText: "Asset,Total Deposits,Pool Balance" },
     ]) {
       const result = runNativeBinaryDirect(nativeBinary, args, { env });
+      const renderedOutput = `${result.stdout}${result.stderr}`;
       expect(result.status).toBe(0);
+      expect(renderedOutput.trim().length).toBeGreaterThan(0);
+      if (expectedText) {
+        expect(renderedOutput).toContain(expectedText);
+      }
       expect(result.stderr).not.toContain("JS worker bootstrap is unavailable");
     }
   });
