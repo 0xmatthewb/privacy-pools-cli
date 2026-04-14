@@ -8,6 +8,7 @@ import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts
 const realFormat = await import("../../src/utils/format.ts");
 
 let createOutputContext: typeof import("../../src/output/common.ts").createOutputContext;
+let formatFlowRagequitReview: typeof import("../../src/output/flow.ts").formatFlowRagequitReview;
 let renderFlowResult: typeof import("../../src/output/flow.ts").renderFlowResult;
 
 function expectNextAction(
@@ -22,7 +23,10 @@ function expectNextAction(
 beforeAll(async () => {
   mock.module("../../src/utils/format.ts", () => realFormat);
   ({ createOutputContext } = await import("../../src/output/common.ts?output-flow-renderers"));
-  ({ renderFlowResult } = await import("../../src/output/flow.ts?output-flow-renderers"));
+  ({
+    formatFlowRagequitReview,
+    renderFlowResult,
+  } = await import("../../src/output/flow.ts?output-flow-renderers"));
 });
 
 function sampleSnapshot(
@@ -52,6 +56,22 @@ function sampleSnapshot(
 }
 
 describe("renderFlowResult", () => {
+  test("formatFlowRagequitReview includes the original depositor caveat for configured wallets", () => {
+    const review = formatFlowRagequitReview(
+      sampleSnapshot({
+        walletMode: "configured",
+        committedValue: "9950000000000000",
+        poolAccountId: "PA-9",
+      }),
+    );
+
+    expect(review).toContain("Saved flow ragequit");
+    expect(review).toContain("Workflow");
+    expect(review).toContain("PA-9");
+    expect(review).toContain("original deposit address");
+    expect(review).toContain("original depositor signer");
+  });
+
   test("JSON mode emits the shared flow snapshot contract with watch nextActions", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>

@@ -14,6 +14,11 @@ describe("withProofProgress", () => {
     resetFirstRunMessage();
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+    resetFirstRunMessage();
+  });
+
   test("returns wrapped function result", async () => {
     const spin = mockSpinner();
     const result = await withProofProgress(spin as any, "Test", async () => 42);
@@ -195,6 +200,10 @@ describe("withProofProgress", () => {
 });
 
 describe("withSpinnerProgress", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   test("returns wrapped function result", async () => {
     const spin = mockSpinner();
     const result = await withSpinnerProgress(spin as any, "Sync", async () => 42);
@@ -275,6 +284,25 @@ describe("withSpinnerProgress", () => {
     expect(result).toBe("done");
     expect(spin.text).toContain("still working");
     expect(spin.text).not.toContain("almost there");
-    jest.useRealTimers();
+  });
+
+  test("does not call render when the spinner is not active", async () => {
+    jest.useFakeTimers();
+    const render = jest.fn();
+    const spin = {
+      text: "",
+      isSpinning: false,
+      render,
+    };
+
+    const promise = withSpinnerProgress(spin as any, "Syncing", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 11_000));
+      return "done";
+    });
+
+    jest.advanceTimersByTime(11_000);
+    await expect(promise).resolves.toBe("done");
+    expect(spin.text).toContain("this may take a moment");
+    expect(render).not.toHaveBeenCalled();
   });
 });

@@ -301,12 +301,20 @@ describe("sdk service", () => {
 
     test("preserves configured order even when a later rpc responds faster", async () => {
       const urls = getRpcUrls(CHAINS.mainnet.id);
+      let releaseFirstProbe: (() => void) | null = null;
+      const firstProbeBlocked = new Promise<void>((resolve) => {
+        releaseFirstProbe = resolve;
+      });
       const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
         const requestUrl = String(input);
         const body = JSON.parse(String(init?.body)) as { method: string };
 
-        if (requestUrl === urls[0]) {
-          await Bun.sleep(15);
+        if (requestUrl === urls[0] && body.method === "eth_blockNumber") {
+          await firstProbeBlocked;
+        }
+
+        if (requestUrl === urls[1] && body.method === "eth_getLogs") {
+          releaseFirstProbe?.();
         }
 
         if (body.method === "eth_blockNumber") return rpcSuccess("0x1000");

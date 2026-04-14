@@ -7,7 +7,11 @@ import { createOutputContext } from "../../src/output/common.ts";
 import { renderPoolsEmpty, renderPools, renderPoolDetail, poolToJson, type PoolsRenderData, type PoolDetailRenderData, type PoolDetailActivityEvent } from "../../src/output/pools.ts";
 import { renderAccountsNoPools, renderAccounts, type AccountPoolGroup } from "../../src/output/accounts.ts";
 import { renderHistoryNoPools, renderHistory } from "../../src/output/history.ts";
-import { renderUpgradeResult, type UpgradeResult } from "../../src/output/upgrade.ts";
+import {
+  renderChangelog,
+  renderUpgradeResult,
+  type UpgradeResult,
+} from "../../src/output/upgrade.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
@@ -1102,5 +1106,103 @@ describe("renderUpgradeResult nextActions", () => {
 
     const json = parseCapturedJson(stdout);
     expect(json.nextActions).toBeUndefined();
+  });
+
+  test("human mode: 'ready' status renders highlights, manual fallback, and next steps", () => {
+    const ctx = createOutputContext(makeMode());
+    const result: UpgradeResult = {
+      ...baseResult,
+      status: "ready",
+      latestVersion: "2.1.0",
+      updateAvailable: true,
+      command: "npm i -g privacy-pools-cli@2.1.0",
+      releaseHighlights: ["Faster native shell", "Local proof verification"],
+    };
+
+    const { stderr } = captureOutput(() => renderUpgradeResult(ctx, result));
+
+    expect(stderr).toContain("Update available: 2.0.0 -> 2.1.0");
+    expect(stderr).toContain("Release highlights");
+    expect(stderr).toContain("Faster native shell");
+    expect(stderr).toContain("privacy-pools upgrade --yes");
+    expect(stderr).toContain("npm i -g privacy-pools-cli@2.1.0");
+    expect(stderr).toContain("Next steps:");
+  });
+
+  test("human mode: 'manual' status avoids CLI next steps and prints only manual guidance", () => {
+    const ctx = createOutputContext(makeMode());
+    const result: UpgradeResult = {
+      ...baseResult,
+      status: "manual",
+      latestVersion: "2.1.0",
+      updateAvailable: true,
+      command: "npm i -g privacy-pools-cli@2.1.0",
+      installContext: {
+        kind: "source_checkout",
+        supportedAutoRun: false,
+        reason: "Source checkout detected.",
+      },
+      releaseHighlights: ["Manual release note"],
+    };
+
+    const { stderr } = captureOutput(() => renderUpgradeResult(ctx, result));
+
+    expect(stderr).toContain("Automatic upgrade is not available from this install context.");
+    expect(stderr).toContain("Source checkout detected.");
+    expect(stderr).toContain("Manual command");
+    expect(stderr).toContain("npm i -g privacy-pools-cli@2.1.0");
+    expect(stderr).not.toContain("Next steps:");
+  });
+
+  test("human mode: 'cancelled' status explains that nothing changed", () => {
+    const ctx = createOutputContext(makeMode());
+    const result: UpgradeResult = {
+      ...baseResult,
+      status: "cancelled",
+      latestVersion: "2.1.0",
+      updateAvailable: true,
+      command: "npm i -g privacy-pools-cli@2.1.0",
+    };
+
+    const { stderr } = captureOutput(() => renderUpgradeResult(ctx, result));
+
+    expect(stderr).toContain("Upgrade cancelled. No changes were made.");
+    expect(stderr).toContain("Install later");
+    expect(stderr).toContain("npm i -g privacy-pools-cli@2.1.0");
+  });
+});
+
+describe("renderChangelog", () => {
+  test("JSON mode emits changelog availability explicitly", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderChangelog(ctx, "## 2.1.0\n- Faster"),
+    );
+
+    expect(parseCapturedJson(stdout)).toMatchObject({
+      available: true,
+      changelog: "## 2.1.0\n- Faster",
+    });
+  });
+
+  test("human mode warns when the changelog is missing", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() => renderChangelog(ctx, null));
+
+    expect(stderr).toContain("CHANGELOG.md not found in the package root.");
+  });
+
+  test("human mode prints the changelog body and appends a trailing newline when needed", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stdout } = captureOutput(() =>
+      renderChangelog(ctx, "## 2.1.0\n- Faster"),
+    );
+
+    expect(stdout).toBe("## 2.1.0\n- Faster\n");
+  });
+
+  test("CSV mode rejects changelog rendering", () => {
+    const ctx = createOutputContext(makeMode({ isCsv: true }));
+    expect(() => renderChangelog(ctx, "## 2.1.0")).toThrow(CLIError);
   });
 });

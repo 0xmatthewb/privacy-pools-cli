@@ -102,7 +102,7 @@ export async function withProofProgress<T>(
     ? "verify circuits if needed"
     : "build witness";
 
-  const currentPhaseLabel = (elapsedSeconds: number): string | null => {
+  const currentPhaseLabel = (elapsedSeconds: number): string => {
     if (manualPhaseActive) {
       return manualPhaseLabel;
     }
@@ -110,21 +110,13 @@ export async function withProofProgress<T>(
     const activePhase = phases
       .toReversed()
       .find((phase) => elapsedSeconds >= phase.after);
-    return activePhase?.label ?? null;
+    return activePhase?.label ?? phases[0]!.label;
   };
 
   const renderProgress = () => {
     const elapsed = Math.floor((Date.now() - start) / 1000);
     const phaseLabel = currentPhaseLabel(elapsed);
-    if (phaseLabel) {
-      spin.text = `${label}... (${elapsed}s) - ${phaseLabel}`;
-    } else if (elapsed < 10) {
-      spin.text = `${label}... (${elapsed}s)`;
-    } else if (elapsed < 30) {
-      spin.text = `${label}... (${elapsed}s) - this may take a moment`;
-    } else {
-      spin.text = `${label}... (${elapsed}s) - almost there`;
-    }
+    spin.text = `${label}... (${elapsed}s) - ${phaseLabel}`;
     if (spin.isSpinning) {
       spin.render();
     }

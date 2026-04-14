@@ -167,7 +167,7 @@ describe("pool roots service", () => {
         }
         if (args.functionName === "roots") {
           rootsReads += 1;
-          await Bun.sleep(5);
+          await Promise.resolve();
           const index = Number(args.args?.[0] ?? -1);
           return index === 2 ? historicalRoot : 0n;
         }

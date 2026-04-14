@@ -23,12 +23,13 @@ function spawnLockHolder(home: string): ReturnType<typeof spawn> {
     process.env.PRIVACY_POOLS_HOME = ${JSON.stringify(home)};
     acquireProcessLock();
     process.stdout.write("LOCKED\\n");
-    await new Promise(r => setTimeout(r, 30000));
+    process.stdin.resume();
+    await new Promise((resolve) => process.stdin.once("end", resolve));
   `);
   return spawn("bun", ["run", scriptPath], {
     cwd: PROJECT_ROOT,
     env: { ...process.env, PRIVACY_POOLS_HOME: home },
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["pipe", "pipe", "pipe"],
   });
 }
 
@@ -58,13 +59,35 @@ function collectOutput(child: ReturnType<typeof spawn>): Promise<{ code: number 
   });
 }
 
+async function terminateChild(child: ReturnType<typeof spawn> | null): Promise<void> {
+  if (!child || child.exitCode !== null) {
+    return;
+  }
+
+  child.stdin?.end();
+  const exited = await new Promise<boolean>((resolve) => {
+    const timeout = setTimeout(() => {
+      resolve(false);
+    }, 2_000);
+    child.once("exit", () => {
+      clearTimeout(timeout);
+      resolve(true);
+    });
+  });
+
+  if (!exited && !child.killed) {
+    child.kill("SIGTERM");
+    await new Promise<void>((resolve) => {
+      child.once("exit", () => resolve());
+    });
+  }
+}
+
 describe("lock contention across processes", () => {
   let holder: ReturnType<typeof spawn> | null = null;
 
-  afterEach(() => {
-    if (holder && !holder.killed) {
-      holder.kill("SIGTERM");
-    }
+  afterEach(async () => {
+    await terminateChild(holder);
     holder = null;
     cleanupTrackedTempDirs();
   });
