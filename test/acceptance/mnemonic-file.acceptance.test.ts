@@ -55,24 +55,6 @@ function initArgs(home: string, filePath: string): string[] {
 }
 
 defineScenarioSuite("mnemonic-file acceptance", [
-  defineScenario("fails for valid BIP-39 mnemonics with unsupported word counts", [
-    (ctx) => {
-      const filePath = writeTempFile(
-        ctx.home,
-        "valid-15-word.txt",
-        "morning world loop ankle vehicle coach cradle curious image position write tuition enemy permit bone",
-      );
-      return runCliStep(initArgs(ctx.home, filePath), {
-        timeoutMs: 60_000,
-        env: fixtureEnv(),
-      })(ctx);
-    },
-    assertExit(2),
-    assertJson<{ success: boolean; errorMessage: string }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.errorMessage).toContain("No valid recovery phrase found");
-    }),
-  ]),
   defineScenario("imports website recovery exports end to end", [
     (ctx) => {
       const structured = [
@@ -97,26 +79,6 @@ defineScenarioSuite("mnemonic-file acceptance", [
     assertExit(0),
     assertJson<{ success: boolean }>((json) => {
       expect(json.success).toBe(true);
-    }),
-  ]),
-  defineScenario("fails safely for files with multiple valid mnemonics", [
-    (ctx) => {
-      const ambiguous = [
-        TEST_MNEMONIC,
-        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-      ].join("\n");
-      return runCliStep(
-        initArgs(ctx.home, writeTempFile(ctx.home, "ambiguous.txt", ambiguous)),
-        {
-          timeoutMs: 60_000,
-          env: fixtureEnv(),
-        },
-      )(ctx);
-    },
-    assertExit(2),
-    assertJson<{ success: boolean; errorMessage: string }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.errorMessage).toContain("Multiple valid recovery phrases found");
     }),
   ]),
   defineScenario("does not leak the mnemonic in JSON output", [

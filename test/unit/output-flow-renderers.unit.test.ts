@@ -22,11 +22,11 @@ function expectNextAction(
 
 beforeAll(async () => {
   mock.module("../../src/utils/format.ts", () => realFormat);
-  ({ createOutputContext } = await import("../../src/output/common.ts?output-flow-renderers"));
+  ({ createOutputContext } = await import("../../src/output/common.ts"));
   ({
     formatFlowRagequitReview,
     renderFlowResult,
-  } = await import("../../src/output/flow.ts?output-flow-renderers"));
+  } = await import("../../src/output/flow.ts"));
 });
 
 function sampleSnapshot(

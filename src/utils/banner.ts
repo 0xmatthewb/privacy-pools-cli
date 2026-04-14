@@ -74,8 +74,16 @@ interface BannerMeta {
   actions?: readonly WelcomeAction[];
 }
 
-function sleep(ms: number): Promise<void> {
+function defaultBannerSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+let bannerSleepFn = defaultBannerSleep;
+
+export function overrideBannerSleepForTests(
+  sleepFn?: (ms: number) => Promise<void>,
+): void {
+  bannerSleepFn = sleepFn ?? defaultBannerSleep;
 }
 
 function formatBannerActionLines(actions: readonly WelcomeAction[]): string[] {
@@ -199,7 +207,7 @@ export async function printBanner(
 
     // Animate frames 1..18
     for (let t = 1; t < RIPPLE_FRAME_COUNT; t++) {
-      await sleep(RIPPLE_FRAME_DELAY_MS);
+      await bannerSleepFn(RIPPLE_FRAME_DELAY_MS);
       process.stderr.write(`\x1b[${lineCount}A`);
       const frame = renderRippleFrame(poolWidth, poolHeight, t, { useColor, useUnicode });
       const composed = composeSideBySide(frame, welcomeText, 3);
@@ -209,7 +217,7 @@ export async function printBanner(
     }
 
     // Breathing pause
-    await sleep(180);
+    await bannerSleepFn(180);
     markBannerShown();
     return { includedWelcomeText: true };
   }
@@ -235,7 +243,7 @@ export async function printBanner(
   const totalUp = poolLineCount + textBlockHeight;
 
   for (let t = 1; t < RIPPLE_FRAME_COUNT; t++) {
-    await sleep(RIPPLE_FRAME_DELAY_MS);
+    await bannerSleepFn(RIPPLE_FRAME_DELAY_MS);
     // Move cursor up past text and pool
     process.stderr.write(`\x1b[${totalUp}A`);
     const frame = renderRippleFrame(poolWidth, poolHeight, t, { useColor, useUnicode });
@@ -247,7 +255,7 @@ export async function printBanner(
   }
 
   // Breathing pause
-  await sleep(180);
+  await bannerSleepFn(180);
   markBannerShown();
   return { includedWelcomeText: true };
 }

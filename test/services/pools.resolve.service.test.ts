@@ -4,6 +4,7 @@ import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import { CHAINS, KNOWN_POOLS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { lookupPoolDeploymentBlock } from "../../src/config/deployment-hints.ts";
+import { overrideAspRetryWaitForTests } from "../../src/services/asp.ts";
 import {
   listKnownPoolsFromRegistry,
   listPools,
@@ -11,7 +12,10 @@ import {
   resolvePool,
   resolveTokenMetadata,
 } from "../../src/services/pools.ts";
-import { resetSdkServiceCachesForTests } from "../../src/services/sdk.ts";
+import {
+  overrideSdkTransportRetryForTests,
+  resetSdkServiceCachesForTests,
+} from "../../src/services/sdk.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
 /* ------------------------------------------------------------------ */
@@ -140,7 +144,14 @@ function chainConfig(chainId: number, server: MockServer) {
 describe("resolvePool", () => {
   const toClose: MockServer[] = [];
 
+  beforeEach(() => {
+    overrideAspRetryWaitForTests(async () => {});
+    overrideSdkTransportRetryForTests({ retryCount: 0 });
+  });
+
   afterEach(async () => {
+    overrideAspRetryWaitForTests();
+    overrideSdkTransportRetryForTests();
     resetSdkServiceCachesForTests();
     resetPoolsServiceCachesForTests();
     while (toClose.length > 0) await toClose.pop()!.close();
@@ -343,7 +354,14 @@ describe("resolvePool", () => {
 describe("resolveTokenMetadata", () => {
   const toClose: MockServer[] = [];
 
+  beforeEach(() => {
+    overrideAspRetryWaitForTests(async () => {});
+    overrideSdkTransportRetryForTests({ retryCount: 0 });
+  });
+
   afterEach(async () => {
+    overrideAspRetryWaitForTests();
+    overrideSdkTransportRetryForTests();
     resetSdkServiceCachesForTests();
     resetPoolsServiceCachesForTests();
     while (toClose.length > 0) await toClose.pop()!.close();

@@ -31,10 +31,10 @@ import {
   renderInitOverwriteReview,
 } from "../../src/output/init.ts";
 import { captureOutput, makeMode } from "../helpers/output.ts";
-
-function stripAnsi(value: string): string {
-  return value.replace(/\x1B\[[0-9;]*m/g, "");
-}
+import {
+  expectSemanticText,
+  stripAnsi,
+} from "../helpers/contract-assertions.ts";
 
 describe("formatRelayedWithdrawalReview", () => {
   test("renders the shared review surface for relayed withdrawals", () => {
@@ -57,15 +57,14 @@ describe("formatRelayedWithdrawalReview", () => {
       nowMs: Date.parse("2026-03-24T12:59:30.000Z"),
     });
 
-    expect(output).toContain("Withdrawal review");
-    expect(output).toContain("PA-7");
-    expect(output).toMatch(/pool account/i);
-    expect(output).toMatch(/balance/i);
-    expect(output).toMatch(/relayer fee/i);
-    expect(output).toMatch(/gas token/i);
-    expect(output).toMatch(/net received/i);
-    expect(output).toMatch(/quote expiry/i);
-    expect(output).toContain("The remaining balance would fall below the relayer minimum.");
+    expectSemanticText(output, {
+      includes: [
+        "Withdrawal review",
+        "PA-7",
+        "The remaining balance would fall below the relayer minimum.",
+      ],
+      patterns: [/pool account/i, /balance/i, /relayer fee/i, /gas token/i, /net received/i, /quote expiry/i],
+    });
   });
 
   test("keeps boxed review spacing to a single blank line between sections", () => {
@@ -121,12 +120,12 @@ describe("shared runtime review renderers", () => {
       "0.123456789 ETH is a non-round amount that may reduce your privacy in the anonymity set.",
     );
 
-    expect(deposit).toContain("Deposit review");
-    expect(deposit).toContain("Vetting fee");
-    expect(deposit).toContain("Net deposited");
-    expect(deposit).toContain("Deposits are always public on-chain.");
-    expect(privacy).toContain("Privacy review");
-    expect(privacy).toContain("non-round amount");
+    expectSemanticText(deposit, {
+      includes: ["Deposit review", "Vetting fee", "Net deposited", "Deposits are always public on-chain."],
+    });
+    expectSemanticText(privacy, {
+      includes: ["Privacy review", "non-round amount"],
+    });
   });
 
   test("direct withdrawal, ragequit, flow start, and upgrade review surfaces are structured", () => {
@@ -171,14 +170,18 @@ describe("shared runtime review renderers", () => {
       command: "npm install -g privacy-pools-cli@1.8.0",
     });
 
-    expect(direct).toContain("Direct withdrawal review");
-    expect(direct).toContain("public onchain withdrawal");
-    expect(ragequit).toContain("Ragequit review");
-    expect(ragequit).toContain("will not gain any privacy");
-    expect(flow).toContain("Flow start review");
-    expect(flow).toContain("Dedicated workflow wallet");
-    expect(upgrade).toContain("Upgrade review");
-    expect(upgrade).toContain("Auto-run");
+    expectSemanticText(direct, {
+      includes: ["Direct withdrawal review", "public onchain withdrawal"],
+    });
+    expectSemanticText(ragequit, {
+      includes: ["Ragequit review", "will not gain any privacy"],
+    });
+    expectSemanticText(flow, {
+      includes: ["Flow start review", "Dedicated workflow wallet"],
+    });
+    expectSemanticText(upgrade, {
+      includes: ["Upgrade review", "Auto-run"],
+    });
   });
 });
 
@@ -191,12 +194,16 @@ describe("workflow wallet backup renderers", () => {
       privateKey,
     });
 
-    expect(output).toContain("Workflow wallet backup");
-    expect(output).toContain("Backup mode");
-    expect(output).toContain("Manual copy");
-    expect(output).toContain("Recovery key:");
-    expect(output).toContain(privateKey);
-    expect(output).toContain("This is a live recovery key.");
+    expectSemanticText(output, {
+      includes: [
+        "Workflow wallet backup",
+        "Backup mode",
+        "Manual copy",
+        "Recovery key:",
+        privateKey,
+        "This is a live recovery key.",
+      ],
+    });
   });
 
   test("saved-file and confirmation states share the structured backup layout", () => {
@@ -209,12 +216,16 @@ describe("workflow wallet backup renderers", () => {
       backupPath: "/tmp/workflow-wallet.txt",
     });
 
-    expect(saved).toContain("Saved to file");
-    expect(saved).toContain("/tmp/workflow-wallet.txt");
-    expect(saved).toContain("live recovery key");
-    expect(confirm).toContain("Confirm workflow wallet backup");
-    expect(confirm).toContain("Confirmed backup");
-    expect(confirm).toContain("Do not continue unless this recovery key is stored somewhere you trust.");
+    expectSemanticText(saved, {
+      includes: ["Saved to file", "/tmp/workflow-wallet.txt", "live recovery key"],
+    });
+    expectSemanticText(confirm, {
+      includes: [
+        "Confirm workflow wallet backup",
+        "Confirmed backup",
+        "Do not continue unless this recovery key is stored somewhere you trust.",
+      ],
+    });
   });
 
   test("choice and path reviews keep the backup flow visually consistent", () => {
@@ -225,10 +236,12 @@ describe("workflow wallet backup renderers", () => {
       walletAddress: "0x2222222222222222222222222222222222222222",
     });
 
-    expect(choice).toContain("Choose a backup method");
-    expect(choice).toContain("Back up this generated wallet before funding it.");
-    expect(path).toContain("Save workflow wallet backup");
-    expect(path).toContain("live workflow-wallet private key");
+    expectSemanticText(choice, {
+      includes: ["Choose a backup method", "Back up this generated wallet before funding it."],
+    });
+    expectSemanticText(path, {
+      includes: ["Save workflow wallet backup", "live workflow-wallet private key"],
+    });
   });
 });
 
@@ -292,11 +305,15 @@ describe("renderUpgradeResult polished success surface", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Upgraded privacy-pools-cli to 2.0.0.");
-    expect(stderr).toContain("Previous version");
-    expect(stderr).toContain("Installed version");
-    expect(stderr).toContain("Success:");
-    expect(stderr).toContain("Re-run privacy-pools");
-    expect(stderr).not.toContain("Update available:");
+    expectSemanticText(stderr, {
+      includes: [
+        "Upgraded privacy-pools-cli to 2.0.0.",
+        "Previous version",
+        "Installed version",
+        "Success:",
+        "Re-run privacy-pools",
+      ],
+      excludes: ["Update available:"],
+    });
   });
 });

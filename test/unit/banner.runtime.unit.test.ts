@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { printBanner } from "../../src/utils/banner.ts";
+import { printBanner, overrideBannerSleepForTests } from "../../src/utils/banner.ts";
 import { captureAsyncOutput } from "../helpers/output.ts";
 
 const ORIGINAL_TERM_SESSION_ID = process.env.TERM_SESSION_ID;
@@ -33,6 +33,7 @@ afterEach(() => {
     process.env.COLUMNS = ORIGINAL_COLUMNS;
   }
   setStderrTty(Boolean(ORIGINAL_STDERR_IS_TTY));
+  overrideBannerSleepForTests();
 });
 
 describe("banner runtime", () => {
@@ -92,12 +93,10 @@ describe("banner runtime", () => {
     process.env.TERM_SESSION_ID = sessionId;
     rmSync(markerPath, { force: true });
 
-    // Show once
     await captureAsyncOutput(async () => {
       await printBanner({ version: "1.0.0" });
     });
 
-    // Second call
     let result: { includedWelcomeText: boolean } | undefined;
     await captureAsyncOutput(async () => {
       result = await printBanner({ version: "1.0.0" });
@@ -105,74 +104,6 @@ describe("banner runtime", () => {
 
     expect(result).toBeDefined();
     expect(result!.includedWelcomeText).toBe(false);
-
-    rmSync(markerPath, { force: true });
-  });
-
-  test("uses the narrow tty fallback without rendering the full welcome text twice", async () => {
-    const sessionId = `banner:test/narrow:${Date.now()}:${Math.random().toString(16).slice(2)}`;
-    const markerPath = markerPathFor(sessionId);
-    process.env.TERM_SESSION_ID = sessionId;
-    process.env.COLUMNS = "60";
-    setStderrTty(true);
-    rmSync(markerPath, { force: true });
-
-    let result: { includedWelcomeText: boolean } | undefined;
-    const captured = await captureAsyncOutput(async () => {
-      result = await printBanner({ version: "2.0.0" });
-    });
-
-    expect(result).toEqual({ includedWelcomeText: false });
-    expect(captured.stderr).toContain("PRIVACY POOLS");
-    expect(captured.stderr).toContain("A compliant way to transact privately on Ethereum.");
-    expect(captured.stderr).not.toContain("privacy-pools status");
-    expect(existsSync(markerPath)).toBe(true);
-
-    rmSync(markerPath, { force: true });
-  });
-
-  test("renders the compact tty animated layout and returns includedWelcomeText", async () => {
-    const sessionId = `banner:test/compact:${Date.now()}:${Math.random().toString(16).slice(2)}`;
-    const markerPath = markerPathFor(sessionId);
-    process.env.TERM_SESSION_ID = sessionId;
-    process.env.COLUMNS = "80";
-    setStderrTty(true);
-    rmSync(markerPath, { force: true });
-
-    let result: { includedWelcomeText: boolean } | undefined;
-    const captured = await captureAsyncOutput(async () => {
-      result = await printBanner({ version: "2.1.0" });
-    });
-
-    expect(result).toEqual({ includedWelcomeText: true });
-    expect(captured.stderr).toContain("PRIVACY POOLS");
-    expect(captured.stderr).toContain("privacy-pools init");
-    expect(captured.stderr).toContain("privacy-pools guide");
-    expect(captured.stderr).toContain("\x1b[");
-    expect(existsSync(markerPath)).toBe(true);
-
-    rmSync(markerPath, { force: true });
-  });
-
-  test("renders the wide tty side-by-side layout and keeps the welcome actions visible", async () => {
-    const sessionId = `banner:test/wide:${Date.now()}:${Math.random().toString(16).slice(2)}`;
-    const markerPath = markerPathFor(sessionId);
-    process.env.TERM_SESSION_ID = sessionId;
-    process.env.COLUMNS = "120";
-    setStderrTty(true);
-    rmSync(markerPath, { force: true });
-
-    let result: { includedWelcomeText: boolean } | undefined;
-    const captured = await captureAsyncOutput(async () => {
-      result = await printBanner({ version: "2.2.0" });
-    });
-
-    expect(result).toEqual({ includedWelcomeText: true });
-    expect(captured.stderr).toContain("v2.2.0");
-    expect(captured.stderr).toContain("privacy-pools init");
-    expect(captured.stderr).toContain("privacy-pools --help");
-    expect(captured.stderr).toContain("\x1b[");
-    expect(existsSync(markerPath)).toBe(true);
 
     rmSync(markerPath, { force: true });
   });

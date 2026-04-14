@@ -12,6 +12,7 @@ import { overrideAspRetryWaitForTests } from "../../src/services/asp.ts";
 import { DEFAULT_RPC_URLS } from "../../src/services/config.ts";
 import {
   getReadOnlyRpcSession,
+  overrideSdkTransportRetryForTests,
   resetSdkServiceCachesForTests,
 } from "../../src/services/sdk.ts";
 import {
@@ -130,12 +131,14 @@ describe("pools service", () => {
 
   beforeEach(() => {
     overrideAspRetryWaitForTests(async () => {});
+    overrideSdkTransportRetryForTests({ retryCount: 0 });
     resetSdkServiceCachesForTests();
     resetPoolsServiceCachesForTests();
   });
 
   afterEach(async () => {
     overrideAspRetryWaitForTests();
+    overrideSdkTransportRetryForTests();
     resetSdkServiceCachesForTests();
     resetPoolsServiceCachesForTests();
     if (originalSepoliaRpc === undefined) {

@@ -3,7 +3,7 @@ import {
   type PoolInfo,
 } from "@0xbow/privacy-pools-core-sdk";
 import { createPublicClient, fallback, http, parseAbiItem } from "viem";
-import type { PublicClient, Address, Hex } from "viem";
+import type { PublicClient, Address, Hex, HttpTransportConfig } from "viem";
 import type { ChainConfig } from "../types.js";
 import { getRpcUrl, getRpcUrls, hasCustomRpcOverride } from "./config.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
@@ -73,6 +73,12 @@ const DATA_SERVICE_LOG_FETCH_CONFIG = new Map<
 const healthyRpcUrlCache = new Map<string, Promise<string>>();
 const dataServiceCache = new Map<string, Promise<DataService>>();
 const readOnlyRpcSessionCache = new Map<string, Promise<ReadOnlyRpcSession>>();
+type RpcTransportRetryOverride = Pick<
+  HttpTransportConfig,
+  "retryCount" | "retryDelay"
+> | null;
+
+let rpcTransportRetryOverride: RpcTransportRetryOverride = null;
 
 type RpcProbeMode = "basic" | "full";
 
@@ -126,10 +132,14 @@ function createRpcClient(
   rpcUrls: readonly string[],
 ): PublicClient {
   const timeoutMs = getNetworkTimeoutMs();
+  const transportOptions = {
+    timeout: timeoutMs,
+    ...(rpcTransportRetryOverride ?? {}),
+  };
   const transport =
     rpcUrls.length === 1
-      ? http(rpcUrls[0], { timeout: timeoutMs })
-      : fallback(rpcUrls.map((url) => http(url, { timeout: timeoutMs })));
+      ? http(rpcUrls[0], transportOptions)
+      : fallback(rpcUrls.map((url) => http(url, transportOptions)));
   return createPublicClient({
     chain: chainConfig.chain,
     transport,
@@ -147,6 +157,12 @@ export function resetSdkServiceCachesForTests(): void {
   healthyRpcUrlCache.clear();
   dataServiceCache.clear();
   readOnlyRpcSessionCache.clear();
+}
+
+export function overrideSdkTransportRetryForTests(
+  options: RpcTransportRetryOverride = null,
+): void {
+  rpcTransportRetryOverride = options;
 }
 
 export function getPublicClient(
