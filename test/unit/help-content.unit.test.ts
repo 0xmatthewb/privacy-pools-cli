@@ -61,9 +61,9 @@ describe("help content", () => {
   test("guideText highlights website recovery import in quickstart guidance", () => {
     const guide = guideText("quickstart");
     expect(guide).toContain("privacy-pools init");
-    expect(guide).toContain("--recovery-phrase-file");
-    expect(guide).toContain("--recovery-phrase-stdin");
-    expect(guide).toContain("downloaded-file");
+    expect(guide).toContain("privacy-pools init --recovery-phrase-file");
+    expect(guide).toContain("privacy-pools init --recovery-phrase-stdin");
+    expect(guide).toMatch(/website export|load an existing account/i);
   });
 
   test("guideText formats unknown topics cleanly and lists valid topics once", () => {
@@ -83,8 +83,8 @@ describe("help content", () => {
 
     try {
       const welcome = welcomeScreen({ packageRoot });
-      expect(welcome).toContain("Running from source?");
       expect(welcome).toContain("npm link");
+      expect(welcome).toMatch(/register the cli on your path/i);
       expect(helpTestInternals.shouldShowPathRegistrationHint(packageRoot)).toBe(
         true,
       );
@@ -102,8 +102,8 @@ describe("help content", () => {
 
     try {
       const welcome = welcomeScreen({ packageRoot });
-      expect(welcome).toContain("Running from source?");
       expect(welcome).toContain("npm link");
+      expect(welcome).toMatch(/register the cli on your path/i);
     } finally {
       rmSync(packageRoot, { recursive: true, force: true });
     }
@@ -120,8 +120,8 @@ describe("help content", () => {
         false,
       );
       const welcome = welcomeScreen({ packageRoot });
-      expect(welcome).not.toContain("Running from source?");
       expect(welcome).not.toContain("npm link");
+      expect(welcome).not.toMatch(/register the cli on your path/i);
     } finally {
       rmSync(packageRoot, { recursive: true, force: true });
     }
@@ -130,8 +130,8 @@ describe("help content", () => {
   test("welcomeScreen surfaces status and website restore commands", () => {
     const welcome = welcomeScreen();
     expect(welcome).toContain("privacy-pools status");
-    expect(welcome).toContain("privacy-pools init");
-    expect(welcome).toContain("--recovery-phrase-file");
-    expect(welcome).toContain("downloaded-file");
+    expect(welcome).toContain("privacy-pools init --recovery-phrase-file");
+    expect(welcome).toContain("privacy-pools guide");
+    expect(welcome).toMatch(/load existing account|website export/i);
   });
 });

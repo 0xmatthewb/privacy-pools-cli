@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   captureAsyncOutput,
+  captureAsyncOutputAllowExit,
   captureOutput,
 } from "../helpers/output.ts";
 
@@ -68,5 +69,39 @@ describe("output helper capture guards", () => {
       stdout: "after",
       stderr: "",
     });
+  });
+
+  test("captureAsyncOutputAllowExit restores process.exit when capture setup fails", async () => {
+    const originalExit = process.exit;
+    const originalExitCode = process.exitCode;
+    let release!: () => void;
+    let started!: () => void;
+    const releasePromise = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const startedPromise = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+
+    const firstCapture = captureAsyncOutput(async () => {
+      started();
+      await releasePromise;
+    });
+
+    await startedPromise;
+
+    await expect(
+      captureAsyncOutputAllowExit(async () => {
+        process.exit(9);
+      }),
+    ).rejects.toThrow(
+      "Concurrent output capture is not supported. Await the active capture before starting another.",
+    );
+
+    expect(process.exit).toBe(originalExit);
+    expect(process.exitCode).toBe(originalExitCode);
+
+    release();
+    await firstCapture;
   });
 });

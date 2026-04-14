@@ -195,18 +195,17 @@ export async function captureAsyncOutputAllowExit(
   fn: () => Promise<void>,
 ): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
   return withOutputCaptureContext(async () => {
+    const capture = beginOutputCapture();
     const originalExit = process.exit;
     const originalExitCode = process.exitCode;
     let exitCode: number | null = null;
-    process.exitCode = 0;
-
-    process.exit = ((code?: number) => {
-      exitCode = code ?? 0;
-      throw new CommandExit(exitCode);
-    }) as never;
-
-    const capture = beginOutputCapture();
     try {
+      process.exitCode = 0;
+      process.exit = ((code?: number) => {
+        exitCode = code ?? 0;
+        throw new CommandExit(exitCode);
+      }) as never;
+
       try {
         await fn();
       } catch (error) {

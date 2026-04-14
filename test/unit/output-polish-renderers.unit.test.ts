@@ -249,12 +249,20 @@ describe("init recovery backup renderers", () => {
     expect(phrase).toContain("Recovery phrase");
     expect(phrase).toContain("Danger:");
     expect(phrase).toContain("Anyone with this phrase");
-    expect(method).toContain("Back up recovery phrase");
-    expect(path).toContain("Save recovery phrase backup");
-    expect(saved).toContain("Recovery phrase saved");
-    expect(confirm).toContain("Confirm recovery phrase backup");
-    expect(overwrite).toContain("Replace current setup");
-    expect(overwrite).toContain("Load existing account");
+    expect(method).toContain("Recovery phrase");
+    expect(method).toContain("secure this phrase before continuing");
+    expect(path).toContain("/tmp/privacy-pools-recovery.txt");
+    expect(path).toContain("Live recovery phrase");
+    expect(path).toContain("delete the original");
+    expect(saved).toContain("/tmp/privacy-pools-recovery.txt");
+    expect(saved).toContain("Move this file to a secure location now");
+    expect(confirm).toContain("Saved to file");
+    expect(confirm).toContain("/tmp/privacy-pools-recovery.txt");
+    expect(confirm).toContain("Do not continue unless this recovery phrase is stored");
+    expect(overwrite).toContain("Current setup");
+    expect(overwrite).toContain("will be replaced");
+    expect(overwrite).toContain("Next account source");
+    expect(overwrite).toContain("switch accounts");
   });
 });
 

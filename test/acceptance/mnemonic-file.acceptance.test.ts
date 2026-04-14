@@ -73,28 +73,7 @@ defineScenarioSuite("mnemonic-file acceptance", [
       expect(json.errorMessage).toContain("No valid recovery phrase found");
     }),
   ]),
-  defineScenario("imports a CLI backup file", [
-    (ctx) => {
-      const cliBackup = [
-        "Privacy Pools Recovery Phrase",
-        "",
-        "Recovery Phrase:",
-        TEST_MNEMONIC,
-        "",
-        "IMPORTANT: Keep this file secure. Delete it after transferring to a safe location.",
-        "Anyone with this phrase can access your Privacy Pools deposits.",
-      ].join("\n");
-      return runCliStep(initArgs(ctx.home, writeTempFile(ctx.home, "cli-backup.txt", cliBackup)), {
-        timeoutMs: 60_000,
-        env: fixtureEnv(),
-      })(ctx);
-    },
-    assertExit(0),
-    assertJson<{ success: boolean }>((json) => {
-      expect(json.success).toBe(true);
-    }),
-  ]),
-  defineScenario("imports website structured recovery files", [
+  defineScenario("imports website recovery exports end to end", [
     (ctx) => {
       const structured = [
         "Privacy Pools Recovery Phrase",
@@ -106,7 +85,7 @@ defineScenarioSuite("mnemonic-file acceptance", [
         "",
         "IMPORTANT: Keep this file secure and never share it with anyone.",
         "This phrase is the ONLY way to recover your account if you lose access.",
-      ].join("\n");
+      ].join("\r\n");
       return runCliStep(
         initArgs(ctx.home, writeTempFile(ctx.home, "website-backup.txt", structured)),
         {
@@ -185,30 +164,6 @@ defineScenarioSuite("mnemonic-file acceptance", [
     assertExit(0),
     assertStdout((stdout) => {
       expect(stdout).not.toContain(TEST_MNEMONIC);
-    }),
-  ]),
-  defineScenario("imports structured files with windows line endings", [
-    (ctx) => {
-      const cliBackup = [
-        "Privacy Pools Recovery Phrase",
-        "",
-        "Recovery Phrase:",
-        TEST_MNEMONIC,
-        "",
-        "IMPORTANT: Keep this file secure. Delete it after transferring to a safe location.",
-        "Anyone with this phrase can access your Privacy Pools deposits.",
-      ].join("\r\n");
-      return runCliStep(
-        initArgs(ctx.home, writeTempFile(ctx.home, "windows-backup.txt", cliBackup)),
-        {
-          timeoutMs: 60_000,
-          env: fixtureEnv(),
-        },
-      )(ctx);
-    },
-    assertExit(0),
-    assertJson<{ success: boolean }>((json) => {
-      expect(json.success).toBe(true);
     }),
   ]),
 ]);

@@ -27,6 +27,7 @@ const AUDIT_BATCH_IDS = [
 
 export const KEEP_PREVIEW_AUDIT_ARTIFACTS_ENV =
   "PP_KEEP_PREVIEW_AUDIT_ARTIFACTS";
+const PREVIEW_AUDIT_ARTIFACT_DIR = "previewAuditArtifactDir";
 
 function createCaptureWriter() {
   const chunks = [];
@@ -45,6 +46,31 @@ export function shouldRetainPreviewAuditArtifacts({
   env = process.env,
 } = {}) {
   return env[KEEP_PREVIEW_AUDIT_ARTIFACTS_ENV]?.trim() === "1" || failed;
+}
+
+export function shouldRetainPreviewAuditArtifactsOnCrash({
+  env = process.env,
+} = {}) {
+  return env[KEEP_PREVIEW_AUDIT_ARTIFACTS_ENV]?.trim() === "1";
+}
+
+export function annotatePreviewAuditError(error, artifactDir) {
+  const wrapped = error instanceof Error ? error : new Error(String(error));
+  wrapped[PREVIEW_AUDIT_ARTIFACT_DIR] = artifactDir;
+  return wrapped;
+}
+
+export function getPreviewAuditArtifactDir(error) {
+  if (
+    !error ||
+    typeof error !== "object" ||
+    typeof error[PREVIEW_AUDIT_ARTIFACT_DIR] !== "string" ||
+    error[PREVIEW_AUDIT_ARTIFACT_DIR].trim().length === 0
+  ) {
+    return null;
+  }
+
+  return error[PREVIEW_AUDIT_ARTIFACT_DIR];
 }
 
 export function cleanupPreviewAuditArtifacts(artifactDir) {
@@ -238,7 +264,7 @@ export async function main(argv = process.argv.slice(2)) {
   const artifactDir = mkdtempSync(
     join(tmpdir(), "privacy-pools-cli-preview-audit-"),
   );
-  let retainArtifacts = true;
+  let retainArtifacts = false;
 
   try {
     const batchPlans = buildBatchPlans(options);
@@ -314,6 +340,14 @@ export async function main(argv = process.argv.slice(2)) {
     if (failed) {
       process.exitCode = 1;
     }
+  } catch (error) {
+    retainArtifacts = shouldRetainPreviewAuditArtifactsOnCrash({
+      env: process.env,
+    });
+    if (retainArtifacts) {
+      throw annotatePreviewAuditError(error, artifactDir);
+    }
+    throw error;
   } finally {
     if (!retainArtifacts) {
       cleanupPreviewAuditArtifacts(artifactDir);
@@ -326,6 +360,10 @@ if (import.meta.main) {
     process.stderr.write(
       `Preview audit failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}\n`,
     );
+    const artifactDir = getPreviewAuditArtifactDir(error);
+    if (artifactDir) {
+      process.stderr.write(`Preview audit artifacts: ${artifactDir}\n`);
+    }
     process.exitCode = 1;
   });
 }
