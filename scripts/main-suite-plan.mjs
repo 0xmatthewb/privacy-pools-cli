@@ -6,7 +6,12 @@ import {
 } from "./lib/suite-plan-utils.mjs";
 
 export const DEFAULT_MAIN_BATCH_SIZE = 20;
-export const DEFAULT_MAIN_CONCURRENCY_CAP = 3;
+// Keep the default main-batch cap conservative enough that subprocess-heavy
+// acceptance and built-CLI lanes do not trip their own command timeouts under
+// local CPU contention. Operators can still raise this with
+// PP_TEST_MAIN_CONCURRENCY when they explicitly want to trade stability for
+// throughput on a faster host.
+export const DEFAULT_MAIN_CONCURRENCY_CAP = 2;
 export const DEFAULT_ISOLATED_CONCURRENCY_CAP = 2;
 
 const SHARED_BUILT_WORKSPACE_SNAPSHOT_TEST_PATTERNS = [
@@ -34,6 +39,7 @@ export function buildDefaultMainSuites({
     batchSize: targetBatchSize,
     tags = [],
     budgetMs = null,
+    fixtureClass = null,
   }) => {
     const effectiveBatchSize = targetBatchSize ?? batchSize;
     if (!Number.isInteger(effectiveBatchSize) || effectiveBatchSize <= 0) {
@@ -55,6 +61,7 @@ export function buildDefaultMainSuites({
       tests,
       tags,
       budgetMs,
+      fixtureClass,
     }));
   });
 }

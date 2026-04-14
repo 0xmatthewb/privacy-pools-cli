@@ -14,11 +14,16 @@ import {
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
+const ACTIVITY_STEP_TIMEOUT_MS = 15_000;
+
+function activityArgs(...args: string[]): string[] {
+  return ["--timeout", "1", ...args];
+}
 
 defineScenarioSuite("activity acceptance", [
   defineScenario("activity input validation stays machine-readable", [
-    runCliStep(["--json", "activity", "--page", "0", "--chain", "sepolia"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--json", "activity", "--page", "0", "--chain", "sepolia"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(2),
@@ -33,8 +38,8 @@ defineScenarioSuite("activity acceptance", [
       expect(json.error.category).toBe("INPUT");
       expect(json.error.message).toContain("--page");
     }),
-    runCliStep(["--json", "activity", "--limit", "0", "--chain", "sepolia"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--json", "activity", "--limit", "0", "--chain", "sepolia"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(2),
@@ -49,9 +54,9 @@ defineScenarioSuite("activity acceptance", [
       expect(json.error.message).toContain("--limit");
     }),
     runCliStep(
-      ["--json", "activity", "--page", "abc", "--chain", "sepolia"],
+      activityArgs("--json", "activity", "--page", "abc", "--chain", "sepolia"),
       {
-        timeoutMs: 10_000,
+        timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
         env: OFFLINE_ASP_ENV,
       },
     ),
@@ -65,8 +70,8 @@ defineScenarioSuite("activity acceptance", [
     }),
   ]),
   defineScenario("activity offline envelopes stay classified and silent in machine mode", [
-    runCliStep(["--json", "--chain", "mainnet", "activity"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--json", "--chain", "mainnet", "activity"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -86,8 +91,8 @@ defineScenarioSuite("activity acceptance", [
       expect(typeof json.error.code).toBe("string");
       expect(typeof json.error.message).toBe("string");
     }),
-    runCliStep(["--json", "--chain", "mainnet", "activity", "--asset", "ETH"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--json", "--chain", "mainnet", "activity", "--asset", "ETH"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: {
         ...OFFLINE_ASP_ENV,
         PRIVACY_POOLS_RPC_URL_ETHEREUM: "http://127.0.0.1:9",
@@ -111,8 +116,8 @@ defineScenarioSuite("activity acceptance", [
     }),
   ]),
   defineScenario("activity human mode keeps stdout clean and does not require init", [
-    runCliStep(["--chain", "mainnet", "activity"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--chain", "mainnet", "activity"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -120,8 +125,8 @@ defineScenarioSuite("activity acceptance", [
     assertStderr((stderr) => {
       expect(stderr).toContain("Error");
     }),
-    runCliStep(["--json", "--chain", "sepolia", "activity"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--json", "--chain", "sepolia", "activity"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -134,8 +139,8 @@ defineScenarioSuite("activity acceptance", [
     }),
   ]),
   defineScenario("activity agent and quiet modes keep stream boundaries intact", [
-    runCliStep(["--agent", "--chain", "mainnet", "activity"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--agent", "--chain", "mainnet", "activity"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -149,6 +154,8 @@ defineScenarioSuite("activity acceptance", [
     }),
     runCliStep(
       [
+        "--timeout",
+        "1",
         "--agent",
         "--chain",
         "mainnet",
@@ -159,7 +166,7 @@ defineScenarioSuite("activity acceptance", [
         "5",
       ],
       {
-        timeoutMs: 10_000,
+        timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
         env: OFFLINE_ASP_ENV,
       },
     ),
@@ -172,16 +179,16 @@ defineScenarioSuite("activity acceptance", [
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(false);
     }),
-    runCliStep(["--quiet", "--chain", "mainnet", "activity"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--quiet", "--chain", "mainnet", "activity"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
     assertStdoutEmpty(),
   ]),
   defineScenario("activity error envelopes stay complete", [
-    runCliStep(["--json", "activity", "--page", "0", "--chain", "sepolia"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--json", "activity", "--page", "0", "--chain", "sepolia"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(2),
@@ -197,8 +204,8 @@ defineScenarioSuite("activity acceptance", [
       expect(json.error.category).toBe("INPUT");
       expect(typeof json.errorMessage).toBe("string");
     }),
-    runCliStep(["--json", "--chain", "mainnet", "activity"], {
-      timeoutMs: 10_000,
+    runCliStep(activityArgs("--json", "--chain", "mainnet", "activity"), {
+      timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),

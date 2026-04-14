@@ -27,6 +27,27 @@ This repository uses a Bun-aligned test architecture. The important constraint i
   - `npm run test:e2e:anvil:smoke` is the fast representative lane.
   - `npm run test:e2e:anvil` is the broader local-only matrix built on the shared self-contained fixture.
 
+## Placement Decision Tree
+
+When adding or moving a test, use this order:
+
+1. Can the behavior be verified with direct imports, strict mocks, or local fixtures?
+   - Put it in `test/unit/` or `test/services/`.
+   - This is the default home for error paths, branch coverage, fallback logic, retry classification, stale-state handling, and fail-closed behavior.
+2. Is the behavior a canonical CLI contract that needs a subprocess, but not a special runtime/package/native boundary?
+   - Put one representative journey in `test/acceptance/`.
+   - Acceptance owns JSON envelopes, stream ownership, filesystem side effects, welcome/help/version flows, and broad CLI behavior.
+3. Is the behavior specifically about packaging, runtime selection, native/launcher ownership, offline trust boundaries, or built/install artifacts?
+   - Put it in `test/integration/`.
+   - Integration is not the default home for extra branch coverage.
+4. Does the behavior need a real Anvil-backed environment or truly fund-moving/stateful truth?
+   - Put the smallest representative case in the Anvil lane.
+   - Do not use Anvil to cover ordinary branching that can be proven in-process.
+5. Is the behavior about generated docs, selectors, ABI/event shapes, runtime descriptors, or packaged machine contracts?
+   - Put it in `test/conformance/`.
+
+If more than one lane could work, choose the cheapest lane that still proves the contract.
+
 ## Isolation Policy
 
 The authoritative isolation map lives in [`scripts/test-suite-manifest.mjs`](../scripts/test-suite-manifest.mjs).
@@ -74,6 +95,8 @@ Avoid low-value tests that mostly pin implementation trivia:
 - broad snapshots when a few semantic assertions would do
 - exact export inventories with little safety value
 - tests that only assert "command exits 0" without checking the contract
+- exact human copy when the real contract is a section, warning, next action, or stream boundary
+- source-tree inventory equality inside smoke lanes
 
 For CLI transcript coverage, prefer semantic checks over copy pinning:
 
@@ -102,6 +125,48 @@ with metadata such as `tags`, `fixtureClass`, and optional `budgetMs`. Use
 runner filters such as `--tag native`, `--exclude-tag expensive`, or
 `PP_TEST_ISOLATED_CONCURRENCY=<n>` when you need to target or debug a specific
 cost class locally.
+
+Stable tag taxonomy:
+
+- suite families: `unit`, `services`, `acceptance`, `integration`, `conformance`
+- environment/boundary: `native`, `install-boundary`, `anvil`, `protocol`
+- risk and cost: `workflow`, `fund-moving`, `expensive`, `quarantined`
+
+Every isolated, on-demand, quarantined, or otherwise high-cost suite must declare:
+
+- `tags`
+- `fixtureClass`
+- `budgetMs`
+
+## Flake And Quarantine Policy
+
+- Blocking profiles must not silently retry whole suites more than once.
+- Informational flake jobs may rerun targeted suites to gather signal, but they are not allowed to redefine the blocking contract.
+- Temporarily quarantined suites must move into the manifest's `quarantined` lane with an explicit reason and owner note in the test body or adjacent comment.
+- Quarantined suites stay out of blocking profiles and only run through informational flake paths until they are fixed and removed from quarantine.
+- Do not leave a flaky test half-disabled inside the blocking lane. Quarantine it explicitly or fix it before merge.
+
+## Shared Harness Pattern
+
+For new expensive or stateful suites, prefer the shared patterns that already exist:
+
+- one suite-scope bootstrap helper per expensive environment
+- one canonical temp-home/temp-dir helper with `pp-` prefixes
+- one strict outbound stub registry that fails on unexpected calls
+- one semantic CLI assertion helper set for JSON, stderr/stdout ownership, and section markers
+
+Avoid one-off local harnesses unless the existing helpers cannot model the behavior safely.
+
+## Maintainer Review Checklist
+
+Before merging a new or heavily changed test, confirm:
+
+- the suite is the cheapest lane that can prove the contract
+- the test asserts behavior, not incidental wording or file inventory
+- unit/service tests do not use the real network
+- new isolated or expensive suites declare `tags`, `fixtureClass`, `budgetMs`, and an isolation reason when needed
+- end-to-end coverage is representative rather than exhaustive
+- fund-moving and protocol-sensitive changes add coverage closest to the risky logic, not just another smoke case
 
 ## Cleanup Rules
 
@@ -170,6 +235,8 @@ If a target is missed:
 CI notes:
 
 - `scripts/ci/test-shards.mjs` uses `scripts/ci/test-shard-weights.json` for deterministic runtime-aware shard balancing.
+- `npm run test:timings:refresh -- --report <report.json> [--report <report.json> ...]` updates the committed timing baselines in `scripts/test-runtime-metadata.json` from emitted runtime reports.
+- `npm run test:shards:refresh -- --report <report.json> [--report <report.json> ...]` refreshes `scripts/ci/test-shard-weights.json` from those same runtime reports after major suite reshapes.
 - `npm run test:scripts` runs `node --check` across `scripts/**/*.mjs` and is included in the conformance path so broken release/install helpers fail in blocking CI before release day.
 - `npm run test:install` is the shared install/distribution contract: build once, pack the CLI tarball once, then fan out packaged JS smoke, root-only installed-artifact verification, and current-host native packaging/install verification from those prepared artifacts. The installed-artifact legs run only on supported Node runtimes (`>=22 <26`); unsupported local hosts skip them with an explicit message instead of failing opaquely.
 - `npm run test:native:fmt` and `npm run test:native:lint` are the fast Rust-native formatting and clippy gates for `native/shell`.

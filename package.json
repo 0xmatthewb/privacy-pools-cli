@@ -42,6 +42,8 @@
     "test:ci": "node scripts/run-test-profile.mjs ci",
     "test:release": "node scripts/run-test-profile.mjs release",
     "test:all": "node scripts/run-test-profile.mjs all",
+    "test:timings:refresh": "node scripts/refresh-test-runtime-metadata.mjs",
+    "test:shards:refresh": "node scripts/ci/refresh-test-shard-weights.mjs",
     "test:conformance": "node scripts/run-test-profile.mjs conformance",
     "test:conformance:all": "node scripts/run-test-profile.mjs conformance-all",
     "test:conformance:frontend": "npm run build && node scripts/run-conformance-suite.mjs frontend",

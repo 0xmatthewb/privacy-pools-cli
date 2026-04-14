@@ -18,9 +18,11 @@ import {
 } from "./test-workspace-snapshot.mjs";
 import {
   collectTopUncoveredFiles,
+  collectCoverageScorecard,
   createCoverageExcludedSources,
   evaluateCoveragePolicy,
   normalizeCoveragePath,
+  RISK_COVERAGE_SCORECARD,
   stripLcovSourceSearchAndHash,
 } from "./lib/coverage-policy.mjs";
 
@@ -32,8 +34,11 @@ import {
 } from "./test-suite-manifest.mjs";
 import { buildCoverageMainSuites } from "./coverage-suite-plan.mjs";
 import {
+  buildRuntimeReport,
   collectRuntimeBudgetFailures,
+  getSuiteRuntimeBaseline,
   reportRuntimeSummary,
+  writeRuntimeReportIfRequested,
 } from "./test-runtime-metadata.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -228,9 +233,12 @@ async function runCoverageSuiteWithFallback(suite, attempt = 1) {
   );
   const runtimeResult = {
     label: attemptLabel,
+    canonicalLabel: label,
     durationMs: Date.now() - startedAt,
     budgetMs,
+    baselineMs: getSuiteRuntimeBaseline(label),
     tags,
+    tests,
     budgetExceeded:
       Number.isInteger(budgetMs) && Date.now() - startedAt > budgetMs,
   };
@@ -383,6 +391,13 @@ try {
   runtimeResults.push(...isolatedResults.runtimeResults);
 
   reportRuntimeSummary("slowest coverage suite runtimes", runtimeResults);
+  writeRuntimeReportIfRequested(
+    buildRuntimeReport({
+      kind: "coverage-suite",
+      heading: "slowest coverage suite runtimes",
+      results: runtimeResults,
+    }),
+  );
   const budgetFailures = collectRuntimeBudgetFailures(runtimeResults);
   if (budgetFailures.length > 0) {
     console.error("Coverage runtime budgets exceeded:");
@@ -425,6 +440,17 @@ try {
     const summary =
       `${threshold.stats.percent.toFixed(2)}% (${threshold.stats.linesHit}/${threshold.stats.linesFound})`;
     process.stdout.write(`coverage ${threshold.label}: ${summary}\n`);
+  }
+
+  process.stdout.write("risk coverage scorecard:\n");
+  for (const row of collectCoverageScorecard(mergedCoverage, RISK_COVERAGE_SCORECARD, {
+    excludedSources: EXCLUDED_SOURCES,
+    rootDir: ROOT,
+  })) {
+    const suffix = row.belowTarget ? " below target" : "";
+    process.stdout.write(
+      `- ${row.label}: ${row.percent.toFixed(2)}% (${row.hit}/${row.total}) target ${row.target}%${suffix}\n`,
+    );
   }
 
   if (failures.length > 0) {

@@ -33,6 +33,10 @@ function defineOnDemandSuite(suite) {
   return defineTaggedSuite(suite, ["ondemand"]);
 }
 
+function defineQuarantinedSuite(suite) {
+  return defineTaggedSuite(suite, ["quarantined"]);
+}
+
 export function suiteMatchesTags(
   suite,
   includeTags = [],
@@ -56,6 +60,7 @@ export const DEFAULT_MAIN_BATCHES = [
     label: "acceptance",
     targets: ["./test/acceptance"],
     tags: ["acceptance", "cli-contract"],
+    fixtureClass: "subprocess-boundary",
   }),
   defineMainBatch({
     label: "unit",
@@ -67,6 +72,7 @@ export const DEFAULT_MAIN_BATCHES = [
     label: "integration",
     targets: ["./test/integration"],
     tags: ["integration", "boundary"],
+    fixtureClass: "subprocess-boundary",
   }),
   defineMainBatch({
     label: "fuzz",
@@ -200,6 +206,22 @@ export const COVERAGE_SIGNAL_TESTS = [
   ...COMMAND_SURFACE_TESTS,
 ];
 
+export const STABLE_SUITE_TAXONOMY = [
+  "acceptance",
+  "unit",
+  "services",
+  "integration",
+  "conformance",
+  "native",
+  "install-boundary",
+  "anvil",
+  "workflow",
+  "protocol",
+  "fund-moving",
+  "expensive",
+  "quarantined",
+];
+
 export const ANVIL_E2E_TESTS = [
   WORKFLOW_ANVIL_SERVICE_TEST,
   CLI_ANVIL_E2E_TEST,
@@ -212,65 +234,70 @@ export const ON_DEMAND_TAG_SUITES = [
     label: "packed-smoke",
     tests: [PACKAGED_SMOKE_TEST],
     timeoutMs: 180_000,
-    tags: ["packed-smoke", "install-boundary", "expensive"],
+    tags: ["integration", "packed-smoke", "install-boundary", "expensive"],
     fixtureClass: "packaged-install",
   }),
   defineOnDemandSuite({
     label: "native-package-smoke",
     tests: [NATIVE_PACKAGE_SMOKE_TEST],
     timeoutMs: 240_000,
-    tags: ["native", "package", "install-boundary", "expensive"],
+    tags: ["integration", "native", "package", "install-boundary", "expensive"],
     fixtureClass: "native-package",
   }),
   defineOnDemandSuite({
     label: "native-machine-contract-parity",
     tests: [NATIVE_MACHINE_CONTRACT_TEST],
     timeoutMs: 240_000,
-    tags: ["native", "boundary", "machine", "expensive"],
+    tags: ["integration", "native", "boundary", "machine", "expensive"],
     fixtureClass: "native-boundary",
   }),
   defineOnDemandSuite({
     label: "native-routing-smoke",
     tests: [NATIVE_ROUTING_SMOKE_TEST],
     timeoutMs: 180_000,
-    tags: ["native", "boundary", "routing", "expensive"],
+    tags: ["integration", "native", "boundary", "routing", "expensive"],
     fixtureClass: "native-boundary",
   }),
   defineOnDemandSuite({
     label: "native-human-output-smoke",
     tests: [NATIVE_HUMAN_OUTPUT_SMOKE_TEST],
     timeoutMs: 180_000,
-    tags: ["native", "boundary", "human-output", "expensive"],
+    tags: ["integration", "native", "boundary", "human-output", "expensive"],
     fixtureClass: "native-boundary",
   }),
   defineOnDemandSuite({
     label: "workflow-anvil-service",
     tests: [WORKFLOW_ANVIL_SERVICE_TEST],
     timeoutMs: 300_000,
-    tags: ["anvil", "stateful", "workflow", "expensive"],
+    tags: ["services", "anvil", "stateful", "workflow", "expensive"],
     fixtureClass: "anvil",
   }),
   defineOnDemandSuite({
     label: "cli-anvil-e2e",
     tests: [CLI_ANVIL_E2E_TEST],
     timeoutMs: 300_000,
-    tags: ["anvil", "stateful", "fund-moving", "expensive"],
+    tags: ["integration", "anvil", "stateful", "fund-moving", "expensive"],
     fixtureClass: "anvil",
   }),
   defineOnDemandSuite({
     label: "cli-anvil-flow-new-wallet-erc20",
     tests: [CLI_ANVIL_FLOW_NEW_WALLET_ERC20_TEST],
     timeoutMs: 300_000,
-    tags: ["anvil", "stateful", "flow", "expensive"],
+    tags: ["integration", "anvil", "stateful", "workflow", "fund-moving", "expensive"],
     fixtureClass: "anvil",
   }),
   defineOnDemandSuite({
     label: "cli-anvil-flow-new-wallet-usdc",
     tests: [CLI_ANVIL_FLOW_NEW_WALLET_USDC_TEST],
     timeoutMs: 300_000,
-    tags: ["anvil", "stateful", "flow", "expensive"],
+    tags: ["integration", "anvil", "stateful", "workflow", "fund-moving", "expensive"],
     fixtureClass: "anvil",
   }),
+];
+
+export const QUARANTINED_SUITES = [
+  // Add temporarily quarantined suites here. They stay out of blocking
+  // profiles and only run through the informational flake lanes until fixed.
 ];
 
 export const ISOLATED_SUITES = [
@@ -281,7 +308,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "protocol-mocks",
-    tags: ["protocol", "sdk"],
+    tags: ["services", "protocol", "sdk", "expensive"],
     reason:
       "bun still reuses mocked wallet and sdk modules from this suite across later imports under the shared module cache",
   }),
@@ -292,7 +319,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "proof-stack",
-    tags: ["proofs", "protocol"],
+    tags: ["services", "proofs", "protocol", "expensive"],
     reason:
       "mocks snarkjs and circuit provisioning modules across the proof stack",
   }),
@@ -303,7 +330,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "workflow-mock-graph",
-    tags: ["workflow", "expensive"],
+    tags: ["services", "workflow", "expensive"],
     reason:
       "installs a broad workflow mock graph spanning prompts, relayer, contracts, and sdk services",
   }),
@@ -314,7 +341,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: true,
     fixtureClass: "workflow-engine",
-    tags: ["workflow", "expensive"],
+    tags: ["services", "workflow", "expensive"],
     reason:
       "coverage instrumentation still makes the large workflow service suite memory-heavy",
   }),
@@ -325,7 +352,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "workflow-mock-graph",
-    tags: ["workflow", "internal", "expensive"],
+    tags: ["services", "workflow", "internal", "expensive"],
     reason:
       "installs deep workflow-internal mocks that still collide under Bun's shared module state",
   }),
@@ -336,7 +363,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "workflow-filesystem",
-    tags: ["workflow", "filesystem"],
+    tags: ["services", "workflow", "filesystem"],
     reason:
       "mocks node:fs before importing workflow helpers, which must stay in its own Bun process to avoid cross-suite module pollution",
   }),
@@ -347,7 +374,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "workflow-filesystem",
-    tags: ["workflow", "filesystem"],
+    tags: ["services", "workflow", "filesystem"],
     reason:
       "mocks config persistence before importing workflow helpers, which must stay isolated from other workflow helper suites",
   }),
@@ -358,7 +385,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "restore-discovery",
-    tags: ["init", "discovery"],
+    tags: ["services", "init", "discovery"],
     reason:
       "mocks sdk, pools, account, and account-storage modules to cover restore discovery outcomes and must stay isolated from other service suites",
   }),
@@ -369,7 +396,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: false,
     fixtureClass: "account-handler",
-    tags: ["accounts", "errors"],
+    tags: ["unit", "accounts", "errors"],
     reason:
       "self-cleaning restore snapshots now return output/common and account modules to their real exports between tests",
   }),
@@ -380,7 +407,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "account-readonly",
-    tags: ["accounts", "readonly"],
+    tags: ["unit", "accounts", "readonly"],
     reason:
       "the readonly command harness rewires account, sdk, asp, and pool-account modules and must stay in its own Bun process to avoid cross-suite cache pollution",
   }),
@@ -391,7 +418,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "interactive-prompts",
-    tags: ["init", "interactive"],
+    tags: ["unit", "init", "interactive"],
     reason:
       "replaces the prompt module globally and must stay isolated from other prompt-driven suites",
   }),
@@ -402,7 +429,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "interactive-prompts",
-    tags: ["init", "interactive"],
+    tags: ["unit", "init", "interactive"],
     reason:
       "prompt-driven generate-and-backup flows must stay isolated from other init tests",
   }),
@@ -413,7 +440,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "interactive-prompts",
-    tags: ["init", "interactive"],
+    tags: ["unit", "init", "interactive"],
     reason:
       "prompt-driven import flows and visible-secret warnings must stay isolated from other init tests",
   }),
@@ -424,7 +451,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: true,
     fixtureClass: "init-handler",
-    tags: ["init", "coverage"],
+    tags: ["unit", "init", "coverage"],
     reason:
       "Bun lcov stays stable for the stateful init handler only when coverage runs through a non-tty child process",
   }),
@@ -435,7 +462,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: false,
     fixtureClass: "deposit-handler",
-    tags: ["deposit"],
+    tags: ["unit", "deposit", "fund-moving"],
     reason:
       "command-handler mocks now restore shared sdk, preflight, and transaction helpers to real export snapshots",
   }),
@@ -446,7 +473,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: true,
     fixtureClass: "ragequit-handler",
-    tags: ["ragequit", "coverage"],
+    tags: ["unit", "ragequit", "coverage", "fund-moving"],
     reason:
       "the entry-selection and signed-submit ragequit slice stays deterministic when coverage runs in its own Bun process",
   }),
@@ -457,7 +484,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: true,
     fixtureClass: "ragequit-handler",
-    tags: ["ragequit", "coverage"],
+    tags: ["unit", "ragequit", "coverage", "fund-moving"],
     reason:
       "the unsigned ragequit slice stays deterministic when coverage runs in its own Bun process",
   }),
@@ -468,7 +495,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: true,
     fixtureClass: "ragequit-handler",
-    tags: ["ragequit", "coverage"],
+    tags: ["unit", "ragequit", "coverage", "fund-moving"],
     reason:
       "the ragequit ownership and selection-error slice stays deterministic when coverage runs in its own Bun process",
   }),
@@ -479,7 +506,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: true,
     fixtureClass: "ragequit-handler",
-    tags: ["ragequit", "coverage"],
+    tags: ["unit", "ragequit", "coverage", "fund-moving"],
     reason:
       "the human-confirmation ragequit slice stays deterministic when coverage runs in its own Bun process",
   }),
@@ -490,7 +517,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: false,
     fixtureClass: "pools-handler",
-    tags: ["pools"],
+    tags: ["unit", "pools"],
     reason:
       "pools handler restores shared sdk, account, asp, and pool-account modules after each test batch",
   }),
@@ -501,7 +528,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: false,
     fixtureClass: "flow-handlers",
-    tags: ["workflow", "flow"],
+    tags: ["unit", "workflow", "flow", "fund-moving"],
     reason:
       "flow handler mocks restore workflow and output modules to captured real export snapshots between tests",
   }),
@@ -512,7 +539,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: true,
     isolateInCoverage: true,
     fixtureClass: "runtime-boundary",
-    tags: ["runtime", "bootstrap"],
+    tags: ["unit", "runtime", "bootstrap"],
     reason:
       "mock.module() interception of cli-main transitive imports is not safely reversible in-process across Bun versions",
   }),
@@ -523,7 +550,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: true,
     fixtureClass: "runtime-boundary",
-    tags: ["runtime", "routing"],
+    tags: ["unit", "runtime", "routing"],
     reason:
       "the launcher routing suite exercises the runtime boundary and should contribute to the coverage signal in its own stable Bun process",
   }),
@@ -534,7 +561,7 @@ export const ISOLATED_SUITES = [
     isolateInDefaultTest: false,
     isolateInCoverage: true,
     fixtureClass: "runtime-boundary",
-    tags: ["runtime", "launcher"],
+    tags: ["unit", "runtime", "launcher"],
     reason:
       "Bun's lcov writer is deterministic for the launcher/runtime source suite only when it runs in its own coverage process",
   }),
@@ -548,12 +575,20 @@ export const COVERAGE_ISOLATED_SUITES = ISOLATED_SUITES.filter(
   (suite) => suite.isolateInCoverage,
 );
 
+export const ALL_MANIFEST_SUITES = [
+  ...ON_DEMAND_TAG_SUITES,
+  ...ISOLATED_SUITES,
+  ...QUARANTINED_SUITES,
+];
+
 export const DEFAULT_MAIN_EXCLUDED_TESTS = [
   ...ON_DEMAND_TAG_SUITES.flatMap((suite) => suite.tests),
   ...DEFAULT_TEST_ISOLATED_SUITES.flatMap((suite) => suite.tests),
+  ...QUARANTINED_SUITES.flatMap((suite) => suite.tests),
 ];
 
 export const COVERAGE_MAIN_EXCLUDED_TESTS = [
   ...ANVIL_E2E_TESTS,
   ...COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests),
+  ...QUARANTINED_SUITES.flatMap((suite) => suite.tests),
 ];

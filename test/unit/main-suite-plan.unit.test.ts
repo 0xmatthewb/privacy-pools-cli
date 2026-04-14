@@ -49,6 +49,7 @@ describe("main suite planning", () => {
         ],
         tags: [],
         budgetMs: null,
+        fixtureClass: null,
       },
       {
         label: "main:unit",
@@ -58,6 +59,7 @@ describe("main suite planning", () => {
         ],
         tags: [],
         budgetMs: null,
+        fixtureClass: null,
       },
     ]);
   });
@@ -86,12 +88,14 @@ describe("main suite planning", () => {
         ],
         tags: [],
         budgetMs: null,
+        fixtureClass: null,
       },
       {
         label: "main:unit-02",
         tests: ["./test/unit/c.unit.test.ts"],
         tags: [],
         budgetMs: null,
+        fixtureClass: null,
       },
     ]);
   });
@@ -119,18 +123,48 @@ describe("main suite planning", () => {
         tests: ["./test/unit/a.unit.test.ts"],
         tags: [],
         budgetMs: null,
+        fixtureClass: null,
       },
       {
         label: "main:unit-02",
         tests: ["./test/unit/b.unit.test.ts"],
         tags: [],
         budgetMs: null,
+        fixtureClass: null,
       },
       {
         label: "main:unit-03",
         tests: ["./test/unit/c.unit.test.ts"],
         tags: [],
         budgetMs: null,
+        fixtureClass: null,
+      },
+    ]);
+  });
+
+  test("main batches preserve fixture classes for scheduler-aware throttling", () => {
+    const suites = buildDefaultMainSuites({
+      rootDir: process.cwd(),
+      testBatches: [
+        {
+          label: "acceptance",
+          targets: ["./test/acceptance"],
+          fixtureClass: "subprocess-boundary",
+        },
+      ],
+      excludedTests: [],
+      collectTestFilesFn() {
+        return ["./test/acceptance/example.acceptance.test.ts"];
+      },
+    });
+
+    expect(suites).toEqual([
+      {
+        label: "main:acceptance",
+        tests: ["./test/acceptance/example.acceptance.test.ts"],
+        tags: [],
+        budgetMs: null,
+        fixtureClass: "subprocess-boundary",
       },
     ]);
   });

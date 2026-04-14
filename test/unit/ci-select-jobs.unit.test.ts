@@ -16,6 +16,23 @@ describe("ci job selection", () => {
     expect(decision.reason).toContain("No changes matched");
   });
 
+  test("root testing policy entrypoint only fans out to conformance-class docs checks", () => {
+    const conformanceDecision = evaluateJobSelection({
+      job: "conformance-core",
+      eventName: "pull_request",
+      changedFiles: ["TESTING.md"],
+    });
+    expect(conformanceDecision.shouldRun).toBe(true);
+    expect(conformanceDecision.reason).toContain("TESTING.md");
+
+    const nativeDecision = evaluateJobSelection({
+      job: "native-smoke",
+      eventName: "pull_request",
+      changedFiles: ["TESTING.md"],
+    });
+    expect(nativeDecision.shouldRun).toBe(false);
+  });
+
   test("pull requests run relevant jobs", () => {
     const decision = evaluateJobSelection({
       job: "coverage-guard",

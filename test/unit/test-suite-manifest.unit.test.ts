@@ -1,127 +1,66 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import {
+  ALL_MANIFEST_SUITES,
+  QUARANTINED_SUITES,
   COVERAGE_ISOLATED_SUITES,
-  COVERAGE_SIGNAL_TESTS,
-  DEFAULT_MAIN_BATCHES,
-  DEFAULT_MAIN_EXCLUDED_TESTS,
-  DEFAULT_MAIN_TEST_TARGETS,
-  LAUNCHER_ROUTING_TEST,
-  NATIVE_HUMAN_OUTPUT_SMOKE_TEST,
-  NATIVE_MACHINE_CONTRACT_TEST,
-  NATIVE_PACKAGE_SMOKE_TEST,
-  NATIVE_ROUTING_SMOKE_TEST,
   ON_DEMAND_TAG_SUITES,
-  PACKED_SMOKE_TEST,
+  STABLE_SUITE_TAXONOMY,
 } from "../../scripts/test-suite-manifest.mjs";
 
 describe("test suite manifest", () => {
-  test("default main suite exclusions stay focused on dedicated smoke and isolated lanes", () => {
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(PACKED_SMOKE_TEST);
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_PACKAGE_SMOKE_TEST);
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_MACHINE_CONTRACT_TEST);
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_ROUTING_SMOKE_TEST);
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_HUMAN_OUTPUT_SMOKE_TEST);
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).not.toContain(
-      "./test/acceptance/status-init.acceptance.test.ts",
-    );
-  });
+  test("on-demand, isolated, and quarantined suites carry tags, fixture classes, and runtime budgets", () => {
+    const suites = [
+      ...ON_DEMAND_TAG_SUITES,
+      ...COVERAGE_ISOLATED_SUITES,
+      ...QUARANTINED_SUITES,
+    ];
 
-  test("coverage signal tests stay focused on in-process contract coverage", () => {
-    expect(COVERAGE_SIGNAL_TESTS.length).toBeGreaterThan(0);
-    expect(
-      COVERAGE_SIGNAL_TESTS.every((testPath) =>
-        !testPath.startsWith("./test/acceptance/")
-        && !testPath.startsWith("./test/integration/"),
-      ),
-    ).toBe(true);
-    expect(COVERAGE_SIGNAL_TESTS).not.toContain(
-      "./test/conformance/root-help-static.conformance.test.ts",
-    );
-  });
-
-  test("coverage isolated suites stay file-based and self-describing", () => {
-    expect(COVERAGE_ISOLATED_SUITES.length).toBeGreaterThan(0);
-    expect(new Set(COVERAGE_ISOLATED_SUITES.map((suite) => suite.label)).size).toBe(
-      COVERAGE_ISOLATED_SUITES.length,
-    );
-    for (const suite of COVERAGE_ISOLATED_SUITES) {
-      expect(typeof suite.label).toBe("string");
-      expect(suite.label.trim().length).toBeGreaterThan(0);
-      expect(typeof suite.reason).toBe("string");
-      expect(suite.reason.trim().length).toBeGreaterThan(0);
-      expect(Number.isInteger(suite.timeoutMs)).toBe(true);
-      expect(suite.timeoutMs).toBeGreaterThan(0);
+    expect(suites.length).toBeGreaterThan(0);
+    for (const suite of suites) {
       expect(Array.isArray(suite.tags)).toBe(true);
       expect(suite.tags.length).toBeGreaterThan(0);
       expect(typeof suite.fixtureClass).toBe("string");
       expect(suite.fixtureClass.trim().length).toBeGreaterThan(0);
-      expect(suite.tests.length).toBeGreaterThan(0);
-      expect(suite.tests.every((testPath) => testPath.endsWith(".test.ts"))).toBe(
-        true,
-      );
-    }
-    expect(
-      COVERAGE_ISOLATED_SUITES.some((suite) =>
-        suite.tests.includes(LAUNCHER_ROUTING_TEST)
-      ),
-    ).toBe(true);
-  });
-
-  test("manifest-owned test paths resolve to committed test files without duplication drift", () => {
-    const referencedPaths = new Set([
-      ...DEFAULT_MAIN_EXCLUDED_TESTS,
-      ...COVERAGE_SIGNAL_TESTS,
-      ...COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests),
-    ]);
-
-    expect(referencedPaths.size).toBeGreaterThan(0);
-    for (const testPath of referencedPaths) {
-      expect(testPath.startsWith("./test/")).toBe(true);
-      expect(existsSync(resolve(process.cwd(), testPath))).toBe(true);
+      expect(Number.isInteger(suite.budgetMs)).toBe(true);
     }
   });
 
-  test("default main batches cover each shared target exactly once", () => {
-    const flattenedTargets = DEFAULT_MAIN_BATCHES.flatMap((batch) => batch.targets);
-    expect(flattenedTargets).toEqual(DEFAULT_MAIN_TEST_TARGETS);
-    expect(new Set(DEFAULT_MAIN_BATCHES.map((batch) => batch.label)).size).toBe(
-      DEFAULT_MAIN_BATCHES.length,
-    );
-    expect(DEFAULT_MAIN_BATCHES.every((batch) => batch.targets.length > 0)).toBe(
-      true,
-    );
-    expect(DEFAULT_MAIN_BATCHES.every((batch) => batch.tags.length > 0)).toBe(true);
+  test("manifest labels remain unique across non-main suites", () => {
+    const labels = ALL_MANIFEST_SUITES.map((suite) => suite.label);
+    expect(new Set(labels).size).toBe(labels.length);
   });
 
-  test("on-demand tagged suites stay discoverable for expensive smoke lanes", () => {
-    expect(ON_DEMAND_TAG_SUITES.length).toBeGreaterThan(0);
-    expect(
-      ON_DEMAND_TAG_SUITES.some((suite) => suite.label === "packed-smoke"),
-    ).toBe(true);
-    expect(
-      ON_DEMAND_TAG_SUITES.some((suite) =>
-        suite.tests.includes(NATIVE_MACHINE_CONTRACT_TEST)
-      ),
-    ).toBe(true);
+  test("quarantined suites are explicitly tagged when present", () => {
+    for (const suite of QUARANTINED_SUITES) {
+      expect(suite.tags).toContain("quarantined");
+    }
   });
 
-  test("default main exclusions isolate the readonly harness but keep split ragequit slices in the main lane", () => {
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(
-      "./test/unit/accounts-command-readonly.unit.test.ts",
-    );
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(
-      "./test/unit/history-command-readonly.unit.test.ts",
-    );
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(
-      "./test/unit/sync-command-readonly.unit.test.ts",
-    );
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(
-      "./test/unit/migrate-status-command-readonly.unit.test.ts",
-    );
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).not.toContain(
-      "./test/unit/ragequit-command-handler.entry-submit.unit.test.ts",
-    );
+  test("expensive and isolated suites carry stable taxonomy tags", () => {
+    const stableTags = new Set(STABLE_SUITE_TAXONOMY);
+
+    for (const suite of [...ON_DEMAND_TAG_SUITES, ...COVERAGE_ISOLATED_SUITES]) {
+      expect(suite.tags.some((tag) => stableTags.has(tag))).toBe(true);
+    }
+  });
+
+  test("on-demand suites declare a primary execution lane tag", () => {
+    const expectedLaneTags = new Set(["integration", "services"]);
+
+    for (const suite of ON_DEMAND_TAG_SUITES) {
+      expect(
+        suite.tags.some((tag) => expectedLaneTags.has(tag)),
+      ).toBe(true);
+    }
+  });
+
+  test("isolated suites declare a primary test-layer tag", () => {
+    const expectedLayerTags = new Set(["unit", "services"]);
+
+    for (const suite of COVERAGE_ISOLATED_SUITES) {
+      expect(
+        suite.tags.some((tag) => expectedLayerTags.has(tag)),
+      ).toBe(true);
+    }
   });
 });

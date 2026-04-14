@@ -14,6 +14,7 @@ import {
   DEFAULT_MAIN_BATCHES,
   DEFAULT_MAIN_EXCLUDED_TESTS,
   ON_DEMAND_TAG_SUITES,
+  QUARANTINED_SUITES,
   DEFAULT_TEST_ISOLATED_SUITES,
   suiteMatchesTags,
 } from "./test-suite-manifest.mjs";
@@ -30,8 +31,11 @@ import {
   createSharedBuiltWorkspaceSnapshot,
 } from "./test-workspace-snapshot.mjs";
 import {
+  buildRuntimeReport,
   collectRuntimeBudgetFailures,
+  getSuiteRuntimeBaseline,
   reportRuntimeSummary,
+  writeRuntimeReportIfRequested,
 } from "./test-runtime-metadata.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -158,6 +162,7 @@ function filterTargetFilesByTags(targetFiles, includeTags, excludeTags) {
 
 async function runSuite(suite, args, envOverrides = {}) {
   const { label, tests, budgetMs = null, tags = [] } = suite;
+  const baselineMs = getSuiteRuntimeBaseline(label);
   process.stdout.write(`\n[test] ${label}\n`);
   const startedAt = Date.now();
 
@@ -201,9 +206,12 @@ async function runSuite(suite, args, envOverrides = {}) {
   const durationMs = Date.now() - startedAt;
   return {
     label,
+    canonicalLabel: label,
     durationMs,
     budgetMs,
+    baselineMs,
     tags,
+    tests,
     budgetExceeded:
       Number.isInteger(budgetMs) && durationMs > budgetMs,
   };
@@ -403,6 +411,13 @@ async function main() {
       }
 
       reportRuntimeSummary("slowest suite runtimes", runtimeResults);
+      writeRuntimeReportIfRequested(
+        buildRuntimeReport({
+          kind: "suite",
+          heading: "slowest suite runtimes",
+          results: runtimeResults,
+        }),
+      );
       const budgetFailures = collectRuntimeBudgetFailures(runtimeResults);
       if (budgetFailures.length > 0) {
         process.stderr.write("Runtime budgets exceeded:\n");
@@ -427,6 +442,11 @@ async function main() {
       : ON_DEMAND_TAG_SUITES.filter((suite) =>
         suiteMatchesTags(suite, includeTags, excludeTags)
       );
+    const quarantinedSuites = includeTags.length === 0
+      ? []
+      : QUARANTINED_SUITES.filter((suite) =>
+        suiteMatchesTags(suite, includeTags, excludeTags)
+      );
 
     const isolatedSuites = DEFAULT_TEST_ISOLATED_SUITES.filter((suite) =>
       suiteMatchesTags(suite, includeTags, excludeTags)
@@ -435,6 +455,7 @@ async function main() {
     if (
       mainSuites.length === 0
       && onDemandSuites.length === 0
+      && quarantinedSuites.length === 0
       && isolatedSuites.length === 0
     ) {
       throw new Error("No test suites selected by the current tag filters.");
@@ -444,10 +465,11 @@ async function main() {
 
     runtimeResults.push(
       ...await runSuitesWithConcurrency(
-      mainSuites,
-      suiteArgs,
-      resolveMainBatchConcurrency({ suiteCount: mainSuites.length }),
-    ),
+        mainSuites,
+        suiteArgs,
+        resolveMainBatchConcurrency({ suiteCount: mainSuites.length }),
+        { respectFixtureClass: true },
+      ),
     );
 
     runtimeResults.push(
@@ -468,7 +490,25 @@ async function main() {
       ),
     );
 
+    runtimeResults.push(
+      ...await runSuitesWithConcurrency(
+        quarantinedSuites,
+        suiteArgs,
+        resolveIsolatedSuiteConcurrency({
+          suiteCount: quarantinedSuites.length,
+        }),
+        { respectFixtureClass: true },
+      ),
+    );
+
     reportRuntimeSummary("slowest suite runtimes", runtimeResults);
+    writeRuntimeReportIfRequested(
+      buildRuntimeReport({
+        kind: "suite",
+        heading: "slowest suite runtimes",
+        results: runtimeResults,
+      }),
+    );
     const budgetFailures = collectRuntimeBudgetFailures(runtimeResults);
     if (budgetFailures.length > 0) {
       process.stderr.write("Runtime budgets exceeded:\n");

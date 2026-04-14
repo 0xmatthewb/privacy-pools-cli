@@ -72,6 +72,12 @@ describe("package scripts conformance", () => {
         profileName,
       ]);
     }
+    expect(packageJson.scripts?.["test:timings:refresh"]).toBe(
+      "node scripts/refresh-test-runtime-metadata.mjs",
+    );
+    expect(packageJson.scripts?.["test:shards:refresh"]).toBe(
+      "node scripts/ci/refresh-test-shard-weights.mjs",
+    );
   });
 
   test("native smoke scripts publish both packaged and launcher-parity lanes", () => {

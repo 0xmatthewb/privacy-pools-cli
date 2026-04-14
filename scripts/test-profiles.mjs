@@ -3,9 +3,12 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 import {
+  buildRuntimeReport,
   collectRuntimeBudgetFailures,
+  getProfileStepRuntimeBaseline,
   getProfileStepRuntimeBudget,
   reportRuntimeSummary,
+  writeRuntimeReportIfRequested,
 } from "./test-runtime-metadata.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -122,9 +125,13 @@ export function runProfile(name, options = {}) {
 
     runtimeResults.push({
       label: `${command} ${args.join(" ")}`,
+      canonicalLabel: `${command} ${args.join(" ")}`,
       durationMs,
       budgetMs: getProfileStepRuntimeBudget(commandName, args),
+      baselineMs: getProfileStepRuntimeBaseline(`${command} ${args.join(" ")}`),
       budgetExceeded: false,
+      tags: [name, commandName === "npm" ? "npm" : "node"],
+      tests: [],
     });
     runtimeResults[runtimeResults.length - 1].budgetExceeded =
       Number.isInteger(runtimeResults[runtimeResults.length - 1].budgetMs)
@@ -152,6 +159,13 @@ export function runProfile(name, options = {}) {
   }
 
   reportRuntimeSummary(`${name} profile slowest steps`, runtimeResults);
+  writeRuntimeReportIfRequested(
+    buildRuntimeReport({
+      kind: "profile",
+      heading: `${name} profile slowest steps`,
+      results: runtimeResults,
+    }),
+  );
   const budgetFailures = collectRuntimeBudgetFailures(runtimeResults);
   if (budgetFailures.length > 0) {
     process.stderr.write("Profile runtime budgets exceeded:\n");

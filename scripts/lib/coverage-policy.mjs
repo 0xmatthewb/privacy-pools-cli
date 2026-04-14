@@ -56,6 +56,15 @@ export const COVERAGE_THRESHOLDS = [
   { label: "config", min: 95, matchers: ["src/config/"] },
 ];
 
+export const RISK_COVERAGE_SCORECARD = [
+  { label: "workflow", path: "src/services/workflow.ts", target: 90 },
+  { label: "withdraw", path: "src/commands/withdraw.ts", target: 90 },
+  { label: "init", path: "src/commands/init.ts", target: 90 },
+  { label: "ragequit", path: "src/commands/ragequit.ts", target: 90 },
+  { label: "account", path: "src/services/account.ts", target: 90 },
+  { label: "relayer", path: "src/services/relayer.ts", target: 90 },
+];
+
 export function isExcludedCoverageSource(source, excludedSources) {
   return excludedSources.has(normalizeCoveragePath(source));
 }
@@ -132,6 +141,36 @@ export function collectTopUncoveredFiles(
       return a.source.localeCompare(b.source);
     })
     .slice(0, limit);
+}
+
+export function collectCoverageScorecard(
+  coverageMap,
+  scorecard,
+  { excludedSources = new Set(), rootDir = process.cwd() } = {},
+) {
+  return scorecard.map((entry) => {
+    const source = normalizeCoveragePath(resolve(rootDir, entry.path));
+    const lineHits = coverageMap.get(source);
+    const total = lineHits?.size ?? 0;
+    let hit = 0;
+
+    if (lineHits) {
+      for (const hits of lineHits.values()) {
+        if (hits > 0) hit += 1;
+      }
+    }
+
+    return {
+      ...entry,
+      source,
+      total,
+      hit,
+      percent: total === 0 ? 0 : (hit / total) * 100,
+      missingFromCoverage:
+        !lineHits || isExcludedCoverageSource(source, excludedSources),
+      belowTarget: total === 0 || (hit / total) * 100 < entry.target,
+    };
+  });
 }
 
 export function collectExecutableSourceFiles(

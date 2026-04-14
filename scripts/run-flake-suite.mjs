@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildTestRunnerEnv } from "./test-runner-env.mjs";
+import { QUARANTINED_SUITES } from "./test-suite-manifest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -73,6 +74,13 @@ run("node", [
   "--seed",
   seed.normalized,
 ]);
+if (QUARANTINED_SUITES.length > 0) {
+  run("node", [
+    "scripts/run-test-suite.mjs",
+    "--tag",
+    "quarantined",
+  ]);
+}
 run("node", [
   "scripts/run-bun-tests.mjs",
   "./test/acceptance/withdraw-quote.acceptance.test.ts",

@@ -213,6 +213,7 @@ const JOB_RULES = {
   "conformance-core": [
     "src/",
     "docs/",
+    "TESTING.md",
     "AGENTS.md",
     "README.md",
     "scripts/",
