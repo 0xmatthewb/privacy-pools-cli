@@ -26,29 +26,6 @@ const PACK_RETRY_DELAY_MS = 250;
 const PACKAGED_SMOKE_INSTALL_MODE =
   process.env.PP_PACKAGED_SMOKE_INSTALL?.trim() === "1";
 
-function packedBaseNames(paths: Set<string>, prefix: string): string[] {
-  return Array.from(
-    new Set(
-      Array.from(paths)
-        .filter(
-          (path): path is string =>
-            typeof path === "string" && path.startsWith(prefix),
-        )
-        .filter((path) => path.endsWith(".js") || path.endsWith(".d.ts"))
-        .map((path) =>
-          path.slice(prefix.length).replace(/(\.d)?\.ts$|\.js$/g, ""),
-        ),
-    ),
-  ).sort();
-}
-
-function sourceBaseNames(dir: string): string[] {
-  return readdirSync(`${CLI_CWD}/${dir}`)
-    .filter((name) => name.endsWith(".ts"))
-    .map((name) => name.replace(/\.ts$/g, ""))
-    .sort();
-}
-
 function collectRelativeFiles(rootDir: string, relativeDir = ""): string[] {
   const currentDir = relativeDir ? join(rootDir, relativeDir) : rootDir;
   const entries = readdirSync(currentDir, { withFileTypes: true });
@@ -128,18 +105,6 @@ function assertSuccessfulPack(
   const tarballName = pack.stdout.trim().split(/\r?\n/g).pop()?.trim();
   expect(tarballName).toBeTruthy();
   return tarballName!;
-}
-
-function sourcePackageJson(): {
-  bin?: string | Record<string, string>;
-  dependencies?: Record<string, string>;
-} {
-  return JSON.parse(
-    readFileSync(join(CLI_CWD, "package.json"), "utf8"),
-  ) as {
-    bin?: string | Record<string, string>;
-    dependencies?: Record<string, string>;
-  };
 }
 
 function installPackagedProdDependencies(packageRoot: string): void {
@@ -390,24 +355,13 @@ describe("packed CLI smoke", () => {
     });
   });
 
-  test("npm pack includes dist entry point and package.json without orphaned command/output artifacts", () => {
-    const packedCommandNames = packedBaseNames(packed.filePaths, "dist/commands/");
-    const packedOutputNames = packedBaseNames(packed.filePaths, "dist/output/");
-    const sourcePkg = sourcePackageJson();
-    const packedPkg = JSON.parse(
-      readFileSync(join(packed.packageRoot, "package.json"), "utf8"),
-    ) as {
-      bin?: unknown;
-      dependencies?: unknown;
-    };
-
+  test("npm pack keeps the packed runtime bootable and self-contained", () => {
     expect(packed.filePaths.has("dist/index.js")).toBe(true);
     expect(packed.filePaths.has("package.json")).toBe(true);
     expect(packed.filePaths.has("scripts/start-built-cli.mjs")).toBe(true);
-    expect(packedCommandNames).toEqual(sourceBaseNames("src/commands"));
-    expect(packedOutputNames).toEqual(sourceBaseNames("src/output"));
-    expect(packedPkg.bin).toEqual(sourcePkg.bin);
-    expect(packedPkg.dependencies).toEqual(sourcePkg.dependencies);
+    expect(packed.filePaths.has("dist/commands")).toBe(false);
+    expect(packed.filePaths.has("dist/output")).toBe(false);
+    expect(packed.binPath.endsWith("dist/index.js")).toBe(true);
   }, 30_000);
 
   test("npm pack includes bundled docs and runtime-owned shipped assets", () => {

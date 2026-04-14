@@ -386,6 +386,49 @@ export function registerRagequitCommandHandlerHarness(): void {
 }
 
 export function registerRagequitEntrySubmitTests(): void {
+  test("rejects the deprecated --asset flag before pool resolution", async () => {
+    useIsolatedHome();
+
+    await expect(
+      handleRagequitCommand(
+        undefined,
+        {
+          asset: "ETH",
+          poolAccount: "PA-1",
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    ).rejects.toMatchObject({
+      code: "INPUT_ERROR",
+      message: expect.stringContaining(
+        "--asset has been replaced by a positional argument",
+      ),
+    });
+    expect(resolvePoolMock).not.toHaveBeenCalled();
+  });
+
+  test("rejects the renamed --from-pa flag before parsing Pool Account selectors", async () => {
+    useIsolatedHome();
+
+    await expect(
+      handleRagequitCommand(
+        "ETH",
+        {
+          fromPa: "PA-1",
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    ).rejects.toMatchObject({
+      code: "INPUT_ERROR",
+      message: expect.stringContaining(
+        "--from-pa has been renamed to --pool-account",
+      ),
+    });
+    expect(parsePoolAccountSelectorMock).not.toHaveBeenCalled();
+  });
+
   test("rejects malformed --pool-account selectors before loading account state", async () => {
     useIsolatedHome();
 
@@ -822,6 +865,48 @@ export function registerRagequitOwnershipTests(): void {
     expect(json.error.message ?? json.errorMessage).toContain(
       "Unable to verify the original depositor for ragequit",
     );
+    expect(exitCode).toBe(3);
+  });
+
+  test("fails closed when legacy fallback loading reports partial website-recovery errors", async () => {
+    useIsolatedHome();
+    initializeAccountServiceMock.mockImplementationOnce(async () => {
+      throw new CLIError(
+        "website recovery required",
+        "INPUT",
+        "Visit the website first.",
+        "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
+      );
+    });
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: { poolAccounts: new Map() },
+        getSpendableCommitments: () => new Map(),
+      },
+      legacyAccount: {
+        account: { poolAccounts: new Map() },
+        getSpendableCommitments: () => new Map(),
+      },
+      errors: [{ reason: "asp unavailable" }],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          poolAccount: "PA-1",
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("RPC_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Failed to load legacy website-recovery state",
+    );
+    expect(json.error.message ?? json.errorMessage).toContain("asp unavailable");
     expect(exitCode).toBe(3);
   });
 

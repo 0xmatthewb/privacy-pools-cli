@@ -24,6 +24,10 @@ import {
   decodeDepositEvent,
   sharedCliEnv,
 } from "../helpers/shared-anvil-cli.ts";
+import {
+  expectOrderedSemanticFragments,
+  expectSemanticText,
+} from "../helpers/contract-assertions.ts";
 
 const scriptAvailable =
   process.platform !== "win32" &&
@@ -144,29 +148,6 @@ async function createApprovedPoolAccount(prefix: string): Promise<{
   };
 }
 
-function expectOrderedFragments(output: string, fragments: string[]): void {
-  let previousIndex = -1;
-  for (const fragment of fragments) {
-    const index = output.indexOf(fragment);
-    expect(index).toBeGreaterThan(previousIndex);
-    previousIndex = index;
-  }
-}
-
-function sanitizeTerminalTranscript(output: string): string {
-  const cleaned = output
-    .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "")
-    .replace(/\r/g, "\n")
-    .replace(/[\x00-\x08\x0B-\x1F\x7F]/g, "");
-
-  const lines = cleaned
-    .split("\n")
-    .map((line) => line.trimEnd())
-    .filter((line) => line.trim().length > 0);
-
-  return lines.filter((line, index) => index === 0 || line !== lines[index - 1]).join("\n");
-}
-
 beforeAll(() => {
   if (!ANVIL_E2E_ENABLED) return;
   sharedEnv = loadSharedAnvilEnv();
@@ -224,10 +205,13 @@ describe("proof progress PTY integration", () => {
     expect(result.stderr.trim()).toBe("");
     expect(result.stdout.trim().length).toBeGreaterThan(0);
 
-    const normalizedOutput = sanitizeTerminalTranscript(result.stdout);
-    expect(normalizedOutput).toContain("Generate and verify withdrawal proof");
-    expect(normalizedOutput).toContain("Generating and locally verifying the relayed withdrawal proof.");
-    expectOrderedFragments(normalizedOutput, [
+    expectSemanticText(result.stdout, {
+      includes: [
+        "Generate and verify withdrawal proof",
+        "Generating and locally verifying the relayed withdrawal proof.",
+      ],
+    });
+    expectOrderedSemanticFragments(result.stdout, [
       "Generating and verifying ZK proof... (0s) - verify circuits if needed",
       "Generating and verifying ZK proof... (0s) - build witness",
       "Generating and verifying ZK proof... (0s) - generate proof",

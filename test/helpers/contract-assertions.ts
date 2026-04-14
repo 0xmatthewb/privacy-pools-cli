@@ -89,6 +89,13 @@ export function stripAnsi(value: string): string {
   return value.replace(/\x1B\[[0-9;]*m/g, "");
 }
 
+export function normalizeSemanticText(value: string): string {
+  return stripAnsi(value)
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 export function expectSemanticText(
   value: string,
   options: {
@@ -97,7 +104,7 @@ export function expectSemanticText(
     patterns?: readonly RegExp[];
   },
 ): void {
-  const normalized = stripAnsi(value);
+  const normalized = normalizeSemanticText(value);
 
   for (const fragment of options.includes ?? []) {
     expect(normalized).toContain(fragment);
@@ -109,5 +116,19 @@ export function expectSemanticText(
 
   for (const pattern of options.patterns ?? []) {
     expect(normalized).toMatch(pattern);
+  }
+}
+
+export function expectOrderedSemanticFragments(
+  value: string,
+  fragments: readonly string[],
+): void {
+  const normalized = normalizeSemanticText(value);
+  let cursor = 0;
+
+  for (const fragment of fragments) {
+    const index = normalized.indexOf(fragment, cursor);
+    expect(index).toBeGreaterThanOrEqual(0);
+    cursor = index + fragment.length;
   }
 }
