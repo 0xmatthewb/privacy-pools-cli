@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { toSolidityProof, stringifyBigInts } from "../../src/utils/unsigned.ts";
+import {
+  stringifyBigInts,
+  toRagequitSolidityProof,
+  toSolidityProof,
+  toWithdrawSolidityProof,
+} from "../../src/utils/unsigned.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
 function validRaw(overrides?: Partial<{
@@ -102,6 +107,27 @@ describe("toSolidityProof", () => {
     expect(() => toSolidityProof(raw)).toThrow(CLIError);
   });
 
+  test("rejects malformed proof containers before reading nested fields", () => {
+    expect(() =>
+      toSolidityProof({ proof: {} as any, publicSignals: ["10"] } as any),
+    ).toThrow(CLIError);
+    expect(() =>
+      toSolidityProof({ proof: validRaw().proof, publicSignals: null } as any),
+    ).toThrow(CLIError);
+  });
+
+  test("rejects proofs with short pi_a, pi_b, or pi_c arrays", () => {
+    expect(() =>
+      toSolidityProof(validRaw({ pi_a: ["100"] })),
+    ).toThrow(CLIError);
+    expect(() =>
+      toSolidityProof(validRaw({ pi_b: [["300", "400"]] })),
+    ).toThrow(CLIError);
+    expect(() =>
+      toSolidityProof(validRaw({ pi_c: ["700"] })),
+    ).toThrow(CLIError);
+  });
+
   test("error has category PROOF and regeneration hint", () => {
     const raw = validRaw({ pi_a: ["bad", "200", "1"] });
     try {
@@ -111,6 +137,49 @@ describe("toSolidityProof", () => {
       expect((err as CLIError).category).toBe("PROOF");
       expect((err as CLIError).hint).toContain("Regenerate");
     }
+  });
+});
+
+describe("typed proof helpers", () => {
+  test("toWithdrawSolidityProof returns the expected fixed-width public signals", () => {
+    const result = toWithdrawSolidityProof(
+      validRaw({
+        publicSignals: ["1", "2", "3", "4", "5", "6", "7", "8"],
+      }),
+    );
+
+    expect(result.pubSignals).toEqual([
+      1n,
+      2n,
+      3n,
+      4n,
+      5n,
+      6n,
+      7n,
+      8n,
+    ]);
+  });
+
+  test("toWithdrawSolidityProof fails closed on unexpected public-signal length", () => {
+    expect(() =>
+      toWithdrawSolidityProof(validRaw({ publicSignals: ["1", "2", "3"] })),
+    ).toThrow(CLIError);
+  });
+
+  test("toRagequitSolidityProof returns the expected fixed-width public signals", () => {
+    const result = toRagequitSolidityProof(
+      validRaw({
+        publicSignals: ["11", "12", "13", "14"],
+      }),
+    );
+
+    expect(result.pubSignals).toEqual([11n, 12n, 13n, 14n]);
+  });
+
+  test("toRagequitSolidityProof fails closed on unexpected public-signal length", () => {
+    expect(() =>
+      toRagequitSolidityProof(validRaw({ publicSignals: ["11", "12", "13"] })),
+    ).toThrow(CLIError);
   });
 });
 

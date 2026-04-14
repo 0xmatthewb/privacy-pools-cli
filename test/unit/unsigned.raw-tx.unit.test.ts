@@ -52,6 +52,25 @@ describe("raw unsigned tx output", () => {
     expect(parsed[0].description).toBe("test tx");
   });
 
+  test("preserves explicit from addresses and terminates output with a newline", () => {
+    const output = captureStdout(() => {
+      printRawTransactions([
+        {
+          chainId: 1,
+          from: "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",
+          to: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+          value: "42",
+          data: "0xabcdef",
+          description: "approve",
+        },
+      ]);
+    });
+
+    expect(output.endsWith("\n")).toBe(true);
+    const parsed = JSON.parse(output.trim()) as Array<{ from: string | null }>;
+    expect(parsed[0]?.from).toBe("0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A");
+  });
+
   test("multiple transactions preserve array shape and normalize zero values", () => {
     const output = captureStdout(() => {
       printRawTransactions([

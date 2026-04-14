@@ -160,6 +160,42 @@ describe("renderPools parity", () => {
     expect(json.nextActions[0].cliCommand).not.toContain("--chain");
   });
 
+  test("JSON mode: all-chains query preserves chain summaries, warnings, and pool account counts", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: PoolsRenderData = {
+      ...STUB_POOLS_DATA,
+      allChains: true,
+      chainName: "mainnet",
+      chainSummaries: [
+        { chain: "mainnet", pools: 1, error: null },
+        { chain: "arbitrum", pools: 0, error: "rpc unavailable" },
+      ],
+      warnings: [
+        {
+          chain: "arbitrum",
+          category: "RPC",
+          message: "rpc unavailable",
+        },
+      ],
+      filteredPools: [
+        {
+          chain: "mainnet",
+          chainId: 1,
+          pool: STUB_POOL,
+          myPoolAccountsCount: 2,
+        },
+      ],
+    };
+
+    const { stdout } = captureOutput(() => renderPools(ctx, data));
+    const json = parseCapturedJson(stdout);
+
+    expect(json.chains).toEqual(data.chainSummaries);
+    expect(json.warnings).toEqual(data.warnings);
+    expect(json.pools[0].chain).toBe("mainnet");
+    expect(json.pools[0].myPoolAccountsCount).toBe(2);
+  });
+
   test("human mode: emits table to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() => renderPools(ctx, STUB_POOLS_DATA));
@@ -187,6 +223,34 @@ describe("renderPools parity", () => {
     const { stderr } = captureOutput(() => renderPools(ctx, STUB_POOLS_DATA));
 
     expect(stderr).toContain("USD Value");
+  });
+
+  test("human mode: surfaces degraded-chain warnings and your pool-account counts", () => {
+    const ctx = createOutputContext(makeMode());
+    const data: PoolsRenderData = {
+      ...STUB_POOLS_DATA,
+      warnings: [
+        {
+          chain: "sepolia",
+          category: "RPC",
+          message: "using cached pool metadata",
+        },
+      ],
+      filteredPools: [
+        {
+          chain: "sepolia",
+          chainId: 11155111,
+          pool: STUB_POOL,
+          myPoolAccountsCount: 3,
+        },
+      ],
+    };
+
+    const { stderr } = captureOutput(() => renderPools(ctx, data));
+
+    expect(stderr).toContain("sepolia (RPC): using cached pool metadata");
+    expect(stderr).toContain("Your PAs");
+    expect(stderr).toContain("3");
   });
 
   test("human mode: shows USD amount when pool has USD data", () => {
@@ -850,6 +914,20 @@ const STUB_POOL_ACCOUNT_REF = {
   txHash: "0xaabbccddee1234567890aabbccddee1234567890aabbccddee1234567890aabb",
 };
 
+const STUB_DECLINED_POOL_ACCOUNT_REF = {
+  ...STUB_POOL_ACCOUNT_REF,
+  paId: "PA-2",
+  status: "declined" as const,
+  aspStatus: "declined" as const,
+};
+
+const STUB_POA_POOL_ACCOUNT_REF = {
+  ...STUB_POOL_ACCOUNT_REF,
+  paId: "PA-3",
+  status: "poa_required" as const,
+  aspStatus: "poa_required" as const,
+};
+
 const STUB_ACTIVITY: PoolDetailActivityEvent[] = [
   { type: "deposit", amount: "1.0 ETH", timeLabel: "2h ago", status: "Approved" },
   { type: "withdrawal", amount: "0.5 ETH", timeLabel: "1d ago", status: null },
@@ -965,6 +1043,21 @@ describe("renderPoolDetail parity", () => {
     expect(json.myFundsWarning).toBe("Some ASP review data was unavailable or incomplete.");
   });
 
+  test("JSON mode: flags recentActivityUnavailable explicitly", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderPoolDetail(ctx, {
+        ...STUB_POOL_DETAIL_DATA,
+        recentActivity: null,
+        recentActivityUnavailable: true,
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.recentActivity).toBeUndefined();
+    expect(json.recentActivityUnavailable).toBe(true);
+  });
+
   test("JSON mode: omits recentActivity when null", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: PoolDetailRenderData = { ...STUB_POOL_DETAIL_DATA, recentActivity: null };
@@ -1039,6 +1132,33 @@ describe("renderPoolDetail parity", () => {
     expect(stderr).toContain("2h ago");
     expect(stderr).toContain("0.5 ETH");
     expect(stderr).toContain("Approved");
+  });
+
+  test("human mode: shows a degraded recent-activity warning when the feed is unavailable", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderPoolDetail(ctx, {
+        ...STUB_POOL_DETAIL_DATA,
+        recentActivity: null,
+        recentActivityUnavailable: true,
+      }),
+    );
+
+    expect(stderr).toContain("Recent public activity could not be loaded right now");
+  });
+
+  test("human mode: shows declined and PoA recovery callouts for affected balances", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderPoolDetail(ctx, {
+        ...STUB_POOL_DETAIL_DATA,
+        myPoolAccounts: [STUB_DECLINED_POOL_ACCOUNT_REF, STUB_POA_POOL_ACCOUNT_REF],
+      }),
+    );
+
+    expect(stderr).toContain("Declined Pool Accounts cannot use withdraw");
+    expect(stderr).toContain("Proof of Association is still required");
+    expect(stderr).toContain(POA_PORTAL_URL);
   });
 
   test("quiet mode: emits nothing", () => {

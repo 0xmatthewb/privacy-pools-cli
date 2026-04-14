@@ -82,8 +82,11 @@ describe("validation matrix", () => {
   const CHAIN_CASES = [
     ["ethereum", 1],
     ["mainnet", 1],
+    ["arbitrum one", 42161],
     ["arbitrum", 42161],
+    ["op mainnet", 10],
     ["optimism", 10],
+    ["op sepolia", 11155420],
     ["sepolia", 11155111],
     ["op-sepolia", 11155420],
   ] as const;
@@ -146,6 +149,20 @@ describe("validation matrix", () => {
     expect(() => validatePositive(0n)).toThrow(CLIError);
     expect(() => validatePositive(-1n)).toThrow(CLIError);
     expect(() => validatePositive(1n)).not.toThrow();
+  });
+
+  test("resolveChain includes did-you-mean guidance for close misses", () => {
+    try {
+      resolveChain("mainnett");
+      expect(true).toBe(false);
+    } catch (error) {
+      expect(error).toBeInstanceOf(CLIError);
+      expect((error as CLIError).hint).toContain('Did you mean "mainnet"?');
+    }
+  });
+
+  test("parseAmount trims surrounding whitespace before parsing", () => {
+    expect(parseAmount("  1.5  ", 18)).toBe(1500000000000000000n);
   });
 
   test("resolveChain applies host overrides from environment", () => {
