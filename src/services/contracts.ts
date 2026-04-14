@@ -23,6 +23,11 @@ type WithdrawalCall = {
   data: Hex;
 };
 
+export type ContractWriteStatusHooks = {
+  onBroadcasting?: () => Promise<void> | void;
+  onSimulating?: () => Promise<void> | void;
+};
+
 type ApproveErc20Params = {
   chainConfig: ChainConfig;
   spenderAddress: Address;
@@ -66,6 +71,7 @@ async function submitContractWrite(params: {
   functionName: string;
   args: readonly unknown[];
   value?: bigint;
+  statusHooks?: ContractWriteStatusHooks;
 }): Promise<TransactionResponse> {
   const { account, publicClient, walletClient } = await createWriteClients(
     params.chainConfig,
@@ -73,6 +79,7 @@ async function submitContractWrite(params: {
     params.privateKeyOverride
   );
 
+  await params.statusHooks?.onSimulating?.();
   const { request } = await (publicClient as any).simulateContract({
     address: params.address,
     abi: params.abi,
@@ -82,6 +89,7 @@ async function submitContractWrite(params: {
     account,
   });
 
+  await params.statusHooks?.onBroadcasting?.();
   const hash = await walletClient.writeContract({
     ...request,
     account,
@@ -153,7 +161,8 @@ export async function ragequit(
   poolAddress: Address,
   proof: SolidityProof,
   rpcOverride?: string,
-  privateKeyOverride?: string
+  privateKeyOverride?: string,
+  statusHooks?: ContractWriteStatusHooks,
 ): Promise<TransactionResponse> {
   return submitContractWrite({
     chainConfig,
@@ -163,6 +172,7 @@ export async function ragequit(
     abi: privacyPoolRagequitAbi,
     functionName: "ragequit",
     args: [proof],
+    statusHooks,
   });
 }
 
@@ -172,7 +182,8 @@ export async function withdrawDirect(
   withdrawal: WithdrawalCall,
   proof: SolidityProof,
   rpcOverride?: string,
-  privateKeyOverride?: string
+  privateKeyOverride?: string,
+  statusHooks?: ContractWriteStatusHooks,
 ): Promise<TransactionResponse> {
   return submitContractWrite({
     chainConfig,
@@ -182,5 +193,6 @@ export async function withdrawDirect(
     abi: privacyPoolWithdrawAbi,
     functionName: "withdraw",
     args: [withdrawal, proof],
+    statusHooks,
   });
 }

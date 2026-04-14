@@ -49,6 +49,12 @@ pub struct Spinner {
 }
 
 impl Spinner {
+    pub fn set_text(&mut self, message: &str) {
+        if self.running.is_none() {
+            write_stderr_text(message);
+        }
+    }
+
     pub fn stop(&mut self) {
         let Some(running) = self.running.take() else {
             return;
@@ -135,7 +141,7 @@ pub fn write_stderr_human_block_text(text: &str) {
 
 pub fn start_spinner(message: &str) -> Spinner {
     if !stderr_supports_animation() {
-        write_stderr_text(&format!("- {message}"));
+        write_stderr_text(message);
         return Spinner {
             running: None,
             handle: None,
@@ -186,10 +192,6 @@ pub fn format_command_heading(title: &str) -> String {
 
 pub fn format_muted_section_heading(title: &str) -> String {
     format_section_heading_with_tone(title, SectionTone::Muted)
-}
-
-pub fn format_muted_block(text: &str) -> String {
-    styled_dim(text)
 }
 
 pub fn format_muted_text(text: &str) -> String {
@@ -489,7 +491,7 @@ pub fn print_table(headers: Vec<&str>, rows: Vec<Vec<String>>) {
         }
         output.push_str(&body_rows.join("\n"));
     }
-    write_stderr_text(output.trim_end());
+    write_stderr_text(&output);
 }
 
 pub fn should_render_wide_tables(force_wide: bool) -> bool {
@@ -526,11 +528,15 @@ fn print_stacked_table(headers: &[String], rows: &[Vec<String>]) {
         }
     }
 
-    write_stderr_text(output.trim_end());
+    write_stderr_text(&output);
 }
 
 pub fn write_info(message: &str) {
     write_stderr_text(&format!("{} {message}", styled_accent(info_glyph())));
+}
+
+pub fn write_notice(message: &str) {
+    write_stderr_text(&styled_notice(&format!("{} {message}", active_glyph())));
 }
 
 pub fn insert_optional_string(object: &mut Map<String, Value>, key: &str, value: Option<String>) {
@@ -576,12 +582,8 @@ pub fn render_next_steps(actions: &[Value]) {
 
     write_stderr_text(&format_muted_section_heading("Next steps"));
     for (command, reason) in runnable.into_iter() {
-        write_stderr_text(&format!(
-            "  {} {}",
-            styled_dim(next_glyph()),
-            styled_accent(&command)
-        ));
-        write_stderr_text(&format!("     {}", styled_dim(&reason)));
+        write_stderr_text(&format!("  {}", styled_accent(&command)));
+        write_stderr_text(&format!("    {}", styled_dim(&reason)));
     }
 }
 
@@ -837,11 +839,11 @@ fn info_glyph() -> &'static str {
     }
 }
 
-fn next_glyph() -> &'static str {
+fn active_glyph() -> &'static str {
     if supports_unicode_output() {
-        "→"
+        "●"
     } else {
-        ">"
+        "*"
     }
 }
 
@@ -1072,10 +1074,23 @@ fn format_boxed_error(error: &CliError) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        format_activity_direction_label, format_callout, format_section_heading, print_table,
-        stream_supports_style, CalloutKind,
+        emit_help, emit_version, format_activity_direction_label, format_address, format_callout,
+        format_command_heading, format_danger_text, format_key_value_rows,
+        format_muted_section_heading, format_muted_text, format_notice_text,
+        format_section_heading, format_success_text, format_time_ago, insert_optional_f64,
+        insert_optional_string, insert_optional_u64, print_csv, print_json_success, print_table,
+        set_suppress_headers, start_spinner, stream_supports_style, write_info,
+        write_stderr_block_text, write_stderr_human_block_text, write_stderr_human_text,
+        write_stderr_text, write_stdout_human_text, write_stdout_text, CalloutKind, Spinner,
     };
     use crate::test_env::env_lock;
+    use serde_json::{Map, Value};
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+    use std::thread;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     #[test]
     fn format_callout_supports_success_and_privacy_labels() {
@@ -1147,5 +1162,107 @@ mod tests {
 
         let recovery = format_activity_direction_label("ragequit");
         assert_eq!(recovery, "Ragequit");
+    }
+
+    #[test]
+    fn output_helpers_cover_text_json_spinner_and_table_variants() {
+        let _guard = env_lock().lock().unwrap();
+        std::env::set_var("TERM", "dumb");
+        std::env::set_var("COLUMNS", "40");
+        std::env::set_var("NO_COLOR", "1");
+
+        emit_help("help body\n", true);
+        emit_help("\u{1b}[31mhelp body\u{1b}[0m", false);
+        emit_version("1.2.3", true);
+        emit_version("1.2.3", false);
+        print_json_success(serde_json::json!({ "mode": "test" }));
+
+        write_stdout_text("stdout");
+        write_stdout_human_text("\u{1b}[31mstdout human\u{1b}[0m");
+        write_stderr_text("stderr");
+        write_stderr_block_text("stderr block");
+        write_stderr_human_text("\u{1b}[31mstderr human\u{1b}[0m");
+        write_stderr_human_block_text("\u{1b}[31mstderr human block\u{1b}[0m");
+        write_info("informational");
+
+        let mut spinner = start_spinner("loading");
+        spinner.stop();
+
+        let running = Arc::new(AtomicBool::new(true));
+        let worker_running = Arc::clone(&running);
+        let mut joined_spinner = Spinner {
+            running: Some(running),
+            handle: Some(thread::spawn(move || {
+                while worker_running.swap(false, Ordering::SeqCst) {
+                    thread::sleep(Duration::from_millis(1));
+                }
+            })),
+            line_width: 4,
+        };
+        joined_spinner.stop();
+
+        assert!(format_command_heading("Overview").contains("Overview"));
+        assert!(format_muted_section_heading("Muted").contains("Muted"));
+        assert!(format_muted_text("muted").contains("muted"));
+        assert!(format_notice_text("notice").contains("notice"));
+        assert!(format_success_text("success").contains("success"));
+        assert!(format_danger_text("danger").contains("danger"));
+
+        assert!(format_key_value_rows(&[]).is_empty());
+        let rows = format_key_value_rows(&[("Balance", "1 ETH".to_string())]);
+        assert!(rows.contains("Balance:"));
+        assert!(rows.contains("1 ETH"));
+
+        assert!(format_callout(CalloutKind::Warning, &[]).is_empty());
+        assert_eq!(format_address("0x1234", 6), "0x1234");
+
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_else(|_| Duration::from_secs(0))
+            .as_millis() as u64;
+        assert_eq!(format_time_ago(None), "-");
+        assert!(format_time_ago(Some(now_ms.saturating_sub(5_000))).ends_with("s ago"));
+        assert!(format_time_ago(Some(now_ms.saturating_sub(5 * 60_000))).ends_with("m ago"));
+        assert!(format_time_ago(Some(now_ms.saturating_sub(5 * 60 * 60_000))).ends_with("h ago"));
+        assert!(
+            format_time_ago(Some(now_ms.saturating_sub(3 * 24 * 60 * 60_000))).ends_with("d ago")
+        );
+
+        set_suppress_headers(true);
+        print_csv(
+            vec!["Asset", "Balance"],
+            vec![vec!["ETH".to_string(), "1.00".to_string()]],
+        );
+        set_suppress_headers(false);
+        print_table(
+            vec!["Asset", "Balance", "Status"],
+            vec![vec![
+                "ETH".to_string(),
+                "1.00".to_string(),
+                "approved".to_string(),
+            ]],
+        );
+
+        let mut object = Map::new();
+        insert_optional_string(&mut object, "string", Some("value".to_string()));
+        insert_optional_u64(&mut object, "count", Some(7));
+        insert_optional_f64(&mut object, "ratio", Some(0.5));
+        insert_optional_string(&mut object, "missingString", None);
+        insert_optional_u64(&mut object, "missingCount", None);
+        insert_optional_f64(&mut object, "missingRatio", None);
+
+        assert_eq!(
+            object.get("string"),
+            Some(&Value::String("value".to_string()))
+        );
+        assert_eq!(object.get("count"), Some(&Value::Number(7_u64.into())));
+        assert!(object.get("ratio").and_then(Value::as_f64).is_some());
+        assert_eq!(object.get("missingString"), Some(&Value::Null));
+        assert_eq!(object.get("missingCount"), Some(&Value::Null));
+        assert_eq!(object.get("missingRatio"), Some(&Value::Null));
+
+        std::env::remove_var("NO_COLOR");
+        std::env::remove_var("COLUMNS");
+        std::env::remove_var("TERM");
     }
 }

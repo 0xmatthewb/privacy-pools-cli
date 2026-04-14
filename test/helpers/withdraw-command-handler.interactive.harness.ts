@@ -10,6 +10,7 @@ import {
   buildPoolAccountRefsMock,
   buildRelayerQuote,
   captureAsyncOutput,
+  captureAsyncOutputAllowExit,
   confirmPromptMock,
   fakeCommand,
   fetchMerkleLeavesMock,
@@ -17,6 +18,8 @@ import {
   handleWithdrawCommand,
   inputPromptMock,
   listPoolsMock,
+  maybeRecoverMissingWalletSetupMock,
+  maybeRenderPreviewScenarioMock,
   proveWithdrawalMock,
   requestQuoteMock,
   resolvePoolMock,
@@ -28,6 +31,32 @@ import {
 } from "./withdraw-command-handler.shared.ts";
 
 export function registerWithdrawInteractiveReviewTests(): void {
+  test("prompts for the amount in human mode and validates inline amount input", async () => {
+    useIsolatedHome({ withSigner: true });
+    inputPromptMock.mockImplementationOnce(async (options?: { validate?: (value: string) => true | string }) => {
+      expect(options?.validate?.("")).toBe("Enter an amount or percentage.");
+      expect(options?.validate?.("0%")).toBe("Use a percentage between 1% and 100%.");
+      expect(options?.validate?.("-1")).toContain("must be greater than zero");
+      expect(options?.validate?.("0.1")).toBe(true);
+      return "0.5";
+    });
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        undefined,
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Withdrawal review");
+    expect(stderr).toContain("Withdrawal cancelled.");
+  });
+
   test("prompts for the recipient in human relayed mode when --to is omitted", async () => {
     useIsolatedHome({ withSigner: true });
 
@@ -216,6 +245,58 @@ export function registerWithdrawInteractiveReviewTests(): void {
     expect(stderr).toContain("Withdrawal review");
   });
 
+  test("continues after a non-fatal early relayer-details fetch failure and logs it in verbose mode", async () => {
+    useIsolatedHome({ withSigner: true });
+    getRelayerDetailsMock
+      .mockImplementationOnce(async () => {
+        throw new Error("temporary relayer outage");
+      })
+      .mockImplementationOnce(async () => ({
+        minWithdrawAmount: "10000000000000000",
+        feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+        relayerUrl: "https://fastrelay.xyz",
+      }));
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet", verbose: true }),
+      ),
+    );
+
+    expect(stderr).toContain("Early relayer details fetch failed (non-fatal)");
+    expect(stderr).toContain("Withdrawal cancelled.");
+  });
+
+  test("validates prompted recipient addresses before rendering the relayed review", async () => {
+    useIsolatedHome({ withSigner: true });
+    inputPromptMock.mockImplementationOnce(async (options?: { validate?: (value: string) => true | string }) => {
+      expect(options?.validate?.("not-an-address")).toContain(
+        "Recipient is not a valid Ethereum address",
+      );
+      expect(options?.validate?.("0x4444444444444444444444444444444444444444")).toBe(true);
+      return "0x4444444444444444444444444444444444444444";
+    });
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Withdrawal review");
+    expect(stderr).toContain("0x4444");
+  });
+
   test("warns humans when --extra-gas is requested for native withdrawals", async () => {
     useIsolatedHome({ withSigner: true });
     confirmPromptMock.mockImplementationOnce(async () => false);
@@ -371,6 +452,37 @@ export function registerWithdrawInteractiveAssetSelectionTests(): void {
 
 }
 export function registerWithdrawInteractiveCompletionTests(): void {
+  test("lets humans revise below-minimum withdrawals and validates the new amount", async () => {
+    useIsolatedHome({ withSigner: true });
+    getRelayerDetailsMock.mockImplementationOnce(async () => ({
+      minWithdrawAmount: "500000000000000000",
+      feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+      relayerUrl: "https://fastrelay.xyz",
+    }));
+    inputPromptMock.mockImplementationOnce(async (options?: { validate?: (value: string) => true | string }) => {
+      expect(options?.validate?.("0.1")).toContain("at least 0.5 ETH");
+      expect(options?.validate?.("2")).toContain("Amount exceeds PA-1 balance");
+      expect(options?.validate?.("0.6")).toBe(true);
+      return "0.6";
+    });
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Withdrawal amount 0.1 ETH is below the relayer minimum");
+    expect(stderr).toContain("Updated withdrawal amount: 0.6 ETH");
+    expect(stderr).toContain("Withdrawal cancelled.");
+  });
+
   test("warns human relayed withdrawals when the remainder falls below the relayer minimum", async () => {
     useIsolatedHome({ withSigner: true });
     getRelayerDetailsMock.mockImplementationOnce(async () => ({
@@ -393,6 +505,77 @@ export function registerWithdrawInteractiveCompletionTests(): void {
     expect(submitRelayRequestMock).toHaveBeenCalled();
   });
 
+  test("lets humans switch to the full balance when the remainder would be stranded", async () => {
+    useIsolatedHome({ withSigner: true });
+    getRelayerDetailsMock.mockImplementationOnce(async () => ({
+      minWithdrawAmount: "50000000000000000",
+      feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+      relayerUrl: "https://fastrelay.xyz",
+    }));
+    selectPromptMock.mockImplementationOnce(async () => "full");
+    inputPromptMock.mockImplementationOnce(async () => "1 ETH");
+
+    await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.96",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(requestQuoteMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        amount: 1000000000000000000n,
+      }),
+    );
+    expect(submitRelayRequestMock).toHaveBeenCalled();
+  });
+
+  test("refreshes the relayer quote again when it expires during human confirmation", async () => {
+    useIsolatedHome({ withSigner: true });
+    const originalNow = Date.now;
+    let nowCalls = 0;
+    const initialNow = 1_700_000_000_000;
+    const quoteExpiresAt = initialNow + 31_000;
+    const expiredNow = quoteExpiresAt + 1_000;
+    requestQuoteMock
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: quoteExpiresAt }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow + 100_000 }),
+      );
+    confirmPromptMock
+      .mockImplementationOnce(async () => true)
+      .mockImplementationOnce(async () => true);
+    Date.now = () => (++nowCalls <= 2 ? initialNow : expiredNow);
+
+    try {
+      const { stderr } = await captureAsyncOutput(() =>
+        handleWithdrawCommand(
+          "0.1",
+          "ETH",
+          {
+            to: "0x4444444444444444444444444444444444444444",
+          },
+          fakeCommand({ chain: "mainnet" }),
+        ),
+      );
+
+      expect(requestQuoteMock).toHaveBeenCalledTimes(2);
+      expect(stderr).toContain(
+        "Quote expired while you were confirming. Fetching a fresh relayer quote",
+      );
+      expect(submitRelayRequestMock).toHaveBeenCalled();
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
   test("prints relayed save warnings for human callers after onchain confirmation", async () => {
     useIsolatedHome({ withSigner: true });
     saveAccountMock.mockImplementationOnce(() => {
@@ -412,6 +595,72 @@ export function registerWithdrawInteractiveCompletionTests(): void {
 
     expect(stderr).toContain("Relayed withdrawal confirmed onchain but failed to save locally");
     expect(stderr).toContain("privacy-pools sync");
+  });
+
+  test("treats prompt cancellations as clean human aborts", async () => {
+    useIsolatedHome({ withSigner: true });
+    inputPromptMock.mockImplementationOnce(async () => {
+      const error = new Error("cancelled") as Error & { name: string };
+      error.name = "AbortPromptError";
+      throw error;
+    });
+
+    const { stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        undefined,
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toContain("Operation cancelled.");
+  });
+
+  test("returns cleanly when missing wallet setup is recovered by the helper", async () => {
+    useIsolatedHome();
+    maybeRecoverMissingWalletSetupMock.mockImplementationOnce(async () => true);
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("NOT privacy-preserving");
+    expect(stderr).not.toContain("Error [");
+  });
+
+  test("returns early when preview rendering takes over a later relayed confirmation step", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey: string) =>
+      commandKey === "withdraw confirm"
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expect(submitRelayRequestMock).not.toHaveBeenCalled();
   });
 
 }

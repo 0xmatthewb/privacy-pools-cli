@@ -10,8 +10,9 @@
  * swallowing — not worth the mocking complexity).
  */
 
-import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cleanupTrackedTempDirs, createTrackedTempDir } from "../helpers/temp.ts";
 
@@ -35,12 +36,20 @@ function writeCacheFile(
   );
 }
 
+function updateNoticeMarkerPathFor(sessionId: string): string {
+  return join(
+    tmpdir(),
+    `privacy-pools-update-notice-${sessionId.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120)}.shown`,
+  );
+}
+
 /**
  * Import the module fresh each time so PRIVACY_POOLS_HOME changes take effect.
  * Bun caches module state, so we bust the cache with a query param.
  */
 let importCounter = 0;
 async function importUpdateCheck(): Promise<{
+  parseVersion: (value: string) => [number, number, number] | null;
   getUpdateNotice: (currentVersion: string) => string | null;
   checkForUpdateInBackground: () => void;
   consumePostCommandUpdateNotice: (currentVersion: string) => string | null;
@@ -53,6 +62,7 @@ async function importUpdateCheck(): Promise<{
     isHelpLike: boolean;
     isVersionLike: boolean;
   }) => boolean;
+  fetchLatestVersion: () => Promise<string | null>;
 }> {
   importCounter++;
   // Dynamic import with unique query string to bypass module cache.
@@ -62,8 +72,12 @@ async function importUpdateCheck(): Promise<{
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_DISABLE = process.env.PP_NO_UPDATE_CHECK;
 const ORIGINAL_TERM_SESSION_ID = process.env.TERM_SESSION_ID;
+const ORIGINAL_REGISTRY_URL = process.env.PRIVACY_POOLS_NPM_REGISTRY_URL;
+const ORIGINAL_SUPPRESS_POST_COMMAND_NOTICE =
+  process.env.PRIVACY_POOLS_CLI_SUPPRESS_POST_COMMAND_UPDATE_NOTICE;
 const ORIGINAL_STDOUT_IS_TTY = process.stdout.isTTY;
 const ORIGINAL_STDERR_IS_TTY = process.stderr.isTTY;
+const ORIGINAL_FETCH = globalThis.fetch;
 
 afterEach(() => {
   cleanupTrackedTempDirs();
@@ -73,6 +87,17 @@ afterEach(() => {
   else process.env.PP_NO_UPDATE_CHECK = ORIGINAL_DISABLE;
   if (ORIGINAL_TERM_SESSION_ID === undefined) delete process.env.TERM_SESSION_ID;
   else process.env.TERM_SESSION_ID = ORIGINAL_TERM_SESSION_ID;
+  if (ORIGINAL_REGISTRY_URL === undefined) {
+    delete process.env.PRIVACY_POOLS_NPM_REGISTRY_URL;
+  } else {
+    process.env.PRIVACY_POOLS_NPM_REGISTRY_URL = ORIGINAL_REGISTRY_URL;
+  }
+  if (ORIGINAL_SUPPRESS_POST_COMMAND_NOTICE === undefined) {
+    delete process.env.PRIVACY_POOLS_CLI_SUPPRESS_POST_COMMAND_UPDATE_NOTICE;
+  } else {
+    process.env.PRIVACY_POOLS_CLI_SUPPRESS_POST_COMMAND_UPDATE_NOTICE =
+      ORIGINAL_SUPPRESS_POST_COMMAND_NOTICE;
+  }
   Object.defineProperty(process.stdout, "isTTY", {
     configurable: true,
     value: ORIGINAL_STDOUT_IS_TTY,
@@ -81,6 +106,8 @@ afterEach(() => {
     configurable: true,
     value: ORIGINAL_STDERR_IS_TTY,
   });
+  globalThis.fetch = ORIGINAL_FETCH;
+  mock.restore();
 });
 
 // ── PP_NO_UPDATE_CHECK=1 disables everything ────────────────────────────────
@@ -305,6 +332,14 @@ describe("version comparison via getUpdateNotice", () => {
   test("returns null for unparseable current version", async () => {
     expect(await noticeFor("2.0.0", "garbage")).toBeNull();
   });
+
+  test("parseVersion accepts simple semver prefixes and rejects invalid inputs", async () => {
+    const { parseVersion } = await importUpdateCheck();
+
+    expect(parseVersion("1.2.3-beta.1")).toEqual([1, 2, 3]);
+    expect(parseVersion("v1.2.3")).toBeNull();
+    expect(parseVersion("")).toBeNull();
+  });
 });
 
 describe("post-command update notices", () => {
@@ -366,5 +401,217 @@ describe("post-command update notices", () => {
         isVersionLike: false,
       }),
     ).toBe(false);
+  });
+
+  test("suppresses post-command notices for explicit opt-outs, help/version flows, and non-tty output", async () => {
+    process.env.PRIVACY_POOLS_CLI_SUPPRESS_POST_COMMAND_UPDATE_NOTICE = "1";
+
+    const { shouldShowPostCommandUpdateNotice } = await importUpdateCheck();
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "status",
+        route: "status",
+        isWelcome: false,
+        isMachineMode: false,
+        isQuiet: false,
+        isHelpLike: false,
+        isVersionLike: false,
+      }),
+    ).toBe(false);
+
+    delete process.env.PRIVACY_POOLS_CLI_SUPPRESS_POST_COMMAND_UPDATE_NOTICE;
+    Object.defineProperty(process.stdout, "isTTY", {
+      configurable: true,
+      value: false,
+    });
+    Object.defineProperty(process.stderr, "isTTY", {
+      configurable: true,
+      value: false,
+    });
+
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "upgrade",
+        route: "upgrade check",
+        isWelcome: false,
+        isMachineMode: false,
+        isQuiet: false,
+        isHelpLike: false,
+        isVersionLike: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "status",
+        route: "status",
+        isWelcome: true,
+        isMachineMode: false,
+        isQuiet: false,
+        isHelpLike: false,
+        isVersionLike: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "status",
+        route: "status",
+        isWelcome: false,
+        isMachineMode: false,
+        isQuiet: false,
+        isHelpLike: true,
+        isVersionLike: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "status",
+        route: "status",
+        isWelcome: false,
+        isMachineMode: false,
+        isQuiet: false,
+        isHelpLike: false,
+        isVersionLike: true,
+      }),
+    ).toBe(false);
+  });
+
+  test("falls back to the current process id when session env vars are unavailable", async () => {
+    const home = freshHome();
+    writeCacheFile(home, {
+      latestVersion: "9.9.9",
+      checkedAt: Date.now(),
+    });
+    process.env.PRIVACY_POOLS_HOME = join(home, ".privacy-pools");
+
+    const sessionEnvKeys = [
+      "TERM_SESSION_ID",
+      "ITERM_SESSION_ID",
+      "WT_SESSION",
+      "TMUX",
+      "STY",
+      "SSH_TTY",
+    ] as const;
+    const previousSessionEnv = Object.fromEntries(
+      sessionEnvKeys.map((key) => [key, process.env[key]]),
+    );
+    for (const key of sessionEnvKeys) {
+      delete process.env[key];
+    }
+    rmSync(updateNoticeMarkerPathFor(`ppid-${process.ppid}`), { force: true });
+
+    try {
+      const { consumePostCommandUpdateNotice } = await importUpdateCheck();
+      expect(consumePostCommandUpdateNotice("1.0.0")).toContain("9.9.9");
+      expect(consumePostCommandUpdateNotice("1.0.0")).toBeNull();
+    } finally {
+      for (const key of sessionEnvKeys) {
+        const previousValue = previousSessionEnv[key];
+        if (previousValue === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = previousValue;
+        }
+      }
+    }
+  });
+
+  test("falls back to firstCommandToken when the route is unavailable", async () => {
+    Object.defineProperty(process.stdout, "isTTY", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(process.stderr, "isTTY", {
+      configurable: true,
+      value: true,
+    });
+
+    const { shouldShowPostCommandUpdateNotice } = await importUpdateCheck();
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "upgrade",
+        route: null,
+        isWelcome: false,
+        isMachineMode: false,
+        isQuiet: false,
+        isHelpLike: false,
+        isVersionLike: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowPostCommandUpdateNotice({
+        firstCommandToken: "status",
+        route: null,
+        isWelcome: false,
+        isMachineMode: false,
+        isQuiet: false,
+        isHelpLike: false,
+        isVersionLike: false,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("background fetch helpers", () => {
+  test("fetchLatestVersion honors the registry override and returns the published version", async () => {
+    process.env.PRIVACY_POOLS_NPM_REGISTRY_URL = "https://registry.example.test/latest";
+    const fetchMock = mock(async (url: string, init?: RequestInit) => {
+      expect(url).toBe("https://registry.example.test/latest");
+      expect(init?.headers).toEqual({ Accept: "application/json" });
+      return {
+        ok: true,
+        json: async () => ({ version: "2.3.4" }),
+      } as Response;
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const { fetchLatestVersion } = await importUpdateCheck();
+    await expect(fetchLatestVersion()).resolves.toBe("2.3.4");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("fetchLatestVersion returns null for non-ok, malformed, and thrown responses", async () => {
+    const responses = [
+      { ok: false, json: async () => ({ version: "9.9.9" }) },
+      { ok: true, json: async () => ({}) },
+    ];
+    const fetchMock = mock(async () => {
+      const next = responses.shift();
+      if (next) {
+        return next as Response;
+      }
+      throw new Error("network down");
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const { fetchLatestVersion } = await importUpdateCheck();
+    await expect(fetchLatestVersion()).resolves.toBeNull();
+    await expect(fetchLatestVersion()).resolves.toBeNull();
+    await expect(fetchLatestVersion()).resolves.toBeNull();
+  });
+
+  test("checkForUpdateInBackground persists a fresh version only when the cache is stale", async () => {
+    const home = freshHome();
+    process.env.PRIVACY_POOLS_HOME = join(home, ".privacy-pools");
+    const fetchMock = mock(async () => ({
+      ok: true,
+      json: async () => ({ version: "8.8.8" }),
+    }));
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const { checkForUpdateInBackground } = await importUpdateCheck();
+    checkForUpdateInBackground();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      JSON.parse(readFileSync(join(home, ".privacy-pools", ".update-check.json"), "utf-8")),
+    ).toMatchObject({
+      latestVersion: "8.8.8",
+    });
+
+    fetchMock.mockClear();
+    checkForUpdateInBackground();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

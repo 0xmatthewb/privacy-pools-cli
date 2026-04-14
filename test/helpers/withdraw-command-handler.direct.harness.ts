@@ -54,6 +54,7 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
   test("submits a direct withdrawal to the signer address when requested", async () => {
     useIsolatedHome({ withSigner: true });
     const addWithdrawalCommitmentMock = mock(() => undefined);
+    const statusEvents: string[] = [];
     initializeAccountServiceMock.mockImplementationOnce(async () => ({
       account: { poolAccounts: new Map() },
       getSpendableCommitments: () =>
@@ -64,6 +65,21 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
       }),
       addWithdrawalCommitment: addWithdrawalCommitmentMock,
     }));
+    withdrawDirectMock.mockImplementationOnce(async (...args) => {
+      const statusHooks = args[6] as
+        | {
+            onSimulating?: () => void;
+            onBroadcasting?: () => void;
+          }
+        | undefined;
+      statusHooks?.onSimulating?.();
+      statusEvents.push("simulating");
+      statusHooks?.onBroadcasting?.();
+      statusEvents.push("broadcasting");
+      return {
+        hash: "0x" + "56".repeat(32),
+      };
+    });
 
     const { json } = await captureAsyncJsonOutput(() =>
       handleWithdrawCommand(
@@ -81,6 +97,7 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
     expect(json.mode).toBe("direct");
     expect(json.txHash).toBe("0x" + "56".repeat(32));
     expect(addWithdrawalCommitmentMock).toHaveBeenCalledTimes(1);
+    expect(statusEvents).toEqual(["simulating", "broadcasting"]);
   });
 
 }
@@ -155,6 +172,35 @@ export function registerWithdrawDirectCompletionTests(): void {
       "Timed out waiting for withdrawal confirmation",
     );
     expect(exitCode).toBe(3);
+  });
+
+  test("fails closed when the direct withdrawal transaction reverts onchain", async () => {
+    useIsolatedHome({ withSigner: true });
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async () => 1n,
+      waitForTransactionReceipt: async () => ({
+        status: "reverted",
+        blockNumber: 456n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("CONTRACT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Withdrawal transaction reverted",
+    );
+    expect(exitCode).toBe(7);
   });
 
 }

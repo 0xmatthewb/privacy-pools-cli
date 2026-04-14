@@ -234,7 +234,9 @@ export async function handleDepositCommand(
     );
 
     // Parse and validate amount
-    const amount = parseAmount(amountStr, pool.decimals);
+    const amount = parseAmount(amountStr, pool.decimals, {
+      allowNegative: true,
+    });
     validatePositive(amount, "Deposit amount");
     verbose(`Deposit amount (raw): ${amount.toString()}`, isVerbose, silent);
 

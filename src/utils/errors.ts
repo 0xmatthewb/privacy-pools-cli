@@ -492,6 +492,14 @@ export function classifyError(error: unknown): CLIError {
         "PROOF_GENERATION_FAILED"
       );
     }
+    if (code === "PROOF_VERIFICATION_FAILED") {
+      return new CLIError(
+        "Proof verification failed.",
+        "PROOF",
+        "Run 'privacy-pools sync' to refresh local state and retry. If it persists, reinstall the CLI to refresh the bundled circuit artifacts.",
+        "PROOF_VERIFICATION_FAILED"
+      );
+    }
   }
 
   // Network/RPC errors

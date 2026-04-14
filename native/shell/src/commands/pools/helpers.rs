@@ -290,6 +290,7 @@ mod extended_tests {
             pending_deposits_count: None,
             growth24h: None,
             pending_growth24h: None,
+            my_pool_accounts_count: None,
         }
     }
 

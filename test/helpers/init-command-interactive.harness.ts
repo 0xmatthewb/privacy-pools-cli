@@ -10,6 +10,7 @@ import { join } from "node:path";
 import type { Command } from "commander";
 import { saveConfig, saveMnemonicToFile } from "../../src/services/config.ts";
 import {
+  captureAsyncJsonOutput,
   captureAsyncOutput,
   captureAsyncOutputAllowExit,
 } from "./output.ts";
@@ -20,10 +21,12 @@ import {
 import { restoreTestTty, setTestTty } from "./tty.ts";
 
 const realInquirerPrompts = await import("@inquirer/prompts");
+const realPreviewRuntime = await import("../../src/preview/runtime.ts");
 const confirmPromptMock = mock(async () => true);
 const inputPromptMock = mock(async () => "");
 const passwordPromptMock = mock(async () => "");
 const selectPromptMock = mock(async () => "generate");
+const maybeRenderPreviewScenarioMock = mock(async () => false);
 
 let handleInitCommand: typeof import("../../src/commands/init.ts").handleInitCommand;
 
@@ -64,6 +67,10 @@ async function loadInitCommandHandler(): Promise<void> {
     password: passwordPromptMock,
     select: selectPromptMock,
   }));
+  mock.module("../../src/preview/runtime.ts", () => ({
+    ...realPreviewRuntime,
+    maybeRenderPreviewScenario: maybeRenderPreviewScenarioMock,
+  }));
 
   ({ handleInitCommand } = await import(
     "../../src/commands/init.ts"
@@ -77,11 +84,13 @@ export function registerInitCommandInteractiveHarness(): void {
     inputPromptMock.mockClear();
     passwordPromptMock.mockClear();
     selectPromptMock.mockClear();
+    maybeRenderPreviewScenarioMock.mockClear();
 
     confirmPromptMock.mockImplementation(async () => true);
     inputPromptMock.mockImplementation(async () => "");
     passwordPromptMock.mockImplementation(async () => "");
     selectPromptMock.mockImplementation(async () => "generate");
+    maybeRenderPreviewScenarioMock.mockImplementation(async () => false);
   });
 
   beforeEach(async () => {
@@ -293,5 +302,155 @@ export function registerInitImportVisibleSecretTests(): void {
     expect(stderr).toContain("--recovery-phrase is visible in process list");
     expect(stderr).toContain("--private-key is visible in process list");
     expect(stderr).toContain("Signer key saved.");
+  });
+}
+
+export function registerInitDryRunAndPreviewTests(): void {
+  test("reports dry-run targets and overwrite prompts in JSON mode", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          dryRun: true,
+          privateKey: "0x" + "66".repeat(32),
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.operation).toBe("init");
+    expect(json.dryRun).toBe(true);
+    expect(json.effectiveChain).toBe("mainnet");
+    expect(json.overwriteExisting).toBe(true);
+    expect(json.overwritePromptRequired).toBe(true);
+    expect(json.writeTargets).toEqual(
+      expect.arrayContaining([
+        join(home, "config.json"),
+        join(home, ".mnemonic"),
+        join(home, ".signer"),
+      ]),
+    );
+    expect(stderr).toBe("");
+  });
+
+  test("preview setup mode returns before the first interactive choice", async () => {
+    const home = useIsolatedHome();
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init setup mode",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expect(selectPromptMock).not.toHaveBeenCalled();
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
+  test("preview import checkpoint returns before reading the recovery phrase", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock.mockImplementationOnce(async () => "import");
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init import recovery prompt",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expect(passwordPromptMock).not.toHaveBeenCalled();
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
+  test("preview backup path checkpoint returns before prompting for a file path", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "generate")
+      .mockImplementationOnce(async () => "file");
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init backup path",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Save this recovery phrase now.");
+    expect(inputPromptMock).not.toHaveBeenCalled();
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
+  test("preview signer-key checkpoint returns before the signer prompt", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "generate")
+      .mockImplementationOnce(async () => "copied");
+    confirmPromptMock.mockImplementationOnce(async () => true);
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init signer key",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Your signer key pays gas");
+    expect(passwordPromptMock).not.toHaveBeenCalled();
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
+  test("preview default-chain checkpoint returns before network selection", async () => {
+    const home = useIsolatedHome();
+    process.env.PRIVACY_POOLS_PRIVATE_KEY = "0x" + "77".repeat(32);
+    selectPromptMock
+      .mockImplementationOnce(async () => "generate")
+      .mockImplementationOnce(async () => "copied");
+    confirmPromptMock.mockImplementationOnce(async () => true);
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init default chain",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(selectPromptMock).toHaveBeenCalledTimes(2);
+    expect(stderr).toContain("Confirm recovery phrase backup");
+    expect(existsSync(join(home, "config.json"))).toBe(false);
+  });
+
+  test("final preview checkpoint returns before persistence", async () => {
+    const home = useIsolatedHome();
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+          privateKey: "0x" + "88".repeat(32),
+          defaultChain: "mainnet",
+        },
+        fakeCommand({}),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("--recovery-phrase is visible in process list");
+    expect(existsSync(join(home, "config.json"))).toBe(false);
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+    expect(existsSync(join(home, ".signer"))).toBe(false);
   });
 }

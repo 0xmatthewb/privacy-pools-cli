@@ -98,6 +98,13 @@ pub(crate) fn handle_pools_native(
                 &mut chain_summaries,
                 &mut first_error,
             );
+            if let Some(spinner) = loading.as_mut() {
+                spinner.set_text(&format!(
+                    "Fetching pools... ({}/{} chains done)",
+                    index + 1,
+                    chains_to_query.len()
+                ));
+            }
         }
     } else {
         for chain in &chains_to_query {
@@ -114,6 +121,15 @@ pub(crate) fn handle_pools_native(
                 &mut chain_summaries,
                 &mut first_error,
             );
+            if is_multi_chain && chains_to_query.len() > 1 {
+                let completed = chain_summaries.len();
+                if let Some(spinner) = loading.as_mut() {
+                    spinner.set_text(&format!(
+                        "Fetching pools... ({completed}/{total} chains done)",
+                        total = chains_to_query.len()
+                    ));
+                }
+            }
         }
     }
 

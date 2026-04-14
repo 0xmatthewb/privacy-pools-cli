@@ -138,6 +138,32 @@ type MockPoolAccount = {
   };
 };
 
+function buildHistoricalPoolAccount(paNumber: number): MockPoolAccount {
+  const label = BigInt(90 + paNumber);
+  const hash = BigInt(80 + paNumber);
+  const txHex = paNumber.toString(16).padStart(64, "0");
+
+  return {
+    paNumber,
+    paId: `PA-${paNumber}`,
+    status: "spent",
+    aspStatus: "unknown",
+    label,
+    value: 100n + BigInt(paNumber),
+    blockNumber: 100n + BigInt(paNumber),
+    txHash: (`0x${txHex}`) as Hex,
+    commitment: {
+      hash,
+      label,
+      value: 100n + BigInt(paNumber),
+      nullifier: 200n + BigInt(paNumber),
+      secret: 300n + BigInt(paNumber),
+      blockNumber: 100n + BigInt(paNumber),
+      txHash: (`0x${txHex}`) as Hex,
+    },
+  };
+}
+
 interface MockState {
   gasPrice: bigint;
   gasPriceError: boolean;
@@ -164,7 +190,6 @@ interface MockState {
     addWithdrawalCommitment: (...args: unknown[]) => void;
   };
   allPoolAccounts: MockPoolAccount[];
-  activePoolAccounts: MockPoolAccount[];
   aspRoots: { mtRoot: string; onchainMtRoot: string };
   aspLeaves: { aspLeaves: string[]; stateTreeLeaves: string[] };
   reviewStatuses: Map<string, MockPoolAccount["aspStatus"]>;
@@ -191,6 +216,59 @@ interface MockState {
 
 const state: MockState = {} as MockState;
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+
+function getCanonicalPoolAccounts(): MockPoolAccount[] {
+  const visiblePoolAccounts = [...state.allPoolAccounts].sort(
+    (left, right) => left.paNumber - right.paNumber,
+  );
+  const firstVisible = visiblePoolAccounts[0]?.paNumber ?? 1;
+  const historicalPrefix = Array.from(
+    { length: Math.max(0, firstVisible - 1) },
+    (_value, index) => buildHistoricalPoolAccount(index + 1),
+  );
+
+  return [...historicalPrefix, ...visiblePoolAccounts];
+}
+
+function getSpendableMockPoolAccounts(): MockPoolAccount[] {
+  return state.allPoolAccounts.filter((poolAccount) => (
+    poolAccount.status !== "spent" &&
+    poolAccount.status !== "exited" &&
+    poolAccount.value > 0n
+  ));
+}
+
+function buildMockAccountPoolAccounts() {
+  return new Map([
+    [1n, getCanonicalPoolAccounts().map((poolAccount) => ({
+      deposit: poolAccount.commitment,
+      children: [],
+      ragequit: poolAccount.status === "exited"
+        ? {
+            blockNumber: poolAccount.blockNumber ?? poolAccount.commitment.blockNumber,
+            transactionHash: poolAccount.txHash ?? poolAccount.commitment.txHash,
+          }
+        : null,
+      isMigrated: false,
+    }))],
+  ]);
+}
+
+function buildAccountServiceResult(
+  overrides?: Partial<MockState["accountServiceResult"]>,
+): MockState["accountServiceResult"] {
+  return {
+    get account() {
+      return { poolAccounts: buildMockAccountPoolAccounts() };
+    },
+    getSpendableCommitments: () => new Map([
+      [1n, getSpendableMockPoolAccounts().map((poolAccount) => poolAccount.commitment)],
+    ]),
+    createWithdrawalSecrets: () => ({ nullifier: 901n, secret: 902n }),
+    addWithdrawalCommitment: () => undefined,
+    ...overrides,
+  };
+}
 
 const getDataServiceMock = mock(async () => ({ service: "data" }));
 const initializeAccountServiceMock = mock(async () => state.accountServiceResult);
@@ -326,9 +404,9 @@ const buildLoadedAspDepositReviewStateMock = mock(
   }),
 );
 const buildAllPoolAccountRefsMock = mock(() => state.allPoolAccounts);
-const buildPoolAccountRefsMock = mock(() => state.activePoolAccounts);
+const buildPoolAccountRefsMock = mock(() => getSpendableMockPoolAccounts());
 const collectActiveLabelsMock = mock(() =>
-  state.activePoolAccounts.map((poolAccount) => poolAccount.label.toString()),
+  getSpendableMockPoolAccounts().map((poolAccount) => poolAccount.label.toString()),
 );
 const getNextPoolAccountNumberMock = mock(() => 8);
 const poolAccountIdMock = mock((poolAccountNumber: number) => `PA-${poolAccountNumber}`);
@@ -635,14 +713,8 @@ beforeEach(() => {
   state.resolvedPool = ETH_POOL;
   state.latestRoot = 1n;
   state.poolCurrentRoot = 1n;
-  state.accountServiceResult = {
-    account: { poolAccounts: new Map() },
-    getSpendableCommitments: () => new Map([[1n, [activePoolAccount.commitment]]]),
-    createWithdrawalSecrets: () => ({ nullifier: 901n, secret: 902n }),
-    addWithdrawalCommitment: () => undefined,
-  };
+  state.accountServiceResult = buildAccountServiceResult();
   state.allPoolAccounts = [activePoolAccount];
-  state.activePoolAccounts = [activePoolAccount];
   state.aspRoots = { mtRoot: "1", onchainMtRoot: "1" };
   state.aspLeaves = { aspLeaves: ["91"], stateTreeLeaves: ["88"] };
   state.reviewStatuses = new Map([["91", "approved"]]);
@@ -901,7 +973,6 @@ describe("workflow internal helpers", () => {
       aspStatus: "pending",
     };
     state.allPoolAccounts = [pendingPoolAccount];
-    state.activePoolAccounts = [state.allPoolAccounts[0]];
 
     const context = await loadWorkflowPoolAccountContext(
       sampleSnapshot(),
@@ -946,10 +1017,9 @@ describe("workflow internal helpers", () => {
 
   test("executeRelayedWithdrawalForFlow submits the relay and persists the local commitment update", async () => {
     const addWithdrawalCommitmentMock = mock(() => undefined);
-    state.accountServiceResult = {
-      ...state.accountServiceResult,
+    state.accountServiceResult = buildAccountServiceResult({
       addWithdrawalCommitment: addWithdrawalCommitmentMock,
-    };
+    });
     state.remainderAdvisory = "remainder warning";
 
     const context = await loadWorkflowPoolAccountContext(
@@ -1159,7 +1229,6 @@ describe("workflow internal helpers", () => {
       },
     };
     state.allPoolAccounts = [approvedPoolAccount];
-    state.activePoolAccounts = [approvedPoolAccount];
 
     const secretFilePath = join(
       process.env.PRIVACY_POOLS_HOME!,
@@ -1205,7 +1274,6 @@ describe("workflow internal helpers", () => {
         status: "spent",
       },
     ];
-    state.activePoolAccounts = state.allPoolAccounts;
 
     const result = await continueApprovedWorkflowWithdrawal({
       snapshot: sampleSnapshot({
@@ -1256,7 +1324,6 @@ describe("workflow internal helpers", () => {
       },
     };
     state.allPoolAccounts = [approvedPoolAccount];
-    state.activePoolAccounts = [approvedPoolAccount];
 
     const result = await continueApprovedWorkflowWithdrawal({
       snapshot: sampleSnapshot({

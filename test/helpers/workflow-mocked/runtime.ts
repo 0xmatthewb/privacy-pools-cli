@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { TransactionReceiptNotFoundError, type Address, type Hex } from "viem";
 import { encodeRelayerWithdrawalData } from "../relayer-withdrawal-data.ts";
 import {
+  buildMockAccountPoolAccounts,
   GLOBAL_SIGNER_ADDRESS,
   GLOBAL_SIGNER_PRIVATE_KEY,
   MISMATCH_SIGNER_ADDRESS,
@@ -39,6 +40,7 @@ import {
   resetState,
   selectPromptMock,
   selectedPoolAccount,
+  selectedSpendableCommitments,
   setPromptResponses,
   state,
   useImmediateTimers,
@@ -82,8 +84,20 @@ const depositErc20Mock = mock(async () => {
   return { hash: state.depositTxHash };
 });
 
-const submitRagequitMock = mock(async () => {
+const submitRagequitMock = mock(async (
+  _chainConfig,
+  _poolAddress,
+  _proof,
+  _rpcOverride,
+  _privateKeyOverride,
+  statusHooks?: {
+    onSimulating?: () => Promise<void> | void;
+    onBroadcasting?: () => Promise<void> | void;
+  },
+) => {
   state.submitRagequitCalls += 1;
+  await statusHooks?.onSimulating?.();
+  await statusHooks?.onBroadcasting?.();
   return { hash: state.ragequitTxHash };
 });
 
@@ -223,6 +237,10 @@ export const publicClient = {
         return nextBalance(state.tokenBalanceSequence, state.tokenBalance);
       case "currentRoot":
         return state.currentRoot;
+      case "ROOT_HISTORY_SIZE":
+        return 1n;
+      case "roots":
+        return state.currentRoot;
       case "latestRoot":
         return nextBalance(state.latestRootSequence, state.latestRoot);
       case "depositors":
@@ -356,7 +374,11 @@ export const publicClient = {
 };
 
 const accountService = {
-  account: {},
+  get account() {
+    return {
+      poolAccounts: buildMockAccountPoolAccounts(),
+    };
+  },
   createDepositSecrets: mock(() => ({
     precommitment: state.precommitmentHash,
     nullifier: 111n,
@@ -366,7 +388,7 @@ const accountService = {
     state.addPoolAccountCalls += 1;
   }),
   getSpendableCommitments: mock(() =>
-    new Map([[state.pool.scope, [selectedPoolAccount().commitment]]]),
+    new Map([[state.pool.scope, selectedSpendableCommitments()]]),
   ),
   createWithdrawalSecrets: mock(() => ({
     nullifier: 333n,
@@ -379,6 +401,17 @@ const accountService = {
     state.addRagequitCalls += 1;
   }),
 };
+
+function buildMockPoolAccountRefClassification() {
+  const allRefs = isPoolAccountCurrentlyAvailable() ? [selectedPoolAccount()] : [];
+  const activeRefs = isPoolAccountCurrentlyAvailable() &&
+      state.poolAccountStatus !== "spent" &&
+      state.poolAccountStatus !== "exited"
+    ? [selectedPoolAccount()]
+    : [];
+
+  return { allRefs, activeRefs };
+}
 
 type WorkflowModuleType = typeof import("../../../src/services/workflow.ts");
 export let getWorkflowStatus: WorkflowModuleType["getWorkflowStatus"];
@@ -502,15 +535,12 @@ export async function installWorkflowMocks(): Promise<void> {
 
   mock.module("../../../src/utils/pool-accounts.ts", () => ({
     ...realPoolAccounts,
+    classifyPoolAccountRefs: mock(() => buildMockPoolAccountRefClassification()),
     buildAllPoolAccountRefs: mock(() =>
-      isPoolAccountCurrentlyAvailable() ? [selectedPoolAccount()] : [],
+      buildMockPoolAccountRefClassification().allRefs,
     ),
     buildPoolAccountRefs: mock(() =>
-      isPoolAccountCurrentlyAvailable() &&
-      state.poolAccountStatus === "approved" &&
-      state.aspStatus === "approved"
-        ? [selectedPoolAccount()]
-        : [],
+      buildMockPoolAccountRefClassification().activeRefs,
     ),
     collectActiveLabels: mock(() => [state.label]),
     getNextPoolAccountNumber: mock(() => 7),

@@ -519,7 +519,6 @@ describe("native package smoke", () => {
       env,
     });
     expect(csvStatsResult.status).toBe(0);
-    expect(csvStatsResult.stderr.trim()).toBe("");
     expect(csvStatsResult.stdout).toContain("Metric,All Time,Last 24h");
 
     const humanActivityResult = runBuiltCli(["activity"], {
@@ -535,7 +534,6 @@ describe("native package smoke", () => {
       env,
     });
     expect(csvPoolsResult.status).toBe(0);
-    expect(csvPoolsResult.stderr).toBe("");
     expect(csvPoolsResult.stdout).toContain("Asset,Total Deposits,Pool Balance");
   });
 

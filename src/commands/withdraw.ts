@@ -371,13 +371,13 @@ export async function handleWithdrawCommand(
     const labels = isDirect
       ? [
           "Account & ASP data synced",
-          "Generate withdrawal proof",
+          "Generate and verify withdrawal proof",
           "Submit withdrawal",
         ]
       : [
           "Account & ASP data synced",
           "Request relayer quote",
-          "Generate withdrawal proof",
+          "Generate and verify withdrawal proof",
           "Submit to relayer",
         ];
     process.stderr.write(
@@ -618,7 +618,9 @@ export async function handleWithdrawCommand(
               return true;
             }
             try {
-              const parsed = parseAmount(trimmed, pool.decimals);
+              const parsed = parseAmount(trimmed, pool.decimals, {
+                allowNegative: true,
+              });
               validatePositive(parsed, "Withdrawal amount");
               return true;
             } catch (error) {
@@ -648,7 +650,9 @@ export async function handleWithdrawCommand(
     let withdrawalUsd: string;
 
     if (!isDeferredAmount) {
-      withdrawalAmount = parseAmount(amountStr, pool.decimals);
+      withdrawalAmount = parseAmount(amountStr, pool.decimals, {
+        allowNegative: true,
+      });
       validatePositive(withdrawalAmount, "Withdrawal amount");
       verbose(
         `Requested withdrawal amount: ${withdrawalAmount.toString()}`,
@@ -707,10 +711,10 @@ export async function handleWithdrawCommand(
         stage: {
           step: isDirect ? 2 : 3,
           total: isDirect ? 3 : 4,
-          label: "Generating ZK proof",
+          label: "Generating and verifying ZK proof",
         },
-        spinnerText: "Generating ZK proof...",
-        doneText: "Proof ready.",
+        spinnerText: "Generating and verifying ZK proof...",
+        doneText: "Proof generated and verified.",
       })
     ) {
       return;
@@ -1163,7 +1167,9 @@ export async function handleWithdrawCommand(
               message: `Enter a new amount (minimum ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}):`,
               validate: (val) => {
                 try {
-                  const parsed = parseAmount(val, pool.decimals);
+                  const parsed = parseAmount(val, pool.decimals, {
+                    allowNegative: true,
+                  });
                   validatePositive(parsed, "Withdrawal amount");
                   if (parsed > selectedPoolAccount.value) {
                     return `Amount exceeds ${selectedPoolAccount.paId} balance of ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol)}.`;
@@ -1177,7 +1183,9 @@ export async function handleWithdrawCommand(
                 }
               },
             });
-            withdrawalAmount = parseAmount(newAmountStr, pool.decimals);
+            withdrawalAmount = parseAmount(newAmountStr, pool.decimals, {
+              allowNegative: true,
+            });
             withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
             info(
               `Updated withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
@@ -1397,7 +1405,7 @@ export async function handleWithdrawCommand(
         }
 
         // Re-verify parity right before proving
-        writeWithdrawProgress(1, "Building the direct withdrawal proof.");
+        writeWithdrawProgress(1, "Generating and locally verifying the direct withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
           "Re-run the withdrawal command to generate a fresh proof.",
@@ -1409,7 +1417,7 @@ export async function handleWithdrawCommand(
         });
         const proof = await withProofProgress(
           spin,
-          "Generating ZK proof",
+          "Generating and verifying ZK proof",
           (progress) =>
             proveWithdrawal(commitment, {
               context,
@@ -1492,14 +1500,22 @@ export async function handleWithdrawCommand(
           "Run 'privacy-pools sync' then retry the withdrawal.",
         );
 
-        writeWithdrawProgress(2, "Submitting the direct withdrawal transaction.");
-        spin.text = "Submitting withdrawal transaction...";
+        writeWithdrawProgress(2, "Simulating and submitting the direct withdrawal transaction.");
         const tx = await withdrawDirect(
           chainConfig,
           pool.pool,
           withdrawal,
           solidityProof,
           globalOpts?.rpcUrl,
+          undefined,
+          {
+            onSimulating: () => {
+              spin.text = "Simulating withdrawal transaction...";
+            },
+            onBroadcasting: () => {
+              spin.text = "Submitting withdrawal transaction...";
+            },
+          },
         );
 
         spin.text = "Waiting for confirmation...";
@@ -1874,7 +1890,7 @@ export async function handleWithdrawCommand(
         }
 
         // Re-verify parity right before proving
-        writeWithdrawProgress(2, "Building the relayed withdrawal proof.");
+        writeWithdrawProgress(2, "Generating and locally verifying the relayed withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
           "Re-run the withdrawal command to generate a fresh proof.",
@@ -1887,7 +1903,7 @@ export async function handleWithdrawCommand(
         });
         const proof = await withProofProgress(
           spin,
-          `Generating ZK proof (quote valid for ${quoteValidLabel})`,
+          `Generating and verifying ZK proof (quote valid for ${quoteValidLabel})`,
           (progress) =>
             proveWithdrawal(commitment, {
               context,
@@ -2021,7 +2037,7 @@ export async function handleWithdrawCommand(
           return;
         }
 
-        writeWithdrawProgress(3, "Submitting the signed request to the relayer.");
+        writeWithdrawProgress(3, "Submitting the signed and verified request to the relayer.");
         spin.text = "Submitting to relayer...";
         const result = await submitRelayRequest(chainConfig, {
           scope: pool.scope,
@@ -2207,7 +2223,9 @@ export async function handleWithdrawQuoteCommand(
       );
     }
 
-    const amount = parseAmount(amountStr, pool.decimals);
+    const amount = parseAmount(amountStr, pool.decimals, {
+      allowNegative: true,
+    });
     validatePositive(amount, "Quote amount");
 
     const recipient = effectiveTo

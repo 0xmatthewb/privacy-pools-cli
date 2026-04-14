@@ -5,7 +5,7 @@ use crate::error::CliError;
 use crate::output::{
     build_next_action, format_command_heading, format_count_number, format_key_value_rows,
     format_section_heading, print_csv, print_json_success, print_table, render_next_steps,
-    should_render_wide_tables, start_spinner, write_stderr_text,
+    should_render_wide_tables, start_spinner, write_notice, write_stderr_text,
 };
 use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_statistics, fetch_pool_statistics};
@@ -51,21 +51,21 @@ pub fn handle_stats_native(
 
     let mode = resolve_mode(parsed);
     let stats_subcommand = resolve_stats_subcommand(parsed);
-    let mut loading = (!mode.is_json() && !mode.is_quiet && !mode.is_csv()).then(|| {
-        start_spinner(if stats_subcommand == StatsSubcommand::Pool {
-            "Fetching pool statistics..."
-        } else {
-            "Fetching global statistics..."
-        })
-    });
 
     if stats_subcommand == StatsSubcommand::Pool {
         let asset = read_long_option_value(argv, "--asset").ok_or_else(|| {
             CliError::input(
-                "Missing required --asset <symbol|address>.",
-                Some("Example: privacy-pools stats pool --asset ETH".to_string()),
+                "Missing asset argument.",
+                Some("Example: privacy-pools stats pool ETH".to_string()),
             )
         })?;
+        if !mode.is_json() && !mode.is_quiet {
+            write_notice(
+                "--asset is deprecated. Use: privacy-pools stats pool <asset> (e.g. privacy-pools stats pool ETH)",
+            );
+        }
+        let mut loading = (!mode.is_json() && !mode.is_quiet)
+            .then(|| start_spinner("Fetching pool statistics..."));
         let config = load_config()?;
         let explicit_chain = parsed
             .global_chain()
@@ -128,6 +128,8 @@ pub fn handle_stats_native(
             Some("Regenerate the native command manifest.".to_string()),
         )
     })?;
+    let mut loading =
+        (!mode.is_json() && !mode.is_quiet).then(|| start_spinner("Fetching global statistics..."));
     let response = fetch_global_statistics(representative_chain, parse_timeout_ms(argv))?;
 
     if let Some(spinner) = loading.as_mut() {
@@ -170,6 +172,14 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
             "cacheTimestamp": data.cache_timestamp,
             "allTime": data.all_time,
             "last24h": data.last_24h,
+            "nextActions": [build_next_action(
+                "pools",
+                "Browse live pool balances and minimum deposits.",
+                "after_stats",
+                None,
+                None,
+                None,
+            )],
         }));
         return;
     }
@@ -189,7 +199,7 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
         data.chain
     )));
     write_stderr_text(&format_section_heading("Summary"));
-    let mut summary_rows = vec![("Scope", data.chain.clone())];
+    let mut summary_rows = vec![("Chain", data.chain.clone())];
     let cache_timestamp = value_as_display_string(&data.cache_timestamp, "");
     if !cache_timestamp.is_empty() {
         summary_rows.push(("Cache timestamp", cache_timestamp));
@@ -209,6 +219,10 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
 
 fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
     if mode.is_json() {
+        let mut options = Map::new();
+        options.insert("agent".to_string(), Value::Bool(true));
+        options.insert("chain".to_string(), Value::String(data.chain.clone()));
+        let args = [data.asset.as_str()];
         print_json_success(json!({
             "mode": "pool-stats",
             "chain": data.chain,
@@ -218,6 +232,14 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
             "cacheTimestamp": data.cache_timestamp,
             "allTime": data.all_time,
             "last24h": data.last_24h,
+            "nextActions": [build_next_action(
+                "pools",
+                "Open the detailed view for this pool.",
+                "after_pool_stats",
+                Some(&args),
+                Some(&options),
+                None,
+            )],
         }));
         return;
     }

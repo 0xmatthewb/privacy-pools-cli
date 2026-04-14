@@ -19,5 +19,12 @@ export function buildChildProcessEnv(
     }
   }
 
+  // Test subprocesses should never inherit forced-color knobs from the parent
+  // runner because Node warns when NO_COLOR and FORCE_COLOR collide, and our
+  // parity suites compare exact stderr output.
+  delete env.FORCE_COLOR;
+  delete env.CLICOLOR_FORCE;
+  env.NODE_NO_WARNINGS = "1";
+
   return env;
 }

@@ -118,13 +118,15 @@ describe("withProofProgress", () => {
     const seen: string[] = [];
 
     await withProofProgress(spin as any, "Generating", async (progress) => {
-      progress.markVerificationPhase();
+      progress.markArtifactVerificationPhase();
       seen.push(spin.text);
       progress.markBuildWitnessPhase();
       seen.push(spin.text);
       progress.markGenerateProofPhase();
       seen.push(spin.text);
       progress.markFinalizeProofPhase();
+      seen.push(spin.text);
+      progress.markVerifyProofPhase();
       seen.push(spin.text);
       return "done";
     });
@@ -134,6 +136,7 @@ describe("withProofProgress", () => {
       "Generating... (0s) - build witness",
       "Generating... (0s) - generate proof",
       "Generating... (0s) - finalize proof",
+      "Generating... (0s) - verify proof",
     ]);
   });
 
@@ -168,13 +171,26 @@ describe("withProofProgress", () => {
     const spin = mockSpinner();
     let captured = "";
     await withProofProgress(spin as any, "Second", async (progress) => {
-      progress.markVerificationPhase();
+      progress.markArtifactVerificationPhase();
       captured = spin.text;
       return "ok";
     });
 
     expect(captured).toBe("Second... (0s) - build witness");
     expect(captured).not.toContain("verify circuits");
+  });
+
+  test("manual proof-verification checkpoints show the final verification phase", async () => {
+    const spin = mockSpinner();
+    let captured = "";
+
+    await withProofProgress(spin as any, "Generating", async (progress) => {
+      progress.markVerifyProofPhase();
+      captured = spin.text;
+      return "ok";
+    });
+
+    expect(captured).toBe("Generating... (0s) - verify proof");
   });
 });
 

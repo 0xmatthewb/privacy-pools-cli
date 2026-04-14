@@ -6,6 +6,14 @@ use support::{
     run_native_with_env, stderr_string, stdout_string, FixtureBehavior,
 };
 
+fn assert_csv_stderr_allows_progress(output: &std::process::Output, expected_notice: &str) {
+    let stderr = stderr_string(output);
+    assert!(
+        stderr.trim().is_empty() || stderr.contains(expected_notice),
+        "expected csv stderr to be empty or contain {expected_notice:?}, got:\n{stderr}",
+    );
+}
+
 #[test]
 fn global_public_commands_succeed_against_the_rust_fixture() {
     let fixture = launch_fixture_server();
@@ -64,7 +72,7 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 
     let csv_activity = run_native_with_env(&["--format", "csv", "activity"], &env);
     assert!(csv_activity.status.success());
-    assert!(stderr_string(&csv_activity).trim().is_empty());
+    assert_csv_stderr_allows_progress(&csv_activity, "Fetching public activity...");
     assert!(stdout_string(&csv_activity).contains("Type,Pool,Amount,Status,Time,Tx"));
 
     let human_stats = run_native_with_env(&["stats"], &env);
@@ -74,7 +82,7 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 
     let csv_stats = run_native_with_env(&["--format", "csv", "stats"], &env);
     assert!(csv_stats.status.success());
-    assert!(stderr_string(&csv_stats).trim().is_empty());
+    assert_csv_stderr_allows_progress(&csv_stats, "Fetching global statistics...");
     assert!(stdout_string(&csv_stats).contains("Metric,All Time,Last 24h"));
 }
 
@@ -498,7 +506,7 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
 
     let csv_pools = run_native_with_env(&["--format", "csv", "--chain", "sepolia", "pools"], &env);
     assert!(csv_pools.status.success());
-    assert!(stderr_string(&csv_pools).is_empty());
+    assert_csv_stderr_allows_progress(&csv_pools, "Fetching pools for sepolia...");
     assert!(stdout_string(&csv_pools).contains("Asset,Total Deposits,Pool Balance"));
 
     let human_stats_pool = run_native_with_env(
@@ -516,7 +524,7 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
         &env,
     );
     assert!(csv_stats_pool.status.success());
-    assert!(stderr_string(&csv_stats_pool).trim().is_empty());
+    assert_csv_stderr_allows_progress(&csv_stats_pool, "Fetching pool statistics...");
     assert!(stdout_string(&csv_stats_pool).contains("Metric,All Time,Last 24h"));
 }
 

@@ -136,8 +136,11 @@ const guardCriticalSectionMock = mock(() => undefined);
 const releaseCriticalSectionMock = mock(() => undefined);
 const decodeEventLogMock = mock(() => ({
   args: {
+    _depositor: "0x1234567890123456789012345678901234567890",
+    _commitment: 333n,
     _label: 444n,
     _value: 99000000000000000n,
+    _precommitmentHash: 777n,
   },
 }));
 const confirmPromptMock = mock(async () => true);
@@ -287,8 +290,11 @@ beforeEach(() => {
   }));
   decodeEventLogMock.mockImplementation(() => ({
     args: {
+      _depositor: "0x1234567890123456789012345678901234567890",
+      _commitment: 333n,
       _label: 444n,
       _value: 99000000000000000n,
+      _precommitmentHash: 777n,
     },
   }));
 });
@@ -545,8 +551,11 @@ describe("deposit command handler", () => {
     resolvePoolMock.mockImplementationOnce(async () => USDC_POOL);
     decodeEventLogMock.mockImplementationOnce(() => ({
       args: {
+        _depositor: "0x1234567890123456789012345678901234567890",
+        _commitment: 334n,
         _label: 445n,
         _value: 99_000_000n,
+        _precommitmentHash: 778n,
       },
     }));
 

@@ -11,7 +11,7 @@ privacy-pools deposit 0.1 ETH --unsigned tx --json
 
 # Works with withdraw and ragequit too
 privacy-pools withdraw 0.05 ETH --to 0xRecipient... --unsigned --json
-privacy-pools ragequit ETH --from-pa PA-1 --unsigned --json
+privacy-pools ragequit ETH --pool-account PA-1 --unsigned --json
 ```
 
 ## Dry Run
@@ -21,7 +21,7 @@ Validate inputs, check balances, and generate proofs without submitting anything
 ```bash
 privacy-pools deposit 0.1 ETH --dry-run
 privacy-pools withdraw 0.05 ETH --to 0xRecipient... --dry-run
-privacy-pools ragequit ETH --from-pa PA-1 --dry-run
+privacy-pools ragequit ETH --pool-account PA-1 --dry-run
 ```
 
 ## Installation Notes

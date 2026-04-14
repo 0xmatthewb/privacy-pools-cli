@@ -37,8 +37,13 @@ export const CLI_ANVIL_FLOW_NEW_WALLET_USDC_TEST =
   "./test/integration/cli-anvil-flow-new-wallet-usdc.integration.test.ts";
 export const CONTRACTS_SERVICE_TEST = "./test/services/contracts.service.test.ts";
 export const PROOFS_SERVICE_TEST = "./test/services/proofs.service.test.ts";
-export const WORKFLOW_MOCKED_TEST =
-  "./test/services/workflow.mocked.service.test.ts";
+export const WORKFLOW_MOCKED_TESTS = [
+  "./test/services/workflow.mocked.interactive.service.test.ts",
+  "./test/services/workflow.mocked.ragequit.service.test.ts",
+  "./test/services/workflow.mocked.start.service.test.ts",
+  "./test/services/workflow.mocked.watch-lifecycle.service.test.ts",
+  "./test/services/workflow.mocked.watch-withdraw.service.test.ts",
+];
 export const WORKFLOW_SERVICE_TEST =
   "./test/services/workflow.service.test.ts";
 export const WORKFLOW_INTERNAL_TEST =
@@ -147,7 +152,7 @@ export const ISOLATED_SUITES = [
   },
   {
     label: "workflow-mocked",
-    tests: [WORKFLOW_MOCKED_TEST],
+    tests: WORKFLOW_MOCKED_TESTS,
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,

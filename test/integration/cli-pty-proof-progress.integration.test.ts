@@ -225,13 +225,14 @@ describe("proof progress PTY integration", () => {
     expect(result.stdout.trim().length).toBeGreaterThan(0);
 
     const normalizedOutput = sanitizeTerminalTranscript(result.stdout);
-    expect(normalizedOutput).toContain("Generate withdrawal proof");
-    expect(normalizedOutput).toContain("Building the relayed withdrawal proof.");
+    expect(normalizedOutput).toContain("Generate and verify withdrawal proof");
+    expect(normalizedOutput).toContain("Generating and locally verifying the relayed withdrawal proof.");
     expectOrderedFragments(normalizedOutput, [
-      "Generating ZK proof... (0s) - verify circuits if needed",
-      "Generating ZK proof... (0s) - build witness",
-      "Generating ZK proof... (0s) - generate proof",
-      "Generating ZK proof... (0s) - finalize proof",
+      "Generating and verifying ZK proof... (0s) - verify circuits if needed",
+      "Generating and verifying ZK proof... (0s) - build witness",
+      "Generating and verifying ZK proof... (0s) - generate proof",
+      "Generating and verifying ZK proof... (0s) - finalize proof",
+      "Generating and verifying ZK proof... (0s) - verify proof",
     ]);
   });
 });

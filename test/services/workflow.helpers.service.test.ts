@@ -25,6 +25,7 @@ import {
   computeFlowWatchDelayMs,
   cleanupTerminalWorkflowSecret,
   createInitialSnapshot,
+  deleteWorkflowSnapshotFile,
   deleteWorkflowSecretRecord,
   flowPrivacyDelayProfileSummary,
   getFlowSignerAddress,
@@ -33,6 +34,7 @@ import {
   initialPollDelayMs,
   isDepositCheckpointFailure,
   isTerminalFlowPhase,
+  listSavedWorkflowIds,
   loadWorkflowSecretRecord,
   loadWorkflowSnapshot,
   normalizeWorkflowSnapshot,
@@ -306,6 +308,26 @@ describe("workflow helper coverage", () => {
 
     expect(() => loadWorkflowSecretRecord("wf-secret")).toThrow(
       "contains an invalid private key",
+    );
+  });
+
+  test("loadWorkflowSecretRecord rejects unreadable private keys that pass the hex format check", () => {
+    useIsolatedHome();
+
+    writeFileSync(
+      join(getWorkflowSecretsDir(), "wf-secret.json"),
+      JSON.stringify({
+        schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
+        workflowId: "wf-secret",
+        chain: "mainnet",
+        walletAddress: "0x3333333333333333333333333333333333333333",
+        privateKey: "0x" + "00".repeat(32),
+      }),
+      "utf-8",
+    );
+
+    expect(() => loadWorkflowSecretRecord("wf-secret")).toThrow(
+      "contains an unreadable private key",
     );
   });
 
@@ -879,6 +901,18 @@ describe("workflow helper coverage", () => {
     expect(() => loadWorkflowSecretRecord("wf-persist")).toThrow(
       "Workflow wallet secret is missing",
     );
+
+    deleteWorkflowSecretRecord("wf-persist");
+    deleteWorkflowSnapshotFile("wf-persist");
+    expect(
+      () =>
+        readFileSync(
+          join(process.env.PRIVACY_POOLS_HOME!, "workflows", "wf-persist.json"),
+          "utf-8",
+        ),
+    ).toThrow();
+
+    deleteWorkflowSnapshotFile("wf-persist");
   });
 
   test("loadWorkflowSnapshot rejects missing, corrupt, and invalid workflow files", () => {
@@ -1005,6 +1039,23 @@ describe("workflow helper coverage", () => {
     process.env.PRIVACY_POOLS_HOME = createTrackedTempDir("pp-workflow-no-dir-");
 
     expect(() => resolveLatestWorkflowId()).toThrow("No saved workflows found");
+  });
+
+  test("listSavedWorkflowIds returns readable workflow ids newest-first", () => {
+    useIsolatedHome();
+
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-older", {
+        updatedAt: "2026-03-24T12:01:00.000Z",
+      }),
+    );
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-newer", {
+        updatedAt: "2026-03-24T12:05:00.000Z",
+      }),
+    );
+
+    expect(listSavedWorkflowIds()).toEqual(["wf-newer", "wf-older"]);
   });
 
   test("resolveLatestWorkflowId fails closed when a broken symlink workflow could be newer", () => {

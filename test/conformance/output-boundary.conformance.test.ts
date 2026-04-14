@@ -20,6 +20,7 @@ const MIGRATED_COMMANDS = [
   "src/commands/activity.ts",
   "src/commands/capabilities.ts",
   "src/commands/completion.ts",
+  "src/commands/config.ts",
   "src/commands/deposit.ts",
   "src/commands/describe.ts",
   "src/commands/flow.ts",

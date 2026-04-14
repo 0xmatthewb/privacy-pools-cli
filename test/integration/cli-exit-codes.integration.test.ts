@@ -77,7 +77,7 @@ describe("exit-code matrix", () => {
     const home = createTempHome();
     const result = runCli(["describe"], { home });
     expect(result.status).toBe(EXIT_CODE_MAP.INPUT);
-    expect(result.stderr).toContain("missing required argument 'command'");
+    expect(result.stderr).toContain("Missing command path for describe.");
   });
 
   test("exit code 2 for missing subcommand arguments in structured mode", () => {
@@ -88,7 +88,7 @@ describe("exit-code matrix", () => {
       result.stdout,
     );
     expect(json.error?.category).toBe("INPUT");
-    expect(json.error?.message).toContain("missing required argument 'command'");
+    expect(json.error?.message).toContain("Missing command path for describe.");
   });
 
   test("exit code 2 for invalid --limit value (history)", () => {

@@ -63,7 +63,7 @@ defineScenarioSuite("output-mode acceptance", [
     assertStderr((stderr) => {
       expect(stderr).toContain("Command: withdraw quote");
       expect(stderr).toMatch(
-        /Usage:\s+privacy-pools withdraw quote <amount> --asset <symbol\|address>/,
+        /Usage:\s+privacy-pools withdraw quote <amount> <asset>/,
       );
     }),
   ]),
@@ -172,7 +172,7 @@ defineScenarioSuite("output-mode acceptance", [
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
       expect(json.command).toBe("withdraw quote");
-      expect(json.usage).toBe("withdraw quote <amount> --asset <symbol|address>");
+      expect(json.usage).toBe("withdraw quote <amount> <asset>");
     }),
   ]),
   defineScenario(

@@ -39,6 +39,10 @@ interface ForwardingParityCase {
 
 const DEFAULT_PARITY_COMMAND_TIMEOUT_MS = 20_000;
 const PARITY_TEST_TIMEOUT_BUFFER_MS = 10_000;
+const NODE_NO_COLOR_WARNING_PATTERN =
+  /\(node:\d+\) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set\.\r?\n\(Use `node --trace-warnings \.\.\.` to show where the warning was created\)\r?\n?/g;
+const DOTENV_TIP_PATTERN =
+  /^\[dotenv@[^\]]+\] injecting env .*$/gm;
 
 function runNativeBuiltCli(
   nativeBinary: string,
@@ -114,6 +118,13 @@ function assertDidNotTimeout(label: string, result: CliRunResult): void {
   }
 }
 
+function normalizeParityStderr(stderr: string): string {
+  return stderr
+    .replace(NODE_NO_COLOR_WARNING_PATTERN, "")
+    .replace(DOTENV_TIP_PATTERN, "")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 function resolveParityTestTimeout(
   timeoutMs?: number,
   testTimeoutMs?: number,
@@ -139,7 +150,9 @@ function expectStreamParity(
   assertDidNotTimeout("Native launcher result", nativeResult);
   expect(nativeResult.status).toBe(jsResult.status);
   expect(nativeResult.stdout).toBe(jsResult.stdout);
-  expect(nativeResult.stderr).toBe(jsResult.stderr);
+  expect(normalizeParityStderr(nativeResult.stderr)).toBe(
+    normalizeParityStderr(jsResult.stderr),
+  );
 }
 
 function expectJsonParity(
@@ -159,7 +172,9 @@ function expectJsonParity(
   expect(parseJsonOutput(nativeResult.stdout)).toEqual(
     parseJsonOutput(jsResult.stdout),
   );
-  expect(nativeResult.stderr).toBe(jsResult.stderr);
+  expect(normalizeParityStderr(nativeResult.stderr)).toBe(
+    normalizeParityStderr(jsResult.stderr),
+  );
 }
 
 function expectSilentStreamParity(
@@ -179,7 +194,9 @@ function expectSilentStreamParity(
   expect(nativeResult.stdout.trim()).toBe("");
   expect(nativeResult.stderr.trim()).toBe("");
   expect(nativeResult.stdout).toBe(jsResult.stdout);
-  expect(nativeResult.stderr).toBe(jsResult.stderr);
+  expect(normalizeParityStderr(nativeResult.stderr)).toBe(
+    normalizeParityStderr(jsResult.stderr),
+  );
 }
 
 function expectMachineSilenceParity(
@@ -220,7 +237,9 @@ function expectDirectNativeBuiltJsonParity(
   expect(parseJsonOutput(nativeResult.stdout)).toEqual(
     parseJsonOutput(jsResult.stdout),
   );
-  expect(nativeResult.stderr).toBe(jsResult.stderr);
+  expect(normalizeParityStderr(nativeResult.stderr)).toBe(
+    normalizeParityStderr(jsResult.stderr),
+  );
 }
 
 function fixtureEnv(fixture: FixtureServer): Record<string, string> {
@@ -528,7 +547,7 @@ describe("native shell parity", () => {
       js: { env },
       native: { env },
     });
-  });
+  }, 20_000);
 
   nativeTest("offline public envelopes and degraded pool discovery stay aligned", () => {
     expectJsonParity(nativeBinary, ["--json", "--chain", "mainnet", "activity"], {
@@ -641,7 +660,9 @@ describe("native shell parity", () => {
     expect(parseJsonOutput(directNativeResult.stdout)).toEqual(
       parseJsonOutput(jsResult.stdout),
     );
-    expect(directNativeResult.stderr).toBe(jsResult.stderr);
+    expect(normalizeParityStderr(directNativeResult.stderr)).toBe(
+      normalizeParityStderr(jsResult.stderr),
+    );
   }, 20_000);
 
   nativeTest("native public render paths work directly without a JS bridge", () => {

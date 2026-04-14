@@ -194,6 +194,7 @@ mod extended_tests {
     use std::io::{Read, Write};
     use std::net::{TcpListener, TcpStream};
     use std::thread;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn parse_batch_response_returns_results_in_order() {
@@ -300,24 +301,38 @@ mod extended_tests {
 
     fn spawn_rpc_test_server(response_body: serde_json::Value) -> RpcTestServer {
         let listener = TcpListener::bind("127.0.0.1:0").expect("test rpc listener should bind");
+        listener
+            .set_nonblocking(true)
+            .expect("test rpc listener should support nonblocking mode");
         let address = listener
             .local_addr()
             .expect("test rpc listener should expose address");
         let handle = thread::spawn(move || {
-            let (mut stream, _) = listener
-                .accept()
-                .expect("test rpc server should accept a client");
-            let _request = read_http_request(&mut stream);
             let body = response_body.to_string();
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                 body.len(),
                 body
             );
-            stream
-                .write_all(response.as_bytes())
-                .expect("test rpc server should respond");
-            let _ = stream.flush();
+            let deadline = Instant::now() + Duration::from_secs(2);
+            let mut served_connections = 0usize;
+
+            while Instant::now() <= deadline && served_connections < 2 {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let _request = read_http_request(&mut stream);
+                        stream
+                            .write_all(response.as_bytes())
+                            .expect("test rpc server should respond");
+                        let _ = stream.flush();
+                        served_connections += 1;
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(error) => panic!("test rpc server should accept a client: {error}"),
+                }
+            }
         });
 
         RpcTestServer {

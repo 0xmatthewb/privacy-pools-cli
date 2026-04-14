@@ -58,6 +58,12 @@ const realCriticalSection = captureModuleExports(
 const realUnsigned = captureModuleExports(
   await import("../../src/utils/unsigned.ts"),
 );
+const realPreviewRuntime = captureModuleExports(
+  await import("../../src/preview/runtime.ts"),
+);
+const realSetupRecovery = captureModuleExports(
+  await import("../../src/utils/setup-recovery.ts"),
+);
 const realSdkPackage = captureModuleExports(
   await import("@0xbow/privacy-pools-core-sdk"),
 );
@@ -76,6 +82,8 @@ const WITHDRAW_HANDLER_MODULE_RESTORES = [
   ["../../src/utils/lock.ts", realLock],
   ["../../src/utils/critical-section.ts", realCriticalSection],
   ["../../src/utils/unsigned.ts", realUnsigned],
+  ["../../src/preview/runtime.ts", realPreviewRuntime],
+  ["../../src/utils/setup-recovery.ts", realSetupRecovery],
   ["@0xbow/privacy-pools-core-sdk", realSdkPackage],
 ] as const;
 
@@ -316,6 +324,9 @@ const toWithdrawSolidityProofMock = mock(() => ({
 }));
 const stringifyBigIntsMock = mock((value: unknown) => value);
 const printRawTransactionsMock = mock(() => undefined);
+const maybeRenderPreviewScenarioMock = mock(async () => false);
+const maybeRenderPreviewProgressStepMock = mock(async () => false);
+const maybeRecoverMissingWalletSetupMock = mock(async () => false);
 const confirmPromptMock = mock(async () => true);
 const inputPromptMock = mock(async () =>
   "0x4444444444444444444444444444444444444444"
@@ -426,6 +437,15 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
     stringifyBigInts: stringifyBigIntsMock,
     toWithdrawSolidityProof: toWithdrawSolidityProofMock,
   }));
+  mock.module("../../src/preview/runtime.ts", () => ({
+    ...realPreviewRuntime,
+    maybeRenderPreviewScenario: maybeRenderPreviewScenarioMock,
+    maybeRenderPreviewProgressStep: maybeRenderPreviewProgressStepMock,
+  }));
+  mock.module("../../src/utils/setup-recovery.ts", () => ({
+    ...realSetupRecovery,
+    maybeRecoverMissingWalletSetup: maybeRecoverMissingWalletSetupMock,
+  }));
   mock.module("@0xbow/privacy-pools-core-sdk", () => ({
     ...realSdkPackage,
     generateMerkleProof: generateMerkleProofMock,
@@ -479,6 +499,9 @@ export function registerWithdrawCommandHandlerHarness(): void {
     toWithdrawSolidityProofMock.mockClear();
     stringifyBigIntsMock.mockClear();
     printRawTransactionsMock.mockClear();
+    maybeRenderPreviewScenarioMock.mockClear();
+    maybeRenderPreviewProgressStepMock.mockClear();
+    maybeRecoverMissingWalletSetupMock.mockClear();
     confirmPromptMock.mockClear();
     inputPromptMock.mockClear();
     selectPromptMock.mockClear();
@@ -624,6 +647,9 @@ export function registerWithdrawCommandHandlerHarness(): void {
     }));
     stringifyBigIntsMock.mockImplementation((value: unknown) => value);
     printRawTransactionsMock.mockImplementation(() => undefined);
+    maybeRenderPreviewScenarioMock.mockImplementation(async () => false);
+    maybeRenderPreviewProgressStepMock.mockImplementation(async () => false);
+    maybeRecoverMissingWalletSetupMock.mockImplementation(async () => false);
   });
 
   afterEach(async () => {
@@ -679,6 +705,9 @@ export {
   initializeAccountServiceMock,
   inputPromptMock,
   listPoolsMock,
+  maybeRecoverMissingWalletSetupMock,
+  maybeRenderPreviewProgressStepMock,
+  maybeRenderPreviewScenarioMock,
   parsePoolAccountSelectorMock,
   printRawTransactionsMock,
   proveWithdrawalMock,

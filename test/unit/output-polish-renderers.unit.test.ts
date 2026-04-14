@@ -58,7 +58,8 @@ describe("formatRelayedWithdrawalReview", () => {
     });
 
     expect(output).toContain("Withdrawal review");
-    expect(output).toContain("Source PA");
+    expect(output).toContain("Pool Account");
+    expect(output).toContain("Pool Account balance");
     expect(output).toContain("PA-7");
     expect(output).toContain("Relayer fee");
     expect(output).toContain("Gas token received");

@@ -62,7 +62,7 @@ defineScenarioSuite("agent improvements acceptance", [
         expectedLatencyClass: string;
       }>((json) => {
         expect(json.command).toBe("withdraw quote");
-        expect(json.usage).toBe("withdraw quote <amount> --asset <symbol|address>");
+        expect(json.usage).toBe("withdraw quote <amount> <asset>");
         expect(json.flags).toContain("--to <address>");
         expect(json.globalFlags).toContain("--agent");
         expect(json.requiresInit).toBe(true);
@@ -392,7 +392,7 @@ defineScenarioSuite("agent improvements acceptance", [
       }>((json) => {
         expect(json.success).toBe(false);
         expect(json.error.category).toBe("INPUT");
-        expect(json.error.message).toContain("No recovery phrase found");
+        expect(json.error.message).toContain("No signer key found");
         expect(json.error.message).not.toContain("Non-round amount");
         expect(json.error.hint).toContain("privacy-pools init");
       }),

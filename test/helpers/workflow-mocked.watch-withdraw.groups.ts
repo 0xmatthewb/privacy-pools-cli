@@ -465,6 +465,74 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
           "withdraw",
         );
       });
+      test("watchWorkflow fails closed when relayer withdrawal data changes after proof generation", async () => {
+        let nowMs = 1_000;
+        overrideWorkflowTimingForTests({
+          nowMs: () => nowMs,
+        });
+        validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
+          quoteFeeBPS: 50n,
+          expirationMs: 2_000,
+        }));
+        refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
+          quote: buildMockRelayerQuote({
+            amount: state.committedValue,
+            asset: state.pool.asset,
+            extraGas: state.pool.symbol !== "ETH",
+            recipient: "0x7777777777777777777777777777777777777777",
+          }, {
+            expirationMs: 9_000,
+            feeRecipient: "0x8888888888888888888888888888888888888888",
+          }),
+          quoteFeeBPS: 50n,
+          expirationMs: 9_000,
+        }));
+        requestQuoteMock.mockImplementationOnce(async (_chain, args) => {
+          state.requestQuoteCalls.push(args);
+          return buildMockRelayerQuote(args, { expirationMs: 2_000 });
+        });
+        proveWithdrawalMock.mockImplementationOnce(async () => {
+          nowMs = 3_000;
+          return {
+            proof: {
+              pi_a: [1n, 2n],
+              pi_b: [
+                [3n, 4n],
+                [5n, 6n],
+              ],
+              pi_c: [7n, 8n],
+            },
+            publicSignals: [13n, 14n, 15n, 16n],
+          };
+        });
+        writeWorkflowSnapshot("wf-data-change-after-proof", {
+          phase: "awaiting_asp",
+          walletMode: "configured",
+          walletAddress: GLOBAL_SIGNER_ADDRESS,
+          depositBlockNumber: "101",
+          aspStatus: "approved",
+        });
+
+        await expect(
+          watchWorkflow({
+            workflowId: "wf-data-change-after-proof",
+            globalOpts: { chain: "sepolia" },
+            mode: {
+              isAgent: true,
+              isJson: true,
+              isCsv: false,
+              isQuiet: true,
+              format: "json",
+              skipPrompts: true,
+            },
+            isVerbose: false,
+          }),
+        ).rejects.toThrow("Relayer withdrawal data changed during proof generation.");
+
+        expect(getWorkflowStatus({ workflowId: "wf-data-change-after-proof" }).lastError?.step).toBe(
+          "withdraw",
+        );
+      });
       test("watchWorkflow fails closed when the latest root changes before workflow proof generation", async () => {
         state.latestRootSequence = [2n];
         writeWorkflowSnapshot("wf-latest-root-before-proof", {
@@ -835,6 +903,43 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
         expect(snapshot.phase).toBe("completed");
         expect(snapshot.withdrawTxHash).toBe(state.relayTxHash);
         expect(saveAccountMock).toHaveBeenCalled();
+      });
+      test("watchWorkflow shows proof verification and relayer submission progress in human mode", async () => {
+        writeWorkflowSnapshot("wf-withdraw-human-progress", {
+          phase: "awaiting_asp",
+          walletMode: "configured",
+          walletAddress: GLOBAL_SIGNER_ADDRESS,
+          depositBlockNumber: "101",
+          aspStatus: "approved",
+        });
+
+        let snapshot!: Awaited<ReturnType<typeof watchWorkflow>>;
+        const output = await captureAsyncOutput(async () => {
+          snapshot = await watchWorkflow({
+            workflowId: "wf-withdraw-human-progress",
+            globalOpts: { chain: "sepolia" },
+            mode: {
+              isAgent: false,
+              isJson: false,
+              isCsv: false,
+              isQuiet: false,
+              format: "table",
+              skipPrompts: true,
+            },
+            isVerbose: false,
+          });
+        });
+
+        expect(output.stderr).toContain("Generate and verify withdrawal proof");
+        expect(output.stderr).toContain(
+          "Generating and locally verifying the withdrawal proof.",
+        );
+        expect(output.stderr).toContain("Submit withdrawal to relayer");
+        expect(output.stderr).toContain(
+          "Submitting the signed and verified withdrawal request to the relayer.",
+        );
+        expect(snapshot.phase).toBe("completed");
+        expect(snapshot.withdrawTxHash).toBe(state.relayTxHash);
       });
       test("watchWorkflow fails closed when relayed withdrawal confirmation times out", async () => {
         state.relayReceiptMode = "timeout";

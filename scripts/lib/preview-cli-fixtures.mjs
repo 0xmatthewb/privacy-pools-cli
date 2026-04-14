@@ -1271,7 +1271,7 @@ function renderRagequitPreview(caseId) {
       throw new CLIError(
         "Cannot use --from-pa and --commitment together.",
         "INPUT",
-        "Use --from-pa for Pool Account selection. --commitment is deprecated.",
+        "Use --pool-account for Pool Account selection. --commitment is deprecated.",
       );
     default:
       return false;

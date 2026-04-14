@@ -88,6 +88,43 @@ export function registerWorkflowMockedRagequitTests(): void {
       expect(resolvePoolMock).toHaveBeenCalledTimes(1);
       expect(getDataServiceMock).toHaveBeenCalledTimes(1);
     });
+    test("configured flow ragequit shows proof and submission progress in human mode", async () => {
+      writeWorkflowSnapshot("wf-configured-ragequit-human", {
+        phase: "paused_declined",
+        walletMode: "configured",
+        walletAddress: GLOBAL_SIGNER_ADDRESS,
+        depositBlockNumber: "101",
+        aspStatus: "declined",
+      });
+      state.currentSignerPrivateKey = GLOBAL_SIGNER_PRIVATE_KEY;
+
+      const { stderr } = await captureAsyncOutput(async () => {
+        const snapshot = await ragequitWorkflow({
+          workflowId: "wf-configured-ragequit-human",
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: false,
+            isJson: false,
+            isCsv: false,
+            isQuiet: false,
+            format: "table",
+            skipPrompts: true,
+          },
+          isVerbose: false,
+        });
+
+        expect(snapshot.phase).toBe("completed_public_recovery");
+      });
+
+      expect(stderr).toContain("Generate and verify commitment proof");
+      expect(stderr).toContain(
+        "Generating and locally verifying the proof required for public recovery.",
+      );
+      expect(stderr).toContain("Submit public recovery");
+      expect(stderr).toContain(
+        "Simulating and submitting the public recovery transaction.",
+      );
+    });
     test("configured flow ragequit reconciles workflows already recovered manually", async () => {
       state.poolAccountStatus = "exited";
       writeWorkflowSnapshot("wf-configured-ragequit-external", {
@@ -173,6 +210,36 @@ export function registerWorkflowMockedRagequitTests(): void {
           isVerbose: true,
         }),
       ).rejects.toThrow("Unable to verify the original depositor for workflow ragequit.");
+      expect(state.submitRagequitCalls).toBe(0);
+    });
+    test("configured flow ragequit fails when the onchain depositor does not match the signer", async () => {
+      writeWorkflowSnapshot("wf-configured-ragequit-wrong-depositor", {
+        phase: "paused_declined",
+        walletMode: "configured",
+        walletAddress: GLOBAL_SIGNER_ADDRESS,
+        depositBlockNumber: "101",
+        aspStatus: "declined",
+      });
+      state.currentSignerPrivateKey = GLOBAL_SIGNER_PRIVATE_KEY;
+      state.onchainDepositor = NEW_WALLET_ADDRESS;
+
+      await expect(
+        ragequitWorkflow({
+          workflowId: "wf-configured-ragequit-wrong-depositor",
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: true,
+            isJson: true,
+            isCsv: false,
+            isQuiet: true,
+            format: "json",
+            skipPrompts: true,
+          },
+          isVerbose: false,
+        }),
+      ).rejects.toThrow(
+        `Signer ${GLOBAL_SIGNER_ADDRESS} is not the original depositor (${NEW_WALLET_ADDRESS}).`,
+      );
       expect(state.submitRagequitCalls).toBe(0);
     });
     test("configured flow ragequit still completes when local account persistence fails", async () => {

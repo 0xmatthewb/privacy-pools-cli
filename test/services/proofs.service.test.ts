@@ -11,18 +11,32 @@ let mockFullProveResult = {
 };
 let witnessCalculateShouldThrow: Error | null = null;
 let groth16ProveShouldThrow: Error | null = null;
+let groth16VerifyShouldThrow: Error | null = null;
+let groth16VerifyResult = true;
 let artifactsShouldThrow: Error | null = null;
 let proofTestsActive = false;
 
 let capturedFullProveInputs: Record<string, unknown> | null = null;
 let capturedFullProveWasm: string | null = null;
 let capturedFullProveZkey: string | null = null;
+let capturedFullProveVkey: string | null = null;
 let capturedWitnessOutput: { type: "mem" } | null = null;
 let capturedGroth16Witness: { type: "mem" } | null = null;
 let capturedGroth16Logger: unknown = null;
 let capturedGroth16Options: unknown[] | null = null;
+let capturedGroth16VerifyKey: unknown = null;
+let capturedGroth16VerifyProof: unknown = null;
+let capturedGroth16VerifyPublicSignals: unknown = null;
 const terminateBn128CurveMock = mock(async () => {});
 const terminateBls12381CurveMock = mock(async () => {});
+const readFileMock = mock(async (path: string) => {
+  capturedFullProveVkey = path;
+  return JSON.stringify({
+    protocol: "groth16",
+    curve: "bn128",
+    vk_alpha_1: ["1", "2", "1"],
+  });
+});
 const wtnsCalculateMock = mock(
   async (
     inputs: Record<string, unknown>,
@@ -52,6 +66,19 @@ const groth16ProveMock = mock(
     return mockFullProveResult;
   },
 );
+const groth16VerifyMock = mock(
+  async (verificationKey: unknown, publicSignals: unknown, proof: unknown) => {
+    capturedGroth16VerifyKey = verificationKey;
+    capturedGroth16VerifyPublicSignals = publicSignals;
+    capturedGroth16VerifyProof = proof;
+    if (groth16VerifyShouldThrow) throw groth16VerifyShouldThrow;
+    return groth16VerifyResult;
+  },
+);
+
+mock.module("node:fs/promises", () => ({
+  readFile: readFileMock,
+}));
 
 mock.module("snarkjs", () => ({
   wtns: {
@@ -59,6 +86,7 @@ mock.module("snarkjs", () => ({
   },
   groth16: {
     prove: groth16ProveMock,
+    verify: groth16VerifyMock,
   },
 }));
 
@@ -90,6 +118,7 @@ const {
   deriveWithdrawalTreeDepths,
   proveCommitment,
   proveWithdrawal,
+  resetGroth16VerificationKeyCacheForTests,
   resetSnarkjsCurveCachesForTests,
   WITHDRAW_CIRCUIT_MAX_TREE_DEPTH,
 } = await import(
@@ -101,15 +130,23 @@ describe("proofs service", () => {
     proofTestsActive = true;
     wtnsCalculateMock.mockClear();
     groth16ProveMock.mockClear();
+    groth16VerifyMock.mockClear();
+    readFileMock.mockClear();
     capturedFullProveInputs = null;
     capturedFullProveWasm = null;
     capturedFullProveZkey = null;
+    capturedFullProveVkey = null;
     capturedWitnessOutput = null;
     capturedGroth16Witness = null;
     capturedGroth16Logger = null;
     capturedGroth16Options = null;
+    capturedGroth16VerifyKey = null;
+    capturedGroth16VerifyProof = null;
+    capturedGroth16VerifyPublicSignals = null;
     witnessCalculateShouldThrow = null;
     groth16ProveShouldThrow = null;
+    groth16VerifyShouldThrow = null;
+    groth16VerifyResult = true;
     artifactsShouldThrow = null;
     terminateBn128CurveMock.mockClear();
     terminateBls12381CurveMock.mockClear();
@@ -137,6 +174,7 @@ describe("proofs service", () => {
     witnessCalculateShouldThrow = null;
     groth16ProveShouldThrow = null;
     capturedGroth16Options = null;
+    resetGroth16VerificationKeyCacheForTests();
     await resetSnarkjsCurveCachesForTests();
   });
 
@@ -157,6 +195,7 @@ describe("proofs service", () => {
 
       expect(capturedFullProveWasm).toBe("/mock/artifacts/commitment.wasm");
       expect(capturedFullProveZkey).toBe("/mock/artifacts/commitment.zkey");
+      expect(capturedFullProveVkey).toBe("/mock/artifacts/commitment.vkey");
       expect(capturedWitnessOutput).toEqual({ type: "mem" });
       expect(capturedGroth16Witness).toEqual({ type: "mem" });
       expect(capturedGroth16Options).toEqual([]);
@@ -175,9 +214,52 @@ describe("proofs service", () => {
 
       expect(result.proof).toBe(mockFullProveResult.proof);
       expect(result.publicSignals).toBe(mockFullProveResult.publicSignals);
+      expect(capturedGroth16VerifyProof).toBe(mockFullProveResult.proof);
+      expect(capturedGroth16VerifyPublicSignals).toBe(mockFullProveResult.publicSignals);
     });
 
-    test("keeps cached snarkjs worker curves alive after proving", async () => {
+    test("reuses cached parsed verification keys across proofs", async () => {
+      await proveCommitment(1n, 2n, 3n, 4n);
+      await proveCommitment(5n, 6n, 7n, 8n);
+
+      expect(readFileMock).toHaveBeenCalledTimes(1);
+    });
+
+    test("evicts failed verification-key cache loads", async () => {
+      readFileMock.mockImplementationOnce(async () => {
+        throw new Error("cannot read vkey");
+      });
+
+      await expect(proveCommitment(1n, 2n, 3n, 4n)).rejects.toMatchObject({
+        category: "PROOF",
+        code: "PROOF_VERIFICATION_FAILED",
+      });
+
+      await proveCommitment(1n, 2n, 3n, 4n);
+      expect(readFileMock).toHaveBeenCalledTimes(2);
+    });
+
+    test("fails closed when local verification returns false", async () => {
+      groth16VerifyResult = false;
+
+      await expect(proveCommitment(1n, 2n, 3n, 4n)).rejects.toMatchObject({
+        category: "PROOF",
+        code: "PROOF_VERIFICATION_FAILED",
+        message: "Generated commitment proof failed local verification.",
+      });
+    });
+
+    test("wraps verification exceptions in a CLIError", async () => {
+      groth16VerifyShouldThrow = new Error("verification exploded");
+
+      await expect(proveCommitment(1n, 2n, 3n, 4n)).rejects.toMatchObject({
+        category: "PROOF",
+        code: "PROOF_VERIFICATION_FAILED",
+        hint: "verification exploded",
+      });
+    });
+
+    test("cleans up cached snarkjs worker curves after proving", async () => {
       (globalThis as typeof globalThis & {
         curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
         curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
@@ -189,8 +271,14 @@ describe("proofs service", () => {
 
       await proveCommitment(1n, 2n, 3n, 4n);
 
-      expect(terminateBn128CurveMock).not.toHaveBeenCalled();
-      expect(terminateBls12381CurveMock).not.toHaveBeenCalled();
+      expect(terminateBn128CurveMock).toHaveBeenCalledTimes(1);
+      expect(terminateBls12381CurveMock).toHaveBeenCalledTimes(1);
+      expect((globalThis as typeof globalThis & {
+        curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+      }).curve_bn128).toBeNull();
+      expect((globalThis as typeof globalThis & {
+        curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+      }).curve_bls12381).toBeNull();
     });
 
     test("wraps snarkjs errors in CLIError with PROOF category", async () => {
@@ -230,10 +318,11 @@ describe("proofs service", () => {
       await proveCommitment(1n, 2n, 3n, 4n, {
         progress: {
           isFirstRun: true,
-          markVerificationPhase: () => phases.push("verify circuits if needed"),
+          markArtifactVerificationPhase: () => phases.push("verify circuits if needed"),
           markBuildWitnessPhase: () => phases.push("build witness"),
           markGenerateProofPhase: () => phases.push("generate proof"),
           markFinalizeProofPhase: () => phases.push("finalize proof"),
+          markVerifyProofPhase: () => phases.push("verify proof"),
         },
       });
 
@@ -242,6 +331,7 @@ describe("proofs service", () => {
         "build witness",
         "generate proof",
         "finalize proof",
+        "verify proof",
       ]);
       expect(capturedGroth16Logger).not.toBeNull();
     });
@@ -326,6 +416,7 @@ describe("proofs service", () => {
 
       expect(capturedFullProveWasm).toBe("/mock/artifacts/withdraw.wasm");
       expect(capturedFullProveZkey).toBe("/mock/artifacts/withdraw.zkey");
+      expect(capturedFullProveVkey).toBe("/mock/artifacts/withdraw.vkey");
       expect(capturedWitnessOutput).toEqual({ type: "mem" });
       expect(capturedGroth16Witness).toEqual({ type: "mem" });
       expect(capturedGroth16Options).toEqual([]);
@@ -402,6 +493,8 @@ describe("proofs service", () => {
 
       expect(result).toHaveProperty("proof");
       expect(result).toHaveProperty("publicSignals");
+      expect(capturedGroth16VerifyProof).toBe(mockFullProveResult.proof);
+      expect(capturedGroth16VerifyPublicSignals).toBe(mockFullProveResult.publicSignals);
     });
 
     test("wraps snarkjs errors in CLIError with withdrawal message", async () => {
@@ -417,7 +510,7 @@ describe("proofs service", () => {
       });
     });
 
-    test("keeps cached snarkjs worker curves alive when proving fails", async () => {
+    test("cleans up cached snarkjs worker curves when proving fails", async () => {
       groth16ProveShouldThrow = new Error("Invalid witness");
       (globalThis as typeof globalThis & {
         curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
@@ -434,8 +527,14 @@ describe("proofs service", () => {
         code: "PROOF_GENERATION_FAILED",
       });
 
-      expect(terminateBn128CurveMock).not.toHaveBeenCalled();
-      expect(terminateBls12381CurveMock).not.toHaveBeenCalled();
+      expect(terminateBn128CurveMock).toHaveBeenCalledTimes(1);
+      expect(terminateBls12381CurveMock).toHaveBeenCalledTimes(1);
+      expect((globalThis as typeof globalThis & {
+        curve_bn128?: { terminate?: typeof terminateBn128CurveMock } | null;
+      }).curve_bn128).toBeNull();
+      expect((globalThis as typeof globalThis & {
+        curve_bls12381?: { terminate?: typeof terminateBls12381CurveMock } | null;
+      }).curve_bls12381).toBeNull();
     });
 
     test("test cleanup terminates cached snarkjs worker curves", async () => {
@@ -474,6 +573,18 @@ describe("proofs service", () => {
       ).rejects.toBe(originalError);
     });
 
+    test("fails closed when withdrawal proof verification returns false", async () => {
+      groth16VerifyResult = false;
+
+      await expect(
+        proveWithdrawal(makeAccountCommitment() as any, makeWithdrawalInput() as any)
+      ).rejects.toMatchObject({
+        category: "PROOF",
+        code: "PROOF_VERIFICATION_FAILED",
+        message: "Generated withdrawal proof failed local verification.",
+      });
+    });
+
     test("reports proof phases from witness build through finalize", async () => {
       const phases: string[] = [];
 
@@ -483,10 +594,11 @@ describe("proofs service", () => {
         {
           progress: {
             isFirstRun: false,
-            markVerificationPhase: () => phases.push("verify circuits if needed"),
+            markArtifactVerificationPhase: () => phases.push("verify circuits if needed"),
             markBuildWitnessPhase: () => phases.push("build witness"),
             markGenerateProofPhase: () => phases.push("generate proof"),
             markFinalizeProofPhase: () => phases.push("finalize proof"),
+            markVerifyProofPhase: () => phases.push("verify proof"),
           },
         },
       );
@@ -496,6 +608,7 @@ describe("proofs service", () => {
         "build witness",
         "generate proof",
         "finalize proof",
+        "verify proof",
       ]);
     });
   });

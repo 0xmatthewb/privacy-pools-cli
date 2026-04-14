@@ -209,7 +209,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-t, --to <address>"),
           completionOption("-p, --pool-account <PA-#|#>"),
-          completionOption("--from-pa <PA-#|#>"),
           completionOption("--direct"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
@@ -232,7 +231,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-a, --asset <symbol|address>"),
           completionOption("-p, --pool-account <PA-#|#>"),
-          completionOption("--from-pa <PA-#|#>"),
           completionOption("-i, --commitment <index>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),

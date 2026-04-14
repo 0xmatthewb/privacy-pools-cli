@@ -197,19 +197,19 @@ export const PREVIEW_PROGRESS_ALLOWLIST = [
   },
   {
     file: "src/services/workflow.ts",
-    pattern: '"Generating proof and submitting withdrawal"',
+    pattern: '"Generate and verify withdrawal proof"',
     reason:
-      "Flow watch reuses the audited withdraw proof/submission journey, so the combined internal stage remains allowlisted instead of duplicated.",
+      "Flow watch reuses the audited withdraw proof/submission journey, so its internal proof stage remains allowlisted instead of duplicated.",
   },
   {
     file: "src/services/workflow.ts",
-    pattern: 'stageHeader(1, 2, "Generating commitment proof"',
+    pattern: 'stageHeader(1, 2, "Generating and verifying commitment proof"',
     reason:
       "Workflow ragequit shares the same proof-generation UX as the command-level ragequit flow, which already has dedicated progress coverage.",
   },
   {
     file: "src/services/workflow.ts",
-    pattern: 'spinner("Generating commitment proof..."',
+    pattern: 'spinner("Generating and verifying commitment proof..."',
     reason:
       "Workflow ragequit shares the same proof-generation UX as the command-level ragequit flow, which already has dedicated progress coverage.",
   },
@@ -306,7 +306,7 @@ export const PREVIEW_PROGRESS_CALLSITE_PATTERNS = [
   },
   {
     file: "src/commands/withdraw.ts",
-    pattern: '"Generating ZK proof"',
+    pattern: '"Generating and verifying ZK proof"',
     progressStep: "withdraw.generate-proof",
   },
   {
@@ -331,7 +331,7 @@ export const PREVIEW_PROGRESS_CALLSITE_PATTERNS = [
   },
   {
     file: "src/commands/ragequit.ts",
-    pattern: '"Generating commitment proof"',
+    pattern: '"Generating and verifying commitment proof"',
     progressStep: "ragequit.generate-proof",
   },
   {
@@ -2274,7 +2274,7 @@ export const PREVIEW_CASES = [
     runtime: "forwarded",
     requiredSetup: ["native-binary", "configured-wallet", "fixture-server", "preview-scenario"],
     covers: ["interactive", "recipient", "review"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --from-pa PA-4",
+    commandLabel: "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --pool-account PA-4",
     stateId: "recipient-input",
     buildInvocation: (context) => {
       const home = createHome("pp-preview-withdraw-recipient-");
@@ -2289,10 +2289,10 @@ export const PREVIEW_CASES = [
           "withdraw",
           "50",
           "USDC",
-          "--from-pa",
+          "--pool-account",
           "PA-4",
         ],
-        "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --from-pa PA-4",
+        "privacy-pools --no-banner --chain sepolia withdraw 50 USDC --pool-account PA-4",
         {
           envOverrides: {
             PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
@@ -2433,8 +2433,8 @@ export const PREVIEW_CASES = [
     surface: "ragequit",
     requiredSetup: ["native-binary"],
     covers: ["dry-run", "recovery", "proof"],
-    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3", "--dry-run"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3 --dry-run",
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3", "--dry-run"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3 --dry-run",
   }),
   createScenarioPreviewCase({
     id: "ragequit-success",
@@ -2443,8 +2443,8 @@ export const PREVIEW_CASES = [
     surface: "ragequit",
     requiredSetup: ["native-binary"],
     covers: ["success", "recovery", "transaction"],
-    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3",
   }),
   createScenarioPreviewCase({
     id: "ragequit-unsigned-envelope",
@@ -2453,8 +2453,8 @@ export const PREVIEW_CASES = [
     surface: "ragequit",
     requiredSetup: ["native-binary"],
     covers: ["unsigned", "envelope", "stdout"],
-    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3", "--unsigned"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3 --unsigned",
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3", "--unsigned"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3 --unsigned",
   }),
   createScenarioPreviewCase({
     id: "ragequit-unsigned-tx",
@@ -2463,8 +2463,8 @@ export const PREVIEW_CASES = [
     surface: "ragequit",
     requiredSetup: ["native-binary"],
     covers: ["unsigned", "tx-array", "stdout"],
-    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3", "--unsigned", "tx"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3 --unsigned tx",
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3", "--unsigned", "tx"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3 --unsigned tx",
   }),
   createScenarioPreviewCase({
     id: "ragequit-validation",
@@ -2474,8 +2474,8 @@ export const PREVIEW_CASES = [
     requiredSetup: ["native-binary"],
     covers: ["validation-error", "selection"],
     expectedExitCodes: [2],
-    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3", "--commitment", "123"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3 --commitment 123",
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3", "--commitment", "123"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3 --commitment 123",
   }),
   createLivePreviewCase({
     id: "ragequit-select",
@@ -2538,7 +2538,7 @@ export const PREVIEW_CASES = [
     covers: ["interactive", "review", "confirm"],
     syntheticReason:
       "preview-only scenario fixture keeps the public recovery confirmation screen deterministic without generating a proof",
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3",
     buildInvocation: (context) => {
       const home = createHome("pp-preview-ragequit-confirm-");
       return buildPreviewScenarioInvocation(
@@ -2551,10 +2551,10 @@ export const PREVIEW_CASES = [
           "sepolia",
           "ragequit",
           "ETH",
-          "--from-pa",
+          "--pool-account",
           "PA-3",
         ],
-        "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+        "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3",
         {
           envOverrides: {
             PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
@@ -2582,8 +2582,8 @@ export const PREVIEW_CASES = [
     runtime: "forwarded",
     requiredSetup: ["native-binary"],
     covers: ["progress", "load-account", "recovery"],
-    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3",
     progressStep: "ragequit.load-account",
     stateId: "load-account",
   }),
@@ -2596,8 +2596,8 @@ export const PREVIEW_CASES = [
     runtime: "forwarded",
     requiredSetup: ["native-binary"],
     covers: ["progress", "generate-proof", "recovery"],
-    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3",
     progressStep: "ragequit.generate-proof",
     stateId: "generate-proof",
   }),
@@ -2610,8 +2610,8 @@ export const PREVIEW_CASES = [
     runtime: "forwarded",
     requiredSetup: ["native-binary"],
     covers: ["progress", "submit", "recovery"],
-    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--from-pa", "PA-3"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --from-pa PA-3",
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3",
     progressStep: "ragequit.submit",
     stateId: "submit",
   }),

@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import * as snarkjs from "snarkjs";
 import type {
   AccountCommitment,
@@ -35,6 +36,13 @@ type SnarkjsLogger = {
   error: (message: string) => void;
 };
 
+type Groth16VerificationKey = Parameters<typeof snarkjs.groth16.verify>[0];
+
+const groth16VerificationKeyCache = new Map<
+  string,
+  Promise<Groth16VerificationKey>
+>();
+
 function shouldAdvanceToFinalizeProof(message: string): boolean {
   const normalized = message.trim().toLowerCase();
   return (
@@ -65,32 +73,106 @@ function createProofLogger(
   };
 }
 
+function createLocalProofVerificationError(
+  circuit: CircuitName,
+  error?: unknown,
+): CLIError {
+  const circuitLabel = circuit === "commitment" ? "commitment" : "withdrawal";
+  const hint = error === undefined
+    ? "Regenerate the proof after running 'privacy-pools sync'. If this persists, reinstall the CLI to refresh the bundled circuit artifacts."
+    : sanitizeDiagnosticText(
+        error instanceof Error ? error.message : String(error),
+      );
+
+  return new CLIError(
+    `Generated ${circuitLabel} proof failed local verification.`,
+    "PROOF",
+    hint,
+    "PROOF_VERIFICATION_FAILED",
+  );
+}
+
+async function loadGroth16VerificationKey(
+  vkeyPath: string,
+): Promise<Groth16VerificationKey> {
+  const cached = groth16VerificationKeyCache.get(vkeyPath);
+  if (cached) {
+    return cached;
+  }
+
+  const loadPromise = readFile(vkeyPath, "utf8")
+    .then((raw) => JSON.parse(raw) as Groth16VerificationKey)
+    .catch((error) => {
+      groth16VerificationKeyCache.delete(vkeyPath);
+      throw error;
+    });
+  groth16VerificationKeyCache.set(vkeyPath, loadPromise);
+  return loadPromise;
+}
+
+async function verifyGroth16Proof(
+  circuit: CircuitName,
+  verificationKeyPromise: Promise<Groth16VerificationKey>,
+  proof: unknown,
+  publicSignals: unknown,
+  options?: ProofOptions,
+): Promise<void> {
+  options?.progress?.markVerifyProofPhase();
+
+  let verified = false;
+  try {
+    verified = await snarkjs.groth16.verify(
+      await verificationKeyPromise,
+      publicSignals as Parameters<typeof snarkjs.groth16.verify>[1],
+      proof as Parameters<typeof snarkjs.groth16.verify>[2],
+    );
+  } catch (error) {
+    throw createLocalProofVerificationError(circuit, error);
+  }
+
+  if (!verified) {
+    throw createLocalProofVerificationError(circuit);
+  }
+}
+
 async function runGroth16Proof(
   inputs: Record<string, bigint | bigint[] | string>,
   circuit: CircuitName,
   options?: ProofOptions,
 ): Promise<{ proof: unknown; publicSignals: unknown }> {
-  options?.progress?.markVerificationPhase();
-  const { wasm, zkey } = await getCircuitArtifactPaths(circuit);
+  try {
+    options?.progress?.markArtifactVerificationPhase();
+    const { wasm, zkey, vkey } = await getCircuitArtifactPaths(circuit);
+    const verificationKeyPromise = loadGroth16VerificationKey(vkey);
 
-  options?.progress?.markBuildWitnessPhase();
-  const witness: SnarkjsWitnessHandle = { type: "mem" };
-  await snarkjs.wtns.calculate(inputs, wasm, witness);
+    options?.progress?.markBuildWitnessPhase();
+    const witness: SnarkjsWitnessHandle = { type: "mem" };
+    await snarkjs.wtns.calculate(inputs, wasm, witness);
 
-  options?.progress?.markGenerateProofPhase();
-  let finalizePhaseShown = false;
-  const markFinalizePhase = () => {
-    if (finalizePhaseShown) return;
-    finalizePhaseShown = true;
-    options?.progress?.markFinalizeProofPhase();
-  };
-  const result = await snarkjs.groth16.prove(
-    zkey,
-    witness as unknown as Parameters<typeof snarkjs.groth16.prove>[1],
-    createProofLogger(markFinalizePhase),
-  );
-  markFinalizePhase();
-  return result as { proof: unknown; publicSignals: unknown };
+    options?.progress?.markGenerateProofPhase();
+    let finalizePhaseShown = false;
+    const markFinalizePhase = () => {
+      if (finalizePhaseShown) return;
+      finalizePhaseShown = true;
+      options?.progress?.markFinalizeProofPhase();
+    };
+    const result = await snarkjs.groth16.prove(
+      zkey,
+      witness as unknown as Parameters<typeof snarkjs.groth16.prove>[1],
+      createProofLogger(markFinalizePhase),
+    );
+    markFinalizePhase();
+    await verifyGroth16Proof(
+      circuit,
+      verificationKeyPromise,
+      result.proof,
+      result.publicSignals,
+      options,
+    );
+    return result as { proof: unknown; publicSignals: unknown };
+  } finally {
+    await cleanupSnarkjsCurveCaches();
+  }
 }
 
 async function cleanupSnarkjsCurveCaches(): Promise<void> {
@@ -98,13 +180,14 @@ async function cleanupSnarkjsCurveCaches(): Promise<void> {
     "curve_bn128",
     "curve_bls12381",
   ];
+  const globalCurves = globalThis as typeof globalThis & {
+    curve_bn128?: TerminableSnarkjsCurve | null;
+    curve_bls12381?: TerminableSnarkjsCurve | null;
+  };
   const cleanupTasks: Promise<void>[] = [];
 
   for (const key of curveCacheKeys) {
-    const curve = (globalThis as typeof globalThis & {
-      curve_bn128?: TerminableSnarkjsCurve | null;
-      curve_bls12381?: TerminableSnarkjsCurve | null;
-    })[key];
+    const curve = globalCurves[key];
     if (!curve?.terminate) continue;
 
     cleanupTasks.push(
@@ -113,6 +196,7 @@ async function cleanupSnarkjsCurveCaches(): Promise<void> {
         // more relevant error, and cleanup should not replace that outcome.
       }),
     );
+    globalCurves[key] = null;
   }
 
   await Promise.all(cleanupTasks);
@@ -120,13 +204,10 @@ async function cleanupSnarkjsCurveCaches(): Promise<void> {
 
 export async function resetSnarkjsCurveCachesForTests(): Promise<void> {
   await cleanupSnarkjsCurveCaches();
+}
 
-  const globalCurves = globalThis as typeof globalThis & {
-    curve_bn128?: TerminableSnarkjsCurve | null;
-    curve_bls12381?: TerminableSnarkjsCurve | null;
-  };
-  globalCurves.curve_bn128 = null;
-  globalCurves.curve_bls12381 = null;
+export function resetGroth16VerificationKeyCacheForTests(): void {
+  groth16VerificationKeyCache.clear();
 }
 
 export async function proveCommitment(

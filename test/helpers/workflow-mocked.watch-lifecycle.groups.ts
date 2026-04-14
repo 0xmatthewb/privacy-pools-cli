@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
   existsSync,
+  writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
 import { captureAsyncOutput } from "../helpers/output.ts";
@@ -13,10 +14,12 @@ import {
   overrideWorkflowTimingForTests,
   realConfig,
   realErrors,
+  realWritePrivateFileAtomic,
   requestQuoteMock,
   state,
   useImmediateTimers,
   watchWorkflow,
+  writePrivateFileAtomicMock,
   writeWorkflowSecret,
   writeWorkflowSnapshot,
 } from "../helpers/workflow-mocked.harness.ts";
@@ -340,6 +343,82 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
         expect(sleepCalls.length).toBeGreaterThan(0);
         expect(stderr).toContain("Temporary issue while resuming this workflow");
         expect(stderr).toContain("Retrying in");
+      });
+      test("watchWorkflow falls back to the in-memory snapshot when retry reload fails", async () => {
+        let requestAttempts = 0;
+        const sleepCalls: number[] = [];
+        const workflowId = "wf-retryable-reload-fallback";
+        const workflowPath = join(realConfig.getWorkflowsDir(), `${workflowId}.json`);
+        let workflowWriteCalls = 0;
+
+        requestQuoteMock.mockImplementation(async (_chain, args) => {
+          state.requestQuoteCalls.push(args);
+          requestAttempts += 1;
+          if (requestAttempts === 1) {
+            throw new realErrors.CLIError(
+              "Temporary relayer issue",
+              "RELAYER",
+              "Retry soon.",
+              "RELAYER_TEMPORARY",
+              true,
+            );
+          }
+          return buildMockRelayerQuote(args);
+        });
+        writePrivateFileAtomicMock.mockImplementation((filePath, content) => {
+          if (filePath === workflowPath) {
+            workflowWriteCalls += 1;
+            realWritePrivateFileAtomic(filePath, content);
+            if (workflowWriteCalls === 1) {
+              writeFileSync(filePath, "{", "utf8");
+              return;
+            }
+            return;
+          }
+          realWritePrivateFileAtomic(filePath, content);
+        });
+        overrideWorkflowTimingForTests({
+          sleep: async (ms) => {
+            sleepCalls.push(ms);
+            writeWorkflowSnapshot(workflowId, {
+              phase: "approved_ready_to_withdraw",
+              walletMode: "configured",
+              walletAddress: GLOBAL_SIGNER_ADDRESS,
+              depositBlockNumber: "101",
+              aspStatus: "approved",
+            });
+          },
+        });
+
+        writeWorkflowSnapshot(workflowId, {
+          phase: "approved_ready_to_withdraw",
+          walletMode: "configured",
+          walletAddress: GLOBAL_SIGNER_ADDRESS,
+          depositBlockNumber: "101",
+          aspStatus: "approved",
+        });
+
+        const { stderr } = await captureAsyncOutput(async () => {
+          const snapshot = await watchWorkflow({
+            workflowId,
+            globalOpts: { chain: "sepolia" },
+            mode: {
+              isAgent: false,
+              isJson: false,
+              isCsv: false,
+              isQuiet: false,
+              format: "table",
+              skipPrompts: true,
+            },
+            isVerbose: false,
+          });
+
+          expect(snapshot.phase).toBe("completed");
+        });
+
+        expect(requestAttempts).toBe(2);
+        expect(sleepCalls.length).toBeGreaterThan(0);
+        expect(stderr).toContain("Temporary issue while resuming this workflow");
       });
       test("watchWorkflow reattaches a confirmed pending deposit before continuing", async () => {
         state.pendingReceiptAvailableAfter = 0;

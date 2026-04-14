@@ -202,6 +202,9 @@ pub(super) fn resolve_pool_listing_entry(
         ),
         growth24h: parse_json_number(input.stats_entry.get("growth24h")),
         pending_growth24h: parse_json_number(input.stats_entry.get("pendingGrowth24h")),
+        my_pool_accounts_count: Some(
+            crate::json::parse_json_u64(input.stats_entry.get("myPoolAccountsCount")).unwrap_or(0),
+        ),
     })
 }
 

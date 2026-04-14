@@ -29,6 +29,9 @@ const realStaticDiscovery = captureModuleExports(
   await import("../../src/static-discovery.ts"),
 );
 const realCliMain = captureModuleExports(await import("../../src/cli-main.ts"));
+const realCliMainHelpers = captureModuleExports(
+  await import("../../src/runtime/cli-main-helpers.ts"),
+);
 const realLauncher = captureModuleExports(await import("../../src/launcher.ts"));
 const realConsoleGuard = captureModuleExports(
   await import("../../src/utils/console-guard.ts"),
@@ -37,6 +40,9 @@ const realUpdateCheck = captureModuleExports(
   await import("../../src/utils/update-check.ts"),
 );
 const realJson = captureModuleExports(await import("../../src/utils/json.ts"));
+const realConfigPaths = captureModuleExports(
+  await import("../../src/runtime/config-paths.ts"),
+);
 const LAUNCHER_MODULE_PATHS = [
   "../../src/launcher.ts",
   "../../src/launcher.js",
@@ -51,10 +57,12 @@ const BOOTSTRAP_RUNTIME_MODULE_RESTORES = [
   ["dotenv", realDotenv],
   ["../../src/static-discovery.ts", realStaticDiscovery],
   ["../../src/cli-main.ts", realCliMain],
+  ["../../src/runtime/cli-main-helpers.ts", realCliMainHelpers],
   ...LAUNCHER_MODULE_PATHS.map((path) => [path, realLauncher] as const),
   ["../../src/utils/console-guard.ts", realConsoleGuard],
   ["../../src/utils/update-check.ts", realUpdateCheck],
   ["../../src/utils/json.ts", realJson],
+  ["../../src/runtime/config-paths.ts", realConfigPaths],
 ] as const;
 
 const ORIGINAL_ARGV = [...process.argv];
@@ -264,12 +272,14 @@ describe("bootstrap runtime coverage", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("privacy-pools init");
+    expect(stdout).toContain("privacy-pools flow start 0.1 ETH");
     expect(stderr).toBe("");
-    expect(printBannerMock).toHaveBeenCalledWith({
-      version: "1.2.3",
-      repository: "github.com/example/repo",
-    });
+    expect(printBannerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: "1.2.3",
+        repository: "github.com/example/repo",
+      }),
+    );
   });
 
   test("runCli returns machine-readable help for structured help invocations", async () => {
@@ -365,7 +375,7 @@ describe("bootstrap runtime coverage", () => {
         welcomeExitCode = process.exitCode;
       });
       expect(welcomeExitCode).toBe(0);
-      expect(welcomeResult.stdout).toContain("privacy-pools init");
+      expect(welcomeResult.stdout).toContain("privacy-pools flow start 0.1 ETH");
       expect(welcomeResult.stderr).toBe("");
 
       const versionProgram = makeProgram((configuredProgram) => async () => {
@@ -612,6 +622,57 @@ describe("bootstrap runtime coverage", () => {
     await captureAsyncOutput(() => runCli({ version: "1.2.3" }, ["guide"]));
 
     expect(dotenvConfigMock).not.toHaveBeenCalled();
+  });
+
+  test("runCli activates --profile before config loading and emits post-parse notices", async () => {
+    const program = makeProgram(() => async () => undefined);
+    const setActiveProfileMock = mock(() => undefined);
+    const maybeLoadConfigEnvMock = mock(async () => undefined);
+    const emitStructuredRootHelpIfNeededMock = mock(() => undefined);
+    const checkForUpdateInBackgroundMock = mock(() => undefined);
+    const consumePostCommandUpdateNoticeMock = mock(() => "profile notice");
+    const shouldShowPostCommandUpdateNoticeMock = mock(() => true);
+    setTty(true);
+
+    mock.module("../../src/runtime/config-paths.ts", () => ({
+      ...realConfigPaths,
+      setActiveProfile: setActiveProfileMock,
+    }));
+    mock.module("../../src/runtime/cli-main-helpers.ts", () => ({
+      cliMainHelperInternals: {
+        ...realCliMainHelpers.cliMainHelperInternals,
+        maybeLoadConfigEnv: maybeLoadConfigEnvMock,
+        shouldStartUpdateCheck: () => true,
+        emitStructuredRootHelpIfNeeded: emitStructuredRootHelpIfNeededMock,
+      },
+    }));
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+    mock.module("../../src/utils/update-check.ts", () => ({
+      checkForUpdateInBackground: checkForUpdateInBackgroundMock,
+      getUpdateNotice: () => null,
+      consumePostCommandUpdateNotice: consumePostCommandUpdateNoticeMock,
+      shouldShowPostCommandUpdateNotice: shouldShowPostCommandUpdateNoticeMock,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?profile-success-runtime");
+    const { stderr } = await captureAsyncOutput(() =>
+      runCli({ version: "1.2.3" }, ["--profile", "team", "status"]),
+    );
+
+    expect(setActiveProfileMock).toHaveBeenCalledWith("team");
+    expect(maybeLoadConfigEnvMock).toHaveBeenCalledWith(
+      "status",
+      false,
+      false,
+      false,
+    );
+    expect(checkForUpdateInBackgroundMock).toHaveBeenCalledTimes(1);
+    expect(emitStructuredRootHelpIfNeededMock).toHaveBeenCalledTimes(1);
+    expect(consumePostCommandUpdateNoticeMock).toHaveBeenCalledWith("1.2.3");
+    expect(shouldShowPostCommandUpdateNoticeMock).toHaveBeenCalledTimes(1);
+    expect(stderr).toContain("profile notice");
   });
 
   test("runCli keeps the background update check off runtime commands", async () => {
@@ -1685,5 +1746,57 @@ describe("bootstrap runtime coverage", () => {
     expect(stderr).toBe("");
     expect(exitCode).toBe(2);
     expect(runLauncherMock).not.toHaveBeenCalled();
+  });
+
+  test("runCliEntrypoint prints human Bun runtime guidance outside structured modes", async () => {
+    const runLauncherMock = mock(async () => undefined);
+
+    mock.module("../../src/launcher.ts", () => ({
+      runLauncher: runLauncherMock,
+    }));
+
+    setIndexArgv(["status"]);
+    Object.defineProperty(process.versions, "bun", {
+      configurable: true,
+      value: "1.3.11",
+    });
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(async () => {
+      const module = await import(`../../src/index.ts?bun-human-import-call=${Date.now()}`);
+      await module.runCliEntrypoint(["status"]);
+    });
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Privacy Pools CLI supports Node.js only.");
+    expect(stderr).toContain("npm run dev -- <command>");
+    expect(exitCode).toBe(2);
+    expect(runLauncherMock).not.toHaveBeenCalled();
+  });
+
+  test("runCliEntrypoint applies preview overrides before launching supported runtimes", async () => {
+    const runLauncherMock = mock(async () => undefined);
+    const applyPreviewRuntimeOverridesMock = mock(() => undefined);
+
+    mock.module("../../src/launcher.ts", () => ({
+      runLauncher: runLauncherMock,
+    }));
+    mock.module("../../src/preview/runtime.ts", () => ({
+      applyPreviewRuntimeOverrides: applyPreviewRuntimeOverridesMock,
+    }));
+
+    setIndexArgv(["status"]);
+    delete process.versions.bun;
+
+    await captureAsyncOutput(async () => {
+      const module = await import(`../../src/index.ts?supported-runtime-entrypoint=${Date.now()}`);
+      await module.runCliEntrypoint(["status"]);
+    });
+
+    expect(applyPreviewRuntimeOverridesMock).toHaveBeenCalledTimes(1);
+    expect(runLauncherMock).toHaveBeenCalledTimes(1);
+    expect(runLauncherMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      ["status"],
+    );
   });
 });

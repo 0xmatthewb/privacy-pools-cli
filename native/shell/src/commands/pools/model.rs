@@ -35,6 +35,7 @@ pub(super) struct PoolListingEntry {
     pub(super) pending_deposits_count: Option<u64>,
     pub(super) growth24h: Option<f64>,
     pub(super) pending_growth24h: Option<f64>,
+    pub(super) my_pool_accounts_count: Option<u64>,
 }
 
 #[derive(Debug, Clone)]

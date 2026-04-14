@@ -41,6 +41,7 @@ describe("error classification fuzz", () => {
     { message: "something" },
     { code: "MERKLE_ERROR" },
     { code: "PROOF_GENERATION_FAILED" },
+    { code: "PROOF_VERIFICATION_FAILED" },
     // Arrays
     [],
     [1, 2, 3],
@@ -113,6 +114,12 @@ describe("error classification fuzz", () => {
         input: { code: "PROOF_GENERATION_FAILED" },
         category: "PROOF",
         code: "PROOF_GENERATION_FAILED",
+        retryable: false,
+      },
+      {
+        input: { code: "PROOF_VERIFICATION_FAILED" },
+        category: "PROOF",
+        code: "PROOF_VERIFICATION_FAILED",
         retryable: false,
       },
     ];

@@ -19,7 +19,11 @@ export {
   type CompletionShell,
 } from "./completion-query.js";
 
-const INTERNAL_COMPLETION_OPTION_NAMES = new Set(["--query", "--cword"]);
+const INTERNAL_COMPLETION_OPTION_NAMES = new Set([
+  "--query",
+  "--cword",
+  "--from-pa",
+]);
 
 function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));

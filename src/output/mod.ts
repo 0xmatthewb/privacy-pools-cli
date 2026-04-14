@@ -63,6 +63,7 @@ export {
 export { renderGuide } from "./guide.js";
 export {
   formatUpgradeInstallReview,
+  renderChangelog,
   renderUpgradeResult,
   type UpgradeResult,
 } from "./upgrade.js";
@@ -77,6 +78,8 @@ export {
 export {
   renderCompletionScript,
   renderCompletionQuery,
+  renderCompletionInstallReview,
+  renderCompletionInstallResult,
 } from "./completion.js";
 export {
   renderSyncEmpty,
@@ -124,13 +127,29 @@ export {
 export {
   renderInitOverwriteReview,
   renderGeneratedRecoveryPhraseReview,
+  renderInitDryRun,
   renderInitBackupMethodReview,
   renderInitBackupPathReview,
   renderInitBackupSaved,
   renderInitBackupConfirmationReview,
+  renderInitSignerKeyReview,
   renderInitResult,
+  type InitDryRunResult,
   type InitRenderResult,
 } from "./init.js";
+export {
+  renderConfigList,
+  renderConfigGet,
+  renderConfigSet,
+  renderConfigPath,
+  renderConfigProfileList,
+  renderConfigProfileCreate,
+  renderConfigProfileActive,
+  renderConfigProfileUse,
+  type ConfigListResult,
+  type ConfigGetResult,
+  type ConfigSetResult,
+} from "./config.js";
 export {
   formatDepositReview,
   formatUniqueAmountReview,

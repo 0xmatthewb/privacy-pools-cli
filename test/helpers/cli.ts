@@ -49,6 +49,13 @@ export interface CliRunResult {
   errorMessage?: string;
 }
 
+function sanitizeCliStderr(stderr: string): string {
+  return stderr.replace(
+    /\(node:\d+\) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set\.\r?\n\(Use `node --trace-warnings \.\.\.` to show where the warning was created\)\r?\n\r?\n/g,
+    "",
+  );
+}
+
 export interface TestSecretFiles {
   secretsDir: string;
   mnemonic: string;
@@ -290,7 +297,7 @@ export function runCli(args: string[], options: CliRunOptions = {}): CliRunResul
     status: result.status,
     signal: result.signal,
     stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
+    stderr: sanitizeCliStderr(result.stderr ?? ""),
     elapsedMs,
     timedOut,
     errorMessage: result.error?.message,
@@ -333,7 +340,7 @@ export function runBuiltCli(
     status: result.status,
     signal: result.signal,
     stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
+    stderr: sanitizeCliStderr(result.stderr ?? ""),
     elapsedMs,
     timedOut,
     errorMessage: result.error?.message,

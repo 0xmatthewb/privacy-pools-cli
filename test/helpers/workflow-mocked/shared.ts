@@ -8,6 +8,7 @@ import {
   type Address,
   type Hex,
 } from "viem";
+import { generateMerkleProof } from "@0xbow/privacy-pools-core-sdk";
 import { createTrackedTempDir } from "../temp.ts";
 import {
   WORKFLOW_SECRET_RECORD_VERSION,
@@ -163,6 +164,16 @@ function makeTempHome(): string {
   return createTrackedTempDir("pp-workflow-mocked-");
 }
 
+function selectedStateTreeRoot(): bigint {
+  return BigInt(
+    (
+      generateMerkleProof([state.commitmentHash], state.commitmentHash) as {
+        root: bigint | string;
+      }
+    ).root,
+  );
+}
+
 export function setPromptResponses({
   confirm = true,
   input = join(state.tempHome, "unused-wallet.txt"),
@@ -259,11 +270,11 @@ export function resetState(): void {
   state.latestRoot = 77n;
   state.latestRootSequence = null;
   state.aspMtRoot = 77n;
-  state.currentRoot = 88n;
   state.commitmentHash = 88n;
   state.label = 91n;
   state.committedValue = 9950000000000000n;
   state.precommitmentHash = 42n;
+  state.currentRoot = selectedStateTreeRoot();
   state.poolAccountAvailable = true;
   state.poolAccountAvailableAfterReceiptChecks = null;
   state.poolAccountStatus = "approved";
@@ -318,23 +329,39 @@ export function nextAspStatus(): MockState["aspStatus"] {
 }
 
 export function selectedPoolAccount() {
+  const isExited = state.poolAccountStatus === "exited";
+  const isSpent = state.poolAccountStatus === "spent";
+  const status = isExited || isSpent
+    ? state.poolAccountStatus
+    : state.aspStatus;
+  const aspStatus = isExited || isSpent ? "unknown" : state.aspStatus;
+  const txHash = isExited
+    ? state.ragequitTxHash
+    : isSpent
+      ? state.relayTxHash
+      : state.depositTxHash;
+  const blockNumber = isExited ? 303n : isSpent ? 202n : 101n;
+  const value = isExited || isSpent ? 0n : state.committedValue;
+
   return {
     paNumber: 7,
     paId: "PA-7",
-    status: state.poolAccountStatus,
-    aspStatus: state.aspStatus,
+    status,
+    aspStatus,
     asset: state.pool.symbol,
     scope: state.pool.scope,
-    value: state.committedValue,
+    value,
     label: state.label,
-    txHash: state.depositTxHash,
-    blockNumber: 101n,
+    txHash,
+    blockNumber,
     commitment: {
       hash: state.commitmentHash,
       label: state.label,
       value: state.committedValue,
       nullifier: 555n,
       secret: 666n,
+      blockNumber: 101n,
+      txHash: state.depositTxHash,
     },
   };
 }
@@ -344,6 +371,44 @@ export function isPoolAccountCurrentlyAvailable(): boolean {
     return state.poolAccountAvailable;
   }
   return state.getTransactionReceiptCalls > state.poolAccountAvailableAfterReceiptChecks;
+}
+
+export function selectedSpendableCommitments() {
+  return isPoolAccountCurrentlyAvailable() &&
+      state.poolAccountStatus === "approved"
+    ? [selectedPoolAccount().commitment]
+    : [];
+}
+
+export function buildMockAccountPoolAccounts() {
+  if (!isPoolAccountCurrentlyAvailable()) {
+    return new Map();
+  }
+
+  const deposit = selectedPoolAccount().commitment;
+  const children = state.poolAccountStatus === "spent"
+    ? [{
+      ...deposit,
+      value: 0n,
+      blockNumber: 202n,
+      txHash: state.relayTxHash,
+    }]
+    : [];
+  const ragequit = state.poolAccountStatus === "exited"
+    ? {
+      blockNumber: 303n,
+      transactionHash: state.ragequitTxHash,
+    }
+    : null;
+
+  return new Map([
+    [state.pool.scope, [{
+      deposit,
+      children,
+      ragequit,
+      isMigrated: false,
+    }]],
+  ]);
 }
 
 export function writeWorkflowSnapshot(

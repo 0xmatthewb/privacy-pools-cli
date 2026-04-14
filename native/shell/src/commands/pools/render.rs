@@ -4,10 +4,9 @@ use super::model::{
 };
 use crate::output::{
     build_next_action, format_activity_direction_label, format_address, format_callout,
-    format_command_heading, format_count_number, format_key_value_rows, format_muted_block,
-    format_section_heading, insert_optional_f64, insert_optional_string, insert_optional_u64,
-    print_csv, print_json_success, print_table, render_next_steps, write_info, write_stderr_text,
-    CalloutKind,
+    format_command_heading, format_count_number, format_key_value_rows, format_section_heading,
+    insert_optional_f64, insert_optional_string, insert_optional_u64, print_csv,
+    print_json_success, print_table, render_next_steps, write_info, write_stderr_text, CalloutKind,
 };
 use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
@@ -333,7 +332,7 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
 
     let mut summary_rows = vec![
         (
-            "Scope",
+            "Chain",
             if data.all_chains {
                 "all supported chains".to_string()
             } else {
@@ -382,9 +381,6 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         .map(|entry| pool_listing_row(entry, data.all_chains, mode.is_wide()))
         .collect::<Vec<_>>();
     print_table(headers, rows);
-    write_stderr_text(&format_muted_block(
-        "\nVetting fees are deducted on deposit.\nPool Balance: current total value in the pool (accepted + pending deposits).\nPending: deposits still under ASP review.\n",
-    ));
 
     let mut next_actions = Vec::<Value>::new();
     if data.filtered_pools.len() == 1 {
@@ -711,6 +707,11 @@ fn pool_entry_to_json(entry: &PoolListingEntry, include_chain: bool) -> Value {
     );
     insert_optional_f64(&mut object, "growth24h", entry.growth24h);
     insert_optional_f64(&mut object, "pendingGrowth24h", entry.pending_growth24h);
+    insert_optional_u64(
+        &mut object,
+        "myPoolAccountsCount",
+        entry.my_pool_accounts_count,
+    );
     Value::Object(object)
 }
 
@@ -868,6 +869,48 @@ fn format_amount(
 #[cfg(test)]
 mod extended_tests {
     use super::*;
+    use crate::commands::pools::model::{PoolDetailAccount, PoolDetailMyFunds};
+    use crate::routing::OutputFormat;
+
+    fn table_mode() -> NativeMode {
+        NativeMode {
+            format: OutputFormat::Table,
+            is_wide: false,
+            is_quiet: false,
+        }
+    }
+
+    fn wide_mode() -> NativeMode {
+        NativeMode {
+            format: OutputFormat::Table,
+            is_wide: true,
+            is_quiet: false,
+        }
+    }
+
+    fn csv_mode() -> NativeMode {
+        NativeMode {
+            format: OutputFormat::Csv,
+            is_wide: false,
+            is_quiet: false,
+        }
+    }
+
+    fn json_mode() -> NativeMode {
+        NativeMode {
+            format: OutputFormat::Json,
+            is_wide: false,
+            is_quiet: false,
+        }
+    }
+
+    fn quiet_mode() -> NativeMode {
+        NativeMode {
+            format: OutputFormat::Table,
+            is_wide: false,
+            is_quiet: true,
+        }
+    }
 
     fn sample_entry() -> PoolListingEntry {
         PoolListingEntry {
@@ -894,6 +937,87 @@ mod extended_tests {
             pending_deposits_count: Some(7),
             growth24h: Some(0.5),
             pending_growth24h: Some(0.25),
+            my_pool_accounts_count: Some(0),
+        }
+    }
+
+    fn sample_warning() -> PoolWarning {
+        PoolWarning {
+            chain: "mainnet".to_string(),
+            category: "rpc".to_string(),
+            message: "retry later".to_string(),
+        }
+    }
+
+    fn sample_chain_summary() -> ChainSummary {
+        ChainSummary {
+            chain: "mainnet".to_string(),
+            pools: 1,
+            error: None,
+        }
+    }
+
+    fn sample_pools_render_data(all_chains: bool) -> PoolsRenderData {
+        PoolsRenderData {
+            all_chains,
+            chain_name: if all_chains {
+                "all-mainnets".to_string()
+            } else {
+                "mainnet".to_string()
+            },
+            search: None,
+            sort: "tvl-desc".to_string(),
+            filtered_pools: vec![sample_entry()],
+            chain_summaries: all_chains.then(|| vec![sample_chain_summary()]),
+            warnings: vec![],
+        }
+    }
+
+    fn sample_detail_data() -> PoolDetailRenderData {
+        PoolDetailRenderData {
+            chain_name: "mainnet".to_string(),
+            asset: "ETH".to_string(),
+            token_address: "0x1111111111111111111111111111111111111111".to_string(),
+            pool: "0x2222222222222222222222222222222222222222".to_string(),
+            scope: "12345".to_string(),
+            decimals: 18,
+            minimum_deposit: "1000000000000000".to_string(),
+            vetting_fee_bps: "50".to_string(),
+            max_relay_fee_bps: "250".to_string(),
+            total_in_pool_value: Some("5000000000000000000".to_string()),
+            total_in_pool_value_usd: Some("1,234.99".to_string()),
+            total_deposits_value: Some("10000000000000000000".to_string()),
+            total_deposits_value_usd: Some("2,468.00".to_string()),
+            pending_deposits_value: Some("500000000000000000".to_string()),
+            pending_deposits_value_usd: Some("134.00".to_string()),
+            total_deposits_count: Some(42),
+            my_funds: Some(PoolDetailMyFunds {
+                balance: "4000000000000000000".to_string(),
+                usd_value: Some("$1,000.00".to_string()),
+                pool_accounts: 3,
+                pending_count: 0,
+                poa_required_count: 0,
+                declined_count: 0,
+                accounts: vec![
+                    PoolDetailAccount {
+                        id: "PA-1".to_string(),
+                        status: "approved".to_string(),
+                        value: "2500000000000000000".to_string(),
+                    },
+                    PoolDetailAccount {
+                        id: "PA-2".to_string(),
+                        status: "pending".to_string(),
+                        value: "1500000000000000000".to_string(),
+                    },
+                ],
+            }),
+            my_funds_warning: None,
+            recent_activity: Some(vec![PoolDetailActivityEvent {
+                event_type: "withdrawal".to_string(),
+                amount: "0.5 ETH".to_string(),
+                time_label: "5m ago".to_string(),
+                status: "approved".to_string(),
+            }]),
         }
     }
 
@@ -905,6 +1029,7 @@ mod extended_tests {
         assert_eq!(with_chain["asset"], Value::String("ETH".to_string()));
         assert_eq!(with_chain["decimals"], Value::Number(18.into()));
         assert_eq!(with_chain["pendingDepositsCount"], Value::Number(7.into()));
+        assert_eq!(with_chain["myPoolAccountsCount"], Value::Number(0.into()));
 
         let without_chain = pool_entry_to_json(&entry, false);
         assert!(without_chain.get("chain").is_none());
@@ -919,6 +1044,7 @@ mod extended_tests {
         let sparse_json = pool_entry_to_json(&sparse, false);
         assert_eq!(sparse_json["totalInPoolValue"], Value::Null);
         assert_eq!(sparse_json["totalDepositsCount"], Value::Null);
+        assert_eq!(sparse_json["myPoolAccountsCount"], Value::Number(0.into()));
     }
 
     #[test]
@@ -1009,5 +1135,83 @@ mod extended_tests {
             payload["nextActions"][0]["cliCommand"],
             Value::String("privacy-pools status --agent --chain sepolia".to_string())
         );
+    }
+
+    #[test]
+    fn render_pools_empty_output_covers_supported_modes() {
+        let single_chain = sample_pools_render_data(false);
+        render_pools_empty_output(&json_mode(), single_chain.clone());
+        render_pools_empty_output(&csv_mode(), single_chain.clone());
+        render_pools_empty_output(&quiet_mode(), single_chain.clone());
+        render_pools_empty_output(&table_mode(), single_chain);
+
+        let mut all_chains = sample_pools_render_data(true);
+        all_chains.filtered_pools.clear();
+        render_pools_empty_output(&table_mode(), all_chains);
+    }
+
+    #[test]
+    fn render_pools_output_covers_json_csv_empty_and_human_variants() {
+        let mut json_all_chains = sample_pools_render_data(true);
+        json_all_chains.search = Some("ETH".to_string());
+        json_all_chains.warnings = vec![sample_warning()];
+        render_pools_output(&json_mode(), json_all_chains.clone());
+        render_pools_output(&csv_mode(), json_all_chains.clone());
+
+        let mut json_single_chain = sample_pools_render_data(false);
+        json_single_chain.search = Some("ETH".to_string());
+        render_pools_output(&json_mode(), json_single_chain.clone());
+        render_pools_output(&csv_mode(), json_single_chain.clone());
+        render_pools_output(&quiet_mode(), json_single_chain.clone());
+
+        let mut empty_with_search = sample_pools_render_data(false);
+        empty_with_search.filtered_pools.clear();
+        empty_with_search.search = Some("zzz".to_string());
+        render_pools_output(&table_mode(), empty_with_search);
+
+        let mut empty_all_chains = sample_pools_render_data(true);
+        empty_all_chains.filtered_pools.clear();
+        render_pools_output(&table_mode(), empty_all_chains);
+
+        let mut single_chain_wide = sample_pools_render_data(false);
+        single_chain_wide.search = Some("ETH".to_string());
+        single_chain_wide.warnings = vec![sample_warning()];
+        render_pools_output(&wide_mode(), single_chain_wide);
+
+        let all_chains_wide = sample_pools_render_data(true);
+        render_pools_output(&wide_mode(), all_chains_wide);
+    }
+
+    #[test]
+    fn render_pool_detail_output_covers_wallet_and_activity_variants() {
+        let ready = sample_detail_data();
+        render_pool_detail_output(&quiet_mode(), ready.clone());
+        render_pool_detail_output(&table_mode(), ready.clone());
+
+        let mut mixed_status = sample_detail_data();
+        mixed_status.my_funds = Some(PoolDetailMyFunds {
+            balance: "4000000000000000000".to_string(),
+            usd_value: None,
+            pool_accounts: 3,
+            pending_count: 1,
+            poa_required_count: 1,
+            declined_count: 1,
+            accounts: vec![],
+        });
+        mixed_status.my_funds_warning = Some("Balance may be stale.".to_string());
+        mixed_status.recent_activity = None;
+        render_pool_detail_output(&table_mode(), mixed_status);
+
+        let mut warning_only = sample_detail_data();
+        warning_only.my_funds = None;
+        warning_only.my_funds_warning = Some("Wallet sync unavailable.".to_string());
+        warning_only.recent_activity = Some(vec![]);
+        render_pool_detail_output(&table_mode(), warning_only);
+
+        let mut read_only = sample_detail_data();
+        read_only.my_funds = None;
+        read_only.my_funds_warning = None;
+        read_only.recent_activity = None;
+        render_pool_detail_output(&table_mode(), read_only);
     }
 }

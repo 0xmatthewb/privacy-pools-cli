@@ -5,10 +5,11 @@ let firstRunMessageShown = false;
 
 export interface ProofProgressController {
   readonly isFirstRun: boolean;
-  markVerificationPhase(): void;
+  markArtifactVerificationPhase(): void;
   markBuildWitnessPhase(): void;
   markGenerateProofPhase(): void;
   markFinalizeProofPhase(): void;
+  markVerifyProofPhase(): void;
 }
 
 /** @internal Exported for test isolation only. */
@@ -87,11 +88,13 @@ export async function withProofProgress<T>(
         { after: 8, label: "build witness" },
         { after: 18, label: "generate proof" },
         { after: 35, label: "finalize proof" },
+        { after: 42, label: "verify proof" },
       ]
     : [
         { after: 0, label: "build witness" },
         { after: 10, label: "generate proof" },
         { after: 28, label: "finalize proof" },
+        { after: 35, label: "verify proof" },
       ];
   const start = Date.now();
   let manualPhaseActive = false;
@@ -138,7 +141,7 @@ export async function withProofProgress<T>(
 
   const progress: ProofProgressController = {
     isFirstRun,
-    markVerificationPhase() {
+    markArtifactVerificationPhase() {
       setManualPhase("verify circuits if needed", { verificationOnly: true });
     },
     markBuildWitnessPhase() {
@@ -149,6 +152,9 @@ export async function withProofProgress<T>(
     },
     markFinalizeProofPhase() {
       setManualPhase("finalize proof");
+    },
+    markVerifyProofPhase() {
+      setManualPhase("verify proof");
     },
   };
 

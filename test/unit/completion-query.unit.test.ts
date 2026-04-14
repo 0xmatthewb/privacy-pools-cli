@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CHAINS } from "../../src/config/chains.ts";
+import { saveAccount } from "../../src/services/account-storage.ts";
+import { saveWorkflowSnapshot } from "../../src/services/workflow.ts";
+import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
+import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 import {
   detectCompletionShell,
   isCompletionShell,
@@ -19,7 +23,14 @@ describe("completion query helpers", () => {
     } else {
       process.env.PRIVACY_POOLS_HOME = ORIGINAL_PRIVACY_POOLS_HOME;
     }
+    cleanupTrackedTempDirs();
   });
+
+  function createCompletionHome(prefix: string): string {
+    const home = createTrackedTempDir(prefix);
+    process.env.PRIVACY_POOLS_HOME = home;
+    return home;
+  }
 
   test("detects supported shells and defaults Windows to PowerShell", () => {
     expect(isCompletionShell("bash")).toBe(true);
@@ -46,6 +57,14 @@ describe("completion query helpers", () => {
     expect(candidates).toContain("withdraw");
     expect(candidates).toContain("--chain");
     expect(candidates).toContain("--agent");
+  });
+
+  test("normalizes empty argv and bare prefixes without requiring the command name", () => {
+    expect(queryCompletionCandidates([], 1)).toEqual(
+      expect.arrayContaining(["flow", "withdraw", "--chain"]),
+    );
+
+    expect(queryCompletionCandidates(["flo"], 1)).toEqual(["flow"]);
   });
 
   test("suggests flow subcommands with prefix filtering", () => {
@@ -78,7 +97,7 @@ describe("completion query helpers", () => {
   });
 
   test("suggests local asset symbols for positional and flag-based asset slots", () => {
-    const configHome = join(tmpdir(), `pp-completion-assets-${Date.now()}`);
+    const configHome = createCompletionHome("pp-completion-assets-");
     mkdirSync(configHome, { recursive: true });
     writeFileSync(
       join(configHome, "config.json"),
@@ -118,6 +137,148 @@ describe("completion query helpers", () => {
     } finally {
       rmSync(configHome, { recursive: true, force: true });
     }
+  });
+
+  test("suggests pool account candidates from the default chain and flag=value form", () => {
+    const configHome = createCompletionHome("pp-completion-pool-accounts-");
+    writeFileSync(
+      join(configHome, "config.json"),
+      JSON.stringify({ defaultChain: "sepolia" }),
+      "utf8",
+    );
+    saveAccount(CHAINS.sepolia.id, {
+      poolAccounts: new Map([[1n, [{}, {}, {}]]]),
+    });
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "withdraw", "--pool-account", ""],
+        3,
+      ),
+    ).toEqual(["PA-1", "PA-2", "PA-3"]);
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "ragequit", "--pool-account=PA-"],
+        2,
+      ),
+    ).toEqual(["--pool-account=PA-1", "--pool-account=PA-2", "--pool-account=PA-3"]);
+  });
+
+  test("scans all account files when no chain context is available", () => {
+    createCompletionHome("pp-completion-account-scan-");
+    saveAccount(CHAINS.mainnet.id, {
+      poolAccounts: new Map([[1n, [{}, {}]]]),
+    });
+    saveAccount(CHAINS.arbitrum.id, {
+      poolAccounts: new Map([[2n, [{}, {}, {}]]]),
+    });
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "withdraw", "--pool-account", ""],
+        3,
+      ),
+    ).toEqual(["PA-1", "PA-2", "PA-3"]);
+  });
+
+  test("suggests profiles for global flags and config profile use", () => {
+    const configHome = createCompletionHome("pp-completion-profiles-");
+    mkdirSync(join(configHome, "profiles", "alpha"), { recursive: true });
+    mkdirSync(join(configHome, "profiles", "beta"), { recursive: true });
+
+    expect(
+      queryCompletionCandidates(["privacy-pools", "--profile", ""], 2),
+    ).toEqual(["alpha", "beta", "default"]);
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "config", "profile", "use", ""],
+        4,
+      ),
+    ).toEqual(["alpha", "beta", "default"]);
+  });
+
+  test("suggests saved workflow ids for flow commands", () => {
+    createCompletionHome("pp-completion-workflows-");
+    saveWorkflowSnapshot({
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+      workflowId: "wf-alpha",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      phase: "approved_ready_to_withdraw",
+      chain: "mainnet",
+      asset: "ETH",
+      depositAmount: "100000000000000000",
+      recipient: "0x1111111111111111111111111111111111111111",
+    });
+    saveWorkflowSnapshot({
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+      workflowId: "wf-beta",
+      createdAt: "2026-01-02T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      phase: "approved_ready_to_withdraw",
+      chain: "mainnet",
+      asset: "ETH",
+      depositAmount: "200000000000000000",
+      recipient: "0x2222222222222222222222222222222222222222",
+    });
+
+    expect(
+      queryCompletionCandidates(["privacy-pools", "flow", "watch", ""], 3),
+    ).toEqual(["latest", "wf-alpha", "wf-beta"]);
+
+    expect(
+      queryCompletionCandidates(["privacy-pools", "flow", "ragequit", "wf-b"], 3),
+    ).toEqual(["wf-beta"]);
+  });
+
+  test("resolves chain-specific asset suggestions from --chain=value", () => {
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "--chain=op-sepolia", "deposit", "0.1", ""],
+        4,
+      ),
+    ).toEqual(["WETH"]);
+  });
+
+  test("resolves chain-specific asset suggestions from split --chain flags", () => {
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "--chain", "op-sepolia", "deposit", "0.1", ""],
+        5,
+      ),
+    ).toEqual(["WETH"]);
+  });
+
+  test("falls back to global asset suggestions when the saved config is unreadable", () => {
+    const configHome = createCompletionHome("pp-completion-bad-config-");
+    writeFileSync(join(configHome, "config.json"), "{", "utf8");
+
+    expect(
+      queryCompletionCandidates(["privacy-pools", "deposit", "0.1", ""], 3),
+    ).toEqual(expect.arrayContaining(["ETH", "USDC", "USDT", "WETH"]));
+  });
+
+  test("supports split --chain pool-account completions and profile fallbacks", () => {
+    const configHome = createCompletionHome("pp-completion-split-chain-");
+    saveAccount(CHAINS.sepolia.id, {
+      poolAccounts: new Map([[1n, [{}, {}]]]),
+    });
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "withdraw", "--chain", "sepolia", "--pool-account", ""],
+        5,
+      ),
+    ).toEqual(["PA-1", "PA-2"]);
+
+    rmSync(join(configHome, "profiles"), { recursive: true, force: true });
+    writeFileSync(join(configHome, "profiles"), "not-a-directory", "utf8");
+
+    expect(
+      queryCompletionCandidates(["privacy-pools", "--profile", ""], 2),
+    ).toEqual(["default"]);
   });
 
   test("normalizes alternate binary names and custom specs", () => {

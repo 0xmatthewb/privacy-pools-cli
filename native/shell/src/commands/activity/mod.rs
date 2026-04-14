@@ -27,8 +27,8 @@ pub fn handle_activity_native(
     let mode = resolve_mode(parsed);
     let opts = parse_activity_options(argv)?;
     let timeout_ms = parse_timeout_ms(argv);
-    let mut loading = (!mode.is_json() && !mode.is_quiet && !mode.is_csv())
-        .then(|| start_spinner("Fetching public activity..."));
+    let mut loading =
+        (!mode.is_json() && !mode.is_quiet).then(|| start_spinner("Fetching public activity..."));
 
     if let Some(asset) = opts.asset.as_deref() {
         let config = load_config()?;

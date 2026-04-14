@@ -2879,7 +2879,12 @@ export async function executeRelayedWithdrawalForFlow(params: {
   validatePositive(withdrawalAmount, "Flow withdrawal amount");
 
   writeWorkflowNarrativeProgress(
-    ["ASP ready", "Request relayer quote", "Generate proof and submit withdrawal"],
+    [
+      "ASP ready",
+      "Request relayer quote",
+      "Generate and verify withdrawal proof",
+      "Submit withdrawal to relayer",
+    ],
     1,
     silent,
     "Requesting a fresh relayer quote for the saved full-balance withdrawal.",
@@ -3025,10 +3030,15 @@ export async function executeRelayedWithdrawalForFlow(params: {
   );
 
   writeWorkflowNarrativeProgress(
-    ["ASP ready", "Request relayer quote", "Generate proof and submit withdrawal"],
+    [
+      "ASP ready",
+      "Request relayer quote",
+      "Generate and verify withdrawal proof",
+      "Submit withdrawal to relayer",
+    ],
     2,
     silent,
-    "Building the withdrawal proof and handing it to the relayer.",
+    "Generating and locally verifying the withdrawal proof.",
   );
   await assertLatestRootUnchanged(
     "Pool state changed while preparing the workflow proof.",
@@ -3041,7 +3051,7 @@ export async function executeRelayedWithdrawalForFlow(params: {
   });
   const proof = await withProofProgress(
     withdrawSpin,
-    "Generating ZK proof",
+    "Generating and verifying ZK proof",
     (progress) =>
       proveWithdrawal(selectedPoolAccount.commitment, {
         context: contextValue,
@@ -3092,6 +3102,17 @@ export async function executeRelayedWithdrawalForFlow(params: {
     }
   }
 
+  writeWorkflowNarrativeProgress(
+    [
+      "ASP ready",
+      "Request relayer quote",
+      "Generate and verify withdrawal proof",
+      "Submit withdrawal to relayer",
+    ],
+    3,
+    silent,
+    "Submitting the signed and verified withdrawal request to the relayer.",
+  );
   withdrawSpin.text = "Submitting to relayer...";
   const submissionPendingSnapshot = await saveWorkflowSnapshotIfChangedWithLock(
     snapshot,
@@ -3430,18 +3451,17 @@ async function executeRagequitForFlow(params: {
       "Workflow ragequit transactions must be sent by the original deposit address. Retry when RPC access is available.",
     );
   }
-
   writeWorkflowNarrativeProgress(
-    ["Generate commitment proof", "Submit public recovery"],
+    ["Generate and verify commitment proof", "Submit public recovery"],
     0,
     silent,
-    "Building the proof required for public recovery.",
+    "Generating and locally verifying the proof required for public recovery.",
   );
-  const ragequitSpin = spinner("Generating commitment proof...", silent);
+  const ragequitSpin = spinner("Generating and verifying commitment proof...", silent);
   ragequitSpin.start();
   const proof = await withProofProgress(
     ragequitSpin,
-    "Generating commitment proof",
+    "Generating and verifying commitment proof",
     (progress) =>
       proveCommitment(
         commitment.value,
@@ -3451,14 +3471,12 @@ async function executeRagequitForFlow(params: {
         { progress },
       ),
   );
-
   writeWorkflowNarrativeProgress(
-    ["Generate commitment proof", "Submit public recovery"],
+    ["Generate and verify commitment proof", "Submit public recovery"],
     1,
     silent,
-    "Submitting the public recovery transaction.",
+    "Simulating and submitting the public recovery transaction.",
   );
-  ragequitSpin.text = "Submitting ragequit transaction...";
   const submissionPendingSnapshot = await saveWorkflowSnapshotIfChangedWithLock(
     snapshot,
     markPendingSubmission(snapshot, "ragequit"),
@@ -3472,6 +3490,10 @@ async function executeRagequitForFlow(params: {
       toRagequitSolidityProof(proof),
       globalOpts?.rpcUrl,
       signerPrivateKey,
+      {
+        onSimulating: () => { ragequitSpin.text = "Simulating ragequit transaction..."; },
+        onBroadcasting: () => { ragequitSpin.text = "Submitting ragequit transaction..."; },
+      },
     );
   } catch (error) {
     try {
@@ -4034,7 +4056,9 @@ export async function startWorkflow(
   const config = loadConfig();
   const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
   const pool = await resolvePool(chainConfig, assetInput, globalOpts?.rpcUrl);
-  const amount = parseAmount(amountInput, pool.decimals);
+  const amount = parseAmount(amountInput, pool.decimals, {
+    allowNegative: true,
+  });
   validatePositive(amount, "Deposit amount");
 
   if (amount < pool.minimumDepositAmount) {

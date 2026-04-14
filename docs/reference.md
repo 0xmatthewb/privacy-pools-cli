@@ -8,7 +8,7 @@ Detailed command reference for the Privacy Pools CLI. For a quick overview, see 
 
 ### `init`
 
-Initialize wallet and configuration
+Initialize or restore your Privacy Pools account
 
 Creates or imports the local Privacy Pools wallet state under ~/.privacy-pools/. The recovery phrase controls deposit privacy and account restoration, while the signer key pays gas and submits transactions; they are intentionally separate secrets. When you generate a fresh wallet, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files. If you are moving from the website to the CLI, the smoothest restore path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download). Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
 
@@ -58,7 +58,7 @@ printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-ph
 
 ### `upgrade`
 
-Check npm for updates or upgrade this CLI
+Check for CLI updates
 
 Checks npm for the latest published privacy-pools-cli version and can upgrade a supported global npm install in place. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and other ambiguous contexts never mutate; the CLI returns manual guidance plus an exact follow-up npm command. Machine modes (--json / --agent) stay check-only unless --yes is also present.
 
@@ -172,7 +172,7 @@ privacy-pools config path --agent
 
 ### `flow`
 
-Guided deposit-to-private-withdrawal workflow
+Deposit and privately withdraw in one guided workflow
 
 Top-level namespace for the persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands. In an interactive TTY, bare 'privacy-pools flow' opens a picker for start/watch/status/ragequit. Non-interactive calls keep standard help behavior. `privacyDelayConfigured = false` in flow JSON means a legacy saved workflow was normalized to `off` without an explicitly saved privacy-delay policy. Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.
 
@@ -309,11 +309,11 @@ privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 
 ### `pools`
 
-List available pools and assets
+Browse available pools
 
 **Usage:** `privacy-pools pools [asset] [options]`
 
-Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets too.
+Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets.
 
 **Basic:**
 
@@ -339,7 +339,7 @@ privacy-pools pools --agent --chain mainnet
 
 | Flag | Description |
 |------|-------------|
-| `--all-chains` | Include testnet chains (default: Ethereum, Arbitrum, Optimism mainnets only) |
+| `--all-chains` | Include supported testnets (default: CLI-supported mainnet chains only) |
 | `--search <query>` | Filter by chain/symbol/address/scope |
 | `--sort <mode>` | Sort mode (default, asset-asc, asset-desc, tvl-desc, tvl-asc, deposits-desc, deposits-asc, chain-asset) |
 
@@ -351,7 +351,7 @@ privacy-pools pools --agent --chain mainnet
 
 ### `activity`
 
-Show public activity feed
+View recent deposits and withdrawals across pools
 
 **Usage:** `privacy-pools activity [asset] [options]`
 
@@ -381,7 +381,7 @@ privacy-pools activity --asset USDC --agent --chain mainnet
 
 ### `stats`
 
-Show public statistics
+View pool and network statistics
 
 ```bash
 privacy-pools stats global
@@ -421,7 +421,7 @@ privacy-pools stats pool --asset USDC --agent --chain mainnet
 
 ### `describe`
 
-Describe one command for runtime agent introspection
+Describe a command's flags, args, and output schema
 
 **Usage:** `privacy-pools describe [command] [options]`
 
@@ -437,7 +437,7 @@ privacy-pools describe stats global --agent
 
 ### `deposit`
 
-Deposit funds into a Privacy Pool
+Deposit ETH or ERC-20 tokens into a pool
 
 **Usage:** `privacy-pools deposit <amount> [asset] [options]`
 
@@ -485,7 +485,7 @@ privacy-pools deposit 0.1 ETH --unsigned
 
 ### `withdraw`
 
-Privately withdraw funds via relayer
+Withdraw privately from a pool
 
 **Usage:** `privacy-pools withdraw [amount] [asset] [options]`
 
@@ -565,7 +565,7 @@ privacy-pools withdraw quote 100 USDC --agent --chain mainnet
 
 ### `accounts`
 
-List your Pool Accounts with balances
+View balances, approval status, and pool accounts
 
 Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --all-chains to include supported testnets. Compact modes like --summary and --pending-only are intended for agent polling loops so they do not have to parse the full account dataset on every check. Use --status <status> to filter by approved/pending/poa_required/declined/unknown/spent/exited. Human-only --watch is a 15-second pending poll loop that stops when pending results reach zero or on Ctrl-C.
 
@@ -597,7 +597,7 @@ privacy-pools accounts --no-sync --chain mainnet
 | Flag | Description |
 |------|-------------|
 | `--no-sync` | Use cached data (faster, but may be stale) |
-| `--all-chains` | Include testnet chains (default: Ethereum, Arbitrum, Optimism mainnets only) |
+| `--all-chains` | Include supported testnets (default: CLI-supported mainnet chains only) |
 | `--details` | Show additional details per Pool Account |
 | `--summary` | Show counts and balances only |
 | `--pending-only` | Show only pending ASP approvals |
@@ -612,7 +612,7 @@ privacy-pools accounts --no-sync --chain mainnet
 
 ### `migrate`
 
-Inspect legacy migration readiness on CLI-supported chains
+Check migration status for legacy pool accounts
 
 Read-only command for legacy pre-upgrade accounts on chains currently supported by the CLI. It rebuilds the legacy account view from the installed SDK plus current onchain events, then reports whether the Privacy Pools website migration flow or website-based recovery is needed. The CLI does not submit legacy migrations. Use the Privacy Pools website for actual migration or website-based recovery.
 
@@ -624,9 +624,9 @@ privacy-pools migrate status --all-chains --agent
 
 ### `migrate status`
 
-Show legacy migration readiness on CLI-supported chains
+Check migration status for legacy pool accounts
 
-Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include testnets.
+Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include supported testnets.
 
 ```bash
 privacy-pools migrate status
@@ -636,7 +636,7 @@ privacy-pools migrate status --all-chains --agent
 
 | Flag | Description |
 |------|-------------|
-| `--all-chains` | Include testnet chains (mainnet chains shown by default) |
+| `--all-chains` | Include supported testnets (default: CLI-supported mainnet chains only) |
 
 **Safety:** This command is read-only. It never submits migration transactions and does not persist rebuilt account state.
 **Safety:** When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.
@@ -646,7 +646,7 @@ privacy-pools migrate status --all-chains --agent
 
 ### `history`
 
-Show chronological event history (deposits, migrations, withdrawals, ragequits)
+View your deposit and withdrawal history
 
 **Basic:**
 
@@ -672,7 +672,7 @@ privacy-pools history --no-sync --chain mainnet
 
 ### `sync`
 
-Force-sync local account state from onchain events
+Sync account state with the latest onchain data
 
 **Usage:** `privacy-pools sync [asset] [options]`
 
@@ -688,7 +688,7 @@ privacy-pools sync --chain mainnet
 
 ### `status`
 
-Show configuration and check connection health
+Check account setup and network status
 
 Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. When a chain is selected, status runs both RPC and ASP health checks by default. Use --check to force both, --no-check to disable both, or --check-rpc / --check-asp to run only one check. When status falls back to recommendedMode = read-only because RPC health is degraded, nextActions stays on public discovery and avoids account-state guidance until connectivity is restored. When only the ASP is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow.
 
@@ -719,7 +719,7 @@ privacy-pools status --chain mainnet --rpc-url https://...
 
 ### `ragequit`
 
-Publicly recover funds to your original deposit address (self-custody guarantee)
+Recover funds publicly to your deposit address
 
 **Usage:** `privacy-pools ragequit [asset] [options]`
 
@@ -758,7 +758,7 @@ privacy-pools ragequit ETH --dry-run --pool-account PA-1
 
 ### `guide`
 
-Show usage guide, workflow, and reference
+Learn key concepts, workflows, and troubleshooting
 
 **Usage:** `privacy-pools guide [topic] [options]`
 
@@ -771,7 +771,7 @@ privacy-pools guide --agent
 
 ### `completion`
 
-Generate or install shell completion
+Generate or install shell tab completion
 
 **Usage:** `privacy-pools completion [shell] [options]`
 
@@ -795,7 +795,7 @@ privacy-pools completion powershell >> $PROFILE
 
 ### `capabilities`
 
-Describe CLI capabilities for agent discovery
+Describe CLI capabilities for agents
 
 ```bash
 privacy-pools capabilities
@@ -852,7 +852,7 @@ privacy-pools deposit 0.1 ETH --unsigned tx --json
 
 # Works with withdraw and ragequit too
 privacy-pools withdraw 0.05 ETH --to 0xRecipient... --unsigned --json
-privacy-pools ragequit ETH --from-pa PA-1 --unsigned --json
+privacy-pools ragequit ETH --pool-account PA-1 --unsigned --json
 ```
 
 ## Dry Run
@@ -862,7 +862,7 @@ Validate inputs, check balances, and generate proofs without submitting anything
 ```bash
 privacy-pools deposit 0.1 ETH --dry-run
 privacy-pools withdraw 0.05 ETH --to 0xRecipient... --dry-run
-privacy-pools ragequit ETH --from-pa PA-1 --dry-run
+privacy-pools ragequit ETH --pool-account PA-1 --dry-run
 ```
 
 ## Installation Notes

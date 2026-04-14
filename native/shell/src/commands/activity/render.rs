@@ -126,7 +126,7 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
     write_stderr_text(&format_section_heading("Summary"));
     let mut summary_rows = vec![
         ("Mode", data.mode.to_string()),
-        ("Scope", chain_label.clone()),
+        ("Chain", chain_label.clone()),
         ("Page", data.page.to_string()),
         ("Results", data.events.len().to_string()),
     ];

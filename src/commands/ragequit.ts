@@ -304,7 +304,7 @@ export async function handleRagequitCommand(
     process.stderr.write(
       `\n${renderNarrativeSteps(createNarrativeSteps([
         "Account synced",
-        "Generate commitment proof",
+        "Generate and verify commitment proof",
         "Submit ragequit",
       ], activeIndex, note))}`,
     );
@@ -444,10 +444,10 @@ export async function handleRagequitCommand(
         stage: {
           step: 2,
           total: 3,
-          label: "Generating commitment proof",
+          label: "Generating and verifying commitment proof",
         },
-        spinnerText: "Generating commitment proof...",
-        doneText: "Commitment proof ready.",
+        spinnerText: "Generating and verifying commitment proof...",
+        doneText: "Commitment proof generated and verified.",
       })
     ) {
       return;
@@ -854,13 +854,13 @@ export async function handleRagequitCommand(
       // Generate commitment proof
       writeRagequitProgress(
         1,
-        "Building the proof required for ragequit.",
+        "Generating and locally verifying the proof required for ragequit.",
       );
       spin.start();
 
       const proof = await withProofProgress(
         spin,
-        "Generating commitment proof",
+        "Generating and verifying commitment proof",
         (progress) =>
           proveCommitment(
             commitment.value,
@@ -930,15 +930,23 @@ export async function handleRagequitCommand(
       // Submit ragequit
       writeRagequitProgress(
         2,
-        "Submitting the ragequit transaction.",
+        "Simulating and submitting the ragequit transaction.",
       );
       const solidityProof = toRagequitSolidityProof(proof);
-      spin.text = "Submitting ragequit transaction...";
       const tx = await submitRagequit(
         chainConfig,
         pool.pool,
         solidityProof,
         globalOpts?.rpcUrl,
+        undefined,
+        {
+          onSimulating: () => {
+            spin.text = "Simulating ragequit transaction...";
+          },
+          onBroadcasting: () => {
+            spin.text = "Submitting ragequit transaction...";
+          },
+        },
       );
 
       spin.text = "Waiting for confirmation...";

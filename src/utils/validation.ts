@@ -63,10 +63,13 @@ export function validateAddress(
 
 export function parseAmount(
   value: string,
-  decimals: number
+  decimals: number,
+  options: { allowNegative?: boolean } = {},
 ): bigint {
   const trimmed = value.trim();
-  if (!/^-?\d*\.?\d+$/.test(trimmed)) {
+  const allowNegative = options.allowNegative === true;
+  const amountPattern = allowNegative ? /^-?\d*\.?\d+$/ : /^\d*\.?\d+$/;
+  if (!amountPattern.test(trimmed)) {
     throw new CLIError(
       `Invalid amount: ${value}`,
       "INPUT",
