@@ -27,21 +27,20 @@ defineScenarioSuite("status/init acceptance", [
     "init persists config and signer state for status",
     [
       async (ctx) => {
-        const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(ctx.home);
+        const { privateKeyPath } = writeTestSecretFiles(ctx.home);
         ctx.lastResult = ctx.runCli(
           [
             "--json",
             "init",
-            "--recovery-phrase-file",
-            mnemonicPath,
             "--private-key-file",
             privateKeyPath,
             "--default-chain",
             "sepolia",
+            "--show-recovery-phrase",
             "--yes",
           ],
           {
-            timeoutMs: 60_000,
+            timeoutMs: 30_000,
           },
         );
       },

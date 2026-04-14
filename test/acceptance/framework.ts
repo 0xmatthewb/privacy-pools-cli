@@ -107,7 +107,25 @@ export function runBuiltCliStep(
 export function assertExit(expected: number | null): ScenarioStep {
   return (ctx) => {
     expect(ctx.lastResult).not.toBeNull();
-    expect(ctx.lastResult?.status ?? null).toBe(expected);
+    const result = ctx.lastResult;
+    const actual = result?.status ?? null;
+    if (actual === expected) {
+      return;
+    }
+
+    const stderrPreview = (result?.stderr ?? "").trim().slice(0, 200);
+    const stdoutPreview = (result?.stdout ?? "").trim().slice(0, 200);
+    const details = [
+      `expected exit ${String(expected)} but received ${String(actual)}`,
+      `signal=${result?.signal ?? "null"}`,
+      `timedOut=${result?.timedOut ?? false}`,
+      `elapsedMs=${result?.elapsedMs ?? 0}`,
+      `error=${result?.errorMessage ?? "none"}`,
+      `stderr=${stderrPreview === "" ? "<empty>" : JSON.stringify(stderrPreview)}`,
+      `stdout=${stdoutPreview === "" ? "<empty>" : JSON.stringify(stdoutPreview)}`,
+    ].join("; ");
+
+    throw new Error(details);
   };
 }
 

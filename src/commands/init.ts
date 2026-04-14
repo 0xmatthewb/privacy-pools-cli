@@ -125,9 +125,18 @@ interface InitPlan {
   replacingExisting: boolean;
 }
 
+const INIT_TEST_SENTINELS_ENV = "PRIVACY_POOLS_TEST_INIT_SENTINELS";
 const RECOVERY_VERIFICATION_WORDS = [3, 12, 24] as const;
 
 export { createInitCommand } from "../command-shells/init.js";
+
+function withInitTestSentinel(name: string, message: string): string {
+  if (process.env[INIT_TEST_SENTINELS_ENV]?.trim() !== "1") {
+    return message;
+  }
+
+  return `[pp-init:${name}] ${message}`;
+}
 
 function buildRecoveryBackupContents(mnemonic: string): string {
   return [
@@ -378,12 +387,12 @@ async function promptForWorkflowGoal(
         signerKeyReady: state.signerKeyValid,
       }),
     );
-  if (await maybeRenderPreviewScenario("init setup mode")) {
+    if (await maybeRenderPreviewScenario("init setup mode")) {
       throw new PreviewScenarioRenderedError();
     }
     ensurePromptInteractionAvailable();
     const goal = await select({
-      message: "How would you like to get started?",
+      message: withInitTestSentinel("goal", "How would you like to get started?"),
       choices: [
         {
           name: "Create a new Privacy Pools account",
@@ -411,12 +420,12 @@ async function promptForWorkflowGoal(
         signerKeyReady: true,
       }),
     );
-  if (await maybeRenderPreviewScenario("init setup mode")) {
+    if (await maybeRenderPreviewScenario("init setup mode")) {
       throw new PreviewScenarioRenderedError();
     }
     ensurePromptInteractionAvailable();
     const configuredGoal = await select({
-      message: "What would you like to do?",
+      message: withInitTestSentinel("goal", "What would you like to do?"),
       choices: [
         {
           name: "Add or replace the signer key",
@@ -460,7 +469,7 @@ async function promptForWorkflowGoal(
   }
   ensurePromptInteractionAvailable();
   const goal = await select({
-    message: "What would you like to do?",
+    message: withInitTestSentinel("goal", "What would you like to do?"),
     choices: [
       {
         name: "Add or replace the signer key",
@@ -625,7 +634,10 @@ async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<string> {
   }
   ensurePromptInteractionAvailable();
   const phrase = await password({
-    message: "Recovery phrase (12 or 24 words):",
+    message: withInitTestSentinel(
+      "load-recovery",
+      "Recovery phrase (12 or 24 words):",
+    ),
     mask: "*",
   });
   const trimmed = phrase.trim();

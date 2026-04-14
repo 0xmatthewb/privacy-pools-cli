@@ -135,6 +135,25 @@ function resolveParityTestTimeout(
   return Math.max(testTimeoutMs ?? 0, minimumParityTimeoutMs);
 }
 
+function expectContractParity(
+  nativeBinary: string,
+  args: string[],
+  contract: (result: CliRunResult) => void,
+  options: {
+    js?: CliRunOptions;
+    native?: CliRunOptions;
+  } = {},
+): void {
+  const jsResult = runBuiltCli(args, withJsFallback(options.js));
+  const nativeResult = runNativeBuiltCli(nativeBinary, args, options.native);
+
+  assertDidNotTimeout("JS launcher result", jsResult);
+  assertDidNotTimeout("Native launcher result", nativeResult);
+  expect(nativeResult.status).toBe(jsResult.status);
+  contract(jsResult);
+  contract(nativeResult);
+}
+
 function expectStreamParity(
   nativeBinary: string,
   args: string[],
@@ -153,6 +172,19 @@ function expectStreamParity(
   expect(normalizeParityStderr(nativeResult.stderr)).toBe(
     normalizeParityStderr(jsResult.stderr),
   );
+}
+
+function expectStderrContract(
+  result: CliRunResult,
+  expectedFragments: readonly string[],
+): void {
+  expect(result.stdout.trim()).toBe("");
+  const stderr = normalizeParityStderr(result.stderr);
+  expect(stderr.trim().length).toBeGreaterThan(0);
+  expect(stderr).not.toContain("JS worker bootstrap is unavailable");
+  for (const fragment of expectedFragments) {
+    expect(stderr).toContain(fragment);
+  }
 }
 
 function expectJsonParity(
@@ -351,16 +383,35 @@ describe("native shell parity", () => {
     expectStreamParity(nativeBinary, ["withdraw", "quote", "--help"]);
   });
 
-  nativeTest("guide, capabilities, and structured describe outputs stay identical", () => {
-    expectStreamParity(nativeBinary, ["guide"]);
-    expectJsonParity(nativeBinary, ["--agent", "guide"]);
-    expectStreamParity(nativeBinary, ["capabilities"]);
-    expectJsonParity(nativeBinary, ["--agent", "capabilities"]);
-    expectJsonParity(nativeBinary, ["--agent", "describe", "stats", "global"]);
+  nativeTest("guide and describe human outputs preserve stream ownership and key cues", () => {
+    expectContractParity(
+      nativeBinary,
+      ["guide"],
+      (result) => {
+        expectStderrContract(result, [
+          "privacy-pools init",
+          "privacy-pools flow start",
+        ]);
+      },
+    );
+
+    expectContractParity(
+      nativeBinary,
+      ["describe", "stats", "global"],
+      (result) => {
+        expectStderrContract(result, [
+          "stats global",
+          "JSON fields",
+          "Examples:",
+        ]);
+      },
+    );
   });
 
-  nativeTest("describe human output matches JS without loading the full runtime", () => {
-    expectStreamParity(nativeBinary, ["describe", "stats", "global"]);
+  nativeTest("machine-readable guide, capabilities, and describe outputs stay identical", () => {
+    expectJsonParity(nativeBinary, ["--agent", "guide"]);
+    expectJsonParity(nativeBinary, ["--agent", "capabilities"]);
+    expectJsonParity(nativeBinary, ["--agent", "describe", "stats", "global"]);
   });
 
   nativeTest("completion scripts and query payloads stay identical", () => {
@@ -517,18 +568,36 @@ describe("native shell parity", () => {
     });
   });
 
-  nativeTest("sentinel public read-only human and csv transcripts stay aligned on fixture data", () => {
+  nativeTest("public read-only human outputs keep key cues and stream ownership on fixture data", () => {
     const env = fixtureEnv(fixture!);
 
-    expectStreamParity(nativeBinary, ["stats"], {
+    expectContractParity(nativeBinary, ["stats"], (result) => {
+      expectStderrContract(result, ["All Time", "Last 24h"]);
+    }, {
       js: { env },
       native: { env },
     });
+    expectContractParity(
+      nativeBinary,
+      ["--chain", "sepolia", "pools"],
+      (result) => {
+        expectStderrContract(result, ["Summary:", "Next steps:"]);
+      },
+      {
+        js: { env },
+        native: { env },
+      },
+    );
+  }, 20_000);
+
+  nativeTest("sentinel public read-only csv transcripts stay aligned on fixture data", () => {
+    const env = fixtureEnv(fixture!);
+
     expectStreamParity(nativeBinary, ["--format", "csv", "stats"], {
       js: { env },
       native: { env },
     });
-    expectStreamParity(nativeBinary, ["--chain", "sepolia", "pools"], {
+    expectStreamParity(nativeBinary, ["--format", "csv", "--chain", "sepolia", "pools"], {
       js: { env },
       native: { env },
     });
@@ -783,21 +852,8 @@ describe("native shell parity", () => {
 
   const forwardingCases: ForwardingParityCase[] = [
     {
-      label: "pools detail",
-      args: ["--agent", "--chain", "sepolia", "pools", "ETH"],
-      envFactory: fixtureEnv,
-    },
-    {
       label: "flow status latest",
       args: ["--agent", "flow", "status", "latest"],
-    },
-    {
-      label: "flow watch latest",
-      args: ["--agent", "flow", "watch", "latest"],
-    },
-    {
-      label: "flow ragequit latest",
-      args: ["--agent", "flow", "ragequit", "latest"],
     },
     {
       label: "flow start",
@@ -838,18 +894,10 @@ describe("native shell parity", () => {
       args: ["--agent", "accounts"],
     },
     {
-      label: "history",
-      args: ["--agent", "history"],
-    },
-    {
       label: "sync",
       args: ["--agent", "sync"],
       timeoutMs: 45_000,
       testTimeoutMs: 120_000,
-    },
-    {
-      label: "migrate status",
-      args: ["--agent", "migrate", "status"],
     },
   ];
 

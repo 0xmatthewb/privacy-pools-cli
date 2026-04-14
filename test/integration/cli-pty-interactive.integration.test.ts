@@ -16,13 +16,8 @@ const python3Available =
 const ptyTest = python3Available ? test : test.skip;
 
 const BANNER_START_PATTERN = /^,---\./m;
-const SETUP_MENU_FRAGMENTS = [
-  "existing privacy pools account",
-  "signer key",
-  "get started",
-];
-const RECOVERY_PROMPT_SENTINEL = "Recovery phrase (12 or 24 words)";
-const CANCELLATION_SENTINEL = "cancel";
+const GOAL_SENTINEL = "[pp-init:goal]";
+const LOAD_RECOVERY_SENTINEL = "[pp-init:load-recovery]";
 
 const PYTHON_PTY_SCRIPT = `
 import json
@@ -79,11 +74,11 @@ while time.time() < deadline:
     text = chunk.decode(errors="replace")
     output += text
 
-    if not selected_replace_path and all(fragment in output.lower() for fragment in ${JSON.stringify(SETUP_MENU_FRAGMENTS)}):
+    if not selected_replace_path and "${GOAL_SENTINEL}" in output:
         os.write(fd, b"\\x1b[B\\n")
         selected_replace_path = True
 
-    if selected_replace_path and not sent_cancel and "${RECOVERY_PROMPT_SENTINEL}" in output:
+    if selected_replace_path and not sent_cancel and "${LOAD_RECOVERY_SENTINEL}" in output:
         os.write(fd, b"\\x03")
         sent_cancel = True
 
@@ -112,6 +107,7 @@ describe("interactive pty flows", () => {
       timeout: 45_000,
       env: buildChildProcessEnv({
         PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+        PRIVACY_POOLS_TEST_INIT_SENTINELS: "1",
         PP_TEST_PTY_CWD: CLI_CWD,
         PP_TEST_PTY_ARGV: JSON.stringify([
           process.platform === "win32" ? "node.exe" : "node",
@@ -137,11 +133,8 @@ describe("interactive pty flows", () => {
     expect(payload.code).toBe(0);
     expect(payload.timedOut).toBe(false);
     expect(payload.sentCancel).toBe(true);
-    for (const fragment of SETUP_MENU_FRAGMENTS) {
-      expect(payload.output.toLowerCase()).toContain(fragment);
-    }
-    expect(payload.output).toContain(RECOVERY_PROMPT_SENTINEL);
-    expect(payload.output.toLowerCase()).toContain(CANCELLATION_SENTINEL);
+    expect(payload.output).toContain(GOAL_SENTINEL);
+    expect(payload.output).toContain(LOAD_RECOVERY_SENTINEL);
     expect(payload.output).not.toMatch(BANNER_START_PATTERN);
   }, 45_000);
 });

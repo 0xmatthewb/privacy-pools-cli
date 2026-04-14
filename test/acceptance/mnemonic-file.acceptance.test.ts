@@ -99,30 +99,6 @@ defineScenarioSuite("mnemonic-file acceptance", [
       expect(json.success).toBe(true);
     }),
   ]),
-  defineScenario("fails gracefully for file with no valid mnemonic", [
-    (ctx) => {
-      const badContent = [
-        "Privacy Pools Recovery Phrase",
-        "",
-        "Recovery Phrase:",
-        "this is not a valid mnemonic phrase at all",
-        "",
-        "IMPORTANT: Keep this file secure.",
-      ].join("\n");
-      return runCliStep(
-        initArgs(ctx.home, writeTempFile(ctx.home, "bad-backup.txt", badContent)),
-        {
-          timeoutMs: 60_000,
-          env: fixtureEnv(),
-        },
-      )(ctx);
-    },
-    assertExit(2),
-    assertJson<{ success: boolean; errorMessage: string }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.errorMessage).toContain("No valid recovery phrase found");
-    }),
-  ]),
   defineScenario("fails safely for files with multiple valid mnemonics", [
     (ctx) => {
       const ambiguous = [

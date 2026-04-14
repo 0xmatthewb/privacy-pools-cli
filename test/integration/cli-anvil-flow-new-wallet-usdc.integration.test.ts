@@ -52,6 +52,8 @@ const relayedRecipient = "0x4444444444444444444444444444444444444444" as const;
 const EXTRA_ETH_BUFFER = 10n ** 16n;
 const FLOW_AMOUNT = "100";
 const FLOW_AMOUNT_RAW = 100_000_000n;
+const FLOW_COMPLETION_TIMEOUT_MS = 120_000;
+const FLOW_CHILD_EXIT_TIMEOUT_MS = 30_000;
 const aspPostman = "0x696fe46495688fc9e99bad2daf2133b33de364ea" as const;
 const dummyCid = "bafybeigdyrzt5usdcsharedanviltests123456789012345678";
 
@@ -240,7 +242,18 @@ async function expectNewWalletUsdcJourneyCompletes(
     );
     await approveUsdcLabel(depositEvent.label);
 
-    const childResult = await waitForChildProcessResult(child, 300_000);
+    const completed = await waitForWorkflowSnapshotPhase(
+      home,
+      "completed",
+      FLOW_COMPLETION_TIMEOUT_MS,
+    );
+    expect(completed.asset).toBe("USDC");
+    expect(completed.walletMode).toBe("new_wallet");
+
+    const childResult = await waitForChildProcessResult(
+      child,
+      FLOW_CHILD_EXIT_TIMEOUT_MS,
+    );
     expect(childResult.code).toBe(0);
     const json = parseJsonOutput<{
       success: boolean;

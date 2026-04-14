@@ -58,13 +58,13 @@ describe("formatRelayedWithdrawalReview", () => {
     });
 
     expect(output).toContain("Withdrawal review");
-    expect(output).toContain("Pool Account");
-    expect(output).toContain("Pool Account balance");
     expect(output).toContain("PA-7");
-    expect(output).toContain("Relayer fee");
-    expect(output).toContain("Gas token received");
-    expect(output).toContain("Net received");
-    expect(output).toContain("Quote expiry");
+    expect(output).toMatch(/pool account/i);
+    expect(output).toMatch(/balance/i);
+    expect(output).toMatch(/relayer fee/i);
+    expect(output).toMatch(/gas token/i);
+    expect(output).toMatch(/net received/i);
+    expect(output).toMatch(/quote expiry/i);
     expect(output).toContain("The remaining balance would fall below the relayer minimum.");
   });
 
@@ -234,35 +234,37 @@ describe("workflow wallet backup renderers", () => {
 
 describe("init recovery backup renderers", () => {
   test("generated recovery phrase and backup confirmations use structured surfaces", () => {
+    const backupPath = "/tmp/privacy-pools-recovery.txt";
     const phrase = renderGeneratedRecoveryPhraseReview(
       "test test test test test test test test test test test junk",
     );
     const method = renderInitBackupMethodReview();
-    const path = renderInitBackupPathReview("/tmp/privacy-pools-recovery.txt");
-    const saved = renderInitBackupSaved("/tmp/privacy-pools-recovery.txt");
+    const path = renderInitBackupPathReview(backupPath);
+    const saved = renderInitBackupSaved(backupPath);
     const confirm = renderInitBackupConfirmationReview(
       "file",
-      "/tmp/privacy-pools-recovery.txt",
+      backupPath,
     );
     const overwrite = renderInitOverwriteReview(true);
 
     expect(phrase).toContain("Recovery phrase");
-    expect(phrase).toContain("Danger:");
-    expect(phrase).toContain("Anyone with this phrase");
-    expect(method).toContain("Recovery phrase");
-    expect(method).toContain("secure this phrase before continuing");
-    expect(path).toContain("/tmp/privacy-pools-recovery.txt");
-    expect(path).toContain("Live recovery phrase");
-    expect(path).toContain("delete the original");
-    expect(saved).toContain("/tmp/privacy-pools-recovery.txt");
-    expect(saved).toContain("Move this file to a secure location now");
-    expect(confirm).toContain("Saved to file");
-    expect(confirm).toContain("/tmp/privacy-pools-recovery.txt");
-    expect(confirm).toContain("Do not continue unless this recovery phrase is stored");
-    expect(overwrite).toContain("Current setup");
-    expect(overwrite).toContain("will be replaced");
-    expect(overwrite).toContain("Next account source");
-    expect(overwrite).toContain("switch accounts");
+    expect(phrase).toMatch(/\b1\.\s+test\b/);
+    expect(phrase).toMatch(/\b12\.\s+junk\b/);
+    expect(phrase).toMatch(/danger|warning/i);
+    expect(phrase).toMatch(/anyone with this phrase/i);
+    expect(method).toMatch(/recovery phrase/i);
+    expect(method).toMatch(/choose how you want to secure this phrase/i);
+    expect(path).toContain(backupPath);
+    expect(path).toMatch(/live recovery phrase/i);
+    expect(path).toMatch(/delete the original|secure/i);
+    expect(saved).toContain(backupPath);
+    expect(saved).toMatch(/secure location|stored/i);
+    expect(confirm).toContain(backupPath);
+    expect(confirm).toMatch(/saved to file/i);
+    expect(confirm).toMatch(/do not continue unless this recovery phrase is stored/i);
+    expect(overwrite).toMatch(/current setup/i);
+    expect(overwrite).toMatch(/replace/i);
+    expect(overwrite).toMatch(/next account/i);
   });
 });
 

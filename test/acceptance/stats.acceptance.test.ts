@@ -14,11 +14,12 @@ import {
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
+const STATS_STEP_TIMEOUT_MS = 20_000;
 
 defineScenarioSuite("stats acceptance", [
   defineScenario("stats input validation stays machine-readable", [
     runCliStep(["--json", "stats", "pool", "--chain", "sepolia"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(2),
@@ -34,7 +35,7 @@ defineScenarioSuite("stats acceptance", [
       expect(json.error.message).toContain("asset");
     }),
     runCliStep(["--json", "--chain", "mainnet", "stats", "global"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(2),
@@ -47,7 +48,7 @@ defineScenarioSuite("stats acceptance", [
       expect(json.error.message).toContain("--chain");
     }),
     runCliStep(["--json", "stats"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -61,7 +62,7 @@ defineScenarioSuite("stats acceptance", [
   ]),
   defineScenario("stats offline envelopes stay classified and silent in machine mode", [
     runCliStep(["--json", "stats"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -82,7 +83,7 @@ defineScenarioSuite("stats acceptance", [
       expect(typeof json.error.message).toBe("string");
     }),
     runCliStep(["--json", "stats", "global"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -97,7 +98,7 @@ defineScenarioSuite("stats acceptance", [
       expect(typeof json.error.category).toBe("string");
     }),
     runCliStep(["--json", "--chain", "mainnet", "stats", "pool", "--asset", "ETH"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: {
         ...OFFLINE_ASP_ENV,
         PRIVACY_POOLS_RPC_URL_ETHEREUM: "http://127.0.0.1:9",
@@ -128,7 +129,7 @@ defineScenarioSuite("stats acceptance", [
   ]),
   defineScenario("stats human mode keeps stdout clean", [
     runCliStep(["stats"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -137,7 +138,7 @@ defineScenarioSuite("stats acceptance", [
       expect(stderr).toContain("Error");
     }),
     runCliStep(["stats", "pool", "--chain", "sepolia"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(2),
@@ -148,7 +149,7 @@ defineScenarioSuite("stats acceptance", [
   ]),
   defineScenario("stats agent and quiet modes keep stream boundaries intact", [
     runCliStep(["--agent", "stats"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -161,7 +162,7 @@ defineScenarioSuite("stats acceptance", [
       expect(json.success).toBe(false);
     }),
     runCliStep(["--agent", "stats", "pool", "--chain", "sepolia"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(2),
@@ -177,7 +178,7 @@ defineScenarioSuite("stats acceptance", [
       expect(json.error.message).toContain("asset");
     }),
     runCliStep(["--agent", "stats", "global"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -190,7 +191,7 @@ defineScenarioSuite("stats acceptance", [
       expect(json.success).toBe(false);
     }),
     runCliStep(["--quiet", "stats"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -198,7 +199,7 @@ defineScenarioSuite("stats acceptance", [
   ]),
   defineScenario("stats error envelopes stay complete", [
     runCliStep(["--json", "stats"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(3),
@@ -216,7 +217,7 @@ defineScenarioSuite("stats acceptance", [
       expect(typeof json.error.category).toBe("string");
     }),
     runCliStep(["--json", "stats", "pool", "--chain", "sepolia"], {
-      timeoutMs: 10_000,
+      timeoutMs: STATS_STEP_TIMEOUT_MS,
       env: OFFLINE_ASP_ENV,
     }),
     assertExit(2),

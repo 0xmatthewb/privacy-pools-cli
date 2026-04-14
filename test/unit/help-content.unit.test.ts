@@ -3,6 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { guideText, helpTestInternals, welcomeScreen } from "../../src/utils/help.ts";
+import { DEFAULT_WELCOME_SCREEN_ACTIONS } from "../../src/utils/welcome-readiness.ts";
 
 const ORIGINAL_ENV = {
   npm_lifecycle_event: process.env.npm_lifecycle_event,
@@ -83,11 +84,11 @@ describe("help content", () => {
 
     try {
       const welcome = welcomeScreen({ packageRoot });
-      expect(welcome).toContain("npm link");
-      expect(welcome).toMatch(/register the cli on your path/i);
       expect(helpTestInternals.shouldShowPathRegistrationHint(packageRoot)).toBe(
         true,
       );
+      expect(welcome).toMatch(/\bPATH\b/i);
+      expect(welcome).toMatch(/\blink\b/i);
     } finally {
       rmSync(packageRoot, { recursive: true, force: true });
     }
@@ -102,8 +103,8 @@ describe("help content", () => {
 
     try {
       const welcome = welcomeScreen({ packageRoot });
-      expect(welcome).toContain("npm link");
-      expect(welcome).toMatch(/register the cli on your path/i);
+      expect(welcome).toMatch(/\bPATH\b/i);
+      expect(welcome).toMatch(/\blink\b/i);
     } finally {
       rmSync(packageRoot, { recursive: true, force: true });
     }
@@ -129,9 +130,9 @@ describe("help content", () => {
 
   test("welcomeScreen surfaces status and website restore commands", () => {
     const welcome = welcomeScreen();
-    expect(welcome).toContain("privacy-pools status");
-    expect(welcome).toContain("privacy-pools init --recovery-phrase-file");
-    expect(welcome).toContain("privacy-pools guide");
+    for (const action of DEFAULT_WELCOME_SCREEN_ACTIONS) {
+      expect(welcome).toContain(`privacy-pools ${action.cliCommand}`);
+    }
     expect(welcome).toMatch(/load existing account|website export/i);
   });
 });

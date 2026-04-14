@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   CORE_REPO,
   fetchGitHubFile,
+  githubTestInternals,
 } from "../helpers/github.ts";
 import { cleanupTrackedTempDir, createTrackedTempDir } from "../helpers/temp.ts";
 
@@ -21,6 +22,8 @@ describe("conformance source helper", () => {
   afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
     globalThis.fetch = ORIGINAL_FETCH;
+    githubTestInternals.clearCaches();
+    githubTestInternals.resetExecFileSyncForTests();
     if (tempRoot) {
       cleanupTrackedTempDir(tempRoot);
     }
@@ -47,5 +50,32 @@ describe("conformance source helper", () => {
       "interface IPrivacyPool {}",
     );
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("cleans up temporary checkout directories when git fallback bootstrap fails", async () => {
+    const repo = "octocat/example-repo";
+    const targetPath = "packages/contracts/src/interfaces/IPrivacyPool.sol";
+    let createdCheckoutDir = "";
+
+    globalThis.fetch = mock(async () => {
+      throw new Error("raw fetch unavailable");
+    }) as typeof fetch;
+
+    githubTestInternals.setExecFileSyncForTests(((file, args) => {
+      expect(file).toBe("git");
+      const gitArgs = args as readonly string[];
+      if (gitArgs[0] === "init") {
+        createdCheckoutDir = gitArgs[2] ?? "";
+      }
+      throw new Error("git bootstrap failed");
+    }) as typeof import("node:child_process").execFileSync);
+
+    await expect(fetchGitHubFile(repo, targetPath)).rejects.toThrow(
+      "raw fetch unavailable",
+    );
+
+    expect(createdCheckoutDir).not.toBe("");
+    expect(existsSync(createdCheckoutDir)).toBe(false);
+    expect(githubTestInternals.getCachedCheckoutDirs()).toEqual([]);
   });
 });

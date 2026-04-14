@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   CLI_CWD,
@@ -20,10 +20,11 @@ import {
   JSON_SCHEMA_VERSION,
   jsonContractDocRelativePath,
 } from "../../src/utils/json.ts";
-import { isSupportedInstallNodeVersion } from "../../scripts/lib/install-verification.mjs";
 
 const PREPARED_CLI_TARBALL = process.env.PP_INSTALL_CLI_TARBALL?.trim() || null;
 const PACK_RETRY_DELAY_MS = 250;
+const PACKAGED_SMOKE_INSTALL_MODE =
+  process.env.PP_PACKAGED_SMOKE_INSTALL?.trim() === "1";
 
 function packedBaseNames(paths: Set<string>, prefix: string): string[] {
   return Array.from(
@@ -142,10 +143,6 @@ function sourcePackageJson(): {
 }
 
 function installPackagedProdDependencies(packageRoot: string): void {
-  if (!isSupportedInstallNodeVersion()) {
-    return;
-  }
-
   const npmCacheDir = createTrackedTempDir("pp-smoke-npm-cache-");
   try {
     const install = spawnSync(
@@ -176,6 +173,30 @@ function installPackagedProdDependencies(packageRoot: string): void {
   }
 }
 
+function linkPackagedRuntimeDependencies(packageRoot: string): void {
+  const sourceNodeModules = join(CLI_CWD, "node_modules");
+  const targetNodeModules = join(packageRoot, "node_modules");
+
+  expect(existsSync(sourceNodeModules)).toBe(true);
+  symlinkSync(
+    sourceNodeModules,
+    targetNodeModules,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+}
+
+function preparePackagedRuntime(packageRoot: string): void {
+  // Full installability is already covered by the install-profile release
+  // verification. This smoke lane focuses on the packed artifact itself and
+  // can usually reuse the repo's dependency tree to stay fast.
+  if (PACKAGED_SMOKE_INSTALL_MODE) {
+    installPackagedProdDependencies(packageRoot);
+    return;
+  }
+
+  linkPackagedRuntimeDependencies(packageRoot);
+}
+
 function packAndExtractCli(
   packRoot: string | null,
   options: { tarballPath?: string } = {},
@@ -203,7 +224,7 @@ function packAndExtractCli(
     expect(extract.status).toBe(0);
 
     const packageRoot = join(extractDir, "package");
-    installPackagedProdDependencies(packageRoot);
+    preparePackagedRuntime(packageRoot);
 
     const filePaths = new Set(collectRelativeFiles(packageRoot));
 

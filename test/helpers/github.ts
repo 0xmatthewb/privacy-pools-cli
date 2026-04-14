@@ -31,6 +31,7 @@ export const FRONTEND_REPO = "0xbow-io/privacy-pools-website";
 const cache = new Map<string, string>();
 const checkoutCache = new Map<string, string>();
 let cleanupRegistered = false;
+let execGitCommand: typeof execFileSync = execFileSync;
 
 function upstreamRefFor(): string {
   return process.env.CONFORMANCE_UPSTREAM_REF || "main";
@@ -82,6 +83,32 @@ function readLocalSourceFile(repo: string, path: string): string {
   return readFileSync(filePath, "utf8");
 }
 
+function cleanupCheckoutDir(checkoutDir: string): void {
+  try {
+    rmSync(checkoutDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 50,
+    });
+  } catch {
+    // Best effort cleanup only.
+  }
+}
+
+function ensureCheckoutCleanupRegistered(): void {
+  if (cleanupRegistered) {
+    return;
+  }
+
+  cleanupRegistered = true;
+  process.on("exit", () => {
+    for (const dir of checkoutCache.values()) {
+      cleanupCheckoutDir(dir);
+    }
+  });
+}
+
 function readGitHubFileViaCheckout(repo: string, path: string): string {
   const ref = upstreamRefFor();
   const key = `${repo}@${ref}`;
@@ -90,55 +117,42 @@ function readGitHubFileViaCheckout(repo: string, path: string): string {
   if (!checkoutDir) {
     checkoutDir = mkdtempSync(resolve(tmpdir(), "privacy-pools-upstream-"));
     const remote = `https://github.com/${repo}.git`;
-
-    execFileSync("git", ["init", "-q", checkoutDir], {
-      stdio: "pipe",
-      timeout: GIT_TIMEOUT_MS,
-    });
-    execFileSync(
-      "git",
-      ["-C", checkoutDir, "remote", "add", "origin", remote],
-      {
+    try {
+      execGitCommand("git", ["init", "-q", checkoutDir], {
         stdio: "pipe",
         timeout: GIT_TIMEOUT_MS,
-      },
-    );
-    execFileSync(
-      "git",
-      ["-C", checkoutDir, "fetch", "--depth", "1", "origin", ref],
-      {
-        stdio: "pipe",
-        timeout: GIT_TIMEOUT_MS,
-      },
-    );
-    execFileSync(
-      "git",
-      ["-C", checkoutDir, "checkout", "--detach", "-q", "FETCH_HEAD"],
-      {
-        stdio: "pipe",
-        timeout: GIT_TIMEOUT_MS,
-      },
-    );
+      });
+      execGitCommand(
+        "git",
+        ["-C", checkoutDir, "remote", "add", "origin", remote],
+        {
+          stdio: "pipe",
+          timeout: GIT_TIMEOUT_MS,
+        },
+      );
+      execGitCommand(
+        "git",
+        ["-C", checkoutDir, "fetch", "--depth", "1", "origin", ref],
+        {
+          stdio: "pipe",
+          timeout: GIT_TIMEOUT_MS,
+        },
+      );
+      execGitCommand(
+        "git",
+        ["-C", checkoutDir, "checkout", "--detach", "-q", "FETCH_HEAD"],
+        {
+          stdio: "pipe",
+          timeout: GIT_TIMEOUT_MS,
+        },
+      );
+    } catch (error) {
+      cleanupCheckoutDir(checkoutDir);
+      throw error;
+    }
 
     checkoutCache.set(key, checkoutDir);
-
-    if (!cleanupRegistered) {
-      cleanupRegistered = true;
-      process.on("exit", () => {
-        for (const dir of checkoutCache.values()) {
-          try {
-            rmSync(dir, {
-              recursive: true,
-              force: true,
-              maxRetries: 3,
-              retryDelay: 50,
-            });
-          } catch {
-            // Best effort cleanup only.
-          }
-        }
-      });
-    }
+    ensureCheckoutCleanupRegistered();
   }
 
   const filePath = resolve(checkoutDir, path);
@@ -148,6 +162,25 @@ function readGitHubFileViaCheckout(repo: string, path: string): string {
 
   return readFileSync(filePath, "utf8");
 }
+
+export const githubTestInternals = {
+  clearCaches(): void {
+    cache.clear();
+    for (const dir of checkoutCache.values()) {
+      cleanupCheckoutDir(dir);
+    }
+    checkoutCache.clear();
+  },
+  getCachedCheckoutDirs(): string[] {
+    return Array.from(checkoutCache.values());
+  },
+  setExecFileSyncForTests(execImpl: typeof execFileSync): void {
+    execGitCommand = execImpl;
+  },
+  resetExecFileSyncForTests(): void {
+    execGitCommand = execFileSync;
+  },
+};
 
 export async function fetchGitHubFile(
   repo: string,
