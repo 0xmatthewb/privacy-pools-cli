@@ -25,7 +25,9 @@ describe("ci test shards", () => {
     expect(files).not.toContain(
       "./test/integration/cli-native-package-smoke.integration.test.ts",
     );
-    expect(files).not.toContain("./test/integration/cli-native-shell.integration.test.ts");
+    expect(files).not.toContain("./test/integration/cli-native-machine-contract.integration.test.ts");
+    expect(files).not.toContain("./test/integration/cli-native-routing-smoke.integration.test.ts");
+    expect(files).not.toContain("./test/integration/cli-native-human-output.integration.test.ts");
   });
 
   test("shard builder covers every file exactly once", () => {

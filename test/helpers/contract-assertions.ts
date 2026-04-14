@@ -84,3 +84,30 @@ export function expectStderrOnly(
   }
   expect(output.stderr).toMatch(matcher);
 }
+
+export function stripAnsi(value: string): string {
+  return value.replace(/\x1B\[[0-9;]*m/g, "");
+}
+
+export function expectSemanticText(
+  value: string,
+  options: {
+    includes?: readonly string[];
+    excludes?: readonly string[];
+    patterns?: readonly RegExp[];
+  },
+): void {
+  const normalized = stripAnsi(value);
+
+  for (const fragment of options.includes ?? []) {
+    expect(normalized).toContain(fragment);
+  }
+
+  for (const fragment of options.excludes ?? []) {
+    expect(normalized).not.toContain(fragment);
+  }
+
+  for (const pattern of options.patterns ?? []) {
+    expect(normalized).toMatch(pattern);
+  }
+}

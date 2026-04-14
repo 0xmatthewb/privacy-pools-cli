@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   annotateArgs,
+  extractTagArgs,
   extractProcessTimeoutArg,
   expandPathArgsWithExcludes,
   groupTargetsByIsolation,
@@ -73,6 +74,21 @@ describe("test runner arg helpers", () => {
     });
   });
 
+  test("extractTagArgs removes tag selectors and preserves other runner args", () => {
+    expect(
+      extractTagArgs([
+        TEST_FILE,
+        "--tag",
+        "native,boundary",
+        "--exclude-tag=expensive",
+      ]),
+    ).toEqual({
+      args: [TEST_FILE],
+      includeTags: ["boundary", "native"],
+      excludeTags: ["expensive"],
+    });
+  });
+
   test("hasExplicitTestTarget ignores values consumed by Bun flags", () => {
     expect(
       hasExplicitTestTarget(["--preload", PRELOAD_HELPER, "--timeout=1"], ROOT),
@@ -85,6 +101,9 @@ describe("test runner arg helpers", () => {
     ).toBe(false);
     expect(
       hasExplicitTestTarget(["--exclude", TEST_FILE, "--timeout=1"], ROOT),
+    ).toBe(false);
+    expect(
+      hasExplicitTestTarget(["--tag", "native", "--timeout=1"], ROOT),
     ).toBe(false);
     expect(
       hasExplicitTestTarget(["--preload", PRELOAD_HELPER, TEST_FILE], ROOT),

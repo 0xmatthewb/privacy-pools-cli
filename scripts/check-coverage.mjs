@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -31,6 +31,10 @@ import {
   COVERAGE_MAIN_TEST_TARGETS,
 } from "./test-suite-manifest.mjs";
 import { buildCoverageMainSuites } from "./coverage-suite-plan.mjs";
+import {
+  collectRuntimeBudgetFailures,
+  reportRuntimeSummary,
+} from "./test-runtime-metadata.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -41,13 +45,22 @@ const keepCoverageRoot = process.env.PP_KEEP_COVERAGE_ROOT === "1";
 const MAX_COVERAGE_LCOV_RETRIES = 3;
 let sharedBuiltWorkspaceSnapshotRoot = null;
 let cleanedUp = false;
+// Keep coverage-owned isolated suites serial until Bun's lcov writer is
+// reliable across concurrent coverage processes. The default test runner still
+// uses fixtureClass-aware concurrency for non-coverage execution.
+const COVERAGE_ISOLATED_CONCURRENCY = 1;
 
 class CoverageSuiteExitError extends Error {
-  constructor(label, status) {
-    super(`coverage suite ${label} exited with status ${status ?? "null"}`);
+  constructor(label, { status = null, signal = null } = {}) {
+    super(
+      signal
+        ? `coverage suite ${label} exited via signal ${signal}`
+        : `coverage suite ${label} exited with status ${status ?? "null"}`,
+    );
     this.name = "CoverageSuiteExitError";
     this.label = label;
     this.status = status;
+    this.signal = signal;
   }
 }
 const EXCLUDED_SOURCES = createCoverageExcludedSources(ROOT);
@@ -162,8 +175,8 @@ function buildCoverageSuiteEnv(tests, envOverrides = {}) {
   });
 }
 
-function runCoverageSuite(args, coverageDir, envOverrides = {}) {
-  return spawnSync(
+async function runCoverageSuite(args, coverageDir, envOverrides = {}) {
+  const child = spawn(
     "node",
     [
       RUNNER,
@@ -180,51 +193,67 @@ function runCoverageSuite(args, coverageDir, envOverrides = {}) {
     ],
     {
       cwd: ROOT,
-      encoding: "utf8",
-      maxBuffer: 10 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"],
       env: envOverrides,
     },
   );
+
+  child.stdout?.on("data", (chunk) => process.stdout.write(chunk));
+  child.stderr?.on("data", (chunk) => process.stderr.write(chunk));
+
+  return await new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (status, signal) => resolve({ status, signal }));
+  });
 }
 
-function runCoverageSuiteWithFallback(label, tests, attempt = 1) {
+async function runCoverageSuiteWithFallback(suite, attempt = 1) {
+  const { label, tests, budgetMs = null, tags = [] } = suite;
   const attemptLabel = attempt === 1 ? label : `${label}-retry-${attempt}`;
   const coverageDir = join(coverageRootDir, attemptLabel);
   const homeDir = join(coverageRootDir, `home-${attemptLabel}`);
   mkdirSync(homeDir, { recursive: true });
+  const startedAt = Date.now();
 
   process.stdout.write(
     `[coverage] running ${attemptLabel}: ${tests.join(" ")}\n`,
   );
 
-  const result = runCoverageSuite(
+  const result = await runCoverageSuite(
     tests,
     coverageDir,
     buildCoverageSuiteEnv(tests, {
       PRIVACY_POOLS_HOME: homeDir,
     }),
   );
-  if (result.stdout) {
-    process.stdout.write(result.stdout);
-  }
-  if (result.stderr) {
-    process.stderr.write(result.stderr);
-  }
-  if (result.error) throw result.error;
+  const runtimeResult = {
+    label: attemptLabel,
+    durationMs: Date.now() - startedAt,
+    budgetMs,
+    tags,
+    budgetExceeded:
+      Number.isInteger(budgetMs) && Date.now() - startedAt > budgetMs,
+  };
   const lcovPath = join(coverageDir, "lcov.info");
   const wroteLcov = existsSync(lcovPath);
+  if (result.signal) {
+    throw new CoverageSuiteExitError(label, { signal: result.signal });
+  }
   if (result.status !== 0) {
-    throw new CoverageSuiteExitError(label, result.status ?? 1);
+    throw new CoverageSuiteExitError(label, { status: result.status ?? 1 });
   }
   if (wroteLcov) {
-    return [lcovPath];
+    return {
+      coverageArtifacts: [lcovPath],
+      runtimeResults: [runtimeResult],
+    };
   }
 
   if (attempt < MAX_COVERAGE_LCOV_RETRIES) {
     process.stdout.write(
       `[coverage] ${label} emitted no lcov on attempt ${attempt}; retrying the same suite\n`,
     );
-    return runCoverageSuiteWithFallback(label, tests, attempt + 1);
+    return runCoverageSuiteWithFallback(suite, attempt + 1);
   }
 
   if (tests.length <= 1) {
@@ -240,10 +269,94 @@ function runCoverageSuiteWithFallback(label, tests, attempt = 1) {
     `[coverage] ${label} emitted no lcov after ${attempt} attempts; retrying as ${left.length}+${right.length} file batches\n`,
   );
 
-  return [
-    ...runCoverageSuiteWithFallback(`${label}-a`, left),
-    ...runCoverageSuiteWithFallback(`${label}-b`, right),
-  ];
+  const leftResult = await runCoverageSuiteWithFallback({
+    ...suite,
+    label: `${label}-a`,
+    tests: left,
+  });
+  const rightResult = await runCoverageSuiteWithFallback({
+    ...suite,
+    label: `${label}-b`,
+    tests: right,
+  });
+
+  return {
+    coverageArtifacts: [
+      ...leftResult.coverageArtifacts,
+      ...rightResult.coverageArtifacts,
+    ],
+    runtimeResults: [
+      runtimeResult,
+      ...leftResult.runtimeResults,
+      ...rightResult.runtimeResults,
+    ],
+  };
+}
+
+async function runCoverageSuitesWithConcurrency(suites, concurrency) {
+  if (suites.length === 0) {
+    return {
+      coverageArtifacts: [],
+      runtimeResults: [],
+    };
+  }
+
+  const queue = [...suites];
+  const active = new Map();
+  const activeFixtureClasses = new Set();
+  const coverageArtifacts = [];
+  const runtimeResults = [];
+
+  function takeNextSuite() {
+    const nextIndex = queue.findIndex((suite) =>
+      !suite.fixtureClass || !activeFixtureClasses.has(suite.fixtureClass)
+    );
+    if (nextIndex === -1) {
+      return null;
+    }
+
+    return queue.splice(nextIndex, 1)[0] ?? null;
+  }
+
+  function startSuite(suite) {
+    if (suite.fixtureClass) {
+      activeFixtureClasses.add(suite.fixtureClass);
+    }
+
+    active.set(
+      suite.label,
+      runCoverageSuiteWithFallback(suite)
+        .then((result) => ({ status: "fulfilled", suite, result }))
+        .catch((error) => ({ status: "rejected", suite, error })),
+    );
+  }
+
+  while (queue.length > 0 || active.size > 0) {
+    while (active.size < Math.max(1, Math.min(concurrency, suites.length))) {
+      const suite = takeNextSuite();
+      if (!suite) break;
+      startSuite(suite);
+    }
+
+    if (active.size === 0) {
+      break;
+    }
+
+    const completed = await Promise.race(active.values());
+    active.delete(completed.suite.label);
+    if (completed.suite.fixtureClass) {
+      activeFixtureClasses.delete(completed.suite.fixtureClass);
+    }
+
+    if (completed.status === "rejected") {
+      throw completed.error;
+    }
+
+    coverageArtifacts.push(...completed.result.coverageArtifacts);
+    runtimeResults.push(...completed.result.runtimeResults);
+  }
+
+  return { coverageArtifacts, runtimeResults };
 }
 
 try {
@@ -254,17 +367,31 @@ try {
     excludedTests: COVERAGE_MAIN_EXCLUDED_TESTS,
   });
   const coverageArtifacts = [];
+  const runtimeResults = [];
 
   for (const suite of mainSuites) {
-    coverageArtifacts.push(
-      ...runCoverageSuiteWithFallback(suite.label, suite.tests),
-    );
+    const result = await runCoverageSuiteWithFallback(suite);
+    coverageArtifacts.push(...result.coverageArtifacts);
+    runtimeResults.push(...result.runtimeResults);
   }
 
-  for (const suite of COVERAGE_ISOLATED_SUITES) {
-    coverageArtifacts.push(
-      ...runCoverageSuiteWithFallback(suite.label, suite.tests),
-    );
+  const isolatedResults = await runCoverageSuitesWithConcurrency(
+    COVERAGE_ISOLATED_SUITES,
+    COVERAGE_ISOLATED_CONCURRENCY,
+  );
+  coverageArtifacts.push(...isolatedResults.coverageArtifacts);
+  runtimeResults.push(...isolatedResults.runtimeResults);
+
+  reportRuntimeSummary("slowest coverage suite runtimes", runtimeResults);
+  const budgetFailures = collectRuntimeBudgetFailures(runtimeResults);
+  if (budgetFailures.length > 0) {
+    console.error("Coverage runtime budgets exceeded:");
+    for (const failure of budgetFailures) {
+      console.error(
+        `- ${failure.label}: ${failure.durationMs}ms > ${failure.budgetMs}ms`,
+      );
+    }
+    process.exitCode = 1;
   }
 
   const mergedCoverage = mergeCoverageMaps(

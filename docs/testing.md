@@ -75,6 +75,34 @@ Avoid low-value tests that mostly pin implementation trivia:
 - exact export inventories with little safety value
 - tests that only assert "command exits 0" without checking the contract
 
+For CLI transcript coverage, prefer semantic checks over copy pinning:
+
+- section markers and headings
+- warning/sentinel presence
+- stdout/stderr ownership
+- JSON/CSV shape
+- filesystem or saved-workflow effects
+
+Keep exact transcript equality only where the contract is intentionally rigid,
+such as machine-readable JSON envelopes, completion output, or fail-closed
+native error envelopes.
+
+## Suite Contract
+
+The suite contract is intentionally opinionated:
+
+- no real network in unit tests
+- one canonical happy-path integration lane per command by default
+- extra end-to-end coverage only for fund-moving or heavily stateful flows
+- live-chain, native, and install lanes are boundary checks, not branch-coverage vehicles
+- protocol truth stays pinned and versioned: selectors, ABI/event shapes, SDK compatibility, circuit/runtime descriptors
+
+Expensive lanes are tagged in [`scripts/test-suite-manifest.mjs`](../scripts/test-suite-manifest.mjs)
+with metadata such as `tags`, `fixtureClass`, and optional `budgetMs`. Use
+runner filters such as `--tag native`, `--exclude-tag expensive`, or
+`PP_TEST_ISOLATED_CONCURRENCY=<n>` when you need to target or debug a specific
+cost class locally.
+
 ## Cleanup Rules
 
 Every test that mutates process or filesystem state must clean up:
@@ -158,7 +186,7 @@ CI notes:
 - The native coverage gate now also fails closed if any executable `native/shell/src/**` file is not owned by exactly one native coverage family. Test-only support such as `native/shell/src/test_env.rs` is excluded from that ownership check.
 - `commands/pools/**` is now also enforced at `>= 85%`, so a green local profile means every executable native-shell ownership family is under a blocking native coverage floor, not just the root/host/core/activity/stats subset.
 - `scripts/run-test-profile.mjs` is the shared source of truth for the higher-level repo test profiles (`test:install`, `test:conformance`, `test:ci`, `test:release`, `test:all`) so gate ordering only has to change in one place.
-- `npm test` stays fast and host-neutral: it excludes packaged smoke, packaged native smoke, native-shell parity, and shared-Anvil suites. Those lanes still run in explicit higher-cost profiles.
+- `npm test` stays fast and host-neutral: it excludes packed smoke, packaged native smoke, the split native boundary lanes, and shared-Anvil suites. Those lanes still run in explicit higher-cost profiles.
 - `npm run test:release` and `npm run test:all` no longer rerun the source shared-Anvil smoke trio after `test:e2e:anvil`; they reuse the full shared-Anvil coverage and then run the installed-artifact verification directly so the highest-cost profiles stay meaningful without duplicating the same source E2E coverage.
 - Public GitHub plus npm are the conformance sources of truth. Use `CONFORMANCE_UPSTREAM_REF=<sha>` only when you intentionally want to audit against a specific public upstream revision instead of `main`.
 - `npm run test:conformance` is the faster core public-source conformance lane. `npm run test:conformance:all` adds the slower frontend-parity shard on top.
@@ -169,7 +197,10 @@ CI notes:
 - `.github/workflows/native-coverage.yml` remains the dedicated Rust-native coverage lane for detailed reporting, and the shared `test:ci` / `test:release` profiles now also run `npm run test:coverage:native` so local and blocking verification fail on native coverage regressions too.
 - `npm run test:ci` now includes both the root-only and current-host packed-artifact install checks so local verification exercises the installed JS launcher path everywhere and, on supported hosts, the same installed launcher/native path that blocking CI enforces.
 - `npm run test:release` adds those same root-only and current-host artifact checks plus `npm run bench:gate:release`, matching the release workflow's pinned performance gate.
-- `npm run test:smoke:native:package` is the packaged native smoke lane. `npm run test:artifacts:host` is the installed-artifact lane and now verifies both root-only and native-resolved installs. `npm run test:smoke:native` remains as a compatibility alias for the packaged smoke lane.
+- `npm run test:packed-smoke` is the fast packed-tarball smoke lane. `npm run test:smoke` remains as a compatibility alias.
+- `npm run test:install` is still the authoritative install-fidelity gate: it prepares artifacts once, then verifies packed smoke, root-only installed artifacts, and current-host install behavior from those prepared artifacts.
+- `npm run test:smoke:native:shell` now runs the split native boundary trio: machine-contract parity, launcher/routing smoke, and semantic human-output smoke.
+- `npm run test:smoke:native:package` is the packaged native smoke lane. `npm run test:artifacts:host` is the installed-artifact lane and now verifies both root-only and native-resolved installs. `npm run test:smoke:native` remains as a compatibility alias for the packaged native smoke lane.
 - `npm run test:flake:anvil` reruns the representative Anvil smoke suite so stateful/native/install paths get nightly flake coverage without inflating the required CI lane.
 - Shared-Anvil lanes use the repo-local fixture in `test/fixtures/anvil-contract-artifacts`, so standard Anvil commands no longer need a separate contracts checkout or extra contracts-specific environment setup.
 - `npm run anvil:fixture:refresh -- --contracts-root <privacy-pools-core/contracts path>` is the maintainer-only refresh path when the committed fixture needs to be updated from upstream contract artifacts.

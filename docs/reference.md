@@ -998,10 +998,11 @@ npm unlink -g privacy-pools-cli
 ### Scripts
 
 ```bash
-npm run test              # fast default suite (excludes packaged and native-shell smoke)
+npm run test              # fast default suite (excludes packed and native-shell smoke)
 npm run test:ci           # local single-host mirror of the required CI checks
 npm run test:release      # release-readiness suite (root + host artifact gates + benchmark gate + full Anvil matrix)
-npm run test:smoke        # packaged CLI smoke against a packed tarball
+npm run test:packed-smoke # packed CLI smoke against a packed tarball
+npm run test:smoke        # compatibility alias for test:packed-smoke
 npm run test:artifacts:host # pack/install the current-host CLI + native artifacts
 npm run typecheck         # TypeScript type check (no emit)
 npm run test:e2e:anvil    # full Sepolia-fork E2E

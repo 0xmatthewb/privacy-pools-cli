@@ -7,6 +7,7 @@ import {
 
 export const DEFAULT_MAIN_BATCH_SIZE = 20;
 export const DEFAULT_MAIN_CONCURRENCY_CAP = 3;
+export const DEFAULT_ISOLATED_CONCURRENCY_CAP = 2;
 
 const SHARED_BUILT_WORKSPACE_SNAPSHOT_TEST_PATTERNS = [
   /^\.\/test\/acceptance\//,
@@ -27,7 +28,13 @@ export function buildDefaultMainSuites({
     throw new Error("main batch size must be a positive integer");
   }
 
-  return testBatches.flatMap(({ label, targets, batchSize: targetBatchSize }) => {
+  return testBatches.flatMap(({
+    label,
+    targets,
+    batchSize: targetBatchSize,
+    tags = [],
+    budgetMs = null,
+  }) => {
     const effectiveBatchSize = targetBatchSize ?? batchSize;
     if (!Number.isInteger(effectiveBatchSize) || effectiveBatchSize <= 0) {
       throw new Error("main batch size must be a positive integer");
@@ -46,6 +53,8 @@ export function buildDefaultMainSuites({
           ? `main:${label}`
           : `main:${label}-${String(index + 1).padStart(2, "0")}`,
       tests,
+      tags,
+      budgetMs,
     }));
   });
 }
@@ -85,6 +94,29 @@ export function resolveMainBatchConcurrency({
   const detected = availableParallelismFn();
   const boundedDetected = Number.isInteger(detected) && detected > 1
     ? Math.max(1, detected - 1)
+    : 1;
+
+  return Math.max(1, Math.min(cap, suiteCount, boundedDetected));
+}
+
+export function resolveIsolatedSuiteConcurrency({
+  suiteCount,
+  env = process.env,
+  availableParallelismFn = availableParallelism,
+  cap = DEFAULT_ISOLATED_CONCURRENCY_CAP,
+}) {
+  if (!Number.isInteger(suiteCount) || suiteCount <= 0) {
+    return 1;
+  }
+
+  const configured = parsePositiveInteger(env.PP_TEST_ISOLATED_CONCURRENCY);
+  if (configured !== null) {
+    return Math.min(configured, suiteCount);
+  }
+
+  const detected = availableParallelismFn();
+  const boundedDetected = Number.isInteger(detected) && detected > 2
+    ? Math.max(1, detected - 2)
     : 1;
 
   return Math.max(1, Math.min(cap, suiteCount, boundedDetected));

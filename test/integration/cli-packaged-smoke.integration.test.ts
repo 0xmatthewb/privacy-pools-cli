@@ -187,7 +187,7 @@ function linkPackagedRuntimeDependencies(packageRoot: string): void {
 
 function preparePackagedRuntime(packageRoot: string): void {
   // Full installability is already covered by the install-profile release
-  // verification. This smoke lane focuses on the packed artifact itself and
+  // verification. This packed-smoke lane focuses on the packed artifact itself and
   // can usually reuse the repo's dependency tree to stay fast.
   if (PACKAGED_SMOKE_INSTALL_MODE) {
     installPackagedProdDependencies(packageRoot);
@@ -288,7 +288,7 @@ function runPackagedCli(
   };
 }
 
-describe("packaged CLI smoke", () => {
+describe("packed CLI smoke", () => {
   let home: string;
   let packed: PackedArtifact | null = null;
 

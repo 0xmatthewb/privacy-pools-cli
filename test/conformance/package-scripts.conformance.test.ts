@@ -76,13 +76,15 @@ describe("package scripts conformance", () => {
 
   test("native smoke scripts publish both packaged and launcher-parity lanes", () => {
     expect(getScript("test:smoke:native")).toBe("npm run test:smoke:native:package");
-    expectScriptContains("test:smoke", [
+    expect(getScript("test:smoke")).toBe("npm run test:packed-smoke");
+    expectScriptContains("test:packed-smoke", [
       "node scripts/run-bun-tests.mjs",
       "./test/integration/cli-packaged-smoke.integration.test.ts",
     ]);
     expectScriptContains("test:smoke:native:shell", [
-      "node scripts/run-bun-tests.mjs",
-      "./test/integration/cli-native-shell.integration.test.ts",
+      "./test/integration/cli-native-machine-contract.integration.test.ts",
+      "./test/integration/cli-native-routing-smoke.integration.test.ts",
+      "./test/integration/cli-native-human-output.integration.test.ts",
     ]);
     expectScriptContains("test:smoke:native:package", [
       "node scripts/run-bun-tests.mjs",

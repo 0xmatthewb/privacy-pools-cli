@@ -316,7 +316,7 @@ describe("ci job selection", () => {
     expect(decision.reason).toContain("scripts/verify-cli-install-anvil.mjs");
   });
 
-  test("packaged smoke runs when packaged smoke fixtures or helpers change", () => {
+  test("packed smoke runs when packed smoke fixtures or helpers change", () => {
     const helperDecision = evaluateJobSelection({
       job: "packaged-smoke",
       eventName: "pull_request",
@@ -402,7 +402,7 @@ describe("ci job selection", () => {
     expect(crossPlatformEnvDecision.reason).toContain("scripts/test-runner-env.mjs");
   });
 
-  test("cross-platform runs when packaged smoke coverage changes", () => {
+  test("cross-platform runs when packed smoke coverage changes", () => {
     const decision = evaluateJobSelection({
       job: "cross-platform",
       eventName: "pull_request",

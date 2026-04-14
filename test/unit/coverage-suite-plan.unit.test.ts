@@ -40,6 +40,8 @@ describe("coverage suite planning", () => {
           "./test/conformance/root-help-static.conformance.test.ts",
           "./test/services/beta.service.test.ts",
         ],
+        tags: ["coverage", "source"],
+        budgetMs: null,
       },
       {
         label: "main-02",
@@ -47,6 +49,8 @@ describe("coverage suite planning", () => {
           "./test/unit/alpha.unit.test.ts",
           "./test/unit/zeta.unit.test.ts",
         ],
+        tags: ["coverage", "source"],
+        budgetMs: null,
       },
     ]);
   });

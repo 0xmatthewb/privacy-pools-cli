@@ -45,4 +45,55 @@ describe("run test suite", () => {
     const leaked = [...after].filter((entry) => !before.has(entry));
     expect(leaked).toEqual([]);
   });
+
+  test("tag filters can narrow explicit target runs by manifest-owned suite tags", () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "scripts/run-test-suite.mjs",
+        "--tag",
+        "unit",
+        "./test/unit/cli-built-helper.unit.test.ts",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        timeout: 300_000,
+        maxBuffer: 20 * 1024 * 1024,
+        env: {
+          ...process.env,
+          PP_TEST_MAIN_CONCURRENCY: "1",
+        },
+      },
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+  });
+
+  test("tag filters fail closed when they exclude every explicit target", () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "scripts/run-test-suite.mjs",
+        "--tag",
+        "acceptance",
+        "./test/unit/cli-built-helper.unit.test.ts",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        timeout: 300_000,
+        maxBuffer: 20 * 1024 * 1024,
+        env: {
+          ...process.env,
+          PP_TEST_MAIN_CONCURRENCY: "1",
+        },
+      },
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("No test suites selected by the current tag filters.");
+  });
 });

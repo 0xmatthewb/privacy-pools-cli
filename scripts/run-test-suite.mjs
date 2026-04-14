@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  extractTagArgs,
   groupTargetsByIsolation,
   hasExplicitProcessTimeoutArg,
   hasExplicitTestTarget,
@@ -12,19 +13,26 @@ import {
 import {
   DEFAULT_MAIN_BATCHES,
   DEFAULT_MAIN_EXCLUDED_TESTS,
+  ON_DEMAND_TAG_SUITES,
   DEFAULT_TEST_ISOLATED_SUITES,
+  suiteMatchesTags,
 } from "./test-suite-manifest.mjs";
 import { buildTestRunnerEnv } from "./test-runner-env.mjs";
 import { collectTestFiles } from "./test-file-collector.mjs";
 import {
   buildDefaultMainSuites,
   resolveMainBatchConcurrency,
+  resolveIsolatedSuiteConcurrency,
   suiteUsesSharedBuiltWorkspaceSnapshot,
 } from "./main-suite-plan.mjs";
 import {
   cleanupSharedBuiltWorkspaceSnapshot,
   createSharedBuiltWorkspaceSnapshot,
 } from "./test-workspace-snapshot.mjs";
+import {
+  collectRuntimeBudgetFailures,
+  reportRuntimeSummary,
+} from "./test-runtime-metadata.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -103,8 +111,55 @@ function prefixWrite(stream, prefix, chunk) {
   }
 }
 
-async function runSuite(label, tests, args, envOverrides = {}) {
+function buildSuiteInvocationArgs(suite, forwardedSuiteArgs) {
+  const suiteArgs = [...suite.tests];
+  if (
+    Number.isInteger(suite.timeoutMs)
+    && !hasExplicitTimeoutArg(forwardedSuiteArgs)
+  ) {
+    suiteArgs.push("--timeout", String(suite.timeoutMs));
+  }
+
+  return [...suiteArgs, ...forwardedSuiteArgs];
+}
+
+function suiteMetadataForPath(testPath) {
+  const suites = [
+    ...DEFAULT_TEST_ISOLATED_SUITES,
+    ...ON_DEMAND_TAG_SUITES,
+  ];
+
+  const matchedSuite = suites.find((suite) => suite.tests.includes(testPath));
+  if (matchedSuite) {
+    return matchedSuite;
+  }
+
+  const matchedBatch = DEFAULT_MAIN_BATCHES.find((batch) =>
+    batch.targets.some((target) => `${testPath}/`.startsWith(`${target}/`))
+  );
+
+  return matchedBatch ?? null;
+}
+
+function filterTargetFilesByTags(targetFiles, includeTags, excludeTags) {
+  if (includeTags.length === 0 && excludeTags.length === 0) {
+    return targetFiles;
+  }
+
+  return targetFiles.filter((targetFile) => {
+    const suite = suiteMetadataForPath(targetFile);
+    return suiteMatchesTags(
+      suite ?? { tags: [] },
+      includeTags,
+      excludeTags,
+    );
+  });
+}
+
+async function runSuite(suite, args, envOverrides = {}) {
+  const { label, tests, budgetMs = null, tags = [] } = suite;
   process.stdout.write(`\n[test] ${label}\n`);
+  const startedAt = Date.now();
 
   const child = spawn("node", [RUNNER, ...buildRunnerArgs(args)], {
     cwd: ROOT,
@@ -142,6 +197,16 @@ async function runSuite(label, tests, args, envOverrides = {}) {
   if (typeof result.status === "number" && result.status !== 0) {
     throw new SuiteRunnerExitError(label, { status: result.status });
   }
+
+  const durationMs = Date.now() - startedAt;
+  return {
+    label,
+    durationMs,
+    budgetMs,
+    tags,
+    budgetExceeded:
+      Number.isInteger(budgetMs) && durationMs > budgetMs,
+  };
 }
 
 async function terminateSuiteChild(child) {
@@ -193,10 +258,18 @@ function exitWithCleanup(code) {
   });
 }
 
-async function runSuitesWithConcurrency(suites, forwardedSuiteArgs, concurrency) {
-  if (suites.length === 0) return;
+async function runSuitesWithConcurrency(
+  suites,
+  forwardedSuiteArgs,
+  concurrency,
+  { respectFixtureClass = false } = {},
+) {
+  if (suites.length === 0) return [];
 
   const queue = [...suites];
+  const active = new Map();
+  const activeFixtureClasses = new Set();
+  const results = [];
   let suiteError = null;
   let terminating = null;
 
@@ -208,58 +281,137 @@ async function runSuitesWithConcurrency(suites, forwardedSuiteArgs, concurrency)
     await terminating;
   }
 
-  const workers = Array.from({
-    length: Math.max(1, Math.min(concurrency, suites.length)),
-  }, async () => {
-    while (queue.length > 0) {
-      if (suiteError) return;
-      const suite = queue.shift();
-      if (!suite) return;
-      try {
-        await runSuite(
-          suite.label,
-          suite.tests,
-          [...suite.tests, ...forwardedSuiteArgs],
-        );
-      } catch (error) {
-        suiteError ??= error;
-        await requestStop();
-        return;
-      }
+  function takeNextSuite() {
+    if (!respectFixtureClass) {
+      return queue.shift() ?? null;
     }
-  });
 
-  await Promise.allSettled(workers);
+    const nextIndex = queue.findIndex((suite) =>
+      !suite.fixtureClass || !activeFixtureClasses.has(suite.fixtureClass)
+    );
+    if (nextIndex === -1) {
+      return null;
+    }
+
+    return queue.splice(nextIndex, 1)[0] ?? null;
+  }
+
+  function startSuite(suite) {
+    if (respectFixtureClass && suite.fixtureClass) {
+      activeFixtureClasses.add(suite.fixtureClass);
+    }
+
+    const promise = runSuite(
+      suite,
+      buildSuiteInvocationArgs(suite, forwardedSuiteArgs),
+    )
+      .then((result) => ({ status: "fulfilled", suite, result }))
+      .catch((error) => ({ status: "rejected", suite, error }));
+
+    active.set(suite.label, promise);
+  }
+
+  while ((queue.length > 0 || active.size > 0) && !suiteError) {
+    while (active.size < Math.max(1, Math.min(concurrency, suites.length))) {
+      const suite = takeNextSuite();
+      if (!suite) break;
+      startSuite(suite);
+    }
+
+    if (active.size === 0) {
+      break;
+    }
+
+    const completed = await Promise.race(active.values());
+    active.delete(completed.suite.label);
+    if (respectFixtureClass && completed.suite.fixtureClass) {
+      activeFixtureClasses.delete(completed.suite.fixtureClass);
+    }
+
+    if (completed.status === "rejected") {
+      suiteError = completed.error;
+      await requestStop();
+      break;
+    }
+
+    results.push(completed.result);
+  }
+
   if (suiteError) {
     throw suiteError;
   }
+
+  return results;
 }
 
 async function main() {
   try {
-    if (forwardedArgs.length > 0 && hasExplicitTestTarget(forwardedArgs, ROOT)) {
+    const {
+      args: suiteArgs,
+      includeTags,
+      excludeTags,
+    } = extractTagArgs(forwardedArgs);
+
+    if (suiteArgs.length > 0 && hasExplicitTestTarget(suiteArgs, ROOT)) {
       const { sharedArgs, targetFiles } = splitExplicitTargets(
-        forwardedArgs,
+        suiteArgs,
         (pathArg) => collectTestFiles(pathArg, ROOT),
         ROOT,
       );
-      const { mainTargets, isolatedGroups } = groupTargetsByIsolation(
+      const filteredTargets = filterTargetFilesByTags(
         targetFiles,
-        DEFAULT_TEST_ISOLATED_SUITES,
+        includeTags,
+        excludeTags,
+      );
+      if (filteredTargets.length === 0) {
+        throw new Error("No test suites selected by the current tag filters.");
+      }
+      const { mainTargets, isolatedGroups } = groupTargetsByIsolation(
+        filteredTargets,
+        [...DEFAULT_TEST_ISOLATED_SUITES, ...ON_DEMAND_TAG_SUITES],
         ROOT,
       );
+      const runtimeResults = [];
 
       if (mainTargets.length > 0) {
-        await runSuite("custom", mainTargets, [...mainTargets, ...sharedArgs]);
+        runtimeResults.push(
+          ...await runSuitesWithConcurrency([
+            {
+              label: "custom",
+              tests: mainTargets,
+              tags: [],
+              budgetMs: null,
+            },
+          ], sharedArgs, 1),
+        );
       }
 
-      for (const suite of isolatedGroups) {
-        const suiteArgs = [...suite.tests];
-        if (!hasExplicitTimeoutArg(sharedArgs)) {
-          suiteArgs.push("--timeout", String(suite.timeoutMs));
+      if (isolatedGroups.length > 0) {
+        runtimeResults.push(
+          ...await runSuitesWithConcurrency(
+            isolatedGroups.map((suite) => ({
+              ...suite,
+              label: `custom:${suite.label}`,
+            })),
+            sharedArgs,
+            resolveIsolatedSuiteConcurrency({
+              suiteCount: isolatedGroups.length,
+            }),
+            { respectFixtureClass: true },
+          ),
+        );
+      }
+
+      reportRuntimeSummary("slowest suite runtimes", runtimeResults);
+      const budgetFailures = collectRuntimeBudgetFailures(runtimeResults);
+      if (budgetFailures.length > 0) {
+        process.stderr.write("Runtime budgets exceeded:\n");
+        for (const failure of budgetFailures) {
+          process.stderr.write(
+            `- ${failure.label}: ${failure.durationMs}ms > ${failure.budgetMs}ms\n`,
+          );
         }
-        suiteArgs.push(...sharedArgs);
-        await runSuite(`custom:${suite.label}`, suite.tests, suiteArgs);
+        process.exitCode = 1;
       }
       return;
     }
@@ -268,24 +420,65 @@ async function main() {
       rootDir: ROOT,
       testBatches: DEFAULT_MAIN_BATCHES,
       excludedTests: DEFAULT_MAIN_EXCLUDED_TESTS,
-    });
+    }).filter((suite) => suiteMatchesTags(suite, includeTags, excludeTags));
 
-    await runSuitesWithConcurrency(
-      mainSuites,
-      forwardedArgs,
-      resolveMainBatchConcurrency({ suiteCount: mainSuites.length }),
+    const onDemandSuites = includeTags.length === 0
+      ? []
+      : ON_DEMAND_TAG_SUITES.filter((suite) =>
+        suiteMatchesTags(suite, includeTags, excludeTags)
+      );
+
+    const isolatedSuites = DEFAULT_TEST_ISOLATED_SUITES.filter((suite) =>
+      suiteMatchesTags(suite, includeTags, excludeTags)
     );
 
-      for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
-        const suiteArgs = [...suite.tests];
-        if (!hasExplicitTimeoutArg(forwardedArgs)) {
-          suiteArgs.push("--timeout", String(suite.timeoutMs));
-        }
-        suiteArgs.push(...forwardedArgs);
-        await runSuite(suite.label, suite.tests, [
-          ...suiteArgs,
-        ]);
+    if (
+      mainSuites.length === 0
+      && onDemandSuites.length === 0
+      && isolatedSuites.length === 0
+    ) {
+      throw new Error("No test suites selected by the current tag filters.");
+    }
+
+    const runtimeResults = [];
+
+    runtimeResults.push(
+      ...await runSuitesWithConcurrency(
+      mainSuites,
+      suiteArgs,
+      resolveMainBatchConcurrency({ suiteCount: mainSuites.length }),
+    ),
+    );
+
+    runtimeResults.push(
+      ...await runSuitesWithConcurrency(
+        isolatedSuites,
+        suiteArgs,
+        resolveIsolatedSuiteConcurrency({ suiteCount: isolatedSuites.length }),
+        { respectFixtureClass: true },
+      ),
+    );
+
+    runtimeResults.push(
+      ...await runSuitesWithConcurrency(
+        onDemandSuites,
+        suiteArgs,
+        resolveIsolatedSuiteConcurrency({ suiteCount: onDemandSuites.length }),
+        { respectFixtureClass: true },
+      ),
+    );
+
+    reportRuntimeSummary("slowest suite runtimes", runtimeResults);
+    const budgetFailures = collectRuntimeBudgetFailures(runtimeResults);
+    if (budgetFailures.length > 0) {
+      process.stderr.write("Runtime budgets exceeded:\n");
+      for (const failure of budgetFailures) {
+        process.stderr.write(
+          `- ${failure.label}: ${failure.durationMs}ms > ${failure.budgetMs}ms\n`,
+        );
       }
+      process.exitCode = 1;
+    }
   } finally {
     await cleanupSuiteResources();
   }

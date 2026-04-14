@@ -8,16 +8,21 @@ import {
   DEFAULT_MAIN_EXCLUDED_TESTS,
   DEFAULT_MAIN_TEST_TARGETS,
   LAUNCHER_ROUTING_TEST,
+  NATIVE_HUMAN_OUTPUT_SMOKE_TEST,
+  NATIVE_MACHINE_CONTRACT_TEST,
   NATIVE_PACKAGE_SMOKE_TEST,
-  NATIVE_SHELL_SMOKE_TEST,
-  PACKAGED_SMOKE_TEST,
+  NATIVE_ROUTING_SMOKE_TEST,
+  ON_DEMAND_TAG_SUITES,
+  PACKED_SMOKE_TEST,
 } from "../../scripts/test-suite-manifest.mjs";
 
 describe("test suite manifest", () => {
   test("default main suite exclusions stay focused on dedicated smoke and isolated lanes", () => {
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(PACKAGED_SMOKE_TEST);
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(PACKED_SMOKE_TEST);
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_PACKAGE_SMOKE_TEST);
-    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_SHELL_SMOKE_TEST);
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_MACHINE_CONTRACT_TEST);
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_ROUTING_SMOKE_TEST);
+    expect(DEFAULT_MAIN_EXCLUDED_TESTS).toContain(NATIVE_HUMAN_OUTPUT_SMOKE_TEST);
     expect(DEFAULT_MAIN_EXCLUDED_TESTS).not.toContain(
       "./test/acceptance/status-init.acceptance.test.ts",
     );
@@ -48,6 +53,10 @@ describe("test suite manifest", () => {
       expect(suite.reason.trim().length).toBeGreaterThan(0);
       expect(Number.isInteger(suite.timeoutMs)).toBe(true);
       expect(suite.timeoutMs).toBeGreaterThan(0);
+      expect(Array.isArray(suite.tags)).toBe(true);
+      expect(suite.tags.length).toBeGreaterThan(0);
+      expect(typeof suite.fixtureClass).toBe("string");
+      expect(suite.fixtureClass.trim().length).toBeGreaterThan(0);
       expect(suite.tests.length).toBeGreaterThan(0);
       expect(suite.tests.every((testPath) => testPath.endsWith(".test.ts"))).toBe(
         true,
@@ -83,6 +92,19 @@ describe("test suite manifest", () => {
     expect(DEFAULT_MAIN_BATCHES.every((batch) => batch.targets.length > 0)).toBe(
       true,
     );
+    expect(DEFAULT_MAIN_BATCHES.every((batch) => batch.tags.length > 0)).toBe(true);
+  });
+
+  test("on-demand tagged suites stay discoverable for expensive smoke lanes", () => {
+    expect(ON_DEMAND_TAG_SUITES.length).toBeGreaterThan(0);
+    expect(
+      ON_DEMAND_TAG_SUITES.some((suite) => suite.label === "packed-smoke"),
+    ).toBe(true);
+    expect(
+      ON_DEMAND_TAG_SUITES.some((suite) =>
+        suite.tests.includes(NATIVE_MACHINE_CONTRACT_TEST)
+      ),
+    ).toBe(true);
   });
 
   test("default main exclusions isolate the readonly harness but keep split ragequit slices in the main lane", () => {

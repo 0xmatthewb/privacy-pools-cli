@@ -5,6 +5,7 @@ const FLAGS_WITH_VALUES = new Set([
   "--bail",
   "--coverage-dir",
   "--coverage-reporter",
+  "--exclude-tag",
   "--exclude",
   "--filter",
   "--max-concurrency",
@@ -13,6 +14,7 @@ const FLAGS_WITH_VALUES = new Set([
   "--reporter",
   "--rerun-each",
   "--seed",
+  "--tag",
   "--test-name-pattern",
   "--timeout",
   "-t",
@@ -63,6 +65,19 @@ function parseProcessTimeout(rawValue) {
   return processTimeoutMs;
 }
 
+function parseTagListValue(rawValue, flagName) {
+  const tags = rawValue
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
+  if (tags.length === 0) {
+    throw new Error(`${flagName} requires at least one non-empty tag`);
+  }
+
+  return tags;
+}
+
 export function extractProcessTimeoutArg(
   args,
   defaultProcessTimeoutMs = null,
@@ -93,6 +108,60 @@ export function extractProcessTimeoutArg(
   return {
     args: forwardedArgs,
     processTimeoutMs,
+  };
+}
+
+export function extractTagArgs(args) {
+  const forwardedArgs = [];
+  const includeTags = [];
+  const excludeTags = [];
+
+  for (let i = 0; i < args.length; i += 1) {
+    const token = args[i];
+    if (token === "--tag") {
+      const rawValue = args[i + 1];
+      if (!rawValue) {
+        throw new Error("--tag requires a value");
+      }
+      includeTags.push(...parseTagListValue(rawValue, "--tag"));
+      i += 1;
+      continue;
+    }
+
+    if (token.startsWith("--tag=")) {
+      includeTags.push(
+        ...parseTagListValue(token.split("=", 2)[1] ?? "", "--tag"),
+      );
+      continue;
+    }
+
+    if (token === "--exclude-tag") {
+      const rawValue = args[i + 1];
+      if (!rawValue) {
+        throw new Error("--exclude-tag requires a value");
+      }
+      excludeTags.push(...parseTagListValue(rawValue, "--exclude-tag"));
+      i += 1;
+      continue;
+    }
+
+    if (token.startsWith("--exclude-tag=")) {
+      excludeTags.push(
+        ...parseTagListValue(
+          token.split("=", 2)[1] ?? "",
+          "--exclude-tag",
+        ),
+      );
+      continue;
+    }
+
+    forwardedArgs.push(token);
+  }
+
+  return {
+    args: forwardedArgs,
+    includeTags: [...new Set(includeTags)].sort(),
+    excludeTags: [...new Set(excludeTags)].sort(),
   };
 }
 

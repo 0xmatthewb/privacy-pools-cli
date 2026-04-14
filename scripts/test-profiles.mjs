@@ -2,6 +2,11 @@ import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildTestRunnerEnv } from "./test-runner-env.mjs";
+import {
+  collectRuntimeBudgetFailures,
+  getProfileStepRuntimeBudget,
+  reportRuntimeSummary,
+} from "./test-runtime-metadata.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 export const ROOT = resolve(__dirname, "..");
@@ -102,14 +107,28 @@ export function runProfile(name, options = {}) {
     throw new Error(`Unknown test profile: ${name}`);
   }
 
+  const runtimeResults = [];
+
   for (const [commandName, args] of profile) {
     const command = commandName === "npm" ? npmCommand : commandName;
+    const startedAt = Date.now();
     const result = spawnSync(command, args, {
       cwd: options.cwd ?? ROOT,
       stdio: "inherit",
       env: resolveProfileRunEnv(options),
       timeout: options.stepTimeoutMs ?? DEFAULT_PROFILE_STEP_TIMEOUT_MS,
     });
+    const durationMs = Date.now() - startedAt;
+
+    runtimeResults.push({
+      label: `${command} ${args.join(" ")}`,
+      durationMs,
+      budgetMs: getProfileStepRuntimeBudget(commandName, args),
+      budgetExceeded: false,
+    });
+    runtimeResults[runtimeResults.length - 1].budgetExceeded =
+      Number.isInteger(runtimeResults[runtimeResults.length - 1].budgetMs)
+      && durationMs > runtimeResults[runtimeResults.length - 1].budgetMs;
 
     if (result.error) {
       const timedOut =
@@ -130,5 +149,17 @@ export function runProfile(name, options = {}) {
     if (result.signal) {
       process.kill(process.pid, result.signal);
     }
+  }
+
+  reportRuntimeSummary(`${name} profile slowest steps`, runtimeResults);
+  const budgetFailures = collectRuntimeBudgetFailures(runtimeResults);
+  if (budgetFailures.length > 0) {
+    process.stderr.write("Profile runtime budgets exceeded:\n");
+    for (const failure of budgetFailures) {
+      process.stderr.write(
+        `- ${failure.label}: ${failure.durationMs}ms > ${failure.budgetMs}ms\n`,
+      );
+    }
+    process.exit(1);
   }
 }

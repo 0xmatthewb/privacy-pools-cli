@@ -29,5 +29,7 @@ export function buildCoverageMainSuites({
   return chunkList(files, batchSize).map((tests, index) => ({
     label: `main-${String(index + 1).padStart(2, "0")}`,
     tests,
+    tags: ["coverage", "source"],
+    budgetMs: null,
   }));
 }

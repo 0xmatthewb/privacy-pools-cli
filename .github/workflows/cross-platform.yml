@@ -173,7 +173,7 @@ jobs:
           name: cross-platform-js-cli-tarball
           path: .ci-artifacts/root-tarball
 
-      - name: Run packaged smoke tests
+      - name: Run packed smoke tests
         if: steps.select.outputs.should_run == 'true'
         env:
           PP_INSTALL_CLI_TARBALL: .ci-artifacts/root-tarball/${{ needs.prepare-js-artifacts.outputs.cli_tarball_name }}

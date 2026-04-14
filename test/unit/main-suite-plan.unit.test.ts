@@ -3,7 +3,9 @@ import {
   buildDefaultMainSuites,
   DEFAULT_MAIN_CONCURRENCY_CAP,
   DEFAULT_MAIN_BATCH_SIZE,
+  DEFAULT_ISOLATED_CONCURRENCY_CAP,
   resolveMainBatchConcurrency,
+  resolveIsolatedSuiteConcurrency,
   suiteUsesSharedBuiltWorkspaceSnapshot,
 } from "../../scripts/main-suite-plan.mjs";
 
@@ -45,6 +47,8 @@ describe("main suite planning", () => {
           "./test/acceptance/alpha.acceptance.test.ts",
           "./test/acceptance/zeta.acceptance.test.ts",
         ],
+        tags: [],
+        budgetMs: null,
       },
       {
         label: "main:unit",
@@ -52,6 +56,8 @@ describe("main suite planning", () => {
           "./test/unit/beta.unit.test.ts",
           "./test/unit/gamma.unit.test.ts",
         ],
+        tags: [],
+        budgetMs: null,
       },
     ]);
   });
@@ -78,10 +84,14 @@ describe("main suite planning", () => {
           "./test/unit/a.unit.test.ts",
           "./test/unit/b.unit.test.ts",
         ],
+        tags: [],
+        budgetMs: null,
       },
       {
         label: "main:unit-02",
         tests: ["./test/unit/c.unit.test.ts"],
+        tags: [],
+        budgetMs: null,
       },
     ]);
   });
@@ -107,14 +117,20 @@ describe("main suite planning", () => {
       {
         label: "main:unit-01",
         tests: ["./test/unit/a.unit.test.ts"],
+        tags: [],
+        budgetMs: null,
       },
       {
         label: "main:unit-02",
         tests: ["./test/unit/b.unit.test.ts"],
+        tags: [],
+        budgetMs: null,
       },
       {
         label: "main:unit-03",
         tests: ["./test/unit/c.unit.test.ts"],
+        tags: [],
+        budgetMs: null,
       },
     ]);
   });
@@ -177,6 +193,25 @@ describe("main suite planning", () => {
         availableParallelismFn: () => 1,
       }),
     ).toBe(1);
+  });
+
+  test("isolated suite concurrency auto-detect stays bounded", () => {
+    expect(
+      resolveIsolatedSuiteConcurrency({
+        suiteCount: 4,
+        availableParallelismFn: () => 8,
+      }),
+    ).toBe(DEFAULT_ISOLATED_CONCURRENCY_CAP);
+  });
+
+  test("isolated suite concurrency honors explicit env overrides", () => {
+    expect(
+      resolveIsolatedSuiteConcurrency({
+        suiteCount: 4,
+        env: { PP_TEST_ISOLATED_CONCURRENCY: "3" },
+        availableParallelismFn: () => 8,
+      }),
+    ).toBe(3);
   });
 
   test("shared built workspace snapshots are reserved for built-cli suites", () => {

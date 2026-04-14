@@ -1,3 +1,46 @@
+import {
+  matchesTagFilters,
+  normalizeTags,
+} from "./lib/suite-plan-utils.mjs";
+import { getSuiteRuntimeBudget } from "./test-runtime-metadata.mjs";
+
+function makeTags(...tags) {
+  return normalizeTags(tags);
+}
+
+function defineMainBatch(batch) {
+  return {
+    tags: makeTags("main", batch.label, ...(batch.tags ?? [])),
+    budgetMs: batch.budgetMs ?? null,
+    ...batch,
+  };
+}
+
+function defineTaggedSuite(suite, defaultTags = []) {
+  return {
+    fixtureClass: suite.fixtureClass ?? suite.label,
+    tags: makeTags(...defaultTags, suite.label, ...(suite.tags ?? [])),
+    budgetMs: suite.budgetMs ?? getSuiteRuntimeBudget(suite.label),
+    ...suite,
+  };
+}
+
+function defineIsolatedSuite(suite) {
+  return defineTaggedSuite(suite, ["isolated"]);
+}
+
+function defineOnDemandSuite(suite) {
+  return defineTaggedSuite(suite, ["ondemand"]);
+}
+
+export function suiteMatchesTags(
+  suite,
+  includeTags = [],
+  excludeTags = [],
+) {
+  return matchesTagFilters(suite.tags, includeTags, excludeTags);
+}
+
 export const SHARED_TEST_TARGETS = [
   "./test/acceptance",
   "./test/unit",
@@ -9,11 +52,32 @@ export const SHARED_TEST_TARGETS = [
 export const DEFAULT_MAIN_TEST_TARGETS = SHARED_TEST_TARGETS;
 
 export const DEFAULT_MAIN_BATCHES = [
-  { label: "acceptance", targets: ["./test/acceptance"] },
-  { label: "unit", targets: ["./test/unit"], batchSize: 10 },
-  { label: "integration", targets: ["./test/integration"] },
-  { label: "fuzz", targets: ["./test/fuzz"] },
-  { label: "services", targets: ["./test/services"] },
+  defineMainBatch({
+    label: "acceptance",
+    targets: ["./test/acceptance"],
+    tags: ["acceptance", "cli-contract"],
+  }),
+  defineMainBatch({
+    label: "unit",
+    targets: ["./test/unit"],
+    batchSize: 10,
+    tags: ["unit", "fast"],
+  }),
+  defineMainBatch({
+    label: "integration",
+    targets: ["./test/integration"],
+    tags: ["integration", "boundary"],
+  }),
+  defineMainBatch({
+    label: "fuzz",
+    targets: ["./test/fuzz"],
+    tags: ["fuzz", "machine-safety"],
+  }),
+  defineMainBatch({
+    label: "services",
+    targets: ["./test/services"],
+    tags: ["services", "in-process"],
+  }),
 ];
 
 export const COVERAGE_MAIN_TEST_TARGETS = [
@@ -23,10 +87,20 @@ export const COVERAGE_MAIN_TEST_TARGETS = [
 
 export const PACKAGED_SMOKE_TEST =
   "./test/integration/cli-packaged-smoke.integration.test.ts";
+export const PACKED_SMOKE_TEST = PACKAGED_SMOKE_TEST;
 export const NATIVE_PACKAGE_SMOKE_TEST =
   "./test/integration/cli-native-package-smoke.integration.test.ts";
-export const NATIVE_SHELL_SMOKE_TEST =
-  "./test/integration/cli-native-shell.integration.test.ts";
+export const NATIVE_MACHINE_CONTRACT_TEST =
+  "./test/integration/cli-native-machine-contract.integration.test.ts";
+export const NATIVE_ROUTING_SMOKE_TEST =
+  "./test/integration/cli-native-routing-smoke.integration.test.ts";
+export const NATIVE_HUMAN_OUTPUT_SMOKE_TEST =
+  "./test/integration/cli-native-human-output.integration.test.ts";
+export const NATIVE_SHELL_SMOKE_TESTS = [
+  NATIVE_MACHINE_CONTRACT_TEST,
+  NATIVE_ROUTING_SMOKE_TEST,
+  NATIVE_HUMAN_OUTPUT_SMOKE_TEST,
+];
 export const WORKFLOW_ANVIL_SERVICE_TEST =
   "./test/services/workflow.anvil.service.test.ts";
 export const CLI_ANVIL_E2E_TEST =
@@ -133,223 +207,337 @@ export const ANVIL_E2E_TESTS = [
   CLI_ANVIL_FLOW_NEW_WALLET_USDC_TEST,
 ];
 
+export const ON_DEMAND_TAG_SUITES = [
+  defineOnDemandSuite({
+    label: "packed-smoke",
+    tests: [PACKAGED_SMOKE_TEST],
+    timeoutMs: 180_000,
+    tags: ["packed-smoke", "install-boundary", "expensive"],
+    fixtureClass: "packaged-install",
+  }),
+  defineOnDemandSuite({
+    label: "native-package-smoke",
+    tests: [NATIVE_PACKAGE_SMOKE_TEST],
+    timeoutMs: 240_000,
+    tags: ["native", "package", "install-boundary", "expensive"],
+    fixtureClass: "native-package",
+  }),
+  defineOnDemandSuite({
+    label: "native-machine-contract-parity",
+    tests: [NATIVE_MACHINE_CONTRACT_TEST],
+    timeoutMs: 240_000,
+    tags: ["native", "boundary", "machine", "expensive"],
+    fixtureClass: "native-boundary",
+  }),
+  defineOnDemandSuite({
+    label: "native-routing-smoke",
+    tests: [NATIVE_ROUTING_SMOKE_TEST],
+    timeoutMs: 180_000,
+    tags: ["native", "boundary", "routing", "expensive"],
+    fixtureClass: "native-boundary",
+  }),
+  defineOnDemandSuite({
+    label: "native-human-output-smoke",
+    tests: [NATIVE_HUMAN_OUTPUT_SMOKE_TEST],
+    timeoutMs: 180_000,
+    tags: ["native", "boundary", "human-output", "expensive"],
+    fixtureClass: "native-boundary",
+  }),
+  defineOnDemandSuite({
+    label: "workflow-anvil-service",
+    tests: [WORKFLOW_ANVIL_SERVICE_TEST],
+    timeoutMs: 300_000,
+    tags: ["anvil", "stateful", "workflow", "expensive"],
+    fixtureClass: "anvil",
+  }),
+  defineOnDemandSuite({
+    label: "cli-anvil-e2e",
+    tests: [CLI_ANVIL_E2E_TEST],
+    timeoutMs: 300_000,
+    tags: ["anvil", "stateful", "fund-moving", "expensive"],
+    fixtureClass: "anvil",
+  }),
+  defineOnDemandSuite({
+    label: "cli-anvil-flow-new-wallet-erc20",
+    tests: [CLI_ANVIL_FLOW_NEW_WALLET_ERC20_TEST],
+    timeoutMs: 300_000,
+    tags: ["anvil", "stateful", "flow", "expensive"],
+    fixtureClass: "anvil",
+  }),
+  defineOnDemandSuite({
+    label: "cli-anvil-flow-new-wallet-usdc",
+    tests: [CLI_ANVIL_FLOW_NEW_WALLET_USDC_TEST],
+    timeoutMs: 300_000,
+    tags: ["anvil", "stateful", "flow", "expensive"],
+    fixtureClass: "anvil",
+  }),
+];
+
 export const ISOLATED_SUITES = [
-  {
+  defineIsolatedSuite({
     label: "contracts-service",
     tests: [CONTRACTS_SERVICE_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "protocol-mocks",
+    tags: ["protocol", "sdk"],
     reason:
       "bun still reuses mocked wallet and sdk modules from this suite across later imports under the shared module cache",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "proofs-service",
     tests: [PROOFS_SERVICE_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "proof-stack",
+    tags: ["proofs", "protocol"],
     reason:
       "mocks snarkjs and circuit provisioning modules across the proof stack",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "workflow-mocked",
     tests: WORKFLOW_MOCKED_TESTS,
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "workflow-mock-graph",
+    tags: ["workflow", "expensive"],
     reason:
       "installs a broad workflow mock graph spanning prompts, relayer, contracts, and sdk services",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "workflow-service",
     tests: [WORKFLOW_SERVICE_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: true,
+    fixtureClass: "workflow-engine",
+    tags: ["workflow", "expensive"],
     reason:
       "coverage instrumentation still makes the large workflow service suite memory-heavy",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "workflow-internal",
     tests: [WORKFLOW_INTERNAL_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "workflow-mock-graph",
+    tags: ["workflow", "internal", "expensive"],
     reason:
       "installs deep workflow-internal mocks that still collide under Bun's shared module state",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "workflow-backup-paths",
     tests: [WORKFLOW_BACKUP_PATHS_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "workflow-filesystem",
+    tags: ["workflow", "filesystem"],
     reason:
       "mocks node:fs before importing workflow helpers, which must stay in its own Bun process to avoid cross-suite module pollution",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "workflow-backup-write",
     tests: [WORKFLOW_BACKUP_WRITE_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "workflow-filesystem",
+    tags: ["workflow", "filesystem"],
     reason:
       "mocks config persistence before importing workflow helpers, which must stay isolated from other workflow helper suites",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "init-discovery-service",
     tests: [INIT_DISCOVERY_SERVICE_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "restore-discovery",
+    tags: ["init", "discovery"],
     reason:
       "mocks sdk, pools, account, and account-storage modules to cover restore discovery outcomes and must stay isolated from other service suites",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "account-handler-errors",
     tests: [ACCOUNT_HANDLER_ERRORS_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: false,
+    fixtureClass: "account-handler",
+    tags: ["accounts", "errors"],
     reason:
       "self-cleaning restore snapshots now return output/common and account modules to their real exports between tests",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "account-readonly",
     tests: ACCOUNT_READONLY_TESTS,
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "account-readonly",
+    tags: ["accounts", "readonly"],
     reason:
       "the readonly command harness rewires account, sdk, asp, and pool-account modules and must stay in its own Bun process to avoid cross-suite cache pollution",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "init-interactive-cancel-invalid",
     tests: [INIT_INTERACTIVE_CANCEL_INVALID_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "interactive-prompts",
+    tags: ["init", "interactive"],
     reason:
       "replaces the prompt module globally and must stay isolated from other prompt-driven suites",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "init-interactive-generate-backup",
     tests: [INIT_INTERACTIVE_GENERATE_BACKUP_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "interactive-prompts",
+    tags: ["init", "interactive"],
     reason:
       "prompt-driven generate-and-backup flows must stay isolated from other init tests",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "init-interactive-import-visible-secret",
     tests: [INIT_INTERACTIVE_IMPORT_VISIBLE_SECRET_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "interactive-prompts",
+    tags: ["init", "interactive"],
     reason:
       "prompt-driven import flows and visible-secret warnings must stay isolated from other init tests",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "init-command-handler",
     tests: [INIT_COMMAND_HANDLER_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: true,
+    fixtureClass: "init-handler",
+    tags: ["init", "coverage"],
     reason:
       "Bun lcov stays stable for the stateful init handler only when coverage runs through a non-tty child process",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "deposit-handler",
     tests: [DEPOSIT_HANDLER_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: false,
+    fixtureClass: "deposit-handler",
+    tags: ["deposit"],
     reason:
       "command-handler mocks now restore shared sdk, preflight, and transaction helpers to real export snapshots",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "ragequit-handler-entry-submit-coverage",
     tests: [RAGEQUIT_HANDLER_ENTRY_SUBMIT_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: true,
+    fixtureClass: "ragequit-handler",
+    tags: ["ragequit", "coverage"],
     reason:
       "the entry-selection and signed-submit ragequit slice stays deterministic when coverage runs in its own Bun process",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "ragequit-handler-unsigned-coverage",
     tests: [RAGEQUIT_HANDLER_UNSIGNED_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: true,
+    fixtureClass: "ragequit-handler",
+    tags: ["ragequit", "coverage"],
     reason:
       "the unsigned ragequit slice stays deterministic when coverage runs in its own Bun process",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "ragequit-handler-ownership-coverage",
     tests: [RAGEQUIT_HANDLER_OWNERSHIP_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: true,
+    fixtureClass: "ragequit-handler",
+    tags: ["ragequit", "coverage"],
     reason:
       "the ragequit ownership and selection-error slice stays deterministic when coverage runs in its own Bun process",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "ragequit-handler-human-confirmation-coverage",
     tests: [RAGEQUIT_HANDLER_HUMAN_CONFIRMATION_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: true,
+    fixtureClass: "ragequit-handler",
+    tags: ["ragequit", "coverage"],
     reason:
       "the human-confirmation ragequit slice stays deterministic when coverage runs in its own Bun process",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "pools-handler",
     tests: [POOLS_HANDLER_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: false,
+    fixtureClass: "pools-handler",
+    tags: ["pools"],
     reason:
       "pools handler restores shared sdk, account, asp, and pool-account modules after each test batch",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "flow-handlers",
     tests: [FLOW_HANDLERS_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: false,
+    fixtureClass: "flow-handlers",
+    tags: ["workflow", "flow"],
     reason:
       "flow handler mocks restore workflow and output modules to captured real export snapshots between tests",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "bootstrap-runtime",
     tests: [BOOTSTRAP_RUNTIME_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: true,
     isolateInCoverage: true,
+    fixtureClass: "runtime-boundary",
+    tags: ["runtime", "bootstrap"],
     reason:
       "mock.module() interception of cli-main transitive imports is not safely reversible in-process across Bun versions",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "launcher-routing",
     tests: [LAUNCHER_ROUTING_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: true,
+    fixtureClass: "runtime-boundary",
+    tags: ["runtime", "routing"],
     reason:
       "the launcher routing suite exercises the runtime boundary and should contribute to the coverage signal in its own stable Bun process",
-  },
-  {
+  }),
+  defineIsolatedSuite({
     label: "launcher-runtime",
     tests: [LAUNCHER_RUNTIME_TEST],
     timeoutMs: 120_000,
     isolateInDefaultTest: false,
     isolateInCoverage: true,
+    fixtureClass: "runtime-boundary",
+    tags: ["runtime", "launcher"],
     reason:
       "Bun's lcov writer is deterministic for the launcher/runtime source suite only when it runs in its own coverage process",
-  },
+  }),
 ];
 
 export const DEFAULT_TEST_ISOLATED_SUITES = ISOLATED_SUITES.filter(
@@ -361,10 +549,7 @@ export const COVERAGE_ISOLATED_SUITES = ISOLATED_SUITES.filter(
 );
 
 export const DEFAULT_MAIN_EXCLUDED_TESTS = [
-  PACKAGED_SMOKE_TEST,
-  NATIVE_PACKAGE_SMOKE_TEST,
-  NATIVE_SHELL_SMOKE_TEST,
-  ...ANVIL_E2E_TESTS,
+  ...ON_DEMAND_TAG_SUITES.flatMap((suite) => suite.tests),
   ...DEFAULT_TEST_ISOLATED_SUITES.flatMap((suite) => suite.tests),
 ];
 

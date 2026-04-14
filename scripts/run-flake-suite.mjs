@@ -85,7 +85,7 @@ run("node", [
   "--process-timeout-ms",
   "600000",
 ]);
-run(npmCommand, ["run", "test:smoke"]);
+run(npmCommand, ["run", "test:packed-smoke"]);
 run(npmCommand, ["run", "test:smoke:native:package"]);
 run(npmCommand, ["run", "build"]);
 run(npmCommand, ["run", "test:artifacts:host"]);
