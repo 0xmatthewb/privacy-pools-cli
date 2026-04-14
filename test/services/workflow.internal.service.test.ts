@@ -1452,6 +1452,47 @@ describe("workflow internal helpers", () => {
     ).rejects.toThrow("Pool state changed while preparing the workflow proof.");
   });
 
+  test("executeRelayedWithdrawalForFlow fails closed when the latest root changes before relay submission", async () => {
+    proveWithdrawalMock.mockImplementationOnce(async () => {
+      state.latestRoot = 2n;
+      return {
+        proof: {
+          pi_a: ["0", "0", "1"],
+          pi_b: [
+            ["0", "0"],
+            ["0", "0"],
+            ["1", "0"],
+          ],
+          pi_c: ["0", "0", "1"],
+        },
+        publicSignals: [1n, 2n, 3n],
+      };
+    });
+
+    const context = await loadWorkflowPoolAccountContext(
+      sampleSnapshot({
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+      }),
+      undefined,
+      true,
+    );
+
+    await expect(
+      executeRelayedWithdrawalForFlow({
+        snapshot: sampleSnapshot({
+          phase: "approved_ready_to_withdraw",
+          aspStatus: "approved",
+        }),
+        context,
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Pool state changed before submission.");
+
+    expect(submitRelayRequestMock).not.toHaveBeenCalled();
+  });
+
   test("executeRelayedWithdrawalForFlow fails closed when local proof verification fails", async () => {
     const proofError = new CLIError(
       "Generated withdrawal proof failed local verification.",
