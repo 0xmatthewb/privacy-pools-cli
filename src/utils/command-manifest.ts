@@ -54,12 +54,12 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "init",
     "aliases": [],
-    "description": "Initialize wallet and configuration"
+    "description": "Initialize or restore your Privacy Pools account"
   },
   {
     "name": "upgrade",
     "aliases": [],
-    "description": "Check npm for updates or upgrade this CLI"
+    "description": "Check for CLI updates"
   },
   {
     "name": "config",
@@ -69,84 +69,84 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "flow",
     "aliases": [],
-    "description": "Guided deposit-to-private-withdrawal workflow"
+    "description": "Deposit and privately withdraw in one guided workflow"
   },
   {
     "name": "pools",
     "aliases": [],
-    "description": "List available pools and assets"
+    "description": "Browse available pools"
   },
   {
     "name": "activity",
     "aliases": [],
-    "description": "Show public activity feed"
+    "description": "View recent deposits and withdrawals across pools"
   },
   {
     "name": "stats",
     "aliases": [],
-    "description": "Show public statistics"
+    "description": "View pool and network statistics"
   },
   {
     "name": "status",
     "aliases": [],
-    "description": "Show configuration and check connection health"
+    "description": "Check account setup and network status"
   },
   {
     "name": "capabilities",
     "aliases": [],
-    "description": "Describe CLI capabilities for agent discovery"
+    "description": "Describe CLI capabilities for agents"
   },
   {
     "name": "describe",
     "aliases": [],
-    "description": "Describe one command for runtime agent introspection"
+    "description": "Describe a command's flags, args, and output schema"
   },
   {
     "name": "guide",
     "aliases": [],
-    "description": "Show usage guide, workflow, and reference"
+    "description": "Learn key concepts, workflows, and troubleshooting"
   },
   {
     "name": "deposit",
     "aliases": [],
-    "description": "Deposit funds into a Privacy Pool"
+    "description": "Deposit ETH or ERC-20 tokens into a pool"
   },
   {
     "name": "withdraw",
     "aliases": [],
-    "description": "Privately withdraw funds via relayer"
+    "description": "Withdraw privately from a pool"
   },
   {
     "name": "ragequit",
     "aliases": [
       "exit"
     ],
-    "description": "Publicly recover funds to your original deposit address (self-custody guarantee)"
+    "description": "Recover funds publicly to your deposit address"
   },
   {
     "name": "accounts",
     "aliases": [],
-    "description": "List your Pool Accounts with balances"
+    "description": "View balances, approval status, and pool accounts"
   },
   {
     "name": "migrate",
     "aliases": [],
-    "description": "Inspect legacy migration readiness on CLI-supported chains"
+    "description": "Check migration status for legacy pool accounts"
   },
   {
     "name": "history",
     "aliases": [],
-    "description": "Show chronological event history (deposits, migrations, withdrawals, ragequits)"
+    "description": "View your deposit and withdrawal history"
   },
   {
     "name": "sync",
     "aliases": [],
-    "description": "Force-sync local account state from onchain events"
+    "description": "Sync account state with the latest onchain data"
   },
   {
     "name": "completion",
     "aliases": [],
-    "description": "Generate or install shell completion"
+    "description": "Generate or install shell tab completion"
   }
 ] as const;
 
@@ -405,7 +405,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   "commands": [
     {
       "name": "init",
-      "description": "Initialize wallet and configuration",
+      "description": "Initialize or restore your Privacy Pools account",
       "usage": "init",
       "flags": [
         "--recovery-phrase <phrase>",
@@ -425,7 +425,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "upgrade",
-      "description": "Check npm for updates or upgrade this CLI",
+      "description": "Check for CLI updates",
       "usage": "upgrade",
       "flags": [
         "--check"
@@ -491,7 +491,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "flow",
-      "description": "Guided deposit-to-private-withdrawal workflow",
+      "description": "Deposit and privately withdraw in one guided workflow",
       "usage": "flow",
       "flags": [
         "start <amount> <asset> --to <address>",
@@ -554,7 +554,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "pools",
-      "description": "List available pools and assets",
+      "description": "Browse available pools",
       "usage": "pools",
       "flags": [
         "--all-chains",
@@ -567,7 +567,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "activity",
-      "description": "Show public activity feed",
+      "description": "View recent deposits and withdrawals across pools",
       "usage": "activity",
       "flags": [
         "[asset]",
@@ -580,7 +580,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "stats",
-      "description": "Show public statistics",
+      "description": "View pool and network statistics",
       "usage": "stats",
       "flags": [
         "global",
@@ -612,7 +612,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "describe",
-      "description": "Describe one command for runtime agent introspection",
+      "description": "Describe a command's flags, args, and output schema",
       "usage": "describe <command...>",
       "flags": [
         "<command...>"
@@ -623,7 +623,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "deposit",
-      "description": "Deposit funds into a Privacy Pool",
+      "description": "Deposit ETH or ERC-20 tokens into a pool",
       "usage": "deposit <amount> [asset]",
       "flags": [
         "--asset <symbol|address> (deprecated alias)",
@@ -637,7 +637,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "withdraw",
-      "description": "Privately withdraw funds via relayer",
+      "description": "Withdraw privately from a pool",
       "usage": "withdraw [amount] [asset] --to <address>",
       "flags": [
         "--asset <symbol|address> (deprecated alias)",
@@ -668,7 +668,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "accounts",
-      "description": "List your Pool Accounts with balances",
+      "description": "View balances, approval status, and pool accounts",
       "usage": "accounts",
       "flags": [
         "--no-sync",
@@ -685,7 +685,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "migrate",
-      "description": "Inspect legacy migration readiness on CLI-supported chains",
+      "description": "Check migration status for legacy pool accounts",
       "usage": "migrate",
       "flags": [
         "status [--all-chains]"
@@ -696,7 +696,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "migrate status",
-      "description": "Show legacy migration readiness on CLI-supported chains",
+      "description": "Check migration status for legacy pool accounts",
       "usage": "migrate status",
       "flags": [
         "--all-chains"
@@ -707,7 +707,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "history",
-      "description": "Show chronological event history (deposits, migrations, withdrawals, ragequits)",
+      "description": "View your deposit and withdrawal history",
       "usage": "history",
       "flags": [
         "--no-sync",
@@ -719,7 +719,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "sync",
-      "description": "Force-sync local account state from onchain events",
+      "description": "Sync account state with the latest onchain data",
       "usage": "sync",
       "flags": [
         "-a, --asset <symbol|address>"
@@ -730,7 +730,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "status",
-      "description": "Show configuration and check connection health",
+      "description": "Check account setup and network status",
       "usage": "status",
       "flags": [
         "--check",
@@ -744,7 +744,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "ragequit",
-      "description": "Publicly recover funds to your original deposit address (self-custody guarantee)",
+      "description": "Recover funds publicly to your deposit address",
       "aliases": [
         "exit"
       ],
@@ -761,7 +761,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "guide",
-      "description": "Show usage guide, workflow, and reference",
+      "description": "Learn key concepts, workflows, and troubleshooting",
       "usage": "guide",
       "flags": [],
       "agentFlags": "--agent",
@@ -770,7 +770,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "completion",
-      "description": "Generate or install shell completion",
+      "description": "Generate or install shell tab completion",
       "usage": "completion",
       "flags": [
         "[shell]",
@@ -783,7 +783,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "capabilities",
-      "description": "Describe CLI capabilities for agent discovery",
+      "description": "Describe CLI capabilities for agents",
       "usage": "capabilities",
       "flags": [],
       "agentFlags": "--agent",
@@ -794,7 +794,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   "commandDetails": {
     "init": {
       "command": "init",
-      "description": "Initialize wallet and configuration",
+      "description": "Initialize or restore your Privacy Pools account",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -882,7 +882,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "upgrade": {
       "command": "upgrade",
-      "description": "Check npm for updates or upgrade this CLI",
+      "description": "Check for CLI updates",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1467,7 +1467,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "flow": {
       "command": "flow",
-      "description": "Guided deposit-to-private-withdrawal workflow",
+      "description": "Deposit and privately withdraw in one guided workflow",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1816,7 +1816,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "pools": {
       "command": "pools",
-      "description": "List available pools and assets",
+      "description": "Browse available pools",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
@@ -1897,7 +1897,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "activity": {
       "command": "activity",
-      "description": "Show public activity feed",
+      "description": "View recent deposits and withdrawals across pools",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
@@ -1965,7 +1965,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "stats": {
       "command": "stats",
-      "description": "Show public statistics",
+      "description": "View pool and network statistics",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
@@ -2126,7 +2126,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "status": {
       "command": "status",
-      "description": "Show configuration and check connection health",
+      "description": "Check account setup and network status",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2193,7 +2193,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "capabilities": {
       "command": "capabilities",
-      "description": "Describe CLI capabilities for agent discovery",
+      "description": "Describe CLI capabilities for agents",
       "aliases": [],
       "execution": {
         "owner": "native-shell",
@@ -2243,7 +2243,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "describe": {
       "command": "describe",
-      "description": "Describe one command for runtime agent introspection",
+      "description": "Describe a command's flags, args, and output schema",
       "aliases": [],
       "execution": {
         "owner": "native-shell",
@@ -2296,7 +2296,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "guide": {
       "command": "guide",
-      "description": "Show usage guide, workflow, and reference",
+      "description": "Learn key concepts, workflows, and troubleshooting",
       "aliases": [],
       "execution": {
         "owner": "native-shell",
@@ -2346,7 +2346,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "deposit": {
       "command": "deposit",
-      "description": "Deposit funds into a Privacy Pool",
+      "description": "Deposit ETH or ERC-20 tokens into a pool",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2436,7 +2436,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "withdraw": {
       "command": "withdraw",
-      "description": "Privately withdraw funds via relayer",
+      "description": "Withdraw privately from a pool",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2600,7 +2600,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "ragequit": {
       "command": "ragequit",
-      "description": "Publicly recover funds to your original deposit address (self-custody guarantee)",
+      "description": "Recover funds publicly to your deposit address",
       "aliases": [
         "exit"
       ],
@@ -2681,7 +2681,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "accounts": {
       "command": "accounts",
-      "description": "List your Pool Accounts with balances",
+      "description": "View balances, approval status, and pool accounts",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2762,14 +2762,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
-        "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --all-chains to include testnets.",
+        "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --all-chains to include supported testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
         "When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (tornado.0xbow.io) before choosing withdraw or ragequit."
       ]
     },
     "migrate": {
       "command": "migrate",
-      "description": "Inspect legacy migration readiness on CLI-supported chains",
+      "description": "Check migration status for legacy pool accounts",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2823,7 +2823,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "migrate status": {
       "command": "migrate status",
-      "description": "Show legacy migration readiness on CLI-supported chains",
+      "description": "Check migration status for legacy pool accounts",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2883,7 +2883,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "history": {
       "command": "history",
-      "description": "Show chronological event history (deposits, migrations, withdrawals, ragequits)",
+      "description": "View your deposit and withdrawal history",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2949,7 +2949,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "sync": {
       "command": "sync",
-      "description": "Force-sync local account state from onchain events",
+      "description": "Sync account state with the latest onchain data",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -3005,7 +3005,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "completion": {
       "command": "completion",
-      "description": "Generate or install shell completion",
+      "description": "Generate or install shell tab completion",
       "aliases": [],
       "execution": {
         "owner": "hybrid",

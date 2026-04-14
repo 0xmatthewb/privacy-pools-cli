@@ -1,3 +1,5 @@
+import { ROOT_COMMAND_GROUPS } from "./root-command-groups.js";
+
 export const ROOT_HELP_FOOTER_ENTRIES = [
   ["Get started:", "privacy-pools init"],
   ["Full guide:", "privacy-pools guide"],
@@ -12,12 +14,9 @@ const COMMON_WORKFLOWS = [
   ["Withdraw", "privacy-pools withdraw --all ETH --to <address>"],
 ] as const;
 
-const COMMAND_GROUPS = [
-  ["Setup", "init, config, upgrade"],
-  ["Transact", "deposit, withdraw, ragequit, flow"],
-  ["Monitor", "accounts, status, history, activity, sync, stats"],
-  ["Discover", "pools, guide, describe, capabilities, completion"],
-] as const;
+const COMMAND_GROUPS = ROOT_COMMAND_GROUPS.map(
+  (group) => [group.heading, group.commands.join(", ")] as const,
+);
 
 export function rootHelpFooterPlain(): string {
   return [

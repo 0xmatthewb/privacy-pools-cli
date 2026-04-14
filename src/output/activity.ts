@@ -212,7 +212,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   if (getOutputWidthClass() !== "wide") {
     for (const event of data.events) {
       process.stderr.write(
-        formatSectionHeading(`${event.type} ${event.amountFormatted}`, {
+        formatSectionHeading(`${renderActivityType(event.type)} ${event.amountFormatted}`, {
           divider: true,
         }),
       );

@@ -469,9 +469,9 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     return val === "-" ? "" : ` (${val})`;
   };
   if (!silent) {
-    const feeBpsNum = data.feeBPS ? Number(data.feeBPS) : null;
-    const netAmount = feeBpsNum !== null
-      ? data.amount - (data.amount * BigInt(Math.round(feeBpsNum))) / 10000n
+    const feeBps = data.feeBPS ? BigInt(data.feeBPS) : null;
+    const netAmount = feeBps !== null
+      ? data.amount - (data.amount * feeBps) / 10000n
       : null;
     process.stderr.write(
       formatDenseOutcomeLine({

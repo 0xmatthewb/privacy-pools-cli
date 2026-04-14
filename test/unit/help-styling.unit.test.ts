@@ -45,7 +45,7 @@ describe("styleCommanderHelp", () => {
     expect(plain).toContain("deposit");
   });
 
-  test("groups root-level commands into Explore and Transact", () => {
+  test("groups root-level commands into the curated root help categories", () => {
     const raw = [
       "Usage: privacy-pools [options] [command]",
       "",
@@ -59,16 +59,22 @@ describe("styleCommanderHelp", () => {
     const result = styleCommanderHelp(raw);
     const plain = stripAnsi(result);
     // Group headers appear
-    expect(plain).toContain("Explore (no wallet needed)");
-    expect(plain).toContain("Transact (run init first)");
-    // Explore commands appear before Transact commands
-    const explorePos = plain.indexOf("Explore");
-    const transactPos = plain.indexOf("Transact");
-    const poolsPos = plain.indexOf("pools");
-    const initPos = plain.indexOf("init");
-    expect(explorePos).toBeLessThan(transactPos);
-    expect(poolsPos).toBeLessThan(transactPos);
-    expect(transactPos).toBeLessThan(initPos);
+    expect(plain).toContain("Getting started");
+    expect(plain).toContain("Transactions");
+    expect(plain).toContain("Monitoring");
+    // Group order stays curated
+    const lines = plain.split("\n");
+    const gettingStartedPos = lines.findIndex((line) => line.includes("Getting started"));
+    const transactionsPos = lines.findIndex((line) => line.includes("Transactions"));
+    const monitoringPos = lines.findIndex((line) => line.includes("Monitoring"));
+    const initPos = lines.findIndex((line) => line.includes("  init"));
+    const depositPos = lines.findIndex((line) => line.includes("  deposit"));
+    const poolsPos = lines.findIndex((line) => line.includes("  pools"));
+    expect(gettingStartedPos).toBeLessThan(transactionsPos);
+    expect(transactionsPos).toBeLessThan(monitoringPos);
+    expect(gettingStartedPos).toBeLessThan(initPos);
+    expect(transactionsPos).toBeLessThan(depositPos);
+    expect(monitoringPos).toBeLessThan(poolsPos);
     // Commander's built-in help command is omitted from grouped output
     expect(plain).not.toContain("display help for command");
   });

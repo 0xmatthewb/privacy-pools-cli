@@ -943,7 +943,6 @@ describe("renderWithdrawQuote parity", () => {
           agent: true,
           chain: "sepolia",
           to: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
-          extraGas: null,
         },
       },
       "privacy-pools withdraw 0.5 ETH --agent --chain sepolia --to 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",

@@ -40,7 +40,7 @@ describe("built CLI entrypoint", () => {
     const result = runBuiltSnapshotCli(["--help"]);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Usage:");
-    expect(result.stdout).toContain("Explore (no wallet needed)");
+    expect(result.stdout).toContain("Getting started");
     expect(result.stderr.trim()).toBe("");
   });
 

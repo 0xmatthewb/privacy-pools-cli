@@ -11,7 +11,7 @@ export function createAccountsCommand(): Command {
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .option(
       "--all-chains",
-      "Include testnet chains (default: Ethereum, Arbitrum, Optimism mainnets only)",
+      "Include supported testnets (default: CLI-supported mainnet chains only)",
     )
     .option("--details", "Show additional details per Pool Account")
     .option("--summary", "Show counts and balances only")

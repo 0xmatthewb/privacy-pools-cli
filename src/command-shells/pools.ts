@@ -11,7 +11,7 @@ export function createPoolsCommand(): Command {
     .argument("[asset]", "Asset symbol for detail view (e.g. ETH, BOLD)")
     .option(
       "--all-chains",
-      "Include testnet chains (default: Ethereum, Arbitrum, Optimism mainnets only)",
+      "Include supported testnets (default: CLI-supported mainnet chains only)",
     )
     .option("--search <query>", "Filter by chain/symbol/address/scope")
     .addOption(

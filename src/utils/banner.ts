@@ -5,6 +5,10 @@ import { getTerminalColumns, supportsUnicodeOutput, visibleWidth, padDisplay, in
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import {
+  DEFAULT_WELCOME_BANNER_ACTIONS,
+  type WelcomeAction,
+} from "./welcome-readiness.js";
 
 // ── Session marker (unchanged) ─────────────────────────────────────────────
 
@@ -67,10 +71,23 @@ interface BannerMeta {
   repository?: string | null;
   website?: string;
   readinessLabel?: string;
+  actions?: readonly WelcomeAction[];
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatBannerActionLines(actions: readonly WelcomeAction[]): string[] {
+  const renderedCommands = actions.map(
+    (action) => `privacy-pools ${action.cliCommand}`,
+  );
+  const commandWidth =
+    Math.max(...renderedCommands.map((command) => command.length), 0) + 2;
+
+  return actions.map((action, index) =>
+    `${accent(renderedCommands[index].padEnd(commandWidth))}${chalk.dim(action.description)}`,
+  );
 }
 
 function composeWelcomeText(meta: BannerMeta): string[] {
@@ -81,15 +98,16 @@ function composeWelcomeText(meta: BannerMeta): string[] {
   const versionLine = version
     ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent(website)}${meta.readinessLabel ? `${chalk.dim(sep)}${chalk.dim(meta.readinessLabel)}` : ""}`
     : accent(website);
+  const actionLines = formatBannerActionLines(
+    meta.actions ?? DEFAULT_WELCOME_BANNER_ACTIONS,
+  );
 
   return [
     brand("PRIVACY POOLS"),
     chalk.dim("A compliant way to transact privately on Ethereum."),
     versionLine,
     "",
-    `${accent("privacy-pools init")}    ${chalk.dim("get started")}`,
-    `${accent("privacy-pools guide")}   ${chalk.dim("full guide")}`,
-    `${accent("privacy-pools --help")}  ${chalk.dim("all commands")}`,
+    ...actionLines,
   ];
 }
 

@@ -15,6 +15,7 @@ import {
   visibleWidth,
   wrapDisplayText,
 } from "./terminal.js";
+import { readCliPackageInfo } from "../package-info.js";
 
 export type ErrorCategory =
   | "INPUT"
@@ -75,6 +76,39 @@ const ADDRESS_PATTERN = /\b0x[0-9a-fA-F]{40}\b/g;
 const URL_SAFE_SEGMENT_PATTERN = /^[A-Za-z0-9._~-]+$/;
 const SUPPORTED_MNEMONIC_WORD_COUNTS = new Set([12, 24]);
 const ALPHA_WORD_PATTERN = /\b[a-z]+\b/gi;
+const CLI_PACKAGE_INFO = readCliPackageInfo(import.meta.url);
+
+function normalizeRepositoryUrl(repository: unknown): string | null {
+  const raw =
+    typeof repository === "string"
+      ? repository
+      : typeof repository === "object" &&
+          repository !== null &&
+          "url" in repository &&
+          typeof (repository as { url?: unknown }).url === "string"
+        ? (repository as { url: string }).url
+        : null;
+
+  if (!raw) return null;
+
+  return raw
+    .replace(/^git\+/, "")
+    .replace(/^https?:\/\//, "")
+    .replace(/^ssh:\/\/git@/, "")
+    .replace(/^git@github\.com:/, "github.com/")
+    .replace(/\.git$/, "");
+}
+
+function repositoryIssueHint(): string {
+  const repositoryUrl = normalizeRepositoryUrl(CLI_PACKAGE_INFO.repository);
+  if (repositoryUrl?.startsWith("github.com/")) {
+    return `If the problem persists, open a GitHub issue at https://${repositoryUrl}/issues.`;
+  }
+  if (repositoryUrl) {
+    return `If the problem persists, open a GitHub issue in the repository: https://${repositoryUrl}.`;
+  }
+  return "If the problem persists, open a GitHub issue in the privacy-pools-cli repository.";
+}
 
 function isSensitiveEndpointSegment(segment: string): boolean {
   const decoded = segment.trim();
@@ -531,7 +565,7 @@ export function classifyError(error: unknown): CLIError {
   return new CLIError(
     message,
     "UNKNOWN",
-    "Try 'privacy-pools sync' to refresh local state, then retry. If the problem persists, please report it at https://github.com/0xmatthewb/privacy-pools-cli/issues."
+    `Try 'privacy-pools sync' to refresh local state, then retry. ${repositoryIssueHint()}`
   );
 }
 

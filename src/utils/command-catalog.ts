@@ -6,6 +6,7 @@ import type {
 } from "../types.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
 import type { CommandHelpConfig } from "./help.js";
+import { ROOT_COMMAND_DESCRIPTIONS } from "./root-command-groups.js";
 
 export type CommandPath =
   | "init"
@@ -69,7 +70,7 @@ const POOLS_LIST_JSON_FIELDS =
 
 export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   init: {
-    description: "Initialize wallet and configuration",
+    description: ROOT_COMMAND_DESCRIPTIONS.init,
     help: {
       overview: [
         "Creates or imports the local Privacy Pools wallet state under ~/.privacy-pools/. The recovery phrase controls deposit privacy and account restoration, while the signer key pays gas and submits transactions; they are intentionally separate secrets.",
@@ -127,7 +128,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `init`",
   },
   upgrade: {
-    description: "Check npm for updates or upgrade this CLI",
+    description: ROOT_COMMAND_DESCRIPTIONS.upgrade,
     help: {
       overview: [
         "Checks npm for the latest published privacy-pools-cli version and can upgrade a supported global npm install in place.",
@@ -168,7 +169,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `upgrade`",
   },
   config: {
-    description: "View and manage CLI configuration",
+    description: ROOT_COMMAND_DESCRIPTIONS.config,
     help: {
       overview: [
         "Inspect or modify the local CLI configuration without re-running init.",
@@ -387,7 +388,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     safeReadOnly: false,
   },
   flow: {
-    description: "Guided deposit-to-private-withdrawal workflow",
+    description: ROOT_COMMAND_DESCRIPTIONS.flow,
     help: {
       overview: [
         "Top-level namespace for the persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands.",
@@ -583,10 +584,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
   },
   pools: {
-    description: "List available pools and assets",
+    description: ROOT_COMMAND_DESCRIPTIONS.pools,
     help: {
       overview: [
-        "Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets too.",
+        "Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets.",
       ],
       examples: [
         { category: "Basic", commands: [
@@ -623,7 +624,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `pools`",
   },
   activity: {
-    description: "Show public activity feed",
+    description: ROOT_COMMAND_DESCRIPTIONS.activity,
     help: {
       overview: [
         "Shows the public onchain event feed across Privacy Pools — deposits and withdrawals from all participants.",
@@ -654,7 +655,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `activity`",
   },
   stats: {
-    description: "Show public statistics",
+    description: ROOT_COMMAND_DESCRIPTIONS.stats,
     help: {
       examples: [
         "privacy-pools stats global",
@@ -719,7 +720,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `stats pool`",
   },
   status: {
-    description: "Show configuration and check connection health",
+    description: ROOT_COMMAND_DESCRIPTIONS.status,
     help: {
       overview: [
         "Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only.",
@@ -753,7 +754,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `status`",
   },
   capabilities: {
-    description: "Describe CLI capabilities for agent discovery",
+    description: ROOT_COMMAND_DESCRIPTIONS.capabilities,
     help: {
       examples: [
         "privacy-pools capabilities",
@@ -774,7 +775,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `capabilities`",
   },
   describe: {
-    description: "Describe one command for runtime agent introspection",
+    description: ROOT_COMMAND_DESCRIPTIONS.describe,
     help: {
       overview: [
         "Use spaced command paths such as `withdraw quote` or `stats global`. The JSON output is the runtime contract for agents and includes prerequisites, flags, risk metadata, and JSON field notes.",
@@ -800,7 +801,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `describe`",
   },
   guide: {
-    description: "Show usage guide, workflow, and reference",
+    description: ROOT_COMMAND_DESCRIPTIONS.guide,
     help: {
       examples: [
         "privacy-pools guide",
@@ -818,7 +819,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     safeReadOnly: true,
   },
   deposit: {
-    description: "Deposit funds into a Privacy Pool",
+    description: ROOT_COMMAND_DESCRIPTIONS.deposit,
     help: {
       overview: [
         "Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local commitment precomputation path, so there is no runtime download step when proofs are needed.",
@@ -876,7 +877,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `deposit`",
   },
   withdraw: {
-    description: "Privately withdraw funds via relayer",
+    description: ROOT_COMMAND_DESCRIPTIONS.withdraw,
     help: {
       overview: [
         "Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off.",
@@ -973,7 +974,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "**Withdrawal quote:**",
   },
   ragequit: {
-    description: "Publicly recover funds to your original deposit address (self-custody guarantee)",
+    description: ROOT_COMMAND_DESCRIPTIONS.ragequit,
     aliases: ["exit"],
     help: {
       overview: [
@@ -1025,7 +1026,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `ragequit`",
   },
   accounts: {
-    description: "List your Pool Accounts with balances",
+    description: ROOT_COMMAND_DESCRIPTIONS.accounts,
     help: {
       overview: [
         "Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --all-chains to include supported testnets.",
@@ -1057,7 +1058,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       ],
       agentWorkflowNotes: [
-        "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --all-chains to include testnets.",
+        "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --all-chains to include supported testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
         `When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (${POA_PORTAL_URL}) before choosing withdraw or ragequit.`,
       ],
@@ -1073,7 +1074,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `accounts`",
   },
   migrate: {
-    description: "Inspect legacy migration readiness on CLI-supported chains",
+    description: ROOT_COMMAND_DESCRIPTIONS.migrate,
     help: {
       overview: [
         "Read-only command for legacy pre-upgrade accounts on chains currently supported by the CLI. It rebuilds the legacy account view from the installed SDK plus current onchain events, then reports whether the Privacy Pools website migration flow or website-based recovery is needed.",
@@ -1097,11 +1098,11 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     safeReadOnly: true,
   },
   "migrate status": {
-    description: "Show legacy migration readiness on CLI-supported chains",
+    description: ROOT_COMMAND_DESCRIPTIONS.migrate,
     help: {
       overview: [
         "Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead.",
-        "Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include testnets.",
+        "Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include supported testnets.",
       ],
       examples: [
         "privacy-pools migrate status",
@@ -1133,7 +1134,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `migrate status`",
   },
   history: {
-    description: "Show chronological event history (deposits, migrations, withdrawals, ragequits)",
+    description: ROOT_COMMAND_DESCRIPTIONS.history,
     help: {
       examples: [
         { category: "Basic", commands: [
@@ -1160,7 +1161,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `history`",
   },
   sync: {
-    description: "Force-sync local account state from onchain events",
+    description: ROOT_COMMAND_DESCRIPTIONS.sync,
     help: {
       overview: [
         "Most wallet-aware commands already auto-sync with a 2-minute freshness window, so explicit sync is mainly a crash-recovery or reconciliation tool rather than a command you should need on every workflow step.",
@@ -1188,7 +1189,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     agentsDocMarker: "#### `sync`",
   },
   completion: {
-    description: "Generate or install shell completion",
+    description: ROOT_COMMAND_DESCRIPTIONS.completion,
     help: {
       overview: [
         "Generates shell-specific completion scripts for the installed CLI. The default mode prints the raw script to stdout so you can inspect or redirect it manually.",

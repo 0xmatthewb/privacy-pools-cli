@@ -16,7 +16,7 @@ export function createMigrateCommand(): Command {
     .description(statusMetadata.description)
     .option(
       "--all-chains",
-      "Include testnet chains (mainnet chains shown by default)",
+      "Include supported testnets (default: CLI-supported mainnet chains only)",
     )
     .addHelpText("after", commandHelpText(statusMetadata.help ?? {}))
     .action(

@@ -26,6 +26,7 @@ import {
 } from "./layout.js";
 import { formatReviewSurface } from "./review.js";
 import { accent } from "../utils/theme.js";
+import { isTestnetChain } from "../config/chains.js";
 
 export interface InitRenderResult {
   defaultChain: string;
@@ -350,11 +351,16 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
       );
     }
   }
-  // Prominent "What's next?" for interactive users who just finished a fresh init (not restore).
+  // Prominent follow-up guidance for interactive users who just finished a fresh init.
   if (!isSilent(ctx) && !ctx.mode.skipPrompts && !result.mnemonicImported) {
-    process.stderr.write(formatSectionHeading("What's next?", { divider: true }));
+    const browsePoolsCommand = isTestnetChain(result.defaultChain)
+      ? `privacy-pools pools --chain ${result.defaultChain}`
+      : "privacy-pools pools";
     process.stderr.write(
-      `  1. Browse pools:    ${accent("privacy-pools pools")}\n` +
+      formatSectionHeading("Next steps", { divider: true, tone: "muted" }),
+    );
+    process.stderr.write(
+      `  1. Browse pools:    ${accent(browsePoolsCommand)}\n` +
       `  2. Start a flow:    ${accent("privacy-pools flow start <amount> <asset> --to <address>")}\n` +
       `  3. Read the guide:  ${accent("privacy-pools guide quickstart")}\n\n`,
     );

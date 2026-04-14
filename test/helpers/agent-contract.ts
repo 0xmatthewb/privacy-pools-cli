@@ -89,7 +89,7 @@ export function assertDescribeWithdrawQuoteAgentContract(
   }>(result, { status: 0, success: true });
 
   expect(json.command).toBe("withdraw quote");
-  expect(json.usage).toBe("withdraw quote <amount> --asset <symbol|address>");
+  expect(json.usage).toBe("withdraw quote <amount> <asset>");
   expect(json.sideEffectClass).toBe("read_only");
   expect(json.touchesFunds).toBe(false);
   expect(json.requiresHumanReview).toBe(false);

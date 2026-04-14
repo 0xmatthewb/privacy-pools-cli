@@ -254,8 +254,7 @@ describe("native package smoke", () => {
     });
 
     expect(firstResult.status).toBe(0);
-    expect(firstResult.stdout).toContain("Explore (no wallet needed)");
-    expect(firstResult.stdout).toContain("For large transactions, use privacypools.com.");
+    expect(firstResult.stdout.trim()).toBe("");
     expect(
       firstResult.stderr.includes(BANNER_SENTINEL) ||
         firstResult.stderr.includes(COMPACT_BANNER_SENTINEL),
@@ -263,6 +262,9 @@ describe("native package smoke", () => {
     expect(firstResult.stderr).toContain(
       "A compliant way to transact privately on Ethereum.",
     );
+    expect(firstResult.stderr).toContain("privacy-pools init");
+    expect(firstResult.stderr).toContain("privacy-pools guide");
+    expect(firstResult.stderr).toContain("privacy-pools --help");
 
     const secondResult = runBuiltCli([], {
       cwd: snapshotRoot,
@@ -270,7 +272,8 @@ describe("native package smoke", () => {
     });
 
     expect(secondResult.status).toBe(0);
-    expect(secondResult.stdout).toContain("Explore (no wallet needed)");
+    expect(secondResult.stdout).toContain("privacy-pools status");
+    expect(secondResult.stdout).toContain("For large transactions, use privacypools.com.");
     expect(secondResult.stderr).not.toContain(BANNER_SENTINEL);
     expect(secondResult.stderr).not.toContain(COMPACT_BANNER_SENTINEL);
   });

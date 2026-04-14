@@ -6,6 +6,10 @@ import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
 import { OUTPUT_FORMAT_DESCRIPTION } from "./mode.js";
 import { accent, accentBold, brand, dangerTone, notice, successTone } from "./theme.js";
 import { inlineSeparator } from "./terminal.js";
+import {
+  DEFAULT_WELCOME_SCREEN_ACTIONS,
+  type WelcomeAction,
+} from "./welcome-readiness.js";
 export { styleCommanderHelp } from "./root-help.js";
 
 function defaultPackageRoot(): string {
@@ -18,29 +22,45 @@ function shouldShowPathRegistrationHint(
   return Boolean(process.env.npm_lifecycle_event) && existsSync(join(packageRoot, ".git"));
 }
 
+function formatWelcomeActionLines(actions: readonly WelcomeAction[]): string[] {
+  const renderedCommands = actions.map(
+    (action) => `privacy-pools ${action.cliCommand}`,
+  );
+  const commandWidth =
+    Math.max(...renderedCommands.map((command) => command.length), 0) + 1;
+
+  return actions.map((action, index) =>
+    `${accent(renderedCommands[index].padEnd(commandWidth))}${chalk.dim(action.description)}`,
+  );
+}
+
 /**
  * Condensed welcome screen shown on bare `privacy-pools` (no args).
  * Orients the user quickly without the full Commander listing.
  */
 export function welcomeScreen(
-  options: { packageRoot?: string; version?: string; readinessLabel?: string } = {},
+  options: {
+    packageRoot?: string;
+    version?: string;
+    readinessLabel?: string;
+    actions?: readonly WelcomeAction[];
+  } = {},
 ): string {
   const version = options.version?.trim();
   const sep = inlineSeparator();
   const versionLine = version
     ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent("privacypools.com")}${options.readinessLabel ? `${chalk.dim(sep)}${chalk.dim(options.readinessLabel)}` : ""}`
     : accent("privacypools.com");
+  const actionLines = formatWelcomeActionLines(
+    options.actions ?? DEFAULT_WELCOME_SCREEN_ACTIONS,
+  );
 
   const lines = [
     brand("PRIVACY POOLS"),
     chalk.dim("A compliant way to transact privately on Ethereum."),
     versionLine,
     "",
-    `${accent("privacy-pools status")}                                      ${chalk.dim("check setup and chain health")}`,
-    `${accent("privacy-pools init")}                                        ${chalk.dim("create a new wallet")}`,
-    `${accent("privacy-pools init --recovery-phrase-file <downloaded-file>")} ${chalk.dim("restore from the website")}`,
-    `${accent("privacy-pools guide")}                                       ${chalk.dim("full guide")}`,
-    `${accent("privacy-pools --help")}                                      ${chalk.dim("all commands")}`,
+    ...actionLines,
   ];
 
   // Nudge from-source users to register the CLI commands on their PATH.
@@ -101,7 +121,8 @@ const guideSections: Record<string, () => string[]> = {
     `  ${accent("privacy-pools accounts --chain mainnet")}                       ${chalk.dim("(then confirm approved vs declined vs POA Needed)")}`,
     `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient --pool-account PA-1")}`,
     chalk.dim("  Transaction commands use your default chain (set during init)."),
-    chalk.dim("  Public dashboards like pools/activity/stats default to all CLI-supported mainnet chains unless you pass --chain."),
+    chalk.dim("  Public dashboards like pools/activity/stats default to CLI-supported mainnet chains."),
+    chalk.dim("  Use --all-chains to include supported testnets, or --chain to scope one network."),
     chalk.dim("  Accounts is wallet-dependent: use --chain to keep approval checks on the same network as the deposit."),
     "",
     chalk.dim("  Deposits are reviewed by the ASP (Association Set Provider) before approval."),
@@ -172,7 +193,7 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("-y, --yes")}             Skip confirmation prompts`,
     `  ${notice("-q, --quiet")}           Suppress human-oriented stderr output`,
     `  ${notice("-v, --verbose")}         Enable verbose/debug output (-v info, -vv debug, -vvv trace)`,
-    `  ${notice("--no-progress")}        Suppress spinners/progress indicators (useful in CI)`,
+    `  ${notice("--no-progress")}         Suppress spinners/progress indicators (useful in CI)`,
     `  ${notice("--no-header")}          Suppress header rows in CSV and wide/tabular table output`,
     `  ${notice("--agent")}               Alias for --json --yes --quiet (agent/automation mode)`,
     `  ${notice("--timeout <seconds>")}  Network/transaction timeout (default: 30)`,

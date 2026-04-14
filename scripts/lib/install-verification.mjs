@@ -572,8 +572,8 @@ export function assertInstalledLauncherBasics({
   const welcomeResult = runInstalledCli(installRoot, homeDir, ["--no-banner"]);
   if (
     welcomeResult.status !== 0 ||
-    !welcomeResult.stdout.includes("Explore (no wallet needed)") ||
-    !welcomeResult.stdout.includes("Get started:      privacy-pools init") ||
+    !welcomeResult.stdout.includes("privacy-pools status") ||
+    !welcomeResult.stdout.includes("privacy-pools init") ||
     !welcomeResult.stdout.includes("This CLI is experimental. Use at your own risk.") ||
     !welcomeResult.stdout.includes("For large transactions, use privacypools.com.") ||
     welcomeResult.stderr.trim() !== "" ||

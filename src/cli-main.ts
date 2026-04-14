@@ -162,21 +162,26 @@ export async function runCli(
           return;
         }
         let bannerIncludedWelcome = false;
-        const { getWelcomeReadinessLabel } = await import("./utils/welcome-readiness.js");
-        const readinessLabel = getWelcomeReadinessLabel();
+        const { getWelcomeState } = await import("./utils/welcome-readiness.js");
+        const welcomeState = getWelcomeState();
         if (!suppressBanner) {
           const { printBanner } = await import("./utils/banner.js");
           const bannerResult = await printBanner({
             version: pkg.version,
             repository: normalizeRepositoryUrl(pkg.repository),
-            readinessLabel,
+            readinessLabel: welcomeState.readinessLabel,
+            actions: welcomeState.bannerActions,
           });
           bannerIncludedWelcome = bannerResult.includedWelcomeText;
         }
         if (!bannerIncludedWelcome) {
           const { welcomeScreen } = await import("./utils/help.js");
           process.stdout.write(
-            welcomeScreen({ version: pkg.version, readinessLabel }) + "\n",
+            welcomeScreen({
+              version: pkg.version,
+              readinessLabel: welcomeState.readinessLabel,
+              actions: welcomeState.screenActions,
+            }) + "\n",
           );
         }
         const notice = getUpdateNotice(pkg.version);

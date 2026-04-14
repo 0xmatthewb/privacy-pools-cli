@@ -13,7 +13,6 @@ import {
   accentBold,
 } from "../utils/theme.js";
 import type { HistoryEvent } from "../commands/history.js";
-import { formatKeyValueRows, formatSectionHeading } from "./layout.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -120,17 +119,6 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
   if (silent) return;
 
   process.stderr.write(`\n${accentBold(`History on ${chain} (last ${events.length} events):`)}\n\n`);
-  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
-  process.stderr.write(
-    formatKeyValueRows([
-      { label: "Chain", value: chain },
-      { label: "Events", value: String(events.length) },
-      {
-        label: "Current block",
-        value: currentBlock === null ? "unknown" : currentBlock.toString(),
-      },
-    ]),
-  );
   const isWideFormat = ctx.mode.isWide;
   const historyHeaders = isWideFormat
     ? ["Type", "PA", "Amount", "Tx", "Time", "Block", "Pool"]
