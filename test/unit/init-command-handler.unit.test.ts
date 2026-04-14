@@ -878,6 +878,35 @@ describe("init command handler", () => {
     expect(json.writeTargets).toEqual([expect.stringContaining("config.json")]);
   });
 
+  test("includes backup-file targets in create dry runs", async () => {
+    const home = useIsolatedHome();
+    const backupFile = join(home, "recovery-backup.txt");
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          dryRun: true,
+          defaultChain: "sepolia",
+          backupFile,
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.dryRun).toBe(true);
+    expect(json.effectiveChain).toBe("sepolia");
+    expect(json.recoveryPhraseSource).toBe("generate new phrase");
+    expect(json.signerKeySource).toBe("prompt or skip");
+    expect(json.writeTargets).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("config.json"),
+        expect.stringContaining(".mnemonic"),
+        backupFile,
+      ]),
+    );
+  });
+
   test("persists RPC overrides for the selected default chain", async () => {
     const home = useIsolatedHome();
 
