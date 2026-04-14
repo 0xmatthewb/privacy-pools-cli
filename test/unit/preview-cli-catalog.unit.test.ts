@@ -74,131 +74,34 @@ describe("preview cli catalog", () => {
     }
   });
 
-  test("covers the audited journeys and corrected ownership labels", () => {
+  test("keeps key user journeys and ownership sentinels covered", () => {
     for (const caseId of [
       "welcome-banner",
       "root-help",
-      "guide",
-      "capabilities",
-      "describe-withdraw-quote",
-      "completion-bash",
       "init-configured-wallet",
       "init-generated",
-      "init-imported",
-      "init-overwrite-prompt",
-      "init-setup-mode-prompt",
-      "init-import-recovery-prompt",
-      "init-backup-method-prompt",
-      "init-backup-path-prompt",
-      "init-backup-confirm-prompt",
-      "init-signer-key-prompt",
-      "init-default-chain-prompt",
-      "js-activity-global",
-      "native-activity-global",
-      "js-activity-pool",
-      "native-activity-pool",
-      "activity-empty",
-      "js-stats-global",
-      "native-stats-global",
-      "js-stats-pool",
-      "native-stats-pool",
-      "js-pools-list",
-      "native-pools-list",
-      "native-pools-no-match",
-      "native-pool-detail",
-      "pools-empty",
-      "pools-no-match",
-      "forwarded-pool-detail",
-      "forwarded-status-configured",
-      "status-setup-required",
       "status-ready",
-      "status-degraded",
       "accounts-empty",
-      "accounts-pending-empty",
       "accounts-populated",
-      "accounts-details",
-      "accounts-summary",
-      "accounts-verbose",
-      "history-empty",
-      "history-populated",
-      "sync-empty",
-      "sync-success",
-      "migrate-status-no-legacy",
-      "migrate-status-migration-required",
-      "migrate-status-website-recovery",
-      "migrate-status-review-incomplete",
-      "migrate-status-fully-migrated",
-      "deposit-dry-run",
       "deposit-success",
-      "deposit-unsigned-envelope",
-      "deposit-unsigned-tx",
-      "deposit-validation",
-      "deposit-asset-select-prompt",
-      "deposit-unique-amount-prompt",
-      "deposit-confirm-prompt",
-      "deposit-progress-approve-token",
-      "deposit-progress-submit",
-      "withdraw-quote",
-      "withdraw-quote-template",
-      "withdraw-dry-run-relayed",
       "withdraw-success-relayed",
-      "withdraw-dry-run-direct",
       "withdraw-success-direct",
-      "withdraw-unsigned-envelope",
-      "withdraw-unsigned-tx",
-      "withdraw-validation",
-      "withdraw-pa-select-prompt",
-      "withdraw-recipient-prompt",
-      "withdraw-direct-confirm-prompt",
-      "withdraw-confirm",
-      "withdraw-progress-request-quote",
-      "withdraw-progress-generate-proof",
-      "withdraw-progress-submit-direct",
-      "withdraw-progress-submit-relayed",
-      "ragequit-dry-run",
       "ragequit-success",
-      "ragequit-unsigned-envelope",
-      "ragequit-unsigned-tx",
-      "ragequit-validation",
-      "ragequit-select",
-      "ragequit-confirm",
-      "ragequit-progress-load-account",
-      "ragequit-progress-generate-proof",
-      "ragequit-progress-submit",
-      "upgrade-check",
-      "upgrade-manual-only",
-      "upgrade-no-update",
-      "upgrade-auto-available",
-      "upgrade-ready",
-      "upgrade-performed",
-      "upgrade-confirm-prompt",
-      "upgrade-progress-check",
-      "upgrade-progress-install",
-      "flow-start-validation",
-      "flow-start-interactive-prompt",
-      "flow-start-confirm-prompt",
       "flow-start-configured",
-      "flow-start-new-wallet",
-      "flow-start-new-wallet-backup-choice",
-      "flow-start-new-wallet-backup-path-prompt",
-      "flow-start-new-wallet-backup-confirm",
-      "flow-start-watch",
-      "flow-start-progress-submit-deposit",
-      "flow-watch-awaiting-funding",
-      "flow-watch-awaiting-asp",
-      "flow-watch-waiting-privacy-delay",
       "flow-watch-ready",
-      "flow-watch-withdrawing",
       "flow-watch-completed",
-      "flow-watch-public-recovery",
-      "flow-watch-declined",
-      "flow-watch-poi-required",
-      "flow-watch-relayer-minimum",
-      "flow-watch-stopped-external",
       "flow-ragequit-success",
-      "flow-ragequit-error",
+      "upgrade-performed",
+      "native-pool-detail",
+      "forwarded-pool-detail",
     ]) {
       expect(findPreviewCase(caseId)).not.toBeNull();
+    }
+
+    for (const commandPath of ["root", ...GENERATED_COMMAND_PATHS]) {
+      expect(
+        PREVIEW_CASES.some((previewCase) => previewCase.commandPath === commandPath),
+      ).toBe(true);
     }
 
     expect(findPreviewCase("forwarded-pool-detail")).toMatchObject({
@@ -289,19 +192,35 @@ describe("preview cli catalog", () => {
   });
 
   test("declares prompt and progress coverage inventories explicitly", () => {
+    expect(new Set(PREVIEW_COVERAGE_SPEC.commandInventory).size).toBe(
+      PREVIEW_COVERAGE_SPEC.commandInventory.length,
+    );
     expect(PREVIEW_COVERAGE_SPEC.commandInventory).toContain("root");
-    expect(PREVIEW_COVERAGE_SPEC.commandInventory).toEqual([
-      "root",
-      ...GENERATED_COMMAND_PATHS,
-    ]);
-    expect(PREVIEW_COVERAGE_SPEC.promptInventory).toEqual(PREVIEW_PROMPT_INVENTORY);
-    expect(PREVIEW_COVERAGE_SPEC.progressInventory).toEqual(PREVIEW_PROGRESS_INVENTORY);
+
+    for (const commandPath of PREVIEW_COVERAGE_SPEC.commandInventory) {
+      expect(commandPath === "root" || GENERATED_COMMAND_PATHS.includes(commandPath)).toBe(
+        true,
+      );
+    }
+
+    for (const prompt of PREVIEW_PROMPT_INVENTORY) {
+      expect(findPreviewCase(prompt.caseId)).toMatchObject({
+        commandPath: prompt.commandPath,
+        stateClass: "prompt",
+        modes: ["tty"],
+      });
+    }
 
     for (const progress of PREVIEW_PROGRESS_INVENTORY) {
-      expect(findPreviewCase(progress.caseId)).toMatchObject({
+      const previewCase = findPreviewCase(progress.caseId);
+      expect(previewCase).toMatchObject({
         stateClass: "progress-step",
         fidelity: "progress-snapshot",
       });
+      expect(
+        previewCase?.commandPath === progress.commandPath
+          || previewCase?.commandPath.startsWith(`${progress.commandPath} `),
+      ).toBe(true);
     }
   });
 

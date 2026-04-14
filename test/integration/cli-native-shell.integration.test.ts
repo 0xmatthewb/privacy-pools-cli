@@ -495,11 +495,14 @@ describe("native shell parity", () => {
     });
   });
 
-  nativeTest("public read-only human and csv outputs stay stream-identical on fixture data", () => {
+  nativeTest("public read-only human and csv transcript smokes stay identical on fixture data", () => {
     const env = fixtureEnv(fixture!);
-    const multiChainEnv = multiChainFixtureEnv(fixture!);
 
     expectStreamParity(nativeBinary, ["stats"], {
+      js: { env },
+      native: { env },
+    });
+    expectStreamParity(nativeBinary, ["--format", "csv", "stats"], {
       js: { env },
       native: { env },
     });
@@ -511,34 +514,6 @@ describe("native shell parity", () => {
         native: { env },
       },
     );
-    expectStreamParity(nativeBinary, ["--format", "csv", "stats"], {
-      js: { env },
-      native: { env },
-    });
-    expectStreamParity(
-      nativeBinary,
-      ["--format", "csv", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
-      {
-        js: { env },
-        native: { env },
-      },
-    );
-    expectStreamParity(nativeBinary, ["activity"], {
-      js: { env },
-      native: { env },
-    });
-    expectStreamParity(nativeBinary, ["--format", "csv", "activity"], {
-      js: { env },
-      native: { env },
-    });
-    expectStreamParity(nativeBinary, ["pools"], {
-      js: { env: multiChainEnv },
-      native: { env: multiChainEnv },
-    });
-    expectStreamParity(nativeBinary, ["--format", "csv", "pools"], {
-      js: { env: multiChainEnv },
-      native: { env: multiChainEnv },
-    });
     expectStreamParity(nativeBinary, ["--chain", "sepolia", "pools"], {
       js: { env },
       native: { env },

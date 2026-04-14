@@ -15,29 +15,14 @@ import { readFileSync, readdirSync } from "node:fs";
 
 const CLI_ROOT = process.cwd();
 
-const MIGRATED_COMMANDS = [
-  "src/commands/accounts.ts",
-  "src/commands/activity.ts",
-  "src/commands/capabilities.ts",
-  "src/commands/completion.ts",
-  "src/commands/config.ts",
-  "src/commands/deposit.ts",
-  "src/commands/describe.ts",
-  "src/commands/flow.ts",
-  "src/commands/guide.ts",
-  "src/commands/history.ts",
-  "src/commands/init.ts",
-  "src/commands/migrate.ts",
-  "src/commands/pools.ts",
-  "src/commands/ragequit.ts",
-  "src/commands/stats.ts",
-  "src/commands/status.ts",
-  "src/commands/sync.ts",
-  "src/commands/upgrade.ts",
-  "src/commands/withdraw.ts",
-] as const;
-
 const UNMIGRATED_COMMANDS: readonly string[] = [];
+const ALL_COMMANDS = readdirSync(`${CLI_ROOT}/src/commands`)
+  .filter((file) => file.endsWith(".ts"))
+  .map((file) => `src/commands/${file}`)
+  .sort();
+const MIGRATED_COMMANDS = ALL_COMMANDS.filter(
+  (commandPath) => !UNMIGRATED_COMMANDS.includes(commandPath),
+);
 
 const UNSIGNED_PATH_COMMANDS = new Set([
   "src/commands/deposit.ts",
@@ -120,14 +105,9 @@ describe("output boundary conformance", () => {
     }
   });
 
-  test("every command file is listed in either MIGRATED or UNMIGRATED", () => {
-    const allCommands = readdirSync(`${CLI_ROOT}/src/commands`)
-      .filter((file) => file.endsWith(".ts"))
-      .map((file) => `src/commands/${file}`)
-      .sort();
-
-    const listed = [...MIGRATED_COMMANDS, ...UNMIGRATED_COMMANDS].sort();
-
-    expect(allCommands).toEqual(listed);
+  test("unmigrated command inventory only names real command files", () => {
+    expect(UNMIGRATED_COMMANDS).toEqual(
+      UNMIGRATED_COMMANDS.filter((commandPath) => ALL_COMMANDS.includes(commandPath)),
+    );
   });
 });

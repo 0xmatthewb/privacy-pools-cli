@@ -167,7 +167,7 @@ export const PREVIEW_PROGRESS_ALLOWLIST = [
   },
   {
     file: "src/services/workflow.ts",
-    pattern: 'stageHeader(1, depositSteps, "Approving token spend"',
+    pattern: 'writeWorkflowNarrativeProgress( ["Approve token", "Submit deposit"], 0',
     reason:
       "Configured-wallet flow deposits reuse the audited deposit progress surfaces, so the internal workflow wrapper stays allowlisted instead of duplicated.",
   },
@@ -179,7 +179,7 @@ export const PREVIEW_PROGRESS_ALLOWLIST = [
   },
   {
     file: "src/services/workflow.ts",
-    pattern: 'stageHeader(2, depositSteps, "Submitting deposit"',
+    pattern: 'writeWorkflowNarrativeProgress( ["Approve token", "Submit deposit"], 1',
     reason:
       "Flow deposit submission is already covered by the dedicated flow-start deposit progress snapshot.",
   },
@@ -203,7 +203,7 @@ export const PREVIEW_PROGRESS_ALLOWLIST = [
   },
   {
     file: "src/services/workflow.ts",
-    pattern: 'stageHeader(1, 2, "Generating and verifying commitment proof"',
+    pattern: 'writeWorkflowNarrativeProgress( ["Generate and verify commitment proof", "Submit public recovery"], 0',
     reason:
       "Workflow ragequit shares the same proof-generation UX as the command-level ragequit flow, which already has dedicated progress coverage.",
   },
@@ -215,9 +215,16 @@ export const PREVIEW_PROGRESS_ALLOWLIST = [
   },
   {
     file: "src/services/workflow.ts",
-    pattern: 'stageHeader(2, 2, "Submitting ragequit"',
+    pattern: 'writeWorkflowNarrativeProgress( ["Generate and verify commitment proof", "Submit public recovery"], 1',
     reason:
       "Workflow ragequit submission reuses the audited ragequit submission pattern and stays allowlisted to avoid duplicate snapshots.",
+  },
+  {
+    file: "src/services/workflow.ts",
+    pattern:
+      'writeWorkflowNarrativeProgress( effectiveWatch ? ["Submit deposit", "Watch toward private withdrawal"]',
+    reason:
+      "Configured-wallet flow start already has dedicated preview progress coverage for the deposit step, so the internal narrative wrapper stays allowlisted.",
   },
   {
     file: "native/shell/src/commands/activity/mod.rs",
@@ -266,7 +273,7 @@ export const PREVIEW_PROGRESS_CALLSITE_PATTERNS = [
   },
   {
     file: "src/commands/deposit.ts",
-    pattern: 'stageHeader(1, depositSteps, "Approving token spend"',
+    pattern: 'label: "Approving token spend"',
     progressStep: "deposit.approve-token",
   },
   {
@@ -276,7 +283,7 @@ export const PREVIEW_PROGRESS_CALLSITE_PATTERNS = [
   },
   {
     file: "src/commands/deposit.ts",
-    pattern: 'stageHeader(2, depositSteps, "Submitting deposit"',
+    pattern: 'label: "Submitting deposit"',
     progressStep: "deposit.submit",
   },
   {
@@ -286,7 +293,7 @@ export const PREVIEW_PROGRESS_CALLSITE_PATTERNS = [
   },
   {
     file: "src/commands/withdraw.ts",
-    pattern: 'stageHeader(1, withdrawSteps, "Syncing account state"',
+    pattern: 'label: "Syncing account state"',
     progressStep: "withdraw.sync-account-state",
   },
   {
