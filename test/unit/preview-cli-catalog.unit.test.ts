@@ -79,7 +79,7 @@ describe("preview cli catalog", () => {
       "welcome-banner",
       "root-help",
       "init-configured-wallet",
-      "init-generated",
+      "init-setup-mode-prompt",
       "status-ready",
       "accounts-empty",
       "accounts-populated",

@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   COVERAGE_ISOLATED_SUITES,
   COVERAGE_SIGNAL_TESTS,
@@ -56,6 +58,20 @@ describe("test suite manifest", () => {
         suite.tests.includes(LAUNCHER_ROUTING_TEST)
       ),
     ).toBe(true);
+  });
+
+  test("manifest-owned test paths resolve to committed test files without duplication drift", () => {
+    const referencedPaths = new Set([
+      ...DEFAULT_MAIN_EXCLUDED_TESTS,
+      ...COVERAGE_SIGNAL_TESTS,
+      ...COVERAGE_ISOLATED_SUITES.flatMap((suite) => suite.tests),
+    ]);
+
+    expect(referencedPaths.size).toBeGreaterThan(0);
+    for (const testPath of referencedPaths) {
+      expect(testPath.startsWith("./test/")).toBe(true);
+      expect(existsSync(resolve(process.cwd(), testPath))).toBe(true);
+    }
   });
 
   test("default main batches cover each shared target exactly once", () => {

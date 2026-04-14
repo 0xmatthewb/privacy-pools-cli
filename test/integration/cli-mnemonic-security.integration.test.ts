@@ -46,7 +46,10 @@ describe("mnemonic security", () => {
       { home, timeoutMs: 60_000 }
     );
 
-    const status = runCli(["--json", "status"], { home, timeoutMs: 10_000 });
+    const status = runCli(["--json", "status", "--no-check"], {
+      home,
+      timeoutMs: 10_000,
+    });
     expect(status.status).toBe(0);
     expect(status.stdout).not.toContain(TEST_MNEMONIC);
     expect(status.stdout).not.toContain(TEST_PRIVATE_KEY);
@@ -69,7 +72,10 @@ describe("mnemonic security", () => {
       { home, timeoutMs: 60_000 }
     );
 
-    const status = runCli(["status"], { home, timeoutMs: 10_000 });
+    const status = runCli(["status", "--no-check"], {
+      home,
+      timeoutMs: 10_000,
+    });
     expect(status.status).toBe(0);
     const combined = status.stdout + status.stderr;
     expect(combined).not.toContain(TEST_MNEMONIC);

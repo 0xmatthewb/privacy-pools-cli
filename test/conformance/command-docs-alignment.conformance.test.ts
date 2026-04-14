@@ -57,7 +57,10 @@ describe("command docs alignment", () => {
 
   test("AGENTS machine sections keep critical machine-contract anchors", () => {
     const expectations: Array<{ path: CommandPath; markers: string[] }> = [
-      { path: "init", markers: ["recoveryPhrase", "nextActions"] },
+      {
+        path: "init",
+        markers: ["setupMode", "readiness", "restoreDiscovery", "nextActions"],
+      },
       { path: "activity", markers: ["reviewStatus"] },
       { path: "status", markers: ["recommendedMode", "nextActions"] },
       { path: "accounts", markers: ["balances", "nextActions"] },

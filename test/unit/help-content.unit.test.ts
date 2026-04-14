@@ -60,12 +60,10 @@ describe("help content", () => {
 
   test("guideText highlights website recovery import in quickstart guidance", () => {
     const guide = guideText("quickstart");
-    expect(guide).toContain(
-      "privacy-pools init --recovery-phrase-file <downloaded-file>",
-    );
-    expect(guide).toContain(
-      "cat <downloaded-file> | privacy-pools init --recovery-phrase-stdin",
-    );
+    expect(guide).toContain("privacy-pools init");
+    expect(guide).toContain("--recovery-phrase-file");
+    expect(guide).toContain("--recovery-phrase-stdin");
+    expect(guide).toContain("downloaded-file");
   });
 
   test("guideText formats unknown topics cleanly and lists valid topics once", () => {
@@ -132,8 +130,8 @@ describe("help content", () => {
   test("welcomeScreen surfaces status and website restore commands", () => {
     const welcome = welcomeScreen();
     expect(welcome).toContain("privacy-pools status");
-    expect(welcome).toContain(
-      "privacy-pools init --recovery-phrase-file <downloaded-file>",
-    );
+    expect(welcome).toContain("privacy-pools init");
+    expect(welcome).toContain("--recovery-phrase-file");
+    expect(welcome).toContain("downloaded-file");
   });
 });

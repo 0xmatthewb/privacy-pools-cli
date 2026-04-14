@@ -135,6 +135,11 @@ describe("preview runtime", () => {
     expect(process.stdout.columns).toBe(originalStdoutColumns);
     expect(process.stderr.columns).toBe(originalStderrColumns);
 
+    process.env.PRIVACY_POOLS_CLI_PREVIEW_COLUMNS = "0";
+    runtime.applyPreviewRuntimeOverrides();
+    expect(process.stdout.columns).toBe(originalStdoutColumns);
+    expect(process.stderr.columns).toBe(originalStderrColumns);
+
     process.env.PRIVACY_POOLS_CLI_PREVIEW_COLUMNS = "72";
     runtime.applyPreviewRuntimeOverrides();
     expect(process.stdout.columns).toBe(72);
@@ -203,6 +208,51 @@ describe("preview runtime", () => {
       true,
     );
     expect(renderPreviewFixture).toHaveBeenCalledWith("withdraw-case");
+  });
+
+  test("maybeRenderPreviewScenario renders after prompts when requested", async () => {
+    const renderPreviewFixture = mock(async (_caseId: string) => undefined);
+    const runtime = await loadPreviewRuntime({
+      isPreviewScenarioCaseForCommand: () => true,
+      renderPreviewFixture,
+    });
+
+    process.env.PRIVACY_POOLS_CLI_PREVIEW_SCENARIO = "withdraw-case";
+    process.env.PRIVACY_POOLS_CLI_PREVIEW_TIMING = "after-prompts";
+
+    await expect(
+      runtime.maybeRenderPreviewScenario("withdraw", {
+        timing: "after-prompts",
+      }),
+    ).resolves.toBe(true);
+    expect(renderPreviewFixture).toHaveBeenCalledWith("withdraw-case");
+  });
+
+  test("maybeRenderPreviewScenario renders without a command matcher helper", async () => {
+    const renderPreviewFixture = mock(async (_caseId: string) => undefined);
+    const runtime = await loadPreviewRuntime({
+      renderPreviewFixture,
+    });
+
+    process.env.PRIVACY_POOLS_CLI_PREVIEW_SCENARIO = "status-ready";
+
+    await expect(runtime.maybeRenderPreviewScenario("status")).resolves.toBe(
+      true,
+    );
+    expect(renderPreviewFixture).toHaveBeenCalledWith("status-ready");
+  });
+
+  test("maybeRenderPreviewScenario fails cleanly when the fixture renderer is unavailable", async () => {
+    const runtime = await loadPreviewRuntime({
+      isPreviewScenarioCaseForCommand: () => true,
+      renderPreviewFixture: null,
+    });
+
+    process.env.PRIVACY_POOLS_CLI_PREVIEW_SCENARIO = "withdraw-case";
+
+    await expect(runtime.maybeRenderPreviewScenario("withdraw")).rejects.toThrow(
+      "Preview fixture runtime is unavailable.",
+    );
   });
 
   test("maybeRenderPreviewScenario surfaces preview render failures", async () => {

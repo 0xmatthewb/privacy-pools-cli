@@ -3,10 +3,13 @@ import { CHAINS } from "../../src/config/chains.ts";
 import {
   decodeValidatedRelayerWithdrawalData,
   getRelayerDetails,
+  isUnsupportedExtraGasRelayerError,
   overrideRelayerRetryWaitForTests,
   requestQuote,
+  requestQuoteWithExtraGasFallback,
   submitRelayRequest,
 } from "../../src/services/relayer.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
 
 const chain = CHAINS.mainnet;
@@ -222,6 +225,53 @@ describe("relayer service", () => {
     expect(details.relayerUrl).toBe("https://backup-relayer.test");
   });
 
+  test("getRelayerDetails skips invalid relayer candidates and trims duplicate hosts", async () => {
+    const fallbackChain = {
+      ...chain,
+      relayerHost: "https://primary-relayer.test",
+      relayerHosts: [
+        " https://primary-relayer.test ",
+        "https://primary-relayer.test",
+        "https://backup-relayer.test  ",
+      ],
+    };
+    const requestedUrls: string[] = [];
+
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
+      const url = String(input);
+      requestedUrls.push(url);
+
+      if (url.startsWith("https://primary-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ feeBPS: "10" }), { status: 200 }),
+        );
+      }
+
+      if (url.startsWith("https://backup-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      throw new Error(`unexpected relayer URL ${url}`);
+    }) as typeof fetch;
+
+    const details = await getRelayerDetails(
+      fallbackChain as typeof chain,
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+    );
+
+    expect(details.relayerUrl).toBe("https://backup-relayer.test");
+    expect(
+      requestedUrls.filter((url) =>
+        url.startsWith("https://primary-relayer.test/relayer/details"),
+      ),
+    ).toHaveLength(1);
+  });
+
   test("requestQuote prefers the cheapest selectable relayer when multiple relayers are healthy", async () => {
     const preferredChain = {
       ...chain,
@@ -291,6 +341,57 @@ describe("relayer service", () => {
     expect(seenUrls).not.toContain("https://primary-relayer.test/relayer/quote");
   });
 
+  test("getRelayerDetails trims and deduplicates relayer hosts before querying", async () => {
+    const weirdChain = {
+      ...chain,
+      relayerHost: " https://primary-relayer.test ",
+      relayerHosts: [
+        " https://primary-relayer.test ",
+        "https://primary-relayer.test",
+        "   ",
+        "\thttps://backup-relayer.test\t",
+      ],
+    };
+    const seenUrls: string[] = [];
+
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
+      const url = String(input);
+      seenUrls.push(url);
+
+      if (url.startsWith("https://primary-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "30" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://backup-relayer.test/relayer/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
+            { status: 200 },
+          ),
+        );
+      }
+
+      throw new Error(`unexpected relayer URL ${url}`);
+    }) as typeof fetch;
+
+    const details = await getRelayerDetails(
+      weirdChain as typeof chain,
+      "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+    );
+
+    expect(details.feeBPS).toBe("12");
+    expect(details.relayerUrl).toBe("https://backup-relayer.test");
+    expect(seenUrls).toEqual([
+      "https://primary-relayer.test/relayer/details?chainId=1&assetAddress=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "https://backup-relayer.test/relayer/details?chainId=1&assetAddress=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+    ]);
+  });
+
   test("decodeValidatedRelayerWithdrawalData rejects zero-address recipients", () => {
     const withdrawalData = encodeRelayerWithdrawalData({
       recipient: "0x0000000000000000000000000000000000000000",
@@ -344,6 +445,87 @@ describe("relayer service", () => {
     }).toThrow(expect.objectContaining({
       category: "RELAYER",
       message: expect.stringContaining("fee recipient cannot be the zero address"),
+    }));
+  });
+
+  test("decodeValidatedRelayerWithdrawalData returns the decoded fee data on success", () => {
+    const decoded = decodeValidatedRelayerWithdrawalData({
+      quote: {
+        feeCommitment: {
+          expiration: Date.now() + 60_000,
+          withdrawalData: VALID_WITHDRAWAL_DATA,
+          asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+          amount: "1000",
+          extraGas: false,
+          signedRelayerCommitment: "0x5678",
+        },
+      },
+      requestedRecipient: "0x0000000000000000000000000000000000000001",
+      quoteFeeBPS: 12n,
+    });
+
+    expect(decoded).toEqual({
+      recipient: "0x0000000000000000000000000000000000000001",
+      feeRecipient: "0x0000000000000000000000000000000000000002",
+      relayFeeBPS: 12n,
+      withdrawalData: VALID_WITHDRAWAL_DATA,
+    });
+  });
+
+  test("decodeValidatedRelayerWithdrawalData rejects missing fee commitments", () => {
+    expect(() => {
+      decodeValidatedRelayerWithdrawalData({
+        quote: {},
+        requestedRecipient: "0x0000000000000000000000000000000000000001",
+        quoteFeeBPS: 12n,
+      });
+    }).toThrow(expect.objectContaining({
+      category: "RELAYER",
+      message: expect.stringContaining("missing required fee details"),
+    }));
+  });
+
+  test("decodeValidatedRelayerWithdrawalData rejects recipient mismatches", () => {
+    expect(() => {
+      decodeValidatedRelayerWithdrawalData({
+        quote: {
+          feeCommitment: {
+            expiration: Date.now() + 60_000,
+            withdrawalData: VALID_WITHDRAWAL_DATA,
+            asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            amount: "1000",
+            extraGas: false,
+            signedRelayerCommitment: "0x5678",
+          },
+        },
+        requestedRecipient: "0x0000000000000000000000000000000000000009",
+        quoteFeeBPS: 12n,
+      });
+    }).toThrow(expect.objectContaining({
+      category: "RELAYER",
+      message: expect.stringContaining("recipient does not match"),
+    }));
+  });
+
+  test("decodeValidatedRelayerWithdrawalData rejects mismatched relay fee data", () => {
+    expect(() => {
+      decodeValidatedRelayerWithdrawalData({
+        quote: {
+          feeCommitment: {
+            expiration: Date.now() + 60_000,
+            withdrawalData: VALID_WITHDRAWAL_DATA,
+            asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+            amount: "1000",
+            extraGas: false,
+            signedRelayerCommitment: "0x5678",
+          },
+        },
+        requestedRecipient: "0x0000000000000000000000000000000000000001",
+        quoteFeeBPS: 13n,
+      });
+    }).toThrow(expect.objectContaining({
+      category: "RELAYER",
+      message: expect.stringContaining("quoted relay fee"),
     }));
   });
 
@@ -607,6 +789,117 @@ describe("relayer service", () => {
     // Service layer validates format only — feeBPS "99999" is a valid numeric string.
     // The withdraw command is responsible for bounds-checking against pool.maxRelayFeeBPS.
     expect(quote.feeBPS).toBe("99999");
+  });
+
+  test("requestQuote honors an explicit relayerUrl without probing relayer details", async () => {
+    const seenUrls: string[] = [];
+
+    globalThis.fetch = mock((input: RequestInfo | URL) => {
+      const url = String(input);
+      seenUrls.push(url);
+
+      if (url === "https://explicit-relayer.test/relayer/quote") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify(
+              buildRelayerQuoteResponse({
+                relayerUrl: "https://explicit-relayer.test",
+              }),
+            ),
+            { status: 200 },
+          ),
+        );
+      }
+
+      throw new Error(`unexpected relayer URL ${url}`);
+    }) as typeof fetch;
+
+    const quote = await requestQuote(chain, {
+      amount: 1000n,
+      asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      extraGas: false,
+      relayerUrl: "https://explicit-relayer.test",
+    });
+
+    expect(quote.relayerUrl).toBe("https://explicit-relayer.test");
+    expect(seenUrls).toEqual(["https://explicit-relayer.test/relayer/quote"]);
+  });
+
+  test("requestQuoteWithExtraGasFallback downgrades when the relayer rejects extra gas", async () => {
+    const requestBodies: Array<Record<string, unknown>> = [];
+
+    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      requestBodies.push(body);
+
+      if (body.extraGas === true) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ message: "UNSUPPORTED_FEATURE: extra gas" }),
+            { status: 400, statusText: "Bad Request" },
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            buildRelayerQuoteResponse({
+              extraGas: false,
+              relayerUrl: "https://relayer.privacypools.com",
+            }),
+          ),
+          { status: 200 },
+        ),
+      );
+    }) as typeof fetch;
+
+    const result = await requestQuoteWithExtraGasFallback(chain, {
+      amount: 1000n,
+      asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      extraGas: true,
+    });
+
+    expect(result.extraGas).toBe(false);
+    expect(result.downgradedExtraGas).toBe(true);
+    expect(requestBodies.map((body) => body.extraGas)).toEqual([true, false]);
+  });
+
+  test("requestQuoteWithExtraGasFallback rethrows non-extra-gas relayer errors", async () => {
+    const relayerError = new CLIError(
+      "Relayer request failed: capacity",
+      "RELAYER",
+      "Try again shortly.",
+    );
+    globalThis.fetch = mock(() => Promise.reject(relayerError)) as typeof fetch;
+
+    await expect(
+      requestQuoteWithExtraGasFallback(chain, {
+        amount: 1000n,
+        asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+        extraGas: false,
+      }),
+    ).rejects.toBe(relayerError);
+  });
+
+  test("isUnsupportedExtraGasRelayerError only matches relayer unsupported-feature responses", () => {
+    expect(
+      isUnsupportedExtraGasRelayerError(
+        new CLIError(
+          "Relayer request failed: UNSUPPORTED_FEATURE: extra gas",
+          "RELAYER",
+          "extra gas unavailable",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isUnsupportedExtraGasRelayerError(
+        new CLIError("Relayer request failed.", "RELAYER", "Try again."),
+      ),
+    ).toBe(false);
+    expect(
+      isUnsupportedExtraGasRelayerError(new Error("UNSUPPORTED_FEATURE")),
+    ).toBe(false);
   });
 
   test("requestQuote retries transport failures before succeeding", async () => {
@@ -942,6 +1235,35 @@ describe("relayer service", () => {
 
     expect(result.success).toBe(true);
     expect(result.txHash).toBe(validTxHash);
+  });
+
+  test("submitRelayRequest wraps transient network failures as RELAYER errors", async () => {
+    globalThis.fetch = mock(() =>
+      Promise.reject(new TypeError("fetch failed"))
+    ) as typeof fetch;
+
+    await expect(
+      submitRelayRequest(chain, {
+        scope: 1n,
+        withdrawal: {
+          processooor: "0x0000000000000000000000000000000000000001",
+          data: "0x",
+        },
+        proof: { _pA: ["0", "0"], _pB: [["0", "0"], ["0", "0"]], _pC: ["0", "0"], _pubSignals: [] },
+        publicSignals: [],
+        feeCommitment: {
+          expiration: Date.now() + 60_000,
+          withdrawalData: VALID_WITHDRAWAL_DATA,
+          asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+          amount: "1000",
+          extraGas: false,
+          signedRelayerCommitment: "0x5678",
+        },
+      })
+    ).rejects.toMatchObject({
+      category: "RELAYER",
+      message: expect.stringContaining("fetch failed"),
+    });
   });
 
   test("submitRelayRequest remains single-shot on retryable gateway failures", async () => {

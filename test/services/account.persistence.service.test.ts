@@ -5,6 +5,7 @@ import { AccountService } from "@0xbow/privacy-pools-core-sdk";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 import {
   ACCOUNT_FILE_VERSION,
+  assertAccountStateFreshForNoSync,
   needsLegacyAccountRebuild,
   isSyncFresh,
   loadSyncMeta,
@@ -16,6 +17,7 @@ import {
   initializeAccountServiceWithState,
   getStoredLegacyReadinessStatus,
   getStoredLegacyPoolAccounts,
+  withSuppressedSdkStdoutSync,
   syncAccountEvents,
 } from "../../src/services/account.ts";
 import { CLIError } from "../../src/utils/errors.ts";
@@ -317,6 +319,61 @@ describe("account persistence", () => {
     );
 
     expect(needsLegacyAccountRebuild(11155111)).toBe(true);
+  });
+
+  test("assertAccountStateFreshForNoSync blocks stale saved accounts and passes fresh ones", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    writeFileSync(
+      join(home, "accounts", "11155111.json"),
+      serialize({ poolAccounts: new Map() }),
+      "utf-8",
+    );
+
+    expect(() => assertAccountStateFreshForNoSync(11155111)).toThrow(
+      "outdated and must be refreshed",
+    );
+
+    saveAccount(11155111, {
+      poolAccounts: new Map(),
+      __legacyPoolAccounts: new Map(),
+      __legacyMigrationReadinessStatus: "no_legacy",
+    });
+    expect(() => assertAccountStateFreshForNoSync(11155111)).not.toThrow();
+  });
+
+  test("withSuppressedSdkStdoutSync suppresses console chatter during synchronous sdk work", () => {
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    let leaked = 0;
+
+    console.log = (() => {
+      leaked += 1;
+    }) as typeof console.log;
+    console.warn = (() => {
+      leaked += 1;
+    }) as typeof console.warn;
+    console.error = (() => {
+      leaked += 1;
+    }) as typeof console.error;
+
+    try {
+      const result = withSuppressedSdkStdoutSync(() => {
+        console.log("sdk log");
+        console.warn("sdk warn");
+        console.error("sdk error");
+        return "ok";
+      });
+
+      expect(result).toBe("ok");
+      expect(leaked).toBe(0);
+    } finally {
+      console.log = originalLog;
+      console.warn = originalWarn;
+      console.error = originalError;
+    }
   });
 
   test("getStoredLegacyPoolAccounts returns the stored legacy view without cloning", () => {

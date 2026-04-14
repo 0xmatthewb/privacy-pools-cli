@@ -247,7 +247,8 @@ describe("init recovery backup renderers", () => {
     const overwrite = renderInitOverwriteReview(true);
 
     expect(phrase).toContain("Recovery phrase");
-    expect(phrase).toContain("only time the CLI will display it");
+    expect(phrase).toContain("Danger:");
+    expect(phrase).toContain("Anyone with this phrase");
     expect(method).toContain("Back up recovery phrase");
     expect(path).toContain("Save recovery phrase backup");
     expect(saved).toContain("Recovery phrase saved");

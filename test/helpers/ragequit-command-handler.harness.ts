@@ -951,7 +951,8 @@ export function registerRagequitHumanConfirmationTests(): void {
 
     expect(selectPromptMock).toHaveBeenCalledTimes(3);
     expect(ragequitMock).toHaveBeenCalledTimes(1);
-    expect(stderr).toContain("Ragequit confirmed");
+    expect(stderr).toContain("Summary:");
+    expect(stderr).toContain("Pool Account: PA-1");
   });
 
   test("interactive asset selection re-resolves the chosen pool before ragequit execution", async () => {
@@ -1142,7 +1143,8 @@ export function registerRagequitHumanConfirmationTests(): void {
     );
 
     expect(stderr).toContain("Failed to record ragequit locally");
-    expect(stderr).toContain("Ragequit confirmed");
+    expect(stderr).toContain("Summary:");
+    expect(stderr).toContain("Pool Account: PA-1");
   });
 
   test("continues when saving local ragequit state fails after confirmation", async () => {
@@ -1161,7 +1163,8 @@ export function registerRagequitHumanConfirmationTests(): void {
 
     expect(stderr).toContain("failed to save local state");
     expect(stderr).toContain("Run 'privacy-pools sync'");
-    expect(stderr).toContain("Ragequit confirmed");
+    expect(stderr).toContain("Summary:");
+    expect(stderr).toContain("Pool Account: PA-1");
   });
 
   test("fails closed when onchain depositor preverification is unavailable in human mode", async () => {

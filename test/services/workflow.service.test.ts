@@ -169,6 +169,27 @@ describe("workflow service", () => {
     expect(resolveLatestWorkflowId()).toBe("valid-latest");
   });
 
+  test("resolveLatestWorkflowId fails closed when a newer unreadable workflow exists", () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    writeWorkflow(
+      home,
+      sampleWorkflow("valid-latest", { updatedAt: "2026-03-24T12:05:00.000Z" }),
+    );
+    const brokenPath = join(home, "workflows", "broken-newer.json");
+    writeFileSync(brokenPath, "{not valid json", "utf-8");
+    utimesSync(
+      brokenPath,
+      new Date("2099-03-24T12:10:00.000Z"),
+      new Date("2099-03-24T12:10:00.000Z"),
+    );
+
+    expect(() => resolveLatestWorkflowId()).toThrow(
+      "could be newer than the latest readable workflow",
+    );
+  });
+
   test("getWorkflowStatus defaults to latest", () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;

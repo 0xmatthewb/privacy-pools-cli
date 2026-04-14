@@ -10,6 +10,9 @@ const FOCUSED_TEST_PATTERNS = [
   /\bfit\s*\(/,
   /\bfdescribe\s*\(/,
 ];
+const DISABLED_TEST_PATTERNS = [
+  /\b(?:test|describe)\.(?:skip|todo)\s*\(/,
+];
 
 function collectFiles(root: string): string[] {
   const files: string[] = [];
@@ -56,6 +59,23 @@ describe("test hygiene conformance", () => {
     }
 
     expect(focusedMatches).toEqual([]);
+  });
+
+  test("suite does not commit direct skipped or todo tests", () => {
+    const disabledMatches: string[] = [];
+
+    for (const file of files) {
+      if (!file.endsWith(".ts")) continue;
+      const source = readFileSync(file, "utf8");
+      for (const pattern of DISABLED_TEST_PATTERNS) {
+        if (pattern.test(source)) {
+          disabledMatches.push(relative(process.cwd(), file).replaceAll("\\", "/"));
+          break;
+        }
+      }
+    }
+
+    expect(disabledMatches).toEqual([]);
   });
 
   test("non-helper tests use tracked temp-dir helpers instead of raw mkdtempSync", () => {

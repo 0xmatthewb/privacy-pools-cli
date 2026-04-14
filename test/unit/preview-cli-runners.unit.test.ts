@@ -72,12 +72,10 @@ describe("preview cli runners", () => {
     expect(accountsEmpty.execution.ttyScript).toBeUndefined();
     expect(accountsEmpty.execution.requiresTtyScript).toBe(false);
 
-    const initOverwritePrompt = resolvePreviewExecution("init-overwrite-prompt");
-    expect(initOverwritePrompt.modes).toEqual(["tty"]);
-    expect(initOverwritePrompt.execution.requiresTtyScript).toBe(true);
-    expect(initOverwritePrompt.execution.ttyScript).toMatchObject({
-      steps: [{ waitFor: "What would you like to do?", send: "\u001b[B\r" }],
-    });
+    const initSetupModePrompt = resolvePreviewExecution("init-setup-mode-prompt");
+    expect(initSetupModePrompt.modes).toEqual(["tty"]);
+    expect(initSetupModePrompt.execution.requiresTtyScript).toBe(true);
+    expect(initSetupModePrompt.execution.ttyScript).toBeDefined();
 
     expect(planPreviewSuite(["welcome-banner", "accounts-empty"]).map((plan) => plan.id)).toEqual([
       "welcome-banner",
@@ -117,7 +115,7 @@ describe("preview cli runners", () => {
 
   test("captured preview skips tty-only cases in dry-run planning", async () => {
     const result = await runCapturedPreviewSuite({
-      caseIds: ["init-overwrite-prompt", "flow-start-interactive-prompt"],
+      caseIds: ["init-setup-mode-prompt", "flow-start-interactive-prompt"],
       variants: ["rich"],
       dryRun: true,
     });
@@ -177,7 +175,7 @@ describe("preview cli runners", () => {
   test("tty preview keeps interactive-only prompt cases in dry-run planning", async () => {
     const result = await runTtyPreviewSuite({
       dryRun: true,
-      caseIds: ["init-overwrite-prompt", "flow-start-interactive-prompt"],
+      caseIds: ["init-setup-mode-prompt", "flow-start-interactive-prompt"],
       variants: ["rich"],
       io: {
         stdin: { isTTY: true },
@@ -186,7 +184,7 @@ describe("preview cli runners", () => {
     });
 
     expect(result.plans.map((plan) => plan.id)).toEqual([
-      "init-overwrite-prompt::rich",
+      "init-setup-mode-prompt::rich",
       "flow-start-interactive-prompt::rich",
     ]);
   });

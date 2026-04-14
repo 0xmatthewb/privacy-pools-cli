@@ -8,7 +8,7 @@ import {
   TEST_MNEMONIC,
   TEST_PRIVATE_KEY,
   createTempHome,
-  mustInitSeededHome,
+  createSeededHome,
   parseJsonOutput,
   runBuiltCli,
 } from "../helpers/cli.ts";
@@ -461,8 +461,7 @@ describe("native shell parity", () => {
   });
 
   nativeTest("status --agent --check stays JS-owned through native forwarding", () => {
-    const home = createTempHome("pp-native-status-check-");
-    mustInitSeededHome(home, "sepolia");
+    const home = createSeededHome("sepolia");
 
     expectJsonParity(
       nativeBinary,
@@ -611,8 +610,7 @@ describe("native shell parity", () => {
       native: { env },
     });
 
-    const seededHome = createTempHome("pp-native-status-streams-");
-    mustInitSeededHome(seededHome, "sepolia");
+    const seededHome = createSeededHome("sepolia");
 
     expectSilentStreamParity(
       nativeBinary,
@@ -762,10 +760,8 @@ describe("native shell parity", () => {
       replacementSigner,
       "--yes",
     ];
-    const jsHome = createTempHome("pp-native-init-js-");
-    const nativeHome = createTempHome("pp-native-init-native-");
-    mustInitSeededHome(jsHome, "sepolia");
-    mustInitSeededHome(nativeHome, "sepolia");
+    const jsHome = createSeededHome("sepolia");
+    const nativeHome = createSeededHome("sepolia");
 
     expectJsonParity(nativeBinary, args, {
       js: { home: jsHome },

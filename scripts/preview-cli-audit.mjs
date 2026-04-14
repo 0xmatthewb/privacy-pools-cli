@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PREVIEW_CASES } from "./lib/preview-cli-catalog.mjs";
@@ -25,6 +25,9 @@ const AUDIT_BATCH_IDS = [
   "maintenance",
 ];
 
+export const KEEP_PREVIEW_AUDIT_ARTIFACTS_ENV =
+  "PP_KEEP_PREVIEW_AUDIT_ARTIFACTS";
+
 function createCaptureWriter() {
   const chunks = [];
   return {
@@ -35,6 +38,23 @@ function createCaptureWriter() {
       return chunks.join("");
     },
   };
+}
+
+export function shouldRetainPreviewAuditArtifacts({
+  failed = false,
+  env = process.env,
+} = {}) {
+  return env[KEEP_PREVIEW_AUDIT_ARTIFACTS_ENV]?.trim() === "1" || failed;
+}
+
+export function cleanupPreviewAuditArtifacts(artifactDir) {
+  if (!artifactDir) return;
+  rmSync(artifactDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 3,
+    retryDelay: 50,
+  });
 }
 
 function mergePreviewResults(results) {
@@ -218,62 +238,86 @@ export async function main(argv = process.argv.slice(2)) {
   const artifactDir = mkdtempSync(
     join(tmpdir(), "privacy-pools-cli-preview-audit-"),
   );
-  const batchPlans = buildBatchPlans(options);
-  const batchResults = [];
-  const capturedResults = [];
-  const ttyResults = [];
-  const artifactPaths = {};
+  let retainArtifacts = true;
 
-  for (const batch of batchPlans) {
-    const batchResult = await runBatch({
-      batchId: batch.id,
-      caseIds: batch.caseIds,
-      options,
-      variantIds,
-      artifactDir,
+  try {
+    const batchPlans = buildBatchPlans(options);
+    const batchResults = [];
+    const capturedResults = [];
+    const ttyResults = [];
+    const artifactPaths = {};
+
+    for (const batch of batchPlans) {
+      const batchResult = await runBatch({
+        batchId: batch.id,
+        caseIds: batch.caseIds,
+        options,
+        variantIds,
+        artifactDir,
+      });
+      batchResults.push({
+        id: batch.id,
+        caseCount: batch.caseIds.length,
+        summary: batchResult.report.summary,
+        artifactDir: batchResult.artifactDir,
+        artifactPaths: batchResult.report.artifactPaths,
+      });
+      capturedResults.push(batchResult.capturedResult);
+      ttyResults.push(batchResult.ttyResult);
+      artifactPaths[batch.id] = batchResult.artifactDir;
+    }
+
+    const report = createPreviewCoverageReport({
+      capturedResult: mergePreviewResults(capturedResults),
+      ttyResult: mergePreviewResults(ttyResults),
+      artifactPaths,
+      batchId: "aggregate",
+      batches: batchResults,
     });
-    batchResults.push({
-      id: batch.id,
-      caseCount: batch.caseIds.length,
-      summary: batchResult.report.summary,
-      artifactDir: batchResult.artifactDir,
-      artifactPaths: batchResult.report.artifactPaths,
-    });
-    capturedResults.push(batchResult.capturedResult);
-    ttyResults.push(batchResult.ttyResult);
-    artifactPaths[batch.id] = batchResult.artifactDir;
-  }
+    const markdown = formatPreviewCoverageReportMarkdown(report);
+    const markdownPath = join(artifactDir, "preview-coverage-report.md");
+    const jsonPath = join(artifactDir, "preview-coverage-report.json");
+    writeFileSync(markdownPath, markdown, "utf8");
+    writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    report.artifactPaths.reportMarkdown = markdownPath;
+    report.artifactPaths.reportJson = jsonPath;
 
-  const report = createPreviewCoverageReport({
-    capturedResult: mergePreviewResults(capturedResults),
-    ttyResult: mergePreviewResults(ttyResults),
-    artifactPaths,
-    batchId: "aggregate",
-    batches: batchResults,
-  });
-  const markdown = formatPreviewCoverageReportMarkdown(report);
-  const markdownPath = join(artifactDir, "preview-coverage-report.md");
-  const jsonPath = join(artifactDir, "preview-coverage-report.json");
-  writeFileSync(markdownPath, markdown, "utf8");
-  writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-  report.artifactPaths.reportMarkdown = markdownPath;
-  report.artifactPaths.reportJson = jsonPath;
+    const failed =
+      report.summary.failedPlans > 0 ||
+      report.summary.missingStates > 0 ||
+      report.summary.unexpectedObservedRoutes > 0 ||
+      (report.summary.truthRequirementViolations ?? 0) > 0 ||
+      (report.summary.ptyBackendFailures ?? 0) > 0 ||
+      ttyResults.some((result) => result?.skipped);
+    retainArtifacts = shouldRetainPreviewAuditArtifacts({ failed });
 
-  if (options.reportJson) {
-    process.stdout.write(`${JSON.stringify({ ...report, artifactDir }, null, 2)}\n`);
-  } else {
-    process.stdout.write(`Artifacts: ${artifactDir}\n\n${markdown}`);
-  }
+    if (options.reportJson) {
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            ...report,
+            artifactDir,
+            artifactDirRetained: retainArtifacts,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+    } else if (retainArtifacts) {
+      process.stdout.write(`Artifacts: ${artifactDir}\n\n${markdown}`);
+    } else {
+      process.stdout.write(
+        `${markdown}\n\nArtifacts cleaned up after a successful audit. Set ${KEEP_PREVIEW_AUDIT_ARTIFACTS_ENV}=1 to retain them.\n`,
+      );
+    }
 
-  if (
-    report.summary.failedPlans > 0 ||
-    report.summary.missingStates > 0 ||
-    report.summary.unexpectedObservedRoutes > 0 ||
-    (report.summary.truthRequirementViolations ?? 0) > 0 ||
-    (report.summary.ptyBackendFailures ?? 0) > 0 ||
-    ttyResults.some((result) => result?.skipped)
-  ) {
-    process.exitCode = 1;
+    if (failed) {
+      process.exitCode = 1;
+    }
+  } finally {
+    if (!retainArtifacts) {
+      cleanupPreviewAuditArtifacts(artifactDir);
+    }
   }
 }
 

@@ -81,23 +81,19 @@ defineScenarioSuite("output-mode acceptance", [
     assertStderrEmpty(),
   ]),
   defineScenario("status without init writes readiness warnings to stderr", [
-    runCliStep(["--no-banner", "status"]),
+    runCliStep(["--no-banner", "status", "--no-check"]),
     assertExit(0),
     assertStdoutEmpty(),
     assertStderr((stderr) => {
       expect(stderr).toContain("Privacy Pools CLI Status");
       expect(stderr).toMatch(/Config:\s+not found/);
       expect(stderr).toContain("Run 'privacy-pools init'");
-      expect(stderr).toContain(
-        "privacy-pools init --recovery-phrase-file <downloaded-file>",
-      );
+      expect(stderr).toContain("Load an existing account:");
     }),
   ]),
   defineScenario("status with init writes wallet readiness details to stderr", [
     seedHome("sepolia"),
-    runCliStep(["--no-banner", "--rpc-url", "http://127.0.0.1:9", "status"], {
-      env: OFFLINE_ENV,
-    }),
+    runCliStep(["--no-banner", "status", "--no-check"]),
     assertExit(0),
     assertStdoutEmpty(),
     assertStderr((stderr) => {
@@ -179,7 +175,7 @@ defineScenarioSuite("output-mode acceptance", [
     "agent status emits JSON on stdout and nothing on stderr",
     [
       seedHome("sepolia"),
-      runCliStep(["--agent", "status"], { timeoutMs: 60_000 }),
+      runCliStep(["--agent", "status", "--no-check"], { timeoutMs: 60_000 }),
       assertExit(0),
       assertStderrEmpty(),
       assertJson<{ schemaVersion: string; success: boolean }>((json) => {

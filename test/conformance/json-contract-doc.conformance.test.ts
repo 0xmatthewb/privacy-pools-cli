@@ -74,7 +74,12 @@ describe("external JSON contract doc conformance", () => {
     const commands = doc.commands as Record<string, unknown>;
 
     const init = commands.init as { successFields?: Record<string, string> };
+    expect(init.successFields?.setupMode).toContain("\"create\"");
     expect(init.successFields?.setupMode).toContain("\"restore\"");
+    expect(init.successFields?.setupMode).toContain("\"signer_only\"");
+    expect(init.successFields?.setupMode).toContain("\"replace\"");
+    expect(init.successFields?.readiness).toContain("\"ready\"");
+    expect(init.successFields?.readiness).toContain("\"read_only\"");
     expect(init.successFields?.readiness).toContain("\"discovery_required\"");
     expect(init.successFields?.defaultChain).toBe("string");
     expect(init.successFields?.signerKeySet).toBe("boolean");

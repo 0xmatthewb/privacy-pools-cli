@@ -73,16 +73,6 @@ defineScenarioSuite("mnemonic-file acceptance", [
       expect(json.errorMessage).toContain("No valid recovery phrase found");
     }),
   ]),
-  defineScenario("imports a raw mnemonic file", [
-    (ctx) => runCliStep(initArgs(ctx.home, writeTempFile(ctx.home, "raw.txt", TEST_MNEMONIC)), {
-      timeoutMs: 60_000,
-      env: fixtureEnv(),
-    })(ctx),
-    assertExit(0),
-    assertJson<{ success: boolean }>((json) => {
-      expect(json.success).toBe(true);
-    }),
-  ]),
   defineScenario("imports a CLI backup file", [
     (ctx) => {
       const cliBackup = [

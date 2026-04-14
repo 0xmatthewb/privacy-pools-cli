@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { CLI_CWD, createSeededHome } from "../helpers/cli.ts";
+import { CLI_CWD } from "../helpers/cli.ts";
 import { buildChildProcessEnv } from "../helpers/child-env.ts";
+import { createTrackedTempDir } from "../helpers/temp.ts";
 
 const python3Available =
   process.platform !== "win32" &&
@@ -14,15 +15,21 @@ const python3Available =
 
 const ptyTest = python3Available ? test : test.skip;
 
-const BANNER_SENTINEL =
-  ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
+const BANNER_START_PATTERN = /^,---\./m;
+const SETUP_MENU_FRAGMENTS = [
+  "existing privacy pools account",
+  "signer key",
+  "get started",
+];
+const RECOVERY_PROMPT_SENTINEL = "Recovery phrase (12 or 24 words)";
+const CANCELLATION_SENTINEL = "cancel";
 
 const PYTHON_PTY_SCRIPT = `
 import json
 import os
 import pty
 import select
-import sys
+import signal
 import time
 
 workdir = os.environ["PP_TEST_PTY_CWD"]
@@ -38,8 +45,9 @@ if pid == 0:
 
 output = ""
 selected_replace_path = False
-sent_decline = False
-deadline = time.time() + 15
+sent_cancel = False
+timed_out = False
+deadline = time.time() + 25
 status = None
 
 while time.time() < deadline:
@@ -55,39 +63,53 @@ while time.time() < deadline:
     try:
         chunk = os.read(fd, 4096)
     except OSError:
-        break
+        done_pid, done_status = os.waitpid(pid, os.WNOHANG)
+        if done_pid == pid:
+            status = done_status
+            break
+        continue
 
     if not chunk:
-        break
+        done_pid, done_status = os.waitpid(pid, os.WNOHANG)
+        if done_pid == pid:
+            status = done_status
+            break
+        continue
 
     text = chunk.decode(errors="replace")
     output += text
 
-    if "What would you like to do?" in output and not selected_replace_path:
+    if not selected_replace_path and all(fragment in output.lower() for fragment in ${JSON.stringify(SETUP_MENU_FRAGMENTS)}):
         os.write(fd, b"\\x1b[B\\n")
         selected_replace_path = True
 
-    if "Replace the current local setup by loading this account?" in output and not sent_decline:
-        os.write(fd, b"n\\n")
-        sent_decline = True
+    if selected_replace_path and not sent_cancel and "${RECOVERY_PROMPT_SENTINEL}" in output:
+        os.write(fd, b"\\x03")
+        sent_cancel = True
 
 if status is None:
+    timed_out = True
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
     _, status = os.waitpid(pid, 0)
 
 print(json.dumps({
     "code": os.waitstatus_to_exitcode(status),
-    "sentDecline": sent_decline,
+    "sentCancel": sent_cancel,
+    "timedOut": timed_out,
     "output": output,
 }))
 `;
 
 describe("interactive pty flows", () => {
-  ptyTest("human init can decline overwrite through a real terminal prompt", () => {
-    const home = createSeededHome("sepolia");
+  ptyTest("human init can open the load-account prompt and cancel cleanly through a real terminal prompt", () => {
+    const home = createTrackedTempDir("pp-pty-home-");
     const result = spawnSync("python3", ["-c", PYTHON_PTY_SCRIPT], {
       cwd: CLI_CWD,
       encoding: "utf8",
-      timeout: 30_000,
+      timeout: 45_000,
       env: buildChildProcessEnv({
         PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
         PP_TEST_PTY_CWD: CLI_CWD,
@@ -107,15 +129,19 @@ describe("interactive pty flows", () => {
 
     const payload = JSON.parse(result.stdout.trim()) as {
       code: number;
-      sentDecline: boolean;
+      sentCancel: boolean;
+      timedOut: boolean;
       output: string;
     };
 
     expect(payload.code).toBe(0);
-    expect(payload.sentDecline).toBe(true);
-    expect(payload.output).toContain("What would you like to do?");
-    expect(payload.output).toContain("Replace the current local setup by loading this account?");
-    expect(payload.output).toContain("Init cancelled.");
-    expect(payload.output).not.toContain(BANNER_SENTINEL);
-  });
+    expect(payload.timedOut).toBe(false);
+    expect(payload.sentCancel).toBe(true);
+    for (const fragment of SETUP_MENU_FRAGMENTS) {
+      expect(payload.output.toLowerCase()).toContain(fragment);
+    }
+    expect(payload.output).toContain(RECOVERY_PROMPT_SENTINEL);
+    expect(payload.output.toLowerCase()).toContain(CANCELLATION_SENTINEL);
+    expect(payload.output).not.toMatch(BANNER_START_PATTERN);
+  }, 45_000);
 });
