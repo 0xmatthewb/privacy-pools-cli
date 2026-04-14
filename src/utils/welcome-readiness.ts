@@ -40,15 +40,15 @@ const WELCOME_ACTIONS: Record<string, WelcomeAction> = {
   },
   init: {
     cliCommand: "init",
-    description: "create or restore account",
+    description: "guided account setup",
   },
   "init --recovery-phrase-file <downloaded-file>": {
     cliCommand: "init --recovery-phrase-file <downloaded-file>",
-    description: "restore from website export",
+    description: "load existing account",
   },
-  "init --private-key-file <path>": {
-    cliCommand: "init --private-key-file <path>",
-    description: "add signer key",
+  "init --signer-only": {
+    cliCommand: "init --signer-only",
+    description: "finish setup with signer key",
   },
   guide: {
     cliCommand: "guide",
@@ -199,7 +199,7 @@ export function getWelcomeState(): WelcomeState {
             ["status", "accounts", "--help"],
             [
               "status",
-              "init --private-key-file <path>",
+              "init --signer-only",
               "accounts",
               "guide",
               "--help",
@@ -211,7 +211,7 @@ export function getWelcomeState(): WelcomeState {
             ["status", "pools", "--help"],
             [
               "status",
-              "init --private-key-file <path>",
+              "init --signer-only",
               "pools",
               "guide",
               "--help",

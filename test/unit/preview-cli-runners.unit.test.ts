@@ -76,7 +76,7 @@ describe("preview cli runners", () => {
     expect(initOverwritePrompt.modes).toEqual(["tty"]);
     expect(initOverwritePrompt.execution.requiresTtyScript).toBe(true);
     expect(initOverwritePrompt.execution.ttyScript).toMatchObject({
-      steps: [{ waitFor: "Continue?", send: "n\r" }],
+      steps: [{ waitFor: "What would you like to do?", send: "\u001b[B\r" }],
     });
 
     expect(planPreviewSuite(["welcome-banner", "accounts-empty"]).map((plan) => plan.id)).toEqual([

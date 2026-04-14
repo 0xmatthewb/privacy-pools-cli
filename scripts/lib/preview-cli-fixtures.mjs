@@ -14,7 +14,15 @@ import {
   renderGlobalStats,
   renderHistory,
   renderHistoryNoPools,
+  renderInitBackupConfirmationReview,
+  renderInitBackupMethodReview,
+  renderInitBackupPathReview,
+  renderInitGoalReview,
+  renderInitLoadRecoveryReview,
+  renderInitOverwriteReview,
+  renderInitRecoveryVerificationReview,
   renderInitResult,
+  renderInitSignerKeyReview,
   renderMigrationStatus,
   renderPoolStats,
   renderPools,
@@ -437,15 +445,20 @@ const PREVIEW_SCENARIO_COMMANDS = {
     "init-generated",
     "init-imported",
     "init-setup-mode-prompt",
+    "init-overwrite-prompt",
     "init-import-recovery-prompt",
     "init-backup-method-prompt",
     "init-backup-path-prompt",
     "init-backup-confirm-prompt",
+    "init-recovery-verification-prompt",
     "init-signer-key-prompt",
     "init-default-chain-prompt",
   ]),
   "init setup mode": new Set([
     "init-setup-mode-prompt",
+  ]),
+  "init overwrite prompt": new Set([
+    "init-overwrite-prompt",
   ]),
   "init import recovery prompt": new Set([
     "init-import-recovery-prompt",
@@ -458,6 +471,9 @@ const PREVIEW_SCENARIO_COMMANDS = {
   ]),
   "init backup confirm": new Set([
     "init-backup-confirm-prompt",
+  ]),
+  "init recovery verification": new Set([
+    "init-recovery-verification-prompt",
   ]),
   "init signer key": new Set([
     "init-signer-key-prompt",
@@ -888,66 +904,75 @@ function renderInitPreview(caseId) {
   switch (caseId) {
     case "init-generated":
       renderInitResult(CONTEXT, {
+        setupMode: "create",
+        readiness: "ready",
         defaultChain: "sepolia",
         signerKeySet: true,
         mnemonicImported: false,
         showMnemonic: false,
-        mnemonic:
-          "test test test test test test test test test test test junk",
-        warning:
-          "Recovery phrase generated but not included in output. Re-run with --show-recovery-phrase to capture it.",
+        backupFilePath: "/Users/example/privacy-pools-recovery.txt",
       });
       return;
     case "init-imported":
       renderInitResult(CONTEXT, {
+        setupMode: "restore",
+        readiness: "read_only",
         defaultChain: "sepolia",
         signerKeySet: false,
         mnemonicImported: true,
         showMnemonic: false,
+        restoreDiscovery: {
+          status: "deposits_found",
+          chainsChecked: ["mainnet", "arbitrum", "optimism"],
+          foundAccountChains: ["mainnet", "optimism"],
+        },
       });
       return;
     case "init-setup-mode-prompt":
       process.stderr.write(
-        `${formatSectionHeading("Wallet setup", {
-          divider: true,
-          padTop: false,
-        })}${formatCallout("read-only", [
-          "Choose whether to create a fresh Privacy Pools wallet or import an existing recovery phrase.",
-          "The rest of init adapts to this choice.",
-        ])}  Generate new recovery phrase\n  Import existing recovery phrase\n`,
+        `${renderInitGoalReview({
+          hasRecoveryPhrase: false,
+          signerKeyReady: false,
+        })}  Create a new Privacy Pools account\n  Load an existing Privacy Pools account\n`,
+      );
+      return;
+    case "init-overwrite-prompt":
+      process.stderr.write(
+        `${renderInitOverwriteReview(true)}${formatPromptLine("Replace the current local setup by loading this account? [y/N]")}`,
       );
       return;
     case "init-import-recovery-prompt":
       process.stderr.write(
-        `${formatSectionHeading("Import recovery phrase", {
-          divider: true,
-          padTop: false,
-        })}${formatCallout("recovery", [
-          "Paste the existing 12-word or 24-word recovery phrase you want this CLI to manage.",
-          "Imported phrases skip the one-time generated backup screen.",
-        ])}  Enter your recovery phrase (12 or 24 words):\n`,
+        `${renderInitLoadRecoveryReview()}  Recovery phrase (12 or 24 words):\n`,
       );
       return;
     case "init-backup-method-prompt":
       process.stderr.write(
+        `${renderInitBackupMethodReview()}` +
         "  Save to file (recommended)\n  I'll back it up manually\n",
       );
       return;
     case "init-backup-path-prompt":
-      process.stderr.write("  Save location: /Users/example/privacy-pools-recovery.txt\n");
+      process.stderr.write(
+        `${renderInitBackupPathReview("/Users/example/privacy-pools-recovery.txt")}  Save location: /Users/example/privacy-pools-recovery.txt\n`,
+      );
       return;
     case "init-backup-confirm-prompt":
-      process.stderr.write("  I have securely backed up my recovery phrase. [y/N]\n");
+      process.stderr.write(
+        `${renderInitBackupConfirmationReview(
+          "file",
+          "/Users/example/privacy-pools-recovery.txt",
+        )}  I have securely backed up my recovery phrase. [y/N]\n`,
+      );
+      return;
+    case "init-recovery-verification-prompt":
+      process.stderr.write(
+        `${renderInitRecoveryVerificationReview([3, 12, 24])}  Word #3:\n`,
+      );
       return;
     case "init-signer-key-prompt":
       process.stderr.write(
-        `${formatSectionHeading("Add signer key", {
-          divider: true,
-          padTop: false,
-        })}${formatCallout("read-only", [
-          "The signer key pays gas and sends transactions.",
-          "You can skip it now and set PRIVACY_POOLS_PRIVATE_KEY later.",
-        ])}  Signer key (private key, 0x..., or Enter to skip):\n`,
+        `${renderInitSignerKeyReview()}  Signer key (private key, 0x..., or Enter to skip):\n`,
       );
       return;
     case "init-default-chain-prompt":

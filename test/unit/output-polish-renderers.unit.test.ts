@@ -252,7 +252,8 @@ describe("init recovery backup renderers", () => {
     expect(path).toContain("Save recovery phrase backup");
     expect(saved).toContain("Recovery phrase saved");
     expect(confirm).toContain("Confirm recovery phrase backup");
-    expect(overwrite).toContain("Replace existing wallet setup");
+    expect(overwrite).toContain("Replace current setup");
+    expect(overwrite).toContain("Load existing account");
   });
 });
 

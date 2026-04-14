@@ -2,10 +2,7 @@ import { afterAll, beforeAll, expect } from "bun:test";
 import { AccountService } from "@0xbow/privacy-pools-core-sdk";
 import { join } from "node:path";
 import { CHAINS } from "../../src/config/chains.ts";
-import {
-  TEST_MNEMONIC,
-  writeTestSecretFiles,
-} from "../helpers/cli.ts";
+import { TEST_MNEMONIC } from "../helpers/cli.ts";
 import {
   launchFixtureServer,
   killFixtureServer,
@@ -82,23 +79,20 @@ defineScenarioSuite("migrate status acceptance", [
   defineScenario(
     "reports migration readiness without persisting trusted local state",
     [
-      async (ctx) => {
-        const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(ctx.home);
-        ctx.lastResult = null;
-        runCliStep(
-          [
-            "--json",
-            "init",
-            "--recovery-phrase-file",
-            mnemonicPath,
-            "--private-key-file",
-            privateKeyPath,
-            "--default-chain",
-            "sepolia",
-            "--yes",
-          ],
-          { timeoutMs: 60_000 },
-        )(ctx);
+      (ctx) => {
+        ctx.seedConfigHome({
+          defaultChain: "sepolia",
+          withMnemonic: true,
+          withSigner: true,
+        });
+        ctx.lastResult = {
+          status: 0,
+          signal: null,
+          stdout: "",
+          stderr: "",
+          elapsedMs: 0,
+          timedOut: false,
+        };
       },
       assertExit(0),
       (ctx) =>
@@ -164,22 +158,20 @@ defineScenarioSuite("migrate status acceptance", [
     { timeoutMs: 60_000 },
   ),
   defineScenario("degrades to review_incomplete when ASP review data is unavailable", [
-    async (ctx) => {
-      const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(ctx.home);
-      runCliStep(
-        [
-          "--json",
-          "init",
-          "--recovery-phrase-file",
-          mnemonicPath,
-          "--private-key-file",
-          privateKeyPath,
-          "--default-chain",
-          "sepolia",
-          "--yes",
-        ],
-        { timeoutMs: 60_000 },
-      )(ctx);
+    (ctx) => {
+      ctx.seedConfigHome({
+        defaultChain: "sepolia",
+        withMnemonic: true,
+        withSigner: true,
+      });
+      ctx.lastResult = {
+        status: 0,
+        signal: null,
+        stdout: "",
+        stderr: "",
+        elapsedMs: 0,
+        timedOut: false,
+      };
     },
     assertExit(0),
     (ctx) =>

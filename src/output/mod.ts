@@ -125,13 +125,17 @@ export {
   type HistoryRenderData,
 } from "./history.js";
 export {
+  renderInitConfiguredReview,
+  renderInitGoalReview,
   renderInitOverwriteReview,
+  renderInitLoadRecoveryReview,
   renderGeneratedRecoveryPhraseReview,
   renderInitDryRun,
   renderInitBackupMethodReview,
   renderInitBackupPathReview,
   renderInitBackupSaved,
   renderInitBackupConfirmationReview,
+  renderInitRecoveryVerificationReview,
   renderInitSignerKeyReview,
   renderInitResult,
   type InitDryRunResult,

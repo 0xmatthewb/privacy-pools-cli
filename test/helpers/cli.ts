@@ -428,10 +428,32 @@ export function buildTestInitArgs(
 }
 
 export function initSeededHome(home: string, chain: string = "mainnet"): CliRunResult {
-  return runCli(buildTestInitArgs(home, { chain }), {
-    home,
-    timeoutMs: 60_000,
+  const configHome = join(home, ".privacy-pools");
+  mkdirSync(join(configHome, "accounts"), { recursive: true, mode: 0o700 });
+  mkdirSync(join(configHome, "workflows"), { recursive: true, mode: 0o700 });
+  mkdirSync(join(configHome, "workflow-secrets"), { recursive: true, mode: 0o700 });
+  writeFileSync(
+    join(configHome, "config.json"),
+    `${JSON.stringify({ defaultChain: chain, rpcOverrides: {} }, null, 2)}\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
+  writeFileSync(join(configHome, ".mnemonic"), `${TEST_MNEMONIC}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
   });
+  writeFileSync(join(configHome, ".signer"), `${TEST_PRIVATE_KEY}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+
+  return {
+    status: 0,
+    signal: null,
+    stdout: "",
+    stderr: "",
+    elapsedMs: 0,
+    timedOut: false,
+  };
 }
 
 /**

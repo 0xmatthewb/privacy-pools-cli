@@ -504,7 +504,7 @@ describe("renderStatus parity", () => {
       {
         code: "signer_key_missing",
         message:
-          "No signer key is configured. Read-only commands remain safe, but deposits and withdrawals require a signer.",
+          "No signer key is configured. Read-only commands remain safe, but deposits and withdrawals require a signer. Finish setup with 'privacy-pools init --signer-only'.",
         affects: ["deposit", "withdraw"],
       },
     ]);
@@ -512,7 +512,7 @@ describe("renderStatus parity", () => {
       {
         code: "restore_discovery_recommended",
         message:
-          "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
+          "If you loaded this recovery phrase before automatic discovery was added, rerun 'privacy-pools init' and choose 'Load an existing Privacy Pools account' to discover supported deposits.",
         affects: ["discovery"],
       },
     ]);
@@ -520,13 +520,18 @@ describe("renderStatus parity", () => {
     expectNextAction(
       json.nextActions[0],
       {
-        command: "migrate status",
+        command: "init",
         reason:
-          "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
+          "If this account came from the website, rerun init with the downloaded recovery phrase to refresh supported-chain discovery.",
         when: "status_restore_discovery",
-        options: { agent: true, allChains: true },
+        options: {
+          agent: true,
+          defaultChain: "sepolia",
+          recoveryPhraseFile: "<downloaded-file>",
+        },
+        runnable: false,
       },
-      "privacy-pools migrate status --agent --all-chains",
+      "privacy-pools init --agent --default-chain sepolia --recovery-phrase-file <downloaded-file>",
     );
     expectNextAction(
       json.nextActions[1],

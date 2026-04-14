@@ -54,7 +54,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "init",
     "aliases": [],
-    "description": "Initialize or restore your Privacy Pools account"
+    "description": "Create, load, or finish setting up your Privacy Pools account"
   },
   {
     "name": "upgrade",
@@ -405,21 +405,23 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   "commands": [
     {
       "name": "init",
-      "description": "Initialize or restore your Privacy Pools account",
+      "description": "Create, load, or finish setting up your Privacy Pools account",
       "usage": "init",
       "flags": [
         "--recovery-phrase <phrase>",
         "--recovery-phrase-file <path>",
         "--recovery-phrase-stdin",
+        "--backup-file <path>",
         "--private-key <key>",
         "--private-key-file <path>",
         "--private-key-stdin",
+        "--signer-only",
         "--default-chain <chain>",
         "--force",
         "--show-recovery-phrase",
         "--dry-run"
       ],
-      "agentFlags": "--agent --default-chain <chain> --show-recovery-phrase",
+      "agentFlags": "--agent --default-chain <chain> (--show-recovery-phrase | --backup-file <path>)",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -794,7 +796,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   "commandDetails": {
     "init": {
       "command": "init",
-      "description": "Initialize or restore your Privacy Pools account",
+      "description": "Create, load, or finish setting up your Privacy Pools account",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -807,9 +809,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--recovery-phrase <phrase>",
         "--recovery-phrase-file <path>",
         "--recovery-phrase-stdin",
+        "--backup-file <path>",
         "--private-key <key>",
         "--private-key-file <path>",
         "--private-key-stdin",
+        "--signer-only",
         "--default-chain <chain>",
         "--force",
         "--show-recovery-phrase",
@@ -847,26 +851,29 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "commands": [
             "privacy-pools init",
             "privacy-pools init --dry-run",
-            "privacy-pools init --yes --default-chain mainnet",
+            "privacy-pools init --signer-only",
+            "privacy-pools init --yes --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
             "privacy-pools init --force --yes --default-chain mainnet"
           ]
         },
         {
           "category": "Agent / CI",
           "commands": [
-            "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase"
+            "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
+            "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
           ]
         },
         {
-          "category": "Import existing keys",
+          "category": "Load existing account",
           "commands": [
             "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
             "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
+            "privacy-pools init --signer-only --private-key-file ./my-key.txt",
             "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
           ]
         }
       ],
-      "jsonFields": "success: { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }",
+      "jsonFields": "success: { setupMode, readiness, defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }",
       "jsonVariants": [],
       "safetyNotes": [
         "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
@@ -876,8 +883,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
-        "When generating a new recovery phrase in machine mode, pass --show-recovery-phrase and capture it immediately.",
-        "When importing an existing recovery phrase, nextActions points to migrate status --agent --all-chains first to check for existing deposits across all chains before transacting."
+        "When generating a new recovery phrase in machine mode, pass --show-recovery-phrase or --backup-file so the phrase is captured before init completes.",
+        "When loading an existing recovery phrase, inspect restoreDiscovery and nextActions instead of assuming the account is immediately ready to transact."
       ]
     },
     "upgrade": {
@@ -3502,7 +3509,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   ],
   "agentWorkflow": [
     "1. privacy-pools status --agent",
-    "2. privacy-pools init --agent --default-chain <chain> --show-recovery-phrase",
+    "2. privacy-pools init --agent --default-chain <chain> (--show-recovery-phrase | --backup-file <path>)",
     "3. privacy-pools pools --agent --chain <chain>",
     "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
     "5. privacy-pools flow watch [workflowId|latest] --agent",

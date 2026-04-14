@@ -1,12 +1,10 @@
 import { expect } from "bun:test";
-import { join } from "node:path";
 import {
   CLI_PROTOCOL_PROFILE,
   buildRuntimeCompatibilityDescriptor,
 } from "../../src/config/protocol-profile.js";
 import { readCliPackageInfo } from "../../src/package-info.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
-import { writeTestSecretFiles } from "../helpers/cli.ts";
 import { writeWorkflowSnapshot } from "../helpers/workflow-snapshot.ts";
 import {
   assertExit,
@@ -250,20 +248,14 @@ defineScenarioSuite("json-contract acceptance", [
     }),
   ]),
   defineScenario("init keeps the semantic setup contract", [
-    (ctx) => {
-      writeTestSecretFiles(ctx.home);
-    },
     (ctx) =>
       runCliStep(
         [
           "--json",
           "init",
-          "--recovery-phrase-file",
-          join(ctx.home, ".test-secrets", "mnemonic.txt"),
-          "--private-key-file",
-          join(ctx.home, ".test-secrets", "private-key.txt"),
           "--default-chain",
           "sepolia",
+          "--show-recovery-phrase",
           "--yes",
         ],
         { timeoutMs: 30_000 },
@@ -272,15 +264,21 @@ defineScenarioSuite("json-contract acceptance", [
     assertJson<{
       schemaVersion: string;
       success: boolean;
+      setupMode: string;
+      readiness: string;
       defaultChain: string;
       signerKeySet: boolean;
+      recoveryPhrase?: string;
       nextActions?: Array<{ command: string }>;
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(true);
+      expect(json.setupMode).toBe("create");
+      expect(json.readiness).toBe("read_only");
       expect(json.defaultChain).toBe("sepolia");
-      expect(json.signerKeySet).toBe(true);
-      expect(json.nextActions?.[0]?.command).toBe("migrate status");
+      expect(json.signerKeySet).toBe(false);
+      expect(typeof json.recoveryPhrase).toBe("string");
+      expect(json.nextActions?.[0]?.command).toBe("status");
     }),
   ]),
   defineScenario("flow status keeps the saved workflow JSON contract", [

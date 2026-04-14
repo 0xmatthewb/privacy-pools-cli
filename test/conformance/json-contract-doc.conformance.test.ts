@@ -74,10 +74,14 @@ describe("external JSON contract doc conformance", () => {
     const commands = doc.commands as Record<string, unknown>;
 
     const init = commands.init as { successFields?: Record<string, string> };
+    expect(init.successFields?.setupMode).toContain("\"restore\"");
+    expect(init.successFields?.readiness).toContain("\"discovery_required\"");
     expect(init.successFields?.defaultChain).toBe("string");
     expect(init.successFields?.signerKeySet).toBe("boolean");
+    expect(init.successFields?.backupFilePath).toContain("string?");
     expect(init.successFields?.recoveryPhraseRedacted).toContain("boolean?");
     expect(init.successFields?.recoveryPhrase).toContain("--show-recovery-phrase");
+    expect(init.successFields?.restoreDiscovery).toContain("\"legacy_website_action_required\"");
 
     const status = commands.status as { successFields?: Record<string, string> };
     expect(status.successFields?.selectedChain).toBe("string|null");

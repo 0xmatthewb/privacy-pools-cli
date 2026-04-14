@@ -115,7 +115,7 @@ export function deriveStatusPreflightGuidance(
     blockingIssues.push(
       makeStatusIssue(
         "signer_key_missing",
-        "No signer key is configured. Read-only commands remain safe, but deposits and withdrawals require a signer.",
+        "No signer key is configured. Read-only commands remain safe, but deposits and withdrawals require a signer. Finish setup with 'privacy-pools init --signer-only'.",
         ["deposit", "withdraw"],
       ),
     );
@@ -125,7 +125,7 @@ export function deriveStatusPreflightGuidance(
     blockingIssues.push(
       makeStatusIssue(
         "signer_key_invalid",
-        "The configured signer key is invalid. Reconfigure it before signing deposit or withdrawal transactions.",
+        "The configured signer key is invalid. Reconfigure it with 'privacy-pools init --signer-only' before signing deposit or withdrawal transactions.",
         ["deposit", "withdraw"],
       ),
     );
@@ -159,7 +159,7 @@ export function deriveStatusPreflightGuidance(
     warnings.push(
       makeStatusIssue(
         "restore_discovery_recommended",
-        "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
+        "If you loaded this recovery phrase before automatic discovery was added, rerun 'privacy-pools init' and choose 'Load an existing Privacy Pools account' to discover supported deposits.",
         ["discovery"],
       ),
     );
@@ -297,16 +297,23 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   let agentNextActions: ReturnType<typeof createNextAction>[];
   let humanNextActions: ReturnType<typeof createNextAction>[];
   const restoreDiscoveryAgentAction = createNextAction(
-    "migrate status",
-    "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
+    "init",
+    "If this account came from the website, rerun init with the downloaded recovery phrase to refresh supported-chain discovery.",
     "status_restore_discovery",
-    { options: { agent: true, allChains: true } },
+    {
+      options: {
+        agent: true,
+        ...(workflowChain ? { defaultChain: workflowChain } : {}),
+        recoveryPhraseFile: "<downloaded-file>",
+      },
+      runnable: false,
+    },
   );
   const restoreDiscoveryHumanAction = createNextAction(
-    "migrate status",
-    "If you imported this recovery phrase from the website, you may have existing deposits on other chains. Run migrate status --all-chains to check.",
+    "init",
+    "If this account came from the website, choose 'Load an existing Privacy Pools account' to refresh supported-chain discovery.",
     "status_restore_discovery",
-    { options: { allChains: true } },
+    { options: initHumanChainOpts },
   );
   const shouldSuggestRestoreDiscovery =
     result.configExists &&
@@ -510,7 +517,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         value: result.signerAddress && result.signerKeyValid
           ? result.signerAddress
           : result.signerKeySet && !result.signerKeyValid
-          ? "is set but invalid. Re-run 'privacy-pools init' to reconfigure."
+          ? "is set but invalid. Re-run 'privacy-pools init --signer-only' to reconfigure."
           : "not set",
         valueTone: result.signerAddress && result.signerKeyValid
           ? "success" as const
@@ -642,8 +649,8 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         formatCallout(
           "recovery",
           [
-            "New wallet: privacy-pools init",
-            "Restore from the website: privacy-pools init --recovery-phrase-file <downloaded-file>",
+            "Create a new account: privacy-pools init",
+            "Load an existing account: privacy-pools init --recovery-phrase-file <downloaded-file>",
             "Stdin alternative: cat <downloaded-file> | privacy-pools init --recovery-phrase-stdin",
           ],
         ),

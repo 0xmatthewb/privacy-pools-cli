@@ -96,6 +96,29 @@ export interface NextAction {
   runnable?: boolean;
 }
 
+export type InitSetupMode =
+  | "create"
+  | "restore"
+  | "signer_only"
+  | "replace";
+
+export type InitReadiness =
+  | "ready"
+  | "read_only"
+  | "discovery_required";
+
+export type RestoreDiscoveryStatus =
+  | "deposits_found"
+  | "no_deposits"
+  | "legacy_website_action_required"
+  | "degraded";
+
+export interface RestoreDiscoverySummary {
+  status: RestoreDiscoveryStatus;
+  chainsChecked: string[];
+  foundAccountChains?: string[];
+}
+
 export type CommandLatencyClass = "fast" | "medium" | "slow";
 export type CommandExecutionOwner = "js-runtime" | "native-shell" | "hybrid";
 export type CommandSideEffectClass =

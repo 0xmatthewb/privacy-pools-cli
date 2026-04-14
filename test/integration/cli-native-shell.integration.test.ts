@@ -752,19 +752,20 @@ describe("native shell parity", () => {
   });
 
   nativeTest("JS-owned commands still forward through the native shell unchanged", () => {
+    const replacementSigner =
+      "0x2222222222222222222222222222222222222222222222222222222222222222";
     const args = [
       "--agent",
       "init",
-      "--recovery-phrase",
-      TEST_MNEMONIC,
+      "--signer-only",
       "--private-key",
-      TEST_PRIVATE_KEY,
-      "--default-chain",
-      "sepolia",
+      replacementSigner,
       "--yes",
     ];
     const jsHome = createTempHome("pp-native-init-js-");
     const nativeHome = createTempHome("pp-native-init-native-");
+    mustInitSeededHome(jsHome, "sepolia");
+    mustInitSeededHome(nativeHome, "sepolia");
 
     expectJsonParity(nativeBinary, args, {
       js: { home: jsHome },

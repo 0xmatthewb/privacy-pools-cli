@@ -114,7 +114,7 @@ export function loadPrivateKey(): `0x${string}` {
     throw new CLIError(
       "No signer key found. Run 'privacy-pools init' or set PRIVACY_POOLS_PRIVATE_KEY.",
       "INPUT",
-      "Set PRIVACY_POOLS_PRIVATE_KEY, use 'privacy-pools init --private-key-file <path>', or rerun 'privacy-pools init'."
+      "Set PRIVACY_POOLS_PRIVATE_KEY, use 'privacy-pools init --signer-only --private-key-file <path>', or rerun 'privacy-pools init --signer-only'."
     );
   }
 

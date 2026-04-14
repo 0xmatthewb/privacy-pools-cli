@@ -81,7 +81,7 @@ describe("welcome readiness", () => {
       "--help",
     ]);
     expect(state.screenActions.map((action) => action.cliCommand)).toContain(
-      "init --private-key-file <path>",
+      "init --signer-only",
     );
   });
 

@@ -199,6 +199,7 @@ defineScenarioSuite("agent improvements acceptance", [
           {
             input: `${TEST_MNEMONIC}\n`,
             timeoutMs: 60_000,
+            env: fixtureEnv(),
           },
         )(ctx),
       assertExit(0),
@@ -228,6 +229,7 @@ defineScenarioSuite("agent improvements acceptance", [
           {
             input: `${TEST_PRIVATE_KEY}\n`,
             timeoutMs: 60_000,
+            env: fixtureEnv(),
           },
         )(ctx),
       assertExit(0),

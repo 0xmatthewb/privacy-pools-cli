@@ -52,6 +52,8 @@ export const WORKFLOW_BACKUP_PATHS_TEST =
   "./test/services/workflow.backup-paths.service.test.ts";
 export const WORKFLOW_BACKUP_WRITE_TEST =
   "./test/services/workflow.backup-write.service.test.ts";
+export const INIT_DISCOVERY_SERVICE_TEST =
+  "./test/services/init-discovery.service.test.ts";
 export const FLOW_HANDLERS_TEST = "./test/unit/flow-handlers.unit.test.ts";
 export const ACCOUNT_HANDLER_ERRORS_TEST =
   "./test/unit/account-handler-errors.unit.test.ts";
@@ -194,6 +196,15 @@ export const ISOLATED_SUITES = [
     isolateInCoverage: true,
     reason:
       "mocks config persistence before importing workflow helpers, which must stay isolated from other workflow helper suites",
+  },
+  {
+    label: "init-discovery-service",
+    tests: [INIT_DISCOVERY_SERVICE_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    reason:
+      "mocks sdk, pools, account, and account-storage modules to cover restore discovery outcomes and must stay isolated from other service suites",
   },
   {
     label: "account-handler-errors",

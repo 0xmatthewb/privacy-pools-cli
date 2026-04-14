@@ -23,6 +23,10 @@ export function createInitCommand(): Command {
       "--show-recovery-phrase",
       "Include generated recovery phrase in JSON output (unsafe: may be logged or piped)",
     )
+    .option(
+      "--backup-file <path>",
+      "Write a generated recovery phrase backup to a file",
+    )
     // Hidden aliases for backwards compatibility
     .addOption(new Option("--mnemonic <phrase>").hideHelp())
     .addOption(new Option("--mnemonic-file <path>").hideHelp())
@@ -37,6 +41,10 @@ export function createInitCommand(): Command {
       "Set the signer private key from a file",
     )
     .option("--private-key-stdin", "Set the signer private key from stdin")
+    .option(
+      "--signer-only",
+      "Add or replace the signer key without changing the recovery phrase",
+    )
     .option("--default-chain <chain>", "Set default chain")
     .option("--rpc-url <url>", "Set RPC URL for the default chain")
     .option("--force", "Overwrite existing configuration without prompting")

@@ -22,7 +22,7 @@ privacy-pools pools      # browse available pools and assets
 ### Already have a privacypools.com account?
 
 ```bash
-privacy-pools init       # select "Import existing recovery phrase" when prompted
+privacy-pools init       # select "Load an existing Privacy Pools account" when prompted
 ```
 
 ### Deposit and withdraw privately
@@ -103,7 +103,7 @@ npm run start -- --help
 | `capabilities` | Describe all CLI commands, flags, and workflows | |
 | `guide` | Print the full usage guide | |
 | `upgrade` | Check npm for updates or upgrade this CLI | |
-| `init` | Create or import your account (run once) | |
+| `init` | Create, load, or finish setting up your account | |
 | `flow` | Guided deposit-to-private-withdrawal workflow | Yes |
 | `deposit` | Deposit funds into a Privacy Pool | Yes |
 | `withdraw` | Privately withdraw funds via relayer | Yes |

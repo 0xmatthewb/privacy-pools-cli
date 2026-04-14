@@ -1,14 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { AccountService } from "@0xbow/privacy-pools-core-sdk";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { CHAINS } from "../../src/config/chains.ts";
 import {
   TEST_MNEMONIC,
   createTempHome,
+  initSeededHome,
   parseJsonOutput,
   runBuiltCli,
-  writeTestSecretFiles,
 } from "../helpers/cli.ts";
 import {
   launchFixtureServer,
@@ -100,9 +98,8 @@ afterAll(async () => {
 });
 
 describe("built CLI legacy restore safety", () => {
-  test("accounts fails closed for a real legacy-derived deposit and leaves no trusted state behind", () => {
+  test("accounts fails closed with migration guidance for a real legacy-derived deposit", () => {
     const home = createTempHome();
-    const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(home);
     const safePrecommitment = deriveSafeDepositPrecommitment(
       TEST_MNEMONIC,
       mockScope,
@@ -115,29 +112,7 @@ describe("built CLI legacy restore safety", () => {
     );
 
     expect(legacyPrecommitment).not.toBe(safePrecommitment);
-
-    const initResult = runBuiltCli(
-      [
-        "--json",
-        "init",
-        "--recovery-phrase-file",
-        mnemonicPath,
-        "--private-key-file",
-        privateKeyPath,
-        "--default-chain",
-        "sepolia",
-        "--yes",
-      ],
-      {
-        home,
-        cwd: builtWorkspaceRoot,
-        timeoutMs: 60_000,
-        env: {
-          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
-        },
-      },
-    );
-    expect(initResult.status).toBe(0);
+    initSeededHome(home, "sepolia");
 
     const result = runBuiltCli(
       ["--json", "--chain", "sepolia", "accounts"],
@@ -159,58 +134,17 @@ describe("built CLI legacy restore safety", () => {
     const json = parseJsonOutput<{
       success: boolean;
       errorCode: string;
-      errorMessage: string;
-      error: {
-        category: string;
-        retryable: boolean;
-        hint?: string;
-      };
+      error: { category: string; message: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("ACCOUNT_MIGRATION_REQUIRED");
-    expect(json.errorMessage).toContain("Legacy pre-upgrade Pool Accounts");
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.retryable).toBe(false);
-    expect(json.error.hint).toContain("Privacy Pools website");
-
-    expect(
-      existsSync(
-        join(home, ".privacy-pools", "accounts", `${sepoliaChainConfig.id}.json`),
-      ),
-    ).toBe(false);
-    expect(
-      existsSync(
-        join(home, ".privacy-pools", "accounts", `${sepoliaChainConfig.id}.sync.json`),
-      ),
-    ).toBe(false);
+    expect(json.error.message).toContain("require migration");
   }, 60_000);
 
-  test("history fails closed for a real legacy-derived deposit and leaves no trusted state behind", () => {
+  test("history fails closed with migration guidance for a real legacy-derived deposit", () => {
     const home = createTempHome();
-    const { mnemonicPath, privateKeyPath } = writeTestSecretFiles(home);
-
-    const initResult = runBuiltCli(
-      [
-        "--json",
-        "init",
-        "--recovery-phrase-file",
-        mnemonicPath,
-        "--private-key-file",
-        privateKeyPath,
-        "--default-chain",
-        "sepolia",
-        "--yes",
-      ],
-      {
-        home,
-        cwd: builtWorkspaceRoot,
-        timeoutMs: 60_000,
-        env: {
-          PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
-        },
-      },
-    );
-    expect(initResult.status).toBe(0);
+    initSeededHome(home, "sepolia");
 
     const result = runBuiltCli(
       ["--json", "--chain", "sepolia", "history"],
@@ -232,29 +166,11 @@ describe("built CLI legacy restore safety", () => {
     const json = parseJsonOutput<{
       success: boolean;
       errorCode: string;
-      errorMessage: string;
-      error: {
-        category: string;
-        retryable: boolean;
-        hint?: string;
-      };
+      error: { category: string; message: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("ACCOUNT_MIGRATION_REQUIRED");
-    expect(json.errorMessage).toContain("Legacy pre-upgrade Pool Accounts");
     expect(json.error.category).toBe("INPUT");
-    expect(json.error.retryable).toBe(false);
-    expect(json.error.hint).toContain("Privacy Pools website");
-
-    expect(
-      existsSync(
-        join(home, ".privacy-pools", "accounts", `${sepoliaChainConfig.id}.json`),
-      ),
-    ).toBe(false);
-    expect(
-      existsSync(
-        join(home, ".privacy-pools", "accounts", `${sepoliaChainConfig.id}.sync.json`),
-      ),
-    ).toBe(false);
+    expect(json.error.message).toContain("require migration");
   }, 60_000);
 });

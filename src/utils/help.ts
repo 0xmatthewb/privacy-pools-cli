@@ -111,8 +111,9 @@ const guideSections: Record<string, () => string[]> = {
     "",
     chalk.bold("Quick Start"),
     `  ${accent("privacy-pools init")}`,
-    `  ${accent("privacy-pools init --recovery-phrase-file <downloaded-file>")} ${chalk.dim("(restore a website-exported recovery phrase)")}`,
-    `  ${accent("cat <downloaded-file> | privacy-pools init --recovery-phrase-stdin")} ${chalk.dim("(stdin alternative)")}`,
+    `  ${accent("privacy-pools init --recovery-phrase-file <downloaded-file>")} ${chalk.dim("(load an existing account from a website export)")}`,
+    `  ${accent("cat <downloaded-file> | privacy-pools init --recovery-phrase-stdin")} ${chalk.dim("(stdin alternative for loading an account)")}`,
+    `  ${accent("privacy-pools init --signer-only")} ${chalk.dim("(finish setup or replace the signer key without changing the account)")}`,
     `  ${accent("privacy-pools flow start 0.1 ETH --to 0xRecipient")}          ${chalk.dim("(easy path: deposit now, withdraw later)")}`,
     `  ${accent("privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet")}  ${chalk.dim("(easy path with a dedicated workflow wallet)")}`,
     `  ${accent("privacy-pools pools")}                                          ${chalk.dim("(browse available pools)")}`,
@@ -137,8 +138,8 @@ const guideSections: Record<string, () => string[]> = {
   keys: () => [
     chalk.bold("Two-Key Model"),
     `  Privacy Pools uses two keys:`,
-    `  ${notice("Recovery phrase")}  enables private withdrawals (generated during init; sometimes called a seed phrase)`,
-    `  ${notice("Signer key")}       pays gas and sends transactions (can be set later)`,
+    `  ${notice("Recovery phrase")}  controls the Privacy Pools account and enables private withdrawals`,
+    `  ${notice("Signer key")}       pays gas and sends transactions (can be set later with init --signer-only)`,
     `  These are independent. You can set the signer key later via env var.`,
     `  Note: ${notice("PRIVACY_POOLS_PRIVATE_KEY")} env var takes precedence over a saved key file.`,
     `  Exception: ${accent("flow start --new-wallet")} creates and uses a dedicated per-workflow wallet instead of the configured signer.`,
@@ -146,7 +147,7 @@ const guideSections: Record<string, () => string[]> = {
 
   workflow: () => [
     chalk.bold("Workflow"),
-    `  1. ${accent("init")}           Set up wallet and config (run once)`,
+    `  1. ${accent("init")}           Set up your Privacy Pools account and config (run once)`,
     `  2. ${accent("flow start")}     Easy path: deposit now and save a later private withdrawal`,
     `  3. ${accent("flow watch")}     Resume a saved workflow through funding, approval, delay, and withdrawal`,
     `  4. ${accent("flow ragequit")}  Self-custody recovery for saved workflows (always available)`,

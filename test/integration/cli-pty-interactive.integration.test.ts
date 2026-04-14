@@ -37,6 +37,7 @@ if pid == 0:
     os.execvpe(argv[0], argv, env)
 
 output = ""
+selected_replace_path = False
 sent_decline = False
 deadline = time.time() + 15
 status = None
@@ -62,7 +63,11 @@ while time.time() < deadline:
     text = chunk.decode(errors="replace")
     output += text
 
-    if "Continue?" in output and not sent_decline:
+    if "What would you like to do?" in output and not selected_replace_path:
+        os.write(fd, b"\\x1b[B\\n")
+        selected_replace_path = True
+
+    if "Replace the current local setup by loading this account?" in output and not sent_decline:
         os.write(fd, b"n\\n")
         sent_decline = True
 
@@ -108,7 +113,8 @@ describe("interactive pty flows", () => {
 
     expect(payload.code).toBe(0);
     expect(payload.sentDecline).toBe(true);
-    expect(payload.output).toContain("Continue?");
+    expect(payload.output).toContain("What would you like to do?");
+    expect(payload.output).toContain("Replace the current local setup by loading this account?");
     expect(payload.output).toContain("Init cancelled.");
     expect(payload.output).not.toContain(BANNER_SENTINEL);
   });

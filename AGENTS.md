@@ -28,6 +28,7 @@ privacy-pools upgrade --agent --check
 # Easy workflow
 privacy-pools status --agent
 privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
+privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
 privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
 privacy-pools flow watch latest --agent
 privacy-pools flow ragequit latest --agent    # saved-workflow public recovery if declined, relayer-blocked, or you intentionally choose the public path
@@ -155,11 +156,14 @@ Every JSON response wraps command-specific data in a standard envelope:
 {
   "schemaVersion": "2.0.0",
   "success": true,
+  "setupMode": "create | restore | signer_only | replace",
+  "readiness": "ready | read_only | discovery_required",
   "defaultChain": "mainnet",
   "signerKeySet": true,
   "backupFilePath": "/home/user/privacy-pools-recovery.txt | absent",
   "recoveryPhrase": "word1 word2 ... (only with --show-recovery-phrase)",
   "recoveryPhraseRedacted": true,
+  "restoreDiscovery": "{ status, chainsChecked, foundAccountChains? } | absent",
   "warning": "string | absent",
   "nextActions": [...]
 }
@@ -548,26 +552,29 @@ These commands require `privacy-pools init` to have been run first.
 
 #### `init`
 
-Initialize wallet and configuration.
+Guided account setup for the local Privacy Pools profile.
 
 ```bash
 privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
+privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
 privacy-pools init --agent --dry-run
 privacy-pools init --agent --recovery-phrase-file ./recovery.txt --default-chain mainnet
 cat phrase.txt | privacy-pools init --agent --recovery-phrase-stdin --default-chain mainnet
-privacy-pools init --agent --private-key-file ./signer-key.txt --default-chain mainnet
+privacy-pools init --agent --signer-only --private-key-file ./signer-key.txt
 printf '%s\n' 0x... | privacy-pools init --agent --recovery-phrase-file ./recovery.txt --private-key-stdin --default-chain mainnet
 ```
 
-JSON payload: `success: { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: "init", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }`
+JSON payload: `success: { setupMode, readiness, defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: "init", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }`
 
 When `--show-recovery-phrase` is passed (and a new recovery phrase was generated), `recoveryPhrase` contains that recovery phrase. Otherwise `recoveryPhraseRedacted: true` and a `warning` field is included indicating the recovery phrase must be captured. When importing an existing recovery phrase, neither field is present.
 
 Newly generated CLI recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may be either 12 or 24 words.
 
-When `init` imports an existing recovery phrase, `nextActions` points to `migrate status --agent --all-chains` first so agents can check legacy migration or website-based recovery readiness before assuming imported account state is fully restorable in the CLI. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>` instead.
+Human-facing onboarding uses **load** for the existing-account path. Machine fields and internal implementation still use **restore** terminology for precision.
 
-> **CRITICAL**: When generating a new recovery phrase, always pass `--show-recovery-phrase` to capture it in JSON output. Without this flag, the recovery phrase is stored on disk but not returned. You cannot retrieve it later via the CLI. Losing the recovery phrase means losing access to all deposited funds.
+When `init` loads an existing recovery phrase, inspect `restoreDiscovery` and `nextActions` instead of assuming the account is immediately ready to transact. Website-created legacy accounts may still require `migrate status --agent --all-chains`, while supported deposits may surface directly through `accounts`.
+
+> **CRITICAL**: When generating a new recovery phrase in machine mode, pass `--show-recovery-phrase` or `--backup-file`. The CLI now fails closed if neither capture path is provided. Losing the recovery phrase means losing access to all deposited funds.
 
 > **Agent handoff**: After `init`, agents should have `PRIVACY_POOLS_PRIVATE_KEY` set in their environment before running any transaction commands. See [Preflight Check](#preflight-check).
 

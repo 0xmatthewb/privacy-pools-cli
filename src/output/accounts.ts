@@ -327,10 +327,13 @@ function buildEmptyAccountsHumanNextActions(
   if (data.emptyReason === "restore_check_recommended") {
     return [
       createNextAction(
-        "migrate status",
-        "If you imported this recovery phrase from the website, you may have existing deposits on other chains.",
+        "init",
+        "If this account came from the website, rerun init with the downloaded recovery phrase to refresh supported-chain discovery.",
         "accounts_restore_check",
-        { options: { allChains: true } },
+        {
+          options: { recoveryPhraseFile: "<downloaded-file>" },
+          runnable: false,
+        },
       ),
       ...buildEmptyAccountsNextActions(meta, {
         summary: data.summary,
@@ -383,7 +386,7 @@ function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
         "recovery",
         [
           "No active Pool Accounts found, but this wallet has local deposit history.",
-          "If you imported this recovery phrase, run privacy-pools migrate status --all-chains to check for existing deposits on other chains.",
+          "If you loaded this recovery phrase before automatic discovery was added, rerun privacy-pools init and choose 'Load an existing Privacy Pools account' to refresh supported-chain discovery.",
         ],
       );
     case "status_filtered_empty":

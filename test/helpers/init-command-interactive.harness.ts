@@ -5,10 +5,20 @@ import {
   mock,
   test,
 } from "bun:test";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
-import { saveConfig, saveMnemonicToFile } from "../../src/services/config.ts";
+import {
+  saveConfig,
+  saveMnemonicToFile,
+  saveSignerKey,
+} from "../../src/services/config.ts";
 import {
   captureAsyncJsonOutput,
   captureAsyncOutput,
@@ -22,11 +32,20 @@ import { restoreTestTty, setTestTty } from "./tty.ts";
 
 const realInquirerPrompts = await import("@inquirer/prompts");
 const realPreviewRuntime = await import("../../src/preview/runtime.ts");
+const realWalletService = await import("../../src/services/wallet.ts");
+const discoverLoadedAccountsMock = mock(async () => ({
+  status: "no_deposits" as const,
+  chainsChecked: ["mainnet", "arbitrum", "optimism"],
+}));
+const FIXED_GENERATED_MNEMONIC =
+  "soccer grid chapter game kitchen test panda solid note share argue snack divorce begin pig permit fish man bicycle snake dress certain disagree harvest";
+const generateMnemonicMock = mock(() => FIXED_GENERATED_MNEMONIC);
 const confirmPromptMock = mock(async () => true);
 const inputPromptMock = mock(async () => "");
 const passwordPromptMock = mock(async () => "");
-const selectPromptMock = mock(async () => "generate");
+const selectPromptMock = mock(async () => "create");
 const maybeRenderPreviewScenarioMock = mock(async () => false);
+const maybeRenderPreviewProgressStepMock = mock(async () => false);
 
 let handleInitCommand: typeof import("../../src/commands/init.ts").handleInitCommand;
 
@@ -70,6 +89,14 @@ async function loadInitCommandHandler(): Promise<void> {
   mock.module("../../src/preview/runtime.ts", () => ({
     ...realPreviewRuntime,
     maybeRenderPreviewScenario: maybeRenderPreviewScenarioMock,
+    maybeRenderPreviewProgressStep: maybeRenderPreviewProgressStepMock,
+  }));
+  mock.module("../../src/services/wallet.ts", () => ({
+    ...realWalletService,
+    generateMnemonic: generateMnemonicMock,
+  }));
+  mock.module("../../src/services/init-discovery.ts", () => ({
+    discoverLoadedAccounts: discoverLoadedAccountsMock,
   }));
 
   ({ handleInitCommand } = await import(
@@ -85,12 +112,21 @@ export function registerInitCommandInteractiveHarness(): void {
     passwordPromptMock.mockClear();
     selectPromptMock.mockClear();
     maybeRenderPreviewScenarioMock.mockClear();
+    maybeRenderPreviewProgressStepMock.mockClear();
+    discoverLoadedAccountsMock.mockClear();
+    generateMnemonicMock.mockClear();
 
     confirmPromptMock.mockImplementation(async () => true);
     inputPromptMock.mockImplementation(async () => "");
     passwordPromptMock.mockImplementation(async () => "");
-    selectPromptMock.mockImplementation(async () => "generate");
+    selectPromptMock.mockImplementation(async () => "create");
     maybeRenderPreviewScenarioMock.mockImplementation(async () => false);
+    maybeRenderPreviewProgressStepMock.mockImplementation(async () => false);
+    discoverLoadedAccountsMock.mockImplementation(async () => ({
+      status: "no_deposits" as const,
+      chainsChecked: ["mainnet", "arbitrum", "optimism"],
+    }));
+    generateMnemonicMock.mockImplementation(() => FIXED_GENERATED_MNEMONIC);
   });
 
   beforeEach(async () => {
@@ -136,7 +172,7 @@ export function registerInitCancelInvalidTests(): void {
 
   test("rejects invalid recovery phrases entered through the interactive import flow", async () => {
     const home = useIsolatedHome();
-    selectPromptMock.mockImplementationOnce(async () => "import");
+    selectPromptMock.mockImplementationOnce(async () => "restore");
     passwordPromptMock.mockImplementationOnce(async () => "not a valid phrase");
 
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
@@ -155,10 +191,14 @@ export function registerInitGenerateBackupTests(): void {
     const home = useIsolatedHome();
     const backupPath = join(home, "workflow-recovery.txt");
     selectPromptMock
-      .mockImplementationOnce(async () => "generate")
+      .mockImplementationOnce(async () => "create")
       .mockImplementationOnce(async () => "file")
       .mockImplementationOnce(async () => "optimism");
-    inputPromptMock.mockImplementationOnce(async () => backupPath);
+    inputPromptMock
+      .mockImplementationOnce(async () => backupPath)
+      .mockImplementationOnce(async () => "chapter")
+      .mockImplementationOnce(async () => "snack")
+      .mockImplementationOnce(async () => "harvest");
     passwordPromptMock.mockImplementationOnce(async () => "");
     confirmPromptMock.mockImplementationOnce(async () => true);
 
@@ -186,8 +226,8 @@ export function registerInitGenerateBackupTests(): void {
   test("requires humans to confirm that the recovery phrase is backed up", async () => {
     const home = useIsolatedHome();
     selectPromptMock
-      .mockImplementationOnce(async () => "generate")
-      .mockImplementationOnce(async () => "copied");
+      .mockImplementationOnce(async () => "create")
+      .mockImplementationOnce(async () => "manual");
     confirmPromptMock.mockImplementationOnce(async () => false);
 
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
@@ -203,9 +243,13 @@ export function registerInitGenerateBackupTests(): void {
   test("rejects invalid signer keys entered interactively", async () => {
     const home = useIsolatedHome();
     selectPromptMock
-      .mockImplementationOnce(async () => "generate")
-      .mockImplementationOnce(async () => "copied");
+      .mockImplementationOnce(async () => "create")
+      .mockImplementationOnce(async () => "manual");
     confirmPromptMock.mockImplementationOnce(async () => true);
+    inputPromptMock
+      .mockImplementationOnce(async () => "chapter")
+      .mockImplementationOnce(async () => "snack")
+      .mockImplementationOnce(async () => "harvest");
     passwordPromptMock.mockImplementationOnce(async () => "0x1234");
 
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
@@ -223,7 +267,7 @@ export function registerInitGenerateBackupTests(): void {
     const backupPath = join(home, "workflow-recovery.txt");
     writeFileSync(backupPath, "existing", { encoding: "utf8", mode: 0o644 });
     selectPromptMock
-      .mockImplementationOnce(async () => "generate")
+      .mockImplementationOnce(async () => "create")
       .mockImplementationOnce(async () => "file");
     inputPromptMock.mockImplementationOnce(async () => backupPath);
 
@@ -237,13 +281,69 @@ export function registerInitGenerateBackupTests(): void {
     expect(readFileSync(backupPath, "utf8")).toBe("existing");
     expect(statSync(backupPath).mode & 0o777).toBe(0o644);
   });
+
+  test("rejects an empty recovery backup path", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "create")
+      .mockImplementationOnce(async () => "file");
+    inputPromptMock.mockImplementationOnce(async () => "   ");
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("Recovery phrase backup path cannot be empty");
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
+  test("rejects recovery backup paths whose parent directory does not exist", async () => {
+    const home = useIsolatedHome();
+    const backupPath = join(home, "missing", "workflow-recovery.txt");
+    selectPromptMock
+      .mockImplementationOnce(async () => "create")
+      .mockImplementationOnce(async () => "file");
+    inputPromptMock.mockImplementationOnce(async () => backupPath);
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("Recovery phrase backup directory does not exist");
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
+  test("rejects symlink recovery backup paths", async () => {
+    const home = useIsolatedHome();
+    const realTarget = join(home, "backup-target.txt");
+    const backupPath = join(home, "workflow-recovery.txt");
+    writeFileSync(realTarget, "existing target", "utf8");
+    symlinkSync(realTarget, backupPath);
+    selectPromptMock
+      .mockImplementationOnce(async () => "create")
+      .mockImplementationOnce(async () => "file");
+    inputPromptMock.mockImplementationOnce(async () => backupPath);
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("Recovery phrase backup path cannot be a symlink");
+    expect(readFileSync(realTarget, "utf8")).toBe("existing target");
+  });
 }
 
 export function registerInitImportVisibleSecretTests(): void {
   test("imports a valid recovery phrase interactively, saves an entered signer key, and picks a chain", async () => {
     const home = useIsolatedHome();
     selectPromptMock
-      .mockImplementationOnce(async () => "import")
+      .mockImplementationOnce(async () => "restore")
       .mockImplementationOnce(async () => "sepolia");
     passwordPromptMock
       .mockImplementationOnce(async () => VALID_MNEMONIC)
@@ -270,7 +370,7 @@ export function registerInitImportVisibleSecretTests(): void {
   test("treats first-run interactive import as a restore flow", async () => {
     useIsolatedHome();
     selectPromptMock
-      .mockImplementationOnce(async () => "import")
+      .mockImplementationOnce(async () => "restore")
       .mockImplementationOnce(async () => "mainnet");
     passwordPromptMock.mockImplementationOnce(async () => VALID_MNEMONIC);
 
@@ -279,9 +379,9 @@ export function registerInitImportVisibleSecretTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("privacy-pools migrate status --all-chains");
+    expect(stderr).toContain("Account loaded successfully.");
+    expect(stderr).toContain("privacy-pools pools");
     expect(stderr).not.toContain("privacy-pools completion --help");
-    expect(stderr).not.toContain("privacy-pools pools");
   });
 
   test("warns humans when secrets are supplied through visible command flags", async () => {
@@ -302,6 +402,106 @@ export function registerInitImportVisibleSecretTests(): void {
     expect(stderr).toContain("--recovery-phrase is visible in process list");
     expect(stderr).toContain("--private-key is visible in process list");
     expect(stderr).toContain("Signer key saved.");
+  });
+
+  test("routes existing read-only setups into the signer-only interactive path", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    selectPromptMock.mockImplementationOnce(async () => "signer_only");
+    passwordPromptMock.mockImplementationOnce(async () => "0x" + "66".repeat(32));
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Finish setup");
+    expect(stderr).toContain("Signer key saved.");
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      VALID_MNEMONIC,
+    );
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "66".repeat(32),
+    );
+  });
+
+  test("lets fully configured users replace only the signer key", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    saveSignerKey("0x" + "10".repeat(32));
+    selectPromptMock.mockImplementationOnce(async () => "signer_only");
+    passwordPromptMock.mockImplementationOnce(async () => "0x" + "77".repeat(32));
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Privacy Pools is already set up");
+    expect(stderr).toContain("Signer key saved.");
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      VALID_MNEMONIC,
+    );
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "77".repeat(32),
+    );
+  });
+
+  test("requires a signer key when humans choose the signer-only setup path", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    selectPromptMock.mockImplementationOnce(async () => "signer_only");
+    passwordPromptMock.mockImplementationOnce(async () => "   ");
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("A signer key is required to finish setup.");
+    expect(existsSync(join(home, ".signer"))).toBe(false);
+  });
+
+  test("lets configured users replace the current setup by loading another account", async () => {
+    const home = useIsolatedHome();
+    const replacementMnemonic =
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    saveSignerKey("0x" + "11".repeat(32));
+    discoverLoadedAccountsMock.mockImplementationOnce(async () => ({
+      status: "deposits_found" as const,
+      chainsChecked: ["mainnet", "arbitrum", "optimism"],
+      foundAccountChains: ["mainnet"],
+    }));
+    selectPromptMock
+      .mockImplementationOnce(async () => "restore")
+      .mockImplementationOnce(async () => "optimism");
+    confirmPromptMock.mockImplementationOnce(async () => true);
+    passwordPromptMock
+      .mockImplementationOnce(async () => replacementMnemonic)
+      .mockImplementationOnce(async () => "0x" + "22".repeat(32));
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Replace current setup");
+    expect(stderr).toContain("Account loaded.");
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      replacementMnemonic,
+    );
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "22".repeat(32),
+    );
+    expect(readFileSync(join(home, "config.json"), "utf8")).toContain(
+      '"defaultChain": "mainnet"',
+    );
   });
 }
 
@@ -325,12 +525,11 @@ export function registerInitDryRunAndPreviewTests(): void {
     expect(json.operation).toBe("init");
     expect(json.dryRun).toBe(true);
     expect(json.effectiveChain).toBe("mainnet");
-    expect(json.overwriteExisting).toBe(true);
-    expect(json.overwritePromptRequired).toBe(true);
+    expect(json.overwriteExisting).toBe(false);
+    expect(json.overwritePromptRequired).toBe(false);
     expect(json.writeTargets).toEqual(
       expect.arrayContaining([
         join(home, "config.json"),
-        join(home, ".mnemonic"),
         join(home, ".signer"),
       ]),
     );
@@ -348,14 +547,14 @@ export function registerInitDryRunAndPreviewTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toBe("");
+    expect(stderr).toContain("Set up Privacy Pools");
     expect(selectPromptMock).not.toHaveBeenCalled();
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
   });
 
   test("preview import checkpoint returns before reading the recovery phrase", async () => {
     const home = useIsolatedHome();
-    selectPromptMock.mockImplementationOnce(async () => "import");
+    selectPromptMock.mockImplementationOnce(async () => "restore");
     maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
       commandKey === "init import recovery prompt",
     );
@@ -365,7 +564,7 @@ export function registerInitDryRunAndPreviewTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toBe("");
+    expect(stderr).toContain("Load existing account");
     expect(passwordPromptMock).not.toHaveBeenCalled();
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
   });
@@ -373,7 +572,7 @@ export function registerInitDryRunAndPreviewTests(): void {
   test("preview backup path checkpoint returns before prompting for a file path", async () => {
     const home = useIsolatedHome();
     selectPromptMock
-      .mockImplementationOnce(async () => "generate")
+      .mockImplementationOnce(async () => "create")
       .mockImplementationOnce(async () => "file");
     maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
       commandKey === "init backup path",
@@ -392,9 +591,13 @@ export function registerInitDryRunAndPreviewTests(): void {
   test("preview signer-key checkpoint returns before the signer prompt", async () => {
     const home = useIsolatedHome();
     selectPromptMock
-      .mockImplementationOnce(async () => "generate")
-      .mockImplementationOnce(async () => "copied");
+      .mockImplementationOnce(async () => "create")
+      .mockImplementationOnce(async () => "manual");
     confirmPromptMock.mockImplementationOnce(async () => true);
+    inputPromptMock
+      .mockImplementationOnce(async () => "chapter")
+      .mockImplementationOnce(async () => "snack")
+      .mockImplementationOnce(async () => "harvest");
     maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
       commandKey === "init signer key",
     );
@@ -409,13 +612,73 @@ export function registerInitDryRunAndPreviewTests(): void {
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
   });
 
+  test("preview backup method checkpoint returns before backup selection", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock.mockImplementationOnce(async () => "create");
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init backup method",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Back up recovery phrase");
+    expect(selectPromptMock).toHaveBeenCalledTimes(1);
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
+  test("preview backup confirmation checkpoint returns before confirmation", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "create")
+      .mockImplementationOnce(async () => "manual");
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init backup confirm",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Confirm recovery phrase backup");
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
+  test("preview recovery verification checkpoint returns before word checks", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "create")
+      .mockImplementationOnce(async () => "manual");
+    confirmPromptMock.mockImplementationOnce(async () => true);
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init recovery verification",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Verify recovery phrase");
+    expect(inputPromptMock).not.toHaveBeenCalled();
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
   test("preview default-chain checkpoint returns before network selection", async () => {
     const home = useIsolatedHome();
     process.env.PRIVACY_POOLS_PRIVATE_KEY = "0x" + "77".repeat(32);
     selectPromptMock
-      .mockImplementationOnce(async () => "generate")
-      .mockImplementationOnce(async () => "copied");
+      .mockImplementationOnce(async () => "create")
+      .mockImplementationOnce(async () => "manual");
     confirmPromptMock.mockImplementationOnce(async () => true);
+    inputPromptMock
+      .mockImplementationOnce(async () => "chapter")
+      .mockImplementationOnce(async () => "snack")
+      .mockImplementationOnce(async () => "harvest");
     maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
       commandKey === "init default chain",
     );
@@ -426,7 +689,7 @@ export function registerInitDryRunAndPreviewTests(): void {
 
     expect(stdout).toBe("");
     expect(selectPromptMock).toHaveBeenCalledTimes(2);
-    expect(stderr).toContain("Confirm recovery phrase backup");
+    expect(stderr).toContain("Verify recovery phrase");
     expect(existsSync(join(home, "config.json"))).toBe(false);
   });
 
@@ -452,5 +715,49 @@ export function registerInitDryRunAndPreviewTests(): void {
     expect(existsSync(join(home, "config.json"))).toBe(false);
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
     expect(existsSync(join(home, ".signer"))).toBe(false);
+  });
+
+  test("preview overwrite checkpoint returns before replacement confirmation", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    saveSignerKey("0x" + "11".repeat(32));
+    selectPromptMock.mockImplementationOnce(async () => "restore");
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey) =>
+      commandKey === "init overwrite prompt",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Replace current setup");
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      VALID_MNEMONIC,
+    );
+  });
+
+  test("preview restore discovery progress returns before the discovery scan runs", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock
+      .mockImplementationOnce(async () => "restore")
+      .mockImplementationOnce(async () => "mainnet");
+    passwordPromptMock.mockImplementationOnce(async () => VALID_MNEMONIC);
+    maybeRenderPreviewProgressStepMock.mockImplementation(async (stepId) =>
+      stepId === "init.restore-discovery",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand({}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Load existing account");
+    expect(discoverLoadedAccountsMock).not.toHaveBeenCalled();
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      VALID_MNEMONIC,
+    );
   });
 }

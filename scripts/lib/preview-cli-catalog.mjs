@@ -67,6 +67,7 @@ export const PREVIEW_PROMPT_INVENTORY = [
   { caseId: "init-backup-method-prompt", commandPath: "init", stateId: "backup-method" },
   { caseId: "init-backup-path-prompt", commandPath: "init", stateId: "backup-path" },
   { caseId: "init-backup-confirm-prompt", commandPath: "init", stateId: "backup-confirm" },
+  { caseId: "init-recovery-verification-prompt", commandPath: "init", stateId: "recovery-verification" },
   { caseId: "init-signer-key-prompt", commandPath: "init", stateId: "signer-key" },
   { caseId: "init-default-chain-prompt", commandPath: "init", stateId: "default-chain" },
   { caseId: "deposit-asset-select-prompt", commandPath: "deposit", stateId: "asset-select" },
@@ -99,6 +100,7 @@ export const PREVIEW_PROMPT_INVENTORY = [
 ];
 
 export const PREVIEW_PROGRESS_INVENTORY = [
+  { caseId: "init-progress-restore-discovery", commandPath: "init", progressStep: "init.restore-discovery" },
   { caseId: "status-progress-health-check", commandPath: "status", progressStep: "status.health-check" },
   { caseId: "activity-progress-fetch", commandPath: "activity", progressStep: "activity.fetch" },
   { caseId: "stats-progress-global-fetch", commandPath: "stats", progressStep: "stats.global.fetch" },
@@ -241,6 +243,11 @@ export const PREVIEW_PROGRESS_ALLOWLIST = [
 ];
 
 export const PREVIEW_PROGRESS_CALLSITE_PATTERNS = [
+  {
+    file: "src/commands/init.ts",
+    pattern: 'maybeRenderPreviewProgressStep("init.restore-discovery"',
+    progressStep: "init.restore-discovery",
+  },
   {
     file: "src/commands/status.ts",
     pattern: "healthCheckLabel",
@@ -1041,16 +1048,15 @@ export const PREVIEW_CASES = [
     requiredSetup: ["native-binary", "configured-wallet-inputs"],
     covers: ["setup", "wallet", "next-actions"],
     commandLabel:
-      "privacy-pools --no-banner init --recovery-phrase-file <mnemonic> --private-key-file <key> --default-chain sepolia --yes",
+      "privacy-pools --no-banner init --signer-only --private-key-file <key> --default-chain sepolia --yes",
     buildInvocation: (context) => {
       const home = createHome("pp-preview-init-");
-      const { mnemonicPath, privateKeyPath } = writeSecretFiles(home);
+      const { mnemonic, privateKeyPath } = writeSecretFiles(home);
       return buildLiveCommandInvocation(context, "forwarded", {
         args: [
           "--no-banner",
           "init",
-          "--recovery-phrase-file",
-          mnemonicPath,
+          "--signer-only",
           "--private-key-file",
           privateKeyPath,
           "--default-chain",
@@ -1058,9 +1064,21 @@ export const PREVIEW_CASES = [
           "--yes",
         ],
         displayCommand:
-          "privacy-pools --no-banner init --recovery-phrase-file <mnemonic> --private-key-file <key> --default-chain sepolia --yes",
+          "privacy-pools --no-banner init --signer-only --private-key-file <key> --default-chain sepolia --yes",
         envOverrides: {
           PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+        },
+        prepare: async () => {
+          const configHome = join(home, ".privacy-pools");
+          mkdirSync(join(configHome, "accounts"), { recursive: true });
+          mkdirSync(join(configHome, "workflows"), { recursive: true });
+          mkdirSync(join(configHome, "workflow-secrets"), { recursive: true });
+          writeFileSync(
+            join(configHome, "config.json"),
+            `${JSON.stringify({ defaultChain: "sepolia", rpcOverrides: {} }, null, 2)}\n`,
+            "utf8",
+          );
+          writeFileSync(join(configHome, ".mnemonic"), `${mnemonic}\n`, "utf8");
         },
       });
     },
@@ -1072,14 +1090,32 @@ export const PREVIEW_CASES = [
     surface: "init",
     runtime: "forwarded",
     requiredSetup: ["native-binary"],
-    covers: ["generated", "warning", "next-actions"],
-    args: ["--no-banner", "--yes", "init", "--default-chain", "sepolia"],
-    commandLabel: "privacy-pools --no-banner --yes init --default-chain sepolia",
-    envOverrides: () => {
+    covers: ["generated", "backup", "next-actions"],
+    commandLabel:
+      "privacy-pools --no-banner --yes init --default-chain sepolia --backup-file <path>",
+    buildInvocation: (context) => {
       const home = createHome("pp-preview-init-generated-");
-      return {
-        PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-      };
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-generated",
+        [
+          "--no-banner",
+          "--yes",
+          "init",
+          "--default-chain",
+          "sepolia",
+          "--backup-file",
+          join(home, "privacy-pools-recovery.txt"),
+        ],
+        "privacy-pools --no-banner --yes init --default-chain sepolia --backup-file <path>",
+        {
+          envOverrides: {
+            HOME: home,
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+        },
+      );
     },
   }),
   createLivePreviewCase({
@@ -1121,37 +1157,41 @@ export const PREVIEW_CASES = [
       );
     },
   }),
-  createLivePreviewCase({
+  createPromptScenarioCase({
     id: "init-overwrite-prompt",
     label: "init | overwrite prompt",
     journey: "onboarding",
     surface: "init-prompt",
     owner: "forwarded",
     runtime: "forwarded",
-    modes: ["tty"],
     requiredSetup: ["native-binary", "seeded-home"],
     covers: ["interactive", "overwrite-confirmation", "cancel"],
     commandLabel: "privacy-pools --no-banner init",
     buildInvocation: (context) => {
       const home = createHome("pp-preview-init-overwrite-");
-      return buildLiveCommandInvocation(context, "forwarded", {
-        args: ["--no-banner", "init"],
-        displayCommand: "privacy-pools --no-banner init",
-        envOverrides: {
-          PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-overwrite-prompt",
+        ["--no-banner", "init"],
+        "privacy-pools --no-banner init",
+        {
+          envOverrides: {
+            HOME: home,
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+          prepare: async () => {
+            await runInitForConfiguredWallet(home, {});
+          },
         },
-        prepare: async () => {
-          await runInitForConfiguredWallet(home, {});
-        },
-      });
+      );
     },
     ttyScript: {
       steps: [
-        { waitFor: "Continue?", send: "n\r" },
+        { waitFor: "What would you like to do?", send: "\u001b[B\r" },
       ],
-      finalPauseMs: 250,
     },
-    requiresTtyScript: true,
+    stateId: "overwrite-confirm",
   }),
   createPromptScenarioCase({
     id: "init-setup-mode-prompt",
@@ -1184,7 +1224,7 @@ export const PREVIEW_CASES = [
   }),
   createPromptScenarioCase({
     id: "init-import-recovery-prompt",
-    label: "init | import recovery prompt",
+    label: "init | load recovery prompt",
     journey: "onboarding",
     surface: "init-prompt",
     owner: "forwarded",
@@ -1211,7 +1251,7 @@ export const PREVIEW_CASES = [
     },
     ttyScript: {
       steps: [
-        { waitFor: "How would you like to set up your wallet?", send: "\u001b[B\r" },
+        { waitFor: "How would you like to get started?", send: "\u001b[B\r" },
       ],
     },
   }),
@@ -1244,7 +1284,7 @@ export const PREVIEW_CASES = [
     },
     ttyScript: {
       steps: [
-        { waitFor: "How would you like to set up your wallet?", send: "\r" },
+        { waitFor: "How would you like to get started?", send: "\r" },
       ],
     },
   }),
@@ -1277,7 +1317,7 @@ export const PREVIEW_CASES = [
     },
     ttyScript: {
       steps: [
-        { waitFor: "How would you like to set up your wallet?", send: "\r" },
+        { waitFor: "How would you like to get started?", send: "\r" },
         { waitFor: "How would you like to back up your recovery phrase?", send: "\r" },
       ],
     },
@@ -1312,9 +1352,45 @@ export const PREVIEW_CASES = [
     },
     ttyScript: {
       steps: [
-        { waitFor: "How would you like to set up your wallet?", send: "\r" },
+        { waitFor: "How would you like to get started?", send: "\r" },
         { waitFor: "How would you like to back up your recovery phrase?", send: "\r" },
         { waitFor: "Save location:", send: "\r" },
+      ],
+    },
+  }),
+  createPromptScenarioCase({
+    id: "init-recovery-verification-prompt",
+    label: "init | recovery verification prompt",
+    journey: "onboarding",
+    surface: "init-prompt",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "preview-scenario"],
+    covers: ["interactive", "verification", "generated-wallet"],
+    args: ["--no-banner", "init"],
+    commandLabel: "privacy-pools --no-banner init",
+    stateId: "recovery-verification",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-init-recovery-verification-");
+      return buildPreviewScenarioInvocation(
+        context,
+        "forwarded",
+        "init-recovery-verification-prompt",
+        ["--no-banner", "init"],
+        "privacy-pools --no-banner init",
+        {
+          envOverrides: {
+            HOME: home,
+            PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          },
+        },
+      );
+    },
+    ttyScript: {
+      steps: [
+        { waitFor: "How would you like to get started?", send: "\r" },
+        { waitFor: "How would you like to back up your recovery phrase?", send: "\u001b[B\r" },
+        { waitFor: "I have securely backed up my recovery phrase.", send: "y\r" },
       ],
     },
   }),
@@ -1391,6 +1467,52 @@ export const PREVIEW_CASES = [
       steps: [
         { waitFor: "Signer key (private key, 0x..., or Enter to skip):", send: "\r" },
       ],
+    },
+  }),
+  createProgressPreviewCase({
+    id: "init-progress-restore-discovery",
+    label: "init | restore discovery progress",
+    journey: "onboarding",
+    surface: "init-progress",
+    owner: "forwarded",
+    runtime: "forwarded",
+    requiredSetup: ["native-binary", "configured-wallet-inputs"],
+    covers: ["restore", "discovery", "progress"],
+    commandPath: "init",
+    progressStep: "init.restore-discovery",
+    stateId: "restore-discovery",
+    args: [
+      "--no-banner",
+      "--yes",
+      "init",
+      "--default-chain",
+      "sepolia",
+      "--recovery-phrase-file",
+      "<mnemonic>",
+    ],
+    commandLabel:
+      "privacy-pools --no-banner --yes init --default-chain sepolia --recovery-phrase-file <mnemonic>",
+    buildInvocation: (context) => {
+      const home = createHome("pp-preview-init-restore-discovery-");
+      const { mnemonicPath } = writeSecretFiles(home);
+      return buildLiveCommandInvocation(context, "forwarded", {
+        args: [
+          "--no-banner",
+          "--yes",
+          "init",
+          "--default-chain",
+          "sepolia",
+          "--recovery-phrase-file",
+          mnemonicPath,
+        ],
+        displayCommand:
+          "privacy-pools --no-banner --yes init --default-chain sepolia --recovery-phrase-file <mnemonic>",
+        envOverrides: {
+          HOME: home,
+          PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
+          PRIVACY_POOLS_CLI_PREVIEW_PROGRESS_STEP: "init.restore-discovery",
+        },
+      });
     },
   }),
   createLivePreviewCase({
@@ -3385,33 +3507,17 @@ async function killFixtureServer(fixture) {
 }
 
 async function runInitForConfiguredWallet(home, fixtureEnv) {
-  const { mnemonicPath, privateKeyPath } = writeSecretFiles(home);
-  const result = runCliSync(
-    [
-      "--agent",
-      "init",
-      "--recovery-phrase-file",
-      mnemonicPath,
-      "--private-key-file",
-      privateKeyPath,
-      "--default-chain",
-      "sepolia",
-      "--yes",
-    ],
-    {
-      env: {
-        PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),
-        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
-        ...fixtureEnv,
-      },
-    },
+  const configHome = join(home, ".privacy-pools");
+  mkdirSync(join(configHome, "accounts"), { recursive: true });
+  mkdirSync(join(configHome, "workflows"), { recursive: true });
+  mkdirSync(join(configHome, "workflow-secrets"), { recursive: true });
+  writeFileSync(
+    join(configHome, "config.json"),
+    `${JSON.stringify({ defaultChain: "sepolia", rpcOverrides: {} }, null, 2)}\n`,
+    "utf8",
   );
-
-  if (result.status !== 0) {
-    throw new Error(
-      `Configured wallet setup failed (${result.status ?? "null"}): ${result.stderr || result.stdout || result.errorMessage || "unknown error"}`,
-    );
-  }
+  writeFileSync(join(configHome, ".mnemonic"), `${TEST_MNEMONIC}\n`, "utf8");
+  writeFileSync(join(configHome, ".signer"), `${TEST_PRIVATE_KEY}\n`, "utf8");
 }
 
 function writeFlowSnapshot(home, snapshot) {

@@ -14,10 +14,11 @@ const TEST_PRIVATE_KEY = "0x1111111111111111111111111111111111111111111111111111
 describe("mnemonic security", () => {
   test("init --json output does not contain the mnemonic phrase", () => {
     const home = createTempHome();
+    const backupFile = `${home}/recovery.txt`;
     const result = runCli(
       [
         "--json", "init",
-        "--recovery-phrase", TEST_MNEMONIC,
+        "--backup-file", backupFile,
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
         "--yes",
@@ -33,10 +34,11 @@ describe("mnemonic security", () => {
 
   test("status --json output does not leak mnemonic or private key", () => {
     const home = createTempHome();
+    const backupFile = `${home}/recovery.txt`;
     runCli(
       [
         "--json", "init",
-        "--recovery-phrase", TEST_MNEMONIC,
+        "--backup-file", backupFile,
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
         "--yes",
@@ -55,10 +57,11 @@ describe("mnemonic security", () => {
 
   test("status human-mode output does not leak mnemonic or private key", () => {
     const home = createTempHome();
+    const backupFile = `${home}/recovery.txt`;
     runCli(
       [
         "--json", "init",
-        "--recovery-phrase", TEST_MNEMONIC,
+        "--backup-file", backupFile,
         "--private-key", TEST_PRIVATE_KEY,
         "--default-chain", "sepolia",
         "--yes",

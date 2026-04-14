@@ -210,7 +210,7 @@ describe("accounts command watch and empty states", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("No active Pool Accounts found");
-    expect(stderr).toContain("privacy-pools migrate status --all-chains");
+    expect(stderr).toContain("rerun privacy-pools init");
   });
 
   test("accounts empty state explains status filters that remove every pool account", async () => {

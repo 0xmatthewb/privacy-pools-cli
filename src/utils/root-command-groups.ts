@@ -25,7 +25,7 @@ export interface RootCommandGroup {
 }
 
 export const ROOT_COMMAND_DESCRIPTIONS: Record<RootCommandName, string> = {
-  init: "Initialize or restore your Privacy Pools account",
+  init: "Create, load, or finish setting up your Privacy Pools account",
   status: "Check account setup and network status",
   guide: "Learn key concepts, workflows, and troubleshooting",
   flow: "Deposit and privately withdraw in one guided workflow",

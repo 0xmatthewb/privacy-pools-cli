@@ -12,8 +12,17 @@ import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "../helpers/temp.ts";
+import {
+  saveConfig,
+  saveMnemonicToFile,
+  saveSignerKey,
+} from "../../src/services/config.ts";
 
 const realInquirerPrompts = await import("@inquirer/prompts");
+const discoverLoadedAccountsMock = mock(async () => ({
+  status: "no_deposits" as const,
+  chainsChecked: ["mainnet", "arbitrum", "optimism"],
+}));
 const confirmPromptMock = mock(async () => {
   throw new Error("unexpected confirm prompt in non-interactive init tests");
 });
@@ -30,6 +39,9 @@ const selectPromptMock = mock(async () => {
 let handleInitCommand: typeof import("../../src/commands/init.ts").handleInitCommand;
 
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+const ORIGINAL_SIGNER = process.env.PRIVACY_POOLS_PRIVATE_KEY;
+const VALID_MNEMONIC =
+  "test test test test test test test test test test test junk";
 
 async function loadInitCommandHandler(): Promise<void> {
   mock.module("@inquirer/prompts", () => ({
@@ -38,6 +50,9 @@ async function loadInitCommandHandler(): Promise<void> {
     input: inputPromptMock,
     password: passwordPromptMock,
     select: selectPromptMock,
+  }));
+  mock.module("../../src/services/init-discovery.ts", () => ({
+    discoverLoadedAccounts: discoverLoadedAccountsMock,
   }));
 
   ({ handleInitCommand } = await import("../../src/commands/init.ts"));
@@ -65,6 +80,7 @@ beforeEach(() => {
   inputPromptMock.mockClear();
   passwordPromptMock.mockClear();
   selectPromptMock.mockClear();
+  discoverLoadedAccountsMock.mockClear();
 
   confirmPromptMock.mockImplementation(async () => {
     throw new Error("unexpected confirm prompt in non-interactive init tests");
@@ -78,6 +94,10 @@ beforeEach(() => {
   selectPromptMock.mockImplementation(async () => {
     throw new Error("unexpected select prompt in non-interactive init tests");
   });
+  discoverLoadedAccountsMock.mockImplementation(async () => ({
+    status: "no_deposits" as const,
+    chainsChecked: ["mainnet", "arbitrum", "optimism"],
+  }));
 });
 
 beforeEach(async () => {
@@ -90,6 +110,11 @@ afterEach(() => {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
     process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+  }
+  if (ORIGINAL_SIGNER === undefined) {
+    delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
+  } else {
+    process.env.PRIVACY_POOLS_PRIVATE_KEY = ORIGINAL_SIGNER;
   }
   cleanupTrackedTempDirs();
 });
@@ -460,16 +485,284 @@ describe("init command handler", () => {
 
       expect(json.success).toBe(true);
       expect(json.signerKeySet).toBe(true);
+      expect(json.setupMode).toBe("create");
+      expect(json.readiness).toBe("ready");
       expect(existsSync(join(home, ".signer"))).toBe(false);
     } finally {
       delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
     }
   });
 
-  test("warns JSON callers when a generated recovery phrase is redacted", async () => {
+  test("fails closed when --signer-only is used before any recovery phrase is configured", async () => {
     useIsolatedHome();
 
-    const { json, stderr } = await captureAsyncJsonOutput(() =>
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          signerOnly: true,
+          privateKey: "0x" + "77".repeat(32),
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "No recovery phrase is configured yet",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects combining --signer-only with recovery phrase import flags", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          signerOnly: true,
+          recoveryPhrase: VALID_MNEMONIC,
+          privateKey: "0x" + "71".repeat(32),
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "--signer-only cannot be combined with recovery phrase import flags",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("fails closed when --signer-only has no signer source in non-interactive mode", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(
+      VALID_MNEMONIC,
+    );
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          signerOnly: true,
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "needs a signer key source",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("treats an invalid persisted signer as a read-only setup that needs signer completion", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    saveSignerKey("not-a-valid-private-key");
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand({}, fakeCommand({ json: true })),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "still in read-only mode",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("automatically finishes read-only setup when a signer key source is provided", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          privateKey: "0x" + "77".repeat(32),
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.setupMode).toBe("signer_only");
+    expect(json.readiness).toBe("ready");
+    expect(json.signerKeySet).toBe(true);
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(VALID_MNEMONIC);
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "77".repeat(32),
+    );
+  });
+
+  test("supports an explicit --signer-only machine flow when a signer source is provided", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          signerOnly: true,
+          privateKey: "0x" + "72".repeat(32),
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.setupMode).toBe("signer_only");
+    expect(json.readiness).toBe("ready");
+    expect(json.signerKeySet).toBe(true);
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(VALID_MNEMONIC);
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "72".repeat(32),
+    );
+  });
+
+  test("requires --force before loading an account over existing local setup in machine mode", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "already configured on this machine",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("creates a new account with --backup-file in JSON mode while keeping the phrase redacted", async () => {
+    const home = useIsolatedHome();
+    const backupFile = join(home, "privacy-pools-recovery.txt");
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          defaultChain: "mainnet",
+          backupFile,
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.setupMode).toBe("create");
+    expect(json.readiness).toBe("read_only");
+    expect(json.signerKeySet).toBe(false);
+    expect(json.recoveryPhrase).toBeUndefined();
+    expect(json.recoveryPhraseRedacted).toBe(true);
+    expect(json.backupFilePath).toBe(backupFile);
+    expect(readFileSync(backupFile, "utf8")).toContain("Recovery Phrase:");
+  });
+
+  test("reports deposits_found discovery when a loaded account replaces existing setup", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    saveSignerKey("0x" + "88".repeat(32));
+    discoverLoadedAccountsMock.mockImplementationOnce(async () => ({
+      status: "deposits_found" as const,
+      chainsChecked: ["mainnet", "arbitrum", "optimism"],
+      foundAccountChains: ["mainnet"],
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+          force: true,
+          defaultChain: "mainnet",
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.setupMode).toBe("replace");
+    expect(json.readiness).toBe("ready");
+    expect(json.restoreDiscovery).toEqual({
+      status: "deposits_found",
+      chainsChecked: ["mainnet", "arbitrum", "optimism"],
+      foundAccountChains: ["mainnet"],
+    });
+  });
+
+  test("keeps discovery_required readiness when loading an account needs website action", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    discoverLoadedAccountsMock.mockImplementationOnce(async () => ({
+      status: "legacy_website_action_required" as const,
+      chainsChecked: ["mainnet", "arbitrum", "optimism"],
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+          force: true,
+          privateKey: "0x" + "99".repeat(32),
+          defaultChain: "mainnet",
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.setupMode).toBe("replace");
+    expect(json.readiness).toBe("discovery_required");
+    expect(json.signerKeySet).toBe(true);
+    expect(json.restoreDiscovery).toEqual({
+      status: "legacy_website_action_required",
+      chainsChecked: ["mainnet", "arbitrum", "optimism"],
+    });
+  });
+
+  test("rejects --backup-file when loading an existing account", async () => {
+    const home = useIsolatedHome();
+    const backupFile = join(home, "privacy-pools-recovery.txt");
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+          backupFile,
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "--backup-file only applies when creating a new account",
+    );
+    expect(existsSync(backupFile)).toBe(false);
+    expect(exitCode).toBe(2);
+  });
+
+  test("fails closed in JSON mode when a generated recovery phrase is not captured", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleInitCommand(
         {
           defaultChain: "mainnet",
@@ -478,20 +771,45 @@ describe("init command handler", () => {
       ),
     );
 
-    expect(json.success).toBe(true);
-    expect(json.recoveryPhrase).toBeUndefined();
-    expect(json.recoveryPhraseRedacted).toBe(true);
-    expect(stderr).toContain("Recovery phrase is redacted from JSON by default");
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "requires recovery capture",
+    );
+    expect(exitCode).toBe(2);
   });
 
-  test("prints backup guidance in human mode when mnemonic is generated", async () => {
-    useIsolatedHome();
+  test("rejects --backup-file in interactive mode when keeping the current account", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    const backupFile = join(home, "privacy-pools-recovery.txt");
+
+    const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          backupFile,
+        },
+        fakeCommand({}),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(exitCode).toBe(2);
+    expect(stderr).toContain("--backup-file only applies when creating a new account");
+    expect(existsSync(backupFile)).toBe(false);
+  });
+
+  test("prints recovery guidance in human non-interactive mode when a backup file is provided", async () => {
+    const home = useIsolatedHome();
+    const backupFile = join(home, "privacy-pools-recovery.txt");
 
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleInitCommand(
         {
           showRecoveryPhrase: false,
           defaultChain: "mainnet",
+          backupFile,
         },
         fakeCommand({ yes: true }),
       ),
@@ -500,8 +818,64 @@ describe("init command handler", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Save this recovery phrase now.");
     expect(stderr).toContain("This is the only time the CLI will display it.");
-    expect(stderr).toContain("You skipped the backup confirmation step.");
+    expect(stderr).toContain("Recovery phrase saved");
     expect(stderr).toContain("No signer key set");
+    expect(readFileSync(backupFile, "utf8")).toContain("Recovery Phrase:");
+  });
+
+  test("restores existing config and mnemonic files if signer persistence fails mid-init", async () => {
+    const home = useIsolatedHome();
+    const originalConfig = {
+      defaultChain: "mainnet",
+      rpcOverrides: { 1: "https://rpc.example" },
+    };
+    saveConfig(originalConfig);
+    saveMnemonicToFile(VALID_MNEMONIC);
+    mkdirSync(join(home, ".signer"), { recursive: true });
+    const replacementMnemonic =
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: replacementMnemonic,
+          privateKey: "0x" + "91".repeat(32),
+          force: true,
+          defaultChain: "sepolia",
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(exitCode).toBeGreaterThan(0);
+    expect(readFileSync(join(home, "config.json"), "utf8")).toContain(
+      '"defaultChain": "mainnet"',
+    );
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(VALID_MNEMONIC);
+    expect(existsSync(join(home, ".signer"))).toBe(true);
+  });
+
+  test("describes signer-only dry runs with the existing phrase and environment signer", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    process.env.PRIVACY_POOLS_PRIVATE_KEY = "0x" + "92".repeat(32);
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          dryRun: true,
+          signerOnly: true,
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.recoveryPhraseSource).toBe("keep existing phrase");
+    expect(json.signerKeySource).toBe("use environment only");
+    expect(json.writeTargets).toEqual([expect.stringContaining("config.json")]);
   });
 
   test("persists RPC overrides for the selected default chain", async () => {

@@ -32,6 +32,8 @@ describe("renderInitResult parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderInitResult(ctx, {
+        setupMode: "create",
+        readiness: "ready",
         defaultChain: "sepolia",
         signerKeySet: true,
         mnemonicImported: false,
@@ -66,6 +68,8 @@ describe("renderInitResult parity", () => {
     const mnemonic = "test word one two three four five six seven eight nine ten eleven twelve";
     const { stdout } = captureOutput(() =>
       renderInitResult(ctx, {
+        setupMode: "create",
+        readiness: "read_only",
         defaultChain: "sepolia",
         signerKeySet: false,
         mnemonicImported: false,
@@ -83,6 +87,8 @@ describe("renderInitResult parity", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
       renderInitResult(ctx, {
+        setupMode: "restore",
+        readiness: "ready",
         defaultChain: "mainnet",
         signerKeySet: true,
         mnemonicImported: true,
@@ -100,6 +106,8 @@ describe("renderInitResult parity", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
       renderInitResult(ctx, {
+        setupMode: "create",
+        readiness: "ready",
         defaultChain: "sepolia",
         signerKeySet: true,
         mnemonicImported: false,
@@ -122,6 +130,8 @@ describe("renderInitResult parity", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>
       renderInitResult(ctx, {
+        setupMode: "restore",
+        readiness: "ready",
         defaultChain: "sepolia",
         signerKeySet: true,
         mnemonicImported: true,
@@ -137,6 +147,8 @@ describe("renderInitResult parity", () => {
     const ctx = createOutputContext(makeMode({ isQuiet: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderInitResult(ctx, {
+        setupMode: "create",
+        readiness: "read_only",
         defaultChain: "sepolia",
         signerKeySet: false,
         mnemonicImported: false,

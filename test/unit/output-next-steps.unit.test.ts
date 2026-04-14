@@ -266,6 +266,8 @@ function stderrContainsNextSteps(stderr: string): boolean {
 // ── Shared stubs ─────────────────────────────────────────────────────────────
 
 const STUB_INIT: InitRenderResult = {
+    setupMode: "create",
+    readiness: "ready",
     defaultChain: "sepolia",
     signerKeySet: true,
     mnemonicImported: false,
@@ -627,13 +629,15 @@ describe("status next steps vary by account state", () => {
     return parseCapturedJson(stdout).nextActions;
   }
 
-  test("ready + no accounts → restore discovery first, then pools", () => {
+  test("ready + no accounts → load-discovery init hint first, then pools", () => {
     const result = { ...STUB_STATUS, accountFiles: [] as [string, number][] };
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(2);
-    expect(actions[0].command).toBe("migrate status");
+    expect(actions[0].command).toBe("init");
     expect(actions[0].when).toBe("status_restore_discovery");
-    expect(actions[0].options?.allChains).toBe(true);
+    expect(actions[0].options?.agent).toBe(true);
+    expect(actions[0].options?.recoveryPhraseFile).toBe("<downloaded-file>");
+    expect(actions[0].runnable).toBe(false);
     expect(actions[1].command).toBe("pools");
     expect(actions[1].when).toBe("status_ready_no_accounts");
   });
@@ -645,7 +649,7 @@ describe("status next steps vary by account state", () => {
     expect(actions[0].when).toBe("status_ready_has_accounts");
   });
 
-  test("unsigned-only + no accounts → restore discovery first, then pools in read-only mode", () => {
+  test("unsigned-only + no accounts → load-discovery init hint first, then pools in read-only mode", () => {
     const result = {
       ...STUB_STATUS,
       signerKeySet: false,
@@ -655,9 +659,11 @@ describe("status next steps vary by account state", () => {
     };
     const actions = getJsonNextActions(result);
     expect(actions).toHaveLength(2);
-    expect(actions[0].command).toBe("migrate status");
+    expect(actions[0].command).toBe("init");
     expect(actions[0].when).toBe("status_restore_discovery");
-    expect(actions[0].options?.allChains).toBe(true);
+    expect(actions[0].options?.agent).toBe(true);
+    expect(actions[0].options?.recoveryPhraseFile).toBe("<downloaded-file>");
+    expect(actions[0].runnable).toBe(false);
     expect(actions[1].command).toBe("pools");
     expect(actions[1].when).toBe("status_unsigned_no_accounts");
   });
@@ -921,28 +927,41 @@ describe("init next steps: new wallet vs restore", () => {
     expect(stderr).not.toContain("privacy-pools accounts");
   });
 
-  test("restore (imported mnemonic) → agent gets migrate status, human gets migrate status", () => {
-    const restored = { ...STUB_INIT, mnemonicImported: true };
+  test("load with discovered deposits → agent and human both point to accounts", () => {
+    const restored: InitRenderResult = {
+      ...STUB_INIT,
+      setupMode: "restore",
+      mnemonicImported: true,
+      restoreDiscovery: {
+        status: "deposits_found",
+        chainsChecked: ["mainnet", "arbitrum"],
+        foundAccountChains: ["mainnet", "arbitrum"],
+      },
+    };
     const actions = getJsonNextActions(restored);
     expect(actions).toHaveLength(1);
-    expect(actions[0].command).toBe("migrate status");
+    expect(actions[0].command).toBe("accounts");
     expect(actions[0].when).toBe("after_restore");
 
     const stderr = getHumanStderr(restored);
-    expect(stderr).toContain("privacy-pools migrate status");
-    expect(stderr).not.toContain("privacy-pools pools");
+    expect(stderr).toContain("privacy-pools accounts");
+    expect(stderr).not.toContain("privacy-pools migrate status");
   });
 
-  test("restore on testnet → both agent and human use migrate status --all-chains", () => {
+  test("load with website action required → both agent and human use migrate status --all-chains", () => {
     const restored: InitRenderResult = {
       ...STUB_INIT,
+      setupMode: "restore",
+      readiness: "discovery_required",
       mnemonicImported: true,
       defaultChain: "sepolia",
+      restoreDiscovery: {
+        status: "legacy_website_action_required",
+        chainsChecked: ["mainnet", "arbitrum", "optimism", "sepolia"],
+      },
     };
     const actions = getJsonNextActions(restored);
     expect(actions[0].command).toBe("migrate status");
-    // Restore always uses --all-chains regardless of defaultChain,
-    // because we don't know which chains hold recoverable state.
     expect(actions[0].options?.allChains).toBe(true);
     expect(actions[0].options?.chain).toBeUndefined();
 
@@ -950,20 +969,23 @@ describe("init next steps: new wallet vs restore", () => {
     expect(stderr).toContain("privacy-pools migrate status --all-chains");
   });
 
-  test("restore on mainnet → both agent and human use migrate status --all-chains", () => {
+  test("load with no deposits → both agent and human point to pools", () => {
     const restored: InitRenderResult = {
       ...STUB_INIT,
+      setupMode: "restore",
       mnemonicImported: true,
       defaultChain: "mainnet",
+      restoreDiscovery: {
+        status: "no_deposits",
+        chainsChecked: ["mainnet", "arbitrum", "optimism"],
+      },
     };
     const actions = getJsonNextActions(restored);
-    expect(actions[0].command).toBe("migrate status");
-    // Restore always uses --all-chains so testnet-only wallets see their funds too.
-    expect(actions[0].options?.allChains).toBe(true);
-    expect(actions[0].options?.chain).toBeUndefined();
+    expect(actions[0].command).toBe("pools");
 
     const stderr = getHumanStderr(restored);
-    expect(stderr).toContain("privacy-pools migrate status --all-chains");
+    expect(stderr).toContain("privacy-pools pools");
+    expect(stderr).not.toContain("privacy-pools migrate status");
   });
 
   test("new wallet on testnet → human pools hint includes --chain", () => {

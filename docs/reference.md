@@ -8,16 +8,17 @@ Detailed command reference for the Privacy Pools CLI. For a quick overview, see 
 
 ### `init`
 
-Initialize or restore your Privacy Pools account
+Create, load, or finish setting up your Privacy Pools account
 
-Creates or imports the local Privacy Pools wallet state under ~/.privacy-pools/. The recovery phrase controls deposit privacy and account restoration, while the signer key pays gas and submits transactions; they are intentionally separate secrets. When you generate a fresh wallet, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files. If you are moving from the website to the CLI, the smoothest restore path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download). Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
+Guided setup for the local Privacy Pools account under ~/.privacy-pools/. Use it to create a new account, load an existing account from a recovery phrase, or finish setup by adding or replacing the signer key. The recovery phrase controls the Privacy Pools account, while the signer key pays gas and submits transactions; they are intentionally separate secrets. When you generate a fresh account, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files. If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download). Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file. Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
 
 **Basic:**
 
 ```bash
 privacy-pools init
 privacy-pools init --dry-run
-privacy-pools init --yes --default-chain mainnet
+privacy-pools init --signer-only
+privacy-pools init --yes --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
 privacy-pools init --force --yes --default-chain mainnet
 ```
 
@@ -25,13 +26,15 @@ privacy-pools init --force --yes --default-chain mainnet
 
 ```bash
 privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
+privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
 ```
 
-**Import existing keys:**
+**Load existing account:**
 
 ```bash
 privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt
 cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet
+privacy-pools init --signer-only --private-key-file ./my-key.txt
 printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet
 ```
 
@@ -42,9 +45,11 @@ printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-ph
 | `--recovery-phrase-file <path>` | Import recovery phrase from a file (raw phrase or Privacy Pools backup file) |
 | `--recovery-phrase-stdin` | Import recovery phrase from stdin (raw phrase or Privacy Pools backup text) |
 | `--show-recovery-phrase` | Include generated recovery phrase in JSON output (unsafe: may be logged or piped) |
+| `--backup-file <path>` | Write a generated recovery phrase backup to a file |
 | `--private-key <key>` | Set the signer private key (unsafe: visible in process list) |
 | `--private-key-file <path>` | Set the signer private key from a file |
 | `--private-key-stdin` | Set the signer private key from stdin |
+| `--signer-only` | Add or replace the signer key without changing the recovery phrase |
 | `--default-chain <chain>` | Set default chain |
 | `--rpc-url <url>` | Set RPC URL for the default chain |
 | `--force` | Overwrite existing configuration without prompting |
@@ -54,7 +59,7 @@ printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-ph
 **Safety:** Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.
 **Safety:** Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
 
-**JSON output:** `success: { defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: "init", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }`
+**JSON output:** `success: { setupMode, readiness, defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: "init", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }`
 
 ### `upgrade`
 

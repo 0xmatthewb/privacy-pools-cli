@@ -1,7 +1,12 @@
-import { expect } from "bun:test";
+import { afterAll, beforeAll, expect } from "bun:test";
 import { join } from "node:path";
 import { writeFileSync } from "node:fs";
 import { TEST_MNEMONIC, writeTestSecretFiles } from "../helpers/cli.ts";
+import {
+  killFixtureServer,
+  launchFixtureServer,
+  type FixtureServer,
+} from "../helpers/fixture-server.ts";
 import {
   assertExit,
   assertJson,
@@ -10,6 +15,23 @@ import {
   defineScenarioSuite,
   runCliStep,
 } from "./framework.ts";
+
+let fixture: FixtureServer;
+
+beforeAll(async () => {
+  fixture = await launchFixtureServer();
+});
+
+afterAll(async () => {
+  await killFixtureServer(fixture);
+});
+
+function fixtureEnv() {
+  return {
+    PRIVACY_POOLS_ASP_HOST: fixture.url,
+    PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture.url,
+  };
+}
 
 function writeTempFile(home: string, filename: string, content: string): string {
   const filePath = join(home, filename);
@@ -40,7 +62,10 @@ defineScenarioSuite("mnemonic-file acceptance", [
         "valid-15-word.txt",
         "morning world loop ankle vehicle coach cradle curious image position write tuition enemy permit bone",
       );
-      return runCliStep(initArgs(ctx.home, filePath), { timeoutMs: 60_000 })(ctx);
+      return runCliStep(initArgs(ctx.home, filePath), {
+        timeoutMs: 60_000,
+        env: fixtureEnv(),
+      })(ctx);
     },
     assertExit(2),
     assertJson<{ success: boolean; errorMessage: string }>((json) => {
@@ -51,6 +76,7 @@ defineScenarioSuite("mnemonic-file acceptance", [
   defineScenario("imports a raw mnemonic file", [
     (ctx) => runCliStep(initArgs(ctx.home, writeTempFile(ctx.home, "raw.txt", TEST_MNEMONIC)), {
       timeoutMs: 60_000,
+      env: fixtureEnv(),
     })(ctx),
     assertExit(0),
     assertJson<{ success: boolean }>((json) => {
@@ -70,6 +96,7 @@ defineScenarioSuite("mnemonic-file acceptance", [
       ].join("\n");
       return runCliStep(initArgs(ctx.home, writeTempFile(ctx.home, "cli-backup.txt", cliBackup)), {
         timeoutMs: 60_000,
+        env: fixtureEnv(),
       })(ctx);
     },
     assertExit(0),
@@ -92,7 +119,10 @@ defineScenarioSuite("mnemonic-file acceptance", [
       ].join("\n");
       return runCliStep(
         initArgs(ctx.home, writeTempFile(ctx.home, "website-backup.txt", structured)),
-        { timeoutMs: 60_000 },
+        {
+          timeoutMs: 60_000,
+          env: fixtureEnv(),
+        },
       )(ctx);
     },
     assertExit(0),
@@ -112,7 +142,10 @@ defineScenarioSuite("mnemonic-file acceptance", [
       ].join("\n");
       return runCliStep(
         initArgs(ctx.home, writeTempFile(ctx.home, "bad-backup.txt", badContent)),
-        { timeoutMs: 60_000 },
+        {
+          timeoutMs: 60_000,
+          env: fixtureEnv(),
+        },
       )(ctx);
     },
     assertExit(2),
@@ -129,7 +162,10 @@ defineScenarioSuite("mnemonic-file acceptance", [
       ].join("\n");
       return runCliStep(
         initArgs(ctx.home, writeTempFile(ctx.home, "ambiguous.txt", ambiguous)),
-        { timeoutMs: 60_000 },
+        {
+          timeoutMs: 60_000,
+          env: fixtureEnv(),
+        },
       )(ctx);
     },
     assertExit(2),
@@ -150,7 +186,10 @@ defineScenarioSuite("mnemonic-file acceptance", [
       ].join("\n");
       return runCliStep(
         initArgs(ctx.home, writeTempFile(ctx.home, "cli-backup.txt", cliBackup)),
-        { timeoutMs: 60_000 },
+        {
+          timeoutMs: 60_000,
+          env: fixtureEnv(),
+        },
       )(ctx);
     },
     assertExit(0),
@@ -171,7 +210,10 @@ defineScenarioSuite("mnemonic-file acceptance", [
       ].join("\r\n");
       return runCliStep(
         initArgs(ctx.home, writeTempFile(ctx.home, "windows-backup.txt", cliBackup)),
-        { timeoutMs: 60_000 },
+        {
+          timeoutMs: 60_000,
+          env: fixtureEnv(),
+        },
       )(ctx);
     },
     assertExit(0),
