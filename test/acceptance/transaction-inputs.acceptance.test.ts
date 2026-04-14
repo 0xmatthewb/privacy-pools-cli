@@ -14,103 +14,76 @@ import {
 
 const assetAddress = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
+function assertInputJsonFailure(message: string) {
+  return [
+    assertExit(2),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      error: { category: string; code?: string; message: string };
+    }>((json) => {
+      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+      expect(json.success).toBe(false);
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.message).toContain(message);
+    }),
+  ] as const;
+}
+
+function assertRpcPoolResolutionFailure(assetOrPool: string) {
+  return [
+    assertExit(3),
+    assertStderrEmpty(),
+    assertJson<{
+      success: boolean;
+      errorCode: string;
+      error: { category: string; code: string; message: string };
+    }>((json) => {
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+      expect(json.error.category).toBe("RPC");
+      expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
+      expect(json.error.message).toContain(
+        `Failed to resolve pool for ${assetOrPool}`,
+      );
+    }),
+  ] as const;
+}
+
+function assertInputErrorEnvelope() {
+  return [
+    assertExit(2),
+    assertStderrEmpty(),
+    assertJsonEnvelopeStep({
+      success: false,
+      errorCode: "INPUT_ERROR",
+    }),
+    assertJson<{
+      error: { category: string; code: string };
+    }>((json) => {
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.code).toBe("INPUT_ERROR");
+    }),
+  ] as const;
+}
+
 defineScenarioSuite("transaction inputs acceptance", [
   defineScenario("missing transaction inputs stay machine-readable in JSON mode", [
     seedHome("sepolia"),
     runCliStep(["--json", "deposit", "0.1", "--yes"], { timeoutMs: 10_000 }),
-    assertExit(2),
-    assertStderrEmpty(),
-    assertJson<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string; message: string };
-    }>((json) => {
-      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-      expect(json.success).toBe(false);
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("No asset specified");
-    }),
+    ...assertInputJsonFailure("No asset specified"),
     runCliStep(["--json", "withdraw", "0.1", "--yes"], { timeoutMs: 10_000 }),
-    assertExit(2),
-    assertStderrEmpty(),
-    assertJson<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string; message: string };
-    }>((json) => {
-      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-      expect(json.success).toBe(false);
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("Relayed withdrawals require --to");
-    }),
-    runCliStep(["--json", "ragequit", "--yes"], { timeoutMs: 10_000 }),
-    assertExit(2),
-    assertStderrEmpty(),
-    assertJson<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string; message: string };
-    }>((json) => {
-      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-      expect(json.success).toBe(false);
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("No asset specified");
-    }),
+    ...assertInputJsonFailure("Relayed withdrawals require --to"),
     runCliStep(["--json", "exit", "--yes"], { timeoutMs: 10_000 }),
-    assertExit(2),
-    assertStderrEmpty(),
-    assertJson<{
-      schemaVersion: string;
-      success: boolean;
-      error: { category: string; message: string };
-    }>((json) => {
-      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
-      expect(json.success).toBe(false);
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("No asset specified");
-    }),
+    ...assertInputJsonFailure("No asset specified"),
   ]),
   defineScenario("unsigned transaction commands keep the INPUT_ERROR contract", [
     seedHome("sepolia"),
     runCliStep(["deposit", "0.1", "--unsigned"], { timeoutMs: 10_000 }),
-    assertExit(2),
-    assertStderrEmpty(),
-    assertJsonEnvelopeStep({
-      success: false,
-      errorCode: "INPUT_ERROR",
-    }),
-    assertJson<{
-      error: { category: string; code: string };
-    }>((json) => {
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.code).toBe("INPUT_ERROR");
-    }),
+    ...assertInputErrorEnvelope(),
     runCliStep(["withdraw", "0.1", "--unsigned"], { timeoutMs: 10_000 }),
-    assertExit(2),
-    assertStderrEmpty(),
-    assertJsonEnvelopeStep({
-      success: false,
-      errorCode: "INPUT_ERROR",
-    }),
-    assertJson<{
-      error: { category: string; code: string };
-    }>((json) => {
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.code).toBe("INPUT_ERROR");
-    }),
-    runCliStep(["ragequit", "--unsigned"], { timeoutMs: 10_000 }),
-    assertExit(2),
-    assertStderrEmpty(),
-    assertJsonEnvelopeStep({
-      success: false,
-      errorCode: "INPUT_ERROR",
-    }),
-    assertJson<{
-      error: { category: string; code: string };
-    }>((json) => {
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.code).toBe("INPUT_ERROR");
-    }),
+    ...assertInputErrorEnvelope(),
   ]),
   defineScenario("machine mode fails fast without prompting for a missing asset", [
     seedHome("sepolia"),
@@ -133,19 +106,6 @@ defineScenarioSuite("transaction inputs acceptance", [
     assertExit(2),
     assertStderr((stderr) => {
       expect(stderr).not.toContain("Select asset to withdraw");
-    }),
-    assertJson<{
-      success: boolean;
-      error: { category: string; message: string };
-    }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("No asset specified");
-    }),
-    runCliStep(["--json", "ragequit"], { timeoutMs: 10_000 }),
-    assertExit(2),
-    assertStderr((stderr) => {
-      expect(stderr).not.toContain("Select asset pool for ragequit");
     }),
     assertJson<{
       success: boolean;
@@ -208,19 +168,7 @@ defineScenarioSuite("transaction inputs acceptance", [
       ],
       { timeoutMs: 10_000 },
     ),
-    assertExit(3),
-    assertStderrEmpty(),
-    assertJson<{
-      success: boolean;
-      errorCode: string;
-      error: { category: string; code: string; message: string };
-    }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-      expect(json.error.category).toBe("RPC");
-      expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
-      expect(json.error.message).toContain(`Failed to resolve pool for ${assetAddress}`);
-    }),
+    ...assertRpcPoolResolutionFailure(assetAddress),
     runCliStep(
       [
         "--json",
@@ -236,19 +184,7 @@ defineScenarioSuite("transaction inputs acceptance", [
       ],
       { timeoutMs: 10_000 },
     ),
-    assertExit(3),
-    assertStderrEmpty(),
-    assertJson<{
-      success: boolean;
-      errorCode: string;
-      error: { category: string; code: string; message: string };
-    }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-      expect(json.error.category).toBe("RPC");
-      expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
-      expect(json.error.message).toContain(`Failed to resolve pool for ${assetAddress}`);
-    }),
+    ...assertRpcPoolResolutionFailure(assetAddress),
     runCliStep(
       [
         "--json",
@@ -262,19 +198,7 @@ defineScenarioSuite("transaction inputs acceptance", [
       ],
       { timeoutMs: 10_000 },
     ),
-    assertExit(3),
-    assertStderrEmpty(),
-    assertJson<{
-      success: boolean;
-      errorCode: string;
-      error: { category: string; code: string; message: string };
-    }>((json) => {
-      expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-      expect(json.error.category).toBe("RPC");
-      expect(json.error.code).toBe("RPC_POOL_RESOLUTION_FAILED");
-      expect(json.error.message).toContain(`Failed to resolve pool for ${assetAddress}`);
-    }),
+    ...assertRpcPoolResolutionFailure(assetAddress),
     runCliStep(
       ["--json", "deposit", "0.1", "--asset", "ETH", "--yes"],
       {

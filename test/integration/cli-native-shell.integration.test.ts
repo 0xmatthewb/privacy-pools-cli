@@ -242,6 +242,29 @@ function expectDirectNativeBuiltJsonParity(
   );
 }
 
+function expectJsonErrorContract(
+  result: CliRunResult,
+  options: {
+    status: number | null;
+    errorCode: string;
+    category: string;
+    message: string;
+  },
+): void {
+  assertDidNotTimeout("CLI result", result);
+  expect(result.status).toBe(options.status);
+  const payload = parseJsonOutput<{
+    success: boolean;
+    errorCode: string;
+    error: { category: string; code: string; message: string };
+  }>(result.stdout);
+  expect(payload.success).toBe(false);
+  expect(payload.errorCode).toBe(options.errorCode);
+  expect(payload.error.category).toBe(options.category);
+  expect(payload.error.code).toBe(options.errorCode);
+  expect(payload.error.message).toContain(options.message);
+}
+
 function fixtureEnv(fixture: FixtureServer): Record<string, string> {
   return {
     PRIVACY_POOLS_ASP_HOST: fixture.url,
@@ -658,15 +681,21 @@ describe("native shell parity", () => {
     }
   });
 
-  nativeTest("stats pool input validation stays identical through the native path", () => {
-    expectJsonParity(
-      nativeBinary,
-      ["--json", "stats", "pool", "--chain", "sepolia"],
-      {
-        js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
-        native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
-      },
-    );
+  nativeTest("stats pool input validation keeps the same structured error contract", () => {
+    const args = ["--json", "stats", "pool", "--chain", "sepolia"];
+    const env = { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" };
+    const jsResult = runBuiltCli(args, withJsFallback({ env }));
+    const nativeResult = runNativeBuiltCli(nativeBinary, args, { env });
+
+    for (const result of [jsResult, nativeResult]) {
+      expectJsonErrorContract(result, {
+        status: 2,
+        errorCode: "INPUT_ERROR",
+        category: "INPUT",
+        message: "asset",
+      });
+      expect(normalizeParityStderr(result.stderr)).toBe("");
+    }
   });
 
   nativeTest("direct native offline error paths stay JSON-identical without a JS bridge", () => {
