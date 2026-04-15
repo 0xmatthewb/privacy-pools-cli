@@ -1,12 +1,19 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import {
+  cleanupTrackedTempDirs,
+  createTrackedTempDir,
+} from "../helpers/temp.ts";
 
 describe("refresh test shard weights script", () => {
+  afterEach(() => {
+    cleanupTrackedTempDirs();
+  });
+
   test("derives deterministic per-file weights from emitted runtime reports", () => {
-    const root = mkdtempSync(join(tmpdir(), "pp-shard-refresh-"));
+    const root = createTrackedTempDir("pp-shard-refresh-");
     const outputPath = join(root, "weights.json");
     const reportAPath = join(root, "report-a.json");
     const reportBPath = join(root, "report-b.json");
@@ -16,6 +23,18 @@ describe("refresh test shard weights script", () => {
       `${JSON.stringify({
         kind: "suite",
         heading: "suite runtimes",
+        fileSummaries: [
+          {
+            path: "./test/unit/a.unit.test.ts",
+            estimatedDurationMs: 200,
+            sampleCount: 1,
+          },
+          {
+            path: "./test/unit/b.unit.test.ts",
+            estimatedDurationMs: 200,
+            sampleCount: 1,
+          },
+        ],
         results: [
           {
             label: "main:unit-01",
@@ -34,6 +53,13 @@ describe("refresh test shard weights script", () => {
       `${JSON.stringify({
         kind: "suite",
         heading: "suite runtimes",
+        fileSummaries: [
+          {
+            path: "./test/unit/a.unit.test.ts",
+            estimatedDurationMs: 300,
+            sampleCount: 1,
+          },
+        ],
         results: [
           {
             label: "main:unit-02",
@@ -69,6 +95,55 @@ describe("refresh test shard weights script", () => {
     const weights = JSON.parse(readFileSync(outputPath, "utf8"));
     expect(weights).toEqual({
       "./test/unit/a.unit.test.ts": 250,
+      "./test/unit/b.unit.test.ts": 200,
+    });
+  });
+
+  test("falls back to suite test ownership when reports do not include file summaries", () => {
+    const root = createTrackedTempDir("pp-shard-refresh-");
+    const outputPath = join(root, "weights.json");
+    const reportPath = join(root, "report.json");
+
+    writeFileSync(
+      reportPath,
+      `${JSON.stringify({
+        kind: "suite",
+        heading: "suite runtimes",
+        results: [
+          {
+            label: "main:unit-01",
+            durationMs: 400,
+            tests: [
+              "./test/unit/a.unit.test.ts",
+              "./test/unit/b.unit.test.ts",
+            ],
+          },
+        ],
+      }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        "scripts/ci/refresh-test-shard-weights.mjs",
+        "--report",
+        reportPath,
+        "--output",
+        outputPath,
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+      },
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+
+    const weights = JSON.parse(readFileSync(outputPath, "utf8"));
+    expect(weights).toEqual({
+      "./test/unit/a.unit.test.ts": 200,
       "./test/unit/b.unit.test.ts": 200,
     });
   });

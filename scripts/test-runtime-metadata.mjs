@@ -139,11 +139,56 @@ export function summarizeRuntimeByTag(results) {
     });
 }
 
+export function summarizeRuntimeByFile(results) {
+  const summaries = new Map();
+
+  for (const result of results) {
+    const tests = Array.isArray(result.tests)
+      ? [...new Set(result.tests.filter(Boolean))]
+      : [];
+    if (tests.length === 0) {
+      continue;
+    }
+
+    const perFileDuration = Math.max(
+      1,
+      Math.round(Number(result.durationMs) / tests.length),
+    );
+
+    for (const path of tests) {
+      const current = summaries.get(path) ?? {
+        path,
+        totalDurationMs: 0,
+        sampleCount: 0,
+      };
+      current.totalDurationMs += perFileDuration;
+      current.sampleCount += 1;
+      summaries.set(path, current);
+    }
+  }
+
+  return [...summaries.values()]
+    .map((summary) => ({
+      path: summary.path,
+      sampleCount: summary.sampleCount,
+      estimatedDurationMs: Math.max(
+        1,
+        Math.round(summary.totalDurationMs / summary.sampleCount),
+      ),
+    }))
+    .sort((left, right) => {
+      if (right.estimatedDurationMs !== left.estimatedDurationMs) {
+        return right.estimatedDurationMs - left.estimatedDurationMs;
+      }
+      return left.path.localeCompare(right.path);
+    });
+}
+
 export function reportRuntimeSummary(
   heading,
   results,
   stream = process.stdout,
-  slowCount = 5,
+  slowCount = 10,
   options = {},
 ) {
   if (!Array.isArray(results) || results.length === 0) {
@@ -167,20 +212,37 @@ export function reportRuntimeSummary(
 
   const tagSummaries = summarizeRuntimeByTag(results);
   if (tagSummaries.length === 0) {
+    stream.write("[perf] slowest tag totals unavailable\n");
+  } else {
+    stream.write("[perf] slowest tag totals\n");
+    for (const summary of tagSummaries.slice(0, slowCount)) {
+      const baseline = getTagRuntimeBaseline(summary.tag);
+      const baselineLabel = Number.isInteger(baseline)
+        ? ` (baseline ${formatRuntimeBudget(baseline)})`
+        : "";
+      const budgetLabel = summary.budgetFailureCount > 0
+        ? ` ${summary.budgetFailureCount} budget overrun${summary.budgetFailureCount === 1 ? "" : "s"}`
+        : "";
+      stream.write(
+        `[perf] tag:${summary.tag}: ${formatRuntimeDuration(summary.durationMs)} across ${summary.suiteCount} suite(s), avg ${formatRuntimeDuration(summary.averageDurationMs)}, max ${formatRuntimeDuration(summary.maxDurationMs)}${baselineLabel}${budgetLabel}\n`,
+      );
+    }
+  }
+
+  if (options.includeFileSummary === false) {
     return;
   }
 
-  stream.write(`[perf] slowest tag totals\n`);
-  for (const summary of tagSummaries.slice(0, slowCount)) {
-    const baseline = getTagRuntimeBaseline(summary.tag);
-    const baselineLabel = Number.isInteger(baseline)
-      ? ` (baseline ${formatRuntimeBudget(baseline)})`
-      : "";
-    const budgetLabel = summary.budgetFailureCount > 0
-      ? ` ${summary.budgetFailureCount} budget overrun${summary.budgetFailureCount === 1 ? "" : "s"}`
-      : "";
+  const fileSummaries = summarizeRuntimeByFile(results);
+  if (fileSummaries.length === 0) {
+    stream.write("[perf] slowest file totals unavailable\n");
+    return;
+  }
+
+  stream.write("[perf] slowest file totals\n");
+  for (const summary of fileSummaries.slice(0, slowCount)) {
     stream.write(
-      `[perf] tag:${summary.tag}: ${formatRuntimeDuration(summary.durationMs)} across ${summary.suiteCount} suite(s), avg ${formatRuntimeDuration(summary.averageDurationMs)}, max ${formatRuntimeDuration(summary.maxDurationMs)}${baselineLabel}${budgetLabel}\n`,
+      `[perf] file:${summary.path}: ${formatRuntimeDuration(summary.estimatedDurationMs)} across ${summary.sampleCount} sample(s)\n`,
     );
   }
 }
@@ -200,6 +262,7 @@ export function buildRuntimeReport({
     heading,
     generatedAt,
     tagSummaries: summarizeRuntimeByTag(results ?? []),
+    fileSummaries: summarizeRuntimeByFile(results ?? []),
     results: (results ?? []).map((result) => ({
       label: result.label,
       canonicalLabel: result.canonicalLabel ?? result.label,

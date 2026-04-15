@@ -5,6 +5,8 @@ import {
   getSuiteRuntimeBudget,
   loadRuntimeMetadata,
   mergeRuntimeReportsIntoMetadata,
+  reportRuntimeSummary,
+  summarizeRuntimeByFile,
   summarizeRuntimeByTag,
 } from "../../scripts/test-runtime-metadata.mjs";
 
@@ -55,6 +57,95 @@ describe("test runtime metadata", () => {
     ]);
   });
 
+  test("summarizes runtime totals by file from suite test ownership", () => {
+    const summaries = summarizeRuntimeByFile([
+      {
+        label: "main:unit-01",
+        durationMs: 400,
+        tests: [
+          "./test/unit/a.unit.test.ts",
+          "./test/unit/b.unit.test.ts",
+        ],
+      },
+      {
+        label: "main:unit-02",
+        durationMs: 300,
+        tests: ["./test/unit/a.unit.test.ts"],
+      },
+    ]);
+
+    expect(summaries).toEqual([
+      {
+        path: "./test/unit/a.unit.test.ts",
+        estimatedDurationMs: 250,
+        sampleCount: 2,
+      },
+      {
+        path: "./test/unit/b.unit.test.ts",
+        estimatedDurationMs: 200,
+        sampleCount: 1,
+      },
+    ]);
+  });
+
+  test("buildRuntimeReport includes per-file summaries", () => {
+    const report = buildRuntimeReport({
+      kind: "suite",
+      heading: "suites",
+      results: [
+        {
+          label: "main:unit-01",
+          durationMs: 400,
+          tests: [
+            "./test/unit/a.unit.test.ts",
+            "./test/unit/b.unit.test.ts",
+          ],
+        },
+      ],
+    });
+
+    expect(report.fileSummaries).toEqual([
+      {
+        path: "./test/unit/a.unit.test.ts",
+        estimatedDurationMs: 200,
+        sampleCount: 1,
+      },
+      {
+        path: "./test/unit/b.unit.test.ts",
+        estimatedDurationMs: 200,
+        sampleCount: 1,
+      },
+    ]);
+  });
+
+  test("reportRuntimeSummary prints suite, tag, and file views", () => {
+    let output = "";
+    const stream = {
+      write(chunk: string) {
+        output += chunk;
+        return true;
+      },
+    };
+
+    reportRuntimeSummary(
+      "suite runtimes",
+      [
+        {
+          label: "main:unit-01",
+          durationMs: 400,
+          tags: ["unit"],
+          tests: ["./test/unit/a.unit.test.ts"],
+        },
+      ],
+      stream,
+    );
+
+    expect(output).toContain("[perf] suite runtimes");
+    expect(output).toContain("[perf] slowest tag totals");
+    expect(output).toContain("[perf] slowest file totals");
+    expect(output).toContain("file:./test/unit/a.unit.test.ts");
+  });
+
   test("merges suite, profile, and tag timing baselines from emitted reports", () => {
     const metadata = {
       version: 1,
@@ -74,6 +165,7 @@ describe("test runtime metadata", () => {
             canonicalLabel: "packed-smoke",
             durationMs: 1000,
             tags: ["install-boundary", "expensive"],
+            tests: ["./test/integration/cli-packaged-smoke.integration.test.ts"],
           },
         ],
       }),
@@ -86,6 +178,7 @@ describe("test runtime metadata", () => {
             canonicalLabel: "npm run test:install",
             durationMs: 2000,
             tags: ["ci"],
+            tests: [],
           },
         ],
       }),

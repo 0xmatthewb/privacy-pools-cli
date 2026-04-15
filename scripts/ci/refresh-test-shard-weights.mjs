@@ -45,8 +45,41 @@ if (args.reports.length === 0) {
 
 const durationsByTest = new Map();
 
+function addSample(path, durationMs, sampleCount = 1) {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    return;
+  }
+
+  const current = durationsByTest.get(path) ?? {
+    totalDurationMs: 0,
+    sampleCount: 0,
+  };
+  current.totalDurationMs += Math.round(durationMs) * Math.max(1, sampleCount);
+  current.sampleCount += Math.max(1, sampleCount);
+  durationsByTest.set(path, current);
+}
+
 for (const reportPath of args.reports) {
   const report = JSON.parse(readFileSync(reportPath, "utf8"));
+  let usedFileSummaries = false;
+
+  for (const summary of report.fileSummaries ?? []) {
+    if (!summary?.path) {
+      continue;
+    }
+    usedFileSummaries = true;
+    const normalized = normalizePath(resolve(ROOT, summary.path));
+    addSample(
+      normalized,
+      Number(summary.estimatedDurationMs),
+      Number(summary.sampleCount) || 1,
+    );
+  }
+
+  if (usedFileSummaries) {
+    continue;
+  }
+
   for (const result of report.results ?? []) {
     if (!Array.isArray(result.tests) || result.tests.length === 0) {
       continue;
@@ -59,22 +92,19 @@ for (const reportPath of args.reports) {
 
     for (const testPath of result.tests) {
       const normalized = normalizePath(resolve(ROOT, testPath));
-      const existing = durationsByTest.get(normalized) ?? [];
-      existing.push(perTestDuration);
-      durationsByTest.set(normalized, existing);
+      addSample(normalized, perTestDuration, 1);
     }
   }
 }
 
 const nextWeights = Object.fromEntries(
   [...durationsByTest.entries()]
-    .map(([testPath, durations]) => [
+    .map(([testPath, summary]) => [
       testPath,
       Math.max(
         1,
         Math.round(
-          durations.reduce((total, duration) => total + duration, 0)
-            / durations.length,
+          summary.totalDurationMs / summary.sampleCount,
         ),
       ),
     ])

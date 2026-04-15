@@ -1,12 +1,19 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import {
+  cleanupTrackedTempDirs,
+  createTrackedTempDir,
+} from "../helpers/temp.ts";
 
 describe("refresh test runtime metadata script", () => {
+  afterEach(() => {
+    cleanupTrackedTempDirs();
+  });
+
   test("merges emitted suite and profile reports into the committed metadata shape", () => {
-    const root = mkdtempSync(join(tmpdir(), "pp-runtime-refresh-"));
+    const root = createTrackedTempDir("pp-runtime-refresh-");
     const metadataPath = join(root, "runtime-metadata.json");
     const suiteReportPath = join(root, "suite-report.json");
     const profileReportPath = join(root, "profile-report.json");
