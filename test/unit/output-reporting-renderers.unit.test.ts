@@ -157,6 +157,34 @@ describe("renderPools parity", () => {
     expect(stderr).toBe("");
   });
 
+  test("JSON mode: orders owned-pool nextActions before deposit templates", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: PoolsRenderData = {
+      ...STUB_POOLS_DATA,
+      filteredPools: [
+        {
+          ...STUB_POOLS_DATA.filteredPools[0]!,
+          myPoolAccountsCount: 2,
+        },
+      ],
+    };
+    const { stdout } = captureOutput(() => renderPools(ctx, data));
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
+      "accounts",
+      "pools",
+      "deposit",
+    ]);
+    expect(json.nextActions[0].cliCommand).toBe(
+      "privacy-pools accounts --agent --chain sepolia",
+    );
+    expect(json.nextActions[1].cliCommand).toBe(
+      "privacy-pools pools ETH --agent --chain sepolia",
+    );
+    expect(json.nextActions[2].runnable).toBe(false);
+  });
+
   test("JSON mode: all-chains query omits chain from deposit nextAction", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: PoolsRenderData = {
@@ -972,7 +1000,29 @@ describe("renderPoolDetail parity", () => {
     expect(json.chain).toBe("sepolia");
     expect(json.asset).toBe("ETH");
     expect(json.nextActions).toBeDefined();
-    expect(json.nextActions.length).toBeGreaterThan(0);
+    expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
+      "withdraw",
+      "ragequit",
+      "accounts",
+      "deposit",
+    ]);
+    expect(json.nextActions[0]).toMatchObject({
+      command: "withdraw",
+      runnable: false,
+      options: {
+        chain: "sepolia",
+        poolAccount: "PA-1",
+        all: true,
+        to: "<recipient>",
+      },
+    });
+    expect(json.nextActions[1]).toMatchObject({
+      command: "ragequit",
+      options: {
+        chain: "sepolia",
+        poolAccount: "PA-1",
+      },
+    });
 
     // myFunds shape
     expect(json.myFunds).toBeDefined();
@@ -1001,6 +1051,39 @@ describe("renderPoolDetail parity", () => {
 
     const json = parseCapturedJson(stdout);
     expect(json.myFunds).toBeNull();
+    expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
+      "accounts",
+      "deposit",
+    ]);
+    expect(json.nextActions[1].runnable).toBe(false);
+  });
+
+  test("JSON mode: orders required public recovery before optional alternatives", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderPoolDetail(ctx, {
+        ...STUB_POOL_DETAIL_DATA,
+        myPoolAccounts: [
+          STUB_POOL_ACCOUNT_REF,
+          STUB_DECLINED_POOL_ACCOUNT_REF,
+          STUB_POA_POOL_ACCOUNT_REF,
+        ],
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
+      "withdraw",
+      "ragequit",
+      "ragequit",
+      "ragequit",
+      "accounts",
+      "deposit",
+    ]);
+    expect(json.nextActions.map((action: { options?: { poolAccount?: string } }) =>
+      action.options?.poolAccount ?? null,
+    )).toEqual(["PA-1", "PA-2", "PA-1", "PA-3", null, null]);
+    expect(json.nextActions.at(-1)?.runnable).toBe(false);
   });
 
   test("JSON mode: normalizes migration recentActivity status as approved", () => {

@@ -477,25 +477,29 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
   const buildDetailAgentNextActions = () => {
     if (myPoolAccounts === null) {
       return [
+        createNextAction("accounts", "View your Pool Account balances.", "after_pool_detail", { options: { agent: true, chain } }),
         createNextAction("deposit", `Deposit into the ${pool.symbol} pool.`, "after_pool_detail", {
           args: ["<amount>", pool.symbol],
           options: { agent: true, chain },
           runnable: false,
         }),
-        createNextAction("accounts", "View your Pool Account balances.", "after_pool_detail", { options: { agent: true, chain } }),
       ];
     }
 
     const active = myPoolAccounts.filter((pa) => pa.value > 0n && isActivePoolAccountStatus(pa.status));
     const approved = active.filter((pa) => pa.status === "approved");
-    const recoveryCandidates = active.filter(
+    const requiredRecoveryCandidates = active.filter((pa) => pa.status === "declined");
+    const optionalRecoveryCandidates = active.filter(
       (pa) =>
         pa.status === "approved" ||
         pa.status === "pending" ||
         pa.status === "poa_required" ||
-        pa.status === "declined" ||
         pa.status === "unknown",
     );
+    const recoveryCandidates = [
+      ...requiredRecoveryCandidates,
+      ...optionalRecoveryCandidates,
+    ];
 
     return [
       ...approved.map((pa) =>
