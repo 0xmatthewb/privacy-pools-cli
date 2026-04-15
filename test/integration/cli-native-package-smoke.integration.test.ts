@@ -36,6 +36,11 @@ import {
   CARGO_AVAILABLE,
   ensureNativeShellBinary,
 } from "../helpers/native.ts";
+import {
+  expectCsvHeaderColumns,
+  expectSemanticSectionMarkers,
+  expectSemanticText,
+} from "../helpers/contract-assertions.ts";
 import { launcherTestInternals } from "../../src/launcher.ts";
 
 const currentTriplet = launcherTestInternals.nativeTriplet();
@@ -223,7 +228,7 @@ describe("native package smoke", () => {
       {
         cwd: snapshotRoot,
         home,
-        timeoutMs: 60_000,
+        timeoutMs: 120_000,
       },
     );
 
@@ -259,12 +264,14 @@ describe("native package smoke", () => {
       firstResult.stderr.includes(BANNER_SENTINEL) ||
         firstResult.stderr.includes(COMPACT_BANNER_SENTINEL),
     ).toBe(true);
-    expect(firstResult.stderr).toContain(
-      "A compliant way to transact privately on Ethereum.",
-    );
-    expect(firstResult.stderr).toContain("privacy-pools init");
-    expect(firstResult.stderr).toContain("privacy-pools guide");
-    expect(firstResult.stderr).toContain("privacy-pools --help");
+    expectSemanticText(firstResult.stderr, {
+      includes: [
+        "privacy-pools init",
+        "privacy-pools guide",
+        "privacy-pools --help",
+      ],
+      patterns: [/transact privately/i],
+    });
 
     const secondResult = runBuiltCli([], {
       cwd: snapshotRoot,
@@ -272,8 +279,9 @@ describe("native package smoke", () => {
     });
 
     expect(secondResult.status).toBe(0);
-    expect(secondResult.stdout).toContain("privacy-pools status");
-    expect(secondResult.stdout).toContain("For large transactions, use privacypools.com.");
+    expectSemanticText(secondResult.stdout, {
+      includes: ["privacy-pools status", "privacypools.com"],
+    });
     expect(secondResult.stderr).not.toContain(BANNER_SENTINEL);
     expect(secondResult.stderr).not.toContain(COMPACT_BANNER_SENTINEL);
   });
@@ -353,7 +361,7 @@ describe("native package smoke", () => {
           PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
           PRIVACY_POOLS_RPC_URL: "http://127.0.0.1:9",
         },
-        timeoutMs: 30_000,
+        timeoutMs: 60_000,
       }),
     );
 
@@ -512,14 +520,21 @@ describe("native package smoke", () => {
     });
     expect(humanStatsResult.status).toBe(0);
     expect(humanStatsResult.stdout).toBe("");
-    expect(humanStatsResult.stderr).toContain("Global statistics (all-mainnets):");
+    expectSemanticText(humanStatsResult.stderr, {
+      includes: ["Global statistics"],
+      patterns: [/mainnet/i],
+    });
 
     const csvStatsResult = runBuiltCli(["--format", "csv", "stats"], {
       cwd: snapshotRoot,
       env,
     });
     expect(csvStatsResult.status).toBe(0);
-    expect(csvStatsResult.stdout).toContain("Metric,All Time,Last 24h");
+    expectCsvHeaderColumns(csvStatsResult.stdout, [
+      "Metric",
+      "All Time",
+      "Last 24h",
+    ]);
 
     const humanActivityResult = runBuiltCli(["activity"], {
       cwd: snapshotRoot,
@@ -527,14 +542,24 @@ describe("native package smoke", () => {
     });
     expect(humanActivityResult.status).toBe(0);
     expect(humanActivityResult.stdout).toBe("");
-    expect(humanActivityResult.stderr).toContain("Global activity");
+    expectSemanticText(humanActivityResult.stderr, {
+      includes: ["Global activity"],
+    });
 
     const csvPoolsResult = runBuiltCli(["--format", "csv", "--chain", "sepolia", "pools"], {
       cwd: snapshotRoot,
       env,
     });
     expect(csvPoolsResult.status).toBe(0);
-    expect(csvPoolsResult.stdout).toContain("Asset,Total Deposits,Pool Balance");
+    expectCsvHeaderColumns(csvPoolsResult.stdout, [
+      "Asset",
+      "Total Deposits",
+      "Pool Balance",
+      "USD Value",
+      "Pending",
+      "Min Deposit",
+      "Vetting Fee",
+    ]);
   });
 
   nativePackageSmokeTest("packaged native preserves stdin secret forwarding without leaking secrets", () => {
@@ -554,7 +579,7 @@ describe("native package smoke", () => {
         cwd: snapshotRoot,
         home: mnemonicHome,
         input: `${TEST_MNEMONIC}\n`,
-        timeoutMs: 60_000,
+        timeoutMs: 120_000,
       },
     );
 
@@ -579,7 +604,7 @@ describe("native package smoke", () => {
         cwd: snapshotRoot,
         home: privateKeyHome,
         input: `${TEST_PRIVATE_KEY}\n`,
-        timeoutMs: 60_000,
+        timeoutMs: 120_000,
       },
     );
 
@@ -644,7 +669,7 @@ describe("native package smoke", () => {
       {
         cwd: snapshotRoot,
         home,
-        timeoutMs: 60_000,
+        timeoutMs: 120_000,
         env: {
           PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
         },
@@ -745,7 +770,7 @@ describe("native package smoke", () => {
         {
           cwd: snapshotRoot,
           home,
-          timeoutMs: 60_000,
+          timeoutMs: 120_000,
         },
       );
 

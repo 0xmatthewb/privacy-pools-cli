@@ -23,6 +23,7 @@ import {
   TEST_RECIPIENT,
   withJsFallback,
 } from "../helpers/native-shell.ts";
+import { expectCsvHeaderColumns } from "../helpers/contract-assertions.ts";
 
 describe("native routing smoke", () => {
   let nativeBinary: string;
@@ -171,13 +172,23 @@ describe("native routing smoke", () => {
       { args: ["activity"] },
       { args: ["--format", "csv", "activity"], expectedText: "Type,Pool,Amount" },
       { args: ["--chain", "sepolia", "pools"] },
-      { args: ["--format", "csv", "--chain", "sepolia", "pools"], expectedText: "Asset,Total Deposits,Pool Balance" },
+      { args: ["--format", "csv", "--chain", "sepolia", "pools"], expectedText: null },
     ]) {
       const result = runNativeBinaryDirect(nativeBinary, args, { env });
       const renderedOutput = `${result.stdout}${result.stderr}`;
       expect(result.status).toBe(0);
       expect(renderedOutput.trim().length).toBeGreaterThan(0);
-      if (expectedText) {
+      if (args.join(" ") === "--format csv --chain sepolia pools") {
+        expectCsvHeaderColumns(result.stdout, [
+          "Asset",
+          "Total Deposits",
+          "Pool Balance",
+          "USD Value",
+          "Pending",
+          "Min Deposit",
+          "Vetting Fee",
+        ]);
+      } else if (expectedText) {
         expect(renderedOutput).toContain(expectedText);
       }
       expect(result.stderr).not.toContain("JS worker bootstrap is unavailable");

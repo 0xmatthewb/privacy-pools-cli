@@ -132,3 +132,25 @@ export function expectOrderedSemanticFragments(
     cursor = index + fragment.length;
   }
 }
+
+export function expectSemanticSectionMarkers(
+  value: string,
+  fragments: readonly string[],
+): void {
+  expectOrderedSemanticFragments(value, fragments);
+}
+
+export function expectCsvHeaderColumns(
+  value: string,
+  columns: readonly string[],
+): void {
+  const normalized = normalizeSemanticText(value)
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+
+  expect(typeof normalized).toBe("string");
+  expect(normalized!.split(",").map((column) => column.trim())).toEqual([
+    ...columns,
+  ]);
+}

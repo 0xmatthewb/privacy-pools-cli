@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { extname, join } from "node:path";
+import { basename, extname, join } from "node:path";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 function collectFiles(root: string): string[] {
@@ -44,15 +44,20 @@ describe("testing policy conformance", () => {
     expect(offenders).toEqual([]);
   });
 
-  test("packed smoke stays shallow and avoids source inventory equality checks", () => {
-    const source = readFileSync(
-      join(CLI_ROOT, "test", "integration", "cli-packaged-smoke.integration.test.ts"),
-      "utf8",
-    );
+  test("smoke-lane integration tests avoid source inventory equality checks", () => {
+    const smokeFiles = collectFiles(join(CLI_ROOT, "test", "integration"))
+      .filter((filePath) => {
+        const name = basename(filePath);
+        return name.includes("smoke") || name.includes("packaged");
+      });
 
-    expect(source).not.toContain("sourceBaseNames(");
-    expect(source).not.toContain("packedBaseNames(");
-    expect(source).not.toContain('dist/commands/');
-    expect(source).not.toContain('dist/output/');
+    expect(smokeFiles.length).toBeGreaterThan(0);
+    for (const filePath of smokeFiles) {
+      const source = readFileSync(filePath, "utf8");
+      expect(source).not.toContain("sourceBaseNames(");
+      expect(source).not.toContain("packedBaseNames(");
+      expect(source).not.toContain('dist/commands/');
+      expect(source).not.toContain('dist/output/');
+    }
   });
 });
