@@ -8,6 +8,8 @@ import {
 } from "../output/flow.js";
 import { loadConfig } from "../services/config.js";
 import { resolvePool } from "../services/pools.js";
+import { loadKnownRecipientHistory } from "../services/recipient-history.js";
+import { getSignerAddress, loadPrivateKey } from "../services/wallet.js";
 import {
   buildAmountPatternLinkabilityWarning,
   FlowCancelledError,
@@ -17,6 +19,7 @@ import {
   ragequitWorkflow,
   resolveFlowPrivacyDelayProfile,
   startWorkflow,
+  validateWorkflowWalletBackupPath,
   watchWorkflow,
 } from "../services/workflow.js";
 import type { GlobalOptions } from "../types.js";
@@ -79,7 +82,13 @@ function flowCancelledCliError(): CLIError {
 }
 
 function collectKnownFlowRecipients(): string[] {
-  const recipients: string[] = [];
+  const recipients: string[] = [...loadKnownRecipientHistory()];
+  try {
+    recipients.push(getSignerAddress(loadPrivateKey()));
+  } catch {
+    // A configured signer is not required for --new-wallet or dry-run flows.
+  }
+
   for (const workflowId of listSavedWorkflowIds()) {
     try {
       const snapshot = getWorkflowStatus({ workflowId });
@@ -418,6 +427,18 @@ export async function handleFlowStartCommand(
         "INPUT",
         "Re-run with --new-wallet to generate a dedicated workflow wallet, or remove --export-new-wallet.",
       );
+    }
+
+    if (opts.dryRun && opts.newWallet && mode.skipPrompts && !opts.exportNewWallet?.trim()) {
+      throw new CLIError(
+        "Non-interactive workflow wallets require --export-new-wallet <path>.",
+        "INPUT",
+        "Re-run with --export-new-wallet <path> so the new wallet key is backed up before the flow starts.",
+      );
+    }
+
+    if (opts.dryRun && opts.newWallet && opts.exportNewWallet?.trim()) {
+      validateWorkflowWalletBackupPath(opts.exportNewWallet);
     }
 
     const resolvedRecipient = await resolveSafeRecipientAddressOrEns(

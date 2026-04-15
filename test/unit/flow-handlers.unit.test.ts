@@ -29,6 +29,18 @@ const realValidation = captureModuleExports(
 const realWorkflow = captureModuleExports(
   await import("../../src/services/workflow.ts"),
 );
+const realConfigService = captureModuleExports(
+  await import("../../src/services/config.ts"),
+);
+const realPoolsService = captureModuleExports(
+  await import("../../src/services/pools.ts"),
+);
+const realRecipientHistory = captureModuleExports(
+  await import("../../src/services/recipient-history.ts"),
+);
+const realWalletService = captureModuleExports(
+  await import("../../src/services/wallet.ts"),
+);
 const realPreviewRuntime = captureModuleExports(
   await import("../../src/preview/runtime.ts"),
 );
@@ -49,6 +61,10 @@ const FLOW_MODULE_RESTORES = [
   ["@inquirer/prompts", realPrompts],
   ["../../src/utils/validation.ts", realValidation],
   ["../../src/services/workflow.ts", realWorkflow],
+  ["../../src/services/config.ts", realConfigService],
+  ["../../src/services/pools.ts", realPoolsService],
+  ["../../src/services/recipient-history.ts", realRecipientHistory],
+  ["../../src/services/wallet.ts", realWalletService],
   ["../../src/utils/mode.ts", realMode],
   ["../../src/utils/errors.ts", realErrors],
   ["../../src/preview/runtime.ts", realPreviewRuntime],
@@ -69,22 +85,40 @@ class MockFlowCancelledError extends Error {}
 
 const createOutputContextMock = mock(() => ctx);
 const renderFlowResultMock = mock(() => undefined);
+const renderFlowStartDryRunMock = mock(() => undefined);
 const formatFlowRagequitReviewMock = mock(() => "review");
 const startWorkflowMock = mock(async () => startSnapshot);
 const watchWorkflowMock = mock(async () => watchSnapshot);
 const getWorkflowStatusMock = mock(() => statusSnapshot);
 const ragequitWorkflowMock = mock(async () => ragequitSnapshot);
 const listSavedWorkflowIdsMock = mock(() => ["wf-latest"]);
+const validateWorkflowWalletBackupPathMock = mock((filePath: string) => filePath);
+const loadConfigMock = mock(() => ({ defaultChain: "sepolia", rpcOverrides: {} }));
+const resolvePoolMock = mock(async () => ({
+  symbol: "ETH",
+  asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  pool: "0x1111111111111111111111111111111111111111",
+  scope: 42n,
+  decimals: 18,
+  minimumDepositAmount: 100000000000000n,
+  vettingFeeBPS: 50n,
+  maxRelayFeeBPS: 100n,
+}));
+const loadKnownRecipientHistoryMock = mock((): string[] => []);
+const loadPrivateKeyMock = mock(() => {
+  throw new realErrors.CLIError("No signer key found.", "INPUT", "Set a signer key.");
+});
+const getSignerAddressMock = mock(() => "0x9999999999999999999999999999999999999999");
 const infoMock = mock(() => undefined);
 const inputPromptMock = mock(async () => "0x4444444444444444444444444444444444444444");
 const selectPromptMock = mock(async () => "watch");
 const resolveGlobalModeMock = mock((globalOpts: Record<string, unknown> = {}) => ({
   isAgent: Boolean(globalOpts.agent),
-  isJson: Boolean(globalOpts.json),
+  isJson: Boolean(globalOpts.json || globalOpts.agent),
   isCsv: false,
   isWide: false,
-  isQuiet: Boolean(globalOpts.quiet),
-  format: globalOpts.json ? "json" : "table",
+  isQuiet: Boolean(globalOpts.quiet || globalOpts.agent),
+  format: globalOpts.json || globalOpts.agent ? "json" : "table",
   skipPrompts: Boolean(globalOpts.json || globalOpts.agent || globalOpts.yes),
 }));
 const printErrorMock = mock(() => undefined);
@@ -108,6 +142,7 @@ async function loadFlowHandlers(): Promise<void> {
     ["../../src/output/flow.ts", () => ({
       formatFlowRagequitReview: formatFlowRagequitReviewMock,
       renderFlowResult: renderFlowResultMock,
+      renderFlowStartDryRun: renderFlowStartDryRunMock,
     })],
     ["../../src/utils/format.ts", () => ({
       ...realFormat,
@@ -115,12 +150,31 @@ async function loadFlowHandlers(): Promise<void> {
     })],
     ["../../src/utils/validation.ts", () => realValidation],
     ["../../src/services/workflow.ts", () => ({
+      ...realWorkflow,
       FlowCancelledError: MockFlowCancelledError,
       getWorkflowStatus: getWorkflowStatusMock,
       listSavedWorkflowIds: listSavedWorkflowIdsMock,
       ragequitWorkflow: ragequitWorkflowMock,
       startWorkflow: startWorkflowMock,
+      validateWorkflowWalletBackupPath: validateWorkflowWalletBackupPathMock,
       watchWorkflow: watchWorkflowMock,
+    })],
+    ["../../src/services/config.ts", () => ({
+      ...realConfigService,
+      loadConfig: loadConfigMock,
+    })],
+    ["../../src/services/pools.ts", () => ({
+      ...realPoolsService,
+      resolvePool: resolvePoolMock,
+    })],
+    ["../../src/services/recipient-history.ts", () => ({
+      ...realRecipientHistory,
+      loadKnownRecipientHistory: loadKnownRecipientHistoryMock,
+    })],
+    ["../../src/services/wallet.ts", () => ({
+      ...realWalletService,
+      getSignerAddress: getSignerAddressMock,
+      loadPrivateKey: loadPrivateKeyMock,
     })],
     ["@inquirer/prompts", () => ({
       input: inputPromptMock,
@@ -197,12 +251,19 @@ describe("flow command handlers", () => {
     mock.restore();
     clearMockCalls(createOutputContextMock);
     clearMockCalls(renderFlowResultMock);
+    clearMockCalls(renderFlowStartDryRunMock);
     clearMockCalls(formatFlowRagequitReviewMock);
     clearMockCalls(startWorkflowMock);
     clearMockCalls(watchWorkflowMock);
     clearMockCalls(getWorkflowStatusMock);
     clearMockCalls(ragequitWorkflowMock);
     clearMockCalls(listSavedWorkflowIdsMock);
+    clearMockCalls(validateWorkflowWalletBackupPathMock);
+    clearMockCalls(loadConfigMock);
+    clearMockCalls(resolvePoolMock);
+    clearMockCalls(loadKnownRecipientHistoryMock);
+    clearMockCalls(loadPrivateKeyMock);
+    clearMockCalls(getSignerAddressMock);
     clearMockCalls(infoMock);
     clearMockCalls(inputPromptMock);
     clearMockCalls(selectPromptMock);
@@ -214,11 +275,29 @@ describe("flow command handlers", () => {
     clearMockCalls(ensurePromptInteractionAvailableMock);
 
     formatFlowRagequitReviewMock.mockImplementation(() => "review");
+    renderFlowStartDryRunMock.mockImplementation(() => undefined);
     startWorkflowMock.mockImplementation(async () => startSnapshot);
     watchWorkflowMock.mockImplementation(async () => watchSnapshot);
     getWorkflowStatusMock.mockImplementation(() => statusSnapshot);
     ragequitWorkflowMock.mockImplementation(async () => ragequitSnapshot);
     listSavedWorkflowIdsMock.mockImplementation(() => ["wf-latest"]);
+    validateWorkflowWalletBackupPathMock.mockImplementation((filePath: string) => filePath);
+    loadConfigMock.mockImplementation(() => ({ defaultChain: "sepolia", rpcOverrides: {} }));
+    resolvePoolMock.mockImplementation(async () => ({
+      symbol: "ETH",
+      asset: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      pool: "0x1111111111111111111111111111111111111111",
+      scope: 42n,
+      decimals: 18,
+      minimumDepositAmount: 100000000000000n,
+      vettingFeeBPS: 50n,
+      maxRelayFeeBPS: 100n,
+    }));
+    loadKnownRecipientHistoryMock.mockImplementation(() => []);
+    loadPrivateKeyMock.mockImplementation(() => {
+      throw new realErrors.CLIError("No signer key found.", "INPUT", "Set a signer key.");
+    });
+    getSignerAddressMock.mockImplementation(() => "0x9999999999999999999999999999999999999999");
     inputPromptMock.mockImplementation(async () => "0x4444444444444444444444444444444444444444");
     selectPromptMock.mockImplementation(async () => "watch");
     maybeRenderPreviewScenarioMock.mockImplementation(async () => false);
@@ -342,6 +421,90 @@ describe("flow command handlers", () => {
     });
   });
 
+  test("start treats prior withdrawal recipients as known", async () => {
+    const recipient = "0x4444444444444444444444444444444444444444";
+    loadKnownRecipientHistoryMock.mockImplementationOnce(() => [recipient]);
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      { to: recipient },
+      fakeCommand({ json: true }),
+    );
+
+    expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
+      action: "start",
+      snapshot: startSnapshot,
+      extraWarnings: [],
+    });
+    expect(confirmActionWithSeverityMock).not.toHaveBeenCalled();
+  });
+
+  test("start treats the current signer address as known when available", async () => {
+    const recipient = "0x4444444444444444444444444444444444444444";
+    loadPrivateKeyMock.mockImplementationOnce(
+      () => "0x1111111111111111111111111111111111111111111111111111111111111111",
+    );
+    getSignerAddressMock.mockImplementationOnce(() => recipient);
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      { to: recipient },
+      fakeCommand({ json: true }),
+    );
+
+    expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
+      action: "start",
+      snapshot: startSnapshot,
+      extraWarnings: [],
+    });
+    expect(confirmActionWithSeverityMock).not.toHaveBeenCalled();
+  });
+
+  test("start treats saved workflow recipients as known", async () => {
+    const recipient = "0x4444444444444444444444444444444444444444";
+    getWorkflowStatusMock.mockImplementationOnce(() => ({
+      ...statusSnapshot,
+      recipient,
+    }));
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      { to: recipient },
+      fakeCommand({ json: true }),
+    );
+
+    expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
+      action: "start",
+      snapshot: startSnapshot,
+      extraWarnings: [],
+    });
+    expect(confirmActionWithSeverityMock).not.toHaveBeenCalled();
+  });
+
+  test("start asks for a second confirmation for unseen interactive recipients", async () => {
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      { to: "0x4444444444444444444444444444444444444444" },
+      fakeCommand({}),
+    );
+
+    expect(confirmActionWithSeverityMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: "standard",
+        standardMessage: "Use this new recipient?",
+      }),
+    );
+    expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
+      action: "start",
+      snapshot: startSnapshot,
+      extraWarnings: [],
+    });
+  });
+
   test("start returns early when preview output is rendered before prompts", async () => {
     maybeRenderPreviewScenarioMock.mockImplementationOnce(async () => true);
 
@@ -362,6 +525,26 @@ describe("flow command handlers", () => {
     expect(error).toBeInstanceOf(realErrors.CLIError);
     expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
       "Missing required --to <address>.",
+    );
+    expect(isJson).toBe(true);
+  });
+
+  test("start rejects obvious burn recipients before creating a workflow", async () => {
+    const cmd = fakeCommand({ json: true });
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      { to: "0x000000000000000000000000000000000000dEaD" },
+      cmd,
+    );
+
+    expect(startWorkflowMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
+      "Recipient appears to be a burn address.",
     );
     expect(isJson).toBe(true);
   });
@@ -427,6 +610,66 @@ describe("flow command handlers", () => {
       "--export-new-wallet requires --new-wallet.",
     );
     expect(isJson).toBe(true);
+  });
+
+  test("start dry-run requires exported workflow wallet backup in agent mode", async () => {
+    const cmd = fakeCommand({ agent: true });
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      {
+        to: "0x4444444444444444444444444444444444444444",
+        newWallet: true,
+        dryRun: true,
+      },
+      cmd,
+    );
+
+    expect(startWorkflowMock).not.toHaveBeenCalled();
+    expect(renderFlowStartDryRunMock).not.toHaveBeenCalled();
+    expect(validateWorkflowWalletBackupPathMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
+      "Non-interactive workflow wallets require --export-new-wallet <path>.",
+    );
+    expect(isJson).toBe(true);
+  });
+
+  test("start dry-run validates inputs without creating a workflow or wallet backup", async () => {
+    const cmd = fakeCommand({ agent: true, chain: "sepolia" });
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      {
+        to: "0x4444444444444444444444444444444444444444",
+        newWallet: true,
+        exportNewWallet: "/tmp/flow-wallet.txt",
+        dryRun: true,
+      },
+      cmd,
+    );
+
+    expect(validateWorkflowWalletBackupPathMock).toHaveBeenCalledWith(
+      "/tmp/flow-wallet.txt",
+    );
+    expect(loadConfigMock).toHaveBeenCalledTimes(1);
+    expect(resolvePoolMock).toHaveBeenCalledTimes(1);
+    expect(startWorkflowMock).not.toHaveBeenCalled();
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(renderFlowStartDryRunMock).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        chain: "sepolia",
+        asset: "ETH",
+        recipient: "0x4444444444444444444444444444444444444444",
+        walletMode: "new_wallet",
+        privacyDelayProfile: "balanced",
+      }),
+    );
   });
 
   test("JSON mode converts flow cancellation into a structured INPUT error", async () => {
