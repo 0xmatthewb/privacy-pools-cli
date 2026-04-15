@@ -1748,11 +1748,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "If flow watch returns flow_public_recovery_optional, prefer completing the private path unless the operator explicitly chooses public recovery."
       ],
       "expectedNextActionWhen": [
+        "after_dry_run",
         "flow_resume",
-        "flow_public_recovery_optional",
+        "flow_public_recovery_required",
         "flow_declined",
         "flow_public_recovery_pending",
-        "flow_public_recovery_required",
+        "flow_public_recovery_optional",
         "flow_manual_followup"
       ]
     },
@@ -1848,7 +1849,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
-      "jsonVariants": [],
+      "jsonVariants": [
+        "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, estimatedCommittedValue, vettingFee, warnings?, nextActions? }"
+      ],
       "safetyNotes": [
         "Deposits are always public on-chain. The ASP reviews the deposit before private withdrawal is possible.",
         "If --to is omitted in interactive mode, the CLI prompts for the recipient. In machine modes, --to remains required.",
@@ -1858,6 +1861,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.",
         "--export-new-wallet is only valid with --new-wallet.",
         "Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.",
+        "Dry-run with --new-wallet in non-interactive mode still requires --export-new-wallet to validate the backup path, but it does not write the file.",
         "The generated workflow key is also stored locally under workflow-secrets until the workflow completes or recovers publicly, so --export-new-wallet is a backup copy rather than the only retained secret.",
         "Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.",
         "The saved flow spends the entire remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",
@@ -1870,11 +1874,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Use --watch to stay attached on configured-wallet workflows; otherwise the workflow is persisted locally and flow watch <workflowId> is the canonical resume path."
       ],
       "expectedNextActionWhen": [
+        "after_dry_run",
         "flow_resume",
-        "flow_public_recovery_optional",
+        "flow_public_recovery_required",
         "flow_declined",
         "flow_public_recovery_pending",
-        "flow_public_recovery_required",
+        "flow_public_recovery_optional",
         "flow_manual_followup"
       ],
       "agentRequiredFlags": [
@@ -1978,10 +1983,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "expectedNextActionWhen": [
         "flow_resume",
-        "flow_public_recovery_optional",
+        "flow_public_recovery_required",
         "flow_declined",
         "flow_public_recovery_pending",
-        "flow_public_recovery_required",
+        "flow_public_recovery_optional",
         "flow_manual_followup"
       ]
     },
@@ -2054,10 +2059,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentWorkflowNotes": [],
       "expectedNextActionWhen": [
         "flow_resume",
-        "flow_public_recovery_optional",
+        "flow_public_recovery_required",
         "flow_declined",
         "flow_public_recovery_pending",
-        "flow_public_recovery_required",
+        "flow_public_recovery_optional",
         "flow_manual_followup"
       ]
     },
@@ -2727,7 +2732,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools describe stats global --agent"
         }
       ],
-      "jsonFields": "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+      "jsonFields": "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,

@@ -244,12 +244,16 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 **Safety:** flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.
 **Safety:** --export-new-wallet is only valid with --new-wallet.
 **Safety:** Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.
+**Safety:** Dry-run with --new-wallet in non-interactive mode still requires --export-new-wallet to validate the backup path, but it does not write the file.
 **Safety:** The generated workflow key is also stored locally under workflow-secrets until the workflow completes or recovers publicly, so --export-new-wallet is a backup copy rather than the only retained secret.
 **Safety:** Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.
 **Safety:** The saved flow spends the entire remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.
 **Safety:** Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.
 
 **JSON output:** `{ mode: "flow", action: "start", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+
+**JSON variants:**
+- `--dry-run: { mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, estimatedCommittedValue, vettingFee, warnings?, nextActions? }`
 
 ### `flow watch`
 
@@ -447,7 +451,7 @@ privacy-pools describe withdraw quote --agent
 privacy-pools describe stats global --agent
 ```
 
-**JSON output:** `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
+**JSON output:** `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
 
 ### `deposit`
 

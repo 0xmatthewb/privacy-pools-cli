@@ -91,6 +91,60 @@ defineScenarioSuite("agent improvements acceptance", [
       }),
     ],
   ),
+  defineScenario("flow discovery exposes dry-run next-action metadata", [
+    runCliStep(["describe", "flow", "--agent"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      expectedNextActionWhen: string[];
+      jsonVariants: string[];
+      agentWorkflowNotes: string[];
+    }>((json) => {
+      expect(json.expectedNextActionWhen).toEqual([
+        "after_dry_run",
+        "flow_resume",
+        "flow_public_recovery_required",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_optional",
+        "flow_manual_followup",
+      ]);
+      expect(json.jsonVariants.some((variant) => variant.includes("flow start --dry-run"))).toBe(true);
+      expect(json.agentWorkflowNotes.some((note) => note.includes("flow start"))).toBe(true);
+    }),
+    runCliStep(["describe", "flow", "start", "--agent"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      expectedNextActionWhen: string[];
+      jsonVariants: string[];
+      supportsDryRun: boolean;
+    }>((json) => {
+      expect(json.supportsDryRun).toBe(true);
+      expect(json.expectedNextActionWhen[0]).toBe("after_dry_run");
+      expect(json.jsonVariants.some((variant) => variant.includes("--dry-run"))).toBe(true);
+    }),
+    runCliStep(["describe", "describe", "--agent"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{ jsonFields: string }>((json) => {
+      expect(json.jsonFields).toContain("expectedNextActionWhen?");
+    }),
+    runCliStep(["capabilities", "--agent"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      commandDetails: Record<string, { expectedNextActionWhen?: string[]; jsonVariants?: string[] }>;
+    }>((json) => {
+      expect(json.commandDetails.flow?.expectedNextActionWhen?.[0]).toBe("after_dry_run");
+      expect(json.commandDetails["flow start"]?.expectedNextActionWhen?.[0]).toBe("after_dry_run");
+      expect(
+        json.commandDetails["flow start"]?.jsonVariants?.some((variant) =>
+          variant.includes("--dry-run"),
+        ),
+      ).toBe(true);
+    }),
+  ]),
   defineScenario("describe unknown command paths stay machine-readable", [
     runCliStep(["--json", "describe", "not-a-command"]),
     assertExit(2),

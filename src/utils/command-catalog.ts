@@ -69,6 +69,20 @@ export interface CommandMetadata {
 const POOLS_LIST_JSON_FIELDS =
   "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }";
 
+const FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN = [
+  "flow_resume",
+  "flow_public_recovery_required",
+  "flow_declined",
+  "flow_public_recovery_pending",
+  "flow_public_recovery_optional",
+  "flow_manual_followup",
+];
+
+const FLOW_START_EXPECTED_NEXT_ACTION_WHEN = [
+  "after_dry_run",
+  ...FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN,
+];
+
 export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   init: {
     description: ROOT_COMMAND_DESCRIPTIONS.init,
@@ -437,14 +451,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
-    expectedNextActionWhen: [
-      "flow_resume",
-      "flow_public_recovery_optional",
-      "flow_declined",
-      "flow_public_recovery_pending",
-      "flow_public_recovery_required",
-      "flow_manual_followup",
-    ],
+    expectedNextActionWhen: [...FLOW_START_EXPECTED_NEXT_ACTION_WHEN],
   },
   "flow start": {
     description: "Deposit now and save a later private withdrawal workflow",
@@ -470,6 +477,9 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       prerequisites: "init",
       jsonFields:
         "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      jsonVariants: [
+        "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, estimatedCommittedValue, vettingFee, warnings?, nextActions? }",
+      ],
       safetyNotes: [
         "Deposits are always public on-chain. The ASP reviews the deposit before private withdrawal is possible.",
         "If --to is omitted in interactive mode, the CLI prompts for the recipient. In machine modes, --to remains required.",
@@ -479,6 +489,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.",
         "--export-new-wallet is only valid with --new-wallet.",
         "Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.",
+        "Dry-run with --new-wallet in non-interactive mode still requires --export-new-wallet to validate the backup path, but it does not write the file.",
         "The generated workflow key is also stored locally under workflow-secrets until the workflow completes or recovers publicly, so --export-new-wallet is a backup copy rather than the only retained secret.",
         "Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.",
         "The saved flow spends the entire remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",
@@ -507,14 +518,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    expectedNextActionWhen: [
-      "flow_resume",
-      "flow_public_recovery_optional",
-      "flow_declined",
-      "flow_public_recovery_pending",
-      "flow_public_recovery_required",
-      "flow_manual_followup",
-    ],
+    expectedNextActionWhen: [...FLOW_START_EXPECTED_NEXT_ACTION_WHEN],
   },
   "flow watch": {
     description:
@@ -562,14 +566,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
-    expectedNextActionWhen: [
-      "flow_resume",
-      "flow_public_recovery_optional",
-      "flow_declined",
-      "flow_public_recovery_pending",
-      "flow_public_recovery_required",
-      "flow_manual_followup",
-    ],
+    expectedNextActionWhen: [...FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN],
   },
   "flow status": {
     description: "Show the saved easy-path workflow state",
@@ -598,14 +595,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
-    expectedNextActionWhen: [
-      "flow_resume",
-      "flow_public_recovery_optional",
-      "flow_declined",
-      "flow_public_recovery_pending",
-      "flow_public_recovery_required",
-      "flow_manual_followup",
-    ],
+    expectedNextActionWhen: [...FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN],
   },
   "flow ragequit": {
     description: "Recover a saved workflow publicly via ragequit",
@@ -845,7 +835,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools describe stats global --agent",
       ],
       jsonFields:
-        "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+        "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
       seeAlso: ["capabilities","guide"],
     },
     capabilities: {
