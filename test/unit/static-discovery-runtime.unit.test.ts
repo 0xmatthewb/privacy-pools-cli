@@ -424,7 +424,7 @@ describe("static discovery runtime", () => {
     expect(stderr).toContain("JSON fields:");
   });
 
-  test("renders aliased describe output with additional modes and supports JSON/quiet", async () => {
+  test("renders aliased describe output with modes and supports JSON/quiet", async () => {
     const human = await captureAsyncOutput(async () => {
       const handled = await runStaticDiscoveryCommand(["describe", "ragequit"]);
       expect(handled).toBe(true);
@@ -432,7 +432,7 @@ describe("static discovery runtime", () => {
     expect(human.stdout).toBe("");
     expect(human.stderr).toContain("Command: ragequit");
     expect(human.stderr).toContain("Aliases:");
-    expect(human.stderr).toContain("Additional modes:");
+    expect(human.stderr).toContain("Modes:");
 
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       runStaticDiscoveryCommand(["--json", "describe", "withdraw"]),

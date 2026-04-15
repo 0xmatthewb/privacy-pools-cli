@@ -404,12 +404,14 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
     )?.toLowerCase() ?? null;
   const isAgent = hasLongFlag(argv, "--agent");
   const hasJq = hasLongFlag(argv, "--jq");
+  const hasJsonFields = hasLongFlag(argv, "--json-fields");
   const isJson =
     hasLongFlag(argv, "--json") ||
     hasShortFlag(argv, "j") ||
     formatFlagValue === "json" ||
     isAgent ||
-    hasJq;
+    hasJq ||
+    hasJsonFields;
   const isCsvMode = formatFlagValue === "csv" && !isJson;
   const isUnsigned = hasLongFlag(argv, "--unsigned");
   const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;

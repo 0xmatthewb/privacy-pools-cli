@@ -361,7 +361,7 @@ defineScenarioSuite("json-contract acceptance", [
         command: "flow watch",
         when: "flow_resume",
         args: ["wf-json-flow"],
-        options: { agent: true },
+        cliCommand: "privacy-pools flow watch wf-json-flow --agent",
       });
       expect(json.nextActions?.[0]?.reason).toContain(
         "This workflow is holding until",

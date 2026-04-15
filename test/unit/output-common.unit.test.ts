@@ -80,7 +80,14 @@ describe("appendNextActions", () => {
 
     expect(result).toMatchObject({
       operation: "deposit",
-      nextActions,
+      nextActions: [
+        {
+          command: "accounts",
+          reason: "Poll for approval.",
+          when: "after_deposit",
+          cliCommand: "privacy-pools accounts --agent",
+        },
+      ],
     });
     expect(result.nextActions?.[0]?.cliCommand).toBe(
       "privacy-pools accounts --agent",

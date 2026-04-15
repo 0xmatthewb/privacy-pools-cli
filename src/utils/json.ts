@@ -30,8 +30,27 @@ export function configureJsonOutput(
   jsonFields: string[] | null,
   jqExpression: string | null,
 ): void {
+  if (jqExpression) {
+    try {
+      (jmespath as unknown as { compile: (query: string) => unknown })
+        .compile(jqExpression);
+    } catch (err) {
+      throw new CLIError(
+        `Invalid --jq expression: ${(err as Error).message}`,
+        "INPUT",
+        "Provide a valid JMESPath expression, for example: pools[0].asset or nextActions.",
+        "INPUT_INVALID_JQ",
+      );
+    }
+  }
+
   _jsonFields = jsonFields;
   _jqExpression = jqExpression;
+}
+
+export function resetJsonOutputConfig(): void {
+  _jsonFields = null;
+  _jqExpression = null;
 }
 
 /**
@@ -44,6 +63,20 @@ function applyFieldSelection(
   payload: Record<string, unknown>,
   fields: string[],
 ): Record<string, unknown> {
+  const availableFields = Object.keys(payload).sort();
+  const unknownFields = fields.filter((field) => !(field in payload));
+  if (unknownFields.length > 0) {
+    throw new CLIError(
+      `Unknown JSON field${unknownFields.length === 1 ? "" : "s"}: ${unknownFields.join(", ")}.`,
+      "INPUT",
+      `Available fields: ${availableFields.join(", ")}.`,
+      "INPUT_UNKNOWN_JSON_FIELD",
+      false,
+      "inline",
+      { availableFields, unknownFields },
+    );
+  }
+
   const filtered: Record<string, unknown> = {};
   for (const field of fields) {
     if (field in payload) {
@@ -59,16 +92,21 @@ export function printJsonSuccess(
 ): void {
   let data: Record<string, unknown> = payload as Record<string, unknown>;
 
-  // Apply --json <fields> selection first.
-  if (_jsonFields && _jsonFields.length > 0) {
-    data = applyFieldSelection(data, _jsonFields);
-  }
-
-  const output: Record<string, unknown> = {
+  let output: Record<string, unknown> = {
     schemaVersion: JSON_SCHEMA_VERSION,
     success: true,
     ...data,
   };
+
+  // Apply --json <fields> selection after the envelope is assembled so
+  // schemaVersion/success can appear in the field catalog too.
+  if (_jsonFields && _jsonFields.length > 0) {
+    output = {
+      schemaVersion: JSON_SCHEMA_VERSION,
+      success: true,
+      ...applyFieldSelection(output, _jsonFields),
+    };
+  }
 
   // Apply --jq <expression> filtering.
   if (_jqExpression) {
@@ -96,9 +134,14 @@ export function printJsonError(
     message: string;
     hint?: string;
     retryable?: boolean;
+    details?: Record<string, unknown>;
   },
   pretty: boolean = false,
 ): void {
+  const { details, ...errorPayload } = payload;
+  const errorObject = details
+    ? { ...errorPayload, ...details }
+    : errorPayload;
   // `errorCode` and `errorMessage` are convenience aliases of `error.code` and
   // `error.message`.  Agents should prefer the flattened top-level fields; the
   // nested `error` object is retained for backward compatibility and carries
@@ -108,17 +151,13 @@ export function printJsonError(
     success: false,
     errorCode: payload.code ?? "UNKNOWN_ERROR",
     errorMessage: payload.message,
-    error: payload,
+    ...(details ?? {}),
+    error: errorObject,
   };
 
   // Apply --jq to error output as well for consistent behavior.
   if (_jqExpression) {
-    let result: unknown;
-    try {
-      result = jmespath.search(output, _jqExpression);
-    } catch {
-      // On error output, silently fall through to full output.
-    }
+    const result = jmespath.search(output, _jqExpression);
     if (result !== undefined) {
       process.stdout.write(`${JSON.stringify(result, bigintReplacer, pretty ? 2 : 0)}\n`);
       return;

@@ -421,7 +421,7 @@ describe("bootstrap runtime coverage", () => {
 
     expect(exitCode).toBe(2);
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_UNKNOWN_OPTION");
     expect(json.error.message).toContain("unknown option '--oops'");
     expect(stderr).toBe("");
   });

@@ -1,7 +1,13 @@
-import { describe, expect, test } from "bun:test";
-import { resolveGlobalMode } from "../../src/utils/mode.ts";
+import { afterEach, describe, expect, test } from "bun:test";
+import { resolveGlobalMode, setModeArgv } from "../../src/utils/mode.ts";
+import { resetJsonOutputConfig } from "../../src/utils/json.ts";
 
 describe("resolveGlobalMode", () => {
+  afterEach(() => {
+    setModeArgv([]);
+    resetJsonOutputConfig();
+  });
+
   test("defaults all flags to false when no options", () => {
     const result = resolveGlobalMode(undefined);
     expect(result.isAgent).toBe(false);
@@ -124,5 +130,13 @@ describe("resolveGlobalMode", () => {
     expect(result.isJson).toBe(true);
     expect(result.isWide).toBe(true);
     expect(result.format).toBe("json");
+  });
+
+  test("active argv makes --json-fields imply JSON when commander omits the option", () => {
+    setModeArgv(["--json-fields", "structuredExamples", "describe", "withdraw"]);
+    const result = resolveGlobalMode({});
+    expect(result.isJson).toBe(true);
+    expect(result.format).toBe("json");
+    expect(result.jsonFields).toEqual(["structuredExamples"]);
   });
 });

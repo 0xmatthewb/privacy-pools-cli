@@ -89,6 +89,8 @@ export const GUIDE_TOPICS = [
   { name: "workflow", description: "Step-by-step workflow for deposits and withdrawals" },
   { name: "flow-states", description: "Flow state machine and transitions" },
   { name: "automation", description: "Global flags, env vars, and agent/CI integration" },
+  { name: "json", description: "JSON envelope, field selection, and jq filtering" },
+  { name: "modes", description: "Confirmation, dry-run, unsigned, and agent modes" },
   { name: "troubleshooting", description: "Common issues and fixes" },
   { name: "exit-codes", description: "CLI exit codes by category" },
 ] as const;
@@ -228,6 +230,38 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("--unsigned tx")}        Raw transaction array: [{ from, to, data, value, valueHex, chainId, description }]`,
     "             Raw format skips the envelope. Intended for direct piping to signing tools.",
     `  ${notice("--dry-run")}    Validate and generate proofs without submitting.`,
+  ],
+
+  json: () => [
+    chalk.bold("JSON Contract"),
+    "  Use --json for machine-readable output. Use --agent for --json --yes --quiet.",
+    "  Successful commands emit:",
+    `  ${notice('{ "schemaVersion": "2.0.0", "success": true, ...payload }')}`,
+    "  Failed commands emit:",
+    `  ${notice('{ "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "error": { ... } }')}`,
+    "",
+    chalk.bold("Filtering"),
+    `  ${notice("--json-fields <fields>")}  Select top-level fields by comma-separated name.`,
+    `  ${notice("--jq <expression>")}       Apply a JMESPath expression to the final envelope.`,
+    "  Unknown --json-fields fail with INPUT_UNKNOWN_JSON_FIELD and availableFields[].",
+    "  Invalid --jq expressions fail before command output is emitted.",
+    "",
+    chalk.bold("Discovery"),
+    `  ${accent("privacy-pools capabilities --agent")}      Full command and schema manifest.`,
+    `  ${accent("privacy-pools describe withdraw --agent")} Command-specific fields and examples.`,
+  ],
+
+  modes: () => [
+    chalk.bold("Modes"),
+    `  ${notice("--yes")}       Skip confirmation prompts. Use only after the command inputs are fully reviewed.`,
+    `  ${notice("--dry-run")}   Preview validation and generated outputs without signing or submitting.`,
+    `  ${notice("--unsigned")}  Build transaction payloads without signing or submitting; implies --yes.`,
+    `  ${notice("--agent")}     Machine mode: --json --yes --quiet.`,
+    "",
+    chalk.bold("Safety Notes"),
+    "  --dry-run and --unsigned may use approximate validation because no transaction is submitted.",
+    "  Fund-moving commands still surface warnings and privacy-cost manifests where relevant.",
+    "  Prefer relayed withdrawals. withdraw --direct is a stronger privacy hazard than ragequit.",
   ],
 
   troubleshooting: () => [
@@ -400,13 +434,15 @@ export function commandHelpText(config: CommandHelpConfig): string {
   }
 
   if (config.supportsUnsigned || config.supportsDryRun) {
-    lines.push("", "Additional modes:");
+    lines.push("", "Modes:");
+    lines.push("  --yes skips confirmation prompts.");
     if (config.supportsUnsigned) {
-      lines.push("  --unsigned builds transaction payloads without submitting.");
+      lines.push("  --unsigned builds transaction payloads without signing or submitting; implies --yes.");
     }
     if (config.supportsDryRun) {
-      lines.push("  --dry-run validates the operation without submitting it.");
+      lines.push("  --dry-run previews only; confirmations still apply in human mode.");
     }
+    lines.push("  --agent is shorthand for --json --yes --quiet.");
   }
 
   if (config.seeAlso && config.seeAlso.length > 0) {

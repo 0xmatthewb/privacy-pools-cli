@@ -32,6 +32,12 @@ export interface ResolvedGlobalMode {
   jqExpression: string | null;
 }
 
+let _activeModeArgv: readonly string[] = [];
+
+export function setModeArgv(argv: readonly string[]): void {
+  _activeModeArgv = [...argv];
+}
+
 export function normalizeOutputFormat(
   value: string | null | undefined,
 ): OutputFormat | null {
@@ -48,6 +54,21 @@ export function isSupportedOutputFormat(
   return normalizeOutputFormat(value) !== null;
 }
 
+function readJsonFieldsFromArgv(argv: readonly string[]): string | null {
+  const boundary = argv.indexOf("--");
+  const args = boundary === -1 ? argv : argv.slice(0, boundary);
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (token === "--json-fields") {
+      return i + 1 < args.length ? (args[i + 1] ?? null) : null;
+    }
+    if (typeof token === "string" && token.startsWith("--json-fields=")) {
+      return token.slice("--json-fields=".length);
+    }
+  }
+  return null;
+}
+
 export function invalidOutputFormatMessage(value: string): string {
   return `option '--format <format>' argument '${value}' is invalid. Allowed choices are ${OUTPUT_FORMAT_CHOICES_TEXT}.`;
 }
@@ -61,8 +82,13 @@ export function resolveGlobalMode(
   }
 
   const isAgent = globalOpts?.agent ?? false;
+  const argvJsonFields = readJsonFieldsFromArgv(_activeModeArgv);
+  const rawJsonFields =
+    typeof globalOpts?.jsonFields === "string"
+      ? globalOpts.jsonFields
+      : argvJsonFields;
   const hasJq = typeof globalOpts?.jq === "string";
-  const hasJsonFieldsFlag = typeof globalOpts?.jsonFields === "string";
+  const hasJsonFieldsFlag = typeof rawJsonFields === "string";
   const hasStructuredJsonFlag =
     (globalOpts?.json ?? false) || isAgent || hasJq || hasJsonFieldsFlag;
   const explicitFormat = normalizeOutputFormat(globalOpts?.output ?? globalOpts?.format);
@@ -81,8 +107,8 @@ export function resolveGlobalMode(
 
   // Parse --json-fields <fields> comma-separated field selection.
   const jsonFields: string[] | null =
-    typeof globalOpts?.jsonFields === "string"
-      ? globalOpts.jsonFields.split(",").map((f) => f.trim()).filter(Boolean)
+    typeof rawJsonFields === "string"
+      ? rawJsonFields.split(",").map((f) => f.trim()).filter(Boolean)
       : null;
 
   // Parse --jq <expression>.

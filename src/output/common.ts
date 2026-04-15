@@ -102,6 +102,7 @@ export function createNextAction(
   } = {},
 ): NextAction {
   const action: NextAction = { command, reason, when };
+  const includeAgentInCliCommand = config.options?.agent === true;
 
   if (config.args && config.args.length > 0) {
     action.args = config.args;
@@ -109,7 +110,12 @@ export function createNextAction(
 
   if (config.options) {
     const options = Object.fromEntries(
-      Object.entries(config.options).filter(([, value]) => value !== undefined && value !== null),
+      Object.entries(config.options).filter(
+        ([key, value]) =>
+          key !== "agent" &&
+          value !== undefined &&
+          value !== null,
+      ),
     ) as Record<string, NextActionOptionValue>;
     if (Object.keys(options).length > 0) {
       action.options = options;
@@ -120,7 +126,7 @@ export function createNextAction(
     action.runnable = false;
   }
 
-  return withCliCommand(action);
+  return withCliCommand(action, includeAgentInCliCommand);
 }
 
 export function appendNextActions<T extends Record<string, unknown>>(
@@ -128,7 +134,7 @@ export function appendNextActions<T extends Record<string, unknown>>(
   nextActions: NextAction[] | undefined,
 ): T & { nextActions?: NextAction[] } {
   return nextActions && nextActions.length > 0
-    ? { ...payload, nextActions: nextActions.map(withCliCommand) }
+    ? { ...payload, nextActions: nextActions.map((action) => withCliCommand(action)) }
     : { ...payload };
 }
 
@@ -156,14 +162,13 @@ function buildNextActionCommand(
     parts.push(...action.args);
   }
 
+  if (options.includeAgent) {
+    parts.push("--agent");
+  }
+
   if (action.options) {
     for (const [key, value] of Object.entries(action.options)) {
-      if (key === "agent") {
-        if (options.includeAgent && value === true) {
-          parts.push("--agent");
-        }
-        continue;
-      }
+      if (key === "agent") continue;
       if (value === null || value === undefined) continue;
       const flag = camelToKebab(key);
       if (typeof value === "boolean") {
@@ -185,10 +190,32 @@ export function formatExecutableNextActionCommand(action: NextAction): string {
   return buildNextActionCommand(action, { includeAgent: true });
 }
 
-function withCliCommand(action: NextAction): NextAction {
-  return action.cliCommand
-    ? action
-    : { ...action, cliCommand: formatExecutableNextActionCommand(action) };
+function withCliCommand(action: NextAction, includeAgent: boolean = false): NextAction {
+  const actionRequestsAgent = action.options?.agent === true;
+  const normalizedOptions = action.options
+    ? Object.fromEntries(
+        Object.entries(action.options).filter(
+          ([key, value]) =>
+            key !== "agent" &&
+            value !== undefined &&
+            value !== null,
+        ),
+      ) as Record<string, NextActionOptionValue>
+    : undefined;
+  const normalizedAction: NextAction = {
+    ...action,
+    ...(normalizedOptions && Object.keys(normalizedOptions).length > 0
+      ? { options: normalizedOptions }
+      : { options: undefined }),
+  };
+  return normalizedAction.cliCommand
+    ? normalizedAction
+    : {
+        ...normalizedAction,
+        cliCommand: buildNextActionCommand(normalizedAction, {
+          includeAgent: includeAgent || actionRequestsAgent,
+        }),
+      };
 }
 
 /**

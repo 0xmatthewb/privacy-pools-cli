@@ -12,6 +12,7 @@ import type {
   CommandSideEffectClass,
   DetailedCommandDescriptor,
   PreferredSafeVariant,
+  StructuredExample,
 } from "../types.js";
 import { EXIT_CODES, defaultErrorCode } from "./errors.js";
 import { jsonContractDocRelativePath } from "./json.js";
@@ -455,6 +456,7 @@ function descriptorSeed(path: CommandPath) {
     preferredSafeVariant: preferredSafeVariantFor(path),
     prerequisites: metadata.help?.prerequisites ? [metadata.help.prerequisites] : [],
     examples: metadata.help?.examples ?? [],
+    structuredExamples: structuredExamplesFromHelpExamples(metadata.help?.examples ?? []),
     jsonFields: metadata.help?.jsonFields ?? null,
     jsonVariants: metadata.help?.jsonVariants ?? [],
     safetyNotes: metadata.help?.safetyNotes ?? [],
@@ -463,6 +465,23 @@ function descriptorSeed(path: CommandPath) {
     agentWorkflowNotes: metadata.help?.agentWorkflowNotes ?? [],
     agentRequiredFlags: capabilities.agentRequiredFlags,
   };
+}
+
+function structuredExamplesFromHelpExamples(
+  examples: Array<string | { category: string; commands: string[] }>,
+): StructuredExample[] {
+  return examples.map((example, index) => {
+    if (typeof example === "string") {
+      return {
+        name: `Example ${index + 1}`,
+        value: example,
+      };
+    }
+    return {
+      name: example.category,
+      value: example.commands,
+    };
+  });
 }
 
 export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescriptor {
@@ -484,6 +503,7 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     preferredSafeVariant: seed.preferredSafeVariant,
     prerequisites: seed.prerequisites,
     examples: seed.examples,
+    structuredExamples: seed.structuredExamples,
     jsonFields: seed.jsonFields,
     jsonVariants: seed.jsonVariants,
     safetyNotes: seed.safetyNotes,

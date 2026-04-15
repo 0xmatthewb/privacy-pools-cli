@@ -635,7 +635,7 @@ describe("status next steps vary by account state", () => {
     expect(actions).toHaveLength(2);
     expect(actions[0].command).toBe("init");
     expect(actions[0].when).toBe("status_restore_discovery");
-    expect(actions[0].options?.agent).toBe(true);
+    expect(actions[0].cliCommand).toContain("--agent");
     expect(actions[0].options?.recoveryPhraseFile).toBe("<downloaded-file>");
     expect(actions[0].runnable).toBe(false);
     expect(actions[1].command).toBe("pools");
@@ -661,7 +661,7 @@ describe("status next steps vary by account state", () => {
     expect(actions).toHaveLength(2);
     expect(actions[0].command).toBe("init");
     expect(actions[0].when).toBe("status_restore_discovery");
-    expect(actions[0].options?.agent).toBe(true);
+    expect(actions[0].cliCommand).toContain("--agent");
     expect(actions[0].options?.recoveryPhraseFile).toBe("<downloaded-file>");
     expect(actions[0].runnable).toBe(false);
     expect(actions[1].command).toBe("pools");

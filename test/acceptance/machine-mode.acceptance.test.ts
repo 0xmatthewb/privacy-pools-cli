@@ -22,7 +22,7 @@ defineScenarioSuite("machine-mode acceptance", [
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.errorCode).toBe("INPUT_PARSE_ERROR");
       expect(json.error.category).toBe("INPUT");
       expect(json.errorMessage.toLowerCase()).toContain("unknown command");
     }),

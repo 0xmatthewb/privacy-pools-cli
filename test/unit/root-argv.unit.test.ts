@@ -57,4 +57,15 @@ describe("root argv parsing", () => {
     expect(parsed.isStructuredOutputMode).toBe(true);
     expect(parsed.isWelcome).toBe(false);
   });
+
+  test("--json-fields implies structured JSON output", () => {
+    const argv = ["--json-fields", "structuredExamples", "describe", "withdraw"];
+    const parsed = parseRootArgv(argv);
+    const prelude = parseValidatedRootPrelude(argv);
+
+    expect(parsed.isStructuredOutputMode).toBe(true);
+    expect(parsed.isMachineMode).toBe(true);
+    expect(prelude?.globalOpts.jsonFields).toBe("structuredExamples");
+    expect(prelude?.globalOpts.json).toBe(true);
+  });
 });

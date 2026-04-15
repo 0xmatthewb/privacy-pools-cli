@@ -1,9 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import {
   JSON_SCHEMA_VERSION,
+  configureJsonOutput,
   printJsonSuccess,
   printJsonError,
+  resetJsonOutputConfig,
 } from "../../src/utils/json.ts";
+import { CLIError } from "../../src/utils/errors.ts";
 
 function captureStdout(run: () => void): string {
   let output = "";
@@ -23,6 +26,10 @@ function captureStdout(run: () => void): string {
 }
 
 describe("JSON output helpers", () => {
+  afterEach(() => {
+    resetJsonOutputConfig();
+  });
+
   test("JSON_SCHEMA_VERSION is 2.0.0", () => {
     expect(JSON_SCHEMA_VERSION).toBe("2.0.0");
   });
@@ -61,6 +68,25 @@ describe("JSON output helpers", () => {
 
       // Compact JSON has no newlines
       expect(output.trim()).not.toContain("\n");
+    });
+
+    test("rejects unknown --json-fields with an available field catalog", () => {
+      configureJsonOutput(["foo", "missing"], null);
+      expect(() => {
+        printJsonSuccess({ foo: "bar" });
+      }).toThrow(CLIError);
+      try {
+        printJsonSuccess({ foo: "bar" });
+      } catch (error) {
+        expect(error).toBeInstanceOf(CLIError);
+        expect((error as CLIError).code).toBe("INPUT_UNKNOWN_JSON_FIELD");
+        expect((error as CLIError).details?.availableFields).toContain("foo");
+        expect((error as CLIError).details?.availableFields).toContain("schemaVersion");
+      }
+    });
+
+    test("validates --jq expressions before output is configured", () => {
+      expect(() => configureJsonOutput(null, "foo[")).toThrow(CLIError);
     });
   });
 

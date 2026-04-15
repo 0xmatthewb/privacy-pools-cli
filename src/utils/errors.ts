@@ -250,10 +250,34 @@ export class CLIError extends Error {
     public readonly code: string = defaultErrorCode(category),
     public readonly retryable: boolean = false,
     public readonly presentation: ErrorPresentation = defaultErrorPresentation(category),
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "CLIError";
   }
+}
+
+export function mutuallyExclusive(
+  entries: Array<{ name: string; value: unknown }>,
+  options: { label?: string; hint?: string; code?: string } = {},
+): void {
+  const present = entries.filter(({ value }) => {
+    if (value === undefined || value === null) return false;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return value.length > 0;
+    return true;
+  });
+
+  if (present.length <= 1) return;
+
+  const names = present.map(({ name }) => name);
+  const label = options.label ?? "options";
+  throw new CLIError(
+    `Choose only one ${label}: ${names.join(", ")}.`,
+    "INPUT",
+    options.hint ?? "Use one source for each secret or selector.",
+    options.code ?? "INPUT_MUTUALLY_EXCLUSIVE",
+  );
 }
 
 function defaultErrorPresentation(category: ErrorCategory): ErrorPresentation {
@@ -374,7 +398,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     code: "CONTRACT_PRECOMMITMENT_ALREADY_USED",
   },
   InvalidCommitment: {
-    message: "The selected Pool Account commitment is no longer in the pool state.",
+    message: "The selected Pool Account is no longer in the pool state.",
     hint: "Run 'privacy-pools sync' to refresh local account state before retrying.",
     code: "CONTRACT_INVALID_COMMITMENT",
   },
@@ -477,7 +501,7 @@ export function classifyError(error: unknown): CLIError {
     const code = (error as { code: string }).code;
     if (code === "MERKLE_ERROR") {
       return new CLIError(
-        "Pool Account commitment not found in the Merkle tree.",
+        "Pool Account not found in the Merkle tree.",
         "PROOF",
         "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync --chain <chain>' and retry.",
         "PROOF_MERKLE_ERROR",
@@ -601,6 +625,7 @@ export function printError(error: unknown, json: boolean = false, quiet?: boolea
         message: classified.message,
         hint: classified.hint,
         retryable: classified.retryable,
+        details: classified.details,
       },
       false
     );

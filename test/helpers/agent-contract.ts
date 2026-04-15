@@ -103,7 +103,11 @@ export function assertStatusSetupRequiredAgentContract(
     success: boolean;
     recommendedMode: string;
     blockingIssues?: Array<{ code: string }>;
-    nextActions?: Array<{ command: string; options?: Record<string, unknown> }>;
+    nextActions?: Array<{
+      command: string;
+      cliCommand?: string;
+      options?: Record<string, unknown>;
+    }>;
   }>(result, { status: 0, success: true });
 
   expect(json.recommendedMode).toBe("setup-required");
@@ -113,8 +117,12 @@ export function assertStatusSetupRequiredAgentContract(
   expect(json.blockingIssues?.map((issue) => issue.code)).toContain(
     "recovery_phrase_missing",
   );
-  expect(json.nextActions?.[0]?.command).toBe("init");
-  expect(json.nextActions?.[0]?.options?.agent).toBe(true);
+  const nextAction = json.nextActions?.[0];
+  expect(nextAction?.command).toBe("init");
+  expect(nextAction?.cliCommand).toContain("--agent");
+  expect(
+    Object.prototype.hasOwnProperty.call(nextAction?.options ?? {}, "agent"),
+  ).toBe(false);
 }
 
 export function assertStatusDegradedHealthAgentContract(
@@ -125,7 +133,11 @@ export function assertStatusDegradedHealthAgentContract(
     success: boolean;
     recommendedMode: string;
     warnings?: Array<{ code: string }>;
-    nextActions?: Array<{ command: string; options?: Record<string, unknown> }>;
+    nextActions?: Array<{
+      command: string;
+      cliCommand?: string;
+      options?: Record<string, unknown>;
+    }>;
   }>(result, { status: 0, success: true });
 
   expect(json.recommendedMode).toBe("read-only");
@@ -140,7 +152,17 @@ export function assertStatusDegradedHealthAgentContract(
   expect(nextActions).toHaveLength(1);
   expect(nextActions[0]?.command).toBe("pools");
   expect(
-    nextActions.every((action) => action.options?.agent === true),
+    nextActions.every(
+      (action) =>
+        typeof action.cliCommand === "string" &&
+        action.cliCommand.includes("--agent"),
+    ),
+  ).toBe(true);
+  expect(
+    nextActions.every(
+      (action) =>
+        !Object.prototype.hasOwnProperty.call(action.options ?? {}, "agent"),
+    ),
   ).toBe(true);
   expect(nextActions[0]?.options?.allChains).toBeUndefined();
 }
@@ -152,7 +174,7 @@ export function assertUnknownCommandAgentContract(result: CliRunResult): void {
     errorCode: string;
     errorMessage: string;
     error: { category: string };
-  }>(result, { status: 2, success: false, errorCode: "INPUT_ERROR" });
+  }>(result, { status: 2, success: false, errorCode: "INPUT_PARSE_ERROR" });
 
   expect(json.error.category).toBe("INPUT");
   expect(json.errorMessage.toLowerCase()).toContain("unknown command");

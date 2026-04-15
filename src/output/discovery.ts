@@ -172,14 +172,20 @@ export function renderHumanCommandDescription(
   const additionalModes: string[] = [];
   if (descriptor.supportsUnsigned) {
     additionalModes.push(
-      "--unsigned builds transaction payloads without submitting.",
+      "--unsigned builds transaction payloads without signing or submitting; implies --yes.",
     );
   }
   if (descriptor.supportsDryRun) {
     additionalModes.push(
-      "--dry-run validates the operation without submitting it.",
+      "--dry-run previews only; confirmations still apply in human mode.",
     );
   }
-  writeListSection("Additional modes", additionalModes);
+  if (additionalModes.length > 0) {
+    additionalModes.unshift(
+      "--yes skips confirmation prompts.",
+      "--agent is shorthand for --json --yes --quiet.",
+    );
+  }
+  writeListSection("Modes", additionalModes);
   process.stderr.write("\n");
 }

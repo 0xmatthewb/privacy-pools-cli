@@ -8,6 +8,7 @@ import {
 import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
 import { createRootProgram } from "./program.js";
 import {
+  allNonOptionTokens,
   firstNonOptionToken,
   hasShortFlag,
   isWelcomeFlagOnlyInvocation,
@@ -20,6 +21,9 @@ import {
   cliMainHelperInternals,
 } from "./runtime/cli-main-helpers.js";
 import { installOutputAnsiGuards } from "./utils/terminal.js";
+import { guideText } from "./utils/help.js";
+import { printJsonSuccess } from "./utils/json.js";
+import { setModeArgv } from "./utils/mode.js";
 
 const {
   normalizeRepositoryUrl,
@@ -39,6 +43,7 @@ export async function runCli(
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
   installOutputAnsiGuards();
+  setModeArgv(argv);
 
   // Activate --profile before any config loading.
   const profileValue = readLongOptionValue(argv, "--profile");
@@ -76,6 +81,22 @@ export async function runCli(
     isVersionLike,
     isWelcome,
   );
+
+  const [firstToken, secondToken] = allNonOptionTokens(argv);
+  if (
+    firstToken === "help" &&
+    secondToken &&
+    ["exit-codes", "json", "modes"].includes(secondToken)
+  ) {
+    const help = guideText(secondToken);
+    if (isStructuredOutputMode) {
+      printJsonSuccess({ mode: "help", topic: secondToken, help });
+    } else if (!isQuiet) {
+      process.stdout.write(`${help}\n`);
+    }
+    process.exitCode = 0;
+    return;
+  }
 
   const program = await createRootProgram(pkg.version, {
     argv,

@@ -137,6 +137,11 @@ export interface PreferredSafeVariant {
   reason: string;
 }
 
+export interface StructuredExample {
+  name: string;
+  value: string | string[];
+}
+
 export interface CapabilityCommandSummary {
   name: string;
   description: string;
@@ -165,6 +170,7 @@ export interface DetailedCommandDescriptor {
   preferredSafeVariant?: PreferredSafeVariant;
   prerequisites: string[];
   examples: Array<string | { category: string; commands: string[] }>;
+  structuredExamples?: StructuredExample[];
   jsonFields: string | null;
   jsonVariants: string[];
   safetyNotes: string[];

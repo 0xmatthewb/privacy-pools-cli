@@ -326,7 +326,7 @@ describe("cli main internal helpers", () => {
       message: "error: unknown option '--oops'",
     });
     expect(mapped).toBeInstanceOf(CLIError);
-    expect(mapped?.code).toBe("INPUT_ERROR");
+    expect(mapped?.code).toBe("INPUT_UNKNOWN_OPTION");
     expect(mapped?.message).toBe("unknown option '--oops'");
     expect(mapped?.hint).toContain("--help");
 

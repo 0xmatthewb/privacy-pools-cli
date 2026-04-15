@@ -66,10 +66,22 @@ function mapCommanderError(error: unknown): CLIError | null {
 
   if (code.startsWith("commander.")) {
     const normalized = message.replace(/^error:\s*/i, "").trim();
+    const errorCode =
+      code === "commander.missingArgument" ||
+      /missing required|missing argument/i.test(normalized)
+        ? "INPUT_MISSING_ARGUMENT"
+        : code === "commander.unknownOption" ||
+            /unknown option/i.test(normalized)
+          ? "INPUT_UNKNOWN_OPTION"
+          : code === "commander.invalidArgument" ||
+              /invalid argument|invalid value/i.test(normalized)
+            ? "INPUT_INVALID_VALUE"
+            : "INPUT_PARSE_ERROR";
     return new CLIError(
       normalized || "Invalid command input.",
       "INPUT",
       "Use --help to see usage and examples.",
+      errorCode,
     );
   }
 
