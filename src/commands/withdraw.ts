@@ -26,6 +26,7 @@ import {
   initializeAccountService,
   saveAccount,
   saveSyncMeta,
+  syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
@@ -465,6 +466,11 @@ export async function handleWithdrawCommand(
         "INPUT",
         "Use --unsigned envelope or --unsigned tx.",
       );
+    }
+    if (!isQuiet && !isJson) {
+      if (isDryRun) {
+        info("Dry-run mode: previewing only; no transaction will be signed or submitted.", false);
+      }
     }
 
     if (await maybeRenderPreviewScenario("withdraw")) {
@@ -1241,6 +1247,72 @@ export async function handleWithdrawCommand(
             });
             if (advisory) {
               warn(advisory, silent);
+              if (!skipPrompts) {
+                spin.stop();
+                const maxAmountLeavingWithdrawableRemainder =
+                  selectedPoolAccount.value - minWithdraw;
+                ensurePromptInteractionAvailable();
+                const remainderChoice = await select({
+                  message: "The remainder would be below the private relayer minimum. What would you like to do?",
+                  choices: [
+                    {
+                      name: "Withdraw less and leave a privately withdrawable remainder",
+                      value: "less" as const,
+                      disabled:
+                        maxAmountLeavingWithdrawableRemainder >= minWithdraw
+                          ? false
+                          : "Pool Account balance is too small for this option",
+                    },
+                    {
+                      name: `Use max (${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol)})`,
+                      value: "max" as const,
+                    },
+                    {
+                      name: "Continue and exit the remainder later if needed",
+                      value: "continue" as const,
+                    },
+                  ],
+                });
+
+                if (remainderChoice === "max") {
+                  withdrawalAmount = selectedPoolAccount.value;
+                  withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+                  info(
+                    `Updated withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+                    silent,
+                  );
+                } else if (remainderChoice === "less") {
+                  const newAmountStr = await input({
+                    message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
+                    validate: (val) => {
+                      try {
+                        const parsed = parseAmount(val, pool.decimals, {
+                          allowNegative: true,
+                        });
+                        validatePositive(parsed, "Withdrawal amount");
+                        if (parsed < minWithdraw) {
+                          return `Amount must be at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`;
+                        }
+                        if (parsed > maxAmountLeavingWithdrawableRemainder) {
+                          return `Amount must leave at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)} in ${selectedPoolAccount.paId}.`;
+                        }
+                        return true;
+                      } catch (e) {
+                        return e instanceof Error ? e.message : "Invalid amount.";
+                      }
+                    },
+                  });
+                  withdrawalAmount = parseAmount(newAmountStr, pool.decimals, {
+                    allowNegative: true,
+                  });
+                  withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+                  info(
+                    `Updated withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+                    silent,
+                  );
+                }
+                spin.start();
+              }
             }
           }
         } catch (e) {
@@ -1488,6 +1560,7 @@ export async function handleWithdrawCommand(
             from: directAddress,
             poolAddress: pool.pool,
             recipient: directAddress,
+            poolAccountId: selectedPoolAccount.paId,
             selectedCommitmentLabel: commitmentLabel,
             selectedCommitmentValue: commitment.value,
             withdrawal,
@@ -1497,6 +1570,9 @@ export async function handleWithdrawCommand(
           if (wantsTxFormat) {
             printRawTransactions(payload.transactions);
           } else {
+            if (!isQuiet && !isJson) {
+              info("Unsigned mode: building transaction payloads only; validation is approximate until broadcast.", false);
+            }
             printJsonSuccess(
               {
                 ...payload,
@@ -1574,6 +1650,7 @@ export async function handleWithdrawCommand(
           );
         }
 
+        let needsReconciliation = false;
         guardCriticalSection();
         try {
           // Record the withdrawal in account state
@@ -1595,7 +1672,39 @@ export async function handleWithdrawCommand(
               `Withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}`,
               silent,
             );
-            warn("Run 'privacy-pools sync' to update your local account state.", silent);
+            needsReconciliation = true;
+          }
+          if (needsReconciliation) {
+            try {
+              await syncAccountEvents(
+                accountService,
+                [{
+                  chainId: chainConfig.id,
+                  address: pool.pool,
+                  scope: pool.scope,
+                  deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
+                }],
+                [{ pool: pool.pool, symbol: pool.symbol }],
+                chainConfig.id,
+                {
+                  skip: false,
+                  force: true,
+                  silent,
+                  isJson,
+                  isVerbose,
+                  errorLabel: "Withdrawal reconciliation",
+                  dataService,
+                  mnemonic,
+                },
+              );
+              info("Local account state reconciled from chain events.", silent);
+            } catch (syncErr) {
+              warn(
+                `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncErr instanceof Error ? syncErr.message : String(syncErr))}`,
+                silent,
+              );
+              warn(`Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`, silent);
+            }
           }
         } finally {
           releaseCriticalSection();
@@ -1662,15 +1771,26 @@ export async function handleWithdrawCommand(
             silent,
           );
           ensurePromptInteractionAvailable();
+          const minWithdrawAmount = BigInt(details.minWithdrawAmount);
+          const maxAmountLeavingWithdrawableRemainder =
+            selectedPoolAccount.value - minWithdrawAmount;
           const remainderChoice = await select({
             message: "How would you like to proceed?",
             choices: [
               {
-                name: "Withdraw the full balance instead",
+                name: "Withdraw less and leave a privately withdrawable remainder",
+                value: "less" as const,
+                disabled:
+                  maxAmountLeavingWithdrawableRemainder >= minWithdrawAmount
+                    ? false
+                    : "Pool Account balance is too small for this option",
+              },
+              {
+                name: "Use max (withdraw the full Pool Account balance)",
                 value: "full" as const,
               },
               {
-                name: "Continue with this amount (remainder won't be privately withdrawable)",
+                name: "Continue and exit the remainder later if needed",
                 value: "continue" as const,
               },
             ],
@@ -1686,6 +1806,42 @@ export async function handleWithdrawCommand(
             remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory({
               remainingBalance: selectedPoolAccount.value - withdrawalAmount,
               minWithdrawAmount: BigInt(details.minWithdrawAmount),
+              poolAccountId: selectedPoolAccount.paId,
+              assetSymbol: pool.symbol,
+              decimals: pool.decimals,
+            });
+          } else if (remainderChoice === "less") {
+            const newAmountStr = await input({
+              message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
+              validate: (val) => {
+                try {
+                  const parsed = parseAmount(val, pool.decimals, {
+                    allowNegative: true,
+                  });
+                  validatePositive(parsed, "Withdrawal amount");
+                  if (parsed < minWithdrawAmount) {
+                    return `Amount must be at least ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)}.`;
+                  }
+                  if (parsed > maxAmountLeavingWithdrawableRemainder) {
+                    return `Amount must leave at least ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)} in ${selectedPoolAccount.paId}.`;
+                  }
+                  return true;
+                } catch (e) {
+                  return e instanceof Error ? e.message : "Invalid amount.";
+                }
+              },
+            });
+            withdrawalAmount = parseAmount(newAmountStr, pool.decimals, {
+              allowNegative: true,
+            });
+            withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+            info(
+              `Adjusted withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+              silent,
+            );
+            remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory({
+              remainingBalance: selectedPoolAccount.value - withdrawalAmount,
+              minWithdrawAmount,
               poolAccountId: selectedPoolAccount.paId,
               assetSymbol: pool.symbol,
               decimals: pool.decimals,
@@ -2036,6 +2192,9 @@ export async function handleWithdrawCommand(
           if (wantsTxFormat) {
             printRawTransactions(payload.transactions);
           } else {
+            if (!isQuiet && !isJson) {
+              info("Unsigned mode: building transaction payloads only; validation is approximate until broadcast.", false);
+            }
             printJsonSuccess(
               {
                 ...payload,
@@ -2105,6 +2264,7 @@ export async function handleWithdrawCommand(
             "Check the transaction on a block explorer for details.",
           );
         }
+        let needsReconciliation = false;
         guardCriticalSection();
         try {
           // Record the withdrawal in account state
@@ -2126,7 +2286,39 @@ export async function handleWithdrawCommand(
               `Relayed withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}`,
               silent,
             );
-            warn("Run 'privacy-pools sync' to update your local account state.", silent);
+            needsReconciliation = true;
+          }
+          if (needsReconciliation) {
+            try {
+              await syncAccountEvents(
+                accountService,
+                [{
+                  chainId: chainConfig.id,
+                  address: pool.pool,
+                  scope: pool.scope,
+                  deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
+                }],
+                [{ pool: pool.pool, symbol: pool.symbol }],
+                chainConfig.id,
+                {
+                  skip: false,
+                  force: true,
+                  silent,
+                  isJson,
+                  isVerbose,
+                  errorLabel: "Withdrawal reconciliation",
+                  dataService,
+                  mnemonic,
+                },
+              );
+              info("Local account state reconciled from chain events.", silent);
+            } catch (syncErr) {
+              warn(
+                `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncErr instanceof Error ? syncErr.message : String(syncErr))}`,
+                silent,
+              );
+              warn(`Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`, silent);
+            }
           }
         } finally {
           releaseCriticalSection();

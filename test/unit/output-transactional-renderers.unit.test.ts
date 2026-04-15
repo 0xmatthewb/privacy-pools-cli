@@ -17,7 +17,22 @@ function expectNextAction(
   expected: Record<string, unknown>,
   cliCommand: string,
 ): void {
-  expect(action).toMatchObject(expected);
+  const { options, ...rest } = expected;
+  const normalizedOptions =
+    options && typeof options === "object"
+      ? Object.fromEntries(
+          Object.entries(options as Record<string, unknown>).filter(
+            ([key]) => key !== "agent",
+          ),
+        )
+      : undefined;
+  expect(action).toMatchObject({
+    ...rest,
+    ...(normalizedOptions && Object.keys(normalizedOptions).length > 0
+      ? { options: normalizedOptions }
+      : {}),
+  });
+  expect((action?.options as Record<string, unknown> | undefined)?.agent).toBeUndefined();
   expect(action?.cliCommand).toBe(cliCommand);
 }
 

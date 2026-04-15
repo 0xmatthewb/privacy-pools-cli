@@ -707,7 +707,7 @@ export function registerWithdrawInteractiveCompletionTests(): void {
       feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
       relayerUrl: "https://fastrelay.xyz",
     }));
-    selectPromptMock.mockImplementationOnce(async () => "full");
+    selectPromptMock.mockImplementationOnce(async () => "max");
     inputPromptMock.mockImplementationOnce(async () => "1 ETH");
 
     await captureAsyncOutput(() =>
@@ -847,11 +847,14 @@ export function registerWithdrawInteractiveCompletionTests(): void {
 
   test("treats prompt cancellations as clean human aborts", async () => {
     useIsolatedHome({ withSigner: true });
+    const error = new Error("cancelled") as Error & { name: string };
+    error.name = "AbortPromptError";
     inputPromptMock.mockImplementationOnce(async () => {
-      const error = new Error("cancelled") as Error & { name: string };
-      error.name = "AbortPromptError";
       throw error;
     });
+    isPromptCancellationErrorMock.mockImplementation(
+      (candidate: unknown) => candidate === error,
+    );
 
     const { stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
       handleWithdrawCommand(

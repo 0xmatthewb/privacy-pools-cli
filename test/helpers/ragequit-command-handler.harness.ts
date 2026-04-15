@@ -1430,7 +1430,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(selectPromptMock).toHaveBeenCalledTimes(2);
     expect(inputPromptMock).toHaveBeenCalledTimes(1);
     expect(stderr).toContain("Ragequit review");
-    expect(stderr).toContain("Ragequit publicly recovers funds to your original deposit address.");
+    expect(stderr).toContain("public self-custody recovery returns funds to the original deposit address");
     expect(stderr).toContain("Ragequit cancelled.");
     expect(ragequitMock).not.toHaveBeenCalled();
   });
@@ -1688,7 +1688,9 @@ export function registerRagequitHumanConfirmationTests(): void {
 
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain("Invalid commitment index");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Invalid legacy Pool Account index",
+    );
     expect(exitCode).toBe(2);
   });
 
@@ -1786,7 +1788,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     );
 
     expect(stderr).toContain("failed to save local state");
-    expect(stderr).toContain("Run 'privacy-pools sync'");
+    expect(stderr).toContain("privacy-pools sync --chain mainnet");
     expect(stderr).toContain("Summary:");
     expect(stderr).toContain("Pool Account: PA-1");
   });

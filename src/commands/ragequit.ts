@@ -19,6 +19,7 @@ import {
   initializeAccountService,
   saveAccount,
   saveSyncMeta,
+  syncAccountEvents,
   withSuppressedSdkStdout,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
@@ -351,7 +352,7 @@ export async function handleRagequitCommand(
     process.stderr.write(
       `\n${renderNarrativeSteps(createNarrativeSteps([
         "Account synced",
-        "Generate and verify commitment proof",
+        "Generate and verify Pool Account proof",
         "Submit ragequit",
       ], activeIndex, note))}`,
     );
@@ -384,6 +385,11 @@ export async function handleRagequitCommand(
         "INPUT",
         "Use --unsigned envelope or --unsigned tx.",
       );
+    }
+    if (!isQuiet && !isJson) {
+      if (isDryRun) {
+        info("Dry-run mode: previewing only; no transaction will be signed or submitted.", false);
+      }
     }
 
     if (await maybeRenderPreviewScenario("ragequit")) {
@@ -491,10 +497,10 @@ export async function handleRagequitCommand(
         stage: {
           step: 2,
           total: 3,
-          label: "Generating and verifying commitment proof",
+          label: "Generating and verifying Pool Account proof",
         },
-        spinnerText: "Generating and verifying commitment proof...",
-        doneText: "Commitment proof generated and verified.",
+        spinnerText: "Generating and verifying Pool Account proof...",
+        doneText: "Pool Account proof generated and verified.",
       })
     ) {
       return;
@@ -696,7 +702,7 @@ export async function handleRagequitCommand(
         const idx = parseInt(opts.commitment, 10);
         if (isNaN(idx) || idx < 0 || idx >= poolCommitments.length) {
           throw new CLIError(
-            `Invalid commitment index: ${opts.commitment}. Valid range: 0-${poolCommitments.length - 1}`,
+            `Invalid legacy Pool Account index: ${opts.commitment}. Valid range: 0-${poolCommitments.length - 1}`,
             "INPUT",
             "This legacy index is deprecated. Use --pool-account PA-<n> instead.",
           );
@@ -846,7 +852,7 @@ export async function handleRagequitCommand(
           standardMessage: "Confirm ragequit?",
           highStakesToken: "RAGEQUIT",
           highStakesWarning:
-            "This ragequit is public and irreversible. Funds return to the original deposit address, and privacy is lost.",
+            "This public self-custody recovery returns funds to the original deposit address. You will not gain privacy from this exit.",
           confirm,
         });
         if (!ok) {
@@ -877,16 +883,16 @@ export async function handleRagequitCommand(
         }
       }
 
-      // Generate commitment proof
+      // Generate Pool Account proof
       writeRagequitProgress(
         1,
-        "Generating and locally verifying the proof required for ragequit.",
+        "Generating and locally verifying the Pool Account proof required for ragequit.",
       );
       spin.start();
 
       const proof = await withProofProgress(
         spin,
-        "Generating and verifying commitment proof",
+        "Generating and verifying Pool Account proof",
         (progress) =>
           proveCommitment(
             commitment.value,
@@ -933,6 +939,7 @@ export async function handleRagequitCommand(
           amount: commitment.value,
           from: depositorAddress,
           poolAddress: pool.pool,
+          poolAccountId: selectedPoolAccount.paId,
           selectedCommitmentLabel: commitment.label,
           selectedCommitmentValue: commitment.value,
           proof: solidityProof,
@@ -941,6 +948,9 @@ export async function handleRagequitCommand(
         if (wantsTxFormat) {
           printRawTransactions(payload.transactions);
         } else {
+          if (!isQuiet && !isJson) {
+            info("Unsigned mode: building transaction payloads only; validation is approximate until broadcast.", false);
+          }
           printJsonSuccess(
             {
               ...payload,
@@ -997,6 +1007,7 @@ export async function handleRagequitCommand(
         );
       }
 
+      let needsReconciliation = false;
       guardCriticalSection();
       try {
         // Mark the account as ragequit so it's excluded from getSpendableCommitments()
@@ -1023,6 +1034,7 @@ export async function handleRagequitCommand(
               `Failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will pick it up.`,
               silent,
             );
+          needsReconciliation = true;
         }
 
         try {
@@ -1040,10 +1052,40 @@ export async function handleRagequitCommand(
               `Ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}`,
               silent,
             );
+          needsReconciliation = true;
+        }
+        if (needsReconciliation) {
+          try {
+            await syncAccountEvents(
+              accountService,
+              [{
+                chainId: chainConfig.id,
+                address: pool.pool,
+                scope: pool.scope as unknown as SDKHash,
+                deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
+              }],
+              [{ pool: pool.pool, symbol: pool.symbol }],
+              chainConfig.id,
+              {
+                skip: false,
+                force: true,
+                silent,
+                isJson,
+                isVerbose,
+                errorLabel: "Ragequit reconciliation",
+                dataService,
+                mnemonic,
+                allowLegacyRecoveryVisibility: true,
+              },
+            );
+            info("Local account state reconciled from chain events.", silent);
+          } catch (syncErr) {
             warn(
-              "Run 'privacy-pools sync' to update your local account state.",
+              `Automatic reconciliation failed: ${syncErr instanceof Error ? syncErr.message : String(syncErr)}`,
               silent,
             );
+            warn(`Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`, silent);
+          }
         }
       } finally {
         releaseCriticalSection();

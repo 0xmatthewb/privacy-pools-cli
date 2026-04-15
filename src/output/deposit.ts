@@ -211,6 +211,13 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
         poolAccountId: data.poolAccountId,
         precommitment: data.precommitment.toString(),
         balanceSufficient: data.balanceSufficient,
+        warnings: [
+          {
+            code: "PREVIEW_VALIDATION_APPROXIMATE",
+            category: "preview",
+            message: "Dry-run validation is approximate until the transaction is signed and submitted.",
+          },
+        ],
       }, agentNextActions),
       false,
     );

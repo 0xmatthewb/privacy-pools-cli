@@ -45,6 +45,27 @@ export interface RagequitReviewData {
   tokenPrice?: number | null;
 }
 
+export function buildRagequitPrivacyCostManifest(data: {
+  poolAccountId: string;
+  amount: bigint;
+  asset: string;
+  chain: string;
+  destinationAddress: string | null;
+}): Record<string, unknown> {
+  return {
+    action: "ragequit",
+    framing: "public_self_custody_recovery",
+    poolAccountId: data.poolAccountId,
+    amount: data.amount.toString(),
+    asset: data.asset,
+    chain: data.chain,
+    destinationAddress: data.destinationAddress,
+    privacyCost: "funds return publicly to the original depositing address",
+    privacyPreserved: false,
+    recommendation: "Prefer a relayed private withdrawal when the Pool Account is approved and above the relayer minimum.",
+  };
+}
+
 export function formatRagequitReview(data: RagequitReviewData): string {
   const amountUsd = formatUsdValue(
     data.amount,
@@ -67,6 +88,11 @@ export function formatRagequitReview(data: RagequitReviewData): string {
       },
       { label: "Chain", value: data.chain },
       {
+        label: "Privacy cost",
+        value: "Public recovery to deposit address",
+        valueTone: "warning",
+      },
+      {
         label: "Destination",
         value: data.destinationAddress
           ? formatAddress(data.destinationAddress)
@@ -76,8 +102,7 @@ export function formatRagequitReview(data: RagequitReviewData): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "You will not gain any privacy. Ragequit publicly recovers funds to your original deposit address.",
-        "This is your self-custody guarantee — always available, but the action cannot be undone.",
+        "By exiting this pool, you are withdrawing all deposited and pending funds to your depositing address. You will not gain any privacy.",
       ],
     },
     secondaryCallout: data.advisory
@@ -167,6 +192,14 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         selectedCommitmentValue: data.selectedCommitmentValue.toString(),
         proofPublicSignals: data.proofPublicSignals,
         remainingBalance: "0",
+        privacyCostManifest: buildRagequitPrivacyCostManifest(data),
+        warnings: [
+          {
+            code: "PREVIEW_VALIDATION_APPROXIMATE",
+            category: "preview",
+            message: "Dry-run validation is approximate until the transaction is signed and submitted.",
+          },
+        ],
         ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),
       false,
@@ -213,7 +246,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
     process.stderr.write(
       formatCallout(
         "recovery",
-        "You will not gain any privacy. Ragequit publicly returns funds to your original deposit address.",
+        "By exiting this pool, you are withdrawing all deposited and pending funds to your depositing address. You will not gain any privacy.",
       ),
     );
     process.stderr.write(
@@ -265,6 +298,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         explorerUrl: data.explorerUrl,
         destinationAddress: data.destinationAddress,
         remainingBalance: "0",
+        privacyCostManifest: buildRagequitPrivacyCostManifest(data),
         ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),
       false,
@@ -325,10 +359,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
     process.stderr.write(
       formatCallout(
         "recovery",
-        [
-          "You will not gain any privacy from this ragequit.",
-          "Funds are returning publicly to the original deposit address. This is safe and expected for declined deposits.",
-        ],
+        "By exiting this pool, you are withdrawing all deposited and pending funds to your depositing address. You will not gain any privacy.",
       ),
     );
   }

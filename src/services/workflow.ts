@@ -28,6 +28,7 @@ import {
   initializeAccountService,
   saveAccount,
   saveSyncMeta,
+  syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "./account.js";
 import {
@@ -359,6 +360,8 @@ interface WorkflowPoolAccountContext {
   chainConfig: ReturnType<typeof resolveChain>;
   pool: WorkflowPool;
   accountService: Awaited<ReturnType<typeof initializeAccountService>>;
+  dataService: Awaited<ReturnType<typeof getDataService>>;
+  mnemonic: string;
   publicClient: ReturnType<typeof getPublicClient>;
   selectedPoolAccount: PoolAccountRef;
   spendableCommitments: readonly unknown[];
@@ -366,6 +369,54 @@ interface WorkflowPoolAccountContext {
   aspLabels: bigint[];
   allCommitmentHashes: bigint[];
   rootsOnchainMtRoot: bigint;
+}
+
+async function reconcileWorkflowAccountState(params: {
+  accountService: Awaited<ReturnType<typeof initializeAccountService>>;
+  dataService: Awaited<ReturnType<typeof getDataService>>;
+  mnemonic: string;
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  silent: boolean;
+  isJson: boolean;
+  isVerbose: boolean;
+  errorLabel: string;
+  allowLegacyRecoveryVisibility?: boolean;
+}): Promise<void> {
+  try {
+    await syncAccountEvents(
+      params.accountService,
+      [{
+        chainId: params.chainConfig.id,
+        address: params.pool.pool,
+        scope: params.pool.scope,
+        deploymentBlock: params.pool.deploymentBlock ?? params.chainConfig.startBlock,
+      }],
+      [{ pool: params.pool.pool, symbol: params.pool.symbol }],
+      params.chainConfig.id,
+      {
+        skip: false,
+        force: true,
+        silent: params.silent,
+        isJson: params.isJson,
+        isVerbose: params.isVerbose,
+        errorLabel: params.errorLabel,
+        dataService: params.dataService,
+        mnemonic: params.mnemonic,
+        allowLegacyRecoveryVisibility: params.allowLegacyRecoveryVisibility,
+      },
+    );
+    info("Local account state reconciled from chain events.", params.silent);
+  } catch (syncError) {
+    warn(
+      `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncError instanceof Error ? syncError.message : String(syncError))}`,
+      params.silent,
+    );
+    warn(
+      `Run 'privacy-pools sync --chain ${params.chainConfig.name} --asset ${params.pool.symbol}' to refresh the local account cache.`,
+      params.silent,
+    );
+  }
 }
 
 interface FlowSecretRecord {
@@ -2116,10 +2167,17 @@ async function executeDepositForFlow(
           `Deposit confirmed onchain but failed to update local account state immediately: ${saveError instanceof Error ? saveError.message : String(saveError)}`,
           silent,
         );
-        warn(
-          `Run 'privacy-pools sync --chain ${chainConfig.name} --asset ${pool.symbol}' before resuming this workflow.`,
+        await reconcileWorkflowAccountState({
+          accountService,
+          dataService,
+          mnemonic,
+          chainConfig,
+          pool,
           silent,
-        );
+          isJson: mode.isJson,
+          isVerbose,
+          errorLabel: "Workflow deposit reconciliation",
+        });
       }
     } finally {
       releaseCriticalSection();
@@ -2993,6 +3051,8 @@ export async function loadWorkflowPoolAccountContext(
     chainConfig,
     pool,
     accountService,
+    dataService,
+    mnemonic,
     publicClient,
     selectedPoolAccount: approvedActivePoolAccount,
     spendableCommitments,
@@ -3337,10 +3397,17 @@ export async function executeRelayedWithdrawalForFlow(
           `Withdrawal confirmed onchain but failed to update local account state immediately: ${sanitizeDiagnosticText(saveError instanceof Error ? saveError.message : String(saveError))}`,
           silent,
         );
-        warn(
-          `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' to refresh the local account cache.`,
+        await reconcileWorkflowAccountState({
+          accountService,
+          dataService: context.dataService,
+          mnemonic: context.mnemonic,
+          chainConfig,
+          pool,
           silent,
-        );
+          isJson: mode.isJson,
+          isVerbose,
+          errorLabel: "Workflow withdrawal reconciliation",
+        });
       }
     } finally {
       releaseCriticalSection();
@@ -3693,10 +3760,18 @@ async function executeRagequitForFlow(
         `Workflow ragequit confirmed onchain but failed to update local account state immediately: ${sanitizeDiagnosticText(saveError instanceof Error ? saveError.message : String(saveError))}`,
         silent,
       );
-      warn(
-        `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' to refresh the local account cache.`,
+      await reconcileWorkflowAccountState({
+        accountService,
+        dataService: context.dataService,
+        mnemonic: context.mnemonic,
+        chainConfig,
+        pool,
         silent,
-      );
+        isJson: mode.isJson,
+        isVerbose,
+        errorLabel: "Workflow ragequit reconciliation",
+        allowLegacyRecoveryVisibility: true,
+      });
     }
   } finally {
     releaseCriticalSection();

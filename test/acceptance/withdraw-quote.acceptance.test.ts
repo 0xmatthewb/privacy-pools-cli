@@ -95,7 +95,6 @@ defineScenarioSuite("withdraw quote acceptance", [
       expect(json.nextActions?.[0]?.command).toBe("withdraw");
       expect(json.nextActions?.[0]?.runnable).not.toBe(false);
       expect(json.nextActions?.[0]?.options).toMatchObject({
-        agent: true,
         chain: "sepolia",
         to: DEFAULT_RECIPIENT,
         extraGas: false,
@@ -119,7 +118,6 @@ defineScenarioSuite("withdraw quote acceptance", [
       expect(json.recipient).toBeNull();
       expect(json.nextActions?.[0]?.runnable).toBe(false);
       expect(json.nextActions?.[0]?.options).toMatchObject({
-        agent: true,
         chain: "sepolia",
         extraGas: false,
       });

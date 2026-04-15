@@ -641,10 +641,12 @@ defineScenarioSuite("no-sync acceptance", [
         expect(json.nextActions).toHaveLength(1);
         expect(json.nextActions?.[0]?.command).toBe("accounts");
         expect(json.nextActions?.[0]?.options).toEqual({
-          agent: true,
           chain: "sepolia",
           pendingOnly: true,
         });
+        expect(json.nextActions?.[0]?.cliCommand).toBe(
+          "privacy-pools accounts --agent --chain sepolia --pending-only",
+        );
       }),
     ],
     { timeoutMs: 30_000 },
@@ -715,7 +717,7 @@ defineScenarioSuite("no-sync acceptance", [
           reason:
             "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
           when: "has_pending",
-          options: { agent: true, pendingOnly: true },
+          options: { pendingOnly: true },
         });
         expect(json.nextActions?.[0]?.cliCommand).toBe(
           "privacy-pools accounts --agent --pending-only",
@@ -827,7 +829,7 @@ defineScenarioSuite("no-sync acceptance", [
           reason:
             "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
           when: "has_pending",
-          options: { agent: true, allChains: true, pendingOnly: true },
+          options: { allChains: true, pendingOnly: true },
         });
         expect(json.nextActions?.[0]?.cliCommand).toBe(
           "privacy-pools accounts --agent --all-chains --pending-only",

@@ -12,8 +12,8 @@ export function createWithdrawCommand(): Command {
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
     .option("-t, --to <address>", "Recipient address (required unless --direct; prompted interactively)")
     .option(
-      "-p, --pool-account <PA-#|#>",
-      "Withdraw from a specific Pool Account (e.g. PA-2)",
+      "-p, --pool-account <PA-ID | numeric-index>",
+      "Withdraw from a specific Pool Account (examples: PA-2 or 2)",
     )
     .addOption(new Option("--from-pa <PA-#|#>", "Deprecated: use --pool-account").hideHelp())
     .addOption(

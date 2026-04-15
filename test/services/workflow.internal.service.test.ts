@@ -2234,7 +2234,7 @@ describe("workflow internal helpers", () => {
       "Deposit confirmed onchain but failed to update local account state immediately",
     );
     expect(state.warnings.join("\n")).toContain(
-      "Run 'privacy-pools sync --chain sepolia --asset ETH' before resuming this workflow.",
+      "Run 'privacy-pools sync --chain sepolia --asset ETH' to refresh the local account cache.",
     );
   });
 

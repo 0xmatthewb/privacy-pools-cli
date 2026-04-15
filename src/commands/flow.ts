@@ -129,7 +129,7 @@ export async function handleFlowRootCommand(
         {
           name: "Start a new easy-path flow",
           value: "start",
-          description: "Deposit now and save a later private withdrawal.",
+          description: "Deposit now, then resume later with flow watch.",
         },
         ...(latestWorkflowId
           ? [

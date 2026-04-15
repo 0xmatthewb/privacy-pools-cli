@@ -149,12 +149,12 @@ export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
         : []),
       ...(amount ? [{ label: "Amount", value: amount }] : []),
       { label: "Destination", value: "original deposit address" },
+      { label: "Privacy cost", value: "Public recovery to deposit address", valueTone: "warning" },
     ],
     primaryCallout: {
       kind: "danger",
       lines: [
-        `This saved flow will return funds publicly to the original deposit address.${configuredSignerRecoverySuffix(snapshot)}`,
-        "This is a safe and expected recovery path in some cases, but privacy will not be preserved.",
+        `By exiting this pool, you are withdrawing all deposited and pending funds to your depositing address. You will not gain any privacy.${configuredSignerRecoverySuffix(snapshot)}`,
       ],
     },
   });
@@ -743,6 +743,21 @@ function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowS
     ragequitBlockNumber: snapshot.ragequitBlockNumber ?? null,
     ragequitExplorerUrl: snapshot.ragequitExplorerUrl ?? null,
     lastError: snapshot.lastError,
+    privacyCostManifest: action === "ragequit"
+      ? {
+          action: "flow ragequit",
+          framing: "public_self_custody_recovery",
+          workflowId: snapshot.workflowId,
+          poolAccountId: exposedPoolAccount ? snapshot.poolAccountId ?? null : null,
+          amount: snapshot.committedValue ?? snapshot.depositAmount,
+          asset: snapshot.asset,
+          chain: snapshot.chain,
+          destinationAddress: snapshot.walletAddress ?? null,
+          privacyCost: "funds return publicly to the original depositing address",
+          privacyPreserved: false,
+          recommendation: "Prefer flow watch for a relayed private withdrawal when the workflow can continue privately.",
+        }
+      : undefined,
     warnings: warnings.length > 0 ? warnings : undefined,
   };
 }

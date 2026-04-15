@@ -15,6 +15,7 @@ import {
   initializeAccountService,
   saveAccount,
   saveSyncMeta,
+  syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { explorerTxUrl, isNativePoolAsset } from "../config/chains.js";
@@ -162,6 +163,11 @@ export async function handleDepositCommand(
         "INPUT",
         "Use --unsigned envelope or --unsigned tx.",
       );
+    }
+    if (!isQuiet && !isJson) {
+      if (isDryRun) {
+        info("Dry-run mode: previewing only; no transaction will be signed or submitted.", false);
+      }
     }
 
     if (await maybeRenderPreviewScenario("deposit")) {
@@ -510,6 +516,9 @@ export async function handleDepositCommand(
         if (wantsTxFormat) {
           printRawTransactions(payload.transactions);
         } else {
+          if (!isQuiet && !isJson) {
+            info("Unsigned mode: building transaction payloads only; validation is approximate until broadcast.", false);
+          }
           printJsonSuccess(payload, false);
         }
         return;
@@ -614,6 +623,7 @@ export async function handleDepositCommand(
       }
       let label: bigint | undefined;
       let committedValue: bigint | undefined;
+      let needsReconciliation = false;
       guardCriticalSection();
       try {
         for (const log of receipt.logs) {
@@ -635,8 +645,9 @@ export async function handleDepositCommand(
 
         if (label === undefined || committedValue === undefined) {
           spin.warn(
-            "Deposit confirmed onchain. Local state update pending: run 'privacy-pools sync' to finalize.",
+            "Deposit confirmed onchain. Attempting automatic local reconciliation...",
           );
+          needsReconciliation = true;
         } else {
           // Persist the new commitment (7 individual args)
           try {
@@ -660,8 +671,40 @@ export async function handleDepositCommand(
               `Deposit confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}`,
               silent,
             );
+            needsReconciliation = true;
+          }
+        }
+        if (needsReconciliation) {
+          try {
+            await syncAccountEvents(
+              accountService,
+              [{
+                chainId: chainConfig.id,
+                address: pool.pool,
+                scope: pool.scope,
+                deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
+              }],
+              [{ pool: pool.pool, symbol: pool.symbol }],
+              chainConfig.id,
+              {
+                skip: false,
+                force: true,
+                silent,
+                isJson,
+                isVerbose,
+                errorLabel: "Deposit reconciliation",
+                dataService,
+                mnemonic,
+              },
+            );
+            info("Local account state reconciled from chain events.", silent);
+          } catch (syncErr) {
             warn(
-              "Run 'privacy-pools sync' to update your local account state.",
+              `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncErr instanceof Error ? syncErr.message : String(syncErr))}`,
+              silent,
+            );
+            warn(
+              `Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`,
               silent,
             );
           }

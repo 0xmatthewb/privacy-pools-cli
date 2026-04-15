@@ -45,6 +45,7 @@ export interface UnsignedDepositOutput {
   asset: string;
   amount: string;
   precommitment: string;
+  warnings: Array<{ code: string; category: string; message: string }>;
   transactions: UnsignedTransactionPayload[];
 }
 
@@ -97,6 +98,7 @@ export function buildUnsignedDepositOutput(params: UnsignedBase & {
     asset: params.assetSymbol,
     amount: params.amount.toString(),
     precommitment: params.precommitment.toString(),
+    warnings: unsignedPreviewWarnings(),
     transactions,
   };
 }
@@ -111,12 +113,15 @@ export interface UnsignedDirectWithdrawOutput {
   recipient: Address;
   selectedCommitmentLabel: string;
   selectedCommitmentValue: string;
+  privacyCostManifest: Record<string, unknown>;
+  warnings: Array<{ code: string; category: string; message: string }>;
   transactions: UnsignedTransactionPayload[];
 }
 
 export function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
   poolAddress: Address;
   recipient: Address;
+  poolAccountId?: string;
   selectedCommitmentLabel: bigint;
   selectedCommitmentValue: bigint;
   withdrawal: WithdrawalCall;
@@ -145,6 +150,19 @@ export function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
     recipient: params.recipient,
     selectedCommitmentLabel: params.selectedCommitmentLabel.toString(),
     selectedCommitmentValue: params.selectedCommitmentValue.toString(),
+    privacyCostManifest: {
+      action: "withdraw --direct",
+      framing: "public_direct_withdrawal",
+      poolAccountId: params.poolAccountId ?? null,
+      amount: params.amount.toString(),
+      asset: params.assetSymbol,
+      chain: params.chainName,
+      recipient: params.recipient,
+      privacyCost: "direct withdrawal publicly links the withdrawal to the signer address",
+      privacyPreserved: false,
+      recommendation: "Use the default relayed withdrawal path unless you intentionally accept this privacy loss.",
+    },
+    warnings: unsignedPreviewWarnings(),
     transactions: [transaction],
   };
 }
@@ -161,6 +179,7 @@ export interface UnsignedRelayedWithdrawOutput {
   selectedCommitmentValue: string;
   feeBPS: string;
   quoteExpiresAt: string;
+  warnings: Array<{ code: string; category: string; message: string }>;
   transactions: UnsignedTransactionPayload[];
   relayerRequest: unknown;
 }
@@ -202,6 +221,7 @@ export function buildUnsignedRelayedWithdrawOutput(params: UnsignedBase & {
     selectedCommitmentValue: params.selectedCommitmentValue.toString(),
     feeBPS: params.feeBPS,
     quoteExpiresAt: params.quoteExpiresAt,
+    warnings: unsignedPreviewWarnings(),
     transactions: [transaction],
     relayerRequest: params.relayerRequest,
   };
@@ -215,11 +235,14 @@ export interface UnsignedRagequitOutput {
   amount: string;
   selectedCommitmentLabel: string;
   selectedCommitmentValue: string;
+  privacyCostManifest: Record<string, unknown>;
+  warnings: Array<{ code: string; category: string; message: string }>;
   transactions: UnsignedTransactionPayload[];
 }
 
 export function buildUnsignedRagequitOutput(params: UnsignedBase & {
   poolAddress: Address;
+  poolAccountId?: string;
   selectedCommitmentLabel: bigint;
   selectedCommitmentValue: bigint;
   proof: SolidityRagequitProof;
@@ -245,6 +268,29 @@ export function buildUnsignedRagequitOutput(params: UnsignedBase & {
     amount: params.selectedCommitmentValue.toString(),
     selectedCommitmentLabel: params.selectedCommitmentLabel.toString(),
     selectedCommitmentValue: params.selectedCommitmentValue.toString(),
+    privacyCostManifest: {
+      action: "ragequit",
+      framing: "public_self_custody_recovery",
+      poolAccountId: params.poolAccountId ?? null,
+      amount: params.selectedCommitmentValue.toString(),
+      asset: params.assetSymbol,
+      chain: params.chainName,
+      destinationAddress: params.from,
+      privacyCost: "funds return publicly to the original depositing address",
+      privacyPreserved: false,
+      recommendation: "Prefer a relayed private withdrawal when the Pool Account is approved and above the relayer minimum.",
+    },
+    warnings: unsignedPreviewWarnings(),
     transactions: [transaction],
   };
+}
+
+function unsignedPreviewWarnings(): Array<{ code: string; category: string; message: string }> {
+  return [
+    {
+      code: "UNSIGNED_VALIDATION_APPROXIMATE",
+      category: "preview",
+      message: "Unsigned output is a transaction payload preview; final validation happens when the signer broadcasts it.",
+    },
+  ];
 }

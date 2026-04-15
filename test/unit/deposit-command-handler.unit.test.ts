@@ -763,7 +763,7 @@ describe("deposit command handler", () => {
 
     expectStderrOnlyContains({ stdout: "", stderr }, [
       "failed to save locally",
-      "Run 'privacy-pools sync'",
+      "privacy-pools sync --chain mainnet",
       "Deposit confirmed",
     ]);
   });

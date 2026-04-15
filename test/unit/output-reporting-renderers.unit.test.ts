@@ -21,7 +21,22 @@ function expectNextAction(
   expected: Record<string, unknown>,
   cliCommand: string,
 ): void {
-  expect(action).toMatchObject(expected);
+  const { options, ...rest } = expected;
+  const normalizedOptions =
+    options && typeof options === "object"
+      ? Object.fromEntries(
+          Object.entries(options as Record<string, unknown>).filter(
+            ([key]) => key !== "agent",
+          ),
+        )
+      : undefined;
+  expect(action).toMatchObject({
+    ...rest,
+    ...(normalizedOptions && Object.keys(normalizedOptions).length > 0
+      ? { options: normalizedOptions }
+      : {}),
+  });
+  expect((action?.options as Record<string, unknown> | undefined)?.agent).toBeUndefined();
   expect(action?.cliCommand).toBe(cliCommand);
 }
 
@@ -137,7 +152,7 @@ describe("renderPools parity", () => {
     expect(json.nextActions[0].command).toBe("deposit");
     expect(json.nextActions[0].runnable).toBe(false);
     // Single-chain query must carry chain context to prevent wrong-network deposits
-    expect(json.nextActions[0].options.chain).toBe("sepolia");
+    expect(json.nextActions[0].options?.chain).toBe("sepolia");
     expect(json.nextActions[0].cliCommand).toContain("--chain sepolia");
     expect(stderr).toBe("");
   });
@@ -156,7 +171,7 @@ describe("renderPools parity", () => {
     expect(json.nextActions).toBeDefined();
     expect(json.nextActions[0].command).toBe("deposit");
     // All-chains query must NOT include chain — agent picks the target chain
-    expect(json.nextActions[0].options.chain).toBeUndefined();
+    expect(json.nextActions[0].options?.chain).toBeUndefined();
     expect(json.nextActions[0].cliCommand).not.toContain("--chain");
   });
 

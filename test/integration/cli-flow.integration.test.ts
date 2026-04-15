@@ -54,7 +54,7 @@ function expectFlowStatusAgentContract(
       when: string;
       runnable?: boolean;
       args?: string[];
-      options?: Record<string, boolean | string>;
+      options?: Record<string, string>;
       }> = null,
 ): void {
   const result = runCli(["--agent", "flow", "status", workflowId], {
@@ -75,7 +75,8 @@ function expectFlowStatusAgentContract(
       command: string;
       when: string;
       args?: string[];
-      options?: Record<string, boolean | string>;
+      cliCommand?: string;
+      options?: Record<string, string>;
     }>;
   }>(result.stdout);
 
@@ -102,11 +103,16 @@ function expectFlowStatusAgentContract(
         : expectedNextAction.args.length > 0
           ? { args: expectedNextAction.args }
           : {}),
-      options: expectedNextAction.options ?? { agent: true },
+      ...(expectedNextAction.options === undefined
+        ? {}
+        : { options: expectedNextAction.options }),
       ...(expectedNextAction.runnable === false ? { runnable: false } : {}),
     });
     expect(actual?.cliCommand).toContain(`privacy-pools ${expectedNextAction.command}`);
     expect(actual?.cliCommand).toContain("--agent");
+    expect(
+      Object.prototype.hasOwnProperty.call(actual?.options ?? {}, "agent"),
+    ).toBe(false);
   }
 }
 
@@ -272,7 +278,7 @@ describe("flow command", () => {
           reasonContains: "choose the manual follow-up from the current account state",
           when: "flow_manual_followup",
           args: [],
-          options: { agent: true, chain: "sepolia" },
+          options: { chain: "sepolia" },
         },
       ],
       overrides: {
@@ -496,7 +502,7 @@ describe("flow command", () => {
         reason: string;
         when: string;
         args?: string[];
-        options?: Record<string, boolean | string>;
+        options?: Record<string, string>;
       }>;
     }>(result.stdout);
 
@@ -513,8 +519,13 @@ describe("flow command", () => {
       ),
       when: "flow_declined",
       args: ["wf-123"],
-      options: { agent: true },
     });
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        json.nextActions?.[0]?.options ?? {},
+        "agent",
+      ),
+    ).toBe(false);
     expect(json.nextActions?.[0]?.cliCommand).toBe(
       "privacy-pools flow ragequit wf-123 --agent",
     );
@@ -658,7 +669,7 @@ describe("flow command", () => {
         command: string;
         when: string;
         args?: string[];
-        options?: Record<string, boolean | string>;
+        options?: Record<string, string>;
       }>;
     }>(result.stdout);
 
@@ -673,8 +684,13 @@ describe("flow command", () => {
       ),
       when: "flow_declined",
       args: ["wf-latest"],
-      options: { agent: true },
     });
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        json.nextActions?.[0]?.options ?? {},
+        "agent",
+      ),
+    ).toBe(false);
     expect(json.nextActions?.[0]?.cliCommand).toBe(
       "privacy-pools flow ragequit wf-latest --agent",
     );

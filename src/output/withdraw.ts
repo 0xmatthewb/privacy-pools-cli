@@ -66,6 +66,27 @@ export interface DirectWithdrawalReviewData {
   tokenPrice?: number | null;
 }
 
+export function buildDirectWithdrawalPrivacyCostManifest(data: {
+  poolAccountId: string;
+  amount: bigint;
+  asset: string;
+  chain: string;
+  recipient: string;
+}): Record<string, unknown> {
+  return {
+    action: "withdraw --direct",
+    framing: "public_direct_withdrawal",
+    poolAccountId: data.poolAccountId,
+    amount: data.amount.toString(),
+    asset: data.asset,
+    chain: data.chain,
+    recipient: data.recipient,
+    privacyCost: "direct withdrawal publicly links the withdrawal to the signer address",
+    privacyPreserved: false,
+    recommendation: "Use the default relayed withdrawal path unless you intentionally accept this privacy loss.",
+  };
+}
+
 export function formatRelayedWithdrawalReview(
   data: RelayedWithdrawalReviewData,
 ): string {
@@ -113,7 +134,7 @@ export function formatRelayedWithdrawalReview(
       },
       {
         label: "Relayer fee",
-        value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`,
+        value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)} of withdrawal)`,
         valueTone: "warning",
       },
       ...(data.extraGasFundAmount
@@ -163,7 +184,7 @@ export function formatRelayedWithdrawalReview(
         ? [
             {
               label: "Anonymity set",
-              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%)`,
+              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%; larger is more private)`,
               valueTone: "accent" as const,
             },
           ]
@@ -209,12 +230,17 @@ export function formatDirectWithdrawalReview(
         value: "Direct (public onchain withdrawal)",
         valueTone: "danger",
       },
+      {
+        label: "Privacy cost",
+        value: "Public link to signer address",
+        valueTone: "danger",
+      },
     ],
     primaryCallout: {
       kind: "danger",
       lines: [
         "Direct withdrawals publicly link the withdrawal to your signer address.",
-        "Use relayed mode instead if you want the privacy-preserving path.",
+        "Use the default relayed mode unless you intentionally accept this privacy loss.",
       ],
     },
   });
@@ -311,11 +337,20 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
       selectedCommitmentLabel: data.selectedCommitmentLabel.toString(),
       selectedCommitmentValue: data.selectedCommitmentValue.toString(),
       proofPublicSignals: data.proofPublicSignals,
+      warnings: [
+        {
+          code: "PREVIEW_VALIDATION_APPROXIMATE",
+          category: "preview",
+          message: "Dry-run validation is approximate until the transaction is signed and submitted.",
+        },
+      ],
     };
     if (data.withdrawMode === "relayed") {
       payload.feeBPS = data.feeBPS;
       payload.quoteExpiresAt = data.quoteExpiresAt;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
+    } else {
+      payload.privacyCostManifest = buildDirectWithdrawalPrivacyCostManifest(data);
     }
     if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
     printJsonSuccess(appendNextActions(payload, agentNextActions), false);
@@ -356,7 +391,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
         ...(data.anonymitySet
           ? [{
               label: "Anonymity set",
-              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%)`,
+              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%; larger is more private)`,
             }]
           : []),
         {
@@ -452,6 +487,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     };
     if (data.withdrawMode === "direct") {
       payload.feeBPS = null;
+      payload.privacyCostManifest = buildDirectWithdrawalPrivacyCostManifest(data);
     } else {
       payload.feeBPS = data.feeBPS;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
@@ -500,7 +536,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
         ...(data.withdrawMode === "relayed" && data.feeBPS
           ? [{
               label: "Relayer fee",
-              value: formatBPS(data.feeBPS),
+              value: `${formatBPS(data.feeBPS)} of withdrawal`,
             }]
           : []),
         ...(netAmount !== null
@@ -518,7 +554,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
         ...(data.anonymitySet
           ? [{
               label: "Anonymity set",
-              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%)`,
+              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%; larger is more private)`,
             }]
           : []),
         ...(data.remainingBalance === 0n
@@ -535,7 +571,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
           "danger",
           [
             "This was a direct public withdrawal, so privacy was not preserved.",
-            "Use relayed mode next time if you want the privacy-preserving path.",
+            "Use the default relayed mode next time if you want the privacy-preserving path.",
           ],
         ),
       );
@@ -703,7 +739,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       },
       {
         label: "Relayer fee",
-        value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)})`,
+        value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)} of withdrawal)`,
       },
       ...(extraGasFundFormatted
         ? [{ label: "Gas token received", value: extraGasFundFormatted }]

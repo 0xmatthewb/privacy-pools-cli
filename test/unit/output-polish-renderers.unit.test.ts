@@ -174,7 +174,7 @@ describe("shared runtime review renderers", () => {
       includes: ["Direct withdrawal review", "public onchain withdrawal"],
     });
     expectSemanticText(ragequit, {
-      includes: ["Ragequit review", "will not gain any privacy"],
+      includes: ["Ragequit review", "will not", "gain any privacy"],
     });
     expectSemanticText(flow, {
       includes: ["Flow start review", "Dedicated workflow wallet"],

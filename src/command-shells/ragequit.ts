@@ -16,14 +16,14 @@ export function createRagequitCommand(): Command {
       ).hideHelp(),
     )
     .option(
-      "-p, --pool-account <PA-#|#>",
-      "Ragequit a specific Pool Account (e.g. PA-2)",
+      "-p, --pool-account <PA-ID | numeric-index>",
+      "Ragequit a specific Pool Account (examples: PA-2 or 2)",
     )
     .addOption(new Option("--from-pa <PA-#|#>", "Deprecated: use --pool-account").hideHelp())
     .addOption(
       new Option(
         "-i, --commitment <index>",
-        "Deprecated: 0-based spendable commitment index (use --pool-account)",
+        "Deprecated: 0-based spendable Pool Account index (use --pool-account)",
       ).hideHelp(),
     )
     .addOption(
