@@ -282,7 +282,7 @@ describe("init command interactive helpers", () => {
     ).resolves.toBe(true);
   });
 
-  test("promptForLoadedRecoveryPhrase trims valid input and rejects invalid or preview-only flows", async () => {
+  test("promptForLoadedRecoveryPhrase trims valid input and retries invalid input", async () => {
     let initHelpers = await loadInitHelpers();
     passwordPromptMock.mockImplementationOnce(async () => `  ${VALID_MNEMONIC}  `);
     await expect(
@@ -290,10 +290,12 @@ describe("init command interactive helpers", () => {
     ).resolves.toBe(VALID_MNEMONIC);
 
     initHelpers = await loadInitHelpers();
-    passwordPromptMock.mockImplementationOnce(async () => "not a valid phrase");
+    passwordPromptMock
+      .mockImplementationOnce(async () => "not a valid phrase")
+      .mockImplementationOnce(async () => VALID_MNEMONIC);
     await expect(
       initHelpers.promptForLoadedRecoveryPhrase(false),
-    ).rejects.toThrow("Invalid recovery phrase.");
+    ).resolves.toBe(VALID_MNEMONIC);
 
     initHelpers = await loadInitHelpers();
     maybeRenderPreviewScenarioMock.mockImplementationOnce(async () => true);
@@ -349,7 +351,6 @@ describe("init command interactive helpers", () => {
     initHelpers = await loadInitHelpers();
     selectPromptMock.mockImplementationOnce(async () => "file");
     inputPromptMock.mockImplementationOnce(async () => join(home, "chosen-backup.txt"));
-    confirmPromptMock.mockImplementationOnce(async () => true);
     await expect(
       initHelpers.handleGeneratedRecoveryBackup({
         mnemonic: VALID_MNEMONIC,
@@ -448,7 +449,7 @@ describe("init command interactive helpers", () => {
     );
   });
 
-  test("verifyGeneratedRecoveryPhrase accepts correct answers and fails closed on mismatches", async () => {
+  test("verifyGeneratedRecoveryPhrase accepts correct answers and retries mismatches", async () => {
     const verificationMnemonic =
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
     const verificationWords = verificationMnemonic.split(" ");
@@ -471,13 +472,18 @@ describe("init command interactive helpers", () => {
     inputPromptMock
       .mockImplementationOnce(async () => "wrong")
       .mockImplementationOnce(async () => "wrong")
-      .mockImplementationOnce(async () => "wrong");
-    await expect(
-      initHelpers.verifyGeneratedRecoveryPhrase(
+      .mockImplementationOnce(async () => "wrong")
+      .mockImplementationOnce(async () => verificationWords[2]!)
+      .mockImplementationOnce(async () => verificationWords[11]!)
+      .mockImplementationOnce(async () => verificationWords[23]!);
+    const retry = await captureStderr(async () => {
+      await initHelpers.verifyGeneratedRecoveryPhrase(
         verificationMnemonic,
-        true,
-      ),
-    ).rejects.toThrow("Recovery phrase verification failed.");
+        false,
+      );
+    });
+    expect(retry.stderr).toContain("Some words are incorrect. Please check and try again.");
+    expect(retry.stderr).toContain("Recovery phrase verified.");
   });
 
   test("verifyGeneratedRecoveryPhrase stays fail-closed when preview rendering takes over verification", async () => {

@@ -52,6 +52,10 @@ export function createInitCommand(): Command {
       "--dry-run",
       "Preview the init changes without writing files or generating a live recovery phrase",
     )
+    .option(
+      "--staged",
+      "Emit staged JSONL onboarding envelopes in --json/--agent mode",
+    )
     .addOption(
       new Option(
         "--skip-circuits",

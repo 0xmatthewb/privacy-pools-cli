@@ -315,7 +315,7 @@ describe("init command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MUTUALLY_EXCLUSIVE");
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
     expect(exitCode).toBe(2);
   });
@@ -334,7 +334,7 @@ describe("init command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MUTUALLY_EXCLUSIVE");
     expect(existsSync(join(home, ".signer"))).toBe(false);
     expect(exitCode).toBe(2);
   });
@@ -897,8 +897,6 @@ describe("init command handler", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Save this recovery phrase now.");
-    expect(stderr).toContain("This is the only time the CLI will display it.");
     expect(stderr).toContain("Recovery phrase saved");
     expect(stderr).toContain("No signer key set");
     expect(readFileSync(backupFile, "utf8")).toContain("Recovery Phrase:");

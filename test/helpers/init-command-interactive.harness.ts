@@ -170,18 +170,25 @@ export function registerInitCancelInvalidTests(): void {
     );
   });
 
-  test("rejects invalid recovery phrases entered through the interactive import flow", async () => {
+  test("retries invalid recovery phrases entered through the interactive import flow", async () => {
     const home = useIsolatedHome();
+    const cancelled = new Error("cancelled") as Error & { name: string };
+    cancelled.name = "ExitPromptError";
     selectPromptMock.mockImplementationOnce(async () => "restore");
-    passwordPromptMock.mockImplementationOnce(async () => "not a valid phrase");
+    passwordPromptMock
+      .mockImplementationOnce(async () => "not a valid phrase")
+      .mockImplementationOnce(async () => {
+        throw cancelled;
+      });
 
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
       handleInitCommand({}, fakeCommand({})),
     );
 
     expect(stdout).toBe("");
-    expect(exitCode).toBe(2);
-    expect(stderr).toContain("Invalid recovery phrase");
+    expect(exitCode).toBe(0);
+    expect(stderr).toContain("doesn't look right. Please check and try again");
+    expect(stderr).toContain("Operation cancelled.");
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
   });
 }
@@ -194,13 +201,8 @@ export function registerInitGenerateBackupTests(): void {
       .mockImplementationOnce(async () => "create")
       .mockImplementationOnce(async () => "file")
       .mockImplementationOnce(async () => "optimism");
-    inputPromptMock
-      .mockImplementationOnce(async () => backupPath)
-      .mockImplementationOnce(async () => "chapter")
-      .mockImplementationOnce(async () => "snack")
-      .mockImplementationOnce(async () => "harvest");
+    inputPromptMock.mockImplementationOnce(async () => backupPath);
     passwordPromptMock.mockImplementationOnce(async () => "");
-    confirmPromptMock.mockImplementationOnce(async () => true);
 
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleInitCommand({}, fakeCommand({})),
@@ -209,9 +211,9 @@ export function registerInitGenerateBackupTests(): void {
     const generatedMnemonic = readFileSync(join(home, ".mnemonic"), "utf8").trim();
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Save this recovery phrase now.");
-    expect(stderr).toContain("This is the only time the CLI will display it.");
     expect(stderr).toContain("Recovery phrase saved");
+    expect(stderr).not.toContain("This is the only time the CLI will display it.");
+    expect(stderr).not.toContain(generatedMnemonic);
     expect(compactRenderedOutput(stderr)).toContain(
       backupPath.replace(/\s+/g, ""),
     );
@@ -585,7 +587,8 @@ export function registerInitDryRunAndPreviewTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Save this recovery phrase now.");
+    expect(stderr).toContain("Save recovery phrase backup");
+    expect(stderr).toContain("Default path:");
     expect(inputPromptMock).not.toHaveBeenCalled();
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
   });

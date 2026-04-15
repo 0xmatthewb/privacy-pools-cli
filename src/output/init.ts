@@ -13,6 +13,7 @@ import type {
 } from "../types.js";
 import { MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
 import { accent } from "../utils/theme.js";
+import { getTerminalColumns } from "../utils/terminal.js";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -377,12 +378,19 @@ export function renderInitLoadRecoveryReview(): string {
 
 export function renderGeneratedRecoveryPhraseReview(mnemonic: string): string {
   const words = mnemonic.trim().split(/\s+/).filter(Boolean);
-  const columns = words.length >= 18 ? 3 : 2;
-  const rows = Math.ceil(words.length / columns);
   const cells = words.map(
     (word, index) => `${String(index + 1).padStart(2, " ")}. ${word}`,
   );
   const cellWidth = cells.reduce((max, cell) => Math.max(max, cell.length), 0) + 4;
+  const availableWidth = Math.max(24, getTerminalColumns() - 4);
+  const preferredColumns = words.length >= 18 ? 3 : 2;
+  const columns =
+    preferredColumns * cellWidth <= availableWidth
+      ? preferredColumns
+      : 2 * cellWidth <= availableWidth
+        ? 2
+        : 1;
+  const rows = Math.ceil(words.length / columns);
   const gridLines: string[] = [];
 
   for (let row = 0; row < rows; row++) {

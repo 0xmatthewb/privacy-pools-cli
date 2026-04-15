@@ -37,6 +37,10 @@ import {
 import { stageHeader, info, success, warn, spinner } from "../utils/format.js";
 import { createOutputContext } from "../output/common.js";
 import {
+  createNarrativeSteps,
+  renderNarrativeSteps,
+} from "../output/progress.js";
+import {
   renderGeneratedRecoveryPhraseReview,
   renderInitBackupConfirmationReview,
   renderInitBackupMethodReview,
@@ -58,6 +62,7 @@ import {
 } from "../utils/prompt-cancellation.js";
 import {
   CLIError,
+  mutuallyExclusive,
   printError,
   promptCancelledError,
 } from "../utils/errors.js";
@@ -68,6 +73,7 @@ import {
   PreviewScenarioRenderedError,
 } from "../preview/runtime.js";
 import { notice } from "../utils/theme.js";
+import { printJsonSuccess } from "../utils/json.js";
 import type {
   CLIConfig,
   GlobalOptions,
@@ -95,6 +101,7 @@ interface InitCommandOptions {
   rpcUrl?: string;
   force?: boolean;
   dryRun?: boolean;
+  staged?: boolean;
 }
 
 interface InitFileSnapshot {
@@ -192,6 +199,7 @@ interface DeriveReadinessParams {
 
 const INIT_TEST_SENTINELS_ENV = "PRIVACY_POOLS_TEST_INIT_SENTINELS";
 const RECOVERY_VERIFICATION_WORDS = [3, 12, 24] as const;
+const INIT_STAGED_MODE = "init-staged";
 
 export { createInitCommand } from "../command-shells/init.js";
 
@@ -263,6 +271,59 @@ export function writeRecoveryBackupFile(
       error instanceof Error
         ? `Check that the parent directory is writable and retry. Original error: ${error.message}`
         : "Check that the parent directory is writable and retry.",
+    );
+  }
+}
+
+function defaultRecoveryBackupPath(): string {
+  const base = join(homedir(), "privacy-pools-recovery.txt");
+  if (!existsSync(base)) return base;
+
+  for (let index = 1; index < 1000; index += 1) {
+    const candidate = join(homedir(), `privacy-pools-recovery-${index}.txt`);
+    if (!existsSync(candidate)) return candidate;
+  }
+
+  return join(homedir(), `privacy-pools-recovery-${Date.now()}.txt`);
+}
+
+function quoteCliArg(value: string): string {
+  if (/^[A-Za-z0-9_./:@=-]+$/.test(value)) return value;
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+function emitInitStage(
+  enabled: boolean,
+  stage: string,
+  payload: Record<string, unknown> = {},
+): void {
+  if (!enabled) return;
+  printJsonSuccess({
+    mode: INIT_STAGED_MODE,
+    operation: "init",
+    stage,
+    ...payload,
+  });
+}
+
+function initStageHeader(
+  step: number,
+  total: number,
+  label: string,
+  quiet: boolean = false,
+): void {
+  stageHeader(step, total, label, quiet);
+  if (quiet) return;
+  const labels =
+    total === 2
+      ? ["Choose setup path", "Choose default network"]
+      : label === "Load existing account" || label === "Discover existing deposits"
+        ? ["Load existing account", "Signer key", "Choose default network", "Discover existing deposits"]
+        : ["Choose setup path", "Secure recovery phrase", "Signer key", "Choose default network"];
+  if (labels.length === total) {
+    labels[step - 1] = label;
+    process.stderr.write(
+      renderNarrativeSteps(createNarrativeSteps(labels, step - 1)),
     );
   }
 }
@@ -438,7 +499,7 @@ export async function promptForWorkflowGoal(
   silent: boolean,
 ): Promise<InitPlan> {
   if (!state.hasRecoveryPhrase) {
-    stageHeader(1, 4, "Choose setup path", silent);
+    initStageHeader(1, 4, "Choose setup path", silent);
     process.stderr.write(
       renderInitGoalReview({
         hasRecoveryPhrase: false,
@@ -471,7 +532,7 @@ export async function promptForWorkflowGoal(
   }
 
   if (state.signerKeyValid) {
-    stageHeader(1, 2, "Choose setup path", silent);
+    initStageHeader(1, 2, "Choose setup path", silent);
     process.stderr.write(
       renderInitConfiguredReview({
         defaultChain: state.existingConfig?.defaultChain ?? "mainnet",
@@ -515,7 +576,7 @@ export async function promptForWorkflowGoal(
     };
   }
 
-  stageHeader(1, 4, "Choose setup path", silent);
+  initStageHeader(1, 4, "Choose setup path", silent);
   process.stderr.write(
     renderInitGoalReview({
       hasRecoveryPhrase: true,
@@ -567,7 +628,7 @@ export function resolveNonInteractivePlan(
       throw new CLIError(
         "No recovery phrase is configured yet.",
         "INPUT",
-        "Create or load a Privacy Pools account before using --signer-only.",
+        "Create an account with --backup-file or --show-recovery-phrase, or load one with --recovery-phrase-file or --recovery-phrase-stdin before using --signer-only.",
       );
     }
     if (!params.hasSignerSource && !params.hasEnvironmentSigner) {
@@ -589,7 +650,7 @@ export function resolveNonInteractivePlan(
       throw new CLIError(
         "A Privacy Pools account is already configured on this machine. Re-run with --force to replace it.",
         "INPUT",
-        "Use --force to replace the current setup, or use --signer-only to change only the signer key.",
+        "Use --force to replace the current setup, --signer-only with --private-key-file/--private-key-stdin to change only the signer key, or load a phrase with --recovery-phrase-file/--recovery-phrase-stdin on a fresh profile.",
       );
     }
     return {
@@ -616,13 +677,13 @@ export function resolveNonInteractivePlan(
       throw new CLIError(
         "This machine already has a Privacy Pools account, but it is still in read-only mode.",
         "INPUT",
-        "Use --signer-only with a signer key source to finish setup, or pass --force to replace the current setup.",
+        "Use --signer-only with --private-key-file, --private-key-stdin, --private-key, or PRIVACY_POOLS_PRIVATE_KEY to finish setup. Use --force only when replacing the current account.",
       );
     }
     throw new CLIError(
       "Your Privacy Pools account is already set up.",
       "INPUT",
-      "Use --signer-only to update the signer key, or re-run with --force to replace the current setup.",
+      "Use --signer-only with --private-key-file, --private-key-stdin, --private-key, or PRIVACY_POOLS_PRIVATE_KEY to update the signer key. Use --force only when replacing the current account.",
     );
   }
 
@@ -649,7 +710,7 @@ export async function maybeConfirmReplacement(
     throw new CLIError(
       "A Privacy Pools account is already configured on this machine. Re-run with --force to replace it.",
       "INPUT",
-      "Use --force to replace the current setup, or use --signer-only to change only the signer key.",
+      "Use --force to replace the current setup, or use --signer-only with --private-key-file/--private-key-stdin to change only the signer key.",
     );
   }
 
@@ -677,28 +738,29 @@ export async function maybeConfirmReplacement(
 }
 
 export async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<string> {
-  stageHeader(1, 4, "Load existing account", silent);
+  initStageHeader(1, 4, "Load existing account", silent);
   process.stderr.write(renderInitLoadRecoveryReview());
   if (await maybeRenderPreviewScenario("init import recovery prompt")) {
     throw new PreviewScenarioRenderedError();
   }
   ensurePromptInteractionAvailable();
-  const phrase = await password({
-    message: withInitTestSentinel(
-      "load-recovery",
-      "Recovery phrase (12 or 24 words):",
-    ),
-    mask: "*",
-  });
-  const trimmed = phrase.trim();
-  if (!validateMnemonic(trimmed)) {
-    throw new CLIError(
-      "Invalid recovery phrase.",
-      "INPUT",
-      "Provide a valid recovery phrase (12 or 24 words).",
+  while (true) {
+    const phrase = await password({
+      message: withInitTestSentinel(
+        "load-recovery",
+        "Recovery phrase (12 or 24 words):",
+      ),
+      mask: "*",
+    });
+    const trimmed = phrase.trim();
+    if (validateMnemonic(trimmed)) {
+      return trimmed;
+    }
+    warn(
+      "That recovery phrase doesn't look right. Please check and try again.",
+      silent,
     );
   }
-  return trimmed;
 }
 
 export async function handleGeneratedRecoveryBackup(
@@ -706,11 +768,7 @@ export async function handleGeneratedRecoveryBackup(
 ): Promise<string | null> {
   let backupFilePath: string | null = null;
 
-  if (!params.isJson) {
-    process.stderr.write("\n");
-    process.stderr.write(renderGeneratedRecoveryPhraseReview(params.mnemonic));
-    process.stderr.write("\n");
-  } else if (!params.isQuiet) {
+  if (params.isJson && !params.isQuiet) {
     const guidance = params.showPhrase
       ? "Save your recovery phrase from the JSON output below."
       : params.backupFile
@@ -735,7 +793,7 @@ export async function handleGeneratedRecoveryBackup(
     return null;
   }
 
-  stageHeader(2, 4, "Secure recovery phrase", params.silent);
+  initStageHeader(2, 4, "Secure recovery phrase", params.silent);
   process.stderr.write(renderInitBackupMethodReview());
   if (await maybeRenderPreviewScenario("init backup method")) {
     throw new PreviewScenarioRenderedError();
@@ -750,7 +808,7 @@ export async function handleGeneratedRecoveryBackup(
   });
 
   if (backupChoice === "file") {
-    const defaultPath = join(homedir(), "privacy-pools-recovery.txt");
+    const defaultPath = defaultRecoveryBackupPath();
     process.stderr.write(renderInitBackupPathReview(defaultPath));
     if (await maybeRenderPreviewScenario("init backup path")) {
       throw new PreviewScenarioRenderedError();
@@ -765,14 +823,16 @@ export async function handleGeneratedRecoveryBackup(
       buildRecoveryBackupContents(params.mnemonic),
     );
     process.stderr.write(renderInitBackupSaved(backupFilePath));
+    process.stderr.write("\n");
+    return backupFilePath;
   }
 
   process.stderr.write("\n");
+  process.stderr.write(renderGeneratedRecoveryPhraseReview(params.mnemonic));
+  process.stderr.write("\n");
+  process.stderr.write("\n");
   process.stderr.write(
-    renderInitBackupConfirmationReview(
-      backupChoice === "file" ? "file" : "manual",
-      backupFilePath,
-    ),
+    renderInitBackupConfirmationReview("manual", null),
   );
   if (await maybeRenderPreviewScenario("init backup confirm")) {
     throw new PreviewScenarioRenderedError();
@@ -799,29 +859,34 @@ export async function verifyGeneratedRecoveryPhrase(
   silent: boolean,
 ): Promise<void> {
   const words = mnemonic.trim().split(/\s+/).filter(Boolean);
-  process.stderr.write(
-    renderInitRecoveryVerificationReview(RECOVERY_VERIFICATION_WORDS),
-  );
-  if (await maybeRenderPreviewScenario("init recovery verification")) {
-    throw new PreviewScenarioRenderedError();
-  }
-  ensurePromptInteractionAvailable();
-
-  for (const wordNumber of RECOVERY_VERIFICATION_WORDS) {
-    const answer = await input({
-      message: `Word #${wordNumber}:`,
-    });
-    if (normalizeSecretWord(answer) !== normalizeSecretWord(words[wordNumber - 1] ?? "")) {
-      throw new CLIError(
-        "Recovery phrase verification failed.",
-        "INPUT",
-        "Re-run 'privacy-pools init' and make sure you are checking the saved recovery phrase carefully.",
-      );
+  while (true) {
+    process.stderr.write(
+      renderInitRecoveryVerificationReview(RECOVERY_VERIFICATION_WORDS),
+    );
+    if (await maybeRenderPreviewScenario("init recovery verification")) {
+      throw new PreviewScenarioRenderedError();
     }
-  }
+    ensurePromptInteractionAvailable();
 
-  info("Recovery phrase verified.", silent);
-  process.stderr.write("\n");
+    let allCorrect = true;
+    for (const wordNumber of RECOVERY_VERIFICATION_WORDS) {
+      const answer = await input({
+        message: `Word #${wordNumber}:`,
+      });
+      if (normalizeSecretWord(answer) !== normalizeSecretWord(words[wordNumber - 1] ?? "")) {
+        allCorrect = false;
+      }
+    }
+
+    if (allCorrect) {
+      info("Recovery phrase verified.", silent);
+      process.stderr.write("\n");
+      return;
+    }
+
+    warn("Some words are incorrect. Please check and try again.", silent);
+    process.stderr.write("\n");
+  }
 }
 
 export async function collectSignerKey(
@@ -898,7 +963,7 @@ export async function collectDefaultChain(
     return "mainnet";
   }
 
-  stageHeader(
+  initStageHeader(
     params.stage.step,
     params.stage.total,
     "Choose default network",
@@ -949,6 +1014,8 @@ export async function handleInitCommand(
   const isQuiet = mode.isQuiet;
   const silent = isQuiet || isJson;
   const skipPrompts = mode.skipPrompts;
+  const staged = opts.staged === true && isJson;
+  let backupFilePath: string | null = null;
 
   try {
     const phrase = opts.recoveryPhrase ?? opts.mnemonic;
@@ -961,29 +1028,34 @@ export async function handleInitCommand(
         ? "--mnemonic"
         : undefined;
 
+    mutuallyExclusive(
+      [
+        { name: "--recovery-phrase", value: phrase },
+        { name: "--recovery-phrase-file", value: phraseFile },
+        { name: "--recovery-phrase-stdin", value: phraseStdin },
+      ],
+      {
+        label: "recovery phrase source",
+        hint: "Use only one of: --recovery-phrase, --recovery-phrase-file, --recovery-phrase-stdin.",
+      },
+    );
+
+    mutuallyExclusive(
+      [
+        { name: "--private-key", value: opts.privateKey },
+        { name: "--private-key-file", value: opts.privateKeyFile },
+        { name: "--private-key-stdin", value: opts.privateKeyStdin },
+      ],
+      {
+        label: "signer key source",
+        hint: "Use only one of: --private-key, --private-key-file, --private-key-stdin.",
+      },
+    );
+
     const mnemonicSourceCount =
       Number(Boolean(phrase)) +
       Number(Boolean(phraseFile)) +
       Number(Boolean(phraseStdin));
-    if (mnemonicSourceCount > 1) {
-      throw new CLIError(
-        "Cannot specify more than one recovery phrase source.",
-        "INPUT",
-        "Use only one of: --recovery-phrase, --recovery-phrase-file, --recovery-phrase-stdin.",
-      );
-    }
-
-    const signerKeySourceCount =
-      Number(Boolean(opts.privateKey)) +
-      Number(Boolean(opts.privateKeyFile)) +
-      Number(Boolean(opts.privateKeyStdin));
-    if (signerKeySourceCount > 1) {
-      throw new CLIError(
-        "Cannot specify more than one signer key source.",
-        "INPUT",
-        "Use only one of: --private-key, --private-key-file, --private-key-stdin.",
-      );
-    }
 
     if (phraseStdin && opts.privateKeyStdin) {
       throw new CLIError(
@@ -1096,6 +1168,12 @@ export async function handleInitCommand(
     const envSignerPresent = hasEnvironmentSigner();
     const hasMnemonicSource = Boolean(mnemonicSource);
     const hasSignerSource = Boolean(signerKeySource);
+    emitInitStage(staged, "preflight", {
+      configExists: state.hasConfig,
+      recoveryPhraseSet: state.hasRecoveryPhrase,
+      signerKeySet: state.hasSignerKey,
+      signerKeyValid: state.signerKeyValid,
+    });
 
     if (
       !hasMnemonicSource &&
@@ -1224,9 +1302,13 @@ export async function handleInitCommand(
 
     let mnemonic: string | undefined;
     let importedMnemonic = false;
-    let backupFilePath: string | null = null;
 
     if (plan.workflow === "restore") {
+      emitInitStage(staged, "recovery", {
+        recoveryPhraseSource: hasMnemonicSource
+          ? describeRecoveryPhraseSource({ phrase, phraseFile, phraseStdin })
+          : "prompt",
+      });
       if (phraseInlineFlag && !silent) {
         process.stderr.write(
           notice(
@@ -1237,9 +1319,17 @@ export async function handleInitCommand(
       mnemonic =
         mnemonicSource ?? await promptForLoadedRecoveryPhrase(silent);
       importedMnemonic = true;
+      emitInitStage(staged, "backup", {
+        status: "skipped",
+        reason: "loaded existing recovery phrase",
+      });
     } else if (plan.workflow === "create") {
       mnemonic = generateMnemonic();
       importedMnemonic = false;
+      emitInitStage(staged, "recovery", {
+        recoveryPhraseSource: "generate new phrase",
+        recoveryPhraseWords: mnemonic.trim().split(/\s+/).length,
+      });
       backupFilePath = await handleGeneratedRecoveryBackup({
         mnemonic,
         skipPrompts,
@@ -1249,11 +1339,27 @@ export async function handleInitCommand(
         backupFile: opts.backupFile,
         silent,
       });
-      if (!skipPrompts) {
+      emitInitStage(staged, "backup", {
+        backupFilePath,
+        verificationRequired: !backupFilePath && !skipPrompts,
+      });
+      if (!skipPrompts && !backupFilePath) {
         await verifyGeneratedRecoveryPhrase(mnemonic, silent);
       }
+    } else {
+      emitInitStage(staged, "recovery", {
+        recoveryPhraseSource: "keep existing phrase",
+      });
+      emitInitStage(staged, "backup", {
+        status: "skipped",
+        reason: "existing recovery phrase",
+      });
     }
 
+    emitInitStage(staged, "signer", {
+      signerKeySource: describeSignerKeySource(opts),
+      environmentSignerPresent: envSignerPresent,
+    });
     const normalizedSignerKey = await collectSignerKey({
       signerKeySource,
       inlineFlagUsed: Boolean(opts.privateKey),
@@ -1263,6 +1369,10 @@ export async function handleInitCommand(
       silent,
     });
 
+    emitInitStage(staged, "chain", {
+      requestedDefaultChain: opts.defaultChain ?? null,
+      existingDefaultChain: state.existingConfig?.defaultChain ?? null,
+    });
     const defaultChain = await collectDefaultChain({
       opts,
       existingConfig: state.existingConfig,
@@ -1312,11 +1422,18 @@ export async function handleInitCommand(
       });
     }
 
+    emitInitStage(staged, "write", {
+      writeTargets: writes.map((write) => write.path),
+    });
     persistInitFilesAtomically(writes);
 
     let restoreDiscovery: RestoreDiscoverySummary | undefined;
     if (plan.workflow === "restore" && mnemonic) {
-      stageHeader(4, 4, "Discover existing deposits", silent);
+      emitInitStage(staged, "discovery", {
+        status: "started",
+        defaultChain: config.defaultChain,
+      });
+      initStageHeader(4, 4, "Discover existing deposits", silent);
       const discoverySpinner =
         !silent && !isJson
           ? spinner("Checking supported chains for existing deposits...", false)
@@ -1349,6 +1466,12 @@ export async function handleInitCommand(
         },
       });
       discoverySpinner?.succeed("Discovery complete.");
+      emitInitStage(staged, "discovery", { ...restoreDiscovery });
+    } else {
+      emitInitStage(staged, "discovery", {
+        status: "skipped",
+        reason: plan.workflow === "restore" ? "no recovery phrase" : "new account",
+      });
     }
 
     if (!isJson) {
@@ -1384,6 +1507,13 @@ export async function handleInitCommand(
         : undefined;
 
     const ctx = createOutputContext(mode);
+    emitInitStage(staged, "complete", {
+      setupMode: plan.setupMode,
+      readiness,
+      defaultChain: config.defaultChain,
+      signerKeySet: Boolean(resolvedSignerKey),
+      backupFilePath,
+    });
     renderInitResult(ctx, {
       setupMode: plan.setupMode,
       readiness,
@@ -1406,6 +1536,12 @@ export async function handleInitCommand(
         printError(promptCancelledError(), true);
       } else {
         info(PROMPT_CANCELLATION_MESSAGE, silent);
+        if (backupFilePath) {
+          info(
+            `Recovery phrase backup saved at ${backupFilePath}. Resume with: privacy-pools init --recovery-phrase-file ${quoteCliArg(backupFilePath)}`,
+            silent,
+          );
+        }
         process.exitCode = 0;
       }
       return;
