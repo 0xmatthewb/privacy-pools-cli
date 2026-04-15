@@ -4,8 +4,10 @@ import { join } from "node:path";
 import { writeTestSecretFiles } from "../helpers/cli.ts";
 import {
   assertExit,
+  assertFileMissing,
   assertJson,
   assertJsonEnvelopeStep,
+  assertStderrEmpty,
   defineScenario,
   defineScenarioSuite,
   runCliStep,
@@ -70,6 +72,35 @@ defineScenarioSuite("status/init acceptance", [
       }),
     ],
     { timeoutMs: 120_000 },
+  ),
+  defineScenario(
+    "agent init fails closed when generated recovery phrase is not captured",
+    [
+      runCliStep(["init", "--agent", "--default-chain", "mainnet"], {
+        timeoutMs: 30_000,
+      }),
+      assertExit(2),
+      assertStderrEmpty(),
+      assertJsonEnvelopeStep({
+        success: false,
+        errorCode: "INPUT_ERROR",
+      }),
+      assertJson<{
+        error: { code: string; message: string; hint: string };
+        recoveryPhrase?: string;
+        recoveryPhraseRedacted?: boolean;
+      }>((json) => {
+        expect(json.error.code).toBe("INPUT_ERROR");
+        expect(json.error.message).toContain("requires recovery capture");
+        expect(json.error.hint).toContain("--show-recovery-phrase");
+        expect(json.recoveryPhrase).toBeUndefined();
+        expect(json.recoveryPhraseRedacted).toBeUndefined();
+      }),
+      assertFileMissing(".privacy-pools/config.json"),
+      assertFileMissing(".privacy-pools/.mnemonic"),
+      assertFileMissing(".privacy-pools/.signer"),
+    ],
+    { timeoutMs: 60_000 },
   ),
   defineScenario(
     "status honors chain overrides without mutating default chain",
