@@ -7,7 +7,7 @@ import {
   parseValidatedRootPrelude,
   type ParsedRootArgv,
 } from "./utils/root-argv.js";
-import { resolveGlobalMode } from "./utils/mode.js";
+import { resolveGlobalMode, setModeArgv } from "./utils/mode.js";
 import {
   assertSupportedOutputFormat,
   fallbackJsonModeFromArgv,
@@ -40,6 +40,7 @@ export async function runStaticDiscoveryCommand(
   argv: string[],
   parsedRootArgv?: ParsedRootArgv,
 ): Promise<boolean> {
+  setModeArgv(argv);
   let parsed: ParsedStaticCommand | null = null;
   try {
     // When entering via the fast-path (parsedRootArgv provided), try to
@@ -77,6 +78,7 @@ export async function runStaticDiscoveryCommand(
 export async function runStaticCompletionQuery(
   argv: string[],
 ): Promise<boolean> {
+  setModeArgv(argv);
   let parsed: ParsedStaticCompletionQuery | null = null;
   try {
     parsed = parseCompletionQuery(argv);

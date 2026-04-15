@@ -78,7 +78,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "When you generate a fresh account, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored.",
         "Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files.",
         "If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download).",
-        "Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file.",
+        "Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file. Interactive generated setup defaults to a private .txt backup and only asks for word verification when you choose manual copy.",
         "Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.",
       ],
       examples: [
@@ -92,6 +92,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         { category: "Agent / CI", commands: [
           "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
           "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+          "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
         ]},
         { category: "Load existing account", commands: [
           "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
@@ -126,9 +127,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--default-chain <chain>",
         "--force",
         "--show-recovery-phrase",
+        "--staged",
         "--dry-run",
       ],
-      agentFlags: "--agent --default-chain <chain> (--show-recovery-phrase | --backup-file <path>)",
+      agentFlags: "--agent [--staged] --default-chain <chain> (--show-recovery-phrase | --backup-file <path>)",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -793,7 +795,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools describe stats global --agent",
       ],
       jsonFields:
-        "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+        "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
       seeAlso: ["capabilities","guide"],
     },
     capabilities: {
@@ -812,6 +814,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools guide",
+        "privacy-pools guide json",
+        "privacy-pools help modes",
         "privacy-pools guide --agent",
       ],
       jsonFields: "{ mode: \"help\", help }",
@@ -829,7 +833,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: ROOT_COMMAND_DESCRIPTIONS.deposit,
     help: {
       overview: [
-        "Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local commitment precomputation path, so there is no runtime download step when proofs are needed.",
+        "Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local Pool Account precomputation path, so there is no runtime download step when proofs are needed.",
         "Most proof-generation steps complete in roughly 10-30s once the packaged artifacts are verified locally.",
         "In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off.",
       ],
@@ -938,7 +942,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       flags: [
         "--asset <symbol|address> (deprecated alias)",
         "--to <address>",
-        "--pool-account <PA-#>",
+        "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
         "--extra-gas",
@@ -1017,10 +1021,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["withdraw","accounts","flow ragequit"],
     },
     capabilities: {
-      usage: "ragequit [asset] --pool-account <PA-#>",
+      usage: "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       flags: [
         "--asset <symbol|address> (deprecated alias)",
-        "--pool-account <PA-#>",
+        "--pool-account <PA-ID | numeric-index>",
         "--unsigned [envelope|tx]",
         "--dry-run",
       ],
@@ -1108,7 +1112,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: ROOT_COMMAND_DESCRIPTIONS.migrate,
     help: {
       overview: [
-        "Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead.",
+        "Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy Pool Accounts still need website migration, appear fully migrated already, or require website-based public recovery instead.",
         "Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include supported testnets.",
       ],
       examples: [

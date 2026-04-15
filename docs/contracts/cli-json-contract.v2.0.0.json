@@ -13,12 +13,16 @@
       "success": false,
       "errorCode": "string",
       "errorMessage": "string",
+      "availableFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
+      "unknownFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
       "error": {
         "code": "string",
         "category": "INPUT|RPC|ASP|RELAYER|PROOF|CONTRACT|UNKNOWN",
         "message": "string",
         "hint": "string?",
-        "retryable": "boolean?"
+        "retryable": "boolean?",
+        "availableFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
+        "unknownFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)"
       }
     }
   },
@@ -62,6 +66,24 @@
       "code": "\"timing_delay_disabled\"|\"amount_pattern_linkability\"",
       "category": "\"privacy\"",
       "message": "string"
+    },
+    "previewWarning": {
+      "code": "\"PREVIEW_VALIDATION_APPROXIMATE\"|\"UNSIGNED_VALIDATION_APPROXIMATE\"",
+      "category": "\"preview\"",
+      "message": "string"
+    },
+    "privacyCostManifest": {
+      "action": "string",
+      "framing": "\"public_direct_withdrawal\"|\"public_self_custody_recovery\"",
+      "poolAccountId": "string|null",
+      "amount": "decimal-string-wei",
+      "asset": "string",
+      "chain": "string",
+      "recipient": "0x-prefixed-address? (withdraw --direct)",
+      "destinationAddress": "0x-prefixed-address|null? (ragequit / flow ragequit)",
+      "privacyCost": "string",
+      "privacyPreserved": false,
+      "recommendation": "string"
     },
     "flowLastError": {
       "step": "string",
@@ -132,6 +154,7 @@
         "ragequitTxHash": "0x-prefixed-hash|null",
         "ragequitBlockNumber": "decimal-string|null",
         "ragequitExplorerUrl": "string|null",
+        "privacyCostManifest": "PrivacyCostManifest? (present for action=\"ragequit\")",
         "lastError": "FlowLastError|undefined (see shared.flowLastError)",
         "nextActions": "NextAction[]? (present when a canonical saved-workflow follow-up is available)"
       }
@@ -257,6 +280,7 @@
           "poolAccountId": "string (PA-#)",
           "precommitment": "decimal-string",
           "balanceSufficient": "boolean|\"unknown\"",
+          "warnings": "PreviewWarning[]? (approximate preview validation)",
           "nextActions": "NextAction[]? (suggests the executable deposit command)"
         },
         "unsigned": {
@@ -266,6 +290,7 @@
           "asset": "string",
           "amount": "decimal-string-wei",
           "precommitment": "decimal-string",
+          "warnings": "PreviewWarning[]? (approximate unsigned validation)",
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedTx": {
@@ -292,6 +317,7 @@
         "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
         "remainingBalance": "decimal-string-wei",
         "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
+        "privacyCostManifest": "PrivacyCostManifest? (present in direct mode)",
         "nextActions": "NextAction[]? (suggests accounts to verify updated balance)"
       },
       "variants": {
@@ -312,6 +338,8 @@
           "quoteExpiresAt": "iso8601-string? (relayed only)",
           "extraGas": "boolean? (relayed mode only, ERC20 withdrawals)",
           "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
+          "privacyCostManifest": "PrivacyCostManifest? (present in direct mode)",
+          "warnings": "PreviewWarning[]? (approximate preview validation)",
           "nextActions": "NextAction[]? (suggests the executable withdraw command)"
         },
         "unsignedDirect": {
@@ -326,6 +354,8 @@
           "poolAccountId": "string (PA-#)",
           "selectedCommitmentLabel": "decimal-string",
           "selectedCommitmentValue": "decimal-string-wei",
+          "privacyCostManifest": "PrivacyCostManifest",
+          "warnings": "PreviewWarning[]? (approximate unsigned validation)",
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedRelayed": {
@@ -342,6 +372,7 @@
           "selectedCommitmentValue": "decimal-string-wei",
           "feeBPS": "string",
           "quoteExpiresAt": "iso8601-string",
+          "warnings": "PreviewWarning[]? (approximate unsigned validation)",
           "transactions": "UnsignedTransaction[]",
           "relayerRequest": "object"
         },
@@ -389,6 +420,7 @@
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
         "destinationAddress": "0x-prefixed-address|null",
+        "privacyCostManifest": "PrivacyCostManifest",
         "nextActions": "NextAction[]? (suggests accounts to verify status after ragequit)"
       },
       "variants": {
@@ -403,7 +435,9 @@
           "poolAccountId": "string (PA-#)",
           "selectedCommitmentLabel": "decimal-string",
           "selectedCommitmentValue": "decimal-string-wei",
-          "proofPublicSignals": "number"
+          "proofPublicSignals": "number",
+          "privacyCostManifest": "PrivacyCostManifest",
+          "warnings": "PreviewWarning[]? (approximate preview validation)"
         },
         "unsigned": {
           "mode": "unsigned",
@@ -415,6 +449,8 @@
           "poolAccountId": "string (PA-#)",
           "selectedCommitmentLabel": "decimal-string",
           "selectedCommitmentValue": "decimal-string-wei",
+          "privacyCostManifest": "PrivacyCostManifest",
+          "warnings": "PreviewWarning[]? (approximate unsigned validation)",
           "transactions": "UnsignedTransaction[]"
         },
         "unsignedTx": {
@@ -635,7 +671,8 @@
         "expectedLatencyClass": "\"fast\"|\"medium\"|\"slow\"",
         "safeReadOnly": "boolean",
         "prerequisites": "string[]",
-        "examples": "string[]",
+        "examples": "Array<string|{ category: string, commands: string[] }>",
+        "structuredExamples": "{ name: string, value: string|string[] }[]",
         "jsonFields": "string|null",
         "jsonVariants": "string[]",
         "safetyNotes": "string[]",

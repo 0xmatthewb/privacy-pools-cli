@@ -10,7 +10,7 @@ Detailed command reference for the Privacy Pools CLI. For a quick overview, see 
 
 Create, load, or finish setting up your Privacy Pools account
 
-Guided setup for the local Privacy Pools account under ~/.privacy-pools/. Use it to create a new account, load an existing account from a recovery phrase, or finish setup by adding or replacing the signer key. The recovery phrase controls the Privacy Pools account, while the signer key pays gas and submits transactions; they are intentionally separate secrets. When you generate a fresh account, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files. If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download). Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file. Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
+Guided setup for the local Privacy Pools account under ~/.privacy-pools/. Use it to create a new account, load an existing account from a recovery phrase, or finish setup by adding or replacing the signer key. The recovery phrase controls the Privacy Pools account, while the signer key pays gas and submits transactions; they are intentionally separate secrets. When you generate a fresh account, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files. If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download). Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file. Interactive generated setup defaults to a private .txt backup and only asks for word verification when you choose manual copy. Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
 
 **Basic:**
 
@@ -27,6 +27,7 @@ privacy-pools init --force --yes --default-chain mainnet
 ```bash
 privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
 privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
+privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
 ```
 
 **Load existing account:**
@@ -54,6 +55,7 @@ printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-ph
 | `--rpc-url <url>` | Set RPC URL for the default chain |
 | `--force` | Overwrite existing configuration without prompting |
 | `--dry-run` | Preview the init changes without writing files or generating a live recovery phrase |
+| `--staged` | Emit staged JSONL onboarding envelopes in --json/--agent mode |
 
 **Safety:** The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
 **Safety:** Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.
@@ -438,7 +440,7 @@ privacy-pools describe withdraw quote --agent
 privacy-pools describe stats global --agent
 ```
 
-**JSON output:** `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
+**JSON output:** `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
 
 ### `deposit`
 
@@ -446,7 +448,7 @@ Deposit ETH or ERC-20 tokens into a pool
 
 **Usage:** `privacy-pools deposit <amount> [asset] [options]`
 
-Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local commitment precomputation path, so there is no runtime download step when proofs are needed. Most proof-generation steps complete in roughly 10-30s once the packaged artifacts are verified locally. In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off.
+Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local Pool Account precomputation path, so there is no runtime download step when proofs are needed. Most proof-generation steps complete in roughly 10-30s once the packaged artifacts are verified locally. In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off.
 
 **Basic:**
 
@@ -527,7 +529,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 | Flag | Description |
 |------|-------------|
 | `-t, --to <address>` | Recipient address (required unless --direct; prompted interactively) |
-| `-p, --pool-account <PA-#\|#>` | Withdraw from a specific Pool Account (e.g. PA-2) |
+| `-p, --pool-account <PA-ID \| numeric-index>` | Withdraw from a specific Pool Account (examples: PA-2 or 2) |
 | `--direct` | NOT recommended. Withdraw directly onchain, publicly linking deposit and withdrawal addresses. Use relayed mode (default) for privacy. |
 | `--unsigned [format]` | Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx) |
 | `--dry-run` | Generate and verify withdrawal artifacts without submitting |
@@ -631,7 +633,7 @@ privacy-pools migrate status --all-chains --agent
 
 Check migration status for legacy pool accounts
 
-Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy commitments still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include supported testnets.
+Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy Pool Accounts still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include supported testnets.
 
 ```bash
 privacy-pools migrate status
@@ -748,7 +750,7 @@ privacy-pools ragequit ETH --dry-run --pool-account PA-1
 | Flag | Description |
 |------|-------------|
 | `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
-| `-p, --pool-account <PA-#\|#>` | Ragequit a specific Pool Account (e.g. PA-2) |
+| `-p, --pool-account <PA-ID \| numeric-index>` | Ragequit a specific Pool Account (examples: PA-2 or 2) |
 | `--unsigned [format]` | Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx) |
 | `--dry-run` | Generate proof and validate without submitting |
 
@@ -769,6 +771,8 @@ Learn key concepts, workflows, and troubleshooting
 
 ```bash
 privacy-pools guide
+privacy-pools guide json
+privacy-pools help modes
 privacy-pools guide --agent
 ```
 
