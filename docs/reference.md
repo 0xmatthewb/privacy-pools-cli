@@ -373,7 +373,7 @@ View recent deposits and withdrawals across pools
 
 **Usage:** `privacy-pools activity [asset] [options]`
 
-Shows the public onchain event feed across Privacy Pools — deposits and withdrawals from all participants. For your own private transaction history, use 'history' instead.
+Shows the public onchain event feed across Privacy Pools, including deposits and withdrawals from all participants. For your own private transaction history, use 'history' instead.
 
 **Basic:**
 

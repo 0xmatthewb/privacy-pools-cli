@@ -676,7 +676,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: ROOT_COMMAND_DESCRIPTIONS.activity,
     help: {
       overview: [
-        "Shows the public onchain event feed across Privacy Pools — deposits and withdrawals from all participants.",
+        "Shows the public onchain event feed across Privacy Pools, including deposits and withdrawals from all participants.",
         "For your own private transaction history, use 'history' instead.",
       ],
       examples: [
