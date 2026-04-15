@@ -131,6 +131,7 @@ export {
   renderInitLoadRecoveryReview,
   renderGeneratedRecoveryPhraseReview,
   renderInitDryRun,
+  renderInitStage,
   renderInitBackupMethodReview,
   renderInitBackupPathReview,
   renderInitBackupSaved,
@@ -166,8 +167,11 @@ export {
 export {
   formatFlowStartReview,
   formatFlowRagequitReview,
+  renderFlowStartDryRun,
   renderFlowResult,
+  type FlowJsonWarning,
   type FlowRenderData,
+  type FlowStartDryRunData,
   type FlowStartReviewData,
 } from "./flow.js";
 export {
@@ -179,6 +183,7 @@ export {
   renderWorkflowWalletBackupSaved,
 } from "./workflow-wallet.js";
 export {
+  buildRagequitPrivacyCostManifest,
   formatRagequitReview,
   renderRagequitDryRun,
   renderRagequitSuccess,
@@ -187,6 +192,7 @@ export {
   type RagequitSuccessData,
 } from "./ragequit.js";
 export {
+  buildDirectWithdrawalPrivacyCostManifest,
   formatDirectWithdrawalReview,
   formatRelayedWithdrawalReview,
   renderWithdrawDryRun,

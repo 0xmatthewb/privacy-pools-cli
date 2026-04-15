@@ -139,17 +139,16 @@ export function printJsonError(
   pretty: boolean = false,
 ): void {
   const { details, ...errorPayload } = payload;
+  const code = payload.code ?? "UNKNOWN_ERROR";
   const errorObject = details
-    ? { ...errorPayload, ...details }
-    : errorPayload;
-  // `errorCode` and `errorMessage` are convenience aliases of `error.code` and
-  // `error.message`.  Agents should prefer the flattened top-level fields; the
-  // nested `error` object is retained for backward compatibility and carries
-  // additional fields like `hint`, `category`, and `retryable`.
+    ? { ...errorPayload, code, ...details }
+    : { ...errorPayload, code };
+  // `error.code` and `error.message` are canonical. `errorCode` and
+  // `errorMessage` remain v2 compatibility aliases and must match.
   const output: Record<string, unknown> = {
     schemaVersion: JSON_SCHEMA_VERSION,
     success: false,
-    errorCode: payload.code ?? "UNKNOWN_ERROR",
+    errorCode: code,
     errorMessage: payload.message,
     ...(details ?? {}),
     error: errorObject,

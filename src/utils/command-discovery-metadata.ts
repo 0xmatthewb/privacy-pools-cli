@@ -313,7 +313,7 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
     values: ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"],
     exitCodes: { INPUT: 2, RPC: 3, ASP: 4, RELAYER: 5, PROOF: 6, CONTRACT: 7, UNKNOWN: 1 },
     description:
-      "Error responses include top-level errorCode/errorMessage plus error.{ code, category, message, hint?, retryable? }.",
+      "Error responses include error.{ code, category, message, hint?, retryable? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message.",
   },
   unsignedOutput: {
     envelopeFormat:
@@ -329,6 +329,8 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
     description:
       "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. "
       + "Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. "
+      + "JSON nextActions are emitted in --agent mode even though --agent implies --quiet; quiet only suppresses human-oriented stderr sections. "
+      + "Ordering is deterministic and priority-ordered: primary private/resume paths first, required public recovery before optional public recovery, optional public recovery after private paths, and deposit templates last. "
       + "When runnable is omitted or true, the command is fully specified and can be executed as shown. "
       + "When runnable is false, the action is a template and requires additional user input before execution.",
   },
@@ -463,6 +465,7 @@ function descriptorSeed(path: CommandPath) {
     supportsUnsigned: metadata.help?.supportsUnsigned ?? false,
     supportsDryRun: metadata.help?.supportsDryRun ?? false,
     agentWorkflowNotes: metadata.help?.agentWorkflowNotes ?? [],
+    expectedNextActionWhen: metadata.expectedNextActionWhen,
     agentRequiredFlags: capabilities.agentRequiredFlags,
   };
 }
@@ -510,6 +513,9 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     supportsUnsigned: seed.supportsUnsigned,
     supportsDryRun: seed.supportsDryRun,
     agentWorkflowNotes: seed.agentWorkflowNotes,
+    ...(seed.expectedNextActionWhen
+      ? { expectedNextActionWhen: seed.expectedNextActionWhen }
+      : {}),
     ...(seed.agentRequiredFlags ? { agentRequiredFlags: seed.agentRequiredFlags } : {}),
   };
 }

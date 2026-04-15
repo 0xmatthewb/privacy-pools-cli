@@ -62,6 +62,7 @@ export interface CommandMetadata {
   capabilities?: CommandCapabilityMetadata;
   execution?: CommandExecutionDescriptor;
   safeReadOnly?: boolean;
+  expectedNextActionWhen?: string[];
   agentsDocMarker?: string;
 }
 
@@ -74,7 +75,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Guided setup for the local Privacy Pools account under ~/.privacy-pools/. Use it to create a new account, load an existing account from a recovery phrase, or finish setup by adding or replacing the signer key.",
-        "The recovery phrase controls the Privacy Pools account, while the signer key pays gas and submits transactions; they are intentionally separate secrets.",
+        "The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.",
         "When you generate a fresh account, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored.",
         "Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files.",
         "If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download).",
@@ -104,7 +105,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       jsonFields:
         "success: { setupMode, readiness, defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }",
       safetyNotes: [
-        "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
+        "The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.",
         "Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.",
         "Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.",
       ],
@@ -407,6 +408,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       examples: [
         "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run",
         "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch",
         "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
         "privacy-pools flow watch",
@@ -414,6 +416,16 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools flow ragequit latest",
       ],
       prerequisites: "init for start/watch/ragequit; saved workflow for status",
+      jsonFields:
+        "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"ragequit\", workflowId, phase, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, nextActions?: [...] }",
+      jsonVariants: [
+        "flow start --dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, estimatedCommittedValue, vettingFee, warnings?, nextActions? }",
+      ],
+      agentWorkflowNotes: [
+        "Start with flow start <amount> <asset> --to <address> --agent, then resume with flow watch <workflowId|latest> --agent until the workflow completes or pauses.",
+        "If flow watch returns flow_declined or flow_public_recovery_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
+        "If flow watch returns flow_public_recovery_optional, prefer completing the private path unless the operator explicitly chooses public recovery.",
+      ],
       seeAlso: ["flow start","flow watch","flow ragequit"],
     },
     capabilities: {
@@ -425,6 +437,14 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
+    expectedNextActionWhen: [
+      "flow_resume",
+      "flow_public_recovery_optional",
+      "flow_declined",
+      "flow_public_recovery_pending",
+      "flow_public_recovery_required",
+      "flow_manual_followup",
+    ],
   },
   "flow start": {
     description: "Deposit now and save a later private withdrawal workflow",
@@ -449,7 +469,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       safetyNotes: [
         "Deposits are always public on-chain. The ASP reviews the deposit before private withdrawal is possible.",
         "If --to is omitted in interactive mode, the CLI prompts for the recipient. In machine modes, --to remains required.",
@@ -468,6 +488,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "With --new-wallet, the flow stays attached automatically and waits for funding, deposit, approval, and withdrawal unless you detach with Ctrl-C.",
         "Use --watch to stay attached on configured-wallet workflows; otherwise the workflow is persisted locally and flow watch <workflowId> is the canonical resume path.",
       ],
+      supportsDryRun: true,
       seeAlso: ["flow watch","flow ragequit","pools"],
     },
     capabilities: {
@@ -475,16 +496,25 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       flags: [
         "--to <address>",
         "--privacy-delay <profile>",
+        "--dry-run",
         "--watch",
         "--new-wallet",
         "--export-new-wallet <path>",
       ],
       agentFlags:
-        "--agent [--privacy-delay <profile>] [--watch] [--new-wallet] [--export-new-wallet <path>]",
+        "--agent [--privacy-delay <profile>] [--dry-run] [--watch] [--new-wallet] [--export-new-wallet <path>]",
       agentRequiredFlags: ["--to"],
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
+    expectedNextActionWhen: [
+      "flow_resume",
+      "flow_public_recovery_optional",
+      "flow_declined",
+      "flow_public_recovery_pending",
+      "flow_public_recovery_required",
+      "flow_manual_followup",
+    ],
   },
   "flow watch": {
     description:
@@ -510,7 +540,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       safetyNotes: [
         "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
         "If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.",
@@ -532,6 +562,14 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
+    expectedNextActionWhen: [
+      "flow_resume",
+      "flow_public_recovery_optional",
+      "flow_declined",
+      "flow_public_recovery_pending",
+      "flow_public_recovery_required",
+      "flow_manual_followup",
+    ],
   },
   "flow status": {
     description: "Show the saved easy-path workflow state",
@@ -549,7 +587,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "saved workflow (usually created after init)",
       jsonFields:
-        "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       seeAlso: ["flow watch","flow ragequit"],
     },
     capabilities: {
@@ -560,6 +598,14 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
+    expectedNextActionWhen: [
+      "flow_resume",
+      "flow_public_recovery_optional",
+      "flow_declined",
+      "flow_public_recovery_pending",
+      "flow_public_recovery_required",
+      "flow_manual_followup",
+    ],
   },
   "flow ragequit": {
     description: "Recover a saved workflow publicly via ragequit",
@@ -577,7 +623,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       safetyNotes: [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
         "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
@@ -591,6 +637,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
+    expectedNextActionWhen: [
+      "flow_public_recovery_pending",
+      "after_ragequit",
+    ],
   },
   pools: {
     description: ROOT_COMMAND_DESCRIPTIONS.pools,
@@ -915,7 +965,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
-        "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.",
+        "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
         "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds.",
@@ -945,6 +995,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
+        "--yes-i-understand-privacy-loss",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -989,7 +1040,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     aliases: ["exit"],
     help: {
       overview: [
-        "Your self-custody guarantee: ragequits funds back to the original deposit address at any time. Does not preserve privacy. Available for any Pool Account regardless of ASP status — declined, PoA-blocked, pending, or even approved.",
+        "Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved.",
         "Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.",
       ],
       examples: [
@@ -1004,7 +1055,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
-        "Ragequit is always available as your self-custody guarantee, but it is public and irreversible and reveals the original deposit address onchain.",
+        "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.",
       ],
       jsonFields:
         "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",

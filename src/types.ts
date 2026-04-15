@@ -177,6 +177,7 @@ export interface DetailedCommandDescriptor {
   supportsUnsigned: boolean;
   supportsDryRun: boolean;
   agentWorkflowNotes: string[];
+  expectedNextActionWhen?: string[];
   /** Flags that agents must supply for unattended execution (no interactive fallback). */
   agentRequiredFlags?: string[];
 }

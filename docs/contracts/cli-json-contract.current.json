@@ -11,8 +11,8 @@
     "errorBase": {
       "schemaVersion": "semver-string",
       "success": false,
-      "errorCode": "string",
-      "errorMessage": "string",
+      "errorCode": "string (v2 compatibility alias; matches error.code)",
+      "errorMessage": "string (v2 compatibility alias; matches error.message)",
       "availableFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
       "unknownFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
       "error": {
@@ -44,7 +44,8 @@
       "cliCommand": "string (fully executable CLI invocation with kebab-case flags)",
       "args": "string[]? (positional arguments to pass)",
       "options": "Record<string, string|number|boolean|null>? (named options in source-object form; prefer cliCommand for direct execution)",
-      "runnable": "boolean? (false means the action is a template and needs additional user input before execution)"
+      "runnable": "boolean? (false means the action is a template and needs additional user input before execution)",
+      "ordering": "private/resume paths first; required public recovery before optional public recovery; optional public recovery after private paths; deposit templates last"
     },
     "rawUnsignedTransaction": {
       "to": "0x-prefixed-address",
@@ -63,8 +64,8 @@
       "description": "string"
     },
     "flowWarning": {
-      "code": "\"timing_delay_disabled\"|\"amount_pattern_linkability\"",
-      "category": "\"privacy\"",
+      "code": "\"timing_delay_disabled\"|\"amount_pattern_linkability\"|\"recipient_new_to_profile\"",
+      "category": "\"privacy\"|\"recipient\"",
       "message": "string"
     },
     "previewWarning": {
@@ -146,6 +147,8 @@
         "aspStatus": "\"pending\"|\"approved\"|\"poa_required\"|\"declined\"|\"unknown\"|undefined",
         "privacyDelayProfile": "\"off\"|\"balanced\"|\"aggressive\"",
         "privacyDelayConfigured": "boolean (true when the workflow explicitly saved a delay policy; false for legacy snapshots normalized to off)",
+        "privacyDelayRandom": "boolean (true for randomized privacy-delay profiles)",
+        "privacyDelayRangeSeconds": "[number, number] (inclusive randomized range in seconds; [0, 0] for off)",
         "privacyDelayUntil": "iso8601-string|null",
         "warnings": "FlowWarning[]? (see shared.flowWarning)",
         "withdrawTxHash": "0x-prefixed-hash|null",
@@ -157,6 +160,24 @@
         "privacyCostManifest": "PrivacyCostManifest? (present for action=\"ragequit\")",
         "lastError": "FlowLastError|undefined (see shared.flowLastError)",
         "nextActions": "NextAction[]? (present when a canonical saved-workflow follow-up is available)"
+      },
+      "dryRunFields": {
+        "mode": "\"flow\"",
+        "action": "\"start\"",
+        "dryRun": true,
+        "chain": "string",
+        "asset": "string",
+        "depositAmount": "decimal-string-wei",
+        "recipient": "0x-prefixed-address",
+        "walletMode": "\"configured\"|\"new_wallet\"",
+        "privacyDelayProfile": "\"off\"|\"balanced\"|\"aggressive\"",
+        "privacyDelayConfigured": true,
+        "privacyDelayRandom": "boolean",
+        "privacyDelayRangeSeconds": "[number, number]",
+        "vettingFee": "decimal-string-wei",
+        "estimatedCommittedValue": "decimal-string-wei",
+        "warnings": "FlowWarning[]?",
+        "nextActions": "NextAction[]? (flow start template for the real submission)"
       }
     },
     "status": {
@@ -670,6 +691,7 @@
         "requiresInit": "boolean",
         "expectedLatencyClass": "\"fast\"|\"medium\"|\"slow\"",
         "safeReadOnly": "boolean",
+        "expectedNextActionWhen": "string[]|undefined (when values this command may emit in nextActions)",
         "prerequisites": "string[]",
         "examples": "Array<string|{ category: string, commands: string[] }>",
         "structuredExamples": "{ name: string, value: string|string[] }[]",

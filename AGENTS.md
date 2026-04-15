@@ -78,7 +78,7 @@ without omitting optional dependencies.
 { "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
 ```
 
-Parse `success` first. On failure, read `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
+Parse `success` first. On failure, read `error.code` for programmatic handling and `error.hint` for remediation. `errorCode` and `errorMessage` remain v2 compatibility aliases and match `error.code` and `error.message`. Check `error.retryable` before deciding to retry.
 
 Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
@@ -86,7 +86,7 @@ The complete JSON output contract is defined in [`docs/contracts/cli-json-contra
 
 ### NextActions Specification
 
-`nextActions` are included in success JSON responses from most commands. They are omitted in `--quiet` mode and from read-only listing commands like `pools`.
+`nextActions` are included in success JSON responses from most commands. In `--agent`, they remain present on stdout even though `--agent` implies `--quiet`; quiet mode only suppresses human-oriented stderr sections such as "Next steps". Read-only listing commands may include `nextActions` when there is a useful machine follow-up.
 
 **`when` discriminator values:**
 
@@ -123,6 +123,8 @@ Each `nextActions` entry carries a `when` field from the `NextActionWhen` discri
 **`runnable` semantics:**
 
 When `runnable: true` (or omitted, which defaults to `true`), the `cliCommand` field contains a complete, executable CLI invocation that the agent can run directly. When `runnable: false`, the action is a template -- some arguments (e.g., recipient address, amount) must be filled in by the agent before execution.
+
+**Ordering contract:** When multiple actions are emitted, the first matching action is highest priority. Private or resume paths come first, required public recovery comes before optional public recovery, optional public recovery comes after private paths, and deposit templates come last.
 
 **Agent decision tree for nextActions:**
 
@@ -419,6 +421,23 @@ When a human delegates CLI operations to an agent:
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
 | `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |
 
+### CSV Support
+
+CSV output is intentionally limited to listing and read-only reporting commands with tabular data. Write commands do not support CSV because their JSON envelopes carry transaction, proof, and safety metadata that should not be flattened.
+
+| Command | CSV |
+| ---- | ---- |
+| `pools` | Yes |
+| `accounts` | Yes |
+| `activity` | Yes |
+| `stats` | Yes |
+| `history` | Yes |
+| `deposit` | No |
+| `withdraw` | No |
+| `ragequit` | No |
+| `flow` | No |
+| `init` | No |
+
 ## Command Reference
 
 ### No Wallet Required
@@ -526,7 +545,7 @@ privacy-pools capabilities --agent
 
 JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }`
 
-`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, and `preferredSafeVariant?`. The `sideEffectClass` values are:
+`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata and action-discovery metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, `preferredSafeVariant?`, and `expectedNextActionWhen?`. The `sideEffectClass` values are:
 
 - `read_only` -- Command only reads data, no side effects (e.g., `pools`, `accounts`, `status`)
 - `local_state_write` -- Command writes to the local filesystem (e.g., `init`, `sync`)
@@ -544,7 +563,7 @@ privacy-pools describe withdraw quote --agent
 privacy-pools describe stats global --agent
 ```
 
-JSON payload: `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
+JSON payload: `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
 
 ### Wallet Required
 
@@ -590,6 +609,7 @@ Persisted easy-path workflow that compresses the normal deposit -> ASP review ->
 
 ```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
+privacy-pools flow start 0.1 ETH --to 0xRecipient --dry-run --agent
 privacy-pools flow start 0.1 ETH --to 0xRecipient --privacy-delay off --agent
 privacy-pools flow start 0.1 ETH --to 0xRecipient --watch --agent
 privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet --export-new-wallet ./flow-wallet.txt --agent
@@ -605,7 +625,7 @@ Creating or advancing a saved flow requires `init`. `flow status` is read-only a
 
 Like `deposit`, `flow start` rejects non-round amounts in machine modes because unique amounts can fingerprint the deposit. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that privacy tradeoff. In interactive mode, omitting `--to` prompts for the saved recipient. A round input can still become a non-round committed balance after the vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.
 
-New workflows default to a balanced post-approval privacy delay before the relayed withdrawal. `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `aggressive` randomizes the hold between 2 and 12 hours. Pass `--privacy-delay off|balanced|aggressive` to `flow start`, or to `flow watch` to update the saved policy later.
+New workflows default to a balanced post-approval privacy delay before the relayed withdrawal. `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `aggressive` randomizes the hold between 2 and 12 hours. Flow JSON includes `privacyDelayRandom` and `privacyDelayRangeSeconds`; the ranges are `[0, 0]` for `off`, `[900, 5400]` for `balanced`, and `[7200, 43200]` for `aggressive`. Pass `--privacy-delay off|balanced|aggressive` to `flow start`, or to `flow watch` to update the saved policy later.
 
 With `--new-wallet`, the CLI generates a dedicated workflow wallet for that one flow. ETH workflows wait for the full ETH target. ERC20 workflows wait for both the token amount and a native ETH gas reserve in the same wallet. In non-interactive mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow begins.
 
@@ -617,9 +637,11 @@ The saved workflow spends the full remaining Pool Account balance. The recipient
 
 `flow ragequit` performs the public recovery path for a saved workflow. Once the public deposit exists, it remains available as an optional public recovery path until the workflow reaches a terminal state. If the saved full-balance withdrawal can no longer satisfy the relayer minimum, it becomes the required recovery path because the saved flow only supports relayed private withdrawal. For `walletMode = "new_wallet"` it uses the stored workflow wallet key. For `walletMode = "configured"` it must use the original depositor signer that created the saved workflow.
 
-JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "ragequit", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, warnings?: [{ code, category: "privacy", message }], withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "ragequit", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, warnings?: [{ code, category: "privacy"|"recipient", message }], withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
-Paused workflow states are successful command results, not CLI errors. `Ctrl-C` during `flow watch` detaches cleanly without deleting the saved workflow. For ERC20 relayed withdrawals inside `flow`, the CLI requests extra gas by default, matching `withdraw`. `warnings` are advisory only and currently cover amount-linkability guidance for full non-round auto-withdrawals plus explicit `--privacy-delay off`; they appear on `flow start`, `flow watch`, and `flow status`, while `flow ragequit` omits them. `privacyDelayConfigured = false` means a legacy workflow was normalized to `off` without an explicitly saved policy.
+`flow start --dry-run` validates amount, pool metadata, recipient safety, wallet mode, and privacy-delay policy without saving a workflow, generating workflow secrets, writing export files, approving tokens, or submitting a deposit. Dry-run JSON is `{ mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, estimatedCommittedValue, warnings?, nextActions? }`.
+
+Paused workflow states are successful command results, not CLI errors. `Ctrl-C` during `flow watch` detaches cleanly without deleting the saved workflow. For ERC20 relayed withdrawals inside `flow`, the CLI requests extra gas by default, matching `withdraw`. `warnings` are advisory only and currently cover amount-linkability guidance for full non-round auto-withdrawals, explicit `--privacy-delay off`, and non-interactive recipients not previously seen in the local profile; they appear on `flow start`, `flow watch`, and `flow status`, while `flow ragequit` omits them. `privacyDelayConfigured = false` means a legacy workflow was normalized to `off` without an explicitly saved policy.
 
 **Flow state machine:**
 
@@ -717,15 +739,15 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --pool-account PA-2 --agent
 privacy-pools withdraw --all ETH --to 0xRecipient --agent
 privacy-pools withdraw 50% ETH --to 0xRecipient --agent
-privacy-pools withdraw 0.1 ETH --direct --agent
+privacy-pools withdraw 0.1 ETH --direct --yes-i-understand-privacy-loss --agent
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
 JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
-JSON payload (direct): same but `mode: "direct"`, `feeBPS: null`, no `extraGas`. Human output includes a privacy note about direct withdrawals linking deposit and withdrawal onchain.
+JSON payload (direct): same but `mode: "direct"`, `feeBPS: null`, no `extraGas`. Human output includes a privacy note that direct withdrawals publicly link deposit and withdrawal addresses onchain.
 
-> **Note**: Direct withdrawals (`--direct`) are not privacy-preserving. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poa_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
+> **Note**: Direct withdrawals (`--direct`) will publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Non-interactive direct submissions and broadcastable unsigned direct payloads require `--yes-i-understand-privacy-loss`; dry-runs do not. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poa_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
 
 **Amount shortcuts:**
 - `--all`: Withdraw the entire Pool Account balance

@@ -10,7 +10,7 @@ Detailed command reference for the Privacy Pools CLI. For a quick overview, see 
 
 Create, load, or finish setting up your Privacy Pools account
 
-Guided setup for the local Privacy Pools account under ~/.privacy-pools/. Use it to create a new account, load an existing account from a recovery phrase, or finish setup by adding or replacing the signer key. The recovery phrase controls the Privacy Pools account, while the signer key pays gas and submits transactions; they are intentionally separate secrets. When you generate a fresh account, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files. If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download). Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file. Interactive generated setup defaults to a private .txt backup and only asks for word verification when you choose manual copy. Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
+Guided setup for the local Privacy Pools account under ~/.privacy-pools/. Use it to create a new account, load an existing account from a recovery phrase, or finish setup by adding or replacing the signer key. The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key. When you generate a fresh account, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files. If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download). Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file. Interactive generated setup defaults to a private .txt backup and only asks for word verification when you choose manual copy. Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
 
 **Basic:**
 
@@ -57,7 +57,7 @@ printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-ph
 | `--dry-run` | Preview the init changes without writing files or generating a live recovery phrase |
 | `--staged` | Emit staged JSONL onboarding envelopes in --json/--agent mode |
 
-**Safety:** The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.
+**Safety:** The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.
 **Safety:** Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.
 **Safety:** Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
 
@@ -185,12 +185,18 @@ Top-level namespace for the persisted easy path on top of the same public deposi
 
 ```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient...
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run
 privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch
 privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt
 privacy-pools flow watch
 privacy-pools flow status latest
 privacy-pools flow ragequit latest
 ```
+
+**JSON output:** `{ mode: "flow", action: "start"|"watch"|"status"|"ragequit", workflowId, phase, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, nextActions?: [...] }`
+
+**JSON variants:**
+- `flow start --dry-run: { mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, estimatedCommittedValue, vettingFee, warnings?, nextActions? }`
 
 ### `flow start`
 
@@ -224,9 +230,10 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 | Flag | Description |
 |------|-------------|
 | `-t, --to <address>` | Recipient address for private withdrawal (prompted interactively; required in --agent mode) |
-| `--privacy-delay <profile>` | Privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized) |
+| `--privacy-delay <profile>` | Privacy delay profile: off = no added hold, balanced = randomized 15 to 90 minutes (default), aggressive = randomized 2 to 12 hours |
 | `--new-wallet` | Create and use a dedicated wallet for this workflow |
 | `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
+| `--dry-run` | Validate the flow start inputs without saving a workflow or submitting a deposit |
 | `--watch` | Keep watching this workflow until it finishes or pauses |
 
 **Safety:** Deposits are always public on-chain. The ASP reviews the deposit before private withdrawal is possible.
@@ -242,7 +249,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 **Safety:** The saved flow spends the entire remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.
 **Safety:** Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.
 
-**JSON output:** `{ mode: "flow", action: "start", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: "privacy", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+**JSON output:** `{ mode: "flow", action: "start", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `flow watch`
 
@@ -269,7 +276,7 @@ privacy-pools flow watch latest --agent
 
 | Flag | Description |
 |------|-------------|
-| `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized) |
+| `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off = no added hold, balanced = randomized 15 to 90 minutes (default), aggressive = randomized 2 to 12 hours |
 
 **Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.
 **Safety:** If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.
@@ -277,7 +284,7 @@ privacy-pools flow watch latest --agent
 **Safety:** Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
 **Safety:** Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.
 
-**JSON output:** `{ mode: "flow", action: "watch", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: "privacy", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+**JSON output:** `{ mode: "flow", action: "watch", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `flow status`
 
@@ -293,7 +300,7 @@ privacy-pools flow status latest --agent
 privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000
 ```
 
-**JSON output:** `{ mode: "flow", action: "status", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: "privacy", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+**JSON output:** `{ mode: "flow", action: "status", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `flow ragequit`
 
@@ -312,7 +319,7 @@ privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 **Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.
 **Safety:** Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.
 
-**JSON output:** `{ mode: "flow", action: "ragequit", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+**JSON output:** `{ mode: "flow", action: "ragequit", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 ### `pools`
 
@@ -530,7 +537,8 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 |------|-------------|
 | `-t, --to <address>` | Recipient address (required unless --direct; prompted interactively) |
 | `-p, --pool-account <PA-ID \| numeric-index>` | Withdraw from a specific Pool Account (examples: PA-2 or 2) |
-| `--direct` | NOT recommended. Withdraw directly onchain, publicly linking deposit and withdrawal addresses. Use relayed mode (default) for privacy. |
+| `--direct` | WILL publicly link deposit and withdrawal addresses onchain. This cannot be undone. |
+| `--yes-i-understand-privacy-loss` | Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses |
 | `--unsigned [format]` | Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx) |
 | `--dry-run` | Generate and verify withdrawal artifacts without submitting |
 | `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
@@ -538,7 +546,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 | `--extra-gas` | Request native gas tokens alongside an ERC20 withdrawal (default: true for ERC20) |
 | `--no-extra-gas` | Disable extra gas request |
 
-**Safety:** Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.
+**Safety:** Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.
 **Safety:** ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.
 **Safety:** Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
 **Safety:** --extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds.
@@ -730,7 +738,7 @@ Recover funds publicly to your deposit address
 
 **Usage:** `privacy-pools ragequit [asset] [options]`
 
-Your self-custody guarantee: ragequits funds back to the original deposit address at any time. Does not preserve privacy. Available for any Pool Account regardless of ASP status — declined, PoA-blocked, pending, or even approved. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.
+Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.
 
 **Basic:**
 
@@ -754,7 +762,7 @@ privacy-pools ragequit ETH --dry-run --pool-account PA-1
 | `--unsigned [format]` | Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx) |
 | `--dry-run` | Generate proof and validate without submitting |
 
-**Safety:** Ragequit is always available as your self-custody guarantee, but it is public and irreversible and reveals the original deposit address onchain.
+**Safety:** Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.
 
 **JSON output:** `{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: "0", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
@@ -873,6 +881,26 @@ privacy-pools deposit 0.1 ETH --dry-run
 privacy-pools withdraw 0.05 ETH --to 0xRecipient... --dry-run
 privacy-pools ragequit ETH --pool-account PA-1 --dry-run
 ```
+
+## CSV Support
+
+CSV output is intentionally limited to listing and read-only reporting commands
+with tabular data. Write commands do not support CSV because their JSON
+envelopes carry transaction, proof, and safety metadata that should not be
+flattened.
+
+| Command | CSV |
+|---------|-----|
+| `pools` | Yes |
+| `accounts` | Yes |
+| `activity` | Yes |
+| `stats` | Yes |
+| `history` | Yes |
+| `deposit` | No |
+| `withdraw` | No |
+| `ragequit` | No |
+| `flow` | No |
+| `init` | No |
 
 ## Installation Notes
 

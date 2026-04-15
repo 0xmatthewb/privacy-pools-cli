@@ -89,7 +89,7 @@ export function formatRagequitReview(data: RagequitReviewData): string {
       { label: "Chain", value: data.chain },
       {
         label: "Privacy cost",
-        value: "Public recovery to deposit address",
+        value: "Recover funds publicly to your deposit address",
         valueTone: "warning",
       },
       {
@@ -102,7 +102,7 @@ export function formatRagequitReview(data: RagequitReviewData): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "By exiting this pool, you are withdrawing all deposited and pending funds to your depositing address. You will not gain any privacy.",
+        "Recover funds publicly to your deposit address. This does not provide privacy for this Pool Account.",
       ],
     },
     secondaryCallout: data.advisory
@@ -246,7 +246,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
     process.stderr.write(
       formatCallout(
         "recovery",
-        "By exiting this pool, you are withdrawing all deposited and pending funds to your depositing address. You will not gain any privacy.",
+        "Recover funds publicly to your deposit address. This does not provide privacy for this Pool Account.",
       ),
     );
     process.stderr.write(
@@ -359,7 +359,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
     process.stderr.write(
       formatCallout(
         "recovery",
-        "By exiting this pool, you are withdrawing all deposited and pending funds to your depositing address. You will not gain any privacy.",
+        "Recover funds publicly to your deposit address. This does not provide privacy for this Pool Account.",
       ),
     );
   }

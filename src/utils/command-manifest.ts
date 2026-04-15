@@ -513,11 +513,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "--to <address>",
         "--privacy-delay <profile>",
+        "--dry-run",
         "--watch",
         "--new-wallet",
         "--export-new-wallet <path>"
       ],
-      "agentFlags": "--agent [--privacy-delay <profile>] [--watch] [--new-wallet] [--export-new-wallet <path>]",
+      "agentFlags": "--agent [--privacy-delay <profile>] [--dry-run] [--watch] [--new-wallet] [--export-new-wallet <path>]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -648,6 +649,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
+        "--yes-i-understand-privacy-loss",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -908,7 +910,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonFields": "success: { setupMode, readiness, defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }",
       "jsonVariants": [],
       "safetyNotes": [
-        "The recovery phrase and signer key are independent secrets: the phrase controls deposit privacy, the key pays gas. Neither is derived from the other.",
+        "The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.",
         "Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.",
         "Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them."
       ],
@@ -1696,6 +1698,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "examples": [
         "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run",
         "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch",
         "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
         "privacy-pools flow watch",
@@ -1709,31 +1712,49 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "name": "Example 2",
-          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch"
+          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run"
         },
         {
           "name": "Example 3",
-          "value": "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
+          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch"
         },
         {
           "name": "Example 4",
-          "value": "privacy-pools flow watch"
+          "value": "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
         },
         {
           "name": "Example 5",
-          "value": "privacy-pools flow status latest"
+          "value": "privacy-pools flow watch"
         },
         {
           "name": "Example 6",
+          "value": "privacy-pools flow status latest"
+        },
+        {
+          "name": "Example 7",
           "value": "privacy-pools flow ragequit latest"
         }
       ],
-      "jsonFields": null,
-      "jsonVariants": [],
+      "jsonFields": "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"ragequit\", workflowId, phase, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, nextActions?: [...] }",
+      "jsonVariants": [
+        "flow start --dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, estimatedCommittedValue, vettingFee, warnings?, nextActions? }"
+      ],
       "safetyNotes": [],
       "supportsUnsigned": false,
       "supportsDryRun": false,
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [
+        "Start with flow start <amount> <asset> --to <address> --agent, then resume with flow watch <workflowId|latest> --agent until the workflow completes or pauses.",
+        "If flow watch returns flow_declined or flow_public_recovery_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
+        "If flow watch returns flow_public_recovery_optional, prefer completing the private path unless the operator explicitly chooses public recovery."
+      ],
+      "expectedNextActionWhen": [
+        "flow_resume",
+        "flow_public_recovery_optional",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_required",
+        "flow_manual_followup"
+      ]
     },
     "flow start": {
       "command": "flow start",
@@ -1749,6 +1770,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "--to <address>",
         "--privacy-delay <profile>",
+        "--dry-run",
         "--watch",
         "--new-wallet",
         "--export-new-wallet <path>"
@@ -1825,7 +1847,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Deposits are always public on-chain. The ASP reviews the deposit before private withdrawal is possible.",
@@ -1842,10 +1864,18 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode."
       ],
       "supportsUnsigned": false,
-      "supportsDryRun": false,
+      "supportsDryRun": true,
       "agentWorkflowNotes": [
         "With --new-wallet, the flow stays attached automatically and waits for funding, deposit, approval, and withdrawal unless you detach with Ctrl-C.",
         "Use --watch to stay attached on configured-wallet workflows; otherwise the workflow is persisted locally and flow watch <workflowId> is the canonical resume path."
+      ],
+      "expectedNextActionWhen": [
+        "flow_resume",
+        "flow_public_recovery_optional",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_required",
+        "flow_manual_followup"
       ],
       "agentRequiredFlags": [
         "--to"
@@ -1930,7 +1960,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
@@ -1945,6 +1975,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "New-wallet workflows wait for funding automatically. ERC20 workflows require both the token amount and a native ETH gas reserve in the generated wallet before the public deposit can proceed.",
         "When the saved Pool Account is approved, flow watch performs the relayed private withdrawal automatically using the saved recipient and the full remaining balance of that same Pool Account after any configured privacy delay hold expires.",
         "flow watch keeps polling until the saved workflow changes or finishes. If your automation should stop after a fixed duration, wrap the CLI call in your own external timeout."
+      ],
+      "expectedNextActionWhen": [
+        "flow_resume",
+        "flow_public_recovery_optional",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_required",
+        "flow_manual_followup"
       ]
     },
     "flow status": {
@@ -2008,12 +2046,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000"
         }
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      "jsonFields": "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
       "supportsDryRun": false,
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "expectedNextActionWhen": [
+        "flow_resume",
+        "flow_public_recovery_optional",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_required",
+        "flow_manual_followup"
+      ]
     },
     "flow ragequit": {
       "command": "flow ragequit",
@@ -2080,7 +2126,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
         }
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
@@ -2088,7 +2134,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "expectedNextActionWhen": [
+        "flow_public_recovery_pending",
+        "after_ragequit"
+      ]
     },
     "pools": {
       "command": "pools",
@@ -2884,6 +2934,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
+        "--yes-i-understand-privacy-loss",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -2988,7 +3039,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }"
       ],
       "safetyNotes": [
-        "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) are NOT privacy-preserving: they publicly link your deposit address and withdrawal address onchain. Only use --direct if you understand and accept the privacy trade-off.",
+        "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
         "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds."
@@ -3156,7 +3207,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }"
       ],
       "safetyNotes": [
-        "Ragequit is always available as your self-custody guarantee, but it is public and irreversible and reveals the original deposit address onchain."
+        "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -4159,7 +4210,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "CONTRACT": 7,
         "UNKNOWN": 1
       },
-      "description": "Error responses include top-level errorCode/errorMessage plus error.{ code, category, message, hint?, retryable? }."
+      "description": "Error responses include error.{ code, category, message, hint?, retryable? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message."
     },
     "unsignedOutput": {
       "envelopeFormat": "{ schemaVersion, success, mode, operation, chain, transactions: [{ from, to, data, value, ... }], ... }",
@@ -4168,7 +4219,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "nextActions": {
       "shape": "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null>, runnable?: boolean }",
-      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. When runnable is omitted or true, the command is fully specified and can be executed as shown. When runnable is false, the action is a template and requires additional user input before execution."
+      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. JSON nextActions are emitted in --agent mode even though --agent implies --quiet; quiet only suppresses human-oriented stderr sections. Ordering is deterministic and priority-ordered: primary private/resume paths first, required public recovery before optional public recovery, optional public recovery after private paths, and deposit templates last. When runnable is omitted or true, the command is fully specified and can be executed as shown. When runnable is false, the action is a template and requires additional user input before execution."
     },
     "sideEffectClass": {
       "values": [

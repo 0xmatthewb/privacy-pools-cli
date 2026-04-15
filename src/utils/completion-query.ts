@@ -124,6 +124,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--force"),
           completionOption("--dry-run"),
           completionOption("--skip-circuits"),
+          completionOption("--staged"),
         ],
       }),
       completionCommand("upgrade", {
@@ -158,6 +159,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
             options: [
               completionOption("-t, --to <address>"),
               completionOption("--privacy-delay <profile>", FLOW_PRIVACY_DELAY_PROFILES),
+              completionOption("--dry-run"),
               completionOption("--watch"),
               completionOption("--new-wallet"),
               completionOption("--export-new-wallet <path>"),
@@ -212,6 +214,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-t, --to <address>"),
           completionOption("-p, --pool-account <PA-#|#>"),
           completionOption("--direct"),
+          completionOption("--yes-i-understand-privacy-loss"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
           completionOption("-a, --asset <symbol|address>"),

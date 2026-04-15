@@ -24,6 +24,26 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient... --dry-run
 privacy-pools ragequit ETH --pool-account PA-1 --dry-run
 ```
 
+## CSV Support
+
+CSV output is intentionally limited to listing and read-only reporting commands
+with tabular data. Write commands do not support CSV because their JSON
+envelopes carry transaction, proof, and safety metadata that should not be
+flattened.
+
+| Command | CSV |
+|---------|-----|
+| `pools` | Yes |
+| `accounts` | Yes |
+| `activity` | Yes |
+| `stats` | Yes |
+| `history` | Yes |
+| `deposit` | No |
+| `withdraw` | No |
+| `ragequit` | No |
+| `flow` | No |
+| `init` | No |
+
 ## Installation Notes
 
 For agents and automation, prefer `npm i -g privacy-pools-cli` on a supported

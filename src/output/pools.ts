@@ -150,8 +150,42 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const showMyPoolAccounts = filteredPools.some(
     (entry) => (entry.myPoolAccountsCount ?? 0) > 0,
   );
+  const ownedPools = filteredPools.filter(
+    (entry) => (entry.myPoolAccountsCount ?? 0) > 0,
+  );
 
   const agentNextActions = [
+    ...(ownedPools.length > 0
+      ? [
+          createNextAction(
+            "accounts",
+            "Review your Pool Accounts before choosing a withdrawal or public recovery path.",
+            "after_pools",
+            {
+              options: {
+                agent: true,
+                ...(allChains ? { allChains: true } : { chain: chainName }),
+              },
+            },
+          ),
+        ]
+      : []),
+    ...(ownedPools.length === 1
+      ? [
+          createNextAction(
+            "pools",
+            "Open the detailed view for the pool that already has your funds.",
+            "after_pools",
+            {
+              args: [ownedPools[0]!.pool.symbol],
+              options: {
+                agent: true,
+                chain: allChains ? ownedPools[0]!.chain : chainName,
+              },
+            },
+          ),
+        ]
+      : []),
     createNextAction("deposit", "Deposit into a pool.", "after_pools", {
       args: ["<amount>", "<asset>"],
       options: {
@@ -440,6 +474,68 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
       ]
     : undefined;
 
+  const buildDetailAgentNextActions = () => {
+    if (myPoolAccounts === null) {
+      return [
+        createNextAction("deposit", `Deposit into the ${pool.symbol} pool.`, "after_pool_detail", {
+          args: ["<amount>", pool.symbol],
+          options: { agent: true, chain },
+          runnable: false,
+        }),
+        createNextAction("accounts", "View your Pool Account balances.", "after_pool_detail", { options: { agent: true, chain } }),
+      ];
+    }
+
+    const active = myPoolAccounts.filter((pa) => pa.value > 0n && isActivePoolAccountStatus(pa.status));
+    const approved = active.filter((pa) => pa.status === "approved");
+    const recoveryCandidates = active.filter(
+      (pa) =>
+        pa.status === "approved" ||
+        pa.status === "pending" ||
+        pa.status === "poa_required" ||
+        pa.status === "declined" ||
+        pa.status === "unknown",
+    );
+
+    return [
+      ...approved.map((pa) =>
+        createNextAction(
+          "withdraw",
+          `Withdraw privately from ${pa.paId} once you provide the recipient address.`,
+          "after_pool_detail",
+          {
+            args: [pool.symbol],
+            options: {
+              agent: true,
+              chain,
+              poolAccount: pa.paId,
+              all: true,
+              to: "<recipient>",
+            },
+            runnable: false,
+          },
+        ),
+      ),
+      ...recoveryCandidates.map((pa) =>
+        createNextAction(
+          "ragequit",
+          `Recover ${pa.paId} publicly to the original deposit address.`,
+          "after_pool_detail",
+          {
+            args: [pool.symbol],
+            options: { agent: true, chain, poolAccount: pa.paId },
+          },
+        ),
+      ),
+      createNextAction("accounts", "View your Pool Account balances.", "after_pool_detail", { options: { agent: true, chain } }),
+      createNextAction("deposit", `Deposit into the ${pool.symbol} pool.`, "after_pool_detail", {
+        args: ["<amount>", pool.symbol],
+        options: { agent: true, chain },
+        runnable: false,
+      }),
+    ];
+  };
+
   guardCsvUnsupported(ctx, "pools <asset>");
 
   if (ctx.mode.isJson) {
@@ -483,14 +579,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
       payload.recentActivityUnavailable = true;
     }
 
-    const detailNextActions = [
-      createNextAction("deposit", `Deposit into the ${pool.symbol} pool.`, "after_pool_detail", {
-        args: [pool.symbol],
-        options: { agent: true, chain },
-        runnable: false,
-      }),
-      createNextAction("accounts", "View your Pool Account balances.", "after_pool_detail", { options: { agent: true, chain } }),
-    ];
+    const detailNextActions = buildDetailAgentNextActions();
     printJsonSuccess(appendNextActions(payload, detailNextActions), false);
     return;
   }
