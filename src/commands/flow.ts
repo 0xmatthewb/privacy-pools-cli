@@ -1,24 +1,42 @@
 import type { Command } from "commander";
 import { createOutputContext } from "../output/common.js";
-import { formatFlowRagequitReview, renderFlowResult } from "../output/flow.js";
 import {
+  formatFlowRagequitReview,
+  renderFlowResult,
+  renderFlowStartDryRun,
+  type FlowJsonWarning,
+} from "../output/flow.js";
+import { loadConfig } from "../services/config.js";
+import { resolvePool } from "../services/pools.js";
+import {
+  buildAmountPatternLinkabilityWarning,
   FlowCancelledError,
+  FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE,
   getWorkflowStatus,
   listSavedWorkflowIds,
   ragequitWorkflow,
+  resolveFlowPrivacyDelayProfile,
   startWorkflow,
   watchWorkflow,
 } from "../services/workflow.js";
 import type { GlobalOptions } from "../types.js";
+import { formatAmountDecimal, isRoundAmount, suggestRoundAmounts } from "../utils/amount-privacy.js";
+import { isNativePoolAsset } from "../config/chains.js";
 import { CLIError, printError, promptCancelledError } from "../utils/errors.js";
-import { info } from "../utils/format.js";
+import { deriveTokenPrice, info, warn } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
   PROMPT_CANCELLATION_MESSAGE,
 } from "../utils/prompt-cancellation.js";
-import { validateAddress } from "../utils/validation.js";
+import {
+  assertSafeRecipientAddress,
+  isKnownRecipient,
+  newRecipientWarning,
+  resolveSafeRecipientAddressOrEns,
+} from "../utils/recipient-safety.js";
+import { parseAmount, resolveChain, validatePositive } from "../utils/validation.js";
 import {
   maybeRenderPreviewScenario,
   PreviewScenarioRenderedError,
@@ -32,6 +50,7 @@ interface FlowStartCommandOptions {
   privacyDelay?: string;
   newWallet?: boolean;
   exportNewWallet?: string;
+  dryRun?: boolean;
 }
 
 interface FlowWatchCommandOptions {
@@ -57,6 +76,147 @@ function flowCancelledCliError(): CLIError {
     "INPUT",
     "Re-run the flow command when you are ready to continue.",
   );
+}
+
+function collectKnownFlowRecipients(): string[] {
+  const recipients: string[] = [];
+  for (const workflowId of listSavedWorkflowIds()) {
+    try {
+      const snapshot = getWorkflowStatus({ workflowId });
+      if (snapshot.recipient) {
+        recipients.push(snapshot.recipient);
+      }
+      if (snapshot.walletAddress) {
+        recipients.push(snapshot.walletAddress);
+      }
+    } catch {
+      // Ignore unreadable workflow files here. The actual flow status command
+      // still reports them strictly when the user asks for workflow state.
+    }
+  }
+  return recipients;
+}
+
+async function confirmRecipientIfNew(params: {
+  address: string;
+  knownRecipients: readonly string[];
+  skipPrompts: boolean;
+  silent: boolean;
+}): Promise<FlowJsonWarning[]> {
+  if (isKnownRecipient(params.address, params.knownRecipients)) {
+    return [];
+  }
+
+  const warning = newRecipientWarning(params.address);
+  if (params.skipPrompts) {
+    return [warning];
+  }
+
+  warn(warning.message, params.silent);
+  const { confirm } = await import("@inquirer/prompts");
+  ensurePromptInteractionAvailable();
+  const ok = await confirmActionWithSeverity({
+    severity: "standard",
+    standardMessage: "Use this new recipient?",
+    highStakesToken: "RECIPIENT",
+    highStakesWarning: "Recipient review changed while waiting for confirmation.",
+    confirm,
+  });
+  if (!ok) {
+    throw new FlowCancelledError();
+  }
+  return [];
+}
+
+async function renderFlowStartDryRunForInputs(params: {
+  amount: string;
+  asset: string;
+  recipient: string;
+  opts: FlowStartCommandOptions;
+  globalOpts: GlobalOptions;
+  mode: ReturnType<typeof resolveGlobalMode>;
+  ctx: ReturnType<typeof createOutputContext>;
+  recipientWarnings: FlowJsonWarning[];
+}): Promise<void> {
+  const config = loadConfig();
+  const chainConfig = resolveChain(params.globalOpts?.chain, config.defaultChain);
+  const pool = await resolvePool(
+    chainConfig,
+    params.asset,
+    params.globalOpts?.rpcUrl,
+  );
+  const amount = parseAmount(params.amount, pool.decimals, {
+    allowNegative: true,
+  });
+  validatePositive(amount, "Deposit amount");
+
+  if (amount < pool.minimumDepositAmount) {
+    throw new CLIError(
+      `Deposit amount is below the minimum of ${formatAmountDecimal(pool.minimumDepositAmount, pool.decimals)} ${pool.symbol} for this pool.`,
+      "INPUT",
+      `Increase the amount to at least ${formatAmountDecimal(pool.minimumDepositAmount, pool.decimals)} ${pool.symbol}.`,
+    );
+  }
+
+  const warnings: FlowJsonWarning[] = [...params.recipientWarnings];
+  if (!isRoundAmount(amount, pool.decimals, pool.symbol)) {
+    const humanAmount = formatAmountDecimal(amount, pool.decimals);
+    const suggestions = suggestRoundAmounts(amount, pool.decimals, pool.symbol);
+    const suggestionText =
+      suggestions.length > 0
+        ? ` Consider: ${suggestions.map((value) => `${formatAmountDecimal(value, pool.decimals)} ${pool.symbol}`).join(", ")}.`
+        : "";
+    const message =
+      `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy. ` +
+      `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText}`;
+    if (params.mode.skipPrompts) {
+      throw new CLIError(message, "INPUT", suggestionText || "Use a round amount.");
+    }
+    warnings.push({
+      code: "amount_pattern_linkability",
+      category: "privacy",
+      message,
+    });
+  }
+
+  const privacyDelayProfile = resolveFlowPrivacyDelayProfile(
+    params.opts.privacyDelay,
+    "balanced",
+  );
+  if (privacyDelayProfile === "off") {
+    warnings.push({
+      code: "timing_delay_disabled",
+      category: "privacy",
+      message: FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE,
+    });
+  }
+
+  const vettingFee = (amount * pool.vettingFeeBPS) / 10000n;
+  const estimatedCommittedValue = amount - vettingFee;
+  const amountPatternWarning = buildAmountPatternLinkabilityWarning(
+    estimatedCommittedValue,
+    pool.decimals,
+    pool.symbol,
+    { estimated: true },
+  );
+  if (amountPatternWarning) {
+    warnings.push(amountPatternWarning);
+  }
+
+  renderFlowStartDryRun(params.ctx, {
+    chain: chainConfig.name,
+    asset: pool.symbol,
+    assetDecimals: pool.decimals,
+    depositAmount: amount,
+    recipient: params.recipient,
+    walletMode: params.opts.newWallet ? "new_wallet" : "configured",
+    privacyDelayProfile,
+    vettingFee,
+    estimatedCommittedValue,
+    isErc20: !isNativePoolAsset(chainConfig.id, pool.asset),
+    tokenPrice: deriveTokenPrice(pool),
+    warnings,
+  });
 }
 
 async function handleFlowCommandError(
@@ -168,7 +328,7 @@ export async function handleFlowRootCommand(
         message: "Recipient address:",
         validate: (value) => {
           try {
-            validateAddress(value, "Recipient");
+            assertSafeRecipientAddress(value as `0x${string}`, "Recipient");
             return true;
           } catch (error) {
             return error instanceof Error ? error.message : "Invalid address.";
@@ -226,14 +386,14 @@ export async function handleFlowStartCommand(
         message: "Recipient address:",
         validate: (value) => {
           try {
-            validateAddress(value, "Recipient");
+            assertSafeRecipientAddress(value as `0x${string}`, "Recipient");
             return true;
           } catch (error) {
             return error instanceof Error ? error.message : "Invalid address.";
           }
         },
       });
-      recipient = validateAddress(prompted, "Recipient");
+      recipient = assertSafeRecipientAddress(prompted as `0x${string}`, "Recipient");
     }
 
     if (
@@ -260,6 +420,36 @@ export async function handleFlowStartCommand(
       );
     }
 
+    const resolvedRecipient = await resolveSafeRecipientAddressOrEns(
+      recipient,
+      "Recipient",
+    );
+    if (resolvedRecipient.ensName) {
+      info(`Resolved ${resolvedRecipient.ensName} -> ${resolvedRecipient.address}`, mode.isQuiet || mode.isJson);
+    }
+    recipient = resolvedRecipient.address;
+
+    const recipientWarnings = await confirmRecipientIfNew({
+      address: recipient,
+      knownRecipients: collectKnownFlowRecipients(),
+      skipPrompts: mode.skipPrompts,
+      silent: mode.isQuiet || mode.isJson,
+    });
+
+    if (opts.dryRun) {
+      await renderFlowStartDryRunForInputs({
+        amount,
+        asset,
+        recipient,
+        opts,
+        globalOpts,
+        mode,
+        ctx,
+        recipientWarnings,
+      });
+      return;
+    }
+
     const snapshot = await startWorkflow({
       amountInput: amount,
       assetInput: asset,
@@ -276,6 +466,7 @@ export async function handleFlowStartCommand(
     renderFlowResult(ctx, {
       action: "start",
       snapshot,
+      extraWarnings: recipientWarnings,
     });
   } catch (error) {
     await handleFlowCommandError(error, {

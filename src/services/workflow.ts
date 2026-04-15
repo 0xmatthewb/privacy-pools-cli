@@ -110,7 +110,8 @@ import {
   type FlowPrivacyDelayProfile,
 } from "../utils/flow-privacy-delay.js";
 import { ensurePromptInteractionAvailable } from "../utils/prompt-cancellation.js";
-import { validateAddress, parseAmount, resolveChain, validatePositive, resolveAddressOrEns } from "../utils/validation.js";
+import { parseAmount, resolveChain, validatePositive } from "../utils/validation.js";
+import { resolveSafeRecipientAddressOrEns } from "../utils/recipient-safety.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import {
   getRelayedWithdrawalRemainderAdvisory,
@@ -232,7 +233,7 @@ export interface FlowWarning {
 }
 
 export const FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE =
-  "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will move toward relayer quote and withdrawal immediately, which may create an off-chain timing signal.";
+  "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will request the relayed private withdrawal immediately, which may create an off-chain timing signal.";
 
 export class FlowCancelledError extends Error {
   constructor() {
@@ -1864,7 +1865,7 @@ export function buildFlowLastError(
 async function validateFlowRecipient(
   value: string,
 ): Promise<FlowRecipientValidationResult> {
-  const resolved = await resolveAddressOrEns(value, "Recipient");
+  const resolved = await resolveSafeRecipientAddressOrEns(value, "Recipient");
   return { address: resolved.address as Address, ensName: resolved.ensName };
 }
 

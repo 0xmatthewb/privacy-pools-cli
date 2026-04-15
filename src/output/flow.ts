@@ -1,4 +1,5 @@
 import { POA_PORTAL_URL } from "../config/chains.js";
+import { formatUnits } from "viem";
 import {
   buildFlowWarnings,
   flowPrivacyDelayProfileSummary,
@@ -6,7 +7,12 @@ import {
   type FlowPhase,
   type FlowSnapshot,
 } from "../services/workflow.js";
-import { describeFlowPrivacyDelayDeadline } from "../utils/flow-privacy-delay.js";
+import {
+  describeFlowPrivacyDelayDeadline,
+  flowPrivacyDelayRangeSeconds,
+  isFlowPrivacyDelayRandom,
+  type FlowPrivacyDelayProfile,
+} from "../utils/flow-privacy-delay.js";
 import {
   displayDecimals,
   formatAddress,
@@ -37,6 +43,12 @@ import {
   renderFlowRail,
   type FlowRailStep,
 } from "./progress.js";
+
+export interface FlowJsonWarning {
+  code: string;
+  category: string;
+  message: string;
+}
 
 export interface FlowStartReviewData {
   amount: bigint;
@@ -134,6 +146,22 @@ export function formatFlowStartReview(data: FlowStartReviewData): string {
 export interface FlowRenderData {
   action: "start" | "watch" | "status" | "ragequit";
   snapshot: FlowSnapshot;
+  extraWarnings?: FlowJsonWarning[];
+}
+
+export interface FlowStartDryRunData {
+  chain: string;
+  asset: string;
+  assetDecimals: number;
+  depositAmount: bigint;
+  recipient: string;
+  walletMode: "configured" | "new_wallet";
+  privacyDelayProfile: FlowPrivacyDelayProfile;
+  vettingFee: bigint;
+  estimatedCommittedValue: bigint;
+  isErc20: boolean;
+  tokenPrice?: number | null;
+  warnings?: FlowJsonWarning[];
 }
 
 export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
@@ -149,12 +177,16 @@ export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
         : []),
       ...(amount ? [{ label: "Amount", value: amount }] : []),
       { label: "Destination", value: "original deposit address" },
-      { label: "Privacy cost", value: "Public recovery to deposit address", valueTone: "warning" },
+      {
+        label: "Privacy cost",
+        value: "Recover funds publicly to your deposit address",
+        valueTone: "warning",
+      },
     ],
     primaryCallout: {
       kind: "danger",
       lines: [
-        `By exiting this pool, you are withdrawing all deposited and pending funds to your depositing address. You will not gain any privacy.${configuredSignerRecoverySuffix(snapshot)}`,
+        `Recover funds publicly to your deposit address. This does not provide privacy for this saved workflow.${configuredSignerRecoverySuffix(snapshot)}`,
       ],
     },
   });
@@ -699,7 +731,11 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
   }
 }
 
-function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowSnapshot) {
+function buildFlowJsonSnapshot(
+  action: FlowRenderData["action"],
+  snapshot: FlowSnapshot,
+  extraWarnings: readonly FlowJsonWarning[] = [],
+) {
   const warnings =
     action === "ragequit"
       ? []
@@ -707,6 +743,7 @@ function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowS
           forceConfiguredPrivacyDelayWarning:
             action === "start" || action === "watch",
         });
+  const privacyDelayProfile = snapshot.privacyDelayProfile ?? "off";
   const exposedPoolAccount = shouldExposeConfirmedPoolAccount(snapshot);
   return {
     mode: "flow",
@@ -721,8 +758,10 @@ function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowS
       snapshot.walletMode === "new_wallet"
         ? snapshot.backupConfirmed ?? false
         : undefined,
-    privacyDelayProfile: snapshot.privacyDelayProfile ?? "off",
+    privacyDelayProfile,
     privacyDelayConfigured: snapshot.privacyDelayConfigured ?? false,
+    privacyDelayRandom: isFlowPrivacyDelayRandom(privacyDelayProfile),
+    privacyDelayRangeSeconds: flowPrivacyDelayRangeSeconds(privacyDelayProfile),
     privacyDelayUntil: snapshot.privacyDelayUntil ?? null,
     chain: snapshot.chain,
     asset: snapshot.asset,
@@ -758,8 +797,98 @@ function buildFlowJsonSnapshot(action: FlowRenderData["action"], snapshot: FlowS
           recommendation: "Prefer flow watch for a relayed private withdrawal when the workflow can continue privately.",
         }
       : undefined,
-    warnings: warnings.length > 0 ? warnings : undefined,
+    warnings:
+      warnings.length > 0 || extraWarnings.length > 0
+        ? [...warnings, ...extraWarnings]
+        : undefined,
   };
+}
+
+export function renderFlowStartDryRun(
+  ctx: OutputContext,
+  data: FlowStartDryRunData,
+): void {
+  guardCsvUnsupported(ctx, "flow start --dry-run");
+
+  const privacyDelayRange = flowPrivacyDelayRangeSeconds(data.privacyDelayProfile);
+  const privacyDelayRandom = isFlowPrivacyDelayRandom(data.privacyDelayProfile);
+  const nextActionOptions: Record<string, string | boolean> = {
+    agent: true,
+    chain: data.chain,
+    to: data.recipient,
+    privacyDelay: data.privacyDelayProfile,
+  };
+  if (data.walletMode === "new_wallet") {
+    nextActionOptions.newWallet = true;
+  }
+
+  const agentNextActions = [
+    createNextAction(
+      "flow start",
+      "Start this saved workflow for real when you are ready to deposit.",
+      "after_dry_run",
+      {
+        args: [
+          formatUnits(data.depositAmount, data.assetDecimals),
+          data.asset,
+        ],
+        options: nextActionOptions,
+        runnable: data.walletMode === "configured",
+      },
+    ),
+  ];
+
+  if (ctx.mode.isJson) {
+    printJsonSuccess(
+      appendNextActions(
+        {
+          mode: "flow",
+          action: "start",
+          dryRun: true,
+          chain: data.chain,
+          asset: data.asset,
+          depositAmount: data.depositAmount.toString(),
+          recipient: data.recipient,
+          walletMode: data.walletMode,
+          privacyDelayProfile: data.privacyDelayProfile,
+          privacyDelayConfigured: true,
+          privacyDelayRandom,
+          privacyDelayRangeSeconds: privacyDelayRange,
+          vettingFee: data.vettingFee.toString(),
+          estimatedCommittedValue: data.estimatedCommittedValue.toString(),
+          warnings: data.warnings && data.warnings.length > 0
+            ? data.warnings
+            : undefined,
+        },
+        agentNextActions,
+      ),
+      false,
+    );
+    return;
+  }
+
+  const silent = isSilent(ctx);
+  if (!silent) process.stderr.write("\n");
+  success("Flow dry-run complete. No workflow was saved and no transaction was submitted.", silent);
+  if (!silent) {
+    process.stderr.write(
+      formatFlowStartReview({
+        amount: data.depositAmount,
+        feeAmount: data.vettingFee,
+        estimatedCommitted: data.estimatedCommittedValue,
+        asset: data.asset,
+        chain: data.chain,
+        decimals: data.assetDecimals,
+        recipient: data.recipient,
+        privacyDelaySummary: flowPrivacyDelayProfileSummary(
+          data.privacyDelayProfile,
+        ),
+        newWallet: data.walletMode === "new_wallet",
+        isErc20: data.isErc20,
+        tokenPrice: data.tokenPrice ?? null,
+      }),
+    );
+  }
 }
 
 export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void {
@@ -770,7 +899,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   if (ctx.mode.isJson) {
     printJsonSuccess(
       appendNextActions(
-        buildFlowJsonSnapshot(data.action, data.snapshot),
+        buildFlowJsonSnapshot(data.action, data.snapshot, data.extraWarnings),
         agentNextActions,
       ),
       false,

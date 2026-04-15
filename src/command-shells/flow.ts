@@ -30,11 +30,12 @@ export function createFlowCommand(): Command {
     .addOption(
       new Option(
         "--privacy-delay <profile>",
-        "Privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized)",
+        "Privacy delay profile: off = no added hold, balanced = randomized 15 to 90 minutes (default), aggressive = randomized 2 to 12 hours",
       ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .option("--new-wallet", "Create and use a dedicated wallet for this workflow")
     .option("--export-new-wallet <path>", "Export the generated workflow wallet backup before continuing (requires --new-wallet)")
+    .option("--dry-run", "Validate the flow start inputs without saving a workflow or submitting a deposit")
     .option("--watch", "Keep watching this workflow until it finishes or pauses")
     .addHelpText("after", commandHelpText(startMetadata.help ?? {}))
     .action(
@@ -51,7 +52,7 @@ export function createFlowCommand(): Command {
     .addOption(
       new Option(
         "--privacy-delay <profile>",
-        "Persist or override the saved privacy delay profile: off (no hold), balanced (15-90m randomized), or aggressive (2-12h randomized)",
+        "Persist or override the saved privacy delay profile: off = no added hold, balanced = randomized 15 to 90 minutes (default), aggressive = randomized 2 to 12 hours",
       ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .addHelpText("after", commandHelpText(watchMetadata.help ?? {}))

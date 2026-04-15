@@ -7,6 +7,25 @@ export const FLOW_PRIVACY_DELAY_PROFILES = [
 export type FlowPrivacyDelayProfile =
   (typeof FLOW_PRIVACY_DELAY_PROFILES)[number];
 
+export function flowPrivacyDelayRangeSeconds(
+  profile: FlowPrivacyDelayProfile,
+): [number, number] {
+  switch (profile) {
+    case "balanced":
+      return [15 * 60, 90 * 60];
+    case "aggressive":
+      return [2 * 60 * 60, 12 * 60 * 60];
+    case "off":
+      return [0, 0];
+  }
+}
+
+export function isFlowPrivacyDelayRandom(
+  profile: FlowPrivacyDelayProfile,
+): boolean {
+  return profile !== "off";
+}
+
 function pluralize(value: number, unit: string): string {
   return `${value} ${unit}${value === 1 ? "" : "s"}`;
 }
