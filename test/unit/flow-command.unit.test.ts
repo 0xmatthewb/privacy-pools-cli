@@ -14,6 +14,7 @@ describe("flow command shell", () => {
       expect.arrayContaining([
         "-t, --to <address>",
         "--privacy-delay <profile>",
+        "--dry-run",
         "--new-wallet",
         "--export-new-wallet <path>",
         "--watch",

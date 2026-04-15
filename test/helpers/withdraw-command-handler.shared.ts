@@ -339,6 +339,12 @@ const isPromptCancellationErrorMock = mock(
 );
 const maybeRecoverMissingWalletSetupMock = mock(async () => false);
 const resolveAddressOrEnsMock = mock(realValidation.resolveAddressOrEns);
+const loadKnownRecipientHistoryMock = mock(() => [] as string[]);
+const rememberKnownRecipientMock = mock(() => undefined);
+const listSavedWorkflowIdsMock = mock(() => [] as string[]);
+const getWorkflowStatusMock = mock(() => {
+  throw new Error("workflow not found");
+});
 const confirmPromptMock = mock(async () => true);
 const inputPromptMock = mock(async () =>
   "0x4444444444444444444444444444444444444444"
@@ -466,6 +472,14 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
     ...realValidation,
     resolveAddressOrEns: resolveAddressOrEnsMock,
   }));
+  mock.module("../../src/services/recipient-history.ts", () => ({
+    loadKnownRecipientHistory: loadKnownRecipientHistoryMock,
+    rememberKnownRecipient: rememberKnownRecipientMock,
+  }));
+  mock.module("../../src/services/workflow.ts", () => ({
+    listSavedWorkflowIds: listSavedWorkflowIdsMock,
+    getWorkflowStatus: getWorkflowStatusMock,
+  }));
   mock.module("@0xbow/privacy-pools-core-sdk", () => ({
     ...realSdkPackage,
     generateMerkleProof: generateMerkleProofMock,
@@ -524,6 +538,10 @@ export function registerWithdrawCommandHandlerHarness(): void {
     isPromptCancellationErrorMock.mockClear();
     maybeRecoverMissingWalletSetupMock.mockClear();
     resolveAddressOrEnsMock.mockClear();
+    loadKnownRecipientHistoryMock.mockClear();
+    rememberKnownRecipientMock.mockClear();
+    listSavedWorkflowIdsMock.mockClear();
+    getWorkflowStatusMock.mockClear();
     confirmPromptMock.mockClear();
     inputPromptMock.mockClear();
     selectPromptMock.mockClear();
@@ -676,6 +694,12 @@ export function registerWithdrawCommandHandlerHarness(): void {
     );
     maybeRecoverMissingWalletSetupMock.mockImplementation(async () => false);
     resolveAddressOrEnsMock.mockImplementation(realValidation.resolveAddressOrEns);
+    loadKnownRecipientHistoryMock.mockImplementation(() => []);
+    rememberKnownRecipientMock.mockImplementation(() => undefined);
+    listSavedWorkflowIdsMock.mockImplementation(() => []);
+    getWorkflowStatusMock.mockImplementation(() => {
+      throw new Error("workflow not found");
+    });
   });
 
   afterEach(async () => {

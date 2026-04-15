@@ -70,6 +70,17 @@ describe("command metadata conformance", () => {
     expect(payload.commandDetails["withdraw"]?.touchesFunds).toBe(true);
     expect(payload.commandDetails["withdraw"]?.requiresHumanReview).toBe(true);
     expect(payload.commandDetails["flow"]?.safeReadOnly).toBe(true);
+    expect(payload.commandDetails["flow"]?.expectedNextActionWhen).toEqual([
+      "flow_resume",
+      "flow_public_recovery_optional",
+      "flow_declined",
+      "flow_public_recovery_pending",
+      "flow_public_recovery_required",
+      "flow_manual_followup",
+    ]);
+    expect(payload.commandDetails["flow start"]?.expectedNextActionWhen).toEqual(
+      payload.commandDetails["flow"]?.expectedNextActionWhen,
+    );
     expect(payload.safeReadOnlyCommands).toContain("flow status");
     expect(payload.exitCodes).toEqual(CAPABILITY_EXIT_CODES);
     expect(payload.envVars).toEqual(CAPABILITY_ENV_VARS);

@@ -600,9 +600,10 @@ describe("renderWithdrawDryRun parity", () => {
           to: "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
           poolAccount: "PA-1",
           direct: true,
+          yesIUnderstandPrivacyLoss: true,
         },
       },
-      "privacy-pools withdraw 0.5 ETH --agent --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --pool-account PA-1 --direct",
+      "privacy-pools withdraw 0.5 ETH --agent --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --pool-account PA-1 --direct --yes-i-understand-privacy-loss",
     );
     expect(stderr).toBe("");
   });
@@ -672,7 +673,7 @@ describe("renderWithdrawDryRun parity", () => {
     expect(stderr).toMatch(/Pool Account:\s+PA-1/);
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain(
-      "privacy-pools withdraw 0.5 ETH --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --pool-account PA-1 --direct",
+      "privacy-pools withdraw 0.5 ETH --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --pool-account PA-1 --direct --yes-i-understand-privacy-loss",
     );
   });
 });

@@ -59,7 +59,7 @@ describe("CLI backup file format", () => {
     VALID_12,
     "",
     "IMPORTANT: Keep this file secure. Delete it after transferring to a safe location.",
-    "Anyone with this phrase can access your Privacy Pools deposits.",
+    "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
   ].join("\n");
 
   test("extracts mnemonic from CLI backup format", () => {

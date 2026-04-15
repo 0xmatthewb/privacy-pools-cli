@@ -124,9 +124,16 @@ describe("external JSON contract doc conformance", () => {
     expect(flow.successFields?.poolAccountId).toBe("string (PA-#)|null");
     expect(flow.successFields?.privacyDelayProfile).toContain("\"balanced\"");
     expect(flow.successFields?.privacyDelayConfigured).toContain("legacy snapshots");
+    expect(flow.successFields?.privacyDelayRandom).toContain("boolean");
+    expect(flow.successFields?.privacyDelayRangeSeconds).toContain("[number, number]");
     expect(flow.successFields?.privacyDelayUntil).toBe("iso8601-string|null");
     expect(flow.successFields?.warnings).toContain("FlowWarning[]");
     expect(flow.successFields?.nextActions).toContain("canonical saved-workflow");
+
+    const flowDryRun = (flow as { dryRunFields?: Record<string, unknown> }).dryRunFields;
+    expect(flowDryRun?.dryRun).toBe(true);
+    expect(flowDryRun?.privacyDelayRandom).toBe("boolean");
+    expect(flowDryRun?.privacyDelayRangeSeconds).toBe("[number, number]");
   });
 
   test("doc reflects current activity/accounts/stats machine fields", () => {
@@ -165,6 +172,7 @@ describe("external JSON contract doc conformance", () => {
     expect(describe.successFields?.command).toContain("canonical command path");
     expect(describe.successFields?.globalFlags).toBe("string[]");
     expect(describe.successFields?.execution).toContain('"js-runtime"|"native-shell"|"hybrid"');
+    expect(describe.successFields?.expectedNextActionWhen).toContain("string[]");
     expect(describe.successFields?.sideEffectClass).toContain('"fund_movement"');
     expect(describe.successFields?.touchesFunds).toBe("boolean");
     expect(describe.successFields?.requiresHumanReview).toBe("boolean");

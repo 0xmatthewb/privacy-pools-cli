@@ -9,6 +9,7 @@ const realFormat = await import("../../src/utils/format.ts");
 
 let createOutputContext: typeof import("../../src/output/common.ts").createOutputContext;
 let formatFlowRagequitReview: typeof import("../../src/output/flow.ts").formatFlowRagequitReview;
+let renderFlowStartDryRun: typeof import("../../src/output/flow.ts").renderFlowStartDryRun;
 let renderFlowResult: typeof import("../../src/output/flow.ts").renderFlowResult;
 
 function expectNextAction(
@@ -40,6 +41,7 @@ beforeAll(async () => {
   ({ createOutputContext } = await import("../../src/output/common.ts"));
   ({
     formatFlowRagequitReview,
+    renderFlowStartDryRun,
     renderFlowResult,
   } = await import("../../src/output/flow.ts"));
 });
@@ -105,6 +107,8 @@ describe("renderFlowResult", () => {
     expect(json.phase).toBe("awaiting_asp");
     expect(json.privacyDelayProfile).toBe("off");
     expect(json.privacyDelayConfigured).toBe(false);
+    expect(json.privacyDelayRandom).toBe(false);
+    expect(json.privacyDelayRangeSeconds).toEqual([0, 0]);
     expect(json.backupConfirmed).toBeUndefined();
     expect(json.nextActions).toBeArrayOfSize(1);
     expectNextAction(
@@ -118,6 +122,50 @@ describe("renderFlowResult", () => {
         options: { agent: true },
       },
       "privacy-pools flow watch wf-123 --agent",
+    );
+    expect(stderr).toBe("");
+  });
+
+  test("JSON mode emits flow start dry-run privacy-delay metadata", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout, stderr } = captureOutput(() =>
+      renderFlowStartDryRun(ctx, {
+        chain: "sepolia",
+        asset: "ETH",
+        assetDecimals: 18,
+        depositAmount: 100000000000000000n,
+        recipient: "0x4444444444444444444444444444444444444444",
+        walletMode: "configured",
+        privacyDelayProfile: "balanced",
+        vettingFee: 500000000000000n,
+        estimatedCommittedValue: 99500000000000000n,
+        isErc20: false,
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("flow");
+    expect(json.action).toBe("start");
+    expect(json.dryRun).toBe(true);
+    expect(json.privacyDelayRandom).toBe(true);
+    expect(json.privacyDelayRangeSeconds).toEqual([900, 5400]);
+    expect(json.nextActions).toBeArrayOfSize(1);
+    expectNextAction(
+      json.nextActions[0],
+      {
+        command: "flow start",
+        reason: "Start this saved workflow for real when you are ready to deposit.",
+        when: "after_dry_run",
+        args: ["0.1", "ETH"],
+        options: {
+          agent: true,
+          chain: "sepolia",
+          to: "0x4444444444444444444444444444444444444444",
+          privacyDelay: "balanced",
+        },
+      },
+      "privacy-pools flow start 0.1 ETH --agent --chain sepolia --to 0x4444444444444444444444444444444444444444 --privacy-delay balanced",
     );
     expect(stderr).toBe("");
   });
@@ -835,7 +883,7 @@ describe("renderFlowResult", () => {
         code: "timing_delay_disabled",
         category: "privacy",
         message:
-          "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will move toward relayer quote and withdrawal immediately, which may create an off-chain timing signal.",
+          "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will request the relayed private withdrawal immediately, which may create an off-chain timing signal.",
       },
     ]);
 

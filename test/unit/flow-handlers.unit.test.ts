@@ -251,7 +251,7 @@ describe("flow command handlers", () => {
 
     await handleFlowRootCommand({}, fakeCommand({}));
 
-    expect(listSavedWorkflowIdsMock).toHaveBeenCalledTimes(1);
+    expect(listSavedWorkflowIdsMock).toHaveBeenCalledTimes(2);
     expect(startWorkflowMock).toHaveBeenCalledWith(
       expect.objectContaining({
         amountInput: "0.5",
@@ -262,6 +262,7 @@ describe("flow command handlers", () => {
     expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
       action: "start",
       snapshot: startSnapshot,
+      extraWarnings: [],
     });
   });
 
@@ -332,6 +333,12 @@ describe("flow command handlers", () => {
     expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
       action: "start",
       snapshot: startSnapshot,
+      extraWarnings: [
+        expect.objectContaining({
+          code: "recipient_new_to_profile",
+          category: "recipient",
+        }),
+      ],
     });
   });
 

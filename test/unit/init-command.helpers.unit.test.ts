@@ -74,7 +74,9 @@ describe("init command helpers", () => {
     const contents = buildRecoveryBackupContents("alpha beta gamma");
     expect(contents).toContain("Privacy Pools Recovery Phrase");
     expect(contents).toContain("alpha beta gamma");
-    expect(contents).toContain("Anyone with this phrase can access your Privacy Pools deposits.");
+    expect(contents).toContain(
+      "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
+    );
   });
 
   test("writeRecoveryBackupFile writes a new backup and rejects unsafe targets", () => {

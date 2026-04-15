@@ -107,6 +107,8 @@ describe("JSON output helpers", () => {
       expect(parsed.success).toBe(false);
       expect(parsed.errorCode).toBe("INPUT_INVALID");
       expect(parsed.errorMessage).toBe("Bad input");
+      expect(parsed.errorCode).toBe(parsed.error.code);
+      expect(parsed.errorMessage).toBe(parsed.error.message);
       expect(parsed.error).toEqual({
         code: "INPUT_INVALID",
         category: "INPUT",
@@ -123,6 +125,7 @@ describe("JSON output helpers", () => {
 
       const parsed = JSON.parse(output.trim());
       expect(parsed.errorCode).toBe("UNKNOWN_ERROR");
+      expect(parsed.error.code).toBe("UNKNOWN_ERROR");
     });
 
     test("uses provided code when present", () => {
