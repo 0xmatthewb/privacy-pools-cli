@@ -54,6 +54,7 @@ import {
   renderInitRecoveryVerificationReview,
   renderInitResult,
   renderInitSignerKeyReview,
+  renderInitStage,
 } from "../output/init.js";
 import {
   ensurePromptInteractionAvailable,
@@ -73,7 +74,6 @@ import {
   PreviewScenarioRenderedError,
 } from "../preview/runtime.js";
 import { notice } from "../utils/theme.js";
-import { printJsonSuccess } from "../utils/json.js";
 import type {
   CLIConfig,
   GlobalOptions,
@@ -199,7 +199,6 @@ interface DeriveReadinessParams {
 
 const INIT_TEST_SENTINELS_ENV = "PRIVACY_POOLS_TEST_INIT_SENTINELS";
 const RECOVERY_VERIFICATION_WORDS = [3, 12, 24] as const;
-const INIT_STAGED_MODE = "init-staged";
 
 export { createInitCommand } from "../command-shells/init.js";
 
@@ -219,7 +218,7 @@ export function buildRecoveryBackupContents(mnemonic: string): string {
     mnemonic,
     "",
     "IMPORTANT: Keep this file secure. Delete it after transferring to a safe location.",
-    "Anyone with this phrase can access your Privacy Pools deposits.",
+    "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
   ].join("\n");
 }
 
@@ -298,12 +297,7 @@ function emitInitStage(
   payload: Record<string, unknown> = {},
 ): void {
   if (!enabled) return;
-  printJsonSuccess({
-    mode: INIT_STAGED_MODE,
-    operation: "init",
-    stage,
-    ...payload,
-  });
+  renderInitStage(stage, payload);
 }
 
 function initStageHeader(

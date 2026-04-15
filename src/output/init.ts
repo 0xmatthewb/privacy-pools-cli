@@ -58,6 +58,18 @@ export interface InitDryRunResult {
   writeTargets: string[];
 }
 
+export function renderInitStage(
+  stage: string,
+  payload: Record<string, unknown> = {},
+): void {
+  printJsonSuccess({
+    mode: "init-staged",
+    operation: "init",
+    stage,
+    ...payload,
+  });
+}
+
 function readinessLabel(readiness: InitReadiness): string {
   switch (readiness) {
     case "ready":
@@ -320,11 +332,11 @@ export function renderInitGoalReview(params: {
       lines: params.hasRecoveryPhrase
         ? [
             "Choose what you want to do on this machine.",
-            "Your recovery phrase controls the Privacy Pools account. The signer key only pays gas.",
+            "The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.",
           ]
         : [
             "Choose whether to create a new Privacy Pools account or load one you already use.",
-            "Your recovery phrase controls the Privacy Pools account. The signer key only pays gas.",
+            "The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.",
           ],
     },
   });
@@ -408,11 +420,11 @@ export function renderGeneratedRecoveryPhraseReview(mnemonic: string): string {
     padTop: false,
   })}${formatCallout("recovery", [
     "This recovery phrase is the master key to your Privacy Pools account.",
-    "It is independent of the signer key that pays gas.",
+    "The signer key submits transactions and may come from the same wallet or a separate key.",
   ])}${gridLines.join("\n")}\n${formatCallout("danger", [
     "Save this recovery phrase now.",
     "This is the only time the CLI will display it.",
-    "Anyone with this phrase can recover your deposited funds.",
+    "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
   ])}`;
 }
 
@@ -516,9 +528,9 @@ export function renderInitSignerKeyReview(options: {
 } = {}): string {
   return formatCallout("read-only", [
     "Your signer key pays gas and submits transactions.",
-    "It is separate from your recovery phrase, which remains the master key to your deposited funds.",
+    "It may come from the same wallet as your recovery phrase or from a separate key you control.",
     options.required
-      ? "Add it now to move this machine from read-only mode to transaction-ready."
+      ? "Add it now so this machine can submit transactions."
       : "You can skip it now and finish later with privacy-pools init --signer-only.",
   ]);
 }
@@ -693,8 +705,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
         case "degraded":
           process.stderr.write(
             formatCallout("warning", [
-              "Supported-chain discovery could not finish because connectivity or legacy review data was degraded.",
-              "Retry once RPC and ASP health are stable.",
+              "Discovery did not complete. Retry after RPC and ASP health are stable. Your account is unchanged.",
             ]),
           );
           break;
@@ -702,8 +713,8 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     } else if (result.readiness === "read_only") {
       process.stderr.write(
         formatCallout("read-only", [
-          "This machine is in read-only mode until you add a signer key.",
-          "Finish later with privacy-pools init --signer-only.",
+          "This machine cannot submit transactions yet.",
+          "Add a signer key with privacy-pools init --signer-only.",
         ]),
       );
     } else if (result.setupMode === "signer_only") {
@@ -715,7 +726,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     }
   }
 
-  if (!isSilent(ctx) && !ctx.mode.skipPrompts && !result.restoreDiscovery && result.setupMode !== "signer_only") {
+  if (!isSilent(ctx) && !result.restoreDiscovery && result.setupMode !== "signer_only") {
     const browsePoolsCommand = isTestnetChain(result.defaultChain)
       ? `privacy-pools pools --chain ${result.defaultChain}`
       : "privacy-pools pools";
