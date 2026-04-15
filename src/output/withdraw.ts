@@ -125,7 +125,7 @@ export function formatRelayedWithdrawalReview(
       },
       {
         label: "Recipient",
-        value: formatAddress(data.recipient),
+        value: data.recipient,
       },
       { label: "Chain", value: data.chain },
       {
@@ -223,7 +223,7 @@ export function formatDirectWithdrawalReview(
           `${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
           (amountUsd === "-" ? "" : ` (${amountUsd})`),
       },
-      { label: "Recipient", value: formatAddress(data.recipient) },
+      { label: "Recipient", value: data.recipient },
       { label: "Chain", value: data.chain },
       {
         label: "Mode",

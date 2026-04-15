@@ -1597,7 +1597,7 @@ export async function handleWithdrawCommand(
             standardMessage: "Confirm direct withdrawal?",
             highStakesToken: "WITHDRAW",
             highStakesWarning:
-              "This direct withdrawal will publicly link your deposit and withdrawal addresses onchain. This cannot be undone.",
+              `This direct withdrawal will publicly link your deposit and withdrawal addresses onchain. Recipient: ${directAddress}. This cannot be undone.`,
             confirm,
           });
           if (!ok) {
@@ -2105,7 +2105,7 @@ export async function handleWithdrawCommand(
               standardMessage: "Confirm withdrawal?",
               highStakesToken,
               highStakesWarning:
-                `This withdrawal moves ${highStakesToken} to ${formatAddress(resolvedRecipientAddress)}.` +
+                `This withdrawal moves ${highStakesToken} to ${resolvedRecipientAddress}.` +
                 " Double-check the amount and destination before continuing.",
               confirm,
             });

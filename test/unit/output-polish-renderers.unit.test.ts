@@ -61,6 +61,7 @@ describe("formatRelayedWithdrawalReview", () => {
       includes: [
         "Withdrawal review",
         "PA-7",
+        "0x1111111111111111111111111111111111111111",
         "The remaining balance would fall below the relayer minimum.",
       ],
       patterns: [/pool account/i, /balance/i, /relayer fee/i, /gas token/i, /net received/i, /quote expiry/i],
@@ -171,10 +172,18 @@ describe("shared runtime review renderers", () => {
     });
 
     expectSemanticText(direct, {
-      includes: ["Direct withdrawal review", "public onchain withdrawal"],
+      includes: [
+        "Direct withdrawal review",
+        "public onchain withdrawal",
+        "0x1111111111111111111111111111111111111111",
+      ],
     });
     expectSemanticText(ragequit, {
-      includes: ["Ragequit review", "will not", "gain any privacy"],
+      includes: [
+        "Ragequit review",
+        "0x2222222222222222222222222222222222222222",
+        "does not provide privacy",
+      ],
     });
     expectSemanticText(flow, {
       includes: ["Flow start review", "Dedicated workflow wallet"],

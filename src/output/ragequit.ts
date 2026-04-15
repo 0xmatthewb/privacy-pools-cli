@@ -95,7 +95,7 @@ export function formatRagequitReview(data: RagequitReviewData): string {
       {
         label: "Destination",
         value: data.destinationAddress
-          ? formatAddress(data.destinationAddress)
+          ? data.destinationAddress
           : "original deposit address",
       },
     ],
@@ -238,7 +238,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         ...(data.destinationAddress
           ? [{
               label: "Destination",
-              value: formatAddress(data.destinationAddress),
+              value: data.destinationAddress,
             }]
           : []),
       ]),
@@ -351,7 +351,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         ...(data.destinationAddress
           ? [{
               label: "Destination",
-              value: formatAddress(data.destinationAddress),
+              value: data.destinationAddress,
             }]
           : []),
       ]),
