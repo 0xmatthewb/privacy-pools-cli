@@ -81,7 +81,7 @@ export function buildDirectWithdrawalPrivacyCostManifest(data: {
     asset: data.asset,
     chain: data.chain,
     recipient: data.recipient,
-    privacyCost: "direct withdrawal publicly links the withdrawal to the signer address",
+    privacyCost: "direct withdrawal publicly links the deposit and withdrawal addresses onchain",
     privacyPreserved: false,
     recommendation: "Use the default relayed withdrawal path unless you intentionally accept this privacy loss.",
   };
@@ -239,8 +239,8 @@ export function formatDirectWithdrawalReview(
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Direct withdrawals publicly link the withdrawal to your signer address.",
-        "Use the default relayed mode unless you intentionally accept this privacy loss.",
+        "Direct withdrawals publicly link your deposit and withdrawal addresses onchain.",
+        "This cannot be undone. Use the default relayed mode unless you fully accept this privacy loss.",
       ],
     },
   });
@@ -268,6 +268,7 @@ export interface WithdrawDryRunData {
   extraGas?: boolean;
   /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
   anonymitySet?: { eligible: number; total: number; percentage: number };
+  warnings?: Array<{ code: string; category: string; message: string }>;
 }
 
 /**
@@ -286,6 +287,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
   };
   if (data.withdrawMode === "direct") {
     actionOptions.direct = true;
+    actionOptions.yesIUnderstandPrivacyLoss = true;
   } else if (data.extraGas !== undefined) {
     actionOptions.extraGas = data.extraGas;
   }
@@ -308,6 +310,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
   };
   if (data.withdrawMode === "direct") {
     humanActionOptions.direct = true;
+    humanActionOptions.yesIUnderstandPrivacyLoss = true;
   } else if (data.extraGas !== undefined) {
     humanActionOptions.extraGas = data.extraGas;
   }
@@ -343,6 +346,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
           category: "preview",
           message: "Dry-run validation is approximate until the transaction is signed and submitted.",
         },
+        ...(data.warnings ?? []),
       ],
     };
     if (data.withdrawMode === "relayed") {
@@ -409,7 +413,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
       process.stderr.write(
         formatCallout(
           "privacy",
-          "Direct withdrawals are not privacy-preserving. Use relayed mode for private withdrawals.",
+          "Direct withdrawals publicly link your deposit and withdrawal addresses onchain. Use relayed mode for private withdrawals.",
         ),
       );
     }
@@ -443,6 +447,7 @@ export interface WithdrawSuccessData {
   tokenPrice?: number | null;
   /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
   anonymitySet?: { eligible: number; total: number; percentage: number };
+  warnings?: Array<{ code: string; category: string; message: string }>;
 }
 
 /**
@@ -493,6 +498,9 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     }
     if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
+    if (data.warnings && data.warnings.length > 0) {
+      payload.warnings = data.warnings;
+    }
     printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;
   }
@@ -570,8 +578,8 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
         formatCallout(
           "danger",
           [
-            "This was a direct public withdrawal, so privacy was not preserved.",
-            "Use the default relayed mode next time if you want the privacy-preserving path.",
+            "This was a direct public withdrawal, so your deposit and withdrawal addresses are linked onchain.",
+            "Use the default relayed mode next time unless you fully accept that privacy loss.",
           ],
         ),
       );

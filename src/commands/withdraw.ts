@@ -10,10 +10,15 @@ import { privateKeyToAccount } from "viem/accounts";
 import {
   resolveChain,
   parseAmount,
-  validateAddress,
   validatePositive,
-  resolveAddressOrEns,
 } from "../utils/validation.js";
+import {
+  assertSafeRecipientAddress,
+  isKnownRecipient,
+  newRecipientWarning,
+  resolveSafeRecipientAddressOrEns,
+  type RecipientSafetyWarning,
+} from "../utils/recipient-safety.js";
 import { loadConfig } from "../services/config.js";
 import { loadMnemonic, loadPrivateKey } from "../services/wallet.js";
 import { getPublicClient, getDataService } from "../services/sdk.js";
@@ -30,6 +35,14 @@ import {
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { resolvePool, listPools } from "../services/pools.js";
+import {
+  loadKnownRecipientHistory,
+  rememberKnownRecipient,
+} from "../services/recipient-history.js";
+import {
+  getWorkflowStatus,
+  listSavedWorkflowIds,
+} from "../services/workflow.js";
 import {
   buildLoadedAspDepositReviewState,
   fetchMerkleRoots,
@@ -150,6 +163,7 @@ interface WithdrawCommandOptions {
   poolAccount?: string;
   fromPa?: string;
   direct?: boolean;
+  yesIUnderstandPrivacyLoss?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
   asset?: string;
@@ -205,6 +219,70 @@ interface RequestedWithdrawalPoolAccountParams {
 }
 
 export { createWithdrawCommand } from "../command-shells/withdraw.js";
+
+async function confirmRecipientIfNew(params: {
+  address: string;
+  knownRecipients: readonly string[];
+  skipPrompts: boolean;
+  silent: boolean;
+}): Promise<RecipientSafetyWarning[]> {
+  if (isKnownRecipient(params.address, params.knownRecipients)) {
+    return [];
+  }
+
+  const warning = newRecipientWarning(params.address);
+  if (params.skipPrompts) {
+    return [warning];
+  }
+
+  warn(warning.message, params.silent);
+  ensurePromptInteractionAvailable();
+  const ok = await confirmActionWithSeverity({
+    severity: "standard",
+    standardMessage: "Use this new recipient?",
+    highStakesToken: "RECIPIENT",
+    highStakesWarning: "Recipient review changed while waiting for confirmation.",
+    confirm,
+  });
+  if (!ok) {
+    throw promptCancelledError();
+  }
+  return [];
+}
+
+function collectKnownWorkflowRecipients(): string[] {
+  const recipients: string[] = [];
+  for (const workflowId of listSavedWorkflowIds()) {
+    try {
+      const snapshot = getWorkflowStatus({ workflowId });
+      if (snapshot.recipient) recipients.push(snapshot.recipient);
+      if (snapshot.walletAddress) recipients.push(snapshot.walletAddress);
+    } catch {
+      // Ignore unreadable workflow files during transaction preflight. The
+      // dedicated flow commands report workflow state strictly when requested.
+    }
+  }
+  return recipients;
+}
+
+function collectKnownWithdrawalRecipients(
+  signerAddress: Address | null,
+): string[] {
+  return [
+    ...(signerAddress ? [signerAddress] : []),
+    ...loadKnownRecipientHistory(),
+    ...collectKnownWorkflowRecipients(),
+  ];
+}
+
+function rememberSuccessfulWithdrawalRecipient(address: string): void {
+  try {
+    rememberKnownRecipient(address);
+  } catch {
+    // Best effort only. The withdrawal result should not fail because the
+    // advisory recipient-history cache could not be updated.
+  }
+}
 
 export function getEligibleUnapprovedStatuses(
   poolAccounts: readonly PoolAccountRef[],
@@ -499,7 +577,7 @@ export async function handleWithdrawCommand(
     verbose(`Mode: ${isDirect ? "direct" : "relayed"}`, isVerbose, silent);
     if (isDirect) {
       warn(
-        "Using direct withdrawal. This is NOT privacy-preserving. Use relayed mode (default) for private withdrawals.",
+        "Using direct withdrawal. This will publicly link your deposit and withdrawal addresses onchain and cannot be undone.",
         silent,
       );
     } else {
@@ -584,12 +662,13 @@ export async function handleWithdrawCommand(
     // once the asset and Pool Account have been selected.
     let recipientAddress: Address | null = null;
     let recipientEnsName: string | undefined;
+    let recipientWarnings: RecipientSafetyWarning[] = [];
     if (opts.to) {
-      const resolved = await resolveAddressOrEns(opts.to, "Recipient");
+      const resolved = await resolveSafeRecipientAddressOrEns(opts.to, "Recipient");
       recipientAddress = resolved.address;
       recipientEnsName = resolved.ensName;
       if (recipientEnsName) {
-        info(`Resolved ${recipientEnsName} \u2192 ${recipientAddress}`, silent);
+        info(`Resolved ${recipientEnsName} -> ${recipientAddress}`, silent);
       }
     } else if (isDirect && !signerAddress) {
       throw new CLIError(
@@ -603,7 +682,7 @@ export async function handleWithdrawCommand(
       throw new CLIError(
         "Relayed withdrawals require --to <address>.",
         "INPUT",
-        "Specify a recipient with --to. Note: --direct is available but not recommended, as it publicly links your deposit and withdrawal addresses.",
+        "Specify a recipient with --to. Direct withdrawal is available only if you fully accept that it publicly links your deposit and withdrawal addresses.",
       );
     }
 
@@ -659,6 +738,18 @@ export async function handleWithdrawCommand(
         "No asset specified.",
         "INPUT",
         "Run 'privacy-pools pools' to see available assets, then use a positional asset like 'privacy-pools withdraw 0.05 ETH --to 0x...'.",
+      );
+    }
+    if (
+      isDirect &&
+      !isDryRun &&
+      (mode.skipPrompts || isUnsigned) &&
+      opts.yesIUnderstandPrivacyLoss !== true
+    ) {
+      throw new CLIError(
+        "Direct withdrawal requires explicit privacy-loss acknowledgement in non-interactive mode.",
+        "INPUT",
+        "Re-run with --yes-i-understand-privacy-loss only if you fully accept that this will publicly link your deposit and withdrawal addresses onchain.",
       );
     }
     verbose(
@@ -1367,14 +1458,14 @@ export async function handleWithdrawCommand(
           message: "Recipient address:",
           validate: (val) => {
             try {
-              validateAddress(val, "Recipient");
+              assertSafeRecipientAddress(val as `0x${string}`, "Recipient");
               return true;
             } catch (e) {
               return e instanceof Error ? e.message : "Invalid address.";
             }
           },
         });
-        recipientAddress = validateAddress(prompted, "Recipient");
+        recipientAddress = assertSafeRecipientAddress(prompted as `0x${string}`, "Recipient");
         spin.start();
       }
 
@@ -1382,10 +1473,16 @@ export async function handleWithdrawCommand(
         throw new CLIError(
           "Relayed withdrawals require --to <address>.",
           "INPUT",
-          "Specify a recipient with --to. Note: --direct is available but not recommended, as it publicly links your deposit and withdrawal addresses.",
+          "Specify a recipient with --to. Direct withdrawal is available only if you fully accept that it publicly links your deposit and withdrawal addresses.",
         );
       }
       const resolvedRecipientAddress = recipientAddress;
+      recipientWarnings = await confirmRecipientIfNew({
+        address: resolvedRecipientAddress,
+        knownRecipients: collectKnownWithdrawalRecipients(signerAddress),
+        skipPrompts,
+        silent,
+      });
 
       // Anonymity set info (non-fatal)
       let anonymitySet:
@@ -1500,7 +1597,7 @@ export async function handleWithdrawCommand(
             standardMessage: "Confirm direct withdrawal?",
             highStakesToken: "WITHDRAW",
             highStakesWarning:
-              "This direct withdrawal is public and will link the deposit and withdrawal onchain.",
+              "This direct withdrawal will publicly link your deposit and withdrawal addresses onchain. This cannot be undone.",
             confirm,
           });
           if (!ok) {
@@ -1578,6 +1675,7 @@ export async function handleWithdrawCommand(
                 ...payload,
                 poolAccountNumber: selectedPoolAccount.paNumber,
                 poolAccountId: selectedPoolAccount.paId,
+                warnings: [...payload.warnings, ...recipientWarnings],
               },
               false,
             );
@@ -1601,6 +1699,7 @@ export async function handleWithdrawCommand(
             selectedCommitmentValue: commitment.value,
             proofPublicSignals: proof.publicSignals.length,
             anonymitySet,
+            warnings: recipientWarnings,
           });
           return;
         }
@@ -1710,6 +1809,7 @@ export async function handleWithdrawCommand(
           releaseCriticalSection();
         }
         spin.succeed("Direct withdrawal confirmed!");
+        rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
 
         const ctx = createOutputContext(mode);
         renderWithdrawSuccess(ctx, {
@@ -1729,6 +1829,7 @@ export async function handleWithdrawCommand(
           remainingBalance: selectedPoolAccount.value - withdrawalAmount,
           tokenPrice,
           anonymitySet,
+          warnings: recipientWarnings,
         });
       } else {
         // --- Relayed Withdrawal ---
@@ -2200,6 +2301,7 @@ export async function handleWithdrawCommand(
                 ...payload,
                 poolAccountNumber: selectedPoolAccount.paNumber,
                 poolAccountId: selectedPoolAccount.paId,
+                warnings: [...payload.warnings, ...recipientWarnings],
               },
               false,
             );
@@ -2226,6 +2328,7 @@ export async function handleWithdrawCommand(
             quoteExpiresAt: new Date(expirationMs).toISOString(),
             extraGas: effectiveExtraGas,
             anonymitySet,
+            warnings: recipientWarnings,
           });
           return;
         }
@@ -2324,6 +2427,7 @@ export async function handleWithdrawCommand(
           releaseCriticalSection();
         }
         spin.succeed("Relayed withdrawal confirmed!");
+        rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
 
         const ctx = createOutputContext(mode);
         renderWithdrawSuccess(ctx, {
@@ -2345,6 +2449,7 @@ export async function handleWithdrawCommand(
           remainingBalance: selectedPoolAccount.value - withdrawalAmount,
           tokenPrice,
           anonymitySet,
+          warnings: recipientWarnings,
         });
       }
     } finally {
@@ -2455,7 +2560,7 @@ export async function handleWithdrawQuoteCommand(
     validatePositive(amount, "Quote amount");
 
     const recipient = effectiveTo
-      ? validateAddress(effectiveTo, "Recipient")
+      ? assertSafeRecipientAddress(effectiveTo as `0x${string}`, "Recipient")
       : undefined;
 
     const spin = spinner("Requesting relayer quote...", silent);

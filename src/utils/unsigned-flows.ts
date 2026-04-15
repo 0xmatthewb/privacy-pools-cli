@@ -158,7 +158,7 @@ export function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
       asset: params.assetSymbol,
       chain: params.chainName,
       recipient: params.recipient,
-      privacyCost: "direct withdrawal publicly links the withdrawal to the signer address",
+      privacyCost: "direct withdrawal publicly links the deposit and withdrawal addresses onchain",
       privacyPreserved: false,
       recommendation: "Use the default relayed withdrawal path unless you intentionally accept this privacy loss.",
     },
