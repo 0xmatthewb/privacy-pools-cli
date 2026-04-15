@@ -203,6 +203,69 @@ describe("account service strict sync behavior", () => {
     });
   });
 
+  test("forceSync warns when it preserves richer saved Pool Account scope entries", async () => {
+    process.env.PRIVACY_POOLS_HOME = isolatedHome();
+
+    saveAccount(11155111, {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map([
+        [
+          1n,
+          [
+            { label: 10n },
+            { label: 11n },
+          ],
+        ],
+      ]),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+      __legacyPoolAccounts: new Map(),
+      __legacyMigrationReadinessStatus: "no_legacy",
+    });
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: {
+        account: {
+          masterKeys: [1n, 2n],
+          poolAccounts: new Map([[1n, [{ label: 12n }]]]),
+          creationTimestamp: 0n,
+          lastUpdateTimestamp: 0n,
+        },
+      } as any,
+      errors: [],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const stderrWrites: string[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrWrites.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const service = await initializeAccountService(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        true,
+        false,
+        false,
+      );
+
+      expect(service.account.poolAccounts.get(1n)).toEqual([
+        { label: 10n },
+        { label: 11n },
+      ]);
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+
+    expect(stderrWrites.join("")).toContain(
+      "keeping the saved account entries for scope 1",
+    );
+  });
+
   test("legacy refresh strictSync=true fails closed when rebuild returns partial pool errors", async () => {
     const home = isolatedHome();
     process.env.PRIVACY_POOLS_HOME = home;
@@ -316,6 +379,68 @@ describe("account service strict sync behavior", () => {
     expect(
       stderrWrites.some((chunk) =>
         chunk.includes("Warning: legacy account rebuild failed"),
+      ),
+    ).toBe(true);
+  });
+
+  test("legacy refresh strictSync=false warns and returns a partial rebuilt state when rebuild reports pool errors", async () => {
+    const home = isolatedHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+    mkdirSync(join(home, "accounts"), { recursive: true });
+    writeFileSync(
+      join(home, "accounts", "11155111.json"),
+      serialize({ poolAccounts: new Map() }),
+      "utf-8",
+    );
+
+    const rebuiltAccount = {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map([[1n, [{ label: 11n }]]]),
+      creationTimestamp: 0n,
+      lastUpdateTimestamp: 0n,
+    } as any;
+    const rebuiltService = new AccountService({} as any, {
+      account: rebuiltAccount,
+    });
+
+    AccountService.initializeWithEvents = (async () => ({
+      account: rebuiltService,
+      errors: [{ scope: 1n, reason: "legacy refresh timeout" }],
+    })) as typeof AccountService.initializeWithEvents;
+
+    const stderrWrites: string[] = [];
+    const originalWrite = process.stderr.write;
+    process.stderr.write = ((chunk: string) => {
+      stderrWrites.push(chunk);
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const result = await initializeAccountServiceWithState(
+        {} as any,
+        MNEMONIC,
+        samplePool(),
+        11155111,
+        {
+          allowLegacyAccountRebuild: true,
+          suppressWarnings: false,
+          strictSync: false,
+        },
+      );
+
+      expect(result.accountService).toBe(rebuiltService);
+      expect(result.rebuiltLegacyAccount).toBe(true);
+      expect(result.skipImmediateSync).toBe(false);
+      expect(result.legacyDeclinedLabels).toBeNull();
+      expect(loadAccount(11155111)?.poolAccounts).toEqual(new Map());
+      expect(loadSyncMeta(11155111)).toBeNull();
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+
+    expect(
+      stderrWrites.some((chunk) =>
+        chunk.includes("legacy account rebuild had partial failures"),
       ),
     ).toBe(true);
   });

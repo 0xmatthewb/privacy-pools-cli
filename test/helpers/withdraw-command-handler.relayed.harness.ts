@@ -12,13 +12,16 @@ import {
   expectPrintedRawTransactions,
   expectUnsignedTransactions,
   fakeCommand,
+  fetchDepositsLargerThanMock,
   getPublicClientMock,
   getRelayerDetailsMock,
   handleWithdrawCommand,
   initializeAccountServiceMock,
+  isPromptCancellationErrorMock,
   printRawTransactionsMock,
   proveWithdrawalMock,
   requestQuoteMock,
+  resolveAddressOrEnsMock,
   saveAccountMock,
   saveSyncMetaMock,
   submitRelayRequestMock,
@@ -26,6 +29,30 @@ import {
 } from "./withdraw-command-handler.shared.ts";
 
 export function registerWithdrawRelayedPreludeTests(): void {
+  test("logs ENS recipient resolution before building a relayed withdrawal", async () => {
+    useIsolatedHome();
+    resolveAddressOrEnsMock.mockImplementationOnce(async () => ({
+      address: "0x4444444444444444444444444444444444444444",
+      ensName: "alice.eth",
+    }));
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          dryRun: true,
+          to: "alice.eth",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain(
+      "Resolved alice.eth → 0x4444444444444444444444444444444444444444",
+    );
+  });
+
   test("renders a relayed JSON dry-run with quote and anonymity metadata", async () => {
     useIsolatedHome();
 
@@ -54,6 +81,92 @@ export function registerWithdrawRelayedPreludeTests(): void {
         total: 12,
       }),
     );
+  });
+
+  test("keeps relayed dry-runs working when anonymity-set lookup fails", async () => {
+    useIsolatedHome();
+    fetchDepositsLargerThanMock.mockImplementationOnce(async () => {
+      throw new Error("asp activity unavailable");
+    });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          dryRun: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(exitCode).toBe(0);
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("relayed");
+    expect(json.anonymitySet).toBeUndefined();
+  });
+
+  test("renders a human relayed dry-run and warns when the remainder falls below the relayer minimum", async () => {
+    useIsolatedHome();
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.96",
+        "ETH",
+        {
+          dryRun: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Remainder:");
+    expect(stderr).toContain("0.04 ETH");
+    expect(stderr).toContain("Dry-run completed");
+    expect(stderr).toContain("Withdrawal review");
+    expect(submitRelayRequestMock).not.toHaveBeenCalled();
+  });
+
+  test("announces full-balance relayed withdrawals when --all is used", async () => {
+    useIsolatedHome();
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "ETH",
+        undefined,
+        {
+          all: true,
+          dryRun: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Withdrawing 100% of PA-1");
+    expect(stderr).toContain("1 ETH");
+  });
+
+  test("announces percentage relayed withdrawals when a deferred percentage is used", async () => {
+    useIsolatedHome();
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "50%",
+        "ETH",
+        {
+          dryRun: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Withdrawing 50% of PA-1");
+    expect(stderr).toContain("0.5 ETH");
   });
 
 }
@@ -185,6 +298,29 @@ export function registerWithdrawRelayedUnsignedAndSubmitTests(): void {
     expect(addWithdrawalCommitmentMock).toHaveBeenCalledTimes(1);
     expect(saveAccountMock).toHaveBeenCalledTimes(1);
     expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("prints relayed save warnings for human callers after onchain confirmation", async () => {
+    useIsolatedHome({ withSigner: true });
+    saveAccountMock.mockImplementationOnce(() => {
+      throw new Error("disk full");
+    });
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x6666666666666666666666666666666666666666",
+        },
+        fakeCommand({ yes: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain(
+      "Relayed withdrawal confirmed onchain but failed to save locally",
+    );
+    expect(stderr).toContain("privacy-pools sync");
   });
 
 }
@@ -325,6 +461,38 @@ export function registerWithdrawRelayedQuoteRefreshPreludeTests(): void {
     expect(json.quoteExpiresAt).toContain("2100");
   });
 
+  test("fails closed at the late relayer minimum check when the early details probe was unavailable", async () => {
+    useIsolatedHome({ withSigner: true });
+    getRelayerDetailsMock
+      .mockImplementationOnce(async () => {
+        throw new Error("temporary relayer outage");
+      })
+      .mockImplementationOnce(async () => ({
+        minWithdrawAmount: "9000000000000000000",
+        feeReceiverAddress:
+          "0x3333333333333333333333333333333333333333" as Address,
+        relayerUrl: "https://fastrelay.xyz",
+      }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("RELAYER_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "below relayer minimum",
+    );
+    expect(exitCode).toBe(5);
+  });
+
 }
 export function registerWithdrawRelayedFailureAndTimeoutTests(): void {
   test("fails closed when the relayed withdrawal transaction reverts onchain", async () => {
@@ -386,6 +554,46 @@ export function registerWithdrawRelayedFailureAndTimeoutTests(): void {
 
 }
 export function registerWithdrawRelayedQuoteRefreshTests(): void {
+  test("fails closed when the relayer fee changes during the pre-proof refresh", async () => {
+    useIsolatedHome({ withSigner: true });
+    const originalNow = Date.now;
+    const initialNow = 1_700_000_000_000;
+    requestQuoteMock
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow + 20_000 }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({
+          feeBPS: "275",
+          expiration: initialNow + 100_000,
+          signedRelayerCommitment: "0x02",
+        }),
+      );
+    Date.now = () => initialNow;
+
+    try {
+      const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+        handleWithdrawCommand(
+          "0.1",
+          "ETH",
+          {
+            to: "0x4444444444444444444444444444444444444444",
+          },
+          fakeCommand({ json: true, chain: "mainnet" }),
+        ),
+      );
+
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("RELAYER_ERROR");
+      expect(json.error.message ?? json.errorMessage).toContain(
+        "Relayer fee changed during pre-proof refresh",
+      );
+      expect(exitCode).toBe(5);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
   test("auto-refreshes an expired relayer quote after proof generation when the fee is unchanged", async () => {
     useIsolatedHome({ withSigner: true });
     const originalNow = Date.now;
@@ -432,6 +640,150 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     } finally {
       Date.now = originalNow;
     }
+  });
+
+  test("logs verbose relayer quote refresh details when the fee stays unchanged after proof generation", async () => {
+    useIsolatedHome({ withSigner: true });
+    const originalNow = Date.now;
+    let nowCalls = 0;
+    const initialNow = 1_700_000_000_000;
+    const quoteExpiresAt = initialNow + 31_000;
+    const expiredNow = quoteExpiresAt + 1_000;
+    requestQuoteMock
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: quoteExpiresAt }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow + 100_000 }),
+      );
+    Date.now = () => (++nowCalls <= 4 ? initialNow : expiredNow);
+
+    try {
+      const { stderr } = await captureAsyncOutput(() =>
+        handleWithdrawCommand(
+          "0.1",
+          "ETH",
+          {
+            to: "0x4444444444444444444444444444444444444444",
+          },
+          fakeCommand({ chain: "mainnet", verbose: true }),
+        ),
+      );
+
+      expect(stderr).toContain("Quote refreshed with same fee (250 BPS)");
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  test("warns humans when an expired quote needs multiple refresh attempts before review", async () => {
+    useIsolatedHome({ withSigner: true });
+    const originalNow = Date.now;
+    const initialNow = 1_700_000_000_000;
+    requestQuoteMock
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow + 20_000 }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow - 1_000 }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow - 500 }),
+      )
+      .mockImplementationOnce(async () =>
+        buildRelayerQuote({ expiration: initialNow + 120_000 }),
+      );
+    Date.now = () => initialNow;
+
+    try {
+      const { stderr } = await captureAsyncOutput(() =>
+        handleWithdrawCommand(
+          "0.1",
+          "ETH",
+          {
+            dryRun: true,
+            to: "0x4444444444444444444444444444444444444444",
+          },
+          fakeCommand({ chain: "mainnet", yes: true }),
+        ),
+      );
+
+      expect(requestQuoteMock).toHaveBeenCalledTimes(4);
+      expect(stderr).toContain("Quote expired, refreshing... (attempt 2/3)");
+      expect(stderr).toContain("Quote expired, refreshing... (attempt 3/3)");
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  test("fails closed when the pool root changes before relayed proof generation", async () => {
+    useIsolatedHome({ withSigner: true });
+    let latestRootReads = 0;
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async ({ functionName }: { functionName: string }) => {
+        if (functionName === "latestRoot") {
+          latestRootReads += 1;
+          return latestRootReads >= 2 ? 2n : 1n;
+        }
+        return functionName === "ROOT_HISTORY_SIZE" ? 0n : 1n;
+      },
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 456n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Pool state changed while preparing your proof",
+    );
+    expect(exitCode).toBe(4);
+  });
+
+  test("fails closed when the pool root changes before relayed submission", async () => {
+    useIsolatedHome({ withSigner: true });
+    let latestRootReads = 0;
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async ({ functionName }: { functionName: string }) => {
+        if (functionName === "latestRoot") {
+          latestRootReads += 1;
+          return latestRootReads >= 3 ? 2n : 1n;
+        }
+        return functionName === "ROOT_HISTORY_SIZE" ? 0n : 1n;
+      },
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 456n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Pool state changed before submission",
+    );
+    expect(exitCode).toBe(4);
   });
 
   test("fails closed when the relayer fee changes after proof generation", async () => {
@@ -538,5 +890,32 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     } finally {
       Date.now = originalNow;
     }
+  });
+
+  test("prints a structured prompt-cancelled error in unsigned json mode", async () => {
+    useIsolatedHome({ withSigner: true });
+    const cancelled = new Error("cancelled");
+    proveWithdrawalMock.mockImplementationOnce(async () => {
+      throw cancelled;
+    });
+    isPromptCancellationErrorMock.mockImplementationOnce(
+      (error: unknown) => error === cancelled,
+    );
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          unsigned: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("PROMPT_CANCELLED");
+    expect(stderr).toBe("");
   });
 }

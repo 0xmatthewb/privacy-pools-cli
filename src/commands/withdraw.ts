@@ -161,6 +161,48 @@ interface WithdrawQuoteCommandOptions {
   to?: string;
 }
 
+interface ApprovalResolutionHintParams {
+  chainName: string;
+  assetSymbol: string;
+  poolAccountId?: string;
+  status?: WithdrawReviewStatus;
+}
+
+interface RelayedWithdrawalRemainderAdvisoryParams {
+  remainingBalance: bigint;
+  minWithdrawAmount: bigint;
+  poolAccountId: string;
+  assetSymbol: string;
+  decimals: number;
+}
+
+interface ValidatedRelayerQuoteForWithdrawal {
+  quoteFeeBPS: bigint;
+  expirationMs: number;
+}
+
+interface RefreshExpiredRelayerQuoteForWithdrawalParams {
+  fetchQuote: () => Promise<RelayerQuoteResponse>;
+  maxRelayFeeBPS: bigint | string;
+  nowMs?: () => number;
+  maxAttempts?: number;
+  onRetry?: (attempt: number, maxAttempts: number) => void;
+}
+
+interface RefreshedRelayerQuoteForWithdrawal
+  extends ValidatedRelayerQuoteForWithdrawal {
+  quote: RelayerQuoteResponse;
+  attempts: number;
+}
+
+interface RequestedWithdrawalPoolAccountParams {
+  requestedPoolAccounts: readonly PoolAccountRef[];
+  allPoolAccounts: readonly PoolAccountRef[];
+  fromPaNumber: number;
+  chainName: string;
+  symbol: string;
+}
+
 export { createWithdrawCommand } from "../command-shells/withdraw.js";
 
 export function getEligibleUnapprovedStatuses(
@@ -185,12 +227,9 @@ export function getEligibleUnapprovedStatuses(
   return Array.from(statuses);
 }
 
-export function formatApprovalResolutionHint(params: {
-  chainName: string;
-  assetSymbol: string;
-  poolAccountId?: string;
-  status?: WithdrawReviewStatus;
-}): string {
+export function formatApprovalResolutionHint(
+  params: ApprovalResolutionHintParams,
+): string {
   const { chainName, assetSymbol, poolAccountId, status } = params;
   const ragequitSelector = poolAccountId ?? "<PA-#>";
   const ragequitCmd = `privacy-pools ragequit --chain ${chainName} --asset ${assetSymbol} --pool-account ${ragequitSelector}`;
@@ -207,13 +246,9 @@ export function formatApprovalResolutionHint(params: {
   }
 }
 
-export function getRelayedWithdrawalRemainderAdvisory(params: {
-  remainingBalance: bigint;
-  minWithdrawAmount: bigint;
-  poolAccountId: string;
-  assetSymbol: string;
-  decimals: number;
-}): string | null {
+export function getRelayedWithdrawalRemainderAdvisory(
+  params: RelayedWithdrawalRemainderAdvisoryParams,
+): string | null {
   const {
     remainingBalance,
     minWithdrawAmount,
@@ -241,10 +276,7 @@ export function normalizeRelayerQuoteExpirationMs(expiration: number): number {
 export function validateRelayerQuoteForWithdrawal(
   quote: Pick<RelayerQuoteResponse, "feeBPS" | "feeCommitment">,
   maxRelayFeeBPS: bigint | string,
-): {
-  quoteFeeBPS: bigint;
-  expirationMs: number;
-} {
+): ValidatedRelayerQuoteForWithdrawal {
   if (!quote.feeCommitment) {
     throw new CLIError(
       "Relayer quote is missing required fee details.",
@@ -283,18 +315,9 @@ export function validateRelayerQuoteForWithdrawal(
   };
 }
 
-export async function refreshExpiredRelayerQuoteForWithdrawal(params: {
-  fetchQuote: () => Promise<RelayerQuoteResponse>;
-  maxRelayFeeBPS: bigint | string;
-  nowMs?: () => number;
-  maxAttempts?: number;
-  onRetry?: (attempt: number, maxAttempts: number) => void;
-}): Promise<{
-  quote: RelayerQuoteResponse;
-  quoteFeeBPS: bigint;
-  expirationMs: number;
-  attempts: number;
-}> {
+export async function refreshExpiredRelayerQuoteForWithdrawal(
+  params: RefreshExpiredRelayerQuoteForWithdrawalParams,
+): Promise<RefreshedRelayerQuoteForWithdrawal> {
   const nowMs = params.nowMs ?? Date.now;
   const maxAttempts = params.maxAttempts ?? 3;
 
@@ -321,6 +344,44 @@ export async function refreshExpiredRelayerQuoteForWithdrawal(params: {
     "Relayer returned stale/expired quotes repeatedly.",
     "RELAYER",
     "Wait a moment and retry, or switch to another relayer.",
+  );
+}
+
+export function resolveRequestedWithdrawalPoolAccountOrThrow(
+  params: RequestedWithdrawalPoolAccountParams,
+): PoolAccountRef {
+  const requested = params.requestedPoolAccounts.find(
+    (poolAccount) => poolAccount.paNumber === params.fromPaNumber,
+  );
+  if (requested) {
+    return requested;
+  }
+
+  const historical = params.allPoolAccounts.find(
+    (poolAccount) => poolAccount.paNumber === params.fromPaNumber,
+  );
+  const unavailableReason = historical
+    ? describeUnavailablePoolAccount(historical, "withdraw")
+    : null;
+  if (historical && unavailableReason) {
+    throw new CLIError(
+      unavailableReason,
+      "INPUT",
+      `Run 'privacy-pools accounts --chain ${params.chainName}' to inspect ${historical.paId} and choose a Pool Account with remaining balance.`,
+    );
+  }
+
+  const unknownPoolAccount = getUnknownPoolAccountError({
+    paNumber: params.fromPaNumber,
+    symbol: params.symbol,
+    chainName: params.chainName,
+    knownPoolAccountsCount: params.allPoolAccounts.length,
+    availablePaIds: params.allPoolAccounts.map((poolAccount) => poolAccount.paId),
+  });
+  throw new CLIError(
+    unknownPoolAccount.message,
+    "INPUT",
+    unknownPoolAccount.hint,
   );
 }
 
@@ -991,36 +1052,13 @@ export async function handleWithdrawCommand(
       let selectedPoolAccount = approvedSelection.commitment;
 
       if (fromPaNumber !== undefined && fromPaNumber !== null) {
-        const requested = poolAccounts.find(
-          (pa) => pa.paNumber === fromPaNumber,
-        );
-        if (!requested) {
-          const historical = allPoolAccounts.find(
-            (pa) => pa.paNumber === fromPaNumber,
-          );
-          const unavailableReason = historical
-            ? describeUnavailablePoolAccount(historical, "withdraw")
-            : null;
-          if (historical && unavailableReason) {
-            throw new CLIError(
-              unavailableReason,
-              "INPUT",
-              `Run 'privacy-pools accounts --chain ${chainConfig.name}' to inspect ${historical.paId} and choose a Pool Account with remaining balance.`,
-            );
-          }
-          const unknownPoolAccount = getUnknownPoolAccountError({
-            paNumber: fromPaNumber,
-            symbol: pool.symbol,
-            chainName: chainConfig.name,
-            knownPoolAccountsCount: allPoolAccounts.length,
-            availablePaIds: allPoolAccounts.map((pa) => pa.paId),
-          });
-          throw new CLIError(
-            unknownPoolAccount.message,
-            "INPUT",
-            unknownPoolAccount.hint,
-          );
-        }
+        const requested = resolveRequestedWithdrawalPoolAccountOrThrow({
+          requestedPoolAccounts: poolAccounts,
+          allPoolAccounts,
+          fromPaNumber,
+          chainName: chainConfig.name,
+          symbol: pool.symbol,
+        });
 
         if (!isDeferredAmount && requested.value < withdrawalAmount) {
           throw new CLIError(
@@ -1131,10 +1169,6 @@ export async function handleWithdrawCommand(
         }
       }
 
-      // ── Early relayer minimum validation (C3) ────────────────────────────
-      // For relayed withdrawals, fetch relayer details early so the user
-      // discovers a below-minimum amount before reaching the review stage.
-      // The fetched details are reused later to avoid a redundant network call.
       // ── Early relayer minimum validation (C3) ────────────────────────────
       // For relayed withdrawals, fetch relayer details early so the user
       // discovers a below-minimum amount before reaching the review stage.

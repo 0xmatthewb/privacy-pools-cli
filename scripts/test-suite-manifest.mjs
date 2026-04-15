@@ -132,6 +132,10 @@ export const WORKFLOW_BACKUP_PATHS_TEST =
   "./test/services/workflow.backup-paths.service.test.ts";
 export const WORKFLOW_BACKUP_WRITE_TEST =
   "./test/services/workflow.backup-write.service.test.ts";
+export const WORKFLOW_HELPERS_SERVICE_TEST =
+  "./test/services/workflow.helpers.service.test.ts";
+export const WORKFLOW_FUNDING_HELPERS_SERVICE_TEST =
+  "./test/services/workflow.funding.helpers.service.test.ts";
 export const INIT_DISCOVERY_SERVICE_TEST =
   "./test/services/init-discovery.service.test.ts";
 export const FLOW_HANDLERS_TEST = "./test/unit/flow-handlers.unit.test.ts";
@@ -159,10 +163,16 @@ export const INIT_INTERACTIVE_IMPORT_VISIBLE_SECRET_TEST =
   "./test/unit/init-command-interactive.import-visible-secret.unit.test.ts";
 export const INIT_COMMAND_HANDLER_TEST =
   "./test/unit/init-command-handler.unit.test.ts";
+export const INIT_COMMAND_HELPERS_TEST =
+  "./test/unit/init-command.helpers.unit.test.ts";
+export const INIT_COMMAND_INTERACTIVE_HELPERS_TEST =
+  "./test/unit/init-command.interactive-helpers.unit.test.ts";
 export const DEPOSIT_HANDLER_TEST =
   "./test/unit/deposit-command-handler.unit.test.ts";
 export const POOLS_HANDLER_TEST =
   "./test/unit/pools-command-handler.unit.test.ts";
+export const RAGEQUIT_COMMAND_HELPERS_TEST =
+  "./test/unit/ragequit-command.helpers.unit.test.ts";
 export const RAGEQUIT_HANDLER_ENTRY_SUBMIT_TEST =
   "./test/unit/ragequit-command-handler.entry-submit.unit.test.ts";
 export const RAGEQUIT_HANDLER_UNSIGNED_TEST =
@@ -171,6 +181,14 @@ export const RAGEQUIT_HANDLER_OWNERSHIP_TEST =
   "./test/unit/ragequit-command-handler.ownership.unit.test.ts";
 export const RAGEQUIT_HANDLER_HUMAN_CONFIRMATION_TEST =
   "./test/unit/ragequit-command-handler.human-confirmation.unit.test.ts";
+export const ACCOUNT_HELPERS_SERVICE_TEST =
+  "./test/services/account.helpers.service.test.ts";
+export const ACCOUNT_SYNC_EVENTS_SERVICE_TEST =
+  "./test/services/account.sync-events.service.test.ts";
+export const RELAYER_HELPERS_SERVICE_TEST =
+  "./test/services/relayer.helpers.service.test.ts";
+export const WITHDRAW_COMMAND_HELPERS_TEST =
+  "./test/unit/withdraw-command.helpers.unit.test.ts";
 
 export const ACCOUNT_READONLY_TESTS = [
   ACCOUNTS_READONLY_TEST,
@@ -346,6 +364,30 @@ export const ISOLATED_SUITES = [
       "coverage instrumentation still makes the large workflow service suite memory-heavy",
   }),
   defineIsolatedSuite({
+    label: "workflow-helpers-coverage",
+    tests: [WORKFLOW_HELPERS_SERVICE_TEST],
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    fixtureClass: "workflow-helper-coverage",
+    tags: ["services", "workflow", "coverage"],
+    reason:
+      "the workflow helper suite yields richer lcov maps for helper branches when coverage runs in its own Bun process",
+  }),
+  defineIsolatedSuite({
+    label: "workflow-funding-helpers-coverage",
+    tests: [WORKFLOW_FUNDING_HELPERS_SERVICE_TEST],
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    fixtureClass: "workflow-funding-helper-coverage",
+    tags: ["services", "workflow", "coverage"],
+    reason:
+      "the workflow funding helper suite installs targeted sdk mocks and yields richer lcov maps when coverage runs in its own Bun process",
+  }),
+  defineIsolatedSuite({
     label: "workflow-internal",
     tests: [WORKFLOW_INTERNAL_TEST],
     timeoutMs: 120_000,
@@ -390,6 +432,30 @@ export const ISOLATED_SUITES = [
       "mocks sdk, pools, account, and account-storage modules to cover restore discovery outcomes and must stay isolated from other service suites",
   }),
   defineIsolatedSuite({
+    label: "account-helpers-coverage",
+    tests: [ACCOUNT_HELPERS_SERVICE_TEST],
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    fixtureClass: "account-helper-coverage",
+    tags: ["services", "accounts", "coverage"],
+    reason:
+      "the account helper suite mocks migration modules for legacy-state branches and must stay isolated in normal and coverage runs",
+  }),
+  defineIsolatedSuite({
+    label: "account-sync-events-coverage",
+    tests: [ACCOUNT_SYNC_EVENTS_SERVICE_TEST],
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    fixtureClass: "account-sync-events-coverage",
+    tags: ["services", "accounts", "coverage"],
+    reason:
+      "the account sync-events suite yields richer lcov maps for rebuild and persistence branches when coverage runs in its own Bun process",
+  }),
+  defineIsolatedSuite({
     label: "account-handler-errors",
     tests: [ACCOUNT_HANDLER_ERRORS_TEST],
     timeoutMs: 120_000,
@@ -410,6 +476,30 @@ export const ISOLATED_SUITES = [
     tags: ["unit", "accounts", "readonly"],
     reason:
       "the readonly command harness rewires account, sdk, asp, and pool-account modules and must stay in its own Bun process to avoid cross-suite cache pollution",
+  }),
+  defineIsolatedSuite({
+    label: "relayer-helpers-coverage",
+    tests: [RELAYER_HELPERS_SERVICE_TEST],
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    fixtureClass: "relayer-helper-coverage",
+    tags: ["services", "relayer", "coverage"],
+    reason:
+      "the relayer helper suite yields richer lcov maps for failover and quote-validation branches when coverage runs in its own Bun process",
+  }),
+  defineIsolatedSuite({
+    label: "withdraw-command-helpers-coverage",
+    tests: [WITHDRAW_COMMAND_HELPERS_TEST],
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    fixtureClass: "withdraw-helper-coverage",
+    tags: ["unit", "withdraw", "coverage"],
+    reason:
+      "the withdraw helper suite yields richer lcov maps for quote-validation branches when coverage runs in its own Bun process",
   }),
   defineIsolatedSuite({
     label: "init-interactive-cancel-invalid",
@@ -445,6 +535,30 @@ export const ISOLATED_SUITES = [
       "prompt-driven import flows and visible-secret warnings must stay isolated from other init tests",
   }),
   defineIsolatedSuite({
+    label: "init-command-helpers-coverage",
+    tests: [INIT_COMMAND_HELPERS_TEST],
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    fixtureClass: "init-helper-filesystem",
+    tags: ["unit", "init", "coverage", "filesystem"],
+    reason:
+      "the init helper suite mutates process env and filesystem permissions while covering rollback and backup-path branches, so it must stay isolated in normal and coverage runs",
+  }),
+  defineIsolatedSuite({
+    label: "init-command-interactive-helpers-coverage",
+    tests: [INIT_COMMAND_INTERACTIVE_HELPERS_TEST],
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    fixtureClass: "init-interactive-helper-prompts",
+    tags: ["unit", "init", "coverage", "interactive"],
+    reason:
+      "the interactive init helper suite swaps prompt modules and process env, so it must stay isolated in normal and coverage runs",
+  }),
+  defineIsolatedSuite({
     label: "init-command-handler",
     tests: [INIT_COMMAND_HANDLER_TEST],
     timeoutMs: 120_000,
@@ -465,6 +579,18 @@ export const ISOLATED_SUITES = [
     tags: ["unit", "deposit", "fund-moving"],
     reason:
       "command-handler mocks now restore shared sdk, preflight, and transaction helpers to real export snapshots",
+  }),
+  defineIsolatedSuite({
+    label: "ragequit-command-helpers-coverage",
+    tests: [RAGEQUIT_COMMAND_HELPERS_TEST],
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    fixtureClass: "ragequit-helper-coverage",
+    tags: ["unit", "ragequit", "coverage", "fund-moving"],
+    reason:
+      "the ragequit helper suite patches sdk recovery helpers and stays deterministic when it runs in its own Bun process",
   }),
   defineIsolatedSuite({
     label: "ragequit-handler-entry-submit-coverage",

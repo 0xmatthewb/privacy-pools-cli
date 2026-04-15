@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 
 export function normalizeCoveragePath(path) {
@@ -151,12 +151,19 @@ export function collectCoverageScorecard(
   return scorecard.map((entry) => {
     const source = normalizeCoveragePath(resolve(rootDir, entry.path));
     const lineHits = coverageMap.get(source);
-    const total = lineHits?.size ?? 0;
+    const executableLines = lineHits
+      ? collectExecutableCoverageLines(source)
+      : new Set();
+    const total = lineHits
+      ? [...lineHits.keys()].filter((lineNumber) =>
+        executableLines.has(lineNumber)
+      ).length
+      : 0;
     let hit = 0;
 
     if (lineHits) {
-      for (const hits of lineHits.values()) {
-        if (hits > 0) hit += 1;
+      for (const [lineNumber, hits] of lineHits.entries()) {
+        if (executableLines.has(lineNumber) && hits > 0) hit += 1;
       }
     }
 
@@ -171,6 +178,107 @@ export function collectCoverageScorecard(
       belowTarget: total === 0 || (hit / total) * 100 < entry.target,
     };
   });
+}
+
+export function collectExecutableCoverageLines(sourcePath) {
+  let sourceLines;
+  try {
+    sourceLines = readFileSync(sourcePath, "utf8").split("\n");
+  } catch {
+    return new Set();
+  }
+
+  const executableLines = new Set();
+  let inBlockComment = false;
+  let inTypeDeclaration = false;
+  let typeDeclarationBraceDepth = 0;
+  let typeDeclarationEndsWithSemicolon = false;
+
+  for (let index = 0; index < sourceLines.length; index += 1) {
+    const lineNumber = index + 1;
+    const trimmed = sourceLines[index].trim();
+    let skip = false;
+
+    if (inBlockComment) {
+      skip = true;
+      if (trimmed.includes("*/")) {
+        inBlockComment = false;
+      }
+    }
+
+    if (!skip && trimmed.startsWith("/*")) {
+      skip = true;
+      if (!trimmed.includes("*/")) {
+        inBlockComment = true;
+      }
+    }
+
+    if (!skip && inTypeDeclaration) {
+      skip = true;
+      typeDeclarationBraceDepth += countTypeDeclarationDepthDelta(trimmed);
+      if (typeDeclarationEndsWithSemicolon && trimmed.endsWith(";")) {
+        inTypeDeclaration = false;
+        typeDeclarationEndsWithSemicolon = false;
+        typeDeclarationBraceDepth = 0;
+      } else if (
+        !typeDeclarationEndsWithSemicolon &&
+        typeDeclarationBraceDepth <= 0 &&
+        (trimmed.endsWith("}") || trimmed.endsWith("};"))
+      ) {
+        inTypeDeclaration = false;
+        typeDeclarationBraceDepth = 0;
+      }
+    }
+
+    if (!skip && isTypeDeclarationStart(trimmed)) {
+      skip = true;
+      typeDeclarationBraceDepth = countTypeDeclarationDepthDelta(trimmed);
+      typeDeclarationEndsWithSemicolon =
+        /^(export\s+)?type\b/.test(trimmed) && !trimmed.endsWith(";");
+      inTypeDeclaration =
+        typeDeclarationEndsWithSemicolon || typeDeclarationBraceDepth > 0;
+    }
+
+    if (!skip && isNonExecutableCoverageLine(trimmed)) {
+      skip = true;
+    }
+
+    if (!skip) {
+      executableLines.add(lineNumber);
+    }
+  }
+
+  return executableLines;
+}
+
+function countTypeDeclarationDepthDelta(trimmed) {
+  const opens = (trimmed.match(/[<{(]/g) ?? []).length;
+  const closes = (trimmed.match(/[>})]/g) ?? []).length;
+  return opens - closes;
+}
+
+function isTypeDeclarationStart(trimmed) {
+  return /^(export\s+)?(interface|type)\b/.test(trimmed);
+}
+
+function isNonExecutableCoverageLine(trimmed) {
+  if (trimmed === "") return true;
+  if (trimmed.startsWith("//")) return true;
+  if (trimmed.startsWith("*") || trimmed.startsWith("*/")) return true;
+  if (trimmed.startsWith("|")) return true;
+  return new Set([
+    "{",
+    "}",
+    "(",
+    ")",
+    "[",
+    "]);",
+    "];",
+    "},",
+    "});",
+    "};",
+    ");",
+  ]).has(trimmed);
 }
 
 export function collectExecutableSourceFiles(

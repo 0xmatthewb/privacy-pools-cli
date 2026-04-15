@@ -6,6 +6,7 @@ import {
   getRelayedWithdrawalRemainderAdvisory,
   normalizeRelayerQuoteExpirationMs,
   refreshExpiredRelayerQuoteForWithdrawal,
+  resolveRequestedWithdrawalPoolAccountOrThrow,
   validateRelayerQuoteForWithdrawal,
 } from "../../src/commands/withdraw.ts";
 
@@ -65,6 +66,10 @@ function makeQuote(
 }
 
 describe("withdraw command helpers", () => {
+  test("returns an empty list when no Pool Accounts are eligible", () => {
+    expect(getEligibleUnapprovedStatuses([], 1n)).toEqual([]);
+  });
+
   test("collects deduplicated eligible unapproved statuses for the requested amount", () => {
     expect(
       getEligibleUnapprovedStatuses(
@@ -80,6 +85,30 @@ describe("withdraw command helpers", () => {
         10n,
       ),
     ).toEqual(["pending", "poa_required", "declined", "unknown"]);
+  });
+
+  test("getEligibleUnapprovedStatuses ignores approved-only and insufficient Pool Accounts", () => {
+    expect(
+      getEligibleUnapprovedStatuses(
+        [
+          makePoolAccountRef("approved", 15n),
+          makePoolAccountRef("pending", 5n, { paNumber: 2, paId: "PA-2" }),
+        ],
+        10n,
+      ),
+    ).toEqual([]);
+  });
+
+  test("getEligibleUnapprovedStatuses ignores spent and exited Pool Accounts even when funded", () => {
+    expect(
+      getEligibleUnapprovedStatuses(
+        [
+          makePoolAccountRef("spent", 50n, { paNumber: 7, paId: "PA-7" }),
+          makePoolAccountRef("exited", 75n, { paNumber: 8, paId: "PA-8" }),
+        ],
+        10n,
+      ),
+    ).toEqual([]);
   });
 
   test("formats approval resolution hints for each supported review state", () => {
@@ -109,6 +138,16 @@ describe("withdraw command helpers", () => {
         status: "declined",
       }),
     ).toContain("Ragequit is available");
+
+    expect(
+      formatApprovalResolutionHint({
+        chainName: "sepolia",
+        assetSymbol: "ETH",
+        status: "unknown",
+      }),
+    ).toContain(
+      "privacy-pools ragequit --chain sepolia --asset ETH --pool-account <PA-#>",
+    );
 
     expect(
       formatApprovalResolutionHint({
@@ -166,6 +205,18 @@ describe("withdraw command helpers", () => {
     });
   });
 
+  test("validateRelayerQuoteForWithdrawal accepts bigint fee caps and millisecond expirations unchanged", () => {
+    expect(
+      validateRelayerQuoteForWithdrawal(
+        makeQuote({ expiration: 1_710_000_000_000, feeBPS: "50" }),
+        500n,
+      ),
+    ).toEqual({
+      quoteFeeBPS: 50n,
+      expirationMs: 1_710_000_000_000,
+    });
+  });
+
   test("rejects relayer quotes that omit fee details", () => {
     expect(() =>
       validateRelayerQuoteForWithdrawal(makeQuote({ feeCommitment: null }), "500"),
@@ -218,5 +269,153 @@ describe("withdraw command helpers", () => {
         maxAttempts: 2,
       }),
     ).rejects.toThrow("stale/expired quotes repeatedly");
+  });
+
+  test("refreshExpiredRelayerQuoteForWithdrawal uses default retry settings when omitted", async () => {
+    const originalNow = Date.now;
+    const retries: Array<[number, number]> = [];
+
+    Date.now = () => 1_000;
+
+    try {
+      await expect(
+        refreshExpiredRelayerQuoteForWithdrawal({
+          fetchQuote: async () => makeQuote({ expiration: 0 }),
+          maxRelayFeeBPS: "500",
+          onRetry: (attempt, maxAttempts) => retries.push([attempt, maxAttempts]),
+        }),
+      ).rejects.toThrow("stale/expired quotes repeatedly");
+    } finally {
+      Date.now = originalNow;
+    }
+
+    expect(retries).toEqual([
+      [2, 3],
+      [3, 3],
+    ]);
+  });
+
+  test("refreshExpiredRelayerQuoteForWithdrawal surfaces invalid refreshed quotes immediately", async () => {
+    let attempts = 0;
+
+    await expect(
+      refreshExpiredRelayerQuoteForWithdrawal({
+        fetchQuote: async () => {
+          attempts += 1;
+          return attempts === 1
+            ? makeQuote({ expiration: 0 })
+            : makeQuote({ feeBPS: "bogus" });
+        },
+        maxRelayFeeBPS: "500",
+        nowMs: () => 1_000,
+      }),
+    ).rejects.toThrow("malformed feeBPS");
+
+    expect(attempts).toBe(2);
+  });
+
+  test("refreshExpiredRelayerQuoteForWithdrawal keeps the first fresh quote and does not invoke onRetry", async () => {
+    const retries: number[] = [];
+
+    const result = await refreshExpiredRelayerQuoteForWithdrawal({
+      fetchQuote: async () => makeQuote({ expiration: 3_000 }),
+      maxRelayFeeBPS: "500",
+      nowMs: () => 1_000,
+      onRetry: (attempt) => retries.push(attempt),
+    });
+
+    expect(result.attempts).toBe(1);
+    expect(result.quoteFeeBPS).toBe(50n);
+    expect(retries).toEqual([]);
+  });
+
+  test("resolveRequestedWithdrawalPoolAccountOrThrow returns the requested actionable Pool Account", () => {
+    const requested = makePoolAccountRef("approved", 15n, {
+      paNumber: 2,
+      paId: "PA-2",
+    });
+
+    expect(
+      resolveRequestedWithdrawalPoolAccountOrThrow({
+        requestedPoolAccounts: [requested],
+        allPoolAccounts: [
+          makePoolAccountRef("approved", 10n),
+          requested,
+        ],
+        fromPaNumber: 2,
+        symbol: "ETH",
+        chainName: "mainnet",
+      }),
+    ).toBe(requested);
+  });
+
+  test("resolveRequestedWithdrawalPoolAccountOrThrow fails closed for unavailable historical Pool Accounts", () => {
+    expect(() =>
+      resolveRequestedWithdrawalPoolAccountOrThrow({
+        requestedPoolAccounts: [],
+        allPoolAccounts: [
+          makePoolAccountRef("spent", 0n, {
+            paNumber: 7,
+            paId: "PA-7",
+          }),
+        ],
+        fromPaNumber: 7,
+        symbol: "ETH",
+        chainName: "mainnet",
+      }),
+    ).toThrow("PA-7 was already fully withdrawn");
+  });
+
+  test("resolveRequestedWithdrawalPoolAccountOrThrow reports unknown Pool Accounts with available ids", () => {
+    try {
+      resolveRequestedWithdrawalPoolAccountOrThrow({
+        requestedPoolAccounts: [],
+        allPoolAccounts: [
+          makePoolAccountRef("approved", 15n),
+          makePoolAccountRef("approved", 25n, {
+            paNumber: 2,
+            paId: "PA-2",
+          }),
+        ],
+        fromPaNumber: 9,
+        symbol: "ETH",
+        chainName: "mainnet",
+      });
+      expect.unreachable("expected helper to fail closed");
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: "Unknown Pool Account PA-9 for ETH.",
+        hint: expect.stringContaining("Available: PA-1, PA-2."),
+      });
+    }
+  });
+
+  test("resolveRequestedWithdrawalPoolAccountOrThrow still fails closed when a historical Pool Account remains actionable", () => {
+    expect(() =>
+      resolveRequestedWithdrawalPoolAccountOrThrow({
+        requestedPoolAccounts: [],
+        allPoolAccounts: [
+          makePoolAccountRef("approved", 15n, {
+            paNumber: 5,
+            paId: "PA-5",
+          }),
+        ],
+        fromPaNumber: 5,
+        symbol: "ETH",
+        chainName: "mainnet",
+      }),
+    ).toThrow("Unknown Pool Account PA-5 for ETH.");
+  });
+
+  test("resolveRequestedWithdrawalPoolAccountOrThrow surfaces empty-state unknown selectors cleanly", () => {
+    expect(() =>
+      resolveRequestedWithdrawalPoolAccountOrThrow({
+        requestedPoolAccounts: [],
+        allPoolAccounts: [],
+        fromPaNumber: 4,
+        symbol: "ETH",
+        chainName: "mainnet",
+      }),
+    ).toThrow("Unknown Pool Account PA-4 for ETH.");
   });
 });

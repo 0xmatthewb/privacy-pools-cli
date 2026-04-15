@@ -380,6 +380,8 @@ export function registerInitImportVisibleSecretTests(): void {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Account loaded successfully.");
+    expect(stderr).toContain("No signer key set. This machine will stay in read-only mode");
+    expect(stderr).toContain("Default chain set to mainnet.");
     expect(stderr).toContain("privacy-pools pools");
     expect(stderr).not.toContain("privacy-pools completion --help");
   });

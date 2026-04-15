@@ -61,8 +61,14 @@ const realUnsigned = captureModuleExports(
 const realPreviewRuntime = captureModuleExports(
   await import("../../src/preview/runtime.ts"),
 );
+const realPromptCancellation = captureModuleExports(
+  await import("../../src/utils/prompt-cancellation.ts"),
+);
 const realSetupRecovery = captureModuleExports(
   await import("../../src/utils/setup-recovery.ts"),
+);
+const realValidation = captureModuleExports(
+  await import("../../src/utils/validation.ts"),
 );
 const realSdkPackage = captureModuleExports(
   await import("@0xbow/privacy-pools-core-sdk"),
@@ -83,7 +89,9 @@ const WITHDRAW_HANDLER_MODULE_RESTORES = [
   ["../../src/utils/critical-section.ts", realCriticalSection],
   ["../../src/utils/unsigned.ts", realUnsigned],
   ["../../src/preview/runtime.ts", realPreviewRuntime],
+  ["../../src/utils/prompt-cancellation.ts", realPromptCancellation],
   ["../../src/utils/setup-recovery.ts", realSetupRecovery],
+  ["../../src/utils/validation.ts", realValidation],
   ["@0xbow/privacy-pools-core-sdk", realSdkPackage],
 ] as const;
 
@@ -326,7 +334,11 @@ const stringifyBigIntsMock = mock((value: unknown) => value);
 const printRawTransactionsMock = mock(() => undefined);
 const maybeRenderPreviewScenarioMock = mock(async () => false);
 const maybeRenderPreviewProgressStepMock = mock(async () => false);
+const isPromptCancellationErrorMock = mock(
+  realPromptCancellation.isPromptCancellationError,
+);
 const maybeRecoverMissingWalletSetupMock = mock(async () => false);
+const resolveAddressOrEnsMock = mock(realValidation.resolveAddressOrEns);
 const confirmPromptMock = mock(async () => true);
 const inputPromptMock = mock(async () =>
   "0x4444444444444444444444444444444444444444"
@@ -442,9 +454,17 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
     maybeRenderPreviewScenario: maybeRenderPreviewScenarioMock,
     maybeRenderPreviewProgressStep: maybeRenderPreviewProgressStepMock,
   }));
+  mock.module("../../src/utils/prompt-cancellation.ts", () => ({
+    ...realPromptCancellation,
+    isPromptCancellationError: isPromptCancellationErrorMock,
+  }));
   mock.module("../../src/utils/setup-recovery.ts", () => ({
     ...realSetupRecovery,
     maybeRecoverMissingWalletSetup: maybeRecoverMissingWalletSetupMock,
+  }));
+  mock.module("../../src/utils/validation.ts", () => ({
+    ...realValidation,
+    resolveAddressOrEns: resolveAddressOrEnsMock,
   }));
   mock.module("@0xbow/privacy-pools-core-sdk", () => ({
     ...realSdkPackage,
@@ -501,7 +521,9 @@ export function registerWithdrawCommandHandlerHarness(): void {
     printRawTransactionsMock.mockClear();
     maybeRenderPreviewScenarioMock.mockClear();
     maybeRenderPreviewProgressStepMock.mockClear();
+    isPromptCancellationErrorMock.mockClear();
     maybeRecoverMissingWalletSetupMock.mockClear();
+    resolveAddressOrEnsMock.mockClear();
     confirmPromptMock.mockClear();
     inputPromptMock.mockClear();
     selectPromptMock.mockClear();
@@ -649,7 +671,11 @@ export function registerWithdrawCommandHandlerHarness(): void {
     printRawTransactionsMock.mockImplementation(() => undefined);
     maybeRenderPreviewScenarioMock.mockImplementation(async () => false);
     maybeRenderPreviewProgressStepMock.mockImplementation(async () => false);
+    isPromptCancellationErrorMock.mockImplementation(
+      realPromptCancellation.isPromptCancellationError,
+    );
     maybeRecoverMissingWalletSetupMock.mockImplementation(async () => false);
+    resolveAddressOrEnsMock.mockImplementation(realValidation.resolveAddressOrEns);
   });
 
   afterEach(async () => {
@@ -704,6 +730,7 @@ export {
   handleWithdrawQuoteCommand,
   initializeAccountServiceMock,
   inputPromptMock,
+  isPromptCancellationErrorMock,
   listPoolsMock,
   maybeRecoverMissingWalletSetupMock,
   maybeRenderPreviewProgressStepMock,
@@ -712,6 +739,7 @@ export {
   printRawTransactionsMock,
   proveWithdrawalMock,
   releaseCriticalSectionMock,
+  resolveAddressOrEnsMock,
   requestQuoteMock,
   resolvePoolMock,
   saveAccountMock,

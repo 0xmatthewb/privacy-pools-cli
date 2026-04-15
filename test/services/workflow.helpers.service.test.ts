@@ -16,18 +16,23 @@ import {
   attachRagequitResultToSnapshot,
   attachWithdrawalResultToSnapshot,
   alignSnapshotToPoolAccount,
+  applyFlowPrivacyDelayPolicy,
+  buildFlowAmountPrivacyWarning,
   buildFlowWarnings,
   buildFlowLastError,
   buildSavedWorkflowRecoveryCommand,
   buildWorkflowWalletBackup,
+  clearPendingSubmission,
   classifyFlowMutation,
   clearLastError,
+  cleanupTerminalWorkflowFiles,
   computeFlowWatchDelayMs,
   cleanupTerminalWorkflowSecret,
   createInitialSnapshot,
   deleteWorkflowSnapshotFile,
   deleteWorkflowSecretRecord,
   flowPrivacyDelayProfileSummary,
+  formatWorkflowFundingSummary,
   getFlowSignerAddress,
   getFlowSignerPrivateKey,
   humanPollDelayLabel,
@@ -37,6 +42,7 @@ import {
   listSavedWorkflowIds,
   loadWorkflowSecretRecord,
   loadWorkflowSnapshot,
+  markPendingSubmission,
   normalizeWorkflowSnapshot,
   nextPollDelayMs,
   overrideWorkflowTimingForTests,
@@ -49,8 +55,11 @@ import {
   saveWorkflowSecretRecord,
   saveWorkflowSnapshot,
   saveWorkflowSnapshotIfChanged,
+  saveWorkflowSnapshotIfChangedWithLock,
+  scheduleApprovedWorkflowPrivacyDelay,
   updateSnapshot,
   validateWorkflowWalletBackupPath,
+  withWorkflowOperationLock,
   writePrivateTextFile,
   type FlowLastError,
   type FlowSnapshot,
@@ -462,6 +471,17 @@ describe("workflow helper coverage", () => {
         [numberMatch],
       )?.paId,
     ).toBe("PA-4");
+
+    expect(
+      pickWorkflowPoolAccount(
+        sampleWorkflow("wf-missing-match", {
+          depositLabel: "999",
+          depositTxHash: "0x" + "ff".repeat(32),
+          poolAccountNumber: 404,
+        }),
+        [labelMatch, txMatch, numberMatch],
+      ),
+    ).toBeUndefined();
   });
 
   test("alignSnapshotToPoolAccount refreshes the saved pool account details and clears lastError", () => {
@@ -628,6 +648,47 @@ describe("workflow helper coverage", () => {
     );
   });
 
+  test("attach withdrawal and ragequit result helpers preserve fallbacks and clear pending submission", () => {
+    const pendingWithdraw = attachPendingWithdrawalToSnapshot(
+      sampleWorkflow("wf-withdraw-fallback", {
+        aspStatus: "approved",
+        pendingSubmission: "withdraw",
+      }),
+      1,
+      ("0x" + "77".repeat(32)) as `0x${string}`,
+    );
+    const completedWithdraw = attachWithdrawalResultToSnapshot(pendingWithdraw, {
+      chainId: 1,
+      withdrawTxHash: "0x" + "88".repeat(32),
+      withdrawBlockNumber: 900n,
+      withdrawExplorerUrl: null,
+    });
+    expect(completedWithdraw.pendingSubmission).toBeNull();
+    expect(completedWithdraw.withdrawExplorerUrl).toContain(
+      "0x" + "88".repeat(32),
+    );
+
+    const pendingRagequit = attachPendingRagequitToSnapshot(
+      sampleWorkflow("wf-ragequit-fallback", {
+        aspStatus: "pending",
+        pendingSubmission: "ragequit",
+      }),
+      10,
+      ("0x" + "99".repeat(32)) as `0x${string}`,
+    );
+    const completedRagequit = attachRagequitResultToSnapshot(pendingRagequit, {
+      chainId: 10,
+      ragequitTxHash: "0x" + "ab".repeat(32),
+      ragequitBlockNumber: 901n,
+      ragequitExplorerUrl: null,
+    });
+    expect(completedRagequit.pendingSubmission).toBeNull();
+    expect(completedRagequit.aspStatus).toBe("pending");
+    expect(completedRagequit.ragequitExplorerUrl).toContain(
+      "0x" + "ab".repeat(32),
+    );
+  });
+
   test("buildSavedWorkflowRecoveryCommand targets the saved workflow id", () => {
     expect(buildSavedWorkflowRecoveryCommand(sampleWorkflow("wf-ragequit"))).toBe(
       "privacy-pools flow ragequit wf-ragequit",
@@ -724,6 +785,99 @@ describe("workflow helper coverage", () => {
     ).toBe(30_000);
   });
 
+  test("privacy-delay policy helpers reschedule approved workflows and clear pending delay when turned off", () => {
+    overrideWorkflowTimingForTests({
+      samplePrivacyDelayMs: (profile) => profile === "aggressive" ? 2 * 60 * 60_000 : 45 * 60_000,
+    });
+
+    const approvedReady = sampleWorkflow("wf-approved-ready", {
+      phase: "approved_ready_to_withdraw",
+      aspStatus: "approved",
+      privacyDelayProfile: "balanced",
+      privacyDelayConfigured: true,
+    });
+    const rescheduled = applyFlowPrivacyDelayPolicy(
+      approvedReady,
+      "aggressive",
+      {
+        configured: true,
+        rescheduleApproved: true,
+        startAtMs: Date.parse("2026-03-24T15:00:00.000Z"),
+      },
+    );
+    expect(rescheduled.phase).toBe("approved_waiting_privacy_delay");
+    expect(rescheduled.approvalObservedAt).toBe("2026-03-24T15:00:00.000Z");
+    expect(rescheduled.privacyDelayUntil).toBe("2026-03-24T17:00:00.000Z");
+
+    const cleared = applyFlowPrivacyDelayPolicy(
+      sampleWorkflow("wf-approved-off", {
+        phase: "approved_waiting_privacy_delay",
+        aspStatus: "approved",
+        privacyDelayProfile: "balanced",
+        privacyDelayConfigured: true,
+        approvalObservedAt: "2026-03-24T10:00:00.000Z",
+        privacyDelayUntil: "2026-03-24T11:00:00.000Z",
+      }),
+      "off",
+      {
+        configured: true,
+        rescheduleApproved: true,
+      },
+    );
+    expect(cleared.phase).toBe("approved_ready_to_withdraw");
+    expect(cleared.approvalObservedAt).toBeNull();
+    expect(cleared.privacyDelayUntil).toBeNull();
+
+    const pending = applyFlowPrivacyDelayPolicy(
+      sampleWorkflow("wf-awaiting", {
+        phase: "awaiting_asp",
+        privacyDelayProfile: "off",
+        privacyDelayConfigured: false,
+      }),
+      "balanced",
+      {
+        configured: true,
+      },
+    );
+    expect(pending.phase).toBe("awaiting_asp");
+    expect(pending.privacyDelayProfile).toBe("balanced");
+    expect(pending.privacyDelayConfigured).toBe(true);
+
+    const terminal = sampleWorkflow("wf-terminal", {
+      phase: "completed",
+      privacyDelayProfile: "off",
+    });
+    expect(applyFlowPrivacyDelayPolicy(terminal, "balanced")).toBe(terminal);
+  });
+
+  test("scheduleApprovedWorkflowPrivacyDelay honors off and randomized delay profiles", () => {
+    overrideWorkflowTimingForTests({
+      samplePrivacyDelayMs: (profile) => profile === "aggressive" ? 3 * 60 * 60_000 : 20 * 60_000,
+    });
+
+    const off = scheduleApprovedWorkflowPrivacyDelay(
+      sampleWorkflow("wf-delay-off", {
+        phase: "awaiting_asp",
+        privacyDelayProfile: "off",
+        aspStatus: "pending",
+      }),
+      Date.parse("2026-03-24T12:00:00.000Z"),
+    );
+    expect(off.phase).toBe("approved_ready_to_withdraw");
+    expect(off.privacyDelayUntil).toBeNull();
+
+    const balanced = scheduleApprovedWorkflowPrivacyDelay(
+      sampleWorkflow("wf-delay-balanced", {
+        phase: "awaiting_asp",
+        privacyDelayProfile: "balanced",
+      }),
+      Date.parse("2026-03-24T12:00:00.000Z"),
+    );
+    expect(balanced.phase).toBe("approved_waiting_privacy_delay");
+    expect(balanced.approvalObservedAt).toBe("2026-03-24T12:00:00.000Z");
+    expect(balanced.privacyDelayUntil).toBe("2026-03-24T12:20:00.000Z");
+  });
+
   test("sampleFlowPrivacyDelayMs uses the default balanced and aggressive windows", () => {
     const originalRandom = Math.random;
 
@@ -742,6 +896,9 @@ describe("workflow helper coverage", () => {
 
   test("flow privacy delay summaries and watch-delay fallbacks stay human-readable", () => {
     expect(flowPrivacyDelayProfileSummary("balanced")).toBe(
+      "Balanced (randomized 15 to 90 minutes)",
+    );
+    expect(flowPrivacyDelayProfileSummary("unexpected" as never)).toBe(
       "Balanced (randomized 15 to 90 minutes)",
     );
     expect(flowPrivacyDelayProfileSummary("aggressive")).toBe(
@@ -803,6 +960,21 @@ describe("workflow helper coverage", () => {
     ]);
   });
 
+  test("buildFlowAmountPrivacyWarning fails closed for malformed committed values", () => {
+    expect(
+      buildFlowAmountPrivacyWarning(
+        normalizeWorkflowSnapshot(
+          sampleWorkflow("wf-bad-amount", {
+            phase: "approved_waiting_privacy_delay",
+            asset: "ETH",
+            assetDecimals: 18,
+            committedValue: "not-a-bigint",
+          }),
+        ),
+      ),
+    ).toBeNull();
+  });
+
   test("buildFlowWarnings labels estimated net deposited amounts before funding", () => {
     const warnings = buildFlowWarnings(
       normalizeWorkflowSnapshot(
@@ -838,6 +1010,41 @@ describe("workflow helper coverage", () => {
     ).toEqual([]);
   });
 
+  test("buildFlowWarnings stays quiet when amount metadata is incomplete and can still show timing-only warnings", () => {
+    expect(
+      buildFlowWarnings(
+        normalizeWorkflowSnapshot(
+          sampleWorkflow("wf-missing-decimals", {
+            asset: "USDC",
+            assetDecimals: null,
+            committedValue: "100198474",
+            privacyDelayProfile: "balanced",
+            privacyDelayConfigured: true,
+          }),
+        ),
+      ),
+    ).toEqual([]);
+
+    expect(
+      buildFlowWarnings(
+        normalizeWorkflowSnapshot(
+          sampleWorkflow("wf-timing-only", {
+            asset: "USDC",
+            assetDecimals: null,
+            committedValue: null,
+            estimatedCommittedValue: null,
+            privacyDelayProfile: "off",
+            privacyDelayConfigured: true,
+          }),
+        ),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        code: "timing_delay_disabled",
+      }),
+    ]);
+  });
+
   test("buildFlowWarnings stays quiet for round amounts and terminal snapshots", () => {
     expect(
       buildFlowWarnings(
@@ -867,6 +1074,29 @@ describe("workflow helper coverage", () => {
         ),
       ),
     ).toEqual([]);
+  });
+
+  test("buildFlowWarnings can force the configured off-delay warning for terminal snapshots", () => {
+    const warnings = buildFlowWarnings(
+      normalizeWorkflowSnapshot(
+        sampleWorkflow("wf-force-warning", {
+          phase: "completed",
+          privacyDelayProfile: "off",
+          privacyDelayConfigured: true,
+          asset: "USDC",
+          assetDecimals: 6,
+          committedValue: "100000000",
+        }),
+      ),
+      { forceConfiguredPrivacyDelayWarning: true },
+    );
+
+    expect(warnings).toEqual([
+      expect.objectContaining({
+        code: "timing_delay_disabled",
+        category: "privacy",
+      }),
+    ]);
   });
 
   test("saveWorkflowSnapshot helpers persist, reuse, and clean up workflow files", () => {
@@ -915,6 +1145,27 @@ describe("workflow helper coverage", () => {
     deleteWorkflowSnapshotFile("wf-persist");
   });
 
+  test("saveWorkflowSnapshotIfChangedWithLock reuses identical snapshots and persists changed ones", async () => {
+    useIsolatedHome();
+
+    const saved = saveWorkflowSnapshot(sampleWorkflow("wf-lock-save"));
+    const same = await saveWorkflowSnapshotIfChangedWithLock(saved, {
+      ...saved,
+      updatedAt: "2030-01-01T00:00:00.000Z",
+    });
+    expect(same).toBe(saved);
+
+    const changed = await saveWorkflowSnapshotIfChangedWithLock(saved, {
+      ...saved,
+      phase: "awaiting_funding",
+      walletMode: "new_wallet",
+    });
+    expect(changed.phase).toBe("awaiting_funding");
+    expect(
+      loadWorkflowSnapshot("wf-lock-save"),
+    ).toMatchObject({ phase: "awaiting_funding", walletMode: "new_wallet" });
+  });
+
   test("loadWorkflowSnapshot rejects missing, corrupt, and invalid workflow files", () => {
     const home = useIsolatedHome();
     const workflowsDir = join(home, "workflows");
@@ -941,6 +1192,82 @@ describe("workflow helper coverage", () => {
     );
   });
 
+  test("workflow funding summaries format token/native requirements and pending submission helpers clear stale errors", () => {
+    expect(
+      formatWorkflowFundingSummary(
+        sampleWorkflow("wf-funding-empty", {
+          requiredNativeFunding: null,
+          requiredTokenFunding: null,
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      formatWorkflowFundingSummary(
+        sampleWorkflow("wf-funding-token", {
+          asset: "USDC",
+          assetDecimals: 6,
+          requiredTokenFunding: "1230000",
+          requiredNativeFunding: null,
+        }),
+      ),
+    ).toBe("1.23 USDC");
+    expect(
+      formatWorkflowFundingSummary(
+        sampleWorkflow("wf-funding-both", {
+          asset: "USDC",
+          assetDecimals: 6,
+          requiredTokenFunding: "bad-token",
+          requiredNativeFunding: "bad-eth",
+        }),
+      ),
+    ).toBe("bad-token USDC and bad-eth ETH");
+    expect(
+      formatWorkflowFundingSummary(
+        sampleWorkflow("wf-funding-native-only", {
+          requiredTokenFunding: null,
+          requiredNativeFunding: "1000000000000000000",
+        }),
+      ),
+    ).toBe("1 ETH");
+
+    const marked = markPendingSubmission(
+      sampleWorkflow("wf-pending-submission", {
+        lastError: {
+          step: "withdraw",
+          errorCode: "RELAYER_TEMPORARY",
+          errorMessage: "temporary",
+          retryable: true,
+          at: "2026-03-24T12:00:00.000Z",
+        },
+      }),
+      "withdraw",
+    );
+    expect(marked.pendingSubmission).toBe("withdraw");
+    expect(marked.lastError).toBeUndefined();
+
+    expect(clearPendingSubmission(marked).pendingSubmission).toBeNull();
+    expect(
+      clearPendingSubmission(
+        sampleWorkflow("wf-no-pending", { pendingSubmission: null }),
+      ),
+    ).toMatchObject({ pendingSubmission: null });
+  });
+
+  test("withWorkflowOperationLock rejects concurrent operations for the same workflow id and releases after completion", async () => {
+    await expect(
+      withWorkflowOperationLock("wf-lock", "watch", async () => {
+        await expect(
+          withWorkflowOperationLock("wf-lock", "ragequit", async () => "nested"),
+        ).rejects.toThrow("already in progress");
+        return "outer";
+      }),
+    ).resolves.toBe("outer");
+
+    await expect(
+      withWorkflowOperationLock("wf-lock", "watch", async () => "released"),
+    ).resolves.toBe("released");
+  });
+
   test("loadWorkflowSnapshot rejects primitive JSON payloads", () => {
     const home = useIsolatedHome();
     const workflowsDir = join(home, "workflows");
@@ -948,6 +1275,30 @@ describe("workflow helper coverage", () => {
     writeFileSync(join(workflowsDir, "wf-primitive.json"), "42", "utf-8");
 
     expect(() => loadWorkflowSnapshot("wf-primitive")).toThrow(
+      "Workflow file has invalid structure",
+    );
+  });
+
+  test("loadWorkflowSnapshot rejects structurally incomplete workflow payloads", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    writeFileSync(
+      join(workflowsDir, "wf-incomplete.json"),
+      JSON.stringify({
+        schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+        workflowId: "wf-incomplete",
+        phase: "awaiting_asp",
+        createdAt: "2026-03-24T12:00:00.000Z",
+        updatedAt: "2026-03-24T12:00:00.000Z",
+        asset: "ETH",
+        depositAmount: "100",
+        recipient: "0x4444444444444444444444444444444444444444",
+      }),
+      "utf-8",
+    );
+
+    expect(() => loadWorkflowSnapshot("wf-incomplete")).toThrow(
       "Workflow file has invalid structure",
     );
   });
@@ -1186,6 +1537,92 @@ describe("workflow helper coverage", () => {
     );
     expect(loadWorkflowSecretRecord("wf-nonterminal").privateKey).toBe(
       CONFIGURED_SIGNER,
+    );
+  });
+
+  test("cleanupTerminalWorkflowSecret always deletes terminal workflow snapshots", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-terminal-snapshot", {
+        phase: "completed_public_recovery",
+      }),
+    );
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-external-stop", {
+        phase: "stopped_external",
+      }),
+    );
+
+    cleanupTerminalWorkflowSecret(
+      sampleWorkflow("wf-terminal-snapshot", {
+        phase: "completed_public_recovery",
+      }),
+    );
+    cleanupTerminalWorkflowSecret(
+      sampleWorkflow("wf-external-stop", {
+        phase: "stopped_external",
+      }),
+    );
+
+    expect(() =>
+      readFileSync(join(workflowsDir, "wf-terminal-snapshot.json"), "utf-8"),
+    ).toThrow();
+    expect(() =>
+      readFileSync(join(workflowsDir, "wf-external-stop.json"), "utf-8"),
+    ).toThrow();
+  });
+
+  test("cleanupTerminalWorkflowFiles removes terminal snapshots directly", () => {
+    const home = useIsolatedHome();
+    const workflowsDir = join(home, "workflows");
+
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-direct-cleanup", {
+        phase: "completed",
+      }),
+    );
+
+    cleanupTerminalWorkflowFiles(
+      sampleWorkflow("wf-direct-cleanup", {
+        phase: "completed",
+      }),
+    );
+
+    expect(() =>
+      readFileSync(join(workflowsDir, "wf-direct-cleanup.json"), "utf-8"),
+    ).toThrow();
+  });
+
+  test("cleanupTerminalWorkflowSecret leaves configured-wallet secrets in place for terminal snapshots", () => {
+    useIsolatedHome();
+    saveWorkflowSecretRecord({
+      schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
+      workflowId: "wf-configured-terminal",
+      chain: "mainnet",
+      walletAddress: privateKeyToAccount(CONFIGURED_SIGNER).address,
+      privateKey: CONFIGURED_SIGNER,
+    });
+    saveWorkflowSnapshot(
+      sampleWorkflow("wf-configured-terminal", {
+        walletMode: "configured",
+        phase: "completed",
+      }),
+    );
+
+    cleanupTerminalWorkflowSecret(
+      sampleWorkflow("wf-configured-terminal", {
+        walletMode: "configured",
+        phase: "completed",
+      }),
+    );
+
+    expect(loadWorkflowSecretRecord("wf-configured-terminal").privateKey).toBe(
+      CONFIGURED_SIGNER,
+    );
+    expect(() => loadWorkflowSnapshot("wf-configured-terminal")).toThrow(
+      "Unknown workflow",
     );
   });
 

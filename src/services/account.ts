@@ -55,12 +55,7 @@ import {
 /**
  * Cast raw pool data to SDK PoolInfo (handles branded Hash type for scope)
  */
-export function toPoolInfo(pool: {
-  chainId: number;
-  address: Address;
-  scope: bigint;
-  deploymentBlock: bigint;
-}): PoolInfo {
+export function toPoolInfo(pool: PoolDescriptor): PoolInfo {
   return pool as unknown as PoolInfo;
 }
 
@@ -138,6 +133,13 @@ type StoredAccountState = AccountState & {
   [LEGACY_READINESS_STATUS_FIELD]?: MigrationChainStatus;
 };
 
+interface PoolDescriptor {
+  chainId: number;
+  address: Address;
+  scope: bigint;
+  deploymentBlock: bigint;
+}
+
 interface LegacyAccountSource {
   account?: { poolAccounts?: ReadonlyMap<unknown, readonly unknown[]> };
 }
@@ -147,7 +149,23 @@ interface LegacyReadinessResolution {
   declinedLabels: ReadonlySet<string> | null;
 }
 
-function savedAccountNeedsLegacyRefresh(
+interface PreserveRegressedScopeEntriesResult {
+  account: AccountState;
+  preservedScopes: AccountScope[];
+}
+
+interface AccountScopeRebuildError {
+  scope: bigint;
+  reason: string;
+}
+
+interface RebuildAccountScopesResult {
+  account: AccountState;
+  legacyAccount?: AccountService;
+  errors: AccountScopeRebuildError[];
+}
+
+export function savedAccountNeedsLegacyRefresh(
   savedAccount: AccountState | null | undefined,
 ): boolean {
   const storedAccount = savedAccount as StoredAccountState | null | undefined;
@@ -165,7 +183,7 @@ function savedAccountNeedsLegacyRefresh(
   );
 }
 
-function clonePoolAccountsMap(
+export function clonePoolAccountsMap(
   poolAccounts: StoredLegacyPoolAccountsView | null | undefined,
 ): StoredLegacyPoolAccounts | undefined {
   if (!(poolAccounts instanceof Map)) {
@@ -187,7 +205,7 @@ function clonePoolAccountsMap(
   );
 }
 
-function resolveStoredLegacyPoolAccounts(
+export function resolveStoredLegacyPoolAccounts(
   account: AccountState,
   legacyAccount?: LegacyAccountSource,
 ): StoredLegacyPoolAccounts {
@@ -233,7 +251,7 @@ export function getStoredLegacyReadinessStatus(
   return typeof stored === "string" ? stored : undefined;
 }
 
-function withStoredLegacyPoolAccounts(
+export function withStoredLegacyPoolAccounts(
   account: AccountState,
   legacyAccount?: LegacyAccountSource,
 ): StoredAccountState {
@@ -248,7 +266,7 @@ function withStoredLegacyPoolAccounts(
   };
 }
 
-function withStoredLegacyState(
+export function withStoredLegacyState(
   account: AccountState,
   legacyAccount?: LegacyAccountSource,
   readinessStatus?: MigrationChainStatus,
@@ -263,7 +281,7 @@ function withStoredLegacyState(
   return nextAccount;
 }
 
-function staleAccountRefreshRequiredError(): CLIError {
+export function staleAccountRefreshRequiredError(): CLIError {
   return new CLIError(
     "Stored account state is outdated and must be refreshed before it can be used safely.",
     "INPUT",
@@ -271,7 +289,7 @@ function staleAccountRefreshRequiredError(): CLIError {
   );
 }
 
-function staleAccountRefreshFailedError(error: unknown): CLIError {
+export function staleAccountRefreshFailedError(error: unknown): CLIError {
   return new CLIError(
     `Stored account state could not be refreshed safely: ${sanitizeDiagnosticText(error instanceof Error ? error.message : String(error))}`,
     "RPC",
@@ -281,7 +299,9 @@ function staleAccountRefreshFailedError(error: unknown): CLIError {
   );
 }
 
-function legacyReadinessError(status: MigrationChainStatus): CLIError | null {
+export function legacyReadinessError(
+  status: MigrationChainStatus,
+): CLIError | null {
   if (status === "no_legacy" || status === "fully_migrated") {
     return null;
   }
@@ -301,7 +321,7 @@ function legacyReadinessError(status: MigrationChainStatus): CLIError | null {
   return accountMigrationRequiredError();
 }
 
-async function resolveLegacyReadiness(
+export async function resolveLegacyReadiness(
   legacyAccount: AccountService | LegacyAccountSource | undefined,
   chainId: number,
 ): Promise<LegacyReadinessResolution> {
@@ -333,7 +353,7 @@ async function resolveLegacyReadiness(
   };
 }
 
-async function resolveLegacyInitializationPolicy(
+export async function resolveLegacyInitializationPolicy(
   legacyAccount: AccountService | LegacyAccountSource | undefined,
   chainId: number,
   allowLegacyRecoveryVisibility: boolean,
@@ -358,7 +378,7 @@ async function resolveLegacyInitializationPolicy(
   throw blockingError;
 }
 
-function summarizeInitErrors(
+export function summarizeInitErrors(
   initErrors: Array<{ scope: bigint; reason: string }>,
 ): string {
   return initErrors
@@ -367,7 +387,7 @@ function summarizeInitErrors(
     .join("; ");
 }
 
-function warnOnPartialInitialization(
+export function warnOnPartialInitialization(
   suppressWarnings: boolean,
   message: string,
 ): void {
@@ -376,7 +396,7 @@ function warnOnPartialInitialization(
   }
 }
 
-function buildPartialInitializationState(
+export function buildPartialInitializationState(
   accountService: AccountService,
   rebuiltLegacyAccount: boolean,
 ): InitializeAccountServiceState {
@@ -389,7 +409,7 @@ function buildPartialInitializationState(
   };
 }
 
-function isLegacyRestoreBlockingError(error: unknown): boolean {
+export function isLegacyRestoreBlockingError(error: unknown): boolean {
   return (
     error instanceof CLIError &&
     (error.code === "ACCOUNT_MIGRATION_REQUIRED" ||
@@ -398,7 +418,7 @@ function isLegacyRestoreBlockingError(error: unknown): boolean {
   );
 }
 
-function mergeRebuiltScopes(
+export function mergeRebuiltScopes(
   currentAccount: AccountState,
   rebuiltAccount: AccountState,
   scopes: AccountScope[],
@@ -435,14 +455,11 @@ function mergeRebuiltScopes(
   };
 }
 
-function preserveRegressedScopeEntries(
+export function preserveRegressedScopeEntries(
   currentAccount: AccountState,
   rebuiltAccount: AccountState,
   scopes: AccountScope[],
-): {
-  account: AccountState;
-  preservedScopes: AccountScope[];
-} {
+): PreserveRegressedScopeEntriesResult {
   let nextPoolAccounts: Map<AccountScope, AccountState["poolAccounts"] extends Map<any, infer V> ? V : never> | null = null;
   const preservedScopes: AccountScope[] = [];
 
@@ -476,28 +493,19 @@ function preserveRegressedScopeEntries(
   };
 }
 
-function summarizeScopePreservations(scopes: AccountScope[]): string {
+export function summarizeScopePreservations(scopes: AccountScope[]): string {
   return scopes
     .slice(0, 3)
     .map((scope) => `scope ${scope.toString()}`)
     .join("; ");
 }
 
-async function rebuildAccountScopesFromEvents(
+export async function rebuildAccountScopesFromEvents(
   dataService: DataService,
   mnemonic: string,
   currentAccount: AccountState,
-  pools: Array<{
-    chainId: number;
-    address: Address;
-    scope: bigint;
-    deploymentBlock: bigint;
-  }>,
-): Promise<{
-  account: AccountState;
-  legacyAccount?: AccountService;
-  errors: Array<{ scope: bigint; reason: string }>;
-}> {
+  pools: PoolDescriptor[],
+): Promise<RebuildAccountScopesResult> {
   if (pools.length === 0) {
     return { account: currentAccount, legacyAccount: undefined, errors: [] };
   }
@@ -524,12 +532,7 @@ async function rebuildAccountScopesFromEvents(
 export async function initializeAccountServiceWithState(
   dataService: DataService,
   mnemonic: string,
-  pools: Array<{
-    chainId: number;
-    address: Address;
-    scope: bigint;
-    deploymentBlock: bigint;
-  }>,
+  pools: PoolDescriptor[],
   chainId: number,
   options: InitializeAccountServiceStateOptions = {},
 ): Promise<InitializeAccountServiceState> {
@@ -829,12 +832,7 @@ export async function initializeAccountServiceWithState(
 export async function initializeAccountService(
   dataService: DataService,
   mnemonic: string,
-  pools: Array<{
-    chainId: number;
-    address: Address;
-    scope: bigint;
-    deploymentBlock: bigint;
-  }>,
+  pools: PoolDescriptor[],
   chainId: number,
   /** When true, sync events even for saved accounts to catch external changes */
   forceSync: boolean = false,
@@ -922,12 +920,7 @@ export interface SyncEventsOptions {
  */
 export async function syncAccountEvents(
   accountService: AccountService,
-  poolInfos: Array<{
-    chainId: number;
-    address: Address;
-    scope: bigint;
-    deploymentBlock: bigint;
-  }>,
+  poolInfos: PoolDescriptor[],
   pools: Array<{ pool: string; symbol: string }>,
   chainId: number,
   opts: SyncEventsOptions,

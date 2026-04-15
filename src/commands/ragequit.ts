@@ -128,6 +128,21 @@ interface RagequitAccountLoadResult {
   legacyDeclinedLabels: ReadonlySet<string> | null;
 }
 
+interface RagequitPoolInfo {
+  chainId: number;
+  address: Address;
+  scope: SDKHash;
+  deploymentBlock: bigint;
+}
+
+interface RequestedRagequitPoolAccountParams {
+  requestedPoolAccounts: readonly PoolAccountRef[];
+  allKnownPoolAccounts: readonly PoolAccountRef[];
+  fromPaNumber: number;
+  chainName: string;
+  symbol: string;
+}
+
 export { createRagequitCommand } from "../command-shells/ragequit.js";
 
 export function formatRagequitPoolAccountChoice(
@@ -167,7 +182,7 @@ export function getRagequitAdvisory(
   }
 }
 
-function isLegacyRecoveryFallbackError(error: unknown): error is CLIError {
+export function isLegacyRecoveryFallbackError(error: unknown): error is CLIError {
   return (
     error instanceof CLIError &&
     (
@@ -177,15 +192,10 @@ function isLegacyRecoveryFallbackError(error: unknown): error is CLIError {
   );
 }
 
-async function loadRagequitAccountServices(
+export async function loadRagequitAccountServices(
   dataService: Awaited<ReturnType<typeof getDataService>>,
   mnemonic: string,
-  poolInfo: {
-    chainId: number;
-    address: Address;
-    scope: SDKHash;
-    deploymentBlock: bigint;
-  },
+  poolInfo: RagequitPoolInfo,
   chainId: number,
   suppressWarnings: boolean,
 ): Promise<RagequitAccountLoadResult> {
@@ -241,6 +251,43 @@ async function loadRagequitAccountServices(
       legacyDeclinedLabels: declinedLabels,
     };
   }
+}
+
+export function resolveRequestedRagequitPoolAccountOrThrow(
+  params: RequestedRagequitPoolAccountParams,
+): PoolAccountRef {
+  const requestedPoolAccount = params.requestedPoolAccounts.find(
+    (poolAccount) => poolAccount.paNumber === params.fromPaNumber,
+  );
+  if (requestedPoolAccount) {
+    return requestedPoolAccount;
+  }
+
+  const historicalPoolAccount = params.allKnownPoolAccounts.find(
+    (poolAccount) => poolAccount.paNumber === params.fromPaNumber,
+  );
+  const unavailableReason = historicalPoolAccount
+    ? describeUnavailablePoolAccount(historicalPoolAccount, "ragequit")
+    : null;
+  if (historicalPoolAccount && unavailableReason) {
+    throw new CLIError(
+      unavailableReason,
+      "INPUT",
+      `Run 'privacy-pools accounts --chain ${params.chainName}' to inspect ${historicalPoolAccount.paId} and choose a Pool Account with remaining balance.`,
+    );
+  }
+
+  const unknownPoolAccount = getUnknownPoolAccountError({
+    paNumber: params.fromPaNumber,
+    symbol: params.symbol,
+    chainName: params.chainName,
+    knownPoolAccountsCount: params.allKnownPoolAccounts.length,
+  });
+  throw new CLIError(
+    unknownPoolAccount.message,
+    "INPUT",
+    unknownPoolAccount.hint,
+  );
 }
 
 export function buildRagequitPoolAccountRefs(
@@ -541,23 +588,25 @@ export async function handleRagequitCommand(
 
       if (fromPaNumber !== undefined && fromPaNumber !== null) {
         const requestedKnownPoolAccount = allKnownPoolAccounts.find(
-          (pa) => pa.paNumber === fromPaNumber,
+          (poolAccount) => poolAccount.paNumber === fromPaNumber,
         );
-        const unavailableReason = requestedKnownPoolAccount
-          ? describeUnavailablePoolAccount(
-              requestedKnownPoolAccount,
-              "ragequit",
-            )
-          : null;
-        if (requestedKnownPoolAccount && unavailableReason) {
-          spin.stop();
-          throw new CLIError(
-            unavailableReason,
-            "INPUT",
-            `Run 'privacy-pools accounts --chain ${chainConfig.name}' to inspect ${requestedKnownPoolAccount.paId} and choose a Pool Account with remaining balance.`,
+        if (requestedKnownPoolAccount) {
+          const unavailableReason = describeUnavailablePoolAccount(
+            requestedKnownPoolAccount,
+            "ragequit",
           );
-        }
-        if (!requestedKnownPoolAccount) {
+          if (!unavailableReason) {
+            // Keep going. A later selection step may still reject it if the
+            // account stops being actionable after ASP/public-state filtering.
+          } else {
+            spin.stop();
+            throw new CLIError(
+              unavailableReason,
+              "INPUT",
+              `Run 'privacy-pools accounts --chain ${chainConfig.name}' to inspect ${requestedKnownPoolAccount.paId} and choose a Pool Account with remaining balance.`,
+            );
+          }
+        } else {
           spin.stop();
           const unknownPoolAccount = getUnknownPoolAccountError({
             paNumber: fromPaNumber,
@@ -636,36 +685,13 @@ export async function handleRagequitCommand(
       // Select Pool Account
       let selectedPoolAccount: PoolAccountRef;
       if (fromPaNumber !== undefined && fromPaNumber !== null) {
-        const requestedPoolAccount = poolAccounts.find(
-          (pa) => pa.paNumber === fromPaNumber,
-        );
-        if (!requestedPoolAccount) {
-          const historicalPoolAccount = allKnownPoolAccounts.find(
-            (pa) => pa.paNumber === fromPaNumber,
-          );
-          const unavailableReason = historicalPoolAccount
-            ? describeUnavailablePoolAccount(historicalPoolAccount, "ragequit")
-            : null;
-          if (historicalPoolAccount && unavailableReason) {
-            throw new CLIError(
-              unavailableReason,
-              "INPUT",
-              `Run 'privacy-pools accounts --chain ${chainConfig.name}' to inspect ${historicalPoolAccount.paId} and choose a Pool Account with remaining balance.`,
-            );
-          }
-          const unknownPoolAccount = getUnknownPoolAccountError({
-            paNumber: fromPaNumber,
-            symbol: pool.symbol,
-            chainName: chainConfig.name,
-            knownPoolAccountsCount: allKnownPoolAccounts.length,
-          });
-          throw new CLIError(
-            unknownPoolAccount.message,
-            "INPUT",
-            unknownPoolAccount.hint,
-          );
-        }
-        selectedPoolAccount = requestedPoolAccount;
+        selectedPoolAccount = resolveRequestedRagequitPoolAccountOrThrow({
+          requestedPoolAccounts: poolAccounts,
+          allKnownPoolAccounts,
+          fromPaNumber,
+          chainName: chainConfig.name,
+          symbol: pool.symbol,
+        });
       } else if (opts.commitment !== undefined) {
         const idx = parseInt(opts.commitment, 10);
         if (isNaN(idx) || idx < 0 || idx >= poolCommitments.length) {

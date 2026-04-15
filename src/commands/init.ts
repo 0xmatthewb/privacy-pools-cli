@@ -125,12 +125,77 @@ interface InitPlan {
   replacingExisting: boolean;
 }
 
+interface RecoveryPhraseSourceOptions {
+  phrase?: string;
+  phraseFile?: string;
+  phraseStdin?: boolean;
+  signerOnly?: boolean;
+}
+
+interface SignerKeySourceOptions {
+  privateKey?: string;
+  privateKeyFile?: string;
+  privateKeyStdin?: boolean;
+}
+
+interface ResolveInitPlanParams {
+  opts: InitCommandOptions;
+  state: ExistingInitState;
+  hasMnemonicSource: boolean;
+  hasSignerSource: boolean;
+}
+
+interface ResolveNonInteractivePlanParams extends ResolveInitPlanParams {
+  hasEnvironmentSigner: boolean;
+}
+
+interface ConfirmReplacementParams {
+  plan: InitPlan;
+  state: ExistingInitState;
+  forceOverwrite: boolean;
+  skipPrompts: boolean;
+  silent: boolean;
+}
+
+interface HandleGeneratedRecoveryBackupParams {
+  mnemonic: string;
+  skipPrompts: boolean;
+  isJson: boolean;
+  isQuiet: boolean;
+  showPhrase: boolean;
+  backupFile?: string;
+  silent: boolean;
+}
+
+interface CollectSignerKeyParams {
+  signerKeySource?: string;
+  inlineFlagUsed: boolean;
+  hasEnvironmentSigner: boolean;
+  required: boolean;
+  skipPrompts: boolean;
+  silent: boolean;
+}
+
+interface CollectDefaultChainParams {
+  opts: InitCommandOptions;
+  existingConfig: CLIConfig | null;
+  skipPrompts: boolean;
+  silent: boolean;
+  stage: { step: number; total: number };
+}
+
+interface DeriveReadinessParams {
+  setupMode: InitSetupMode;
+  signerKeySet: boolean;
+  restoreDiscovery?: RestoreDiscoverySummary;
+}
+
 const INIT_TEST_SENTINELS_ENV = "PRIVACY_POOLS_TEST_INIT_SENTINELS";
 const RECOVERY_VERIFICATION_WORDS = [3, 12, 24] as const;
 
 export { createInitCommand } from "../command-shells/init.js";
 
-function withInitTestSentinel(name: string, message: string): string {
+export function withInitTestSentinel(name: string, message: string): string {
   if (process.env[INIT_TEST_SENTINELS_ENV]?.trim() !== "1") {
     return message;
   }
@@ -138,7 +203,7 @@ function withInitTestSentinel(name: string, message: string): string {
   return `[pp-init:${name}] ${message}`;
 }
 
-function buildRecoveryBackupContents(mnemonic: string): string {
+export function buildRecoveryBackupContents(mnemonic: string): string {
   return [
     "Privacy Pools Recovery Phrase",
     "",
@@ -150,7 +215,10 @@ function buildRecoveryBackupContents(mnemonic: string): string {
   ].join("\n");
 }
 
-function writeRecoveryBackupFile(filePath: string, content: string): string {
+export function writeRecoveryBackupFile(
+  filePath: string,
+  content: string,
+): string {
   const normalizedPath = filePath.trim();
   if (!normalizedPath) {
     throw new CLIError(
@@ -199,7 +267,7 @@ function writeRecoveryBackupFile(filePath: string, content: string): string {
   }
 }
 
-function captureInitFileSnapshot(path: string): InitFileSnapshot {
+export function captureInitFileSnapshot(path: string): InitFileSnapshot {
   if (!existsSync(path)) {
     return { path, existed: false };
   }
@@ -216,7 +284,7 @@ function captureInitFileSnapshot(path: string): InitFileSnapshot {
   };
 }
 
-function restoreInitFileSnapshot(snapshot: InitFileSnapshot): void {
+export function restoreInitFileSnapshot(snapshot: InitFileSnapshot): void {
   if (!snapshot.existed) {
     try {
       unlinkSync(snapshot.path);
@@ -231,7 +299,7 @@ function restoreInitFileSnapshot(snapshot: InitFileSnapshot): void {
   }
 }
 
-function persistInitFilesAtomically(writes: InitPendingWrite[]): void {
+export function persistInitFilesAtomically(writes: InitPendingWrite[]): void {
   invalidateConfigCache();
   const snapshots = new Map<string, InitFileSnapshot>(
     writes.map((write) => [write.path, captureInitFileSnapshot(write.path)]),
@@ -254,12 +322,9 @@ function persistInitFilesAtomically(writes: InitPendingWrite[]): void {
   }
 }
 
-function describeRecoveryPhraseSource(options: {
-  phrase?: string;
-  phraseFile?: string;
-  phraseStdin?: boolean;
-  signerOnly?: boolean;
-}): string {
+export function describeRecoveryPhraseSource(
+  options: RecoveryPhraseSourceOptions,
+): string {
   if (options.signerOnly) return "keep existing phrase";
   if (options.phraseFile) return "load from file";
   if (options.phraseStdin) return "load from stdin";
@@ -267,11 +332,9 @@ function describeRecoveryPhraseSource(options: {
   return "generate new phrase";
 }
 
-function describeSignerKeySource(options: {
-  privateKey?: string;
-  privateKeyFile?: string;
-  privateKeyStdin?: boolean;
-}): string {
+export function describeSignerKeySource(
+  options: SignerKeySourceOptions,
+): string {
   if (options.privateKeyFile) return "save from file";
   if (options.privateKeyStdin) return "save from stdin";
   if (options.privateKey) return "save inline";
@@ -279,7 +342,7 @@ function describeSignerKeySource(options: {
   return "prompt or skip";
 }
 
-function normalizePrivateKeyOrThrow(privateKey: string): string {
+export function normalizePrivateKeyOrThrow(privateKey: string): string {
   const normalized = privateKey.startsWith("0x")
     ? privateKey
     : `0x${privateKey}`;
@@ -297,7 +360,7 @@ function normalizeSecretWord(word: string): string {
   return word.trim().toLowerCase();
 }
 
-function resolveExistingInitState(
+export function resolveExistingInitState(
   defaultChainOverride: string | undefined,
 ): ExistingInitState {
   const hasConfig = configExists();
@@ -334,12 +397,7 @@ function resolveExistingInitState(
   };
 }
 
-function resolveDryRunPlan(params: {
-  opts: InitCommandOptions;
-  state: ExistingInitState;
-  hasMnemonicSource: boolean;
-  hasSignerSource: boolean;
-}): InitPlan {
+export function resolveDryRunPlan(params: ResolveInitPlanParams): InitPlan {
   if (params.opts.signerOnly) {
     return {
       workflow: "signer_only",
@@ -375,7 +433,7 @@ function resolveDryRunPlan(params: {
   };
 }
 
-async function promptForWorkflowGoal(
+export async function promptForWorkflowGoal(
   state: ExistingInitState,
   silent: boolean,
 ): Promise<InitPlan> {
@@ -501,13 +559,9 @@ async function promptForWorkflowGoal(
   };
 }
 
-function resolveNonInteractivePlan(params: {
-  opts: InitCommandOptions;
-  state: ExistingInitState;
-  hasMnemonicSource: boolean;
-  hasSignerSource: boolean;
-  hasEnvironmentSigner: boolean;
-}): InitPlan {
+export function resolveNonInteractivePlan(
+  params: ResolveNonInteractivePlanParams,
+): InitPlan {
   if (params.opts.signerOnly) {
     if (!params.state.hasRecoveryPhrase) {
       throw new CLIError(
@@ -579,13 +633,9 @@ function resolveNonInteractivePlan(params: {
   };
 }
 
-async function maybeConfirmReplacement(params: {
-  plan: InitPlan;
-  state: ExistingInitState;
-  forceOverwrite: boolean;
-  skipPrompts: boolean;
-  silent: boolean;
-}): Promise<boolean> {
+export async function maybeConfirmReplacement(
+  params: ConfirmReplacementParams,
+): Promise<boolean> {
   if (!params.plan.replacingExisting || !params.state.hasExistingState) {
     return true;
   }
@@ -626,7 +676,7 @@ async function maybeConfirmReplacement(params: {
   return true;
 }
 
-async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<string> {
+export async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<string> {
   stageHeader(1, 4, "Load existing account", silent);
   process.stderr.write(renderInitLoadRecoveryReview());
   if (await maybeRenderPreviewScenario("init import recovery prompt")) {
@@ -651,15 +701,9 @@ async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<string> {
   return trimmed;
 }
 
-async function handleGeneratedRecoveryBackup(params: {
-  mnemonic: string;
-  skipPrompts: boolean;
-  isJson: boolean;
-  isQuiet: boolean;
-  showPhrase: boolean;
-  backupFile?: string;
-  silent: boolean;
-}): Promise<string | null> {
+export async function handleGeneratedRecoveryBackup(
+  params: HandleGeneratedRecoveryBackupParams,
+): Promise<string | null> {
   let backupFilePath: string | null = null;
 
   if (!params.isJson) {
@@ -750,7 +794,7 @@ async function handleGeneratedRecoveryBackup(params: {
   return backupFilePath;
 }
 
-async function verifyGeneratedRecoveryPhrase(
+export async function verifyGeneratedRecoveryPhrase(
   mnemonic: string,
   silent: boolean,
 ): Promise<void> {
@@ -780,14 +824,9 @@ async function verifyGeneratedRecoveryPhrase(
   process.stderr.write("\n");
 }
 
-async function collectSignerKey(params: {
-  signerKeySource?: string;
-  inlineFlagUsed: boolean;
-  hasEnvironmentSigner: boolean;
-  required: boolean;
-  skipPrompts: boolean;
-  silent: boolean;
-}): Promise<string | undefined> {
+export async function collectSignerKey(
+  params: CollectSignerKeyParams,
+): Promise<string | undefined> {
   let signerKey = params.signerKeySource;
 
   if (signerKey && params.inlineFlagUsed && !params.silent) {
@@ -843,13 +882,9 @@ async function collectSignerKey(params: {
   return signerKey ? normalizePrivateKeyOrThrow(signerKey) : undefined;
 }
 
-async function collectDefaultChain(params: {
-  opts: InitCommandOptions;
-  existingConfig: CLIConfig | null;
-  skipPrompts: boolean;
-  silent: boolean;
-  stage: { step: number; total: number };
-}): Promise<string> {
+export async function collectDefaultChain(
+  params: CollectDefaultChainParams,
+): Promise<string> {
   let defaultChain = (
     params.opts.defaultChain ??
     params.existingConfig?.defaultChain
@@ -888,11 +923,7 @@ async function collectDefaultChain(params: {
   return defaultChain.toLowerCase();
 }
 
-function deriveReadiness(params: {
-  setupMode: InitSetupMode;
-  signerKeySet: boolean;
-  restoreDiscovery?: RestoreDiscoverySummary;
-}): InitReadiness {
+export function deriveReadiness(params: DeriveReadinessParams): InitReadiness {
   if (
     params.restoreDiscovery &&
     (params.restoreDiscovery.status === "degraded" ||
@@ -904,7 +935,7 @@ function deriveReadiness(params: {
   return params.signerKeySet ? "ready" : "read_only";
 }
 
-function hasEnvironmentSigner(): boolean {
+export function hasEnvironmentSigner(): boolean {
   return (process.env.PRIVACY_POOLS_PRIVATE_KEY?.trim().length ?? 0) > 0;
 }
 

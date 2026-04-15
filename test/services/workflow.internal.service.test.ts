@@ -18,10 +18,14 @@ import {
   type Address,
   type Hex,
 } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { CHAINS, NATIVE_ASSET_ADDRESS } from "../../src/config/chains.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import type { FlowSnapshot } from "../../src/services/workflow.ts";
-import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
+import {
+  WORKFLOW_SECRET_RECORD_VERSION,
+  WORKFLOW_SNAPSHOT_VERSION,
+} from "../../src/services/workflow-storage-version.ts";
 import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
 import { captureAsyncOutput } from "../helpers/output.ts";
 import { restoreTestTty, setTestTty } from "../helpers/tty.ts";
@@ -36,11 +40,13 @@ const realSdk = await import("../../src/services/sdk.ts");
 const realAccount = await import("../../src/services/account.ts");
 const realWallet = await import("../../src/services/wallet.ts");
 const realPools = await import("../../src/services/pools.ts");
+const realContracts = await import("../../src/services/contracts.ts");
 const realSdkPackage = await import("@0xbow/privacy-pools-core-sdk");
 const realAsp = await import("../../src/services/asp.ts");
 const realPoolAccounts = await import("../../src/utils/pool-accounts.ts");
 const realRelayer = await import("../../src/services/relayer.ts");
 const realProofs = await import("../../src/services/proofs.ts");
+const realPreviewRuntime = await import("../../src/preview/runtime.ts");
 
 const depositedEventAbi = parseAbi([
   "event Deposited(address indexed _depositor, uint256 _commitment, uint256 _label, uint256 _value, uint256 _precommitmentHash)",
@@ -169,6 +175,12 @@ interface MockState {
   gasPriceError: boolean;
   nativeBalance: bigint;
   tokenBalance: bigint;
+  approvalReceiptMode: "success" | "timeout" | "reverted";
+  depositSubmissionReceiptMode:
+    | "success"
+    | "timeout"
+    | "reverted"
+    | "missing_metadata";
   depositReceiptMode:
     | "success"
     | "missing"
@@ -211,6 +223,8 @@ interface MockState {
     };
   };
   remainderAdvisory: string | null;
+  approvalTxHash: Hex;
+  depositSubmitTxHash: Hex;
   relayTxHash: Hex;
 }
 
@@ -264,7 +278,9 @@ function buildAccountServiceResult(
     getSpendableCommitments: () => new Map([
       [1n, getSpendableMockPoolAccounts().map((poolAccount) => poolAccount.commitment)],
     ]),
+    createDepositSecrets: () => createDepositSecretsMock(),
     createWithdrawalSecrets: () => ({ nullifier: 901n, secret: 902n }),
+    addPoolAccount: (...args: unknown[]) => addPoolAccountMock(...args),
     addWithdrawalCommitment: () => undefined,
     ...overrides,
   };
@@ -277,6 +293,21 @@ const saveSyncMetaMock = mock(() => undefined);
 const acquireProcessLockMock = mock(() => () => undefined);
 const guardCriticalSectionMock = mock(() => undefined);
 const releaseCriticalSectionMock = mock(() => undefined);
+const createDepositSecretsMock = mock(() => ({
+  precommitment: 44n,
+  nullifier: 45n,
+  secret: 46n,
+}));
+const addPoolAccountMock = mock(() => undefined);
+const approveERC20Mock = mock(async () => ({
+  hash: state.approvalTxHash,
+}));
+const depositETHMock = mock(async () => ({
+  hash: state.depositSubmitTxHash,
+}));
+const depositERC20Mock = mock(async () => ({
+  hash: state.depositSubmitTxHash,
+}));
 const getPublicClientMock = mock(() => ({
   getGasPrice: async () => state.gasPrice,
   getBalance: async () => state.nativeBalance,
@@ -286,17 +317,81 @@ const getPublicClientMock = mock(() => ({
     if (functionName === "latestRoot") return state.latestRoot;
     return 0n;
   },
-  waitForTransactionReceipt: async () => {
-    if (state.relayReceiptMode === "timeout") {
-      throw new Error("timed out");
+  waitForTransactionReceipt: async ({ hash }: { hash: Hex }) => {
+    if (hash === state.approvalTxHash) {
+      if (state.approvalReceiptMode === "timeout") {
+        throw new Error("timed out");
+      }
+      return {
+        status:
+          state.approvalReceiptMode === "reverted"
+            ? ("reverted" as const)
+            : ("success" as const),
+        blockNumber: 222n,
+      };
     }
-    return {
-      status:
-        state.relayReceiptMode === "reverted"
-          ? ("reverted" as const)
-          : ("success" as const),
-      blockNumber: 999n,
-    };
+
+    if (hash === state.depositSubmitTxHash) {
+      if (state.depositSubmissionReceiptMode === "timeout") {
+        throw new Error("timed out");
+      }
+      if (state.depositSubmissionReceiptMode === "reverted") {
+        return {
+          status: "reverted" as const,
+          blockNumber: 333n,
+          logs: [],
+        };
+      }
+      if (state.depositSubmissionReceiptMode === "missing_metadata") {
+        return {
+          status: "success" as const,
+          blockNumber: 333n,
+          logs: [],
+        };
+      }
+
+      return {
+        status: "success" as const,
+        blockNumber: 333n,
+        logs: [
+          {
+            address: state.resolvedPool.pool,
+            topics: encodeEventTopics({
+              abi: depositedEventAbi,
+              eventName: "Deposited",
+              args: {
+                _depositor:
+                  "0x3333333333333333333333333333333333333333" as Address,
+              },
+            }),
+            data: encodeAbiParameters(
+              [
+                { name: "_commitment", type: "uint256" },
+                { name: "_label", type: "uint256" },
+                { name: "_value", type: "uint256" },
+                { name: "_precommitmentHash", type: "uint256" },
+              ],
+              [188n, 199n, 777n, 144n],
+            ),
+          },
+        ],
+      };
+    }
+
+    if (hash === state.relayTxHash) {
+      if (state.relayReceiptMode === "timeout") {
+        throw new Error("timed out");
+      }
+      return {
+        status:
+          state.relayReceiptMode === "reverted"
+            ? ("reverted" as const)
+            : ("success" as const),
+        blockNumber: 999n,
+      };
+    }
+
+    throw new Error(`Unexpected tx wait: ${hash}`);
   },
   getTransactionReceipt: async ({ hash }: { hash: Hex }) => {
     if (hash === ("0x" + "aa".repeat(32)) as Hex) {
@@ -481,18 +576,26 @@ const refreshExpiredRelayerQuoteForWithdrawalMock = mock(
 const confirmPromptMock = mock(async () => true);
 const inputPromptMock = mock(async () => "");
 const selectPromptMock = mock(async () => "copied");
+const maybeRenderPreviewScenarioMock = mock(async () => false);
+const maybeRenderPreviewProgressStepMock = mock(async () => false);
 
 let getFlowFundingRequirements: typeof import("../../src/services/workflow.ts").getFlowFundingRequirements;
 let readFlowFundingState: typeof import("../../src/services/workflow.ts").readFlowFundingState;
 let getNextFlowPoolAccountRef: typeof import("../../src/services/workflow.ts").getNextFlowPoolAccountRef;
 let inspectFundingAndDeposit: typeof import("../../src/services/workflow.ts").inspectFundingAndDeposit;
 let setupNewWalletWorkflow: typeof import("../../src/services/workflow.ts").setupNewWalletWorkflow;
+let startWorkflow: typeof import("../../src/services/workflow.ts").startWorkflow;
+let watchWorkflow: typeof import("../../src/services/workflow.ts").watchWorkflow;
+let ragequitWorkflow: typeof import("../../src/services/workflow.ts").ragequitWorkflow;
 let reconcilePendingDepositReceipt: typeof import("../../src/services/workflow.ts").reconcilePendingDepositReceipt;
 let reconcilePendingWithdrawalReceipt: typeof import("../../src/services/workflow.ts").reconcilePendingWithdrawalReceipt;
 let reconcilePendingRagequitReceipt: typeof import("../../src/services/workflow.ts").reconcilePendingRagequitReceipt;
 let loadWorkflowPoolAccountContext: typeof import("../../src/services/workflow.ts").loadWorkflowPoolAccountContext;
 let executeRelayedWithdrawalForFlow: typeof import("../../src/services/workflow.ts").executeRelayedWithdrawalForFlow;
 let continueApprovedWorkflowWithdrawal: typeof import("../../src/services/workflow.ts").continueApprovedWorkflowWithdrawal;
+let getWorkflowStatus: typeof import("../../src/services/workflow.ts").getWorkflowStatus;
+let overrideWorkflowTimingForTests: typeof import("../../src/services/workflow.ts").overrideWorkflowTimingForTests;
+let saveWorkflowSnapshot: typeof import("../../src/services/workflow.ts").saveWorkflowSnapshot;
 let saveWorkflowSecretRecord: typeof import("../../src/services/workflow.ts").saveWorkflowSecretRecord;
 
 function sampleSnapshot(
@@ -526,6 +629,18 @@ function sampleSnapshot(
   };
 }
 
+function seedWorkflowWalletSecret(workflowId = "wf-internal"): void {
+  const privateKey =
+    "0x1111111111111111111111111111111111111111111111111111111111111111";
+  saveWorkflowSecretRecord({
+    schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
+    workflowId,
+    chain: "sepolia",
+    walletAddress: privateKeyToAccount(privateKey).address,
+    privateKey,
+  });
+}
+
 const JSON_MODE = {
   isAgent: true,
   isJson: true,
@@ -533,6 +648,19 @@ const JSON_MODE = {
   isQuiet: true,
   format: "json" as const,
   skipPrompts: true,
+};
+
+const HUMAN_MODE = {
+  isAgent: false,
+  isJson: false,
+  isCsv: false,
+  isQuiet: false,
+  format: "table" as const,
+  skipPrompts: true,
+};
+const INTERACTIVE_HUMAN_MODE = {
+  ...HUMAN_MODE,
+  skipPrompts: false,
 };
 
 beforeAll(async () => {
@@ -572,6 +700,12 @@ beforeAll(async () => {
   mock.module("../../src/services/pools.ts", () => ({
     ...realPools,
     resolvePool: resolvePoolMock,
+  }));
+  mock.module("../../src/services/contracts.ts", () => ({
+    ...realContracts,
+    approveERC20: approveERC20Mock,
+    depositETH: depositETHMock,
+    depositERC20: depositERC20Mock,
   }));
   mock.module("../../src/services/asp.ts", () => ({
     ...realAsp,
@@ -629,11 +763,17 @@ beforeAll(async () => {
       start() {},
       stop() {},
       succeed() {},
+      fail() {},
     }),
     warn: (message: string) => {
       state.warnings.push(message);
     },
     verbose: () => undefined,
+  }));
+  mock.module("../../src/preview/runtime.ts", () => ({
+    ...realPreviewRuntime,
+    maybeRenderPreviewScenario: maybeRenderPreviewScenarioMock,
+    maybeRenderPreviewProgressStep: maybeRenderPreviewProgressStepMock,
   }));
   mock.module("../../src/utils/lock.ts", () => ({
     acquireProcessLock: acquireProcessLockMock,
@@ -649,9 +789,15 @@ beforeAll(async () => {
     getNextFlowPoolAccountRef,
     inspectFundingAndDeposit,
     setupNewWalletWorkflow,
+    startWorkflow,
+    watchWorkflow,
+    ragequitWorkflow,
     loadWorkflowPoolAccountContext,
     executeRelayedWithdrawalForFlow,
     continueApprovedWorkflowWithdrawal,
+    getWorkflowStatus,
+    overrideWorkflowTimingForTests,
+    saveWorkflowSnapshot,
     saveWorkflowSecretRecord,
     reconcilePendingDepositReceipt,
     reconcilePendingWithdrawalReceipt,
@@ -672,6 +818,7 @@ afterAll(() => {
 });
 
 afterEach(() => {
+  overrideWorkflowTimingForTests();
   cleanupTrackedTempDirs();
   restoreTestTty();
 });
@@ -704,6 +851,8 @@ beforeEach(() => {
   state.gasPriceError = false;
   state.nativeBalance = 2_000n;
   state.tokenBalance = 3_000n;
+  state.approvalReceiptMode = "success";
+  state.depositSubmissionReceiptMode = "success";
   state.depositReceiptMode = "success";
   state.withdrawReceiptMode = "success";
   state.ragequitReceiptMode = "success";
@@ -727,6 +876,8 @@ beforeEach(() => {
     relayerUrl: state.relayerDetails.relayerUrl,
   });
   state.remainderAdvisory = null;
+  state.approvalTxHash = ("0x" + "ee".repeat(32)) as Hex;
+  state.depositSubmitTxHash = ("0x" + "ff".repeat(32)) as Hex;
   state.relayTxHash = ("0x" + "dd".repeat(32)) as Hex;
   getDataServiceMock.mockClear();
   initializeAccountServiceMock.mockClear();
@@ -735,6 +886,11 @@ beforeEach(() => {
   acquireProcessLockMock.mockClear();
   guardCriticalSectionMock.mockClear();
   releaseCriticalSectionMock.mockClear();
+  createDepositSecretsMock.mockClear();
+  addPoolAccountMock.mockClear();
+  approveERC20Mock.mockClear();
+  depositETHMock.mockClear();
+  depositERC20Mock.mockClear();
   getPublicClientMock.mockClear();
   resolvePoolMock.mockClear();
   fetchMerkleRootsMock.mockClear();
@@ -759,9 +915,13 @@ beforeEach(() => {
   confirmPromptMock.mockClear();
   inputPromptMock.mockClear();
   selectPromptMock.mockClear();
+  maybeRenderPreviewScenarioMock.mockClear();
+  maybeRenderPreviewProgressStepMock.mockClear();
   confirmPromptMock.mockImplementation(async () => true);
   inputPromptMock.mockImplementation(async () => "");
   selectPromptMock.mockImplementation(async () => "copied");
+  maybeRenderPreviewScenarioMock.mockImplementation(async () => false);
+  maybeRenderPreviewProgressStepMock.mockImplementation(async () => false);
 });
 
 describe("workflow internal helpers", () => {
@@ -941,6 +1101,24 @@ describe("workflow internal helpers", () => {
     expect(state.warnings.join("\n")).toContain(
       "A dedicated workflow wallet was created for this flow.",
     );
+  });
+
+  test("setupNewWalletWorkflow accepts an explicit backup path in human mode", async () => {
+    const backupPath = join(process.env.PRIVACY_POOLS_HOME!, "workflow-wallet.txt");
+
+    const result = await setupNewWalletWorkflow({
+      workflowId: "wf-human-backed-up",
+      chainConfig: CHAINS.sepolia,
+      pool: ETH_POOL,
+      amount: 500n,
+      recipient: sampleSnapshot().recipient as Address,
+      exportNewWallet: backupPath,
+      mode: INTERACTIVE_HUMAN_MODE,
+    });
+
+    expect(result.secretRecord.exportedBackupPath).toBe(backupPath);
+    expect(existsSync(backupPath)).toBe(true);
+    expect(result.snapshot.phase).toBe("awaiting_funding");
   });
 
   test("loadWorkflowPoolAccountContext rejects workflows that do not have a saved Pool Account yet", async () => {
@@ -1194,6 +1372,83 @@ describe("workflow internal helpers", () => {
     expect(result.snapshot.phase).toBe("withdrawing");
   });
 
+  test("continueApprovedWorkflowWithdrawal fails closed when a relayed withdraw tx hash was never checkpointed", async () => {
+    await expect(
+      continueApprovedWorkflowWithdrawal({
+        snapshot: sampleSnapshot({
+          phase: "withdrawing",
+          aspStatus: "approved",
+          committedValue: "500",
+          pendingSubmission: "withdraw",
+          withdrawTxHash: null,
+          withdrawBlockNumber: null,
+        }),
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("transaction hash was not checkpointed locally");
+  });
+
+  test("continueApprovedWorkflowWithdrawal stops when a saved relay hash sees external Pool Account mutation", async () => {
+    state.withdrawReceiptMode = "missing";
+    state.allPoolAccounts = [
+      {
+        ...state.allPoolAccounts[0],
+        status: "spent",
+      },
+    ];
+
+    const secretFilePath = join(
+      process.env.PRIVACY_POOLS_HOME!,
+      "workflow-secrets",
+      "wf-internal.json",
+    );
+    saveWorkflowSecretRecord({
+      schemaVersion: "1",
+      workflowId: "wf-internal",
+      chain: "sepolia",
+      walletAddress: sampleSnapshot().walletAddress as Address,
+      privateKey: ("0x" + "11".repeat(32)) as Hex,
+      createdAt: "2026-03-24T12:00:00.000Z",
+    });
+
+    const result = await continueApprovedWorkflowWithdrawal({
+      snapshot: sampleSnapshot({
+        phase: "withdrawing",
+        aspStatus: "approved",
+        committedValue: "500",
+        withdrawTxHash: "0x" + "bb".repeat(32),
+        withdrawBlockNumber: null,
+      }),
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(result.continueWatching).toBe(false);
+    expect(result.snapshot.phase).toBe("stopped_external");
+    expect(existsSync(secretFilePath)).toBe(false);
+  });
+
+  test("continueApprovedWorkflowWithdrawal keeps watching when relay-hash reconciliation cannot reload account context", async () => {
+    state.refreshInitError = true;
+    state.withdrawReceiptMode = "missing";
+
+    const result = await continueApprovedWorkflowWithdrawal({
+      snapshot: sampleSnapshot({
+        phase: "withdrawing",
+        aspStatus: "approved",
+        committedValue: "500",
+        withdrawTxHash: "0x" + "bb".repeat(32),
+        withdrawBlockNumber: null,
+      }),
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(result.continueWatching).toBe(true);
+    expect(result.snapshot.phase).toBe("withdrawing");
+  });
+
   test("continueApprovedWorkflowWithdrawal finalizes when a saved relay receipt is found", async () => {
     const result = await continueApprovedWorkflowWithdrawal({
       snapshot: sampleSnapshot({
@@ -1349,6 +1604,442 @@ describe("workflow internal helpers", () => {
     expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
   });
 
+  test("startWorkflow checkpoints and finalizes a configured workflow snapshot when watch is disabled", async () => {
+    state.nativeBalance = 1_000_000_000_000_000_000_000n;
+
+    const snapshot = await startWorkflow({
+      amountInput: "0.1",
+      assetInput: "ETH",
+      recipient: DEFAULT_WORKFLOW_RECIPIENT,
+      privacyDelayProfile: "balanced",
+      globalOpts: { chain: "sepolia" },
+      mode: JSON_MODE,
+      isVerbose: false,
+      watch: false,
+    });
+
+    expect(snapshot.walletMode).toBe("configured");
+    expect(snapshot.phase).toBe("awaiting_asp");
+    expect(snapshot.privacyDelayProfile).toBe("balanced");
+    expect(snapshot.privacyDelayConfigured).toBe(true);
+    expect(snapshot.depositTxHash).toBe(state.depositSubmitTxHash);
+    expect(snapshot.depositBlockNumber).toBe("333");
+    expect(snapshot.poolAccountId).toBe("PA-8");
+
+    const saved = getWorkflowStatus({ workflowId: snapshot.workflowId });
+    expect(saved.depositTxHash).toBe(state.depositSubmitTxHash);
+    expect(saved.depositBlockNumber).toBe("333");
+    expect(saved.walletAddress.toLowerCase()).toBe(
+      "0x19e7e376e7c213b7e7e7e46cc70a5dd086daff2a",
+    );
+  });
+
+  test("startWorkflow stops when preview rendering takes over deposit submission", async () => {
+    maybeRenderPreviewProgressStepMock.mockImplementationOnce(
+      async (stepId: string) => stepId === "flow.start.submit-deposit",
+    );
+
+    await expect(
+      startWorkflow({
+        amountInput: "0.1",
+        assetInput: "ETH",
+        recipient: DEFAULT_WORKFLOW_RECIPIENT,
+        globalOpts: { chain: "sepolia" },
+        mode: INTERACTIVE_HUMAN_MODE,
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toBeInstanceOf(realPreviewRuntime.PreviewScenarioRenderedError);
+  });
+
+  test("startWorkflow stops when preview rendering takes over new-wallet backup choice", async () => {
+    maybeRenderPreviewScenarioMock.mockImplementationOnce(
+      async (scenarioId: string) =>
+        scenarioId === "flow start new-wallet backup choice",
+    );
+
+    await expect(
+      startWorkflow({
+        amountInput: "0.1",
+        assetInput: "ETH",
+        recipient: DEFAULT_WORKFLOW_RECIPIENT,
+        newWallet: true,
+        exportNewWallet: join(process.env.PRIVACY_POOLS_HOME!, "wf-choice.txt"),
+        globalOpts: { chain: "sepolia" },
+        mode: HUMAN_MODE,
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toBeInstanceOf(realPreviewRuntime.PreviewScenarioRenderedError);
+  });
+
+  test("startWorkflow stops when preview rendering takes over new-wallet backup path review", async () => {
+    maybeRenderPreviewScenarioMock.mockImplementation(
+      async (scenarioId: string) =>
+        scenarioId === "flow start new-wallet backup path",
+    );
+
+    await expect(
+      startWorkflow({
+        amountInput: "0.1",
+        assetInput: "ETH",
+        recipient: DEFAULT_WORKFLOW_RECIPIENT,
+        newWallet: true,
+        exportNewWallet: join(process.env.PRIVACY_POOLS_HOME!, "wf-path.txt"),
+        globalOpts: { chain: "sepolia" },
+        mode: HUMAN_MODE,
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toBeInstanceOf(realPreviewRuntime.PreviewScenarioRenderedError);
+  });
+
+  test("startWorkflow stops when preview rendering takes over new-wallet backup confirmation", async () => {
+    maybeRenderPreviewScenarioMock.mockImplementation(
+      async (scenarioId: string) =>
+        scenarioId === "flow start new-wallet backup confirm",
+    );
+
+    await expect(
+      startWorkflow({
+        amountInput: "0.1",
+        assetInput: "ETH",
+        recipient: DEFAULT_WORKFLOW_RECIPIENT,
+        newWallet: true,
+        exportNewWallet: join(process.env.PRIVACY_POOLS_HOME!, "wf-confirm.txt"),
+        globalOpts: { chain: "sepolia" },
+        mode: HUMAN_MODE,
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toBeInstanceOf(realPreviewRuntime.PreviewScenarioRenderedError);
+  });
+
+  test("startWorkflow stops when preview rendering takes over the final human confirmation", async () => {
+    state.nativeBalance = 1_000_000_000_000_000_000_000n;
+    maybeRenderPreviewScenarioMock.mockImplementation(
+      async (scenarioId: string, options?: { timing?: string }) =>
+        scenarioId === "flow start confirm" && options?.timing === "after-prompts",
+    );
+
+    await expect(
+      startWorkflow({
+        amountInput: "0.1",
+        assetInput: "ETH",
+        recipient: DEFAULT_WORKFLOW_RECIPIENT,
+        globalOpts: { chain: "sepolia" },
+        mode: INTERACTIVE_HUMAN_MODE,
+        isVerbose: false,
+        watch: false,
+      }),
+    ).rejects.toBeInstanceOf(realPreviewRuntime.PreviewScenarioRenderedError);
+  });
+
+  test("watchWorkflow applies privacy-delay overrides before returning a later terminal snapshot", async () => {
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId: "wf-watch-delay",
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+        privacyDelayProfile: "off",
+        privacyDelayConfigured: false,
+        privacyDelayUntil: null,
+      }),
+    );
+    overrideWorkflowTimingForTests({
+      nowMs: () => Date.parse("2026-03-24T12:00:00.000Z"),
+      samplePrivacyDelayMs: () => 30 * 60_000,
+      sleep: async () => {
+        const current = getWorkflowStatus({ workflowId: "wf-watch-delay" });
+        saveWorkflowSnapshot({
+          ...current,
+          phase: "completed",
+        });
+      },
+    });
+
+    const watched = await watchWorkflow({
+      workflowId: "wf-watch-delay",
+      privacyDelayProfile: "balanced",
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(watched.phase).toBe("stopped_external");
+    expect(watched.privacyDelayProfile).toBe("balanced");
+    expect(watched.privacyDelayConfigured).toBe(true);
+    expect(watched.privacyDelayUntil).toBe("2026-03-24T12:30:00.000Z");
+  });
+
+  test("watchWorkflow persists retryable errors and retries until the saved workflow becomes terminal", async () => {
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId: "wf-watch-retry",
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+        committedValue: "500",
+      }),
+    );
+    requestQuoteMock.mockImplementationOnce(async () => {
+      throw new CLIError(
+        "temporary relayer issue",
+        "RELAYER",
+        "retry later",
+        "RELAYER_TEMPORARY",
+        true,
+      );
+    });
+    overrideWorkflowTimingForTests({
+      sleep: async () => {
+        const current = getWorkflowStatus({ workflowId: "wf-watch-retry" });
+        saveWorkflowSnapshot({
+          ...current,
+          phase: "stopped_external",
+        });
+      },
+    });
+
+    const watched = await watchWorkflow({
+      workflowId: "wf-watch-retry",
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(watched.phase).toBe("stopped_external");
+    expect(getWorkflowStatus({ workflowId: "wf-watch-retry" }).lastError).toMatchObject({
+      step: "withdraw",
+      errorCode: "RELAYER_TEMPORARY",
+      retryable: true,
+    });
+  });
+
+  test("watchWorkflow persists non-retryable errors before failing closed", async () => {
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId: "wf-watch-fatal",
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+        committedValue: "500",
+      }),
+    );
+    requestQuoteMock.mockImplementationOnce(async () => {
+      throw new CLIError(
+        "fatal relayer rejection",
+        "RELAYER",
+        "fix the quote inputs",
+        "RELAYER_FATAL",
+        false,
+      );
+    });
+
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-watch-fatal",
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toMatchObject({
+      code: "RELAYER_FATAL",
+    });
+    expect(getWorkflowStatus({ workflowId: "wf-watch-fatal" }).lastError).toMatchObject({
+      step: "withdraw",
+      errorCode: "RELAYER_FATAL",
+      retryable: false,
+    });
+  });
+
+  test("watchWorkflow logs elapsed human phase transitions as privacy delay clears and the workflow completes", async () => {
+    const workflowId = "wf-watch-human-phase-log";
+    const originalPerformanceNow = performance.now;
+    const privacyDelayStart = Date.parse("2026-03-24T12:00:00.000Z");
+    let currentNowMs = privacyDelayStart;
+    let performanceTick = 0;
+
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId,
+        phase: "approved_waiting_privacy_delay",
+        aspStatus: "approved",
+        committedValue: "500",
+        privacyDelayProfile: "balanced",
+        privacyDelayConfigured: true,
+        approvalObservedAt: "2026-03-24T11:30:00.000Z",
+        privacyDelayUntil: "2026-03-24T12:15:00.000Z",
+      }),
+    );
+
+    Object.defineProperty(performance, "now", {
+      configurable: true,
+      value: () => {
+        performanceTick += 1;
+        return performanceTick * 1_500;
+      },
+    });
+
+    overrideWorkflowTimingForTests({
+      nowMs: () => currentNowMs,
+      sleep: async () => {
+        currentNowMs = Date.parse("2026-03-24T12:16:00.000Z");
+      },
+    });
+
+    try {
+      const { stderr } = await captureAsyncOutput(async () => {
+        await watchWorkflow({
+          workflowId,
+          mode: HUMAN_MODE,
+          isVerbose: false,
+        });
+      });
+
+      expect(stderr).toContain("approved_waiting_privacy_delay completed in");
+      expect(stderr).toContain("approved_ready_to_withdraw completed in");
+    } finally {
+      Object.defineProperty(performance, "now", {
+        configurable: true,
+        value: originalPerformanceNow,
+      });
+    }
+  });
+
+  test("ragequitWorkflow rejects workflows that have not deposited publicly yet", async () => {
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId: "wf-ragequit-undeposited",
+        depositTxHash: null,
+        poolAccountId: null,
+        poolAccountNumber: null,
+      }),
+    );
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-ragequit-undeposited",
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("has not deposited publicly yet");
+  });
+
+  test("ragequitWorkflow rejects workflows that are already terminal", async () => {
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId: "wf-ragequit-terminal",
+        phase: "completed",
+      }),
+    );
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-ragequit-terminal",
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("already terminal");
+  });
+
+  test("ragequitWorkflow rejects workflows with an in-flight relayed withdrawal", async () => {
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId: "wf-ragequit-withdrawing",
+        phase: "withdrawing",
+        withdrawTxHash: "0x" + "bb".repeat(32),
+        withdrawBlockNumber: null,
+      }),
+    );
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-ragequit-withdrawing",
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("already in flight");
+  });
+
+  test("ragequitWorkflow fails closed when a pending ragequit was never checkpointed", async () => {
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId: "wf-ragequit-ambiguous",
+        phase: "paused_declined",
+        pendingSubmission: "ragequit",
+        ragequitTxHash: null,
+      }),
+    );
+
+    await expect(
+      ragequitWorkflow({
+        workflowId: "wf-ragequit-ambiguous",
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("may have submitted a public recovery transaction");
+  });
+
+  test("ragequitWorkflow finalizes pending ragequit receipts and cleans up workflow secrets", async () => {
+    const secretFilePath = join(
+      process.env.PRIVACY_POOLS_HOME!,
+      "workflow-secrets",
+      "wf-ragequit-receipt.json",
+    );
+    saveWorkflowSecretRecord({
+      schemaVersion: "1",
+      workflowId: "wf-ragequit-receipt",
+      chain: "sepolia",
+      walletAddress: sampleSnapshot().walletAddress as Address,
+      privateKey: ("0x" + "11".repeat(32)) as Hex,
+      createdAt: "2026-03-24T12:00:00.000Z",
+    });
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId: "wf-ragequit-receipt",
+        phase: "paused_declined",
+        ragequitTxHash: "0x" + "cc".repeat(32),
+        ragequitBlockNumber: null,
+        ragequitExplorerUrl: null,
+      }),
+    );
+
+    const result = await ragequitWorkflow({
+      workflowId: "wf-ragequit-receipt",
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(result.phase).toBe("completed_public_recovery");
+    expect(result.ragequitBlockNumber).toBe("789");
+    expect(existsSync(secretFilePath)).toBe(false);
+  });
+
+  test("ragequitWorkflow stops externally when the saved Pool Account was spent outside the workflow", async () => {
+    saveWorkflowSnapshot(
+      sampleSnapshot({
+        workflowId: "wf-ragequit-mutated",
+        phase: "paused_declined",
+        aspStatus: "declined",
+        committedValue: "500",
+        ragequitTxHash: null,
+        ragequitBlockNumber: null,
+      }),
+    );
+    state.allPoolAccounts = [
+      {
+        ...state.allPoolAccounts[0],
+        status: "spent",
+        aspStatus: "approved",
+      },
+    ];
+
+    const result = await ragequitWorkflow({
+      workflowId: "wf-ragequit-mutated",
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(result.phase).toBe("stopped_external");
+    expect(result.aspStatus).toBe("unknown");
+  });
+
   test("inspectFundingAndDeposit rewinds clean submission failures back to awaiting funding", async () => {
     state.nativeBalance = 0n;
 
@@ -1426,6 +2117,125 @@ describe("workflow internal helpers", () => {
     expect(result.continueWatching).toBe(true);
     expect(result.snapshot.phase).toBe("depositing_publicly");
     expect(result.snapshot.depositBlockNumber).toBeNull();
+  });
+
+  test("inspectFundingAndDeposit submits and checkpoints a funded native workflow deposit", async () => {
+    state.nativeBalance = 1_000_000_000_000_000_000_000n;
+    seedWorkflowWalletSecret();
+
+    const result = await inspectFundingAndDeposit({
+      snapshot: sampleSnapshot({
+        phase: "awaiting_funding",
+        depositTxHash: null,
+        depositBlockNumber: null,
+        requiredNativeFunding: "1",
+      }),
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(result.continueWatching).toBe(true);
+    expect(result.snapshot.phase).toBe("awaiting_asp");
+    expect(result.snapshot.poolAccountId).toBe("PA-8");
+    expect(result.snapshot.depositTxHash).toBe(state.depositSubmitTxHash);
+    expect(result.snapshot.depositBlockNumber).toBe("333");
+    expect(result.snapshot.depositLabel).toBe("199");
+    expect(result.snapshot.committedValue).toBe("777");
+    expect(depositETHMock).toHaveBeenCalledTimes(1);
+    expect(approveERC20Mock).not.toHaveBeenCalled();
+    expect(addPoolAccountMock).toHaveBeenCalledTimes(1);
+    expect(saveAccountMock).toHaveBeenCalledTimes(1);
+    expect(saveSyncMetaMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("inspectFundingAndDeposit runs ERC20 approval before submitting the workflow deposit", async () => {
+    state.resolvedPool = USDC_POOL;
+    state.nativeBalance = 1_000_000_000_000_000_000_000n;
+    state.tokenBalance = 10_000_000n;
+    seedWorkflowWalletSecret();
+
+    const result = await inspectFundingAndDeposit({
+      snapshot: sampleSnapshot({
+        phase: "awaiting_funding",
+        asset: "USDC",
+        assetDecimals: 6,
+        depositAmount: "1000000",
+        depositTxHash: null,
+        depositBlockNumber: null,
+        requiredNativeFunding: "1",
+        requiredTokenFunding: "1000000",
+      }),
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(result.snapshot.phase).toBe("awaiting_asp");
+    expect(approveERC20Mock).toHaveBeenCalledTimes(1);
+    expect(depositERC20Mock).toHaveBeenCalledTimes(1);
+    expect(depositETHMock).not.toHaveBeenCalled();
+    expect(addPoolAccountMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("inspectFundingAndDeposit fails closed when ERC20 approval confirmation times out", async () => {
+    state.resolvedPool = USDC_POOL;
+    state.nativeBalance = 1_000_000_000_000_000_000_000n;
+    state.tokenBalance = 10_000_000n;
+    state.approvalReceiptMode = "timeout";
+    seedWorkflowWalletSecret();
+
+    await expect(
+      inspectFundingAndDeposit({
+        snapshot: sampleSnapshot({
+          phase: "awaiting_funding",
+          asset: "USDC",
+          assetDecimals: 6,
+          depositAmount: "1000000",
+          depositTxHash: null,
+          depositBlockNumber: null,
+          requiredNativeFunding: "1",
+          requiredTokenFunding: "1000000",
+        }),
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Timed out waiting for approval confirmation.");
+
+    expect(approveERC20Mock).toHaveBeenCalledTimes(1);
+    expect(depositERC20Mock).not.toHaveBeenCalled();
+  });
+
+  test("inspectFundingAndDeposit warns but keeps the workflow moving when local deposit persistence fails", async () => {
+    state.nativeBalance = 1_000_000_000_000_000_000_000n;
+    saveAccountMock.mockImplementationOnce(() => {
+      throw new Error("disk full");
+    });
+    seedWorkflowWalletSecret();
+
+    const result = await inspectFundingAndDeposit({
+      snapshot: sampleSnapshot({
+        phase: "awaiting_funding",
+        depositTxHash: null,
+        depositBlockNumber: null,
+        requiredNativeFunding: "1",
+      }),
+      mode: {
+        ...JSON_MODE,
+        isAgent: false,
+        isJson: false,
+        isQuiet: false,
+        format: "table",
+        skipPrompts: true,
+      },
+      isVerbose: false,
+    });
+
+    expect(result.snapshot.phase).toBe("awaiting_asp");
+    expect(state.warnings.join("\n")).toContain(
+      "Deposit confirmed onchain but failed to update local account state immediately",
+    );
+    expect(state.warnings.join("\n")).toContain(
+      "Run 'privacy-pools sync --chain sepolia --asset ETH' before resuming this workflow.",
+    );
   });
 
   test("executeRelayedWithdrawalForFlow fails closed when the latest root changes before proof generation", async () => {
@@ -1735,6 +2545,21 @@ describe("workflow internal helpers", () => {
     expect(reconciled).toBeNull();
   });
 
+  test("reconcilePendingDepositReceipt returns null when the client returns a null receipt payload", async () => {
+    getPublicClientMock.mockImplementationOnce(() => ({
+      ...getPublicClientMock(),
+      getTransactionReceipt: async () => null,
+    }));
+
+    const reconciled = await reconcilePendingDepositReceipt({
+      snapshot: sampleSnapshot(),
+      chainConfig: CHAINS.sepolia,
+      pool: ETH_POOL,
+    });
+
+    expect(reconciled).toBeNull();
+  });
+
   test("reconcilePendingDepositReceipt fails closed when the saved deposit reverts", async () => {
     state.depositReceiptMode = "reverted";
 
@@ -1841,6 +2666,25 @@ describe("workflow internal helpers", () => {
     ).rejects.toThrow("Previously submitted workflow withdrawal reverted");
   });
 
+  test("reconcilePendingWithdrawalReceipt returns null when the client returns a null receipt payload", async () => {
+    getPublicClientMock.mockImplementationOnce(() => ({
+      ...getPublicClientMock(),
+      getTransactionReceipt: async () => null,
+    }));
+
+    const reconciled = await reconcilePendingWithdrawalReceipt({
+      snapshot: sampleSnapshot({
+        phase: "withdrawing",
+        withdrawTxHash: "0x" + "bb".repeat(32),
+        withdrawBlockNumber: null,
+      }),
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(reconciled).toBeNull();
+  });
+
   test("reconcilePendingWithdrawalReceipt surfaces receipt lookup RPC failures", async () => {
     state.withdrawReceiptMode = "rpc_error";
 
@@ -1907,6 +2751,25 @@ describe("workflow internal helpers", () => {
         isVerbose: false,
       }),
     ).rejects.toThrow("Previously submitted workflow ragequit reverted");
+  });
+
+  test("reconcilePendingRagequitReceipt returns null when the client returns a null receipt payload", async () => {
+    getPublicClientMock.mockImplementationOnce(() => ({
+      ...getPublicClientMock(),
+      getTransactionReceipt: async () => null,
+    }));
+
+    const reconciled = await reconcilePendingRagequitReceipt({
+      snapshot: sampleSnapshot({
+        phase: "paused_declined",
+        ragequitTxHash: "0x" + "cc".repeat(32),
+        ragequitBlockNumber: null,
+      }),
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(reconciled).toBeNull();
   });
 
   test("reconcilePendingRagequitReceipt surfaces receipt lookup RPC failures", async () => {

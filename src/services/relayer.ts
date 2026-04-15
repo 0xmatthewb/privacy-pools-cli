@@ -50,6 +50,67 @@ export interface ValidatedRelayerWithdrawalData {
   withdrawalData: Hex;
 }
 
+interface DecodeValidatedRelayerWithdrawalDataParams {
+  quote: Pick<RelayerQuoteResponse, "feeCommitment">;
+  requestedRecipient: Address;
+  quoteFeeBPS: bigint;
+}
+
+interface QuoteRequestParams {
+  amount: bigint;
+  asset: Address;
+  extraGas: boolean;
+  recipient?: Address;
+  relayerUrl?: string;
+}
+
+interface QuoteValidationRequest {
+  amount: bigint;
+  asset: Address;
+  extraGas: boolean;
+}
+
+interface QuoteValidationFeeCommitment {
+  expiration?: unknown;
+  withdrawalData?: unknown;
+  asset?: unknown;
+  amount?: unknown;
+  extraGas?: unknown;
+  signedRelayerCommitment?: unknown;
+}
+
+interface QuoteValidationBody {
+  baseFeeBPS?: unknown;
+  feeBPS?: unknown;
+  gasPrice?: unknown;
+  detail?: {
+    relayTxCost?: unknown;
+    extraGasFundAmount?: unknown;
+    extraGasTxCost?: unknown;
+  };
+  feeCommitment?: QuoteValidationFeeCommitment;
+}
+
+interface ValidateRelayerQuoteResponseParams {
+  body: unknown;
+  request: QuoteValidationRequest;
+}
+
+interface RequestQuoteWithExtraGasFallbackResult {
+  quote: RelayerQuoteResponse;
+  extraGas: boolean;
+  downgradedExtraGas: boolean;
+}
+
+interface SubmitRelayRequestParams {
+  scope: bigint;
+  withdrawal: { processooor: Address; data: Hex };
+  proof: any;
+  publicSignals: string[];
+  feeCommitment: RelayerQuoteResponse["feeCommitment"];
+  relayerUrl?: string;
+}
+
 function isHexString(value: unknown): value is `0x${string}` {
   return typeof value === "string" && /^0x[0-9a-fA-F]*$/.test(value);
 }
@@ -73,7 +134,7 @@ function isRetryableRelayerError(error: unknown): boolean {
   return error instanceof RetryableRelayerHttpError || isTransientNetworkError(error);
 }
 
-function getRelayerHosts(chainConfig: ChainConfig): string[] {
+export function getRelayerHosts(chainConfig: ChainConfig): string[] {
   const hosts =
     chainConfig.relayerHosts && chainConfig.relayerHosts.length > 0
       ? chainConfig.relayerHosts
@@ -89,7 +150,9 @@ interface RelayerDetailsCandidate {
   order: number;
 }
 
-function isValidRelayerDetailsResponse(value: unknown): value is RelayerDetailsResponse {
+export function isValidRelayerDetailsResponse(
+  value: unknown,
+): value is RelayerDetailsResponse {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -108,7 +171,7 @@ function isValidRelayerDetailsResponse(value: unknown): value is RelayerDetailsR
   );
 }
 
-function sortRelayerCandidates(
+export function sortRelayerCandidates(
   left: RelayerDetailsCandidate,
   right: RelayerDetailsCandidate,
 ): number {
@@ -119,7 +182,7 @@ function sortRelayerCandidates(
   return left.feeBPS < right.feeBPS ? -1 : 1;
 }
 
-async function fetchSelectableRelayerDetailsCandidates(
+export async function fetchSelectableRelayerDetailsCandidates(
   chainConfig: ChainConfig,
   assetAddress: Address,
 ): Promise<RelayerDetailsCandidate[]> {
@@ -167,7 +230,7 @@ async function fetchSelectableRelayerDetailsCandidates(
   return candidates.sort(sortRelayerCandidates);
 }
 
-function shouldFailoverToNextRelayer(error: unknown): boolean {
+export function shouldFailoverToNextRelayer(error: unknown): boolean {
   if (isRetryableRelayerError(error)) {
     return true;
   }
@@ -185,7 +248,7 @@ function shouldFailoverToNextRelayer(error: unknown): boolean {
   );
 }
 
-function relayerUnavailableError(message: string): CLIError {
+export function relayerUnavailableError(message: string): CLIError {
   const detail = sanitizeDiagnosticText(message);
   return new CLIError(
     detail === "unknown error"
@@ -196,16 +259,14 @@ function relayerUnavailableError(message: string): CLIError {
   );
 }
 
-function relayerTransportError(error: unknown): CLIError {
+export function relayerTransportError(error: unknown): CLIError {
   const message = error instanceof Error ? error.message : "network error";
   return relayerUnavailableError(message);
 }
 
-export function decodeValidatedRelayerWithdrawalData(params: {
-  quote: Pick<RelayerQuoteResponse, "feeCommitment">;
-  requestedRecipient: Address;
-  quoteFeeBPS: bigint;
-}): ValidatedRelayerWithdrawalData {
+export function decodeValidatedRelayerWithdrawalData(
+  params: DecodeValidatedRelayerWithdrawalDataParams,
+): ValidatedRelayerWithdrawalData {
   const feeCommitment = params.quote.feeCommitment;
   if (!feeCommitment) {
     throw new CLIError(
@@ -287,18 +348,8 @@ export function isUnsupportedExtraGasRelayerError(error: unknown): boolean {
 
 export async function requestQuoteWithExtraGasFallback(
   chainConfig: ChainConfig,
-  params: {
-    amount: bigint;
-    asset: Address;
-    extraGas: boolean;
-    recipient?: Address;
-    relayerUrl?: string;
-  }
-): Promise<{
-  quote: RelayerQuoteResponse;
-  extraGas: boolean;
-  downgradedExtraGas: boolean;
-}> {
+  params: QuoteRequestParams,
+): Promise<RequestQuoteWithExtraGasFallbackResult> {
   try {
     return {
       quote: await requestQuote(chainConfig, params),
@@ -321,28 +372,19 @@ export async function requestQuoteWithExtraGasFallback(
   }
 }
 
-function validateRelayerQuoteResponse(params: {
-  body: unknown;
-  request: {
-    amount: bigint;
-    asset: Address;
-    extraGas: boolean;
-  };
-}): void {
+export function validateRelayerQuoteResponse(
+  params: ValidateRelayerQuoteResponseParams,
+): void {
   const { body, request } = params;
-  const relayTxCost = (body as { detail?: { relayTxCost?: unknown } } | null)?.detail
-    ?.relayTxCost;
-  const extraGasFundAmount = (body as {
-    detail?: { extraGasFundAmount?: unknown };
-  } | null)?.detail?.extraGasFundAmount;
-  const extraGasTxCost = (body as {
-    detail?: { extraGasTxCost?: unknown };
-  } | null)?.detail?.extraGasTxCost;
+  const quoteBody = body as QuoteValidationBody | null;
+  const relayTxCost = quoteBody?.detail?.relayTxCost;
+  const extraGasFundAmount = quoteBody?.detail?.extraGasFundAmount;
+  const extraGasTxCost = quoteBody?.detail?.extraGasTxCost;
 
   if (
-    !isDecimalString((body as { baseFeeBPS?: unknown } | null)?.baseFeeBPS) ||
-    !isDecimalString((body as { feeBPS?: unknown } | null)?.feeBPS) ||
-    !isDecimalString((body as { gasPrice?: unknown } | null)?.gasPrice) ||
+    !isDecimalString(quoteBody?.baseFeeBPS) ||
+    !isDecimalString(quoteBody?.feeBPS) ||
+    !isDecimalString(quoteBody?.gasPrice) ||
     !isValidTransactionCostDetail(relayTxCost) ||
     (extraGasFundAmount !== undefined &&
       !isValidTransactionCostDetail(extraGasFundAmount)) ||
@@ -356,17 +398,8 @@ function validateRelayerQuoteResponse(params: {
     );
   }
 
-  if ((body as { feeCommitment?: unknown } | null)?.feeCommitment !== undefined) {
-    const fc = (body as {
-      feeCommitment?: {
-        expiration?: unknown;
-        withdrawalData?: unknown;
-        asset?: unknown;
-        amount?: unknown;
-        extraGas?: unknown;
-        signedRelayerCommitment?: unknown;
-      };
-    } | null)?.feeCommitment;
+  if (quoteBody?.feeCommitment !== undefined) {
+    const fc = quoteBody.feeCommitment;
     const valid =
       typeof fc?.expiration === "number" &&
       Number.isFinite(fc.expiration) &&
@@ -415,12 +448,7 @@ function validateRelayerQuoteResponse(params: {
 async function fetchQuoteFromRelayer(
   relayerUrl: string,
   chainConfig: ChainConfig,
-  params: {
-    amount: bigint;
-    asset: Address;
-    extraGas: boolean;
-    recipient?: Address;
-  },
+  params: QuoteRequestParams,
 ): Promise<RelayerQuoteResponse> {
   const res = await relayerFetchWithRetry(relayerUrl, "/relayer/quote", {
     method: "POST",
@@ -515,7 +543,7 @@ async function relayerFetchWithRetry(
   );
 }
 
-async function fetchRelayerResponseWithFailover(
+export async function fetchRelayerResponseWithFailover(
   chainConfig: ChainConfig,
   path: string,
   options?: RequestInit
@@ -571,13 +599,7 @@ export async function getRelayerDetails(
 
 export async function requestQuote(
   chainConfig: ChainConfig,
-  params: {
-    amount: bigint;
-    asset: Address;
-    extraGas: boolean;
-    recipient?: Address;
-    relayerUrl?: string;
-  }
+  params: QuoteRequestParams,
 ): Promise<RelayerQuoteResponse> {
   if (params.relayerUrl) {
     return await fetchQuoteFromRelayer(params.relayerUrl, chainConfig, params);
@@ -611,14 +633,7 @@ export async function requestQuote(
 
 export async function submitRelayRequest(
   chainConfig: ChainConfig,
-  params: {
-    scope: bigint;
-    withdrawal: { processooor: Address; data: Hex };
-    proof: any;
-    publicSignals: string[];
-    feeCommitment: RelayerQuoteResponse["feeCommitment"];
-    relayerUrl?: string;
-  }
+  params: SubmitRelayRequestParams,
 ): Promise<RelayerRequestResponse> {
   let res: Response;
   try {

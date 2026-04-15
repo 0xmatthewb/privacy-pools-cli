@@ -3,6 +3,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   COVERAGE_THRESHOLDS,
+  collectCoverageScorecard,
+  collectExecutableCoverageLines,
   createCoverageExcludedSources,
   evaluateCoveragePolicy,
   normalizeCoveragePath,
@@ -125,5 +127,75 @@ describe("coverage policy", () => {
         percent: 100,
       },
     });
+  });
+
+  test("risk scorecards ignore TypeScript declaration and comment-only lines", () => {
+    const rootDir = createTrackedTempDir("pp-coverage-scorecard-");
+    const sourcePath = join(rootDir, "src", "commands", "withdraw.ts");
+    mkdirSync(join(rootDir, "src", "commands"), { recursive: true });
+    writeFileSync(
+      sourcePath,
+      [
+        "interface HelperOptions {",
+        "  asset: string;",
+        "}",
+        "",
+        "// Human guidance copy.",
+        "export function run(value: string) {",
+        "  if (value === \"ok\") {",
+        "    return true;",
+        "  }",
+        "  return false;",
+        "}",
+        "type Result =",
+        "  | { ok: true }",
+        "  | { ok: false };",
+      ].join("\n"),
+    );
+
+    expect([...collectExecutableCoverageLines(sourcePath)]).toEqual([
+      6,
+      7,
+      8,
+      10,
+    ]);
+
+    const coverageMap = new Map([
+      [
+        normalizeCoveragePath(resolve(sourcePath)),
+        new Map([
+          [1, 0],
+          [2, 0],
+          [3, 0],
+          [4, 0],
+          [5, 0],
+          [6, 1],
+          [7, 1],
+          [8, 1],
+          [9, 0],
+          [10, 0],
+          [11, 0],
+          [12, 0],
+          [13, 0],
+          [14, 0],
+        ]),
+      ],
+    ]);
+
+    expect(
+      collectCoverageScorecard(
+        coverageMap,
+        [{ label: "withdraw", path: "src/commands/withdraw.ts", target: 70 }],
+        { rootDir },
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        label: "withdraw",
+        total: 4,
+        hit: 3,
+        percent: 75,
+        belowTarget: false,
+      }),
+    ]);
   });
 });

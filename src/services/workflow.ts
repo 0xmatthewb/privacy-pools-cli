@@ -394,6 +394,276 @@ interface PendingDepositSnapshotData {
   depositExplorerUrl: string | null;
 }
 
+interface ConfirmHumanFlowStartReviewParams {
+  chainName: string;
+  pool: WorkflowPool;
+  amount: bigint;
+  recipient: Address;
+  privacyDelayProfile: FlowPrivacyDelayProfile;
+  silent: boolean;
+  newWallet: boolean;
+}
+
+interface FlowRecipientValidationResult {
+  address: Address;
+  ensName?: string;
+}
+
+interface GetFlowFundingRequirementsParams {
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  amount: bigint;
+  globalOpts?: GlobalOptions;
+}
+
+interface NextFlowPoolAccountRef {
+  poolAccountNumber: number;
+  poolAccountId: string;
+}
+
+interface GetNextFlowPoolAccountRefParams {
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  globalOpts?: GlobalOptions;
+  silent: boolean;
+}
+
+interface DepositPreparingSnapshotData {
+  poolAccountNumber: number;
+  poolAccountId: string;
+}
+
+type DepositProgressCallback<T> = (value: T) => Promise<void> | void;
+
+interface ExecuteDepositForFlowParams {
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  amount: bigint;
+  privateKeyOverride?: Hex;
+  onDepositPreparing?: DepositProgressCallback<DepositPreparingSnapshotData>;
+  onDepositSubmitted?: DepositProgressCallback<PendingDepositSnapshotData>;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+}
+
+interface CreateInitialSnapshotParams {
+  workflowId?: string;
+  walletMode?: FlowWalletMode;
+  walletAddress?: Address | null;
+  assetDecimals?: number | null;
+  requiredNativeFunding?: bigint | null;
+  requiredTokenFunding?: bigint | null;
+  estimatedCommittedValue?: bigint | null;
+  backupConfirmed?: boolean;
+  privacyDelayProfile?: FlowPrivacyDelayProfile;
+  privacyDelayConfigured?: boolean;
+  phase?: FlowPhase;
+  chain: string;
+  asset: string;
+  depositAmount: bigint;
+  recipient: Address;
+  poolAccountNumber?: number | null;
+  poolAccountId?: string | null;
+  depositTxHash?: string | null;
+  depositBlockNumber?: bigint | null;
+  depositExplorerUrl?: string | null;
+  depositLabel?: bigint | null;
+  committedValue?: bigint | null;
+}
+
+interface WithdrawalResultSnapshotData {
+  chainId: number;
+  withdrawTxHash: string;
+  withdrawBlockNumber: bigint | string;
+  withdrawExplorerUrl?: string | null;
+}
+
+interface RagequitResultSnapshotData {
+  chainId: number;
+  aspStatus?: AspApprovalStatus;
+  ragequitTxHash: string;
+  ragequitBlockNumber: bigint | string;
+  ragequitExplorerUrl?: string | null;
+}
+
+interface FlowFundingState {
+  nativeBalance: bigint;
+  tokenBalance: bigint | null;
+  nativeSatisfied: boolean;
+  tokenSatisfied: boolean;
+}
+
+interface ReadFlowFundingStateParams {
+  snapshot: FlowSnapshot;
+  pool: WorkflowPool;
+  globalOpts?: GlobalOptions;
+}
+
+interface RefreshWorkflowFundingRequirementsParams {
+  snapshot: FlowSnapshot;
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  globalOpts?: GlobalOptions;
+}
+
+interface ReconcilePendingDepositReceiptParams {
+  snapshot: FlowSnapshot;
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  globalOpts?: GlobalOptions;
+}
+
+interface RefreshWorkflowAccountStateFromChainParams {
+  snapshot: FlowSnapshot;
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  globalOpts?: GlobalOptions;
+  silent: boolean;
+  isVerbose: boolean;
+}
+
+type WorkflowTransactionReceipt = Awaited<
+  ReturnType<ReturnType<typeof getPublicClient>["getTransactionReceipt"]>
+>;
+
+interface ReconcilePendingWithdrawalReceiptParams {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+}
+
+interface ReconcilePendingRagequitReceiptParams {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+  publicClient?: ReturnType<typeof getPublicClient>;
+}
+
+interface AwaitPendingRagequitReceiptParams {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+}
+
+interface InspectFundingAndDepositParams {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+}
+
+interface LoadedAspReviewState {
+  approvedLabels: Set<string> | null;
+  reviewStatuses: ReadonlyMap<string, AspApprovalStatus> | null;
+}
+
+type WorkflowAspReviewState =
+  | ReturnType<typeof buildLoadedAspDepositReviewState>
+  | LoadedAspReviewState;
+
+type ResolvedRelayerDetails = Awaited<ReturnType<typeof getRelayerDetails>>;
+
+interface ExecuteRelayedWithdrawalForFlowParams {
+  snapshot: FlowSnapshot;
+  context: WorkflowPoolAccountContext;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+  relayerDetails?: ResolvedRelayerDetails;
+}
+
+interface RelayedWithdrawalExecutionResult {
+  withdrawTxHash: string;
+  withdrawBlockNumber: string;
+  withdrawExplorerUrl: string | null;
+}
+
+interface ContinueApprovedWorkflowWithdrawalParams {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+}
+
+interface RagequitFlowExecutionResult {
+  aspStatus?: AspApprovalStatus;
+  ragequitTxHash: string;
+  ragequitBlockNumber: string;
+  ragequitExplorerUrl: string | null;
+}
+
+interface ExecuteRagequitForFlowParams {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+  context?: WorkflowPoolAccountContext;
+}
+
+interface InspectAndAdvanceFlowParams {
+  snapshot: FlowSnapshot;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
+}
+
+interface SetupNewWalletWorkflowParams {
+  workflowId: string;
+  chainConfig: ReturnType<typeof resolveChain>;
+  pool: WorkflowPool;
+  amount: bigint;
+  recipient: Address;
+  privacyDelayProfile: FlowPrivacyDelayProfile;
+  exportNewWallet?: string;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+}
+
+interface WorkflowTimingOverrides {
+  sleep?: WorkflowSleepFn;
+  nowMs?: () => number;
+  samplePrivacyDelayMs?: FlowPrivacyDelaySampler;
+}
+
+interface ListedWorkflowSnapshot {
+  snapshot: FlowSnapshot;
+  filePath: string;
+  fileMtimeMs: number;
+}
+
+interface InvalidWorkflowSnapshotFile {
+  filePath: string;
+  fileMtimeMs: number;
+}
+
+interface WorkflowSnapshotListing {
+  snapshots: ListedWorkflowSnapshot[];
+  invalidFiles: InvalidWorkflowSnapshotFile[];
+}
+
+interface FlowWarningAmount {
+  amount: bigint;
+  estimated: boolean;
+}
+
+interface AmountPatternWarningOptions {
+  estimated?: boolean;
+}
+
+interface FlowPrivacyDelayWarningOptions {
+  forceConfiguredPrivacyDelayWarning?: boolean;
+}
+
+interface FlowPrivacyDelayPolicyOptions {
+  configured?: boolean;
+  rescheduleApproved?: boolean;
+  startAtMs?: number;
+}
+
 type WorkflowSleepFn = (ms: number) => Promise<void>;
 type FlowPrivacyDelaySampler = (
   profile: Exclude<FlowPrivacyDelayProfile, "off">,
@@ -425,11 +695,7 @@ let workflowPrivacyDelaySampler: FlowPrivacyDelaySampler =
   DEFAULT_WORKFLOW_PRIVACY_DELAY_SAMPLER;
 
 export function overrideWorkflowTimingForTests(
-  overrides?: {
-    sleep?: WorkflowSleepFn;
-    nowMs?: () => number;
-    samplePrivacyDelayMs?: FlowPrivacyDelaySampler;
-  },
+  overrides?: WorkflowTimingOverrides,
 ): void {
   workflowSleepFn = overrides?.sleep ?? DEFAULT_WORKFLOW_SLEEP;
   workflowNowMsFn = overrides?.nowMs ?? DEFAULT_WORKFLOW_NOW_MS;
@@ -808,7 +1074,7 @@ export function saveWorkflowSnapshotIfChanged(
   return saveWorkflowSnapshot(normalizedNext);
 }
 
-async function saveWorkflowSnapshotIfChangedWithLock(
+export async function saveWorkflowSnapshotIfChangedWithLock(
   previous: FlowSnapshot,
   next: FlowSnapshot,
 ): Promise<FlowSnapshot> {
@@ -858,7 +1124,7 @@ async function withProcessLock<T>(fn: () => Promise<T>): Promise<T> {
 
 const activeWorkflowOperations = new Set<string>();
 
-async function withWorkflowOperationLock<T>(
+export async function withWorkflowOperationLock<T>(
   workflowId: string,
   action: "watch" | "ragequit",
   fn: () => Promise<T>,
@@ -949,17 +1215,7 @@ export function loadWorkflowSnapshot(workflowId: string): FlowSnapshot {
   return parseWorkflowSnapshot(readFileSync(filePath, "utf-8"), filePath);
 }
 
-function listWorkflowSnapshots(): {
-  snapshots: Array<{
-    snapshot: FlowSnapshot;
-    filePath: string;
-    fileMtimeMs: number;
-  }>;
-  invalidFiles: Array<{
-    filePath: string;
-    fileMtimeMs: number;
-  }>;
-} {
+function listWorkflowSnapshots(): WorkflowSnapshotListing {
   const dir = getWorkflowsDir();
   if (!existsSync(dir)) {
     return {
@@ -968,15 +1224,8 @@ function listWorkflowSnapshots(): {
     };
   }
 
-  const snapshots: Array<{
-    snapshot: FlowSnapshot;
-    filePath: string;
-    fileMtimeMs: number;
-  }> = [];
-  const invalidFiles: Array<{
-    filePath: string;
-    fileMtimeMs: number;
-  }> = [];
+  const snapshots: ListedWorkflowSnapshot[] = [];
+  const invalidFiles: InvalidWorkflowSnapshotFile[] = [];
   for (const entry of readdirSync(dir).filter((name) => name.endsWith(".json"))) {
     const filePath = join(dir, entry);
     const fileMtimeMs = (() => {
@@ -1166,10 +1415,9 @@ function flowHasPendingPrivateWithdrawalTarget(
   );
 }
 
-function getFlowWarningAmount(snapshot: FlowSnapshot): {
-  amount: bigint;
-  estimated: boolean;
-} | null {
+export function getFlowWarningAmount(
+  snapshot: FlowSnapshot,
+): FlowWarningAmount | null {
   const rawAmount = snapshot.committedValue ?? snapshot.estimatedCommittedValue;
   if (!rawAmount || typeof snapshot.assetDecimals !== "number") {
     return null;
@@ -1185,13 +1433,11 @@ function getFlowWarningAmount(snapshot: FlowSnapshot): {
   }
 }
 
-function buildAmountPatternLinkabilityWarning(
+export function buildAmountPatternLinkabilityWarning(
   amount: bigint,
   assetDecimals: number,
   asset: string,
-  options: {
-    estimated?: boolean;
-  } = {},
+  options: AmountPatternWarningOptions = {},
 ): FlowWarning | null {
   if (isRoundAmount(amount, assetDecimals, asset)) {
     return null;
@@ -1223,7 +1469,7 @@ function buildAmountPatternLinkabilityWarning(
   };
 }
 
-function buildFlowAmountPrivacyWarning(
+export function buildFlowAmountPrivacyWarning(
   snapshot: FlowSnapshot,
 ): FlowWarning | null {
   if (!flowHasPendingPrivateWithdrawalTarget(snapshot)) {
@@ -1244,11 +1490,9 @@ function buildFlowAmountPrivacyWarning(
   );
 }
 
-function buildFlowPrivacyDelayWarning(
+export function buildFlowPrivacyDelayWarning(
   snapshot: FlowSnapshot,
-  options: {
-    forceConfiguredPrivacyDelayWarning?: boolean;
-  } = {},
+  options: FlowPrivacyDelayWarningOptions = {},
 ): FlowWarning | null {
   if (
     (!options.forceConfiguredPrivacyDelayWarning &&
@@ -1268,9 +1512,7 @@ function buildFlowPrivacyDelayWarning(
 
 export function buildFlowWarnings(
   snapshot: FlowSnapshot,
-  options: {
-    forceConfiguredPrivacyDelayWarning?: boolean;
-  } = {},
+  options: FlowPrivacyDelayWarningOptions = {},
 ): FlowWarning[] {
   return [
     buildFlowPrivacyDelayWarning(snapshot, options),
@@ -1278,15 +1520,9 @@ export function buildFlowWarnings(
   ].filter((warning): warning is FlowWarning => warning !== null);
 }
 
-async function confirmHumanFlowStartReview(params: {
-  chainName: string;
-  pool: WorkflowPool;
-  amount: bigint;
-  recipient: Address;
-  privacyDelayProfile: FlowPrivacyDelayProfile;
-  silent: boolean;
-  newWallet: boolean;
-}): Promise<void> {
+async function confirmHumanFlowStartReview(
+  params: ConfirmHumanFlowStartReviewParams,
+): Promise<void> {
   const { chainName, pool, amount, recipient, privacyDelayProfile, silent, newWallet } = params;
   const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
   const estimatedCommitted = amount - feeAmount;
@@ -1378,14 +1614,10 @@ export function sampleFlowPrivacyDelayMs(
   return workflowPrivacyDelaySampler(profile);
 }
 
-function applyFlowPrivacyDelayPolicy(
+export function applyFlowPrivacyDelayPolicy(
   snapshot: FlowSnapshot,
   profile: FlowPrivacyDelayProfile,
-  options: {
-    configured?: boolean;
-    rescheduleApproved?: boolean;
-    startAtMs?: number;
-  } = {},
+  options: FlowPrivacyDelayPolicyOptions = {},
 ): FlowSnapshot {
   const configured = options.configured ?? snapshot.privacyDelayConfigured ?? false;
   const startAtMs = options.startAtMs ?? workflowNowMs();
@@ -1447,7 +1679,7 @@ function applyFlowPrivacyDelayPolicy(
   );
 }
 
-function scheduleApprovedWorkflowPrivacyDelay(
+export function scheduleApprovedWorkflowPrivacyDelay(
   snapshot: FlowSnapshot,
   startAtMs: number = workflowNowMs(),
 ): FlowSnapshot {
@@ -1499,7 +1731,7 @@ export function computeFlowWatchDelayMs(
   return Math.max(0, Math.min(deadlineMs - nowMs, FLOW_POLL_MAX_MS));
 }
 
-function formatWorkflowFundingSummary(snapshot: FlowSnapshot): string | null {
+export function formatWorkflowFundingSummary(snapshot: FlowSnapshot): string | null {
   const parts: string[] = [];
 
   if (
@@ -1578,7 +1810,9 @@ export function buildFlowLastError(
   };
 }
 
-async function validateFlowRecipient(value: string): Promise<{ address: Address; ensName?: string }> {
+async function validateFlowRecipient(
+  value: string,
+): Promise<FlowRecipientValidationResult> {
   const resolved = await resolveAddressOrEns(value, "Recipient");
   return { address: resolved.address as Address, ensName: resolved.ensName };
 }
@@ -1594,12 +1828,9 @@ export function getFlowSignerAddress(snapshot: FlowSnapshot): Address {
   return privateKeyToAccount(getFlowSignerPrivateKey(snapshot)).address;
 }
 
-export async function getFlowFundingRequirements(params: {
-  chainConfig: ReturnType<typeof resolveChain>;
-  pool: WorkflowPool;
-  amount: bigint;
-  globalOpts?: GlobalOptions;
-}): Promise<FlowFundingRequirements> {
+export async function getFlowFundingRequirements(
+  params: GetFlowFundingRequirementsParams,
+): Promise<FlowFundingRequirements> {
   const publicClient = getPublicClient(params.chainConfig, params.globalOpts?.rpcUrl);
   let gasPrice: bigint;
   try {
@@ -1627,12 +1858,9 @@ export async function getFlowFundingRequirements(params: {
   };
 }
 
-export async function getNextFlowPoolAccountRef(params: {
-  chainConfig: ReturnType<typeof resolveChain>;
-  pool: WorkflowPool;
-  globalOpts?: GlobalOptions;
-  silent: boolean;
-}): Promise<{ poolAccountNumber: number; poolAccountId: string }> {
+export async function getNextFlowPoolAccountRef(
+  params: GetNextFlowPoolAccountRefParams,
+): Promise<NextFlowPoolAccountRef> {
   const mnemonic = loadMnemonic();
   const dataService = await getDataService(
     params.chainConfig,
@@ -1666,20 +1894,9 @@ export async function getNextFlowPoolAccountRef(params: {
   };
 }
 
-async function executeDepositForFlow(params: {
-  chainConfig: ReturnType<typeof resolveChain>;
-  pool: WorkflowPool;
-  amount: bigint;
-  privateKeyOverride?: Hex;
-  onDepositPreparing?: (prepared: {
-    poolAccountNumber: number;
-    poolAccountId: string;
-  }) => Promise<void> | void;
-  onDepositSubmitted?: (pending: PendingDepositSnapshotData) => Promise<void> | void;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-  isVerbose: boolean;
-}): Promise<DepositExecutionResult> {
+async function executeDepositForFlow(
+  params: ExecuteDepositForFlowParams,
+): Promise<DepositExecutionResult> {
   const {
     chainConfig,
     pool,
@@ -1926,30 +2143,9 @@ async function executeDepositForFlow(params: {
   });
 }
 
-export function createInitialSnapshot(params: {
-  workflowId?: string;
-  walletMode?: FlowWalletMode;
-  walletAddress?: Address | null;
-  assetDecimals?: number | null;
-  requiredNativeFunding?: bigint | null;
-  requiredTokenFunding?: bigint | null;
-  estimatedCommittedValue?: bigint | null;
-  backupConfirmed?: boolean;
-  privacyDelayProfile?: FlowPrivacyDelayProfile;
-  privacyDelayConfigured?: boolean;
-  phase?: FlowPhase;
-  chain: string;
-  asset: string;
-  depositAmount: bigint;
-  recipient: Address;
-  poolAccountNumber?: number | null;
-  poolAccountId?: string | null;
-  depositTxHash?: string | null;
-  depositBlockNumber?: bigint | null;
-  depositExplorerUrl?: string | null;
-  depositLabel?: bigint | null;
-  committedValue?: bigint | null;
-}): FlowSnapshot {
+export function createInitialSnapshot(
+  params: CreateInitialSnapshotParams,
+): FlowSnapshot {
   const now = workflowNow();
   return normalizeWorkflowSnapshot({
     schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
@@ -2040,12 +2236,7 @@ export function attachPendingWithdrawalToSnapshot(
 
 export function attachWithdrawalResultToSnapshot(
   snapshot: FlowSnapshot,
-  result: {
-    chainId: number;
-    withdrawTxHash: string;
-    withdrawBlockNumber: bigint | string;
-    withdrawExplorerUrl?: string | null;
-  },
+  result: WithdrawalResultSnapshotData,
 ): FlowSnapshot {
   return normalizeWorkflowSnapshot(
     clearLastError(
@@ -2082,13 +2273,7 @@ export function attachPendingRagequitToSnapshot(
 
 export function attachRagequitResultToSnapshot(
   snapshot: FlowSnapshot,
-  result: {
-    chainId: number;
-    aspStatus?: AspApprovalStatus;
-    ragequitTxHash: string;
-    ragequitBlockNumber: bigint | string;
-    ragequitExplorerUrl?: string | null;
-  },
+  result: RagequitResultSnapshotData,
 ): FlowSnapshot {
   return normalizeWorkflowSnapshot(
     clearLastError(
@@ -2106,7 +2291,7 @@ export function attachRagequitResultToSnapshot(
   );
 }
 
-function markPendingSubmission(
+export function markPendingSubmission(
   snapshot: FlowSnapshot,
   pendingSubmission: FlowPendingSubmission,
 ): FlowSnapshot {
@@ -2119,7 +2304,7 @@ function markPendingSubmission(
   );
 }
 
-function clearPendingSubmission(snapshot: FlowSnapshot): FlowSnapshot {
+export function clearPendingSubmission(snapshot: FlowSnapshot): FlowSnapshot {
   if (!snapshot.pendingSubmission) {
     return snapshot;
   }
@@ -2131,16 +2316,9 @@ function clearPendingSubmission(snapshot: FlowSnapshot): FlowSnapshot {
   );
 }
 
-export async function readFlowFundingState(params: {
-  snapshot: FlowSnapshot;
-  pool: WorkflowPool;
-  globalOpts?: GlobalOptions;
-}): Promise<{
-  nativeBalance: bigint;
-  tokenBalance: bigint | null;
-  nativeSatisfied: boolean;
-  tokenSatisfied: boolean;
-}> {
+export async function readFlowFundingState(
+  params: ReadFlowFundingStateParams,
+): Promise<FlowFundingState> {
   if (!params.snapshot.walletAddress) {
     throw new CLIError(
       "Workflow wallet address is missing.",
@@ -2180,12 +2358,9 @@ export async function readFlowFundingState(params: {
   };
 }
 
-async function refreshWorkflowFundingRequirements(params: {
-  snapshot: FlowSnapshot;
-  chainConfig: ReturnType<typeof resolveChain>;
-  pool: WorkflowPool;
-  globalOpts?: GlobalOptions;
-}): Promise<FlowSnapshot> {
+export async function refreshWorkflowFundingRequirements(
+  params: RefreshWorkflowFundingRequirementsParams,
+): Promise<FlowSnapshot> {
   const { snapshot, chainConfig, pool, globalOpts } = params;
   if (!isNewWalletFlow(snapshot) || snapshot.depositTxHash) {
     return snapshot;
@@ -2211,7 +2386,7 @@ async function refreshWorkflowFundingRequirements(params: {
   );
 }
 
-async function reconcileDepositingSnapshot(
+export async function reconcileDepositingSnapshot(
   snapshot: FlowSnapshot,
   globalOpts: GlobalOptions | undefined,
   silent: boolean,
@@ -2244,21 +2419,16 @@ async function reconcileDepositingSnapshot(
   }
 }
 
-export async function reconcilePendingDepositReceipt(params: {
-  snapshot: FlowSnapshot;
-  chainConfig: ReturnType<typeof resolveChain>;
-  pool: WorkflowPool;
-  globalOpts?: GlobalOptions;
-}): Promise<FlowSnapshot | null> {
+export async function reconcilePendingDepositReceipt(
+  params: ReconcilePendingDepositReceiptParams,
+): Promise<FlowSnapshot | null> {
   const { snapshot, chainConfig, pool, globalOpts } = params;
   if (!snapshot.depositTxHash || snapshot.depositBlockNumber) {
     return null;
   }
 
   const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-  let receipt: Awaited<
-    ReturnType<ReturnType<typeof getPublicClient>["getTransactionReceipt"]>
-  > | null = null;
+  let receipt: WorkflowTransactionReceipt | null = null;
 
   try {
     receipt = await publicClient.getTransactionReceipt({
@@ -2330,14 +2500,9 @@ export function buildSavedWorkflowRecoveryCommand(snapshot: FlowSnapshot): strin
   return `privacy-pools flow ragequit ${snapshot.workflowId}`;
 }
 
-export async function refreshWorkflowAccountStateFromChain(params: {
-  snapshot: FlowSnapshot;
-  chainConfig: ReturnType<typeof resolveChain>;
-  pool: WorkflowPool;
-  globalOpts?: GlobalOptions;
-  silent: boolean;
-  isVerbose: boolean;
-}): Promise<void> {
+export async function refreshWorkflowAccountStateFromChain(
+  params: RefreshWorkflowAccountStateFromChainParams,
+): Promise<void> {
   const { snapshot, chainConfig, pool, globalOpts, silent, isVerbose } = params;
 
   try {
@@ -2380,12 +2545,9 @@ export async function refreshWorkflowAccountStateFromChain(params: {
   }
 }
 
-export async function reconcilePendingWithdrawalReceipt(params: {
-  snapshot: FlowSnapshot;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-  isVerbose: boolean;
-}): Promise<FlowSnapshot | null> {
+export async function reconcilePendingWithdrawalReceipt(
+  params: ReconcilePendingWithdrawalReceiptParams,
+): Promise<FlowSnapshot | null> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   if (!snapshot.withdrawTxHash || snapshot.withdrawBlockNumber) {
     return null;
@@ -2396,9 +2558,7 @@ export async function reconcilePendingWithdrawalReceipt(params: {
   const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
   const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
 
-  let receipt: Awaited<
-    ReturnType<ReturnType<typeof getPublicClient>["getTransactionReceipt"]>
-  > | null = null;
+  let receipt: WorkflowTransactionReceipt | null = null;
   try {
     receipt = await publicClient.getTransactionReceipt({
       hash: snapshot.withdrawTxHash as `0x${string}`,
@@ -2441,13 +2601,9 @@ export async function reconcilePendingWithdrawalReceipt(params: {
   });
 }
 
-export async function reconcilePendingRagequitReceipt(params: {
-  snapshot: FlowSnapshot;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-  isVerbose: boolean;
-  publicClient?: ReturnType<typeof getPublicClient>;
-}): Promise<FlowSnapshot | null> {
+export async function reconcilePendingRagequitReceipt(
+  params: ReconcilePendingRagequitReceiptParams,
+): Promise<FlowSnapshot | null> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   if (!snapshot.ragequitTxHash || snapshot.ragequitBlockNumber) {
     return null;
@@ -2458,9 +2614,7 @@ export async function reconcilePendingRagequitReceipt(params: {
   const publicClient =
     params.publicClient ?? getPublicClient(chainConfig, globalOpts?.rpcUrl);
 
-  let receipt: Awaited<
-    ReturnType<ReturnType<typeof getPublicClient>["getTransactionReceipt"]>
-  > | null = null;
+  let receipt: WorkflowTransactionReceipt | null = null;
   try {
     receipt = await publicClient.getTransactionReceipt({
       hash: snapshot.ragequitTxHash as `0x${string}`,
@@ -2528,12 +2682,9 @@ export async function reconcilePendingRagequitReceipt(params: {
   });
 }
 
-async function awaitPendingRagequitReceipt(params: {
-  snapshot: FlowSnapshot;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-  isVerbose: boolean;
-}): Promise<FlowSnapshot> {
+async function awaitPendingRagequitReceipt(
+  params: AwaitPendingRagequitReceiptParams,
+): Promise<FlowSnapshot> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   if (!snapshot.ragequitTxHash) {
     throw new CLIError(
@@ -2594,12 +2745,9 @@ async function awaitPendingRagequitReceipt(params: {
   });
 }
 
-export async function inspectFundingAndDeposit(params: {
-  snapshot: FlowSnapshot;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-  isVerbose: boolean;
-}): Promise<FundingInspectionResult> {
+export async function inspectFundingAndDeposit(
+  params: InspectFundingAndDepositParams,
+): Promise<FundingInspectionResult> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   const silent = mode.isQuiet || mode.isJson;
   const chainConfig = assertWorkflowChain(snapshot);
@@ -2781,12 +2929,10 @@ export async function loadWorkflowPoolAccountContext(
   ).get(pool.scope) ?? [];
 
   let aspLabels: bigint[] = [];
-  let aspReviewState:
-    | ReturnType<typeof buildLoadedAspDepositReviewState>
-    | { approvedLabels: Set<string> | null; reviewStatuses: ReadonlyMap<string, AspApprovalStatus> | null } = {
-      approvedLabels: null,
-      reviewStatuses: null,
-    };
+  let aspReviewState: WorkflowAspReviewState = {
+    approvedLabels: null,
+    reviewStatuses: null,
+  };
   let allCommitmentHashes: bigint[] = [];
   let rootsOnchainMtRoot = 0n;
 
@@ -2857,18 +3003,9 @@ export async function loadWorkflowPoolAccountContext(
   };
 }
 
-export async function executeRelayedWithdrawalForFlow(params: {
-  snapshot: FlowSnapshot;
-  context: WorkflowPoolAccountContext;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-  isVerbose: boolean;
-  relayerDetails?: Awaited<ReturnType<typeof getRelayerDetails>>;
-}): Promise<{
-  withdrawTxHash: string;
-  withdrawBlockNumber: string;
-  withdrawExplorerUrl: string | null;
-}> {
+export async function executeRelayedWithdrawalForFlow(
+  params: ExecuteRelayedWithdrawalForFlowParams,
+): Promise<RelayedWithdrawalExecutionResult> {
   const { snapshot, context, globalOpts, mode, isVerbose, relayerDetails } = params;
   const silent = mode.isQuiet || mode.isJson;
   const { chainConfig, pool, accountService, publicClient, selectedPoolAccount } =
@@ -3219,12 +3356,9 @@ export async function executeRelayedWithdrawalForFlow(params: {
   };
 }
 
-export async function continueApprovedWorkflowWithdrawal(params: {
-  snapshot: FlowSnapshot;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-  isVerbose: boolean;
-}): Promise<ApprovalInspectionResult> {
+export async function continueApprovedWorkflowWithdrawal(
+  params: ContinueApprovedWorkflowWithdrawalParams,
+): Promise<ApprovalInspectionResult> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   const reconciledPending = await reconcilePendingWithdrawalReceipt({
     snapshot,
@@ -3377,20 +3511,9 @@ export async function continueApprovedWorkflowWithdrawal(params: {
   return { snapshot: savedCompleted, continueWatching: false };
 }
 
-async function executeRagequitForFlow(params: {
-  snapshot: FlowSnapshot;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-  isVerbose: boolean;
-  context?: WorkflowPoolAccountContext;
-}): Promise<
-  {
-    aspStatus?: AspApprovalStatus;
-    ragequitTxHash: string;
-    ragequitBlockNumber: string;
-    ragequitExplorerUrl: string | null;
-  }
-> {
+async function executeRagequitForFlow(
+  params: ExecuteRagequitForFlowParams,
+): Promise<RagequitFlowExecutionResult> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   const silent = mode.isQuiet || mode.isJson;
   const context =
@@ -3592,12 +3715,9 @@ async function executeRagequitForFlow(params: {
   };
 }
 
-async function inspectAndAdvanceFlow(params: {
-  snapshot: FlowSnapshot;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-  isVerbose: boolean;
-}): Promise<ApprovalInspectionResult> {
+async function inspectAndAdvanceFlow(
+  params: InspectAndAdvanceFlowParams,
+): Promise<ApprovalInspectionResult> {
   const { snapshot, globalOpts, mode, isVerbose } = params;
   const reconciledRagequit = await reconcilePendingRagequitReceipt({
     snapshot,
@@ -3779,17 +3899,9 @@ async function inspectAndAdvanceFlow(params: {
   };
 }
 
-export async function setupNewWalletWorkflow(params: {
-  workflowId: string;
-  chainConfig: ReturnType<typeof resolveChain>;
-  pool: WorkflowPool;
-  amount: bigint;
-  recipient: Address;
-  privacyDelayProfile: FlowPrivacyDelayProfile;
-  exportNewWallet?: string;
-  globalOpts?: GlobalOptions;
-  mode: ResolvedGlobalMode;
-}): Promise<NewWalletWorkflowSetupResult> {
+export async function setupNewWalletWorkflow(
+  params: SetupNewWalletWorkflowParams,
+): Promise<NewWalletWorkflowSetupResult> {
   const {
     workflowId,
     chainConfig,

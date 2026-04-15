@@ -376,6 +376,46 @@ describe("workflow service", () => {
     ).toBe("PA-4");
   });
 
+  test("pickWorkflowPoolAccount falls back to the saved tx hash when no saved label is present", () => {
+    const byTxHash = samplePoolAccount({
+      paNumber: 8,
+      paId: "PA-8",
+      label: 88n,
+      txHash: `0x${"ab".repeat(32)}`,
+    });
+
+    expect(
+      pickWorkflowPoolAccount(
+        sampleWorkflow("wf-tx-only", {
+          depositLabel: null,
+          depositTxHash: byTxHash.txHash.toUpperCase(),
+          poolAccountNumber: 99,
+        }),
+        [byTxHash],
+      )?.paId,
+    ).toBe("PA-8");
+  });
+
+  test("pickWorkflowPoolAccount falls back to the saved Pool Account number when label and tx hash are absent", () => {
+    const byNumber = samplePoolAccount({
+      paNumber: 9,
+      paId: "PA-9",
+      label: 99n,
+      txHash: `0x${"cd".repeat(32)}`,
+    });
+
+    expect(
+      pickWorkflowPoolAccount(
+        sampleWorkflow("wf-number-only", {
+          depositLabel: null,
+          depositTxHash: null,
+          poolAccountNumber: byNumber.paNumber,
+        }),
+        [byNumber],
+      )?.paId,
+    ).toBe("PA-9");
+  });
+
   test("alignSnapshotToPoolAccount refreshes deposit metadata and clears stale errors", () => {
     const aligned = alignSnapshotToPoolAccount(
       sampleWorkflow("wf-align", {

@@ -19,10 +19,16 @@ import {
 } from "../../src/services/config.ts";
 
 const realInquirerPrompts = await import("@inquirer/prompts");
+const realPromptCancellation = await import("../../src/utils/prompt-cancellation.ts");
+const realIsPromptCancellationError =
+  realPromptCancellation.isPromptCancellationError;
 const discoverLoadedAccountsMock = mock(async () => ({
   status: "no_deposits" as const,
   chainsChecked: ["mainnet", "arbitrum", "optimism"],
 }));
+const isPromptCancellationErrorMock = mock(
+  realIsPromptCancellationError,
+);
 const confirmPromptMock = mock(async () => {
   throw new Error("unexpected confirm prompt in non-interactive init tests");
 });
@@ -54,6 +60,10 @@ async function loadInitCommandHandler(): Promise<void> {
   mock.module("../../src/services/init-discovery.ts", () => ({
     discoverLoadedAccounts: discoverLoadedAccountsMock,
   }));
+  mock.module("../../src/utils/prompt-cancellation.ts", () => ({
+    ...realPromptCancellation,
+    isPromptCancellationError: isPromptCancellationErrorMock,
+  }));
 
   ({ handleInitCommand } = await import("../../src/commands/init.ts"));
 }
@@ -81,6 +91,7 @@ beforeEach(() => {
   passwordPromptMock.mockClear();
   selectPromptMock.mockClear();
   discoverLoadedAccountsMock.mockClear();
+  isPromptCancellationErrorMock.mockClear();
 
   confirmPromptMock.mockImplementation(async () => {
     throw new Error("unexpected confirm prompt in non-interactive init tests");
@@ -98,6 +109,7 @@ beforeEach(() => {
     status: "no_deposits" as const,
     chainsChecked: ["mainnet", "arbitrum", "optimism"],
   }));
+  isPromptCancellationErrorMock.mockImplementation(realIsPromptCancellationError);
 });
 
 beforeEach(async () => {
@@ -174,6 +186,87 @@ describe("init command handler", () => {
     expect(json.recoveryPhrase).toBeUndefined();
     expect(json.recoveryPhraseRedacted).toBeUndefined();
     expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(mnemonic);
+    expect(stderr).toBe("");
+  });
+
+  test("warns humans when loading an existing account from an inline recovery phrase", async () => {
+    const home = useIsolatedHome();
+    selectPromptMock.mockImplementationOnce(async () => "restore");
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+          privateKey: "0x" + "23".repeat(32),
+          defaultChain: "mainnet",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(VALID_MNEMONIC);
+    expect(stderr).toContain("visible in process list and shell history");
+    expect(stderr).toContain("Account loaded successfully");
+  });
+
+  test("updates interactive discovery progress while loading an existing account", async () => {
+    useIsolatedHome();
+    discoverLoadedAccountsMock.mockImplementationOnce(async (_mnemonic, options) => {
+      options?.onProgress?.({
+        currentChain: "mainnet",
+        completedChains: 0,
+        totalChains: 3,
+      });
+      return {
+        status: "deposits_found" as const,
+        chainsChecked: ["mainnet", "arbitrum", "optimism"],
+        foundAccountChains: ["mainnet"],
+      };
+    });
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+          privateKey: "0x" + "24".repeat(32),
+          defaultChain: "mainnet",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Checking supported chains for existing deposits...");
+    expect(stderr).toContain("Discovery complete.");
+    expect(stderr).toContain("Account loaded.");
+  });
+
+  test("includes restore discovery metadata in json mode when loading an existing account", async () => {
+    useIsolatedHome();
+    discoverLoadedAccountsMock.mockImplementationOnce(async () => ({
+      status: "deposits_found" as const,
+      chainsChecked: ["mainnet", "arbitrum", "optimism"],
+      foundAccountChains: ["mainnet"],
+    }));
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+          privateKey: "0x" + "25".repeat(32),
+          defaultChain: "mainnet",
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.setupMode).toBe("restore");
+    expect(json.readiness).toBe("ready");
+    expect(json.restoreDiscovery).toEqual({
+      status: "deposits_found",
+      chainsChecked: ["mainnet", "arbitrum", "optimism"],
+      foundAccountChains: ["mainnet"],
+    });
     expect(stderr).toBe("");
   });
 
@@ -627,6 +720,57 @@ describe("init command handler", () => {
     );
   });
 
+  test("supports an explicit --signer-only human flow when a signer source is provided", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+
+    const { stdout } = await captureAsyncOutput(() =>
+      handleInitCommand(
+        {
+          signerOnly: true,
+          privateKey: "0x" + "73".repeat(32),
+        },
+        fakeCommand({}),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(selectPromptMock).not.toHaveBeenCalled();
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      VALID_MNEMONIC,
+    );
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "73".repeat(32),
+    );
+  });
+
+  test("automatically finishes human read-only setup when a signer key source is provided", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+
+    const { stdout } = await captureAsyncOutput(() =>
+      handleInitCommand(
+        {
+          privateKey: "0x" + "74".repeat(32),
+        },
+        fakeCommand({}),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(selectPromptMock).not.toHaveBeenCalled();
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      VALID_MNEMONIC,
+    );
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "74".repeat(32),
+    );
+  });
+
   test("requires --force before loading an account over existing local setup in machine mode", async () => {
     useIsolatedHome();
     saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
@@ -671,69 +815,6 @@ describe("init command handler", () => {
     expect(json.recoveryPhraseRedacted).toBe(true);
     expect(json.backupFilePath).toBe(backupFile);
     expect(readFileSync(backupFile, "utf8")).toContain("Recovery Phrase:");
-  });
-
-  test("reports deposits_found discovery when a loaded account replaces existing setup", async () => {
-    useIsolatedHome();
-    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
-    saveMnemonicToFile(VALID_MNEMONIC);
-    saveSignerKey("0x" + "88".repeat(32));
-    discoverLoadedAccountsMock.mockImplementationOnce(async () => ({
-      status: "deposits_found" as const,
-      chainsChecked: ["mainnet", "arbitrum", "optimism"],
-      foundAccountChains: ["mainnet"],
-    }));
-
-    const { json } = await captureAsyncJsonOutput(() =>
-      handleInitCommand(
-        {
-          recoveryPhrase: VALID_MNEMONIC,
-          force: true,
-          defaultChain: "mainnet",
-        },
-        fakeCommand({ json: true }),
-      ),
-    );
-
-    expect(json.success).toBe(true);
-    expect(json.setupMode).toBe("replace");
-    expect(json.readiness).toBe("ready");
-    expect(json.restoreDiscovery).toEqual({
-      status: "deposits_found",
-      chainsChecked: ["mainnet", "arbitrum", "optimism"],
-      foundAccountChains: ["mainnet"],
-    });
-  });
-
-  test("keeps discovery_required readiness when loading an account needs website action", async () => {
-    useIsolatedHome();
-    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
-    saveMnemonicToFile(VALID_MNEMONIC);
-    discoverLoadedAccountsMock.mockImplementationOnce(async () => ({
-      status: "legacy_website_action_required" as const,
-      chainsChecked: ["mainnet", "arbitrum", "optimism"],
-    }));
-
-    const { json } = await captureAsyncJsonOutput(() =>
-      handleInitCommand(
-        {
-          recoveryPhrase: VALID_MNEMONIC,
-          force: true,
-          privateKey: "0x" + "99".repeat(32),
-          defaultChain: "mainnet",
-        },
-        fakeCommand({ json: true }),
-      ),
-    );
-
-    expect(json.success).toBe(true);
-    expect(json.setupMode).toBe("replace");
-    expect(json.readiness).toBe("discovery_required");
-    expect(json.signerKeySet).toBe(true);
-    expect(json.restoreDiscovery).toEqual({
-      status: "legacy_website_action_required",
-      chainsChecked: ["mainnet", "arbitrum", "optimism"],
-    });
   });
 
   test("rejects --backup-file when loading an existing account", async () => {
@@ -907,6 +988,63 @@ describe("init command handler", () => {
     );
   });
 
+  test("includes signer targets in create dry runs when a signer source is provided", async () => {
+    const home = useIsolatedHome();
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          dryRun: true,
+          defaultChain: "sepolia",
+          privateKey: "0x" + "93".repeat(32),
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.dryRun).toBe(true);
+    expect(json.signerKeySource).toBe("save inline");
+    expect(json.writeTargets).toEqual(
+      expect.arrayContaining([
+        join(home, "config.json"),
+        join(home, ".mnemonic"),
+        join(home, ".signer"),
+      ]),
+    );
+  });
+
+  test("warns before forced human replacement of existing local setup", async () => {
+    const home = useIsolatedHome();
+    saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
+    saveMnemonicToFile(VALID_MNEMONIC);
+    saveSignerKey("0x" + "94".repeat(32));
+
+    const replacementMnemonic =
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: replacementMnemonic,
+          privateKey: "0x" + "95".repeat(32),
+          defaultChain: "sepolia",
+          force: true,
+        },
+        fakeCommand({ chain: "sepolia" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Replacing the current local setup.");
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(
+      replacementMnemonic,
+    );
+    expect(readFileSync(join(home, ".signer"), "utf8").trim()).toBe(
+      "0x" + "95".repeat(32),
+    );
+  });
+
   test("persists RPC overrides for the selected default chain", async () => {
     const home = useIsolatedHome();
 
@@ -927,6 +1065,25 @@ describe("init command handler", () => {
     );
   });
 
+  test("uses the environment signer for human restore flows without writing a signer file", async () => {
+    const home = useIsolatedHome();
+    process.env.PRIVACY_POOLS_PRIVATE_KEY = "0x" + "81".repeat(32);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+          defaultChain: "mainnet",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(readFileSync(join(home, ".mnemonic"), "utf8").trim()).toBe(VALID_MNEMONIC);
+    expect(existsSync(join(home, ".signer"))).toBe(false);
+    expect(stderr).toContain("Using PRIVACY_POOLS_PRIVATE_KEY from environment.");
+  });
+
   test("treats abrupt interactive prompt closure as a clean human cancellation", async () => {
     useIsolatedHome();
     selectPromptMock.mockImplementationOnce(async () => {
@@ -942,5 +1099,32 @@ describe("init command handler", () => {
     expect(stdout).toBe("");
     expect(exitCode).toBe(0);
     expect(stderr).toContain("Operation cancelled.");
+  });
+
+  test("prints a structured prompt-cancelled error in json mode when restore discovery aborts", async () => {
+    useIsolatedHome();
+    const cancelled = new Error("cancelled");
+    discoverLoadedAccountsMock.mockImplementationOnce(async () => {
+      throw cancelled;
+    });
+    isPromptCancellationErrorMock.mockImplementation(
+      (error: unknown) => error === cancelled,
+    );
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          recoveryPhrase: VALID_MNEMONIC,
+          privateKey: "0x" + "82".repeat(32),
+          defaultChain: "mainnet",
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(stderr).toBe("");
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("PROMPT_CANCELLED");
+    expect(json.error.message ?? json.errorMessage).toBe("Operation cancelled.");
   });
 });

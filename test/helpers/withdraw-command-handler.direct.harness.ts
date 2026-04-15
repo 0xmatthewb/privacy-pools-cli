@@ -6,12 +6,15 @@ import {
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
   confirmPromptMock,
+  expectPrintedRawTransactions,
   expectUnsignedTransactions,
   fakeCommand,
   getPublicClientMock,
   handleWithdrawCommand,
   inputPromptMock,
   initializeAccountServiceMock,
+  maybeRenderPreviewScenarioMock,
+  printRawTransactionsMock,
   saveAccountMock,
   useIsolatedHome,
   withdrawDirectMock,
@@ -49,8 +52,84 @@ export function registerWithdrawDirectPreludeTests(): void {
     ]);
   });
 
+  test("prints raw unsigned direct withdrawal transactions when --unsigned tx is requested", async () => {
+    useIsolatedHome();
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          unsigned: "tx",
+          to: "0x5555555555555555555555555555555555555555",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expectPrintedRawTransactions(printRawTransactionsMock, [
+      {
+        chainId: 1,
+        from: "0x5555555555555555555555555555555555555555",
+        to: ETH_POOL.pool,
+        value: "0",
+        description: "Direct withdraw from Privacy Pool",
+      },
+    ]);
+  });
+
+  test("fails closed when unsigned direct withdrawals omit --to", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Direct withdrawal requires --to <address> in unsigned mode",
+    );
+    expect(exitCode).toBe(2);
+  });
+
 }
 export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
+  test("fails closed when direct withdrawals target a recipient that differs from the signer", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          to: "0x6666666666666666666666666666666666666666",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Direct withdrawal --to must match your signer address",
+    );
+    expect(exitCode).toBe(2);
+    expect(withdrawDirectMock).not.toHaveBeenCalled();
+  });
+
   test("submits a direct withdrawal to the signer address when requested", async () => {
     useIsolatedHome({ withSigner: true });
     const addWithdrawalCommitmentMock = mock(() => undefined);
@@ -102,6 +181,28 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
 
 }
 export function registerWithdrawDirectCompletionTests(): void {
+  test("returns early when preview rendering takes over direct withdrawal confirmation", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewScenarioMock.mockImplementationOnce(
+      async (commandKey: string) => commandKey === "withdraw direct confirm",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("NOT privacy-preserving");
+    expect(withdrawDirectMock).not.toHaveBeenCalled();
+  });
+
   test("renders a direct JSON dry-run after proof generation", async () => {
     useIsolatedHome();
 
@@ -123,6 +224,27 @@ export function registerWithdrawDirectCompletionTests(): void {
     expect(json.mode).toBe("direct");
     expect(json.dryRun).toBe(true);
     expect(json.proofPublicSignals).toBe(3);
+  });
+
+  test("renders a human direct dry-run without submitting a transaction", async () => {
+    useIsolatedHome();
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          dryRun: true,
+          to: "0x5555555555555555555555555555555555555555",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Dry-run completed");
+    expect(withdrawDirectMock).not.toHaveBeenCalled();
   });
 
   test("continues with a human direct withdrawal after the privacy confirmation", async () => {
@@ -201,6 +323,105 @@ export function registerWithdrawDirectCompletionTests(): void {
       "Withdrawal transaction reverted",
     );
     expect(exitCode).toBe(7);
+  });
+
+  test("fails closed when the pool root changes before direct proof generation", async () => {
+    useIsolatedHome({ withSigner: true });
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async ({ functionName }: { functionName: string }) =>
+        functionName === "latestRoot" ? 2n : functionName === "ROOT_HISTORY_SIZE" ? 0n : 1n,
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 456n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "out of sync with the chain",
+    );
+    expect(exitCode).toBe(4);
+  });
+
+  test("fails closed when the pool root changes after direct proof generation", async () => {
+    useIsolatedHome({ withSigner: true });
+    let latestRootReads = 0;
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async ({ functionName }: { functionName: string }) => {
+        if (functionName === "latestRoot") {
+          latestRootReads += 1;
+          return latestRootReads >= 3 ? 2n : 1n;
+        }
+        return functionName === "ROOT_HISTORY_SIZE" ? 0n : 1n;
+      },
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 456n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Pool state changed after proof generation",
+    );
+    expect(exitCode).toBe(4);
+  });
+
+  test("fails closed when the pool root changes before direct submission", async () => {
+    useIsolatedHome({ withSigner: true });
+    let latestRootReads = 0;
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async ({ functionName }: { functionName: string }) => {
+        if (functionName === "latestRoot") {
+          latestRootReads += 1;
+          return latestRootReads >= 4 ? 2n : 1n;
+        }
+        return functionName === "ROOT_HISTORY_SIZE" ? 0n : 1n;
+      },
+      waitForTransactionReceipt: async () => ({
+        status: "success",
+        blockNumber: 456n,
+      }),
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Pool state changed before submission",
+    );
+    expect(exitCode).toBe(4);
   });
 
 }

@@ -8,6 +8,7 @@ import {
   buildPoolAccountRefsMock,
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
+  captureAsyncOutput,
   captureAsyncOutputAllowExit,
   describeUnavailablePoolAccountMock,
   fakeCommand,
@@ -19,7 +20,9 @@ import {
   handleWithdrawCommand,
   initializeAccountServiceMock,
   listPoolsMock,
+  maybeRenderPreviewProgressStepMock,
   maybeRenderPreviewScenarioMock,
+  requestQuoteMock,
   resolvePoolMock,
   useIsolatedHome,
 } from "./withdraw-command-handler.shared.ts";
@@ -105,6 +108,86 @@ export function registerWithdrawValidationPreludeTests(): void {
     expect(exitCode).toBe(2);
   });
 
+  test("fails closed in machine mode when --all omits the asset", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        undefined,
+        undefined,
+        {
+          all: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain("--all requires an asset");
+    expect(exitCode).toBe(2);
+  });
+
+  test("fails closed when --all is combined with an explicit amount", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "ETH",
+        "0.1",
+        {
+          all: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Cannot specify an amount with --all",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("rejects percentage withdrawals outside the supported 1-100 range", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const zeroPercent = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0%",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(zeroPercent.json.success).toBe(false);
+    expect(zeroPercent.json.error.message ?? zeroPercent.json.errorMessage).toContain(
+      "Invalid percentage",
+    );
+    expect(zeroPercent.exitCode).toBe(2);
+
+    const tooLarge = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "101%",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(tooLarge.json.success).toBe(false);
+    expect(tooLarge.json.error.message ?? tooLarge.json.errorMessage).toContain(
+      "Invalid percentage",
+    );
+    expect(tooLarge.exitCode).toBe(2);
+  });
+
   test("fails cleanly for humans when no pools are available to choose from", async () => {
     useIsolatedHome({ withSigner: true });
     listPoolsMock.mockImplementationOnce(async () => []);
@@ -144,6 +227,349 @@ export function registerWithdrawValidationPreludeTests(): void {
     expect(stdout).toBe("");
     expect(stderr).toBe("");
     expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over account sync", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewProgressStepMock.mockImplementationOnce(
+      async (stepId: string) => stepId === "withdraw.sync-account-state",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Using relayed withdrawal");
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over Pool Account selection", async () => {
+    useIsolatedHome({ withSigner: true });
+    const secondApprovedPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 2,
+      paId: "PA-2",
+      value: 2000000000000000000n,
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 502n,
+        label: 602n,
+        value: 2000000000000000000n,
+      },
+      label: 602n,
+      txHash: "0x" + "bb".repeat(32),
+    };
+    buildPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      secondApprovedPoolAccount,
+    ]);
+    buildAllPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      secondApprovedPoolAccount,
+    ]);
+    maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey: string) =>
+      commandKey === "withdraw pa select"
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expect(requestQuoteMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over Pool Account selection after account sync", async () => {
+    useIsolatedHome({ withSigner: true });
+    const secondApprovedPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 2,
+      paId: "PA-2",
+      value: 2000000000000000000n,
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 502n,
+        label: 602n,
+        value: 2000000000000000000n,
+      },
+      label: 602n,
+      txHash: "0x" + "bb".repeat(32),
+    };
+    buildPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      secondApprovedPoolAccount,
+    ]);
+    buildAllPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      secondApprovedPoolAccount,
+    ]);
+    fetchMerkleLeavesMock.mockImplementationOnce(async () => ({
+      aspLeaves: ["601", "602"],
+      stateTreeLeaves: ["501", "502"],
+    }));
+    buildLoadedAspDepositReviewStateMock.mockImplementationOnce(() => ({
+      approvedLabels: new Set<string>(["601", "602"]),
+      reviewStatuses: new Map<string, string>([
+        ["601", "approved"],
+        ["602", "approved"],
+      ]),
+    }));
+    maybeRenderPreviewScenarioMock.mockImplementation(
+      async (commandKey: string, options?: { timing?: string }) =>
+        commandKey === "withdraw pa select" && options?.timing === "after-prompts",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Using relayed withdrawal");
+    expect(requestQuoteMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over the relayer quote step", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewProgressStepMock.mockImplementation(
+      async (commandKey: string) => commandKey === "withdraw.request-quote",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Using relayed withdrawal");
+    expect(getRelayerDetailsMock).not.toHaveBeenCalled();
+    expect(requestQuoteMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over proof generation", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewProgressStepMock.mockImplementation(
+      async (stepId: string) => stepId === "withdraw.generate-proof",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Using direct withdrawal");
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+  });
+
+  test("rejects unsupported unsigned formats before loading account state", async () => {
+    useIsolatedHome();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+          unsigned: "raw",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      'Unsupported unsigned format: "raw".',
+    );
+    expect(exitCode).toBe(2);
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+  });
+
+  test("fails closed in machine mode when relayed withdrawals omit --to", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {},
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Relayed withdrawals require --to",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("returns early when preview rendering takes over recipient input", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewScenarioMock.mockImplementation(
+      async (commandKey: string) => commandKey === "withdraw recipient input",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over final confirmation", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewScenarioMock.mockImplementation(
+      async (commandKey: string) => commandKey === "withdraw confirm",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over direct confirmation", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewScenarioMock.mockImplementation(
+      async (commandKey: string) => commandKey === "withdraw direct confirm",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Using direct withdrawal");
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over relayed submission", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewProgressStepMock.mockImplementation(
+      async (commandKey: string) => commandKey === "withdraw.submit-relayed",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Using relayed withdrawal");
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+    expect(requestQuoteMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over direct submission", async () => {
+    useIsolatedHome({ withSigner: true });
+    maybeRenderPreviewProgressStepMock.mockImplementation(
+      async (commandKey: string) => commandKey === "withdraw.submit-direct",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Using direct withdrawal");
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+    expect(requestQuoteMock).not.toHaveBeenCalled();
+  });
+
+  test("reports that extra gas is not applicable for native-asset dry runs", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          dryRun: true,
+          extraGas: true,
+          poolAccount: "PA-1",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain(
+      "Extra gas is not applicable for native-asset withdrawals",
+    );
   });
 
 }
@@ -242,6 +668,200 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     expect(json.success).toBe(true);
     expect(json.poolAccountId).toBe("PA-4");
     expect(json.amount).toBe("1500000000000000000");
+  });
+
+  test("human --yes all-withdrawals announce the selected Pool Account and full balance", async () => {
+    useIsolatedHome({ withSigner: true });
+    const largerApprovedPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 4,
+      paId: "PA-4",
+      value: 3000000000000000000n,
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 504n,
+        label: 604n,
+        value: 3000000000000000000n,
+      },
+      label: 604n,
+      txHash: "0x" + "cc".repeat(32),
+    };
+    buildPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      largerApprovedPoolAccount,
+    ]);
+    buildAllPoolAccountRefsMock.mockImplementation(() => [
+      APPROVED_POOL_ACCOUNT,
+      largerApprovedPoolAccount,
+    ]);
+    fetchMerkleLeavesMock.mockImplementationOnce(async () => ({
+      aspLeaves: ["601", "604"],
+      stateTreeLeaves: ["501", "504"],
+    }));
+    buildLoadedAspDepositReviewStateMock.mockImplementationOnce(() => ({
+      approvedLabels: new Set<string>(["601", "604"]),
+      reviewStatuses: new Map<string, string>([
+        ["601", "approved"],
+        ["604", "approved"],
+      ]),
+    }));
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "ETH",
+        undefined,
+        {
+          all: true,
+          dryRun: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet", yes: true }),
+      ),
+    );
+
+    expect(stderr).toContain("Selected PA-4:");
+    expect(stderr).toContain("Withdrawing 100% of PA-4");
+  });
+
+  test("human --yes percentage withdrawals announce the computed deferred amount", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "37.5%",
+        "ETH",
+        {
+          dryRun: true,
+          poolAccount: "PA-1",
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet", yes: true }),
+      ),
+    );
+
+    expect(stderr).toContain("Selected PA-1:");
+    expect(stderr).toContain("Withdrawing 37.5% of PA-1");
+  });
+
+  test("breaks equal-balance approved Pool Account ties by label", async () => {
+    useIsolatedHome();
+    const lowerLabelPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 2,
+      paId: "PA-2",
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 500n,
+        label: 600n,
+      },
+      label: 600n,
+      txHash: "0x" + "bb".repeat(32),
+    };
+    const higherLabelPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 3,
+      paId: "PA-3",
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 501n,
+        label: 601n,
+      },
+      label: 601n,
+      txHash: "0x" + "cc".repeat(32),
+    };
+    buildPoolAccountRefsMock.mockImplementation(() => [
+      higherLabelPoolAccount,
+      lowerLabelPoolAccount,
+    ]);
+    buildAllPoolAccountRefsMock.mockImplementation(() => [
+      higherLabelPoolAccount,
+      lowerLabelPoolAccount,
+    ]);
+    fetchMerkleLeavesMock.mockImplementationOnce(async () => ({
+      aspLeaves: ["600", "601"],
+      stateTreeLeaves: ["500", "501"],
+    }));
+    buildLoadedAspDepositReviewStateMock.mockImplementationOnce(() => ({
+      approvedLabels: new Set<string>(["600", "601"]),
+      reviewStatuses: new Map<string, string>([
+        ["600", "approved"],
+        ["601", "approved"],
+      ]),
+    }));
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          dryRun: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet", yes: true }),
+      ),
+    );
+
+    expect(stderr).toContain("Selected PA-2:");
+  });
+
+  test("keeps the original order when equal-balance approved Pool Accounts also share the same label", async () => {
+    useIsolatedHome();
+    const firstApprovedPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 2,
+      paId: "PA-2",
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 500n,
+        label: 600n,
+      },
+      label: 600n,
+      txHash: "0x" + "bb".repeat(32),
+    };
+    const secondApprovedPoolAccount = {
+      ...APPROVED_POOL_ACCOUNT,
+      paNumber: 3,
+      paId: "PA-3",
+      commitment: {
+        ...APPROVED_POOL_ACCOUNT.commitment,
+        hash: 501n,
+        label: 600n,
+      },
+      label: 600n,
+      txHash: "0x" + "cc".repeat(32),
+    };
+    buildPoolAccountRefsMock.mockImplementation(() => [
+      firstApprovedPoolAccount,
+      secondApprovedPoolAccount,
+    ]);
+    buildAllPoolAccountRefsMock.mockImplementation(() => [
+      firstApprovedPoolAccount,
+      secondApprovedPoolAccount,
+    ]);
+    fetchMerkleLeavesMock.mockImplementationOnce(async () => ({
+      aspLeaves: ["600"],
+      stateTreeLeaves: ["500", "501"],
+    }));
+    buildLoadedAspDepositReviewStateMock.mockImplementationOnce(() => ({
+      approvedLabels: new Set<string>(["600"]),
+      reviewStatuses: new Map<string, string>([
+        ["600", "approved"],
+      ]),
+    }));
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          dryRun: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet", yes: true }),
+      ),
+    );
+
+    expect(stderr).toContain("Selected PA-2:");
   });
 
   test("fails closed when --all is combined with a positional amount", async () => {
@@ -373,6 +993,40 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     expect(json.error.message ?? json.errorMessage).toContain(
       "No Pool Account has enough balance",
     );
+    expect(exitCode).toBe(2);
+  });
+
+  test("fails closed with the deposit-first hint when the selected pool has no saved Pool Accounts at all", async () => {
+    useIsolatedHome({ withSigner: true });
+    initializeAccountServiceMock.mockImplementationOnce(async () => ({
+      account: { poolAccounts: new Map() },
+      getSpendableCommitments: () => new Map(),
+      createWithdrawalSecrets: () => ({
+        nullifier: 901n,
+        secret: 902n,
+      }),
+      addWithdrawalCommitment: () => undefined,
+    }));
+    buildPoolAccountRefsMock.mockImplementationOnce(() => []);
+    buildAllPoolAccountRefsMock.mockImplementationOnce(() => []);
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "No Pool Account has enough balance",
+    );
+    expect(json.error.hint).toContain("Deposit first");
     expect(exitCode).toBe(2);
   });
 

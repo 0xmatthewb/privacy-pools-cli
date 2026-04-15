@@ -5,6 +5,7 @@ import {
   buildRagequitPoolAccountRefs,
   formatRagequitPoolAccountChoice,
   getRagequitAdvisory,
+  resolveRequestedRagequitPoolAccountOrThrow,
 } from "../../src/commands/ragequit.ts";
 import { POA_PORTAL_URL } from "../../src/config/chains.ts";
 
@@ -146,5 +147,48 @@ describe("ragequit command helpers", () => {
       "poa_required",
       "pending",
     ]);
+  });
+
+  test("resolveRequestedRagequitPoolAccountOrThrow returns actionable selections and fails closed for unavailable or unknown Pool Accounts", () => {
+    const requested = makePoolAccountRef({
+      paNumber: 4,
+      paId: "PA-4",
+    });
+
+    expect(
+      resolveRequestedRagequitPoolAccountOrThrow({
+        requestedPoolAccounts: [requested],
+        allKnownPoolAccounts: [requested],
+        fromPaNumber: 4,
+        chainName: "mainnet",
+        symbol: "ETH",
+      }),
+    ).toBe(requested);
+
+    expect(() =>
+      resolveRequestedRagequitPoolAccountOrThrow({
+        requestedPoolAccounts: [],
+        allKnownPoolAccounts: [
+          makePoolAccountRef({
+            paNumber: 7,
+            paId: "PA-7",
+            status: "exited",
+          }),
+        ],
+        fromPaNumber: 7,
+        chainName: "mainnet",
+        symbol: "ETH",
+      }),
+    ).toThrow("PA-7 was already recovered publicly with ragequit");
+
+    expect(() =>
+      resolveRequestedRagequitPoolAccountOrThrow({
+        requestedPoolAccounts: [],
+        allKnownPoolAccounts: [requested],
+        fromPaNumber: 9,
+        chainName: "mainnet",
+        symbol: "ETH",
+      }),
+    ).toThrow("Unknown Pool Account PA-9 for ETH.");
   });
 });
