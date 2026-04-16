@@ -320,6 +320,15 @@ interface WatchFlowParams {
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
+  onPhaseChange?: (event: FlowPhaseChangeEvent) => void | Promise<void>;
+}
+
+export interface FlowPhaseChangeEvent {
+  workflowId: string;
+  previousPhase: FlowPhase;
+  phase: FlowPhase;
+  ts: string;
+  snapshot: FlowSnapshot;
 }
 
 interface StatusFlowParams {
@@ -4515,6 +4524,19 @@ export async function watchWorkflow(
   const privacyDelayOverride = resolveOptionalFlowPrivacyDelayProfile(
     params.privacyDelayProfile,
   );
+  const emitPhaseChange = async (
+    previousPhaseValue: FlowPhase,
+    nextSnapshot: FlowSnapshot,
+  ): Promise<void> => {
+    if (previousPhaseValue === nextSnapshot.phase) return;
+    await params.onPhaseChange?.({
+      workflowId,
+      previousPhase: previousPhaseValue,
+      phase: nextSnapshot.phase,
+      ts: new Date().toISOString(),
+      snapshot: nextSnapshot,
+    });
+  };
 
   return withWorkflowOperationLock(workflowId, "watch", async () => {
     let delayMs = initialPollDelayMs(loadWorkflowSnapshot(workflowId).phase);
@@ -4584,6 +4606,7 @@ export async function watchWorkflow(
         );
 
         if (!result.continueWatching) {
+          await emitPhaseChange(snapshot.phase, result.snapshot);
           // Log elapsed time for the final phase transition
           if (previousPhase !== null && previousPhase !== result.snapshot.phase) {
             const phaseElapsed = performance.now() - phaseEnteredAt;
@@ -4597,6 +4620,9 @@ export async function watchWorkflow(
         }
 
         // D8: Show elapsed time when transitioning between phases.
+        if (snapshot.phase !== result.snapshot.phase) {
+          await emitPhaseChange(snapshot.phase, result.snapshot);
+        }
         if (previousPhase !== null && previousPhase !== result.snapshot.phase) {
           const phaseElapsed = performance.now() - phaseEnteredAt;
           if (phaseElapsed >= 1000 && !silent) {

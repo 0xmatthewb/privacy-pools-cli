@@ -10,7 +10,7 @@ import {
 
 defineScenarioSuite("machine-mode acceptance", [
   defineScenario("unknown commands stay machine-readable in --agent mode", [
-    runCliStep(["--agent", "not-a-command"]),
+    runCliStep(["--agent", "accunts"]),
     assertExit(2),
     assertStderrEmpty(),
     assertJson<{
@@ -18,12 +18,16 @@ defineScenarioSuite("machine-mode acceptance", [
       success: boolean;
       errorCode: string;
       errorMessage: string;
-      error: { category: string };
+      suggestions: string[];
+      error: { category: string; suggestions: string[]; details: { suggestions: string[] } };
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_PARSE_ERROR");
+      expect(json.errorCode).toBe("INPUT_UNKNOWN_COMMAND");
       expect(json.error.category).toBe("INPUT");
+      expect(json.suggestions).toContain("accounts");
+      expect(json.error.suggestions).toEqual(json.suggestions);
+      expect(json.error.details.suggestions).toEqual(json.suggestions);
       expect(json.errorMessage.toLowerCase()).toContain("unknown command");
     }),
   ]),

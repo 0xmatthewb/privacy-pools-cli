@@ -90,6 +90,35 @@ describe("completion query helpers", () => {
     ).toEqual(["aggressive", "balanced", "off"]);
   });
 
+  test("suggests command JSON fields for --json-fields values", () => {
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "withdraw", "quote", "--json-fields", "quote"],
+        4,
+      ),
+    ).toEqual(expect.arrayContaining(["quoteExpiresAt", "quoteFeeBPS"]));
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "withdraw", "quote", "--json-fields=quote"],
+        3,
+      ),
+    ).toEqual(expect.arrayContaining([
+      "--json-fields=quoteExpiresAt",
+      "--json-fields=quoteFeeBPS",
+    ]));
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "withdraw", "quote", "--json-fields=amount,quote"],
+        3,
+      ),
+    ).toEqual(expect.arrayContaining([
+      "--json-fields=amount,quoteExpiresAt",
+      "--json-fields=amount,quoteFeeBPS",
+    ]));
+  });
+
   test("returns no candidates when a free-form option value is expected", () => {
     expect(
       queryCompletionCandidates(["privacy-pools", "--rpc-url", ""], 2),

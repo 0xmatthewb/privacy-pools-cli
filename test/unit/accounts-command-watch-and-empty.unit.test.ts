@@ -103,7 +103,7 @@ describe("accounts command watch and empty states", () => {
 
     expect(json.success).toBe(false);
     expect(json.error.message ?? json.errorMessage).toContain(
-      "--watch is only available in human table output",
+      "--watch is only available in interactive TTY terminals. Use privacy-pools accounts --no-sync for a single snapshot.",
     );
     expect(exitCode).toBe(2);
   });
@@ -111,6 +111,10 @@ describe("accounts command watch and empty states", () => {
   test("accounts rejects --watch without a pending filter", async () => {
     useIsolatedHome("mainnet");
     const { handleAccountsCommand } = getReadonlyCommandHandlers();
+    Object.defineProperty(process.stderr, "isTTY", {
+      configurable: true,
+      value: true,
+    });
 
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleAccountsCommand({ watch: true }, fakeCommand({ chain: "mainnet" })),
@@ -118,6 +122,27 @@ describe("accounts command watch and empty states", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("--watch requires pending approvals");
+  });
+
+  test("accounts rejects --watch in non-TTY human mode", async () => {
+    useIsolatedHome("mainnet");
+    const { handleAccountsCommand } = getReadonlyCommandHandlers();
+    Object.defineProperty(process.stderr, "isTTY", {
+      configurable: true,
+      value: false,
+    });
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleAccountsCommand(
+        { watch: true, pendingOnly: true },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain(
+      "--watch is only available in interactive TTY terminals. Use privacy-pools accounts --no-sync for a single snapshot.",
+    );
   });
 
   test("accounts watch rerenders until no pending approvals remain", async () => {

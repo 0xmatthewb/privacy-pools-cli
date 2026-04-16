@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { createOutputContext } from "../output/common.js";
 import {
   formatFlowRagequitReview,
+  renderFlowPhaseChangeEvent,
   renderFlowResult,
   renderFlowStartDryRun,
   type FlowJsonWarning,
@@ -316,8 +317,12 @@ export async function handleFlowRootCommand(
 
   try {
     if (mode.isJson || !process.stdin.isTTY || !process.stderr.isTTY) {
-      cmd.outputHelp();
-      return;
+      throw new CLIError(
+        "Use a flow subcommand in non-interactive mode: start, watch, status, or ragequit.",
+        "INPUT",
+        "Run 'privacy-pools flow start', 'privacy-pools flow watch', 'privacy-pools flow status', or 'privacy-pools flow ragequit'.",
+        "INPUT_MISSING_FLOW_SUBCOMMAND",
+      );
     }
 
     ensurePromptInteractionAvailable();
@@ -601,6 +606,11 @@ export async function handleFlowWatchCommand(
       globalOpts,
       mode,
       isVerbose,
+      onPhaseChange: mode.isJson
+        ? (event) => {
+            renderFlowPhaseChangeEvent(event);
+          }
+        : undefined,
     });
 
     renderFlowResult(ctx, {

@@ -23,10 +23,14 @@ import {
 } from "../../src/services/config.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
+import { resolveBaseConfigHome } from "../../src/runtime/config-paths.ts";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const SAVED_HOME = process.env.PRIVACY_POOLS_HOME;
+const SAVED_CONFIG_DIR = process.env.PRIVACY_POOLS_CONFIG_DIR;
+const SAVED_XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME;
+const SAVED_OS_HOME = process.env.HOME;
 
 function isolatedHome(): string {
   return createTrackedTempDir("pp-cfg-test-");
@@ -35,6 +39,12 @@ function isolatedHome(): string {
 function restoreHome(): void {
   if (SAVED_HOME === undefined) delete process.env.PRIVACY_POOLS_HOME;
   else process.env.PRIVACY_POOLS_HOME = SAVED_HOME;
+  if (SAVED_CONFIG_DIR === undefined) delete process.env.PRIVACY_POOLS_CONFIG_DIR;
+  else process.env.PRIVACY_POOLS_CONFIG_DIR = SAVED_CONFIG_DIR;
+  if (SAVED_XDG_CONFIG_HOME === undefined) delete process.env.XDG_CONFIG_HOME;
+  else process.env.XDG_CONFIG_HOME = SAVED_XDG_CONFIG_HOME;
+  if (SAVED_OS_HOME === undefined) delete process.env.HOME;
+  else process.env.HOME = SAVED_OS_HOME;
   cleanupTrackedTempDirs();
 }
 
@@ -123,6 +133,30 @@ describe("config service", () => {
         process.env.PRIVACY_POOLS_HOME = prev;
       }
     }
+  });
+
+  test("resolves config home with env overrides before legacy and XDG paths", () => {
+    const osHome = createTrackedTempDir("pp-os-home-");
+    const legacyHome = join(osHome, ".privacy-pools");
+    const xdgHome = createTrackedTempDir("pp-xdg-home-");
+    const configDir = createTrackedTempDir("pp-config-dir-");
+    const privacyPoolsHome = createTrackedTempDir("pp-home-");
+
+    process.env.HOME = osHome;
+    process.env.XDG_CONFIG_HOME = xdgHome;
+    delete process.env.PRIVACY_POOLS_HOME;
+    delete process.env.PRIVACY_POOLS_CONFIG_DIR;
+
+    expect(resolveBaseConfigHome()).toBe(join(xdgHome, "privacy-pools"));
+
+    mkdirSync(legacyHome, { recursive: true });
+    expect(resolveBaseConfigHome()).toBe(legacyHome);
+
+    process.env.PRIVACY_POOLS_CONFIG_DIR = configDir;
+    expect(resolveBaseConfigHome()).toBe(configDir);
+
+    process.env.PRIVACY_POOLS_HOME = privacyPoolsHome;
+    expect(resolveBaseConfigHome()).toBe(privacyPoolsHome);
   });
 
   test("loadConfig returns built-in defaults when no config file exists", () => {

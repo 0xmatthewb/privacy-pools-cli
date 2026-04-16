@@ -3,6 +3,7 @@ import type { Command, Option } from "commander";
 import { createRootProgram } from "../../src/program.ts";
 import {
   buildCapabilitiesPayload,
+  CAPABILITIES_SCHEMAS,
   CAPABILITY_ENV_VARS,
   CAPABILITY_EXIT_CODES,
   COMMAND_PATHS,
@@ -10,6 +11,7 @@ import {
   getCommandMetadata,
   GLOBAL_FLAG_METADATA,
 } from "../../src/utils/command-metadata.ts";
+import { NEXT_ACTION_WHEN_VALUES } from "../../src/types.ts";
 
 interface RuntimeCommandEntry {
   path: string;
@@ -85,6 +87,9 @@ describe("command metadata conformance", () => {
     expect(payload.safeReadOnlyCommands).toContain("flow status");
     expect(payload.exitCodes).toEqual(CAPABILITY_EXIT_CODES);
     expect(payload.envVars).toEqual(CAPABILITY_ENV_VARS);
+    expect(CAPABILITIES_SCHEMAS.nextActions?.whenValues).toEqual([
+      ...NEXT_ACTION_WHEN_VALUES,
+    ]);
   });
 
   test("root global flags stay aligned with metadata", async () => {

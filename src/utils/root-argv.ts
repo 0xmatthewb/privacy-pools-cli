@@ -172,12 +172,21 @@ export function parseRootPreludeLongOption(
       }
       return { consumedNext: false, helpLike: false, versionLike: false };
     case "--jq":
+    case "--jmes":
       if (inlineValue !== undefined) {
-        globalOpts.jq = inlineValue;
+        if (name === "--jmes") {
+          globalOpts.jmes = inlineValue;
+        } else {
+          globalOpts.jq = inlineValue;
+        }
         return { consumedNext: false, helpLike: false, versionLike: false };
       }
       if (nextToken === undefined) return null;
-      globalOpts.jq = nextToken;
+      if (name === "--jmes") {
+        globalOpts.jmes = nextToken;
+      } else {
+        globalOpts.jq = nextToken;
+      }
       return { consumedNext: true, helpLike: false, versionLike: false };
     case "--agent":
       globalOpts.agent = true;
@@ -404,6 +413,7 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
     )?.toLowerCase() ?? null;
   const isAgent = hasLongFlag(argv, "--agent");
   const hasJq = hasLongFlag(argv, "--jq");
+  const hasJmes = hasLongFlag(argv, "--jmes");
   const hasJsonFields = hasLongFlag(argv, "--json-fields");
   const isJson =
     hasLongFlag(argv, "--json") ||
@@ -411,6 +421,7 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
     formatFlagValue === "json" ||
     isAgent ||
     hasJq ||
+    hasJmes ||
     hasJsonFields;
   const isCsvMode = formatFlagValue === "csv" && !isJson;
   const isUnsigned = hasLongFlag(argv, "--unsigned");

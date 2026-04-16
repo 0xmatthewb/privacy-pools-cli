@@ -476,11 +476,14 @@ export async function handleAccountsCommand(
 
     const effectiveStatus = normalizedStatus ?? (opts.pendingOnly ? "pending" : undefined);
 
-    if (opts.watch && (mode.isJson || mode.isCsv || mode.isAgent)) {
+    if (
+      opts.watch &&
+      (mode.isJson || mode.isCsv || mode.isAgent || !process.stderr.isTTY)
+    ) {
       throw new CLIError(
-        "--watch is only available in human table output.",
+        "--watch is only available in interactive TTY terminals. Use privacy-pools accounts --no-sync for a single snapshot.",
         "INPUT",
-        "Re-run without --json, --agent, or --format csv.",
+        "Re-run without --json, --agent, or --format csv, or use accounts --no-sync for one read.",
       );
     }
 

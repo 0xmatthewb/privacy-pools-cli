@@ -61,7 +61,7 @@ read-only discovery commands may be slower until the install is repaired.
 
 ## Configuration
 
-Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVACY_POOLS_HOME` or `PRIVACY_POOLS_CONFIG_DIR`.
+Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVACY_POOLS_HOME` or `PRIVACY_POOLS_CONFIG_DIR`. If neither override is set and no legacy `~/.privacy-pools/` directory exists, `$XDG_CONFIG_HOME/privacy-pools/` is used when `XDG_CONFIG_HOME` is set.
 
 **Files:**
 
@@ -80,6 +80,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 |----------|---------|
 | `PRIVACY_POOLS_HOME` | Override config directory |
 | `PRIVACY_POOLS_CONFIG_DIR` | Alias for `PRIVACY_POOLS_HOME` |
+| `XDG_CONFIG_HOME` | Fallback config base when no Privacy Pools override or legacy config directory exists |
 | `PRIVACY_POOLS_PRIVATE_KEY` | Signer private key (takes precedence over `.signer` file) |
 | `PRIVACY_POOLS_RPC_URL` | Override RPC URL for all chains |
 | `PP_RPC_URL` | Alias for `PRIVACY_POOLS_RPC_URL` |

@@ -316,7 +316,7 @@ describe("pools service", () => {
     });
   });
 
-  test("listPools throws RPC_POOL_RESOLUTION_FAILED when ASP returns pools but all on-chain reads fail", async () => {
+  test("listPools throws RPC_POOL_RESOLUTION_FAILED when ASP returns pools but all onchain reads fail", async () => {
     const chainId = 31342;
     const aspStatsUrl = `/${chainId}/public/pools-stats`;
     const statsPayload = { pools: [{ tokenAddress: "0x00000000000000000000000000000000000000b1" }] };
@@ -445,7 +445,7 @@ describe("pools service", () => {
     await expect(listPools(chainConfig, server.url)).resolves.toEqual([]);
   });
 
-  test("listPools reuses resolved on-chain pool metadata across repeated reads", async () => {
+  test("listPools reuses resolved onchain pool metadata across repeated reads", async () => {
     const chainId = 313390;
     let assetConfigCalls = 0;
     let scopeCalls = 0;

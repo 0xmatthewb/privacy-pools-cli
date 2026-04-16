@@ -3,6 +3,7 @@ import type {
   CapabilitiesPayload,
   CommandExecutionDescriptor,
   CommandLatencyClass,
+  NextActionWhen,
 } from "../types.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
 import type { CommandHelpConfig } from "./help.js";
@@ -62,14 +63,14 @@ export interface CommandMetadata {
   capabilities?: CommandCapabilityMetadata;
   execution?: CommandExecutionDescriptor;
   safeReadOnly?: boolean;
-  expectedNextActionWhen?: string[];
+  expectedNextActionWhen?: NextActionWhen[];
   agentsDocMarker?: string;
 }
 
 const POOLS_LIST_JSON_FIELDS =
   "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }";
 
-const FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN = [
+const FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN: NextActionWhen[] = [
   "flow_resume",
   "flow_public_recovery_required",
   "flow_declined",
@@ -78,10 +79,13 @@ const FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN = [
   "flow_manual_followup",
 ];
 
-const FLOW_START_EXPECTED_NEXT_ACTION_WHEN = [
+const FLOW_START_EXPECTED_NEXT_ACTION_WHEN: NextActionWhen[] = [
   "after_dry_run",
   ...FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN,
 ];
+
+const SIGNING_SOURCE_NOTE =
+  "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.";
 
 export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   init: {
@@ -416,7 +420,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Top-level namespace for the persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands.",
-        "In an interactive TTY, bare 'privacy-pools flow' opens a picker for start/watch/status/ragequit. Non-interactive calls keep standard help behavior.",
+        "In an interactive TTY, bare 'privacy-pools flow' opens a picker for start/watch/status/ragequit. Non-interactive calls must choose a flow subcommand explicitly.",
         "`privacyDelayConfigured = false` in flow JSON means a legacy saved workflow was normalized to `off` without an explicitly saved privacy-delay policy.",
         "Manual commands remain unchanged and are still the advanced/manual path when you need custom Pool Account selection, partial amounts, direct withdrawals, unsigned payloads, or dry-runs.",
       ],
@@ -481,7 +485,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, estimatedCommittedValue, vettingFee, warnings?, nextActions? }",
       ],
       safetyNotes: [
-        "Deposits are always public on-chain. The ASP reviews the deposit before private withdrawal is possible.",
+        "Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.",
         "If --to is omitted in interactive mode, the CLI prompts for the recipient. In machine modes, --to remains required.",
         "In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.",
         "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
@@ -494,6 +498,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.",
         "The saved flow spends the entire remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",
         "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.",
+        SIGNING_SOURCE_NOTE,
       ],
       agentWorkflowNotes: [
         "With --new-wallet, the flow stays attached automatically and waits for funding, deposit, approval, and withdrawal unless you detach with Ctrl-C.",
@@ -551,6 +556,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.",
         "Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
         "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.",
+        SIGNING_SOURCE_NOTE,
       ],
       agentWorkflowNotes: [
         "New-wallet workflows wait for funding automatically. ERC20 workflows require both the token amount and a native ETH gas reserve in the generated wallet before the public deposit can proceed.",
@@ -617,6 +623,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       safetyNotes: [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
         "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
+        SIGNING_SOURCE_NOTE,
       ],
       seeAlso: ["flow watch","ragequit","accounts"],
     },
@@ -903,6 +910,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         `Deposits are reviewed by the ASP before approval. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
         `Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at ${POA_PORTAL_URL} before they can withdraw privately.`,
+        SIGNING_SOURCE_NOTE,
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
@@ -959,6 +967,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
         "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds.",
+        SIGNING_SOURCE_NOTE,
       ],
       jsonFields:
         "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
@@ -1046,6 +1055,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
         "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.",
+        SIGNING_SOURCE_NOTE,
       ],
       jsonFields:
         "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",

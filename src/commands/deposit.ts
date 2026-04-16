@@ -459,7 +459,7 @@ export async function handleDepositCommand(
           },
         ],
         chainConfig.id,
-        true, // sync to pick up latest on-chain state
+        true, // sync to pick up latest onchain state
         silent,
         true,
       );

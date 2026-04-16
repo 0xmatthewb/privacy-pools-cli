@@ -85,7 +85,7 @@ describe("JSON output helpers", () => {
       }
     });
 
-    test("validates --jq expressions before output is configured", () => {
+    test("validates --jmes expressions before output is configured", () => {
       expect(() => configureJsonOutput(null, "foo[")).toThrow(CLIError);
     });
   });
@@ -126,6 +126,22 @@ describe("JSON output helpers", () => {
       const parsed = JSON.parse(output.trim());
       expect(parsed.errorCode).toBe("UNKNOWN_ERROR");
       expect(parsed.error.code).toBe("UNKNOWN_ERROR");
+    });
+
+    test("promotes error details to top level and preserves error.details", () => {
+      const output = captureStdout(() => {
+        printJsonError({
+          code: "INPUT_UNKNOWN_COMMAND",
+          category: "INPUT",
+          message: "Unknown command.",
+          details: { suggestions: ["accounts", "activity"] },
+        });
+      });
+
+      const parsed = JSON.parse(output.trim());
+      expect(parsed.suggestions).toEqual(["accounts", "activity"]);
+      expect(parsed.error.suggestions).toEqual(["accounts", "activity"]);
+      expect(parsed.error.details).toEqual({ suggestions: ["accounts", "activity"] });
     });
 
     test("uses provided code when present", () => {

@@ -44,3 +44,25 @@ export function didYouMean(
   }
   return bestMatch;
 }
+
+export function didYouMeanMany(
+  input: string,
+  candidates: string[],
+  maxDistance = 3,
+  limit = 3,
+): string[] {
+  const lower = input.toLowerCase();
+  return candidates
+    .map((candidate) => ({
+      candidate,
+      distance: levenshtein(lower, candidate.toLowerCase()),
+    }))
+    .filter(({ distance }) => distance <= maxDistance)
+    .sort((left, right) =>
+      left.distance === right.distance
+        ? left.candidate.localeCompare(right.candidate)
+        : left.distance - right.distance,
+    )
+    .slice(0, limit)
+    .map(({ candidate }) => candidate);
+}

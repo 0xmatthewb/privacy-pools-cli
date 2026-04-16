@@ -14,6 +14,7 @@ import type {
   PreferredSafeVariant,
   StructuredExample,
 } from "../types.js";
+import { NEXT_ACTION_WHEN_VALUES } from "../types.js";
 import { EXIT_CODES, defaultErrorCode } from "./errors.js";
 import { jsonContractDocRelativePath } from "./json.js";
 import { ROOT_GLOBAL_FLAG_METADATA } from "./root-global-flags.js";
@@ -193,6 +194,10 @@ export const CAPABILITY_ENV_VARS: CapabilityEnvVarDescriptor[] = [
     description: "Override the CLI config directory.",
   },
   {
+    name: "XDG_CONFIG_HOME",
+    description: "Fallback config base. Used as $XDG_CONFIG_HOME/privacy-pools when no Privacy Pools override is set and no legacy ~/.privacy-pools directory exists.",
+  },
+  {
     name: "PRIVACY_POOLS_PRIVATE_KEY",
     description: "Signer private key; takes precedence over the saved .signer file.",
   },
@@ -326,6 +331,7 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   nextActions: {
     shape:
       "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null>, runnable?: boolean }",
+    whenValues: [...NEXT_ACTION_WHEN_VALUES],
     description:
       "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. "
       + "Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. "

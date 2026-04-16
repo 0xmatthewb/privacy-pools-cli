@@ -34,7 +34,7 @@ const SCOPE = 123456789n;
 
 /**
  * Starts a mock HTTP server that simulates both the ASP pools-stats
- * endpoint and an RPC node for on-chain reads.
+ * endpoint and an RPC node for onchain reads.
  */
 function startMockServer(
   chainId: number,
@@ -157,7 +157,7 @@ describe("resolvePool", () => {
     while (toClose.length > 0) await toClose.pop()!.close();
   });
 
-  test("resolves pool by address via on-chain validation", async () => {
+  test("resolves pool by address via onchain validation", async () => {
     const server = await startMockServer(31350);
     toClose.push(server);
     const cfg = chainConfig(31350, server);
@@ -385,7 +385,7 @@ describe("resolveTokenMetadata", () => {
     expect(result.decimals).toBe(18);
   });
 
-  test("returns ERC-20 symbol and decimals from on-chain call", async () => {
+  test("returns ERC-20 symbol and decimals from onchain call", async () => {
     const { createPublicClient, http } = await import("viem");
     const { mainnet } = await import("viem/chains");
 

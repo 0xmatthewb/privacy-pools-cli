@@ -167,6 +167,7 @@ export {
 export {
   formatFlowStartReview,
   formatFlowRagequitReview,
+  renderFlowPhaseChangeEvent,
   renderFlowStartDryRun,
   renderFlowResult,
   type FlowJsonWarning,

@@ -5,6 +5,7 @@ import {
   getDocumentedAgentMarkers,
   type CommandPath,
 } from "../../src/utils/command-metadata.ts";
+import { NEXT_ACTION_WHEN_VALUES } from "../../src/types.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 function normalizeWhitespace(value: string): string {
@@ -117,6 +118,12 @@ describe("command docs alignment", () => {
       "protocol",
     ]) {
       expect(capabilitiesSection).toContain(requiredMarker);
+    }
+  });
+
+  test("AGENTS nextActions when table stays aligned with the typed contract", () => {
+    for (const whenValue of NEXT_ACTION_WHEN_VALUES) {
+      expect(AGENTS).toContain(`| \`${whenValue}\` |`);
     }
   });
 

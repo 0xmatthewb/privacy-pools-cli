@@ -3,7 +3,12 @@ import { join } from "path";
 import { resolveConfigHome } from "./config-paths.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { CLIError } from "../utils/errors.js";
-import { GENERATED_STATIC_LOCAL_COMMANDS } from "../utils/command-routing-static.js";
+import {
+  GENERATED_COMMAND_ALIAS_MAP,
+  GENERATED_COMMAND_PATHS,
+  GENERATED_STATIC_LOCAL_COMMANDS,
+} from "../utils/command-routing-static.js";
+import { didYouMeanMany } from "../utils/fuzzy.js";
 
 function normalizeRepositoryUrl(repository: unknown): string | null {
   const raw =
@@ -66,6 +71,28 @@ function mapCommanderError(error: unknown): CLIError | null {
 
   if (code.startsWith("commander.")) {
     const normalized = message.replace(/^error:\s*/i, "").trim();
+    const unknownCommandMatch = normalized.match(/unknown command ['"]?([^'"]+)['"]?/i);
+    if (code === "commander.unknownCommand" || unknownCommandMatch) {
+      const unknownCommand = unknownCommandMatch?.[1] ?? "";
+      const candidates = [
+        ...GENERATED_COMMAND_PATHS,
+        ...Object.keys(GENERATED_COMMAND_ALIAS_MAP),
+      ];
+      const suggestions = unknownCommand
+        ? didYouMeanMany(unknownCommand, candidates)
+        : [];
+      return new CLIError(
+        normalized || "Unknown command.",
+        "INPUT",
+        suggestions.length > 0
+          ? `Did you mean ${suggestions.map((candidate) => `'${candidate}'`).join(", ")}?`
+          : "Use --help to see usage and examples.",
+        "INPUT_UNKNOWN_COMMAND",
+        false,
+        "inline",
+        { suggestions },
+      );
+    }
     const errorCode =
       code === "commander.missingArgument" ||
       /missing required|missing argument/i.test(normalized)

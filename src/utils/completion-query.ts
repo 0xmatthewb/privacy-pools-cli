@@ -7,6 +7,10 @@ import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
 import { resolveBaseConfigHome, resolveConfigHome } from "../runtime/config-paths.js";
 import { loadAccount } from "../services/account-storage.js";
 import { listSavedWorkflowIds } from "../services/workflow.js";
+import {
+  COMMAND_CATALOG,
+  type CommandPath,
+} from "./command-catalog.js";
 import { rootGlobalFlagValues } from "./root-global-flags.js";
 import {
   detectCompletionShell,
@@ -98,6 +102,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionOption("--no-progress"),
       completionOption("--no-header"),
       completionOption("--timeout <seconds>"),
+      completionOption("--jmes <expression>"),
       completionOption("--jq <expression>"),
       completionOption("--no-color"),
       completionOption("--profile <name>"),
@@ -457,6 +462,50 @@ function isProfileOption(option: CompletionOptionSpec): boolean {
   return option.names.some((n) => n === "--profile");
 }
 
+function isJsonFieldsOption(option: CompletionOptionSpec): boolean {
+  return option.names.some((n) => n === "--json-fields");
+}
+
+function jsonFieldCandidates(commandPath: string[]): string[] {
+  const path = commandPath.join(" ") as CommandPath;
+  const jsonFields = COMMAND_CATALOG[path]?.help?.jsonFields;
+  const candidates = new Set([
+    "schemaVersion",
+    "success",
+    "errorCode",
+    "errorMessage",
+    "error",
+    "nextActions",
+  ]);
+  if (jsonFields) {
+    for (const rawToken of jsonFields.split(",")) {
+      const token = rawToken.trim().replace(/^[{\[]+\s*/, "");
+      const match = token.match(/^([A-Za-z][A-Za-z0-9]*)\??(?:\s*:|\s*$|\s+)/);
+      const name = match?.[1];
+      if (name) candidates.add(name);
+    }
+  }
+  return uniqueSorted([...candidates]);
+}
+
+function completeJsonFieldsValue(
+  commandPath: string[],
+  rawValue: string,
+): string[] {
+  const parts = rawValue.split(",");
+  const current = parts.at(-1)?.trim() ?? "";
+  const selected = new Set(
+    parts.slice(0, -1).map((part) => part.trim()).filter(Boolean),
+  );
+  const prefix = parts.length > 1
+    ? `${parts.slice(0, -1).map((part) => part.trim()).filter(Boolean).join(",")},`
+    : "";
+  return filterByPrefix(
+    jsonFieldCandidates(commandPath).filter((field) => !selected.has(field)),
+    current,
+  ).map((field) => `${prefix}${field}`);
+}
+
 function configuredDefaultChainName(configHome: string): string | null {
   try {
     const configPath = join(configHome, "config.json");
@@ -704,6 +753,11 @@ export function queryCompletionCandidates(
     const valuePrefix = currentToken.slice(equalsIndex + 1);
     const option = findOption(flag, current, tree);
     if (option) {
+      if (isJsonFieldsOption(option)) {
+        return completeJsonFieldsValue(commandPath, valuePrefix).map(
+          (value) => `${flag}=${value}`,
+        );
+      }
       const values = isPoolAccountOption(option)
         ? dynamicPoolAccountCandidates(words)
         : isAssetOption(option)
@@ -735,6 +789,9 @@ export function queryCompletionCandidates(
       if (dynamicValues.length > 0) {
         return filterByPrefix(dynamicValues, currentToken);
       }
+    }
+    if (isJsonFieldsOption(expectingValueFor)) {
+      return completeJsonFieldsValue(commandPath, currentToken);
     }
     if (expectingValueFor.values.length === 0) return [];
     return filterByPrefix(expectingValueFor.values, currentToken);

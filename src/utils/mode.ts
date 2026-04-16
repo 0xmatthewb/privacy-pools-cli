@@ -3,6 +3,7 @@ import { configureJsonOutput } from "./json.js";
 import { setSuppressHeaders, setSuppressProgress } from "./format.js";
 import { getParsedVerboseLevel } from "./verbose-level.js";
 import { setActiveProfile } from "../runtime/config-paths.js";
+import { CLIError } from "./errors.js";
 
 export const OUTPUT_FORMATS = ["table", "csv", "json", "wide"] as const;
 
@@ -88,9 +89,10 @@ export function resolveGlobalMode(
       ? globalOpts.jsonFields
       : argvJsonFields;
   const hasJq = typeof globalOpts?.jq === "string";
+  const hasJmes = typeof globalOpts?.jmes === "string";
   const hasJsonFieldsFlag = typeof rawJsonFields === "string";
   const hasStructuredJsonFlag =
-    (globalOpts?.json ?? false) || isAgent || hasJq || hasJsonFieldsFlag;
+    (globalOpts?.json ?? false) || isAgent || hasJq || hasJmes || hasJsonFieldsFlag;
   const explicitFormat = normalizeOutputFormat(globalOpts?.output ?? globalOpts?.format);
   const isWide = explicitFormat === "wide";
   const format: OutputFormat =
@@ -111,8 +113,21 @@ export function resolveGlobalMode(
       ? rawJsonFields.split(",").map((f) => f.trim()).filter(Boolean)
       : null;
 
-  // Parse --jq <expression>.
-  const jqExpression: string | null = hasJq ? globalOpts!.jq! : null;
+  // Parse --jmes <expression>. --jq remains a compatibility alias for the
+  // same JMESPath filter.
+  if (hasJq && hasJmes && globalOpts!.jq !== globalOpts!.jmes) {
+    throw new CLIError(
+      "Use only one JSON filter expression.",
+      "INPUT",
+      "Prefer --jmes <expression>. --jq is a compatibility alias for the same JMESPath syntax.",
+      "INPUT_MUTUALLY_EXCLUSIVE",
+    );
+  }
+  const jqExpression: string | null = hasJmes
+    ? globalOpts!.jmes!
+    : hasJq
+      ? globalOpts!.jq!
+      : null;
 
   // Persist timeout from global flags for services to pick up.
   if (globalOpts?.timeout !== undefined) {
@@ -173,7 +188,7 @@ const MIN_CONFIRMATION_TIMEOUT_MS = 60_000;
 const DEFAULT_CONFIRMATION_TIMEOUT_MS = 300_000;
 
 /**
- * Returns the timeout for on-chain tx confirmation waits.
+ * Returns the timeout for onchain tx confirmation waits.
  *
  * When `--timeout` is set, uses the larger of the user's value and a
  * safe floor (60 s) so short timeouts intended for health checks don't

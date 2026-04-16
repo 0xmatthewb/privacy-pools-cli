@@ -9,7 +9,7 @@
  * Requires a prior build (`npm run build`).
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -270,6 +270,75 @@ lines.push("");
 
 const output = lines.join("\n");
 
+// ── Generate man page ──
+
+function escapeTroff(value) {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/^([.'"])/gm, "\\&$1")
+    .replace(/-/g, "\\-");
+}
+
+function inlineCodeToBold(value) {
+  return escapeTroff(value).replace(/`([^`]+)`/g, "\\fB$1\\fR");
+}
+
+function commandSynopsis(path, cmd) {
+  const args = (cmd.registeredArguments || [])
+    .map((arg) => (arg.required ? `<${arg.name()}>` : `[${arg.name()}]`))
+    .join(" ");
+  return `privacy-pools ${path}${args ? ` ${args}` : ""} [options]`;
+}
+
+function buildManPage() {
+  const man = [];
+  man.push(".TH PRIVACY-POOLS 1");
+  man.push(".SH NAME");
+  man.push("privacy-pools \\- interact with Privacy Pools v1");
+  man.push(".SH SYNOPSIS");
+  man.push(".B privacy-pools");
+  man.push("[options] [command]");
+  man.push(".SH DESCRIPTION");
+  man.push(inlineCodeToBold("Privacy Pools CLI provides public deposits, private relayed withdrawals, ragequit recovery, account sync, and agent-friendly JSON discovery."));
+  man.push(".SH COMMANDS");
+  for (const path of CAPABILITIES_COMMAND_ORDER) {
+    const metadata = COMMAND_CATALOG[path];
+    const cmd = commandMap.get(path);
+    if (!metadata || !cmd) continue;
+    man.push(".TP");
+    man.push(`.B ${escapeTroff(path)}`);
+    man.push(inlineCodeToBold(metadata.description));
+    man.push(".br");
+    man.push(`Usage: \\fB${escapeTroff(commandSynopsis(path, cmd))}\\fR`);
+  }
+  man.push(".SH GLOBAL OPTIONS");
+  for (const { flag, description } of GLOBAL_FLAG_METADATA) {
+    man.push(".TP");
+    man.push(`.B ${escapeTroff(flag)}`);
+    man.push(inlineCodeToBold(description));
+  }
+  man.push(".SH ENVIRONMENT");
+  man.push(".TP");
+  man.push(".B PRIVACY_POOLS_HOME, PRIVACY_POOLS_CONFIG_DIR");
+  man.push("Override the CLI config directory.");
+  man.push(".TP");
+  man.push(".B XDG_CONFIG_HOME");
+  man.push("Fallback config base used as $XDG_CONFIG_HOME/privacy-pools when no Privacy Pools override is set and no legacy ~/.privacy-pools directory exists.");
+  man.push(".TP");
+  man.push(".B PRIVACY_POOLS_PRIVATE_KEY");
+  man.push("Signer private key. Takes precedence over the saved .signer file.");
+  man.push(".SH FILES");
+  man.push(".TP");
+  man.push(".B ~/.privacy-pools/");
+  man.push("Default configuration directory, unless an override or eligible XDG fallback is used.");
+  man.push(".SH SEE ALSO");
+  man.push("privacy-pools guide, privacy-pools capabilities, privacy-pools describe");
+  man.push("");
+  return man.join("\n");
+}
+
+const manOutput = buildManPage();
+
 // ── Mode dispatch ──
 
 const args = process.argv.slice(2);
@@ -277,7 +346,11 @@ const args = process.argv.slice(2);
 if (args.includes("--write")) {
   const outPath = join(repoRoot, "docs", "reference.md");
   writeFileSync(outPath, output);
+  const manPath = join(repoRoot, "docs", "man", "privacy-pools.1");
+  mkdirSync(dirname(manPath), { recursive: true });
+  writeFileSync(manPath, manOutput);
   console.log(`Wrote ${outPath}`);
+  console.log(`Wrote ${manPath}`);
 } else if (args.includes("--check")) {
   const refPath = join(repoRoot, "docs", "reference.md");
   if (!existsSync(refPath)) {
@@ -287,6 +360,16 @@ if (args.includes("--write")) {
   const current = readFileSync(refPath, "utf8");
   if (current !== output) {
     console.error("docs/reference.md is out of date. Run `npm run docs:generate` to regenerate.");
+    process.exit(1);
+  }
+  const manPath = join(repoRoot, "docs", "man", "privacy-pools.1");
+  if (!existsSync(manPath)) {
+    console.error(`${manPath} not found. Run \`npm run docs:generate\` to regenerate.`);
+    process.exit(1);
+  }
+  const currentMan = readFileSync(manPath, "utf8");
+  if (currentMan !== manOutput) {
+    console.error("docs/man/privacy-pools.1 is out of date. Run `npm run docs:generate` to regenerate.");
     process.exit(1);
   }
   console.log("docs/reference.md is up to date.");

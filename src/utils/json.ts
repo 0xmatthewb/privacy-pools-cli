@@ -36,9 +36,9 @@ export function configureJsonOutput(
         .compile(jqExpression);
     } catch (err) {
       throw new CLIError(
-        `Invalid --jq expression: ${(err as Error).message}`,
+        `Invalid JMESPath expression: ${(err as Error).message}`,
         "INPUT",
-        "Provide a valid JMESPath expression, for example: pools[0].asset or nextActions.",
+        "Provide a valid --jmes expression, for example: pools[0].asset or nextActions.",
         "INPUT_INVALID_JQ",
       );
     }
@@ -115,9 +115,9 @@ export function printJsonSuccess(
       result = jmespath.search(output, _jqExpression);
     } catch (err) {
       throw new CLIError(
-        `Invalid --jq expression: ${(err as Error).message}`,
+        `Invalid JMESPath expression: ${(err as Error).message}`,
         "INPUT",
-        "Provide a valid JMESPath expression (e.g. '.pools[0].symbol', 'nextActions').",
+        "Provide a valid --jmes expression, for example: pools[0].asset or nextActions.",
       );
     }
     process.stdout.write(`${JSON.stringify(result, bigintReplacer, pretty ? 2 : 0)}\n`);
@@ -141,7 +141,7 @@ export function printJsonError(
   const { details, ...errorPayload } = payload;
   const code = payload.code ?? "UNKNOWN_ERROR";
   const errorObject = details
-    ? { ...errorPayload, code, ...details }
+    ? { ...errorPayload, code, details, ...details }
     : { ...errorPayload, code };
   // `error.code` and `error.message` are canonical. `errorCode` and
   // `errorMessage` remain v2 compatibility aliases and must match.

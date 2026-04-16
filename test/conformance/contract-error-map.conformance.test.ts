@@ -1,7 +1,7 @@
 /**
  * Contract error classification conformance.
  *
- * The CLI maps on-chain revert reasons (e.g. NullifierAlreadySpent,
+ * The CLI maps onchain revert reasons (e.g. NullifierAlreadySpent,
  * PrecommitmentAlreadyUsed) to user-friendly error messages.  If the
  * upstream contracts rename or remove a revert reason, the CLI silently
  * falls back to a generic "UNKNOWN_ERROR", hiding actionable information

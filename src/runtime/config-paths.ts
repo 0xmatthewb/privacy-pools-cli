@@ -22,11 +22,20 @@ export function getActiveProfile(): string | undefined {
 export function resolveBaseConfigHome(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
-  return (
-    env.PRIVACY_POOLS_HOME?.trim() ||
-    env.PRIVACY_POOLS_CONFIG_DIR?.trim() ||
-    join(homedir(), ".privacy-pools")
-  );
+  const privacyPoolsHome = env.PRIVACY_POOLS_HOME?.trim();
+  if (privacyPoolsHome) return privacyPoolsHome;
+
+  const privacyPoolsConfigDir = env.PRIVACY_POOLS_CONFIG_DIR?.trim();
+  if (privacyPoolsConfigDir) return privacyPoolsConfigDir;
+
+  const userHome = env.HOME?.trim() || homedir();
+  const legacyHome = join(userHome, ".privacy-pools");
+  if (existsSync(legacyHome)) return legacyHome;
+
+  const xdgConfigHome = env.XDG_CONFIG_HOME?.trim();
+  if (xdgConfigHome) return join(xdgConfigHome, "privacy-pools");
+
+  return legacyHome;
 }
 
 export function resolveConfigHome(

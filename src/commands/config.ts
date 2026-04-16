@@ -1,5 +1,4 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Command } from "commander";
 import {
@@ -37,6 +36,7 @@ import type {
   ConfigSetResult,
 } from "../output/config.js";
 import {
+  resolveBaseConfigHome,
   resolveConfigHome,
   getActiveProfile,
   persistActiveProfile,
@@ -323,12 +323,7 @@ const PROFILE_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
 
 function getProfilesBaseDir(): string {
   // Profiles always live under the base config home (ignoring active profile).
-  const env = process.env;
-  const baseHome =
-    env.PRIVACY_POOLS_HOME?.trim() ||
-    env.PRIVACY_POOLS_CONFIG_DIR?.trim() ||
-    join(homedir(), ".privacy-pools");
-  return join(baseHome, "profiles");
+  return join(resolveBaseConfigHome(), "profiles");
 }
 
 function listProfileNames(): string[] {

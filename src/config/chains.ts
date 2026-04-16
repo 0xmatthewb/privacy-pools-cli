@@ -196,11 +196,11 @@ export function isNativePoolAsset(
 }
 
 /**
- * Hardcoded symbol → asset-address map for on-chain-verified fallback.
+ * Hardcoded symbol → asset-address map for onchain-verified fallback.
  * Sourced from the Privacy Pools website `chainData.ts`.
  * When public pool discovery is unavailable or incomplete, `resolvePool()`
  * uses this to convert a symbol into an asset address, then verifies the
- * pool on-chain via the entrypoint contract.
+ * pool onchain via the entrypoint contract.
  *
  * Update this map when new pools are added to the protocol.
  */

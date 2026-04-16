@@ -1,0 +1,235 @@
+.TH PRIVACY-POOLS 1
+.SH NAME
+privacy-pools \- interact with Privacy Pools v1
+.SH SYNOPSIS
+.B privacy-pools
+[options] [command]
+.SH DESCRIPTION
+Privacy Pools CLI provides public deposits, private relayed withdrawals, ragequit recovery, account sync, and agent\-friendly JSON discovery.
+.SH COMMANDS
+.TP
+.B init
+Create, load, or finish setting up your Privacy Pools account
+.br
+Usage: \fBprivacy\-pools init [options]\fR
+.TP
+.B upgrade
+Check for CLI updates
+.br
+Usage: \fBprivacy\-pools upgrade [options]\fR
+.TP
+.B config
+View and manage CLI configuration
+.br
+Usage: \fBprivacy\-pools config [options]\fR
+.TP
+.B config list
+List all configuration keys and their current values
+.br
+Usage: \fBprivacy\-pools config list [options]\fR
+.TP
+.B config get
+Read a single configuration key
+.br
+Usage: \fBprivacy\-pools config get <key> [options]\fR
+.TP
+.B config set
+Write a single configuration key
+.br
+Usage: \fBprivacy\-pools config set <key> [value] [options]\fR
+.TP
+.B config path
+Print the configuration directory path
+.br
+Usage: \fBprivacy\-pools config path [options]\fR
+.TP
+.B flow
+Deposit and privately withdraw in one guided workflow
+.br
+Usage: \fBprivacy\-pools flow [options]\fR
+.TP
+.B flow start
+Deposit now and save a later private withdrawal workflow
+.br
+Usage: \fBprivacy\-pools flow start <amount> <asset> [options]\fR
+.TP
+.B flow watch
+Resume a saved flow through funding, approval, privacy delay, and withdrawal
+.br
+Usage: \fBprivacy\-pools flow watch [workflowId|latest] [options]\fR
+.TP
+.B flow status
+Show the saved easy\-path workflow state
+.br
+Usage: \fBprivacy\-pools flow status [workflowId|latest] [options]\fR
+.TP
+.B flow ragequit
+Recover a saved workflow publicly via ragequit
+.br
+Usage: \fBprivacy\-pools flow ragequit [workflowId|latest] [options]\fR
+.TP
+.B pools
+Browse available pools
+.br
+Usage: \fBprivacy\-pools pools [asset] [options]\fR
+.TP
+.B activity
+View recent deposits and withdrawals across pools
+.br
+Usage: \fBprivacy\-pools activity [asset] [options]\fR
+.TP
+.B stats
+View pool and network statistics
+.br
+Usage: \fBprivacy\-pools stats [options]\fR
+.TP
+.B stats global
+Show global Privacy Pools statistics (all\-time and last 24h)
+.br
+Usage: \fBprivacy\-pools stats global [options]\fR
+.TP
+.B stats pool
+Show statistics for a specific pool (all\-time and last 24h)
+.br
+Usage: \fBprivacy\-pools stats pool [asset] [options]\fR
+.TP
+.B describe
+Describe a command's flags, args, and output schema
+.br
+Usage: \fBprivacy\-pools describe [command] [options]\fR
+.TP
+.B deposit
+Deposit ETH or ERC\-20 tokens into a pool
+.br
+Usage: \fBprivacy\-pools deposit <amount> [asset] [options]\fR
+.TP
+.B withdraw
+Withdraw privately from a pool
+.br
+Usage: \fBprivacy\-pools withdraw [amount] [asset] [options]\fR
+.TP
+.B withdraw quote
+Request relayer quote and limits without generating a proof
+.br
+Usage: \fBprivacy\-pools withdraw quote <amountOrAsset> [amount] [options]\fR
+.TP
+.B accounts
+View balances, approval status, and pool accounts
+.br
+Usage: \fBprivacy\-pools accounts [options]\fR
+.TP
+.B migrate
+Check migration status for legacy pool accounts
+.br
+Usage: \fBprivacy\-pools migrate [options]\fR
+.TP
+.B migrate status
+Check migration status for legacy pool accounts
+.br
+Usage: \fBprivacy\-pools migrate status [options]\fR
+.TP
+.B history
+View your deposit and withdrawal history
+.br
+Usage: \fBprivacy\-pools history [options]\fR
+.TP
+.B sync
+Sync account state with the latest onchain data
+.br
+Usage: \fBprivacy\-pools sync [asset] [options]\fR
+.TP
+.B status
+Check account setup and network status
+.br
+Usage: \fBprivacy\-pools status [options]\fR
+.TP
+.B ragequit
+Recover funds publicly to your deposit address
+.br
+Usage: \fBprivacy\-pools ragequit [asset] [options]\fR
+.TP
+.B guide
+Learn key concepts, workflows, and troubleshooting
+.br
+Usage: \fBprivacy\-pools guide [topic] [options]\fR
+.TP
+.B completion
+Generate or install shell tab completion
+.br
+Usage: \fBprivacy\-pools completion [shell] [options]\fR
+.TP
+.B capabilities
+Describe CLI capabilities for agents
+.br
+Usage: \fBprivacy\-pools capabilities [options]\fR
+.SH GLOBAL OPTIONS
+.TP
+.B \-c, \-\-chain <name>
+Target chain (mainnet, arbitrum, optimism, ...)
+.TP
+.B \-j, \-\-json
+Machine\-readable JSON output on stdout
+.TP
+.B \-\-json\-fields <fields>
+Select specific JSON fields (comma\-separated, implies \-\-json)
+.TP
+.B \-o, \-\-output <format>
+Output format: table (default), csv, json, wide
+.TP
+.B \-\-format <format>
+Output format: table (default), csv, json, wide
+.TP
+.B \-y, \-\-yes
+Skip confirmation prompts
+.TP
+.B \-r, \-\-rpc\-url <url>
+Override RPC URL
+.TP
+.B \-\-agent
+Machine\-friendly mode (alias for \-\-json \-\-yes \-\-quiet)
+.TP
+.B \-q, \-\-quiet
+Suppress human\-oriented stderr output
+.TP
+.B \-\-no\-banner
+Disable ASCII banner output
+.TP
+.B \-v, \-\-verbose
+Enable verbose/debug output (\-v info, \-vv debug, \-vvv trace)
+.TP
+.B \-\-no\-progress
+Suppress spinners/progress indicators (useful in CI)
+.TP
+.B \-\-no\-header
+Suppress header rows in CSV and wide/tabular table output
+.TP
+.B \-\-timeout <seconds>
+Network/transaction timeout in seconds (default: 30)
+.TP
+.B \-\-jmes <expression>
+Filter JSON output with a JMESPath expression (implies \-\-json)
+.TP
+.B \-\-jq <expression>
+Compatibility alias for \-\-jmes (JMESPath, not jq syntax)
+.TP
+.B \-\-no\-color
+Disable colored output (also respects NO_COLOR env var)
+.TP
+.B \-\-profile <name>
+Use a named profile (separate wallet identity and config)
+.SH ENVIRONMENT
+.TP
+.B PRIVACY_POOLS_HOME, PRIVACY_POOLS_CONFIG_DIR
+Override the CLI config directory.
+.TP
+.B XDG_CONFIG_HOME
+Fallback config base used as $XDG_CONFIG_HOME/privacy-pools when no Privacy Pools override is set and no legacy ~/.privacy-pools directory exists.
+.TP
+.B PRIVACY_POOLS_PRIVATE_KEY
+Signer private key. Takes precedence over the saved .signer file.
+.SH FILES
+.TP
+.B ~/.privacy-pools/
+Default configuration directory, unless an override or eligible XDG fallback is used.
+.SH SEE ALSO
+privacy-pools guide, privacy-pools capabilities, privacy-pools describe

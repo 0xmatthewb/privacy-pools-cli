@@ -151,6 +151,23 @@ export interface FlowRenderData {
   extraWarnings?: FlowJsonWarning[];
 }
 
+export function renderFlowPhaseChangeEvent(event: {
+  workflowId: string;
+  previousPhase: FlowPhase;
+  phase: FlowPhase;
+  ts: string;
+}): void {
+  printJsonSuccess({
+    mode: "flow",
+    action: "watch",
+    event: "phase_change",
+    workflowId: event.workflowId,
+    previousPhase: event.previousPhase,
+    phase: event.phase,
+    ts: event.ts,
+  }, false);
+}
+
 export interface FlowStartDryRunData {
   chain: string;
   asset: string;

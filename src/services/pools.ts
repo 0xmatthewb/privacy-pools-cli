@@ -28,7 +28,7 @@ const poolAbi = parseAbi([
   "function SCOPE() view returns (uint256)",
 ]);
 
-// Cache token metadata to avoid repeated on-chain calls
+// Cache token metadata to avoid repeated onchain calls
 const tokenCache = new Map<string, { symbol: string; decimals: number }>();
 const resolvedPoolCache = new Map<string, Promise<PoolStats>>();
 const disabledReadOnlyMulticallCache = new Set<string>();
@@ -439,7 +439,7 @@ async function resolveReadOnlyPoolMetadataViaMulticall(
 }
 
 /**
- * Read-only on-chain asset config lookup (no private key needed)
+ * Read-only onchain asset config lookup (no private key needed)
  */
 async function getAssetConfigReadOnly(
   publicClient: PublicClient,
@@ -489,7 +489,7 @@ async function getAssetConfigReadOnly(
 }
 
 /**
- * Read-only on-chain scope lookup - calls SCOPE() on the pool contract itself
+ * Read-only onchain scope lookup - calls SCOPE() on the pool contract itself
  */
 async function getScopeReadOnly(
   publicClient: PublicClient,
@@ -893,7 +893,7 @@ export async function resolvePool(
   const publicClient = rpcSession.publicClient;
   const hasCustomRpc = hasCustomRpcOverride(chainConfig.id, rpcOverride);
 
-  // If it looks like an address, validate on-chain directly
+  // If it looks like an address, validate onchain directly
   if (/^0x[0-9a-fA-F]{40}$/.test(assetInput)) {
     const assetAddress = assetInput as Address;
     try {
@@ -1003,7 +1003,7 @@ export async function resolvePool(
   }
 
   // Fallback: resolve symbol via hardcoded known-pool registry and
-  // verify on-chain. This keeps asset-specific commands working when
+  // verify onchain. This keeps asset-specific commands working when
   // public pool discovery is incomplete or temporarily unavailable.
   if (!aspLookupFailed) {
     emitRuntimeDiagnostic("pool-resolution", {

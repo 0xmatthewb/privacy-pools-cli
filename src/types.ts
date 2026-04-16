@@ -38,6 +38,7 @@ export interface GlobalOptions {
   timeout?: string;
   format?: string;
   jq?: string;
+  jmes?: string;
   profile?: string;
 }
 
@@ -49,42 +50,57 @@ export type NextActionOptionValue = string | number | boolean | null;
  * Each value names a specific CLI state transition.  Agents can use this to
  * decide programmatically whether a suggested action is relevant.
  */
-export type NextActionWhen =
-  | "after_init"
-  | "after_restore"
-  | "after_deposit"
-  | "after_dry_run"
-  | "after_quote"
-  | "after_withdraw"
-  | "after_ragequit"
-  | "has_pending"
-  | "status_not_ready"
-  | "status_unsigned_no_accounts"
-  | "status_unsigned_has_accounts"
-  | "status_ready_no_accounts"
-  | "status_ready_has_accounts"
-  | "status_degraded_health"
-  | "status_restore_discovery"
-  | "after_sync"
-  | "after_pools"
-  | "after_upgrade"
-  | "after_activity"
-  | "flow_manual_followup"
-  | "flow_public_recovery_pending"
-  | "flow_public_recovery_required"
-  | "flow_resume"
-  | "flow_public_recovery_optional"
-  | "flow_declined";
+export const NEXT_ACTION_WHEN_VALUES = [
+  "after_init",
+  "after_restore",
+  "after_deposit",
+  "after_dry_run",
+  "after_quote",
+  "after_withdraw",
+  "after_ragequit",
+  "has_pending",
+  "status_not_ready",
+  "status_unsigned_no_accounts",
+  "status_unsigned_has_accounts",
+  "status_ready_no_accounts",
+  "status_ready_has_accounts",
+  "status_degraded_health",
+  "status_restore_discovery",
+  "after_sync",
+  "after_pools",
+  "after_pool_detail",
+  "after_upgrade",
+  "after_activity",
+  "after_stats",
+  "after_pool_stats",
+  "after_history",
+  "after_config_list",
+  "after_config_set",
+  "no_pools_found",
+  "accounts_pending_empty",
+  "accounts_summary_empty",
+  "accounts_empty",
+  "accounts_other_chain_activity",
+  "accounts_restore_check",
+  "flow_manual_followup",
+  "flow_public_recovery_pending",
+  "flow_public_recovery_required",
+  "flow_resume",
+  "flow_public_recovery_optional",
+  "flow_declined",
+] as const;
+
+export type NextActionWhen = (typeof NEXT_ACTION_WHEN_VALUES)[number];
 
 export interface NextAction {
   command: string;
   /**
    * Fully rendered CLI invocation using kebab-case flags.
    * Includes `--agent` when the structured options request agent mode.
-   */
+  */
   cliCommand?: string;
   reason: string;
-  when: NextActionWhen | (string & {});
+  when: NextActionWhen;
   args?: string[];
   options?: Record<string, NextActionOptionValue>;
   /**
@@ -177,7 +193,7 @@ export interface DetailedCommandDescriptor {
   supportsUnsigned: boolean;
   supportsDryRun: boolean;
   agentWorkflowNotes: string[];
-  expectedNextActionWhen?: string[];
+  expectedNextActionWhen?: NextActionWhen[];
   /** Flags that agents must supply for unattended execution (no interactive fallback). */
   agentRequiredFlags?: string[];
 }

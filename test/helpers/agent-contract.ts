@@ -173,9 +173,13 @@ export function assertUnknownCommandAgentContract(result: CliRunResult): void {
     success: boolean;
     errorCode: string;
     errorMessage: string;
-    error: { category: string };
-  }>(result, { status: 2, success: false, errorCode: "INPUT_PARSE_ERROR" });
+    suggestions: string[];
+    error: { category: string; suggestions: string[]; details: { suggestions: string[] } };
+  }>(result, { status: 2, success: false, errorCode: "INPUT_UNKNOWN_COMMAND" });
 
   expect(json.error.category).toBe("INPUT");
+  expect(Array.isArray(json.suggestions)).toBe(true);
+  expect(json.error.suggestions).toEqual(json.suggestions);
+  expect(json.error.details.suggestions).toEqual(json.suggestions);
   expect(json.errorMessage.toLowerCase()).toContain("unknown command");
 }

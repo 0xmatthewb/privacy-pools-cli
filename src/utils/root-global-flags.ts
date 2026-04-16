@@ -91,8 +91,14 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
     welcomeBoolean: false,
   },
   {
-    flag: "--jq <expression>",
+    flag: "--jmes <expression>",
     description: "Filter JSON output with a JMESPath expression (implies --json)",
+    takesValue: true,
+    welcomeBoolean: false,
+  },
+  {
+    flag: "--jq <expression>",
+    description: "Compatibility alias for --jmes (JMESPath, not jq syntax)",
     takesValue: true,
     welcomeBoolean: false,
   },

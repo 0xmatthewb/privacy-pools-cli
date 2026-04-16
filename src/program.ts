@@ -220,6 +220,12 @@ export async function createRootProgram(
   );
   program.addOption(
     new Option(
+      "--jmes <expression>",
+      rootGlobalFlagDescription("--jmes <expression>"),
+    ),
+  );
+  program.addOption(
+    new Option(
       "--jq <expression>",
       rootGlobalFlagDescription("--jq <expression>"),
     ),

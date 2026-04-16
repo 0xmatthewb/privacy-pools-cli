@@ -838,6 +838,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -950,6 +951,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1045,6 +1047,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1114,6 +1117,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1175,6 +1179,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1247,6 +1252,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1319,6 +1325,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1378,6 +1385,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1442,6 +1450,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1501,6 +1510,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1560,6 +1570,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1619,6 +1630,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1683,6 +1695,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1791,6 +1804,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1853,7 +1867,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, estimatedCommittedValue, vettingFee, warnings?, nextActions? }"
       ],
       "safetyNotes": [
-        "Deposits are always public on-chain. The ASP reviews the deposit before private withdrawal is possible.",
+        "Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.",
         "If --to is omitted in interactive mode, the CLI prompts for the recipient. In machine modes, --to remains required.",
         "In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.",
         "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
@@ -1865,7 +1879,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "The generated workflow key is also stored locally under workflow-secrets until the workflow completes or recovers publicly, so --export-new-wallet is a backup copy rather than the only retained secret.",
         "Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.",
         "The saved flow spends the entire remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",
-        "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode."
+        "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": true,
@@ -1916,6 +1931,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -1972,7 +1988,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.",
         "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.",
         "Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
-        "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time."
+        "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -2019,6 +2036,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2095,6 +2113,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2135,7 +2154,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
-        "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow."
+        "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -2180,6 +2200,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2283,6 +2304,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2366,6 +2388,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2432,6 +2455,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2496,6 +2520,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2560,6 +2585,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2640,6 +2666,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2702,6 +2729,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2767,6 +2795,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2841,6 +2870,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -2913,7 +2943,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
         "A vetting fee is deducted from the deposit amount by the pool's ASP.",
-        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately."
+        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -2960,6 +2991,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -3047,7 +3079,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
-        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds."
+        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -3089,6 +3122,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -3160,6 +3194,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -3212,7 +3247,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }"
       ],
       "safetyNotes": [
-        "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy."
+        "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -3258,6 +3294,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -3366,6 +3403,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -3434,6 +3472,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -3509,6 +3548,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -3590,6 +3630,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -3663,6 +3704,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-progress",
         "--no-header",
         "--timeout <seconds>",
+        "--jmes <expression>",
         "--jq <expression>",
         "--no-color",
         "--profile <name>"
@@ -4013,8 +4055,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Network/transaction timeout in seconds (default: 30)"
     },
     {
-      "flag": "--jq <expression>",
+      "flag": "--jmes <expression>",
       "description": "Filter JSON output with a JMESPath expression (implies --json)"
+    },
+    {
+      "flag": "--jq <expression>",
+      "description": "Compatibility alias for --jmes (JMESPath, not jq syntax)"
     },
     {
       "flag": "--no-color",
@@ -4082,6 +4128,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "PRIVACY_POOLS_CONFIG_DIR"
       ],
       "description": "Override the CLI config directory."
+    },
+    {
+      "name": "XDG_CONFIG_HOME",
+      "description": "Fallback config base. Used as $XDG_CONFIG_HOME/privacy-pools when no Privacy Pools override is set and no legacy ~/.privacy-pools directory exists."
     },
     {
       "name": "PRIVACY_POOLS_PRIVATE_KEY",
@@ -4224,6 +4274,45 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "nextActions": {
       "shape": "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null>, runnable?: boolean }",
+      "whenValues": [
+        "after_init",
+        "after_restore",
+        "after_deposit",
+        "after_dry_run",
+        "after_quote",
+        "after_withdraw",
+        "after_ragequit",
+        "has_pending",
+        "status_not_ready",
+        "status_unsigned_no_accounts",
+        "status_unsigned_has_accounts",
+        "status_ready_no_accounts",
+        "status_ready_has_accounts",
+        "status_degraded_health",
+        "status_restore_discovery",
+        "after_sync",
+        "after_pools",
+        "after_pool_detail",
+        "after_upgrade",
+        "after_activity",
+        "after_stats",
+        "after_pool_stats",
+        "after_history",
+        "after_config_list",
+        "after_config_set",
+        "no_pools_found",
+        "accounts_pending_empty",
+        "accounts_summary_empty",
+        "accounts_empty",
+        "accounts_other_chain_activity",
+        "accounts_restore_check",
+        "flow_manual_followup",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_required",
+        "flow_resume",
+        "flow_public_recovery_optional",
+        "flow_declined"
+      ],
       "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. JSON nextActions are emitted in --agent mode even though --agent implies --quiet; quiet only suppresses human-oriented stderr sections. Ordering is deterministic and priority-ordered: primary private/resume paths first, required public recovery before optional public recovery, optional public recovery after private paths, and deposit templates last. When runnable is omitted or true, the command is fully specified and can be executed as shown. When runnable is false, the action is a template and requires additional user input before execution."
     },
     "sideEffectClass": {

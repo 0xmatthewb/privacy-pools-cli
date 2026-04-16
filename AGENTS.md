@@ -111,8 +111,20 @@ Each `nextActions` entry carries a `when` field from the `NextActionWhen` discri
 | `status_restore_discovery` | Status suggests restore/discovery for imported phrases |
 | `after_sync` | After a forced or auto sync of local account state |
 | `after_pools` | After listing available pools |
+| `after_pool_detail` | After viewing detail for a specific pool |
 | `after_upgrade` | After checking for or performing a CLI upgrade |
 | `after_activity` | After viewing the public activity feed |
+| `after_stats` | After viewing global or aggregate stats |
+| `after_pool_stats` | After viewing stats for a specific pool |
+| `after_history` | After viewing private account history |
+| `after_config_list` | After listing local configuration |
+| `after_config_set` | After updating local configuration |
+| `no_pools_found` | Pool discovery found no pools and suggests diagnostics |
+| `accounts_pending_empty` | Pending-only account polling found no pending entries |
+| `accounts_summary_empty` | Compact account summary found no matching accounts |
+| `accounts_empty` | Account listing found no matching accounts |
+| `accounts_other_chain_activity` | Account listing found activity on other chains |
+| `accounts_restore_check` | Account listing suggests restore or discovery follow-up |
 | `flow_manual_followup` | Flow requires a manual agent action to continue |
 | `flow_public_recovery_pending` | Flow public recovery (ragequit) is in progress |
 | `flow_public_recovery_required` | Flow must use public recovery (e.g., below relayer minimum) |
@@ -409,7 +421,8 @@ When a human delegates CLI operations to an agent:
 | `-j, --json` | Machine-readable JSON output on stdout |
 | `-o, --output <fmt>` | Output format: `table` (default), `csv`, `json` |
 | `--format <fmt>` | Alias for `--output <fmt>` |
-| `--jq <expression>` | Filter JSON output with a JMESPath expression (implies `--json`) |
+| `--jmes <expression>` | Filter JSON output with a JMESPath expression (implies `--json`) |
+| `--jq <expression>` | Compatibility alias for `--jmes`; this uses JMESPath, not jq syntax |
 | `-y, --yes` | Skip confirmation prompts |
 | `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-r, --rpc-url <url>` | Override RPC URL |
@@ -549,7 +562,7 @@ JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[],
 
 - `read_only` -- Command only reads data, no side effects (e.g., `pools`, `accounts`, `status`)
 - `local_state_write` -- Command writes to the local filesystem (e.g., `init`, `sync`)
-- `network_write` -- Command submits on-chain transactions that do not directly move user funds
+- `network_write` -- Command submits onchain transactions that do not directly move user funds
 - `fund_movement` -- Command may move funds via deposits, withdrawals, or public recoveries (e.g., `deposit`, `withdraw`, `ragequit`)
 
 `exitCodes[]` enumerates the CLI's success/error exit contract and `envVars[]` enumerates the supported environment variables and aliases that affect runtime behavior. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package. For a stable package path, use `docs/contracts/cli-json-contract.current.json`; `documentation.jsonContract` may still expose the exact versioned snapshot path for the active schema.

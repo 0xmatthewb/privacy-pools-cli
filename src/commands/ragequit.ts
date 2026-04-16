@@ -525,7 +525,7 @@ export async function handleRagequitCommand(
     try {
       const mnemonic = loadMnemonic();
 
-      // Private key is only needed for on-chain submission, not --unsigned or --dry-run
+      // Private key is only needed for onchain submission, not --unsigned or --dry-run
       let signerAddress: Address | null = null;
       if (!isUnsigned && !isDryRun) {
         const privateKey = loadPrivateKey();
@@ -1029,7 +1029,7 @@ export async function handleRagequitCommand(
             );
           }
         } catch (err) {
-          // Non-fatal: next sync will discover the ragequit event on-chain
+          // Non-fatal: next sync will discover the ragequit event onchain
           warn(
               `Failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will pick it up.`,
               silent,

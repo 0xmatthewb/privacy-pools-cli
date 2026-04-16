@@ -139,4 +139,18 @@ describe("resolveGlobalMode", () => {
     expect(result.format).toBe("json");
     expect(result.jsonFields).toEqual(["structuredExamples"]);
   });
+
+  test("--jmes implies JSON and becomes the canonical filter expression", () => {
+    const result = resolveGlobalMode({ jmes: "nextActions" });
+    expect(result.isJson).toBe(true);
+    expect(result.format).toBe("json");
+    expect(result.jqExpression).toBe("nextActions");
+  });
+
+  test("--jq remains a compatibility alias for the JMESPath expression", () => {
+    const result = resolveGlobalMode({ jq: "nextActions" });
+    expect(result.isJson).toBe(true);
+    expect(result.format).toBe("json");
+    expect(result.jqExpression).toBe("nextActions");
+  });
 });

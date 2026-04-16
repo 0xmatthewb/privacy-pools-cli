@@ -87,6 +87,10 @@ const createOutputContextMock = mock(() => ctx);
 const renderFlowResultMock = mock(() => undefined);
 const renderFlowStartDryRunMock = mock(() => undefined);
 const formatFlowRagequitReviewMock = mock(() => "review");
+const renderFlowPhaseChangeEventMock = mock(
+  (event: Parameters<typeof realFlowOutput.renderFlowPhaseChangeEvent>[0]) =>
+    realFlowOutput.renderFlowPhaseChangeEvent(event),
+);
 const startWorkflowMock = mock(async () => startSnapshot);
 const watchWorkflowMock = mock(async () => watchSnapshot);
 const getWorkflowStatusMock = mock(() => statusSnapshot);
@@ -141,6 +145,7 @@ async function loadFlowHandlers(): Promise<void> {
     })],
     ["../../src/output/flow.ts", () => ({
       formatFlowRagequitReview: formatFlowRagequitReviewMock,
+      renderFlowPhaseChangeEvent: renderFlowPhaseChangeEventMock,
       renderFlowResult: renderFlowResultMock,
       renderFlowStartDryRun: renderFlowStartDryRunMock,
     })],
@@ -226,6 +231,23 @@ function fakeCommand(
   } as unknown as Command;
 }
 
+async function captureStdoutAsync(run: () => Promise<void>): Promise<string> {
+  let output = "";
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((chunk: unknown) => {
+    output += String(chunk);
+    return true;
+  }) as typeof process.stdout.write;
+
+  try {
+    await run();
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+
+  return output;
+}
+
 function clearMockCalls(fn: {
   mock?: {
     calls?: unknown[];
@@ -253,6 +275,7 @@ describe("flow command handlers", () => {
     clearMockCalls(renderFlowResultMock);
     clearMockCalls(renderFlowStartDryRunMock);
     clearMockCalls(formatFlowRagequitReviewMock);
+    clearMockCalls(renderFlowPhaseChangeEventMock);
     clearMockCalls(startWorkflowMock);
     clearMockCalls(watchWorkflowMock);
     clearMockCalls(getWorkflowStatusMock);
@@ -308,7 +331,7 @@ describe("flow command handlers", () => {
     await loadFlowHandlers();
   });
 
-  test("root command outputs help immediately in structured mode", async () => {
+  test("root command emits a structured input error in structured mode", async () => {
     const outputHelpMock = mock(() => undefined);
 
     await handleFlowRootCommand(
@@ -316,7 +339,17 @@ describe("flow command handlers", () => {
       fakeCommand({ json: true }, { outputHelp: outputHelpMock }),
     );
 
-    expect(outputHelpMock).toHaveBeenCalledTimes(1);
+    expect(outputHelpMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).code).toBe(
+      "INPUT_MISSING_FLOW_SUBCOMMAND",
+    );
+    expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
+      "Use a flow subcommand in non-interactive mode: start, watch, status, or ragequit.",
+    );
+    expect(isJson).toBe(true);
     expect(selectPromptMock).not.toHaveBeenCalled();
     expect(listSavedWorkflowIdsMock).not.toHaveBeenCalled();
   });
@@ -767,6 +800,46 @@ describe("flow command handlers", () => {
         globalOpts: expect.objectContaining({ chain: "sepolia" }),
       }),
     );
+    expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
+      action: "watch",
+      snapshot: watchSnapshot,
+    });
+  });
+
+  test("watch emits JSONL phase events before the final renderer in JSON mode", async () => {
+    watchWorkflowMock.mockImplementationOnce(async (params: {
+      onPhaseChange?: (event: {
+        workflowId: string;
+        previousPhase: string;
+        phase: string;
+        ts: string;
+      }) => void | Promise<void>;
+    }) => {
+      await params.onPhaseChange?.({
+        workflowId: "wf-watch",
+        previousPhase: "awaiting_asp",
+        phase: "completed",
+        ts: "2026-04-15T12:00:00.000Z",
+      });
+      return watchSnapshot;
+    });
+
+    const stdout = await captureStdoutAsync(() =>
+      handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true })),
+    );
+
+    const lines = stdout.trim().split("\n");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0]!)).toMatchObject({
+      success: true,
+      mode: "flow",
+      action: "watch",
+      event: "phase_change",
+      workflowId: "wf-watch",
+      previousPhase: "awaiting_asp",
+      phase: "completed",
+      ts: "2026-04-15T12:00:00.000Z",
+    });
     expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
       action: "watch",
       snapshot: watchSnapshot,
