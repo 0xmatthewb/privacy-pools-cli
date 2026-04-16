@@ -53,6 +53,9 @@ const realPromptUtils = captureModuleExports(
 const realSetupRecovery = captureModuleExports(
   await import("../../src/utils/setup-recovery.ts"),
 );
+const realRecipientSafety = captureModuleExports(
+  await import("../../src/utils/recipient-safety.ts"),
+);
 
 const FLOW_MODULE_RESTORES = [
   ["../../src/output/common.ts", realOutputCommon],
@@ -71,6 +74,7 @@ const FLOW_MODULE_RESTORES = [
   ["../../src/utils/prompt-cancellation.ts", realPromptCancellation],
   ["../../src/utils/prompts.ts", realPromptUtils],
   ["../../src/utils/setup-recovery.ts", realSetupRecovery],
+  ["../../src/utils/recipient-safety.ts", realRecipientSafety],
 ] as const;
 
 const ctx = { mode: "test" };
@@ -116,6 +120,9 @@ const getSignerAddressMock = mock(() => "0x9999999999999999999999999999999999999
 const infoMock = mock(() => undefined);
 const inputPromptMock = mock(async () => "0x4444444444444444444444444444444444444444");
 const selectPromptMock = mock(async () => "watch");
+const resolveSafeRecipientAddressOrEnsMock = mock(
+  realRecipientSafety.resolveSafeRecipientAddressOrEns,
+);
 const resolveGlobalModeMock = mock((globalOpts: Record<string, unknown> = {}) => ({
   isAgent: Boolean(globalOpts.agent),
   isJson: Boolean(globalOpts.json || globalOpts.agent),
@@ -209,6 +216,10 @@ async function loadFlowHandlers(): Promise<void> {
       ...realSetupRecovery,
       maybeRecoverMissingWalletSetup: maybeRecoverMissingWalletSetupMock,
     })],
+    ["../../src/utils/recipient-safety.ts", () => ({
+      ...realRecipientSafety,
+      resolveSafeRecipientAddressOrEns: resolveSafeRecipientAddressOrEnsMock,
+    })],
   ]);
 
   const flowModule = await import("../../src/commands/flow.ts");
@@ -290,6 +301,7 @@ describe("flow command handlers", () => {
     clearMockCalls(infoMock);
     clearMockCalls(inputPromptMock);
     clearMockCalls(selectPromptMock);
+    clearMockCalls(resolveSafeRecipientAddressOrEnsMock);
     clearMockCalls(resolveGlobalModeMock);
     clearMockCalls(printErrorMock);
     clearMockCalls(maybeRenderPreviewScenarioMock);
@@ -323,6 +335,9 @@ describe("flow command handlers", () => {
     getSignerAddressMock.mockImplementation(() => "0x9999999999999999999999999999999999999999");
     inputPromptMock.mockImplementation(async () => "0x4444444444444444444444444444444444444444");
     selectPromptMock.mockImplementation(async () => "watch");
+    resolveSafeRecipientAddressOrEnsMock.mockImplementation(
+      realRecipientSafety.resolveSafeRecipientAddressOrEns,
+    );
     maybeRenderPreviewScenarioMock.mockImplementation(async () => false);
     maybeRecoverMissingWalletSetupMock.mockImplementation(async () => false);
     confirmActionWithSeverityMock.mockImplementation(async () => true);
@@ -596,6 +611,32 @@ describe("flow command handlers", () => {
     expect(printErrorMock).not.toHaveBeenCalled();
   });
 
+  test("start resolves ENS recipients entered interactively", async () => {
+    const resolvedRecipient = "0x5555555555555555555555555555555555555555";
+    inputPromptMock.mockImplementationOnce(
+      async (options?: { validate?: (value: string) => true | string }) => {
+        expect(options?.validate?.("alice.eth")).toBe(true);
+        return "alice.eth";
+      },
+    );
+    resolveSafeRecipientAddressOrEnsMock.mockImplementationOnce(async () => ({
+      address: resolvedRecipient,
+      ensName: "alice.eth",
+    }));
+
+    await handleFlowStartCommand("0.1", "ETH", {}, fakeCommand({}));
+
+    expect(infoMock).toHaveBeenCalledWith(
+      `Resolved alice.eth -> ${resolvedRecipient}`,
+      false,
+    );
+    expect(startWorkflowMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipient: resolvedRecipient,
+      }),
+    );
+  });
+
   test("start can return after prompting when preview output is rendered post-prompts", async () => {
     maybeRenderPreviewScenarioMock.mockImplementation(async (_commandKey, options) =>
       options?.timing === "after-prompts",
@@ -806,7 +847,26 @@ describe("flow command handlers", () => {
     });
   });
 
-  test("watch emits JSONL phase events before the final renderer in JSON mode", async () => {
+  test("watch emits JSONL phase events before the final success envelope in JSON mode", async () => {
+    const jsonWatchSnapshot = {
+      schemaVersion: "1.0.0",
+      workflowId: "wf-watch",
+      createdAt: "2026-04-15T11:00:00.000Z",
+      updatedAt: "2026-04-15T12:00:00.000Z",
+      phase: "completed",
+      chain: "sepolia",
+      asset: "ETH",
+      depositAmount: "100000000000000000",
+      recipient: "0x4444444444444444444444444444444444444444",
+      privacyDelayConfigured: false,
+      poolAccountId: "PA-1",
+      poolAccountNumber: 1,
+      committedValue: "99500000000000000",
+      withdrawTxHash:
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      withdrawBlockNumber: "12345",
+      withdrawExplorerUrl: "https://example.test/withdraw",
+    } as const;
     watchWorkflowMock.mockImplementationOnce(async (params: {
       onPhaseChange?: (event: {
         workflowId: string;
@@ -821,15 +881,36 @@ describe("flow command handlers", () => {
         phase: "completed",
         ts: "2026-04-15T12:00:00.000Z",
       });
-      return watchSnapshot;
+      return jsonWatchSnapshot;
     });
+    renderFlowResultMock.mockImplementationOnce((_ctx, data) =>
+      realFlowOutput.renderFlowResult(
+        {
+          mode: {
+            isAgent: false,
+            isJson: true,
+            isCsv: false,
+            isWide: false,
+            isQuiet: true,
+            format: "json",
+            skipPrompts: true,
+            verboseLevel: 0,
+            jsonFields: null,
+            jqExpression: null,
+          },
+          isVerbose: false,
+          verboseLevel: 0,
+        },
+        data,
+      )
+    );
 
     const stdout = await captureStdoutAsync(() =>
       handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true })),
     );
 
     const lines = stdout.trim().split("\n");
-    expect(lines).toHaveLength(1);
+    expect(lines).toHaveLength(2);
     expect(JSON.parse(lines[0]!)).toMatchObject({
       success: true,
       mode: "flow",
@@ -840,9 +921,17 @@ describe("flow command handlers", () => {
       phase: "completed",
       ts: "2026-04-15T12:00:00.000Z",
     });
+    expect(JSON.parse(lines[1]!)).toMatchObject({
+      success: true,
+      mode: "flow",
+      action: "watch",
+      workflowId: "wf-watch",
+      phase: "completed",
+    });
+    expect(JSON.parse(lines[1]!).event).toBeUndefined();
     expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
       action: "watch",
-      snapshot: watchSnapshot,
+      snapshot: jsonWatchSnapshot,
     });
   });
 

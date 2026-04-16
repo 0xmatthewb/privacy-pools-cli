@@ -49,7 +49,7 @@ export function registerWithdrawRelayedPreludeTests(): void {
     );
 
     expect(stderr).toContain(
-      "Resolved alice.eth → 0x4444444444444444444444444444444444444444",
+      "Resolved alice.eth -> 0x4444444444444444444444444444444444444444",
     );
   });
 
@@ -128,6 +128,26 @@ export function registerWithdrawRelayedPreludeTests(): void {
     expect(stderr).toContain("Dry-run completed");
     expect(stderr).toContain("Withdrawal review");
     expect(submitRelayRequestMock).not.toHaveBeenCalled();
+  });
+
+  test("prints the live anonymity-set explanation in human relayed output", async () => {
+    useIsolatedHome();
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          dryRun: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain(
+      "Anonymity set: 8 of 12 deposits (66.7%; larger is more private)",
+    );
   });
 
   test("announces full-balance relayed withdrawals when --all is used", async () => {
@@ -248,6 +268,7 @@ export function registerWithdrawRelayedUnsignedAndSubmitTests(): void {
         {
           direct: true,
           unsigned: "tx",
+          yesIUnderstandPrivacyLoss: true,
           to: "0x5555555555555555555555555555555555555555",
         },
         fakeCommand({ chain: "mainnet" }),

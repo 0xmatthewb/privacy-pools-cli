@@ -694,7 +694,9 @@ export function registerWithdrawCommandHandlerHarness(): void {
     );
     maybeRecoverMissingWalletSetupMock.mockImplementation(async () => false);
     resolveAddressOrEnsMock.mockImplementation(realValidation.resolveAddressOrEns);
-    loadKnownRecipientHistoryMock.mockImplementation(() => []);
+    loadKnownRecipientHistoryMock.mockImplementation(() => [
+      DEFAULT_RELAYER_RECIPIENT,
+    ]);
     rememberKnownRecipientMock.mockImplementation(() => undefined);
     listSavedWorkflowIdsMock.mockImplementation(() => []);
     getWorkflowStatusMock.mockImplementation(() => {

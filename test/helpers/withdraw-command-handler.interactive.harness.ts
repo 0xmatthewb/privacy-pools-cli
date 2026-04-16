@@ -23,6 +23,7 @@ import {
   maybeRenderPreviewScenarioMock,
   proveWithdrawalMock,
   requestQuoteMock,
+  resolveAddressOrEnsMock,
   resolvePoolMock,
   saveAccountMock,
   selectPromptMock,
@@ -76,6 +77,42 @@ export function registerWithdrawInteractiveReviewTests(): void {
     expect(confirmPromptMock).toHaveBeenCalledTimes(1);
     expect(stderr).toContain("Withdrawal review");
     expect(stderr).toContain("0x4444");
+  });
+
+  test("resolves ENS names entered at the relayed recipient prompt", async () => {
+    useIsolatedHome({ withSigner: true });
+    inputPromptMock.mockImplementationOnce(
+      async (options?: { validate?: (value: string) => true | string }) => {
+        expect(options?.validate?.("alice.eth")).toBe(true);
+        return "alice.eth";
+      },
+    );
+    resolveAddressOrEnsMock.mockImplementationOnce(async () => ({
+      address: "0x4444444444444444444444444444444444444444",
+      ensName: "alice.eth",
+    }));
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(requestQuoteMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        recipient: "0x4444444444444444444444444444444444444444",
+      }),
+    );
+    expect(stderr).toContain(
+      "Resolved alice.eth -> 0x4444444444444444444444444444444444444444",
+    );
+    expect(stderr.match(/Resolved alice\.eth/g)?.length ?? 0).toBe(1);
+    expect(stderr).toContain("Withdrawal review");
   });
 
   test("returns early when preview rendering takes over recipient capture", async () => {
@@ -302,7 +339,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("NOT privacy-preserving");
+    expect(stderr).toContain("Using direct withdrawal.");
     expect(stderr).toContain("Withdrawal cancelled.");
     expect(proveWithdrawalMock).not.toHaveBeenCalled();
     expect(withdrawDirectMock).not.toHaveBeenCalled();
@@ -888,7 +925,7 @@ export function registerWithdrawInteractiveCompletionTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("NOT privacy-preserving");
+    expect(stderr).toContain("Using direct withdrawal.");
     expect(stderr).not.toContain("Error [");
   });
 
@@ -955,7 +992,7 @@ export function registerWithdrawInteractiveCompletionTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("NOT privacy-preserving");
+    expect(stderr).toContain("Using direct withdrawal.");
     expect(withdrawDirectMock).not.toHaveBeenCalled();
   });
 

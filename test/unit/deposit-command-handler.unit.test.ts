@@ -375,6 +375,73 @@ describe("deposit command handler", () => {
     expect(stderr).toContain("Deposit confirmed");
   });
 
+  test("interactive asset selection sorts pools by funds, then symbol, then pool", async () => {
+    useIsolatedHome({ withSigner: true });
+    const usdcLowerPool = {
+      ...USDC_POOL,
+      asset: "0x3333333333333333333333333333333333333331",
+      pool: "0x0000000000000000000000000000000000000011",
+      totalInPoolValue: 20_000_000n,
+      acceptedDepositsValue: 20_000_000n,
+    };
+    const usdcHigherPool = {
+      ...USDC_POOL,
+      asset: "0x3333333333333333333333333333333333333332",
+      pool: "0x0000000000000000000000000000000000000022",
+      totalInPoolValue: 20_000_000n,
+      acceptedDepositsValue: 20_000_000n,
+    };
+    const wethPool = {
+      ...OP_SEPOLIA_WETH_POOL,
+      asset: "0x3333333333333333333333333333333333333333",
+      pool: "0x0000000000000000000000000000000000000033",
+      totalInPoolValue: 20_000_000n,
+      acceptedDepositsValue: 20_000_000n,
+    };
+    const ethFallbackPool = {
+      ...ETH_POOL,
+      asset: ETH_POOL.asset,
+      pool: "0x0000000000000000000000000000000000000044",
+      totalInPoolValue: undefined,
+      acceptedDepositsValue: 5_000_000n,
+    };
+    const interactivePools = [
+      ethFallbackPool,
+      wethPool,
+      usdcHigherPool,
+      usdcLowerPool,
+    ];
+
+    listPoolsMock.mockImplementation(async () => interactivePools);
+    resolvePoolMock.mockImplementation(
+      async (_chainConfig, asset) =>
+        interactivePools.find((pool) => pool.asset === asset) ?? ETH_POOL,
+    );
+    selectPromptMock.mockImplementationOnce(
+      async (options?: { choices?: Array<{ value: string }> }) => {
+        expect(options?.choices?.map((choice) => choice.value)).toEqual([
+          usdcLowerPool.asset,
+          usdcHigherPool.asset,
+          wethPool.asset,
+          ethFallbackPool.asset,
+        ]);
+        return ethFallbackPool.asset;
+      },
+    );
+    confirmPromptMock.mockImplementationOnce(async () => false);
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleDepositCommand(
+        "0.25",
+        undefined,
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Deposit review");
+  });
+
   test("fails cleanly for humans when no pools are available to choose from", async () => {
     useIsolatedHome({ withSigner: true });
     listPoolsMock.mockImplementation(async () => []);
