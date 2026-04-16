@@ -194,6 +194,7 @@ export {
 } from "./ragequit.js";
 export {
   buildDirectWithdrawalPrivacyCostManifest,
+  formatAnonymitySetValue,
   formatDirectWithdrawalReview,
   formatRelayedWithdrawalReview,
   renderWithdrawDryRun,

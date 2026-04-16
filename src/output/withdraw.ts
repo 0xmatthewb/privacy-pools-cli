@@ -89,7 +89,7 @@ export function buildDirectWithdrawalPrivacyCostManifest(data: {
   };
 }
 
-function formatAnonymitySetValue(anonymitySet: {
+export function formatAnonymitySetValue(anonymitySet: {
   eligible: number;
   total: number;
   percentage: number;

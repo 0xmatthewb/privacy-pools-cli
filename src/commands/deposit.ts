@@ -103,6 +103,32 @@ export { createDepositCommand } from "../command-shells/deposit.js";
 const DEPOSIT_GAS_ESTIMATE_NATIVE = 250_000n;
 const DEPOSIT_GAS_ESTIMATE_ERC20 = 375_000n;
 
+function depositPoolFundsMetric(pool: {
+  totalInPoolValue?: bigint;
+  acceptedDepositsValue?: bigint;
+}): bigint {
+  return pool.totalInPoolValue ?? pool.acceptedDepositsValue ?? 0n;
+}
+
+function sortDepositPromptPools<T extends {
+  symbol: string;
+  pool: string;
+  totalInPoolValue?: bigint;
+  acceptedDepositsValue?: bigint;
+}>(pools: readonly T[]): T[] {
+  return [...pools].sort((left, right) => {
+    const leftFunds = depositPoolFundsMetric(left);
+    const rightFunds = depositPoolFundsMetric(right);
+    if (leftFunds !== rightFunds) {
+      return leftFunds > rightFunds ? -1 : 1;
+    }
+
+    const bySymbol = left.symbol.localeCompare(right.symbol);
+    if (bySymbol !== 0) return bySymbol;
+    return left.pool.localeCompare(right.pool);
+  });
+}
+
 async function bestEffortDepositGasEstimate(
   chainConfig: Awaited<ReturnType<typeof resolveChain>>,
   assetAddress: Address,
@@ -205,11 +231,12 @@ export async function handleDepositCommand(
           "Run 'privacy-pools pools --chain <chain>' to see available pools.",
         );
       }
+      const sortedPools = sortDepositPromptPools(pools);
 
       ensurePromptInteractionAvailable();
       const selected = await select({
         message: "Select asset to deposit:",
-        choices: pools.map((p) => ({
+        choices: sortedPools.map((p) => ({
           name: formatPoolPromptChoice({
             symbol: p.symbol,
             chain: chainConfig.name,

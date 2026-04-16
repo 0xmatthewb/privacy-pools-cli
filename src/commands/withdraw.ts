@@ -109,6 +109,7 @@ import {
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
 import {
+  formatAnonymitySetValue,
   formatDirectWithdrawalReview,
   formatRelayedWithdrawalReview,
   renderWithdrawDryRun,
@@ -1552,7 +1553,7 @@ export async function handleWithdrawCommand(
         };
         if (!silent) {
           info(
-            `Anonymity set: ${anonSet.eligibleDeposits} of ${anonSet.totalDeposits} deposits (${anonSet.percentage.toFixed(1)}%)`,
+            `Anonymity set: ${formatAnonymitySetValue(anonymitySet)}`,
             silent,
           );
         }
