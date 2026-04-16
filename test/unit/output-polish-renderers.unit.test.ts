@@ -29,6 +29,7 @@ import {
   renderInitBackupPathReview,
   renderInitBackupSaved,
   renderInitOverwriteReview,
+  renderInitRecoveryVerificationReview,
 } from "../../src/output/init.ts";
 import { captureOutput, makeMode } from "../helpers/output.ts";
 import {
@@ -54,6 +55,7 @@ describe("formatRelayedWithdrawalReview", () => {
       remainingBelowMinAdvisory:
         "The remaining balance would fall below the relayer minimum.",
       tokenPrice: 1,
+      nativeTokenPrice: 2000,
       nowMs: Date.parse("2026-03-24T12:59:30.000Z"),
     });
 
@@ -62,6 +64,7 @@ describe("formatRelayedWithdrawalReview", () => {
         "Withdrawal review",
         "PA-7",
         "0x1111111111111111111111111111111111111111",
+        "($3.00)",
         "The remaining balance would fall below the relayer minimum.",
       ],
       patterns: [/pool account/i, /balance/i, /relayer fee/i, /gas token/i, /net received/i, /quote expiry/i],
@@ -122,7 +125,7 @@ describe("shared runtime review renderers", () => {
     );
 
     expectSemanticText(deposit, {
-      includes: ["Deposit review", "Vetting fee", "Net deposited", "Deposits are always public on-chain."],
+      includes: ["Deposit review", "Vetting fee", "Net deposited", "Deposits are always public onchain."],
     });
     expectSemanticText(privacy, {
       includes: ["Privacy review", "non-round amount"],
@@ -182,11 +185,18 @@ describe("shared runtime review renderers", () => {
       includes: [
         "Ragequit review",
         "0x2222222222222222222222222222222222222222",
+        "Privacy outcome",
+        "no privacy (public recovery)",
         "does not provide privacy",
       ],
     });
     expectSemanticText(flow, {
-      includes: ["Flow start review", "Dedicated workflow wallet"],
+      includes: [
+        "Flow start review",
+        "Dedicated workflow wallet",
+        "Association Set Provider (ASP)",
+        "Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
+      ],
     });
     expectSemanticText(upgrade, {
       includes: ["Upgrade review", "Auto-run"],
@@ -287,6 +297,21 @@ describe("init recovery backup renderers", () => {
     expect(overwrite).toMatch(/current setup/i);
     expect(overwrite).toMatch(/replace/i);
     expect(overwrite).toMatch(/next account/i);
+  });
+
+  test("recovery verification reassures users they can retry mistyped words", () => {
+    const verification = renderInitRecoveryVerificationReview([3, 12, 24]);
+
+    expectSemanticText(verification, {
+      includes: [
+        "Verify recovery phrase",
+        "Word #3",
+        "Word #12",
+        "Word #24",
+        "If a word is wrong, your recovery phrase is still valid.",
+      ],
+      patterns: [/This step will ask again[\s\S]*before setup[\s\S]*continues\./],
+    });
   });
 });
 

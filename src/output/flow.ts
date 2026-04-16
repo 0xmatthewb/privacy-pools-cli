@@ -1,4 +1,5 @@
 import { POA_PORTAL_URL } from "../config/chains.js";
+import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
 import { formatUnits } from "viem";
 import {
   buildFlowWarnings,
@@ -113,7 +114,8 @@ export function formatFlowStartReview(data: FlowStartReviewData): string {
     primaryCallout: {
       kind: "privacy",
       lines: [
-        "This saved flow deposits publicly now, then waits for ASP approval before requesting the relayed private withdrawal.",
+        "This saved flow deposits publicly now, then waits for Association Set Provider (ASP) approval before requesting the relayed private withdrawal.",
+        DEPOSIT_APPROVAL_TIMELINE_COPY,
         "The auto-withdrawal always spends the full approved Pool Account balance to the saved recipient.",
       ],
     },
@@ -166,6 +168,7 @@ export interface FlowStartDryRunData {
 
 export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
   const amount = flowOutcomeAmount(snapshot);
+  const destination = flowRecoveryDestination(snapshot);
   return formatReviewSurface({
     title: "Saved flow ragequit",
     summaryRows: [
@@ -176,10 +179,10 @@ export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
         ? [{ label: "Pool Account", value: snapshot.poolAccountId }]
         : []),
       ...(amount ? [{ label: "Amount", value: amount }] : []),
-      { label: "Destination", value: "original deposit address" },
+      { label: "Destination", value: destination },
       {
-        label: "Privacy cost",
-        value: "Recover funds publicly to your deposit address",
+        label: "Privacy outcome",
+        value: "no privacy (public recovery)",
         valueTone: "warning",
       },
     ],
@@ -190,6 +193,16 @@ export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
       ],
     },
   });
+}
+
+function flowRecoveryDestination(snapshot: FlowSnapshot): string {
+  return snapshot.walletAddress ?? "original deposit address";
+}
+
+function flowRecoveryDestinationLabel(snapshot: FlowSnapshot): string {
+  return snapshot.walletAddress
+    ? formatAddress(snapshot.walletAddress)
+    : "original deposit address";
 }
 
 function formatFlowAssetAmount(
@@ -962,7 +975,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       );
     } else {
       success(
-        `Flow started for ${data.snapshot.poolAccountId}. Your deposit is on-chain and under review. Run flow watch to continue toward the private withdrawal once approved.`,
+        `Flow started for ${data.snapshot.poolAccountId}. Your deposit is onchain and under review. Run flow watch to continue toward the private withdrawal once approved.`,
         silent,
       );
     }
@@ -1067,7 +1080,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
                 ? `${inlineSeparator()}${flowOutcomeAmount(data.snapshot)}`
                 : ""
             } ` +
-            `-> original deposit address${inlineSeparator()}${data.snapshot.poolAccountId ?? data.snapshot.workflowId}` +
+            `-> ${flowRecoveryDestinationLabel(data.snapshot)}${inlineSeparator()}${data.snapshot.poolAccountId ?? data.snapshot.workflowId}` +
             (data.snapshot.ragequitBlockNumber
               ? `${inlineSeparator()}Block ${data.snapshot.ragequitBlockNumber}`
               : ""),
@@ -1090,7 +1103,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
           ? "Public recovery destination"
           : "Recipient",
         value: usesPublicRecoveryPath
-          ? "original deposit address"
+          ? flowRecoveryDestination(data.snapshot)
           : data.snapshot.recipient,
       },
       ...(shouldExposeConfirmedPoolAccount(data.snapshot) &&
@@ -1244,7 +1257,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "read-only";
         phaseCalloutLines = [
-          "The relayed private withdrawal has been requested and is being confirmed on-chain.",
+          "The relayed private withdrawal has been requested and is being confirmed onchain.",
           "Re-run flow watch to confirm the receipt if this workflow remains in-flight.",
         ];
         break;
@@ -1259,7 +1272,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "recovery";
         phaseCalloutLines = [
-          `This workflow was declined by the ASP. Your funds can still return safely to the original deposit address with privacy-pools flow ragequit ${data.snapshot.workflowId}. Privacy will not be preserved.${configuredSignerRecoverySuffix(data.snapshot)}`,
+          `This workflow was declined by the ASP. Your funds can still return safely to ${flowRecoveryDestination(data.snapshot)} with privacy-pools flow ragequit ${data.snapshot.workflowId}. Privacy will not be preserved.${configuredSignerRecoverySuffix(data.snapshot)}`,
         ];
         break;
       case "paused_poa_required":
@@ -1273,7 +1286,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "recovery";
         phaseCalloutLines = [
-          `Complete Proof of Association at ${POA_PORTAL_URL} to continue privately, or use flow ragequit if you prefer the safe public recovery path back to the original deposit address.${configuredSignerRecoverySuffix(data.snapshot)}`,
+          `Complete Proof of Association at ${POA_PORTAL_URL} to continue privately, or use flow ragequit if you prefer the safe public recovery path back to ${flowRecoveryDestination(data.snapshot)}.${configuredSignerRecoverySuffix(data.snapshot)}`,
         ];
         break;
       case "stopped_external":
@@ -1315,7 +1328,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "warning";
         phaseCalloutLines = [
-          "The saved workflow finished on the public recovery path. Funds returned safely to the original deposit address, but privacy was not preserved.",
+          `The saved workflow finished on the public recovery path. Funds returned safely to ${flowRecoveryDestination(data.snapshot)}, but privacy was not preserved.`,
         ];
         break;
     }

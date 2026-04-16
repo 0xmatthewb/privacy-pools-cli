@@ -425,6 +425,28 @@ describe("renderFlowResult", () => {
     );
   });
 
+  test("human mode reports flow ragequit destination when wallet address is available", () => {
+    const ctx = createOutputContext(makeMode());
+    const destination = "0x5555555555555555555555555555555555555555";
+    const { stderr } = captureOutput(() =>
+      renderFlowResult(ctx, {
+        action: "ragequit",
+        snapshot: sampleSnapshot({
+          phase: "completed_public_recovery",
+          walletAddress: destination,
+          ragequitTxHash:
+            "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          ragequitBlockNumber: "12400",
+          ragequitExplorerUrl: "https://example.test/ragequit",
+        }),
+      }),
+    );
+
+    expect(stderr).toContain(`Public recovery destination: ${destination}`);
+    expect(stderr).toContain("Funds returned safely to");
+    expect(stderr).toContain(`${destination}, but privacy was not preserved.`);
+  });
+
   test("human mode formats saved funding and committed amounts", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() =>

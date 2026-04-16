@@ -106,6 +106,43 @@ function collectKnownFlowRecipients(): string[] {
   return recipients;
 }
 
+function validateRecipientAddressOrEnsInput(value: string): true | string {
+  const trimmed = value.trim();
+  try {
+    assertSafeRecipientAddress(trimmed as `0x${string}`, "Recipient");
+    return true;
+  } catch (error) {
+    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(trimmed)) {
+      return true;
+    }
+    return error instanceof Error ? error.message : "Invalid address or ENS name.";
+  }
+}
+
+async function promptFlowRecipientAddressOrEns(
+  inputPrompt: typeof import("@inquirer/prompts").input,
+  silent: boolean,
+): Promise<string> {
+  while (true) {
+    const prompted = (await inputPrompt({
+      message: "Recipient address or ENS:",
+      validate: validateRecipientAddressOrEnsInput,
+    })).trim();
+    try {
+      const resolved = await resolveSafeRecipientAddressOrEns(
+        prompted,
+        "Recipient",
+      );
+      if (resolved.ensName) {
+        info(`Resolved ${resolved.ensName} -> ${resolved.address}`, silent);
+      }
+      return resolved.address;
+    } catch (error) {
+      warn(error instanceof Error ? error.message : "Invalid address or ENS name.", silent);
+    }
+  }
+}
+
 async function confirmRecipientIfNew(params: {
   address: string;
   knownRecipients: readonly string[];
@@ -333,17 +370,10 @@ export async function handleFlowRootCommand(
         message: "Asset symbol:",
         default: "ETH",
       })).trim().toUpperCase();
-      const recipient = (await input({
-        message: "Recipient address:",
-        validate: (value) => {
-          try {
-            assertSafeRecipientAddress(value as `0x${string}`, "Recipient");
-            return true;
-          } catch (error) {
-            return error instanceof Error ? error.message : "Invalid address.";
-          }
-        },
-      })).trim();
+      const recipient = await promptFlowRecipientAddressOrEns(
+        input,
+        mode.isQuiet || mode.isJson,
+      );
       await handleFlowStartCommand(amount, asset, { to: recipient }, cmd);
       return;
     }
@@ -391,18 +421,10 @@ export async function handleFlowStartCommand(
     if (!recipient && !mode.skipPrompts) {
       const { input } = await import("@inquirer/prompts");
       ensurePromptInteractionAvailable();
-      const prompted = await input({
-        message: "Recipient address:",
-        validate: (value) => {
-          try {
-            assertSafeRecipientAddress(value as `0x${string}`, "Recipient");
-            return true;
-          } catch (error) {
-            return error instanceof Error ? error.message : "Invalid address.";
-          }
-        },
-      });
-      recipient = assertSafeRecipientAddress(prompted as `0x${string}`, "Recipient");
+      recipient = await promptFlowRecipientAddressOrEns(
+        input,
+        mode.isQuiet || mode.isJson,
+      );
     }
 
     if (

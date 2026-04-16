@@ -138,6 +138,35 @@ describe("renderWithdrawSuccess extra-gas", () => {
     expect(json.extraGas).toBe(true);
   });
 
+  test("JSON: includes extra gas amount and native token price when provided", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data = {
+      ...BASE_SUCCESS,
+      extraGas: true,
+      extraGasFundAmount: 100_000_000_000_000n,
+      nativeTokenPrice: 2000,
+    };
+    const { stdout } = captureOutput(() => renderWithdrawSuccess(ctx, data));
+
+    const json = JSON.parse(stdout.trim());
+    expect(json.extraGasFundAmount).toBe("100000000000000");
+    expect(json.nativeTokenPrice).toBe(2000);
+  });
+
+  test("human mode: includes gas-token USD value when native price is known", () => {
+    const ctx = createOutputContext(makeMode());
+    const data = {
+      ...BASE_SUCCESS,
+      extraGas: true,
+      extraGasFundAmount: 100_000_000_000_000n,
+      nativeTokenPrice: 2000,
+    };
+    const { stderr } = captureOutput(() => renderWithdrawSuccess(ctx, data));
+
+    expect(stderr).toContain("Gas token received:");
+    expect(stderr).toContain("$0.20");
+  });
+
   test("JSON: omits extraGas for direct mode even if set", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: WithdrawSuccessData = {
@@ -209,6 +238,20 @@ describe("renderWithdrawQuote extra-gas", () => {
     const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
 
     expect(stderr).toMatch(/Gas token received:\s+enabled/);
+  });
+
+  test("human mode: includes gas-token USD value in quotes when native price is known", () => {
+    const ctx = createOutputContext(makeMode());
+    const data: WithdrawQuoteData = {
+      ...BASE_QUOTE,
+      extraGas: true,
+      extraGasFundAmount: { gas: "0", eth: "100000000000000" },
+      nativeTokenPrice: 2000,
+    };
+    const { stderr } = captureOutput(() => renderWithdrawQuote(ctx, data));
+
+    expect(stderr).toContain("Gas token received:");
+    expect(stderr).toContain("$0.20");
   });
 
   test("human mode: no gas token received when extraGas is falsy", () => {

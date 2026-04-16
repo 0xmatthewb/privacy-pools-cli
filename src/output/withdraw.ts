@@ -11,6 +11,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  DRY_RUN_FOOTER_COPY,
   renderNextSteps,
   printJsonSuccess,
   success,
@@ -51,6 +52,7 @@ export interface RelayedWithdrawalReviewData {
   extraGasRequested: boolean;
   extraGasFundAmount?: bigint | null;
   tokenPrice?: number | null;
+  nativeTokenPrice?: number | null;
   remainingBelowMinAdvisory?: string | null;
   nowMs?: number;
   anonymitySet?: { eligible: number; total: number; percentage: number };
@@ -85,6 +87,35 @@ export function buildDirectWithdrawalPrivacyCostManifest(data: {
     privacyPreserved: false,
     recommendation: "Use the default relayed withdrawal path unless you intentionally accept this privacy loss.",
   };
+}
+
+function formatAnonymitySetValue(anonymitySet: {
+  eligible: number;
+  total: number;
+  percentage: number;
+}): string {
+  return `${anonymitySet.eligible} of ${anonymitySet.total} deposits (${anonymitySet.percentage.toFixed(1)}%; larger is more private)`;
+}
+
+function formatNativeGasTokenAmount(
+  amount: bigint,
+  nativeTokenPrice?: number | null,
+): string {
+  const formatted = formatAmount(amount, 18, "ETH", displayDecimals(18));
+  const usd =
+    nativeTokenPrice === undefined || nativeTokenPrice === null
+      ? "-"
+      : (() => {
+          const tokens = Number(formatUnits(amount, 18));
+          const value = tokens * nativeTokenPrice;
+          return Number.isFinite(value)
+            ? `$${value.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`
+            : "-";
+        })();
+  return usd === "-" ? formatted : `${formatted} (${usd})`;
 }
 
 export function formatRelayedWithdrawalReview(
@@ -141,11 +172,9 @@ export function formatRelayedWithdrawalReview(
         ? [
             {
               label: "Gas token received",
-              value: formatAmount(
+              value: formatNativeGasTokenAmount(
                 data.extraGasFundAmount,
-                18,
-                "ETH",
-                displayDecimals(18),
+                data.nativeTokenPrice,
               ),
               valueTone: "accent" as const,
             },
@@ -184,7 +213,7 @@ export function formatRelayedWithdrawalReview(
         ? [
             {
               label: "Anonymity set",
-              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%; larger is more private)`,
+              value: formatAnonymitySetValue(data.anonymitySet),
               valueTone: "accent" as const,
             },
           ]
@@ -363,7 +392,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  success("Dry-run complete. No transaction was submitted.", silent);
+  success(DRY_RUN_FOOTER_COPY, silent);
   if (!silent) {
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(
@@ -395,7 +424,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
         ...(data.anonymitySet
           ? [{
               label: "Anonymity set",
-              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%; larger is more private)`,
+              value: formatAnonymitySetValue(data.anonymitySet),
             }]
           : []),
         {
@@ -441,6 +470,10 @@ export interface WithdrawSuccessData {
   feeBPS?: string;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
   extraGas?: boolean;
+  /** Relayed-only: amount of gas token included with the withdrawal. */
+  extraGasFundAmount?: bigint | null;
+  /** Native gas token price in USD, if available. */
+  nativeTokenPrice?: number | null;
   /** Remaining balance in the Pool Account after withdrawal. */
   remainingBalance: bigint;
   /** Token price in USD, if available. */
@@ -496,6 +529,12 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     } else {
       payload.feeBPS = data.feeBPS;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
+      if (data.extraGasFundAmount) {
+        payload.extraGasFundAmount = data.extraGasFundAmount.toString();
+      }
+      if (data.nativeTokenPrice !== undefined && data.nativeTokenPrice !== null) {
+        payload.nativeTokenPrice = data.nativeTokenPrice;
+      }
     }
     if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
     if (data.warnings && data.warnings.length > 0) {
@@ -532,7 +571,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       formatKeyValueRows([
         { label: "Mode", value: data.withdrawMode },
         { label: "Pool Account", value: data.poolAccountId },
-        { label: "Recipient", value: formatAddress(data.recipient) },
+        { label: "Recipient", value: data.recipient },
         {
           label: "Amount",
           value: formatAmount(data.amount, data.decimals, data.asset, dd),
@@ -556,13 +595,18 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
         ...(data.withdrawMode === "relayed" && data.extraGas
           ? [{
               label: "Gas token received",
-              value: "ETH included with withdrawal",
+              value: data.extraGasFundAmount
+                ? formatNativeGasTokenAmount(
+                    data.extraGasFundAmount,
+                    data.nativeTokenPrice,
+                  )
+                : "ETH included with withdrawal",
             }]
           : []),
         ...(data.anonymitySet
           ? [{
               label: "Anonymity set",
-              value: `${data.anonymitySet.eligible}/${data.anonymitySet.total} eligible (${data.anonymitySet.percentage.toFixed(1)}%; larger is more private)`,
+              value: formatAnonymitySetValue(data.anonymitySet),
             }]
           : []),
         ...(data.remainingBalance === 0n
@@ -609,6 +653,7 @@ export interface WithdrawQuoteData {
   feeCommitmentPresent: boolean;
   quoteExpiresAt: string | null;
   tokenPrice: number | null;
+  nativeTokenPrice?: number | null;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
   extraGas?: boolean;
   relayTxCost?: { gas: string; eth: string };
@@ -644,11 +689,9 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     displayDecimals(18),
   );
   const extraGasFundFormatted = data.extraGasFundAmount
-    ? formatAmount(
+    ? formatNativeGasTokenAmount(
         BigInt(data.extraGasFundAmount.eth),
-        18,
-        "ETH",
-        displayDecimals(18),
+        data.nativeTokenPrice,
       )
     : null;
   const extraGasTxCostFormatted = data.extraGasTxCost

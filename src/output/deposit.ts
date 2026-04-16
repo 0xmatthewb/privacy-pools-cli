@@ -11,6 +11,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  DRY_RUN_FOOTER_COPY,
   renderNextSteps,
   printJsonSuccess,
   success,
@@ -112,7 +113,7 @@ export function formatDepositReview(data: DepositReviewData): string {
     primaryCallout: {
       kind: "privacy",
       lines: [
-        "Deposits are always public on-chain.",
+        "Deposits are always public onchain.",
         "Association Set Provider (ASP) approval unlocks private withdrawal via relayer.",
         DEPOSIT_APPROVAL_TIMELINE_COPY,
       ],
@@ -226,7 +227,7 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  success("Dry-run complete. No transaction was submitted.", silent);
+  success(DRY_RUN_FOOTER_COPY, silent);
   if (!silent) {
     const balanceLabel =
       data.balanceSufficient === "unknown"

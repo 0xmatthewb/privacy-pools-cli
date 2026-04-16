@@ -10,6 +10,7 @@ import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
   createNextAction,
+  DRY_RUN_FOOTER_COPY,
   renderNextSteps,
   printJsonSuccess,
   success,
@@ -88,8 +89,8 @@ export function formatRagequitReview(data: RagequitReviewData): string {
       },
       { label: "Chain", value: data.chain },
       {
-        label: "Privacy cost",
-        value: "Recover funds publicly to your deposit address",
+        label: "Privacy outcome",
+        value: "no privacy (public recovery)",
         valueTone: "warning",
       },
       {
@@ -209,7 +210,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  success("Dry-run complete. No transaction was submitted.", silent);
+  success(DRY_RUN_FOOTER_COPY, silent);
   if (!silent) {
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(

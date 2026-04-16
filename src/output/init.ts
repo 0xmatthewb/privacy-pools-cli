@@ -518,6 +518,7 @@ export function renderInitRecoveryVerificationReview(
       kind: "recovery",
       lines: [
         "Confirm a few words from the saved recovery phrase before continuing.",
+        "If a word is wrong, your recovery phrase is still valid. This step will ask again so you can retry before setup continues.",
       ],
     },
   });

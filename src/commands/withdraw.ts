@@ -96,7 +96,12 @@ import {
 import { explorerTxUrl, isNativePoolAsset, POA_PORTAL_URL } from "../config/chains.js";
 import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
-import type { GlobalOptions, PoolStats, RelayerQuoteResponse } from "../types.js";
+import type {
+  ChainConfig,
+  GlobalOptions,
+  PoolStats,
+  RelayerQuoteResponse,
+} from "../types.js";
 import {
   maybeRenderPreviewProgressStep,
   maybeRenderPreviewScenario,
@@ -219,6 +224,60 @@ interface RequestedWithdrawalPoolAccountParams {
 }
 
 export { createWithdrawCommand } from "../command-shells/withdraw.js";
+
+function validateRecipientAddressOrEnsInput(value: string): true | string {
+  const trimmed = value.trim();
+  try {
+    assertSafeRecipientAddress(trimmed as `0x${string}`, "Recipient");
+    return true;
+  } catch (error) {
+    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(trimmed)) {
+      return true;
+    }
+    return error instanceof Error ? error.message : "Invalid address or ENS name.";
+  }
+}
+
+async function promptRecipientAddressOrEns(silent: boolean): Promise<Address> {
+  while (true) {
+    const prompted = (await input({
+      message: "Recipient address or ENS:",
+      validate: validateRecipientAddressOrEnsInput,
+    })).trim();
+    try {
+      const resolved = await resolveSafeRecipientAddressOrEns(
+        prompted,
+        "Recipient",
+      );
+      if (resolved.ensName) {
+        info(`Resolved ${resolved.ensName} -> ${resolved.address}`, silent);
+      }
+      return resolved.address;
+    } catch (error) {
+      warn(error instanceof Error ? error.message : "Invalid address or ENS name.", silent);
+    }
+  }
+}
+
+async function deriveNativeGasTokenPrice(
+  chainConfig: ChainConfig,
+  rpcUrl: string | undefined,
+  selectedPool: PoolStats,
+): Promise<number | null> {
+  if (isNativePoolAsset(chainConfig.id, selectedPool.asset)) {
+    return deriveTokenPrice(selectedPool);
+  }
+
+  try {
+    const pools = await listPools(chainConfig, rpcUrl);
+    const nativePool = pools.find((pool) =>
+      isNativePoolAsset(chainConfig.id, pool.asset)
+    );
+    return nativePool ? deriveTokenPrice(nativePool) : null;
+  } catch {
+    return null;
+  }
+}
 
 async function confirmRecipientIfNew(params: {
   address: string;
@@ -649,7 +708,7 @@ export async function handleWithdrawCommand(
     }
     const isDeferredAmount = isAllWithdrawal || isDeferredPercent;
 
-    // Private key is only needed for on-chain submission, not --unsigned or --dry-run
+    // Private key is only needed for onchain submission, not --unsigned or --dry-run
     let signerAddress: Address | null = null;
     if (!isUnsigned && !isDryRun) {
       const privateKey = loadPrivateKey();
@@ -805,6 +864,9 @@ export async function handleWithdrawCommand(
     // Parse amount — deferred for --all and percentage modes.
     let withdrawalAmount: bigint;
     const tokenPrice = deriveTokenPrice(pool);
+    const nativeTokenPrice = effectiveExtraGas
+      ? await deriveNativeGasTokenPrice(chainConfig, globalOpts?.rpcUrl, pool)
+      : null;
     let withdrawalUsd: string;
 
     if (!isDeferredAmount) {
@@ -942,7 +1004,7 @@ export async function handleWithdrawCommand(
           },
         ],
         chainConfig.id,
-        true, // sync to pick up latest on-chain state
+        true, // sync to pick up latest onchain state
         silent,
         true,
       );
@@ -1074,7 +1136,7 @@ export async function handleWithdrawCommand(
         aspReviewState.reviewStatuses,
       );
 
-      // Ensure ASP tree and on-chain root are converged before proof generation.
+      // Ensure ASP tree and onchain root are converged before proof generation.
       if (BigInt(roots.mtRoot) !== BigInt(roots.onchainMtRoot)) {
         throw new CLIError(
           "Withdrawal service data is still updating.",
@@ -1083,7 +1145,7 @@ export async function handleWithdrawCommand(
         );
       }
 
-      // Verify ASP root parity against on-chain latest root.
+      // Verify ASP root parity against onchain latest root.
       const onchainLatestRoot = await publicClient.readContract({
         address: chainConfig.entrypoint,
         abi: entrypointLatestRootAbi,
@@ -1454,18 +1516,7 @@ export async function handleWithdrawCommand(
           return;
         }
         ensurePromptInteractionAvailable();
-        const prompted = await input({
-          message: "Recipient address:",
-          validate: (val) => {
-            try {
-              assertSafeRecipientAddress(val as `0x${string}`, "Recipient");
-              return true;
-            } catch (e) {
-              return e instanceof Error ? e.message : "Invalid address.";
-            }
-          },
-        });
-        recipientAddress = assertSafeRecipientAddress(prompted as `0x${string}`, "Recipient");
+        recipientAddress = await promptRecipientAddressOrEns(silent);
         spin.start();
       }
 
@@ -2057,6 +2108,7 @@ export async function handleWithdrawCommand(
                 ? BigInt(quote.detail.extraGasFundAmount.eth)
                 : null,
               tokenPrice,
+              nativeTokenPrice,
               remainingBelowMinAdvisory,
               anonymitySet,
             }),
@@ -2344,7 +2396,7 @@ export async function handleWithdrawCommand(
           relayerUrl: quote.relayerUrl,
         });
 
-        // Wait for on-chain confirmation before updating state
+        // Wait for onchain confirmation before updating state
         spin.text = "Waiting for relay transaction confirmation...";
         let receipt;
         try {
@@ -2446,6 +2498,10 @@ export async function handleWithdrawCommand(
           explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
           feeBPS: quote.feeBPS,
           extraGas: effectiveExtraGas,
+          extraGasFundAmount: quote.detail.extraGasFundAmount
+            ? BigInt(quote.detail.extraGasFundAmount.eth)
+            : null,
+          nativeTokenPrice,
           remainingBalance: selectedPoolAccount.value - withdrawalAmount,
           tokenPrice,
           anonymitySet,
@@ -2592,6 +2648,9 @@ export async function handleWithdrawQuoteCommand(
 
     const ctx = createOutputContext(mode);
     const quoteTokenPrice = deriveTokenPrice(pool);
+    const nativeTokenPrice = quote.detail.extraGasFundAmount
+      ? await deriveNativeGasTokenPrice(chainConfig, globalOpts?.rpcUrl, pool)
+      : null;
     renderWithdrawQuote(ctx, {
       chain: chainConfig.name,
       asset: pool.symbol,
@@ -2606,6 +2665,7 @@ export async function handleWithdrawQuoteCommand(
         ? new Date(expirationMs).toISOString()
         : null,
       tokenPrice: quoteTokenPrice,
+      nativeTokenPrice,
       extraGas: resolvedQuoteExtraGas,
       relayTxCost: quote.detail.relayTxCost,
       extraGasFundAmount: quote.detail.extraGasFundAmount,

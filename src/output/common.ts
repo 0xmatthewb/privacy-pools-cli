@@ -10,7 +10,11 @@ import chalk from "chalk";
 import type { ResolvedGlobalMode } from "../utils/mode.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { printCsv } from "./csv.js";
-import type { NextAction, NextActionOptionValue } from "../types.js";
+import type {
+  NextAction,
+  NextActionOptionValue,
+  NextActionWhen,
+} from "../types.js";
 import {
   info,
   success,
@@ -93,7 +97,7 @@ export function guardCsvUnsupported(ctx: OutputContext, commandName: string): vo
 export function createNextAction(
   command: string,
   reason: string,
-  when: string,
+  when: NextActionWhen,
   config: {
     args?: string[];
     options?: Record<string, NextActionOptionValue>;
@@ -128,6 +132,9 @@ export function createNextAction(
 
   return withCliCommand(action, includeAgentInCliCommand);
 }
+
+export const DRY_RUN_FOOTER_COPY =
+  "Dry-run: validation succeeded. Re-run without --dry-run to submit.";
 
 export function appendNextActions<T extends Record<string, unknown>>(
   payload: T,

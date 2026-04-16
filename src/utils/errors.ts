@@ -409,7 +409,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
   },
   NotYetRagequitteable: {
     message: "This Pool Account cannot be ragequit yet.",
-    hint: "The deposit must be on-chain for a minimum period before public recovery is available. Wait and retry later.",
+    hint: "The deposit must be onchain for a minimum period before public recovery is available. Wait and retry later.",
     code: "CONTRACT_NOT_YET_RAGEQUITTEABLE",
     retryable: true,
   },

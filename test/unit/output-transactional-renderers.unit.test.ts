@@ -239,7 +239,7 @@ describe("renderDepositDryRun parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Dry-run complete");
+    expect(stderr).toContain("Dry-run: validation succeeded. Re-run without --dry-run to submit.");
     expect(stderr).toContain("Summary:");
     expect(stderr).toMatch(/Chain:\s+sepolia/);
     expect(stderr).toMatch(/Asset:\s+ETH/);
@@ -435,7 +435,7 @@ describe("renderRagequitDryRun parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Dry-run complete");
+    expect(stderr).toContain("Dry-run: validation succeeded. Re-run without --dry-run to submit.");
     expect(stderr).toContain("Summary:");
     expect(stderr).toMatch(/Chain:\s+sepolia/);
     expect(stderr).toMatch(/Asset:\s+ETH/);
@@ -668,13 +668,27 @@ describe("renderWithdrawDryRun parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Dry-run complete");
+    expect(stderr).toContain("Dry-run: validation succeeded. Re-run without --dry-run to submit.");
     expect(stderr).toMatch(/Mode:\s+direct/);
     expect(stderr).toMatch(/Pool Account:\s+PA-1/);
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain(
       "privacy-pools withdraw 0.5 ETH --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --pool-account PA-1 --direct --yes-i-understand-privacy-loss",
     );
+  });
+
+  test("human mode: explains anonymity set without eligible jargon", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawDryRun(ctx, {
+        ...STUB_WITHDRAW_DRY_RUN_RELAYED,
+        anonymitySet: { eligible: 42, total: 128, percentage: 32.81 },
+      }),
+    );
+
+    expect(stderr).toContain("Anonymity set:");
+    expect(stderr).toContain("42 of 128 deposits (32.8%; larger is more private)");
+    expect(stderr).not.toContain("eligible");
   });
 });
 
@@ -827,6 +841,20 @@ describe("renderWithdrawSuccess parity", () => {
     expect(stderr).toContain("Withdrew");
     expect(stderr).toContain("Relayer fee:");
     expect(stderr).toContain("Next steps:");
+  });
+
+  test("human mode (relayed): explains success anonymity set without eligible jargon", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderWithdrawSuccess(ctx, {
+        ...STUB_WITHDRAW_SUCCESS_RELAYED,
+        anonymitySet: { eligible: 42, total: 128, percentage: 32.81 },
+      }),
+    );
+
+    expect(stderr).toContain("Anonymity set:");
+    expect(stderr).toContain("42 of 128 deposits (32.8%; larger is more private)");
+    expect(stderr).not.toContain("eligible");
   });
 
   test("human mode (direct): shows remaining balance", () => {
