@@ -232,6 +232,9 @@ export function parseRootPreludeLongOption(
     case "--yes":
       globalOpts.yes = true;
       return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--web":
+      globalOpts.web = true;
+      return { consumedNext: false, helpLike: false, versionLike: false };
     case "--verbose":
       globalOpts.verbose = true;
       return { consumedNext: false, helpLike: false, versionLike: false };

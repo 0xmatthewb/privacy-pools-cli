@@ -116,7 +116,7 @@ function migrationNextActions(
       {
         options: {
           agent: true,
-          ...(result.allChains ? { allChains: true } : {}),
+          ...(result.allChains ? { includeTestnets: true } : {}),
           ...(!result.allChains && result.chain ? { chain: result.chain } : {}),
         },
       },

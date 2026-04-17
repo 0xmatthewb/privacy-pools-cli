@@ -26,6 +26,7 @@ import {
   verbose,
   formatAmount,
   deriveTokenPrice,
+  formatUsdValue,
 } from "../utils/format.js";
 import {
   printError,
@@ -77,9 +78,12 @@ import {
   maybeRenderPreviewScenario,
 } from "../preview/runtime.js";
 import {
+  CONFIRMATION_TOKENS,
+  HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD,
   confirmActionWithSeverity,
   formatPoolPromptChoice,
 } from "../utils/prompts.js";
+import { warnLegacyAssetFlag } from "../utils/deprecations.js";
 import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
@@ -90,6 +94,7 @@ import {
   renderNarrativeSteps,
 } from "../output/progress.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import { maybeLaunchBrowser } from "../utils/web.js";
 
 interface DepositCommandOptions {
   asset?: string;
@@ -102,6 +107,29 @@ export { createDepositCommand } from "../command-shells/deposit.js";
 
 const DEPOSIT_GAS_ESTIMATE_NATIVE = 250_000n;
 const DEPOSIT_GAS_ESTIMATE_ERC20 = 375_000n;
+
+function isHighStakesDeposit(params: {
+  amount: bigint;
+  decimals: number;
+  chainIsTestnet: boolean;
+  tokenPrice?: number | null;
+}): boolean {
+  if (params.chainIsTestnet) {
+    return false;
+  }
+
+  const usdValue = formatUsdValue(
+    params.amount,
+    params.decimals,
+    params.tokenPrice ?? null,
+  );
+  if (usdValue === "-") {
+    return false;
+  }
+
+  const parsed = Number(usdValue.replace(/[$,]/g, ""));
+  return Number.isFinite(parsed) && parsed >= HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD;
+}
 
 function depositPoolFundsMetric(pool: {
   totalInPoolValue?: bigint;
@@ -155,15 +183,6 @@ export async function handleDepositCommand(
   opts: DepositCommandOptions,
   cmd: Command,
 ): Promise<void> {
-  // Deprecated --asset flag migration guard.
-  if (opts.asset !== undefined) {
-    throw new CLIError(
-      "--asset has been replaced by a positional argument.",
-      "INPUT",
-      "Use: privacy-pools deposit <amount> <asset> (e.g. privacy-pools deposit 0.1 ETH)",
-    );
-  }
-
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
@@ -177,6 +196,12 @@ export async function handleDepositCommand(
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
+  if (opts.asset !== undefined) {
+    warnLegacyAssetFlag(
+      "privacy-pools deposit <amount> <asset> (e.g. privacy-pools deposit 0.1 ETH)",
+      silent,
+    );
+  }
 
   try {
     if (
@@ -303,6 +328,7 @@ export async function handleDepositCommand(
           `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy.`,
           "INPUT",
           `Unique amounts can be linked between deposits and withdrawals.${suggestionStr} Pass --ignore-unique-amount to proceed anyway.`,
+          "INPUT_NONROUND_AMOUNT",
         );
       } else {
         // Interactive mode: warning + confirmation
@@ -358,10 +384,18 @@ export async function handleDepositCommand(
         return;
       }
       const ok = await confirmActionWithSeverity({
-        severity: "standard",
+        severity: isHighStakesDeposit({
+          amount,
+          decimals: pool.decimals,
+          chainIsTestnet: chainConfig.isTestnet,
+          tokenPrice,
+        })
+          ? "high_stakes"
+          : "standard",
         standardMessage: "Confirm deposit?",
-        highStakesToken: "DEPOSIT",
-        highStakesWarning: "Deposit review changed while waiting for confirmation.",
+        highStakesToken: CONFIRMATION_TOKENS.deposit,
+        highStakesWarning:
+          `This mainnet deposit sends ${formatAmount(amount, pool.decimals, pool.symbol)} into a public pool before ASP review.`,
         confirm,
       });
       if (!ok) {
@@ -474,6 +508,16 @@ export async function handleDepositCommand(
         pool.pool,
         globalOpts?.rpcUrl,
       );
+      const writeDepositProgress = (activeIndex: number, note?: string) => {
+        if (silent) return;
+        const labels = isNative
+          ? ["Prepare deposit", "Generate deposit secret", "Submit deposit"]
+          : ["Prepare deposit", "Approve token", "Submit deposit"];
+        process.stderr.write(
+          `\n${renderNarrativeSteps(createNarrativeSteps(labels, activeIndex, note))}`,
+        );
+      };
+      writeDepositProgress(0, "Loading wallet state and preparing the deposit.");
       const accountService = await initializeAccountService(
         dataService,
         mnemonic,
@@ -508,6 +552,9 @@ export async function handleDepositCommand(
         isVerbose,
         silent,
       );
+      if (isNative) {
+        writeDepositProgress(1, "Deposit secret prepared and ready to submit.");
+      }
 
       if (isDryRun) {
         const ctx = createOutputContext(mode);
@@ -554,17 +601,8 @@ export async function handleDepositCommand(
       const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
 
       // ERC20 approval
-      const writeDepositProgress = (activeIndex: number, note?: string) => {
-        if (silent) return;
-        const labels = isNative
-          ? ["Submit deposit"]
-          : ["Approve token", "Submit deposit"];
-        process.stderr.write(
-          `\n${renderNarrativeSteps(createNarrativeSteps(labels, activeIndex, note))}`,
-        );
-      };
       if (!isNative) {
-        writeDepositProgress(0, "Approval is only needed for ERC20 deposits.");
+        writeDepositProgress(1, "Approval is only needed for ERC20 deposits.");
         const spin = spinner("Approving token spend...", silent);
         spin.start();
         try {
@@ -604,7 +642,7 @@ export async function handleDepositCommand(
       }
 
       // Deposit transaction
-      writeDepositProgress(isNative ? 0 : 1, "Submitting the public deposit.");
+      writeDepositProgress(2, "Submitting the public deposit.");
       const spin = spinner("Submitting deposit transaction...", silent);
       spin.start();
 
@@ -757,6 +795,13 @@ export async function handleDepositCommand(
         blockNumber: receipt.blockNumber,
         explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
         chainOverridden: !!globalOpts?.chain,
+      });
+      maybeLaunchBrowser({
+        globalOpts,
+        mode,
+        url: explorerTxUrl(chainConfig.id, tx.hash),
+        label: "deposit transaction",
+        silent,
       });
     } finally {
       releaseLock();

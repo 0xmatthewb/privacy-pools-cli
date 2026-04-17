@@ -94,6 +94,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       ),
       completionOption("--format <format>", rootGlobalFlagValues("--format <format>")),
       completionOption("-y, --yes"),
+      completionOption("--web"),
       completionOption("-r, --rpc-url <url>"),
       completionOption("--agent"),
       completionOption("-q, --quiet"),

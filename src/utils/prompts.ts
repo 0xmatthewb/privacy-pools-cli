@@ -15,6 +15,19 @@ import { getOutputWidthClass, inlineSeparator, supportsUnicodeOutput } from "./t
 export type ConfirmationSeverity = "standard" | "high_stakes";
 
 export const HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD = 1000;
+export const CONFIRMATION_TOKENS = {
+  deposit: "DEPOSIT",
+  withdraw: "WITHDRAW",
+  directWithdrawal: "DIRECT-WITHDRAWAL",
+  recipient: "RECIPIENT",
+  ragequit: "RAGEQUIT",
+  flow: "FLOW",
+  proceed: "PROCEED",
+} as const;
+
+export function confirmationTokenMismatchMessage(token: string): string {
+  return `Confirmation token did not match. Expected '${token}' (exact case).`;
+}
 
 function joinPromptFacts(facts: string[]): string {
   const nonEmpty = facts.filter((value) => value.trim().length > 0);
@@ -172,5 +185,11 @@ export async function confirmActionWithSeverity(params: {
   const typed = await input({
     message: `Type "${params.highStakesToken}" to confirm:`,
   });
-  return typed.trim() === params.highStakesToken;
+  const matches = typed.trim() === params.highStakesToken;
+  if (!matches) {
+    process.stderr.write(
+      `${statusFailed(confirmationTokenMismatchMessage(params.highStakesToken))}\n`,
+    );
+  }
+  return matches;
 }

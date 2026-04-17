@@ -15,7 +15,6 @@ import {
   type FlowPrivacyDelayProfile,
 } from "../utils/flow-privacy-delay.js";
 import {
-  displayDecimals,
   formatAddress,
   formatAmount,
   formatDenseOutcomeLine,
@@ -83,7 +82,7 @@ export function formatFlowStartReview(data: FlowStartReviewData): string {
       {
         label: "Amount",
         value:
-          `${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          `${formatAmount(data.amount, data.decimals, data.asset)}` +
           flowReviewUsdSuffix(data.amount, data.decimals, data.tokenPrice),
       },
       { label: "Chain", value: data.chain },
@@ -91,14 +90,14 @@ export function formatFlowStartReview(data: FlowStartReviewData): string {
       {
         label: "Vetting fee",
         value:
-          `${formatAmount(data.feeAmount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          `${formatAmount(data.feeAmount, data.decimals, data.asset)}` +
           flowReviewUsdSuffix(data.feeAmount, data.decimals, data.tokenPrice),
         valueTone: "warning",
       },
       {
         label: "Expected net deposited",
         value:
-          `~${formatAmount(data.estimatedCommitted, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          `${formatAmount(data.estimatedCommitted, data.decimals, data.asset)}` +
           flowReviewUsdSuffix(data.estimatedCommitted, data.decimals, data.tokenPrice),
         valueTone: "success",
       },
@@ -206,9 +205,15 @@ export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        `Recover funds publicly to your deposit address. This does not provide privacy for this saved workflow.${configuredSignerRecoverySuffix(snapshot)}`,
+        "Recover funds publicly to your deposit address. This does not provide privacy for this saved workflow.",
       ],
     },
+    secondaryCallout: configuredSignerRecoverySuffix(snapshot)
+      ? {
+          kind: "read-only",
+          lines: [configuredSignerRecoverySuffix(snapshot)],
+        }
+      : null,
   });
 }
 
@@ -235,7 +240,6 @@ function formatFlowAssetAmount(
       BigInt(rawAmount),
       snapshot.assetDecimals,
       snapshot.asset,
-      displayDecimals(snapshot.assetDecimals),
     );
   } catch {
     return rawAmount;
@@ -245,7 +249,7 @@ function formatFlowAssetAmount(
 function formatFlowNativeFunding(rawAmount: string | null | undefined): string | null {
   if (!rawAmount) return null;
   try {
-    return formatAmount(BigInt(rawAmount), 18, "ETH", displayDecimals(18));
+    return formatAmount(BigInt(rawAmount), 18, "ETH");
   } catch {
     return rawAmount;
   }
@@ -596,7 +600,6 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
           {
             args: [snapshot.workflowId],
             options: { agent: true },
-            runnable: false,
           },
         ),
         createNextAction(

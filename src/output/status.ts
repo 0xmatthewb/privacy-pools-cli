@@ -145,7 +145,7 @@ export function deriveStatusPreflightGuidance(
     warnings.push(
       makeStatusIssue(
         "asp_unreachable",
-        "The ASP is unreachable. Review status, pool discovery, and private withdrawal readiness may be degraded.",
+        "The 0xBow ASP is unreachable. Review status, pool discovery, and private withdrawal readiness may be degraded.",
         ["deposit", "withdraw", "unsigned", "discovery"],
       ),
     );
@@ -229,14 +229,14 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   } else if (hasOnSelected) {
     // Deposits on the user's default/selected chain.
     // If it's a mainnet, bare `accounts` (dashboard) includes it — no flag needed.
-    // If it's a testnet AND there are also mainnet deposits, --all-chains is needed
+    // If it's a testnet AND there are also mainnet deposits, --include-testnets is needed
     // so neither set is hidden. If testnet-only, --chain <testnet> suffices.
     const selectedIsMainnet = result.selectedChain ? mainnetNames.has(result.selectedChain) : false;
     hasAccountsReachable = true;
     if (selectedIsMainnet) {
       accountsChainOpt = undefined;
     } else if (hasOnMainnets) {
-      // Mixed: testnet selected + mainnet deposits elsewhere → --all-chains
+      // Mixed: testnet selected + mainnet deposits elsewhere → --include-testnets
       accountsChainOpt = undefined;
       accountsNeedsAllChains = true;
     } else {
@@ -250,10 +250,10 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     accountsChainOpt = undefined;
   } else if (result.accountFiles.length > 0) {
     // Testnet-only deposits not on the selected chain.
-    // Bare `accounts` won't show them, but `accounts --all-chains` will.
+    // Bare `accounts` won't show them, but `accounts --include-testnets` will.
     hasAccountsReachable = true;
     accountsChainOpt = undefined;
-    // Signal that --all-chains is needed (handled below).
+    // Signal that --include-testnets is needed (handled below).
     accountsNeedsAllChains = true;
   } else {
     // Genuinely no deposits anywhere.
@@ -270,12 +270,12 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   //   5. Fully ready, no reachable accounts        → pools
   //   6. Fully ready, has reachable accounts       → accounts
   //
-  // "Reachable" includes testnet-only deposits via --all-chains.
+  // "Reachable" includes testnet-only deposits via --include-testnets.
   //
   // Chain options:
   //   - `init`: uses `defaultChain` (init's flag is --default-chain, NOT --chain).
   //   - `pools`: uses `chain`; humans get --chain when overridden OR default is testnet.
-  //   - `accounts`: use accountsChainOpt or --all-chains (derived above).
+  //   - `accounts`: use accountsChainOpt or --include-testnets (derived below).
   const isDefaultTestnet = isTestnetChain(result.defaultChain);
   const initAgentChainOpts: Record<string, string> = workflowChain ? { defaultChain: workflowChain } : {};
   const initHumanChainOpts: Record<string, string> | undefined =
@@ -284,12 +284,12 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const poolsHumanChainOpts: Record<string, string> | undefined =
     (chainOverridden || isDefaultTestnet) && workflowChain ? { chain: workflowChain } : undefined;
   const accountsAgentChainOpts: Record<string, NextActionOptionValue> = accountsNeedsAllChains
-    ? { allChains: true }
+    ? { includeTestnets: true }
     : accountsChainOpt
       ? { chain: accountsChainOpt }
       : {};
   const accountsHumanChainOpts: Record<string, NextActionOptionValue> | undefined = accountsNeedsAllChains
-    ? { allChains: true }
+    ? { includeTestnets: true }
     : accountsChainOpt
       ? { chain: accountsChainOpt }
       : undefined;
@@ -304,9 +304,9 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       options: {
         agent: true,
         ...(workflowChain ? { defaultChain: workflowChain } : {}),
-        recoveryPhraseFile: "<downloaded-file>",
       },
       runnable: false,
+      parameters: [{ name: "recoveryPhraseFile", type: "file_path", required: true }],
     },
   );
   const restoreDiscoveryHumanAction = createNextAction(
@@ -338,13 +338,24 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
           "ragequit",
           "Public recovery still works while the ASP is down when RPC is healthy, including unsigned ragequit payloads, but you must supply the asset and --pool-account.",
           "status_degraded_health",
-          { options: { agent: true }, runnable: false },
+          {
+            options: { agent: true },
+            runnable: false,
+            parameters: [
+              { name: "asset", type: "asset_symbol", required: true },
+              { name: "poolAccount", type: "pool_account_id", required: true },
+            ],
+          },
         ),
         createNextAction(
           "flow ragequit",
           "Saved workflows can still use the public recovery path while the ASP is down.",
           "status_degraded_health",
-          { args: ["latest"], options: { agent: true }, runnable: false },
+          {
+            options: { agent: true },
+            runnable: false,
+            parameters: [{ name: "workflowId", type: "workflow_id_or_latest", required: true }],
+          },
         ),
       ];
       humanNextActions = [
@@ -483,10 +494,10 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         ? "RPC healthy"
         : "RPC unreachable",
       result.aspLive === undefined
-        ? "ASP not checked"
+        ? "0xBow ASP not checked"
         : result.aspLive
-        ? "ASP healthy"
-        : "ASP unreachable",
+        ? "0xBow ASP healthy"
+        : "0xBow ASP unreachable",
       result.accountFiles.length > 0
         ? `saved deposit state on ${result.accountFiles.length} chain${result.accountFiles.length === 1 ? "" : "s"}`
         : "no saved deposits",
@@ -562,7 +573,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         : []),
       ...(result.selectedChain && result.aspHost
         ? [{
-            label: `ASP (${result.aspHost})`,
+            label: `0xBow ASP (${result.aspHost})`,
             value: result.aspLive === undefined
               ? "not checked"
               : result.aspLive
@@ -630,7 +641,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       process.stderr.write(
         formatCallout(
           "read-only",
-          "Stay on public discovery until RPC and ASP connectivity recover.",
+          "Stay on public discovery until RPC and 0xBow ASP connectivity recover.",
         ),
       );
     }

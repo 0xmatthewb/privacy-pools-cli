@@ -25,6 +25,17 @@ export interface ReviewSurfaceData {
   secondaryCallout?: ReviewCallout | null;
 }
 
+function formatEmbeddedReviewCallout(callout: ReviewCallout): string {
+  return formatCallout(callout.kind, callout.lines)
+    .trim()
+    .split("\n")
+    .map((line, index) => {
+      const stripped = line.replace(/^\s*[│|]\s?/, "");
+      return `${index === 0 ? "  " : "    "}${stripped}`;
+    })
+    .join("\n");
+}
+
 export function formatReviewSurface(data: ReviewSurfaceData): string {
   const blocks: string[] = [];
 
@@ -42,14 +53,10 @@ export function formatReviewSurface(data: ReviewSurfaceData): string {
   }
 
   if (data.primaryCallout) {
-    blocks.push(
-      formatCallout(data.primaryCallout.kind, data.primaryCallout.lines).trim(),
-    );
+    blocks.push(formatEmbeddedReviewCallout(data.primaryCallout));
   }
   if (data.secondaryCallout) {
-    blocks.push(
-      formatCallout(data.secondaryCallout.kind, data.secondaryCallout.lines).trim(),
-    );
+    blocks.push(formatEmbeddedReviewCallout(data.secondaryCallout));
   }
 
   return formatBox(blocks.join("\n"), {

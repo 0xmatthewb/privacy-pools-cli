@@ -1,6 +1,7 @@
 import type { GlobalOptions } from "../types.js";
 import { configureJsonOutput } from "./json.js";
 import { setSuppressHeaders, setSuppressProgress } from "./format.js";
+import { warnLegacyFormatFlag } from "./deprecations.js";
 import { getParsedVerboseLevel } from "./verbose-level.js";
 import { setActiveProfile } from "../runtime/config-paths.js";
 import { CLIError } from "./errors.js";
@@ -35,6 +36,7 @@ export interface ResolvedGlobalMode {
 }
 
 let _activeModeArgv: readonly string[] = [];
+let _warnedFormatAlias = false;
 
 const TRUE_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
 
@@ -140,6 +142,14 @@ export function resolveGlobalMode(
     (globalOpts?.quiet ?? false) ||
     isAgent ||
     readBooleanEnv("PRIVACY_POOLS_QUIET");
+  if (
+    globalOpts?.format !== undefined &&
+    globalOpts?.output === undefined &&
+    !_warnedFormatAlias
+  ) {
+    warnLegacyFormatFlag(isQuiet);
+    _warnedFormatAlias = true;
+  }
   // JSON/CSV/machine mode must never block on interactive prompts.
   // Also auto-detect CI environments (CI=true or CI=1) to prevent hanging.
   const isCI = process.env.CI === "true" || process.env.CI === "1";

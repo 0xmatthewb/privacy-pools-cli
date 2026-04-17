@@ -258,16 +258,11 @@ export async function handleConfigSetCommand(
       saveMnemonicToFile(newValue);
       summary = "updated (sensitive value redacted)";
     } else if (key === "signer-key") {
-      const normalized = newValue.startsWith("0x") ? newValue : `0x${newValue}`;
-      if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
-        throw new CLIError(
-          "Signer key must be a valid 32-byte hex private key.",
-          "INPUT",
-          "Provide a 0x-prefixed, 66-character hex string.",
-        );
-      }
-      saveSignerKey(newValue);
-      summary = "updated (sensitive value redacted)";
+      throw new CLIError(
+        "Signer keys cannot be updated through config set.",
+        "INPUT",
+        "Use 'privacy-pools init --signer-only' to add or replace the signer key safely.",
+      );
     } else {
       const rpcKey = parseRpcOverrideKey(key);
       if (!rpcKey) {

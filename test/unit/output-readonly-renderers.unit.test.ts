@@ -411,7 +411,7 @@ describe("read-only output renderers", () => {
     );
 
     expect(stderr).toContain("optimism (RPC): rpc unavailable");
-    expect(stderr).toContain("My Pools across mainnet chains");
+    expect(stderr).toContain("Pool Accounts across mainnet chains");
     expect(stderr).toContain("ETH Pool");
     expect(stderr).toContain("USDC Pool");
     expect(stderr).toContain("declined");

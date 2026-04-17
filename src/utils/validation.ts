@@ -5,6 +5,7 @@ import { CLIError } from "./errors.js";
 import { didYouMean } from "./fuzzy.js";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const HEX_ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 
 export function resolveChain(
   chainName?: string,
@@ -43,10 +44,18 @@ export function validateAddress(
   label: string = "Address",
 ): `0x${string}` {
   if (!isAddress(value)) {
+    if (!value.startsWith("0x") || value.length !== 42 || !HEX_ADDRESS_PATTERN.test(value)) {
+      throw new CLIError(
+        `${label} is not a valid Ethereum address: ${value}`,
+        "INPUT",
+        "Provide a 0x-prefixed, 42-character hex address (e.g. 0xAbC...123)."
+      );
+    }
     throw new CLIError(
       `${label} is not a valid Ethereum address: ${value}`,
       "INPUT",
-      "Provide a 0x-prefixed, 42-character hex address (e.g. 0xAbC...123)."
+      "Provide an address with the correct EIP-55 checksum, or use the all-lowercase / all-uppercase form.",
+      "INPUT_ADDRESS_CHECKSUM_INVALID",
     );
   }
 

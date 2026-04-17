@@ -117,11 +117,16 @@ import {
   renderWithdrawQuote,
 } from "../output/withdraw.js";
 import {
+  CONFIRMATION_TOKENS,
   confirmActionWithSeverity,
   formatPoolAccountPromptChoice,
   formatPoolPromptChoice,
   isHighStakesWithdrawal,
 } from "../utils/prompts.js";
+import {
+  warnLegacyAssetFlag,
+  warnLegacyPoolAccountFlag,
+} from "../utils/deprecations.js";
 import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
@@ -132,6 +137,7 @@ import {
   renderNarrativeSteps,
 } from "../output/progress.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import { maybeLaunchBrowser } from "../utils/web.js";
 import {
   assertKnownPoolRoot,
   poolRootCacheScopeKey,
@@ -302,7 +308,7 @@ async function confirmRecipientIfNew(params: {
   const ok = await confirmActionWithSeverity({
     severity: "standard",
     standardMessage: "Use this new recipient?",
-    highStakesToken: "RECIPIENT",
+    highStakesToken: CONFIRMATION_TOKENS.recipient,
     highStakesWarning: "Recipient review changed while waiting for confirmation.",
     confirm,
   });
@@ -343,6 +349,23 @@ function rememberSuccessfulWithdrawalRecipient(address: string): void {
   } catch {
     // Best effort only. The withdrawal result should not fail because the
     // advisory recipient-history cache could not be updated.
+  }
+}
+
+async function withSuspendedSpinner<T>(
+  spin: ReturnType<typeof spinner>,
+  task: () => Promise<T>,
+): Promise<T> {
+  const wasSpinning = spin.isSpinning;
+  if (wasSpinning) {
+    spin.stop();
+  }
+  try {
+    return await task();
+  } finally {
+    if (wasSpinning) {
+      spin.start();
+    }
   }
 }
 
@@ -532,15 +555,6 @@ export async function handleWithdrawCommand(
   opts: WithdrawCommandOptions,
   cmd: Command,
 ): Promise<void> {
-  // Deprecated --asset flag migration guard.
-  if (opts.asset !== undefined) {
-    throw new CLIError(
-      "--asset has been replaced by a positional argument.",
-      "INPUT",
-      "Use: privacy-pools withdraw <amount> <asset> --to <address> (e.g. privacy-pools withdraw 0.05 ETH --to 0x...)",
-    );
-  }
-
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
@@ -558,14 +572,16 @@ export async function handleWithdrawCommand(
   const confirmationTimeoutSeconds = Math.round(
     getConfirmationTimeoutMs() / 1000,
   );
-  if (opts.fromPa !== undefined) {
-    throw new CLIError(
-      "--from-pa has been renamed to --pool-account.",
-      "INPUT",
-      `Use: --pool-account ${opts.fromPa}`,
+  if (opts.asset !== undefined) {
+    warnLegacyAssetFlag(
+      "privacy-pools withdraw <amount> <asset> --to <address> (e.g. privacy-pools withdraw 0.05 ETH --to 0x...)",
+      silent,
     );
   }
-  const fromPaRaw = opts.poolAccount as string | undefined;
+  if (opts.fromPa !== undefined) {
+    warnLegacyPoolAccountFlag(opts.fromPa, silent);
+  }
+  const fromPaRaw = (opts.poolAccount ?? opts.fromPa) as string | undefined;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
   const writeWithdrawProgress = (activeIndex: number, note?: string) => {
@@ -656,11 +672,14 @@ export async function handleWithdrawCommand(
     let needsAmountPrompt = false;
 
     if (isAllWithdrawal) {
-      if (secondArg !== undefined) {
+      const amountLikeFirstArg =
+        typeof firstArg === "string" &&
+        /^-?(?:\d+(?:\.\d+)?|\.\d+)%?$/.test(firstArg.trim());
+      if (secondArg !== undefined || amountLikeFirstArg) {
         throw new CLIError(
-          "Cannot specify an amount with --all.",
+          "Remove the amount when using --all.",
           "INPUT",
-          "Use 'withdraw <asset> --all --to <address>' to withdraw the entire Pool Account balance.",
+          "--all already implies 100% of the selected Pool Account. Use 'privacy-pools withdraw --all <asset> --to <address>'.",
         );
       }
       positionalOrFlagAsset = opts.asset ?? firstArg;
@@ -1177,16 +1196,24 @@ export async function handleWithdrawCommand(
           withdrawalAmount,
         );
         const singularStatus = statuses.length === 1 ? statuses[0] : undefined;
+        if (singularStatus === "poa_required") {
+          maybeLaunchBrowser({
+            globalOpts,
+            mode,
+            url: POA_PORTAL_URL,
+            label: "PoA portal",
+            silent,
+          });
+        }
         throw new CLIError(
           "No eligible Pool Account is currently approved for withdrawal.",
-          "ASP",
+          "INPUT",
           formatApprovalResolutionHint({
             chainName: chainConfig.name,
             assetSymbol: pool.symbol,
             status: singularStatus,
           }),
           "ACCOUNT_NOT_APPROVED",
-          true,
         );
       }
 
@@ -1194,7 +1221,7 @@ export async function handleWithdrawCommand(
         throw new CLIError(
           `No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`,
           "INPUT",
-          `No approved Pool Accounts found for ${pool.symbol}. Check 'privacy-pools accounts' for pending approvals or deposit first.`,
+          `No approved Pool Accounts found for ${pool.symbol} yet. Please wait for your deposits to be approved, or deposit first if you have not funded this pool.`,
         );
       }
 
@@ -1231,9 +1258,18 @@ export async function handleWithdrawCommand(
         }
 
         if (!approvedLabelSet.has(requested.label)) {
+          if (requested.status === "poa_required") {
+            maybeLaunchBrowser({
+              globalOpts,
+              mode,
+              url: POA_PORTAL_URL,
+              label: "PoA portal",
+              silent,
+            });
+          }
           throw new CLIError(
             `${requested.paId} is not currently approved for withdrawal.`,
-            "ASP",
+            "INPUT",
             formatApprovalResolutionHint({
               chainName: chainConfig.name,
               assetSymbol: pool.symbol,
@@ -1247,7 +1283,6 @@ export async function handleWithdrawCommand(
                   : undefined,
             }),
             "ACCOUNT_NOT_APPROVED",
-            true,
           );
         }
 
@@ -1359,26 +1394,28 @@ export async function handleWithdrawCommand(
               silent,
             );
             ensurePromptInteractionAvailable();
-            const newAmountStr = await input({
-              message: `Enter a new amount (minimum ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}):`,
-              validate: (val) => {
-                try {
-                  const parsed = parseAmount(val, pool.decimals, {
-                    allowNegative: true,
-                  });
-                  validatePositive(parsed, "Withdrawal amount");
-                  if (parsed > selectedPoolAccount.value) {
-                    return `Amount exceeds ${selectedPoolAccount.paId} balance of ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol)}.`;
+            const newAmountStr = await withSuspendedSpinner(spin, async () =>
+              input({
+                message: `Enter a new amount (minimum ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}):`,
+                validate: (val) => {
+                  try {
+                    const parsed = parseAmount(val, pool.decimals, {
+                      allowNegative: true,
+                    });
+                    validatePositive(parsed, "Withdrawal amount");
+                    if (parsed > selectedPoolAccount.value) {
+                      return `Amount exceeds ${selectedPoolAccount.paId} balance of ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol)}.`;
+                    }
+                    if (parsed < minWithdraw) {
+                      return `Amount must be at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`;
+                    }
+                    return true;
+                  } catch (e) {
+                    return e instanceof Error ? e.message : "Invalid amount.";
                   }
-                  if (parsed < minWithdraw) {
-                    return `Amount must be at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`;
-                  }
-                  return true;
-                } catch (e) {
-                  return e instanceof Error ? e.message : "Invalid amount.";
-                }
-              },
-            });
+                },
+              })
+            );
             withdrawalAmount = parseAmount(newAmountStr, pool.decimals, {
               allowNegative: true,
             });
@@ -1388,7 +1425,6 @@ export async function handleWithdrawCommand(
               silent,
             );
             earlyMinCheckFailed = false;
-            spin.start();
           }
 
           // Early remainder advisory
@@ -1404,31 +1440,34 @@ export async function handleWithdrawCommand(
             if (advisory) {
               warn(advisory, silent);
               if (!skipPrompts) {
-                spin.stop();
                 const maxAmountLeavingWithdrawableRemainder =
                   selectedPoolAccount.value - minWithdraw;
                 ensurePromptInteractionAvailable();
-                const remainderChoice = await select({
-                  message: "The remainder would be below the private relayer minimum. What would you like to do?",
-                  choices: [
-                    {
-                      name: "Withdraw less and leave a privately withdrawable remainder",
-                      value: "less" as const,
-                      disabled:
-                        maxAmountLeavingWithdrawableRemainder >= minWithdraw
-                          ? false
-                          : "Pool Account balance is too small for this option",
-                    },
-                    {
-                      name: `Use max (${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol)})`,
-                      value: "max" as const,
-                    },
-                    {
-                      name: "Continue and exit the remainder later if needed",
-                      value: "continue" as const,
-                    },
-                  ],
-                });
+                const remainderChoice = await withSuspendedSpinner(
+                  spin,
+                  async () =>
+                    select({
+                      message: "The remainder would be below the private relayer minimum. What would you like to do?",
+                      choices: [
+                        {
+                          name: "Withdraw less and leave a privately withdrawable remainder",
+                          value: "less" as const,
+                          disabled:
+                            maxAmountLeavingWithdrawableRemainder >= minWithdraw
+                              ? false
+                              : "Pool Account balance is too small for this option",
+                        },
+                        {
+                          name: `Use max (${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol)})`,
+                          value: "max" as const,
+                        },
+                        {
+                          name: "Continue and exit the remainder later if needed",
+                          value: "continue" as const,
+                        },
+                      ],
+                    }),
+                );
 
                 if (remainderChoice === "max") {
                   withdrawalAmount = selectedPoolAccount.value;
@@ -1438,26 +1477,30 @@ export async function handleWithdrawCommand(
                     silent,
                   );
                 } else if (remainderChoice === "less") {
-                  const newAmountStr = await input({
-                    message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
-                    validate: (val) => {
-                      try {
-                        const parsed = parseAmount(val, pool.decimals, {
-                          allowNegative: true,
-                        });
-                        validatePositive(parsed, "Withdrawal amount");
-                        if (parsed < minWithdraw) {
-                          return `Amount must be at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`;
-                        }
-                        if (parsed > maxAmountLeavingWithdrawableRemainder) {
-                          return `Amount must leave at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)} in ${selectedPoolAccount.paId}.`;
-                        }
-                        return true;
-                      } catch (e) {
-                        return e instanceof Error ? e.message : "Invalid amount.";
-                      }
-                    },
-                  });
+                  const newAmountStr = await withSuspendedSpinner(
+                    spin,
+                    async () =>
+                      input({
+                        message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
+                        validate: (val) => {
+                          try {
+                            const parsed = parseAmount(val, pool.decimals, {
+                              allowNegative: true,
+                            });
+                            validatePositive(parsed, "Withdrawal amount");
+                            if (parsed < minWithdraw) {
+                              return `Amount must be at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`;
+                            }
+                            if (parsed > maxAmountLeavingWithdrawableRemainder) {
+                              return `Amount must leave at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)} in ${selectedPoolAccount.paId}.`;
+                            }
+                            return true;
+                          } catch (e) {
+                            return e instanceof Error ? e.message : "Invalid amount.";
+                          }
+                        },
+                      }),
+                  );
                   withdrawalAmount = parseAmount(newAmountStr, pool.decimals, {
                     allowNegative: true,
                   });
@@ -1467,7 +1510,6 @@ export async function handleWithdrawCommand(
                     silent,
                   );
                 }
-                spin.start();
               }
             }
           }
@@ -1510,7 +1552,6 @@ export async function handleWithdrawCommand(
       );
 
       if (!isDirect && !recipientAddress) {
-        spin.stop();
         if (
           await maybeRenderPreviewScenario("withdraw recipient input", {
             timing: "after-prompts",
@@ -1519,10 +1560,12 @@ export async function handleWithdrawCommand(
           return;
         }
         ensurePromptInteractionAvailable();
-        const promptedRecipient = await promptRecipientAddressOrEns(silent);
+        const promptedRecipient = await withSuspendedSpinner(
+          spin,
+          async () => promptRecipientAddressOrEns(silent),
+        );
         recipientAddress = promptedRecipient.address;
         recipientEnsName = promptedRecipient.ensName;
-        spin.start();
       }
 
       if (!recipientAddress) {
@@ -1652,7 +1695,7 @@ export async function handleWithdrawCommand(
           const ok = await confirmActionWithSeverity({
             severity: "high_stakes",
             standardMessage: "Confirm direct withdrawal?",
-            highStakesToken: "WITHDRAW",
+            highStakesToken: CONFIRMATION_TOKENS.directWithdrawal,
             highStakesWarning:
               `This direct withdrawal will publicly link your deposit and withdrawal addresses onchain. Recipient: ${directAddress}. This cannot be undone.`,
             confirm,
@@ -1888,6 +1931,13 @@ export async function handleWithdrawCommand(
           anonymitySet,
           warnings: recipientWarnings,
         });
+        maybeLaunchBrowser({
+          globalOpts,
+          mode,
+          url: explorerTxUrl(chainConfig.id, tx.hash),
+          label: "withdrawal transaction",
+          silent,
+        });
       } else {
         // --- Relayed Withdrawal ---
         // Get relayer details + quote.
@@ -1922,7 +1972,6 @@ export async function handleWithdrawCommand(
 
         if (remainingBelowMinAdvisory && !skipPrompts) {
           // Interactive mode: let the user choose how to handle the low remainder.
-          spin.stop();
           const remainingBalance = selectedPoolAccount.value - withdrawalAmount;
           warn(
             `Remaining balance (${formatAmount(remainingBalance, pool.decimals, pool.symbol)}) would fall below the relayer minimum.`,
@@ -1932,27 +1981,31 @@ export async function handleWithdrawCommand(
           const minWithdrawAmount = BigInt(details.minWithdrawAmount);
           const maxAmountLeavingWithdrawableRemainder =
             selectedPoolAccount.value - minWithdrawAmount;
-          const remainderChoice = await select({
-            message: "How would you like to proceed?",
-            choices: [
-              {
-                name: "Withdraw less and leave a privately withdrawable remainder",
-                value: "less" as const,
-                disabled:
-                  maxAmountLeavingWithdrawableRemainder >= minWithdrawAmount
-                    ? false
-                    : "Pool Account balance is too small for this option",
-              },
-              {
-                name: "Use max (withdraw the full Pool Account balance)",
-                value: "full" as const,
-              },
-              {
-                name: "Continue and exit the remainder later if needed",
-                value: "continue" as const,
-              },
-            ],
-          });
+          const remainderChoice = await withSuspendedSpinner(
+            spin,
+            async () =>
+              select({
+                message: "How would you like to proceed?",
+                choices: [
+                  {
+                    name: "Withdraw less and leave a privately withdrawable remainder",
+                    value: "less" as const,
+                    disabled:
+                      maxAmountLeavingWithdrawableRemainder >= minWithdrawAmount
+                        ? false
+                        : "Pool Account balance is too small for this option",
+                  },
+                  {
+                    name: "Use max (withdraw the full Pool Account balance)",
+                    value: "full" as const,
+                  },
+                  {
+                    name: "Continue and exit the remainder later if needed",
+                    value: "continue" as const,
+                  },
+                ],
+              }),
+          );
           if (remainderChoice === "full") {
             withdrawalAmount = selectedPoolAccount.value;
             withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
@@ -1969,26 +2022,30 @@ export async function handleWithdrawCommand(
               decimals: pool.decimals,
             });
           } else if (remainderChoice === "less") {
-            const newAmountStr = await input({
-              message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
-              validate: (val) => {
-                try {
-                  const parsed = parseAmount(val, pool.decimals, {
-                    allowNegative: true,
-                  });
-                  validatePositive(parsed, "Withdrawal amount");
-                  if (parsed < minWithdrawAmount) {
-                    return `Amount must be at least ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)}.`;
-                  }
-                  if (parsed > maxAmountLeavingWithdrawableRemainder) {
-                    return `Amount must leave at least ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)} in ${selectedPoolAccount.paId}.`;
-                  }
-                  return true;
-                } catch (e) {
-                  return e instanceof Error ? e.message : "Invalid amount.";
-                }
-              },
-            });
+            const newAmountStr = await withSuspendedSpinner(
+              spin,
+              async () =>
+                input({
+                  message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
+                  validate: (val) => {
+                    try {
+                      const parsed = parseAmount(val, pool.decimals, {
+                        allowNegative: true,
+                      });
+                      validatePositive(parsed, "Withdrawal amount");
+                      if (parsed < minWithdrawAmount) {
+                        return `Amount must be at least ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)}.`;
+                      }
+                      if (parsed > maxAmountLeavingWithdrawableRemainder) {
+                        return `Amount must leave at least ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)} in ${selectedPoolAccount.paId}.`;
+                      }
+                      return true;
+                    } catch (e) {
+                      return e instanceof Error ? e.message : "Invalid amount.";
+                    }
+                  },
+                }),
+            );
             withdrawalAmount = parseAmount(newAmountStr, pool.decimals, {
               allowNegative: true,
             });
@@ -2005,7 +2062,6 @@ export async function handleWithdrawCommand(
               decimals: pool.decimals,
             });
           }
-          spin.start();
         } else if (skipPrompts && !silent && remainingBelowMinAdvisory) {
           warn(remainingBelowMinAdvisory, silent);
           process.stderr.write("\n");
@@ -2107,6 +2163,7 @@ export async function handleWithdrawCommand(
               decimals: pool.decimals,
               recipient: resolvedRecipientAddress,
               recipientEnsName,
+              baseFeeBPS: BigInt(quote.baseFeeBPS),
               quoteFeeBPS,
               expirationMs,
               remainingBalance: selectedPoolAccount.value - withdrawalAmount,
@@ -2114,6 +2171,8 @@ export async function handleWithdrawCommand(
               extraGasFundAmount: quote.detail.extraGasFundAmount
                 ? BigInt(quote.detail.extraGasFundAmount.eth)
                 : null,
+              relayTxCost: quote.detail.relayTxCost,
+              extraGasTxCost: quote.detail.extraGasTxCost,
               tokenPrice,
               nativeTokenPrice,
               remainingBelowMinAdvisory,
@@ -2145,11 +2204,10 @@ export async function handleWithdrawCommand(
               return;
             }
 
-            const highStakesToken = formatAmount(
+            const withdrawalAmountLabel = formatAmount(
               withdrawalAmount,
               pool.decimals,
               pool.symbol,
-              displayDecimals(pool.decimals),
             );
             const ok = await confirmActionWithSeverity({
               severity: isHighStakesWithdrawal({
@@ -2162,9 +2220,9 @@ export async function handleWithdrawCommand(
                 ? "high_stakes"
                 : "standard",
               standardMessage: "Confirm withdrawal?",
-              highStakesToken,
+              highStakesToken: CONFIRMATION_TOKENS.withdraw,
               highStakesWarning:
-                `This withdrawal moves ${highStakesToken} to ${resolvedRecipientAddress}.` +
+                `This withdrawal moves ${withdrawalAmountLabel} to ${resolvedRecipientAddress}.` +
                 " Double-check the amount and destination before continuing.",
               confirm,
             });
@@ -2513,6 +2571,13 @@ export async function handleWithdrawCommand(
           tokenPrice,
           anonymitySet,
           warnings: recipientWarnings,
+        });
+        maybeLaunchBrowser({
+          globalOpts,
+          mode,
+          url: explorerTxUrl(chainConfig.id, result.txHash),
+          label: "withdrawal transaction",
+          silent,
         });
       }
     } finally {

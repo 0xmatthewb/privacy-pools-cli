@@ -14,6 +14,18 @@ export function createActivityCommand(): Command {
         "Deprecated: use positional argument instead",
       ).hideHelp(),
     )
+    .addOption(
+      new Option(
+        "--include-testnets",
+        "Include supported testnets (default: CLI-supported mainnet chains only)",
+      ),
+    )
+    .addOption(
+      new Option(
+        "--all-chains",
+        "Deprecated: use --include-testnets",
+      ).hideHelp(),
+    )
     .option("--page <n>", "Page number", "1")
     .option("-n, --limit <n>", "Items per page", "12")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))

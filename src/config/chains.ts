@@ -165,7 +165,7 @@ export function getDefaultReadOnlyChains(): ChainConfig[] {
 }
 
 /** Proof of Association portal host (referenced in user-facing messages). */
-export const POA_PORTAL_URL = "tornado.0xbow.io";
+export const POA_PORTAL_URL = "https://tornado.0xbow.io";
 
 export const NATIVE_ASSET_ADDRESS =
   "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as const;

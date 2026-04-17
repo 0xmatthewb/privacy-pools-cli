@@ -200,6 +200,7 @@ const maybeRecoverMissingWalletSetupMock = mock(async () => false);
 
 let handleRagequitCommand: typeof import("../../src/commands/ragequit.ts").handleRagequitCommand;
 let world: TestWorld;
+let ragequitImportCounter = 0;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -303,7 +304,7 @@ async function loadRagequitCommandHandler(): Promise<void> {
   }));
 
   ({ handleRagequitCommand } = await import(
-    "../../src/commands/ragequit.ts"
+    `../../src/commands/ragequit.ts?bust=${ragequitImportCounter++}`
   ));
 }
 
@@ -440,47 +441,46 @@ export function registerRagequitCommandHandlerHarness(): void {
 }
 
 export function registerRagequitEntrySubmitTests(): void {
-  test("rejects the deprecated --asset flag before pool resolution", async () => {
+  test("accepts the deprecated --asset alias while keeping machine ragequit gated", async () => {
     useIsolatedHome();
 
-    await expect(
+    const { json } = await captureAsyncJsonOutput(() =>
       handleRagequitCommand(
         undefined,
         {
           asset: "ETH",
           poolAccount: "PA-1",
           unsigned: true,
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
-    ).rejects.toMatchObject({
-      code: "INPUT_ERROR",
-      message: expect.stringContaining(
-        "--asset has been replaced by a positional argument",
-      ),
-    });
-    expect(resolvePoolMock).not.toHaveBeenCalled();
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.operation).toBe("ragequit");
+    expect(json.poolAccountId).toBe("PA-1");
+    expect(resolvePoolMock).toHaveBeenCalledTimes(1);
   });
 
-  test("rejects the renamed --from-pa flag before parsing Pool Account selectors", async () => {
+  test("accepts the renamed --from-pa alias while keeping machine ragequit gated", async () => {
     useIsolatedHome();
 
-    await expect(
+    const { json } = await captureAsyncJsonOutput(() =>
       handleRagequitCommand(
         "ETH",
         {
           fromPa: "PA-1",
           unsigned: true,
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
-    ).rejects.toMatchObject({
-      code: "INPUT_ERROR",
-      message: expect.stringContaining(
-        "--from-pa has been renamed to --pool-account",
-      ),
-    });
-    expect(parsePoolAccountSelectorMock).not.toHaveBeenCalled();
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.poolAccountId).toBe("PA-1");
+    expect(parsePoolAccountSelectorMock).toHaveBeenCalledWith("PA-1");
   });
 
   test("rejects malformed --pool-account selectors before loading account state", async () => {
@@ -862,6 +862,7 @@ export function registerRagequitUnsignedTests(): void {
         {
           poolAccount: "PA-1",
           unsigned: true,
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -891,6 +892,7 @@ export function registerRagequitUnsignedTests(): void {
         {
           poolAccount: "PA-1",
           unsigned: "tx",
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ chain: "mainnet" }),
       ),
@@ -924,6 +926,7 @@ export function registerRagequitUnsignedTests(): void {
         {
           poolAccount: "PA-1",
           unsigned: true,
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1023,6 +1026,7 @@ export function registerRagequitEntrySubmitCompletionTests(): void {
         "ETH",
         {
           poolAccount: "PA-1",
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1083,6 +1087,7 @@ export function registerRagequitEntrySubmitCompletionTests(): void {
         "ETH",
         {
           poolAccount: "PA-1",
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1164,6 +1169,7 @@ export function registerRagequitOwnershipTests(): void {
         "ETH",
         {
           poolAccount: "PA-1",
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1196,6 +1202,7 @@ export function registerRagequitOwnershipTests(): void {
         "ETH",
         {
           poolAccount: "PA-1",
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1430,7 +1437,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(selectPromptMock).toHaveBeenCalledTimes(2);
     expect(inputPromptMock).toHaveBeenCalledTimes(1);
     expect(stderr).toContain("Ragequit review");
-    expect(stderr).toContain("public self-custody recovery returns funds to the original deposit address");
+    expect(stderr).toContain("Recover funds publicly to your deposit address");
     expect(stderr).toContain("Ragequit cancelled.");
     expect(ragequitMock).not.toHaveBeenCalled();
   });
@@ -1579,6 +1586,48 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(ragequitMock).not.toHaveBeenCalled();
   });
 
+  test("shows an exact-case token hint when human ragequit confirmation does not match", async () => {
+    useIsolatedHome({ withSigner: true });
+    selectPromptMock.mockImplementationOnce(async () => 1);
+    selectPromptMock.mockImplementationOnce(async () => "ragequit");
+    inputPromptMock.mockImplementationOnce(async () => "ragequit");
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Expected 'RAGEQUIT' (exact case).");
+    expect(stderr).toContain("Ragequit cancelled.");
+    expect(ragequitMock).not.toHaveBeenCalled();
+  });
+
+  test("requires explicit privacy-loss acknowledgement in machine mode", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          poolAccount: "PA-1",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Ragequit requires explicit privacy-loss acknowledgement in non-interactive mode.",
+    );
+    expect(json.error.hint).toContain("--yes-i-understand-privacy-loss");
+    expect(exitCode).toBe(2);
+    expect(ragequitMock).not.toHaveBeenCalled();
+  });
+
   test("interactive asset selection re-resolves the chosen pool before ragequit execution", async () => {
     useIsolatedHome({ withSigner: true });
     listPoolsMock.mockImplementation(async () => [
@@ -1708,6 +1757,7 @@ export function registerRagequitHumanConfirmationTests(): void {
         "ETH",
         {
           poolAccount: "PA-1",
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1736,6 +1786,7 @@ export function registerRagequitHumanConfirmationTests(): void {
         "ETH",
         {
           poolAccount: "PA-1",
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1838,6 +1889,7 @@ export function registerRagequitHumanConfirmationTests(): void {
         {
           poolAccount: "PA-1",
           unsigned: true,
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -1875,6 +1927,7 @@ export function registerRagequitHumanConfirmationTests(): void {
         "ETH",
         {
           poolAccount: "PA-1",
+          yesIUnderstandPrivacyLoss: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),

@@ -37,7 +37,7 @@ import {
 function expectNextAction(
   action: Record<string, unknown> | undefined,
   expected: Record<string, unknown>,
-  cliCommand: string,
+  cliCommand?: string,
 ): void {
   const { options, ...rest } = expected;
   const normalizedOptions =
@@ -96,7 +96,12 @@ describe("renderGuide parity", () => {
 
 const STUB_CAPABILITIES: CapabilitiesPayload = {
   commands: [
-    { name: "test-cmd", description: "Test command", requiresInit: false },
+    {
+      name: "test-cmd",
+      description: "Test command",
+      requiresInit: false,
+      group: "advanced",
+    },
   ],
   commandDetails: {
     "test-cmd": {
@@ -542,11 +547,13 @@ describe("renderStatus parity", () => {
         options: {
           agent: true,
           defaultChain: "sepolia",
-          recoveryPhraseFile: "<downloaded-file>",
         },
+        parameters: [
+          { name: "recoveryPhraseFile", type: "file_path", required: true },
+        ],
         runnable: false,
       },
-      "privacy-pools init --agent --default-chain sepolia --recovery-phrase-file <downloaded-file>",
+      undefined,
     );
     expectNextAction(
       json.nextActions[1],

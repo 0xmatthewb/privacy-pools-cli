@@ -59,6 +59,8 @@ export interface ActivityRenderData {
   scope?: string;
   /** True when events were filtered client-side by chain, making pagination totals unavailable. */
   chainFiltered?: boolean;
+  /** Extra note when pagination metadata is unavailable or approximate. */
+  note?: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -162,6 +164,10 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     }
     if (data.chainFiltered) {
       payload.chainFiltered = true;
+    }
+    if (data.note) {
+      payload.note = data.note;
+    } else if (data.chainFiltered) {
       payload.note = "Pagination totals are unavailable when filtering by chain. Results may be sparse.";
     }
     printJsonSuccess(appendNextActions(payload, agentNextActions), false);
@@ -206,6 +212,9 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
 
   if (data.events.length === 0) {
     process.stderr.write("No activity found.\n");
+    if (data.page > 1) {
+      process.stderr.write("You may have reached the end of the available results.\n");
+    }
     return;
   }
 
@@ -228,7 +237,14 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
         ]),
       );
     }
-    if (data.chainFiltered) {
+    if (data.note) {
+      process.stderr.write(
+        formatCallout(
+          "read-only",
+          data.note,
+        ),
+      );
+    } else if (data.chainFiltered) {
       process.stderr.write(
         formatCallout(
           "read-only",
@@ -277,7 +293,14 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     );
   }
 
-  if (data.chainFiltered) {
+  if (data.note) {
+    process.stderr.write(
+      formatCallout(
+        "read-only",
+        data.note,
+      ),
+    );
+  } else if (data.chainFiltered) {
     process.stderr.write(
       formatCallout(
         "read-only",

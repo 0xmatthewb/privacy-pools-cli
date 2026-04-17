@@ -49,6 +49,12 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
     welcomeBoolean: true,
   },
   {
+    flag: "--web",
+    description: "Open the primary explorer or portal link in your browser when available",
+    takesValue: false,
+    welcomeBoolean: true,
+  },
+  {
     flag: "-r, --rpc-url <url>",
     description: "Override RPC URL",
     takesValue: true,

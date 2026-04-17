@@ -15,8 +15,6 @@ import {
   renderNextSteps,
   printJsonSuccess,
   success,
-  info,
-  warn,
   isSilent,
   guardCsvUnsupported,
 } from "./common.js";
@@ -27,7 +25,7 @@ import {
   formatDenseOutcomeLine,
   formatTxHash,
   formatUsdValue,
-  displayDecimals,
+  formatRemainingTime,
 } from "../utils/format.js";
 import { inlineSeparator } from "../utils/terminal.js";
 import { formatUnits } from "viem";
@@ -47,11 +45,14 @@ export interface RelayedWithdrawalReviewData {
   decimals: number;
   recipient: string;
   recipientEnsName?: string;
+  baseFeeBPS?: bigint;
   quoteFeeBPS: bigint;
   expirationMs: number;
   remainingBalance: bigint;
   extraGasRequested: boolean;
   extraGasFundAmount?: bigint | null;
+  relayTxCost?: { gas: string; eth: string } | null;
+  extraGasTxCost?: { gas: string; eth: string } | null;
   tokenPrice?: number | null;
   nativeTokenPrice?: number | null;
   remainingBelowMinAdvisory?: string | null;
@@ -99,11 +100,36 @@ export function formatAnonymitySetValue(anonymitySet: {
   return `${anonymitySet.eligible} of ${anonymitySet.total} deposits (${anonymitySet.percentage.toFixed(1)}%; larger is more private)`;
 }
 
+function pad2(value: number): string {
+  return value.toString().padStart(2, "0");
+}
+
+function formatLocalTimestamp(ms: number): string {
+  const date = new Date(ms);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())} local`;
+}
+
+function formatHumanQuoteExpiry(expirationMs: number, nowMs: number = Date.now()): {
+  label: string;
+  secondsLeft: number;
+} {
+  const secondsLeft = Math.max(0, Math.floor((expirationMs - nowMs) / 1000));
+  const remaining = formatRemainingTime(expirationMs, nowMs);
+  const localTimestamp = formatLocalTimestamp(expirationMs);
+  return {
+    label:
+      remaining === "expired"
+        ? `expired (${localTimestamp})`
+        : `in ${remaining} (${localTimestamp})`,
+    secondsLeft,
+  };
+}
+
 function formatNativeGasTokenAmount(
   amount: bigint,
   nativeTokenPrice?: number | null,
 ): string {
-  const formatted = formatAmount(amount, 18, "ETH", displayDecimals(18));
+  const formatted = formatAmount(amount, 18, "ETH");
   const usd =
     nativeTokenPrice === undefined || nativeTokenPrice === null
       ? "-"
@@ -123,18 +149,23 @@ function formatNativeGasTokenAmount(
 export function formatRelayedWithdrawalReview(
   data: RelayedWithdrawalReviewData,
 ): string {
-  const dd = displayDecimals(data.decimals);
   const usd = (amount: bigint): string => {
     const val = formatUsdValue(amount, data.decimals, data.tokenPrice ?? null);
     return val === "-" ? "" : ` (${val})`;
   };
-  const secondsLeft = Math.max(
-    0,
-    Math.floor((data.expirationMs - (data.nowMs ?? Date.now())) / 1000),
+  const { label: quoteExpiry, secondsLeft } = formatHumanQuoteExpiry(
+    data.expirationMs,
+    data.nowMs,
   );
   const feeAmount = (data.amount * data.quoteFeeBPS) / 10000n;
+  const baseFeeAmount = (data.amount * (data.baseFeeBPS ?? data.quoteFeeBPS)) / 10000n;
   const netAmount = data.amount - feeAmount;
-  const quoteExpiry = `${new Date(data.expirationMs).toISOString()} (in ${secondsLeft}s)`;
+  const relayTxCostFormatted = data.relayTxCost
+    ? formatAmount(BigInt(data.relayTxCost.eth), 18, "ETH")
+    : null;
+  const extraGasTxCostFormatted = data.extraGasTxCost
+    ? formatAmount(BigInt(data.extraGasTxCost.eth), 18, "ETH")
+    : null;
   const secondaryLines = [
     ...(data.remainingBelowMinAdvisory ? [data.remainingBelowMinAdvisory] : []),
     ...(secondsLeft <= 30
@@ -149,12 +180,7 @@ export function formatRelayedWithdrawalReview(
       { label: "Pool Account", value: data.poolAccountId },
       {
         label: "Pool Account balance",
-        value: formatAmount(
-          data.poolAccountBalance,
-          data.decimals,
-          data.asset,
-          dd,
-        ),
+        value: formatAmount(data.poolAccountBalance, data.decimals, data.asset),
       },
       {
         label: "Recipient",
@@ -166,13 +192,27 @@ export function formatRelayedWithdrawalReview(
       { label: "Chain", value: data.chain },
       {
         label: "Amount",
-        value: `${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`,
+        value: `${formatAmount(data.amount, data.decimals, data.asset)}${usd(data.amount)}`,
+      },
+      {
+        label: "Total fee",
+        value: `${formatAmount(feeAmount, data.decimals, data.asset)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)} of withdrawal)`,
+        valueTone: "warning",
       },
       {
         label: "Relayer fee",
-        value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)} of withdrawal)`,
+        value: `${formatAmount(baseFeeAmount, data.decimals, data.asset)}${usd(baseFeeAmount)} (${formatBPS(data.baseFeeBPS ?? data.quoteFeeBPS)})`,
         valueTone: "warning",
       },
+      ...(relayTxCostFormatted
+        ? [
+            {
+              label: "Blockchain relay cost",
+              value: relayTxCostFormatted,
+              valueTone: "muted" as const,
+            },
+          ]
+        : []),
       ...(data.extraGasFundAmount
         ? [
             {
@@ -193,9 +233,18 @@ export function formatRelayedWithdrawalReview(
               },
             ]
           : []),
+      ...(extraGasTxCostFormatted
+        ? [
+            {
+              label: "Gas token top-up cost",
+              value: extraGasTxCostFormatted,
+              valueTone: "muted" as const,
+            },
+          ]
+        : []),
       {
         label: "Net received",
-        value: `${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`,
+        value: `${formatAmount(netAmount, data.decimals, data.asset)}${usd(netAmount)}`,
         valueTone: "success",
       },
       {
@@ -203,7 +252,7 @@ export function formatRelayedWithdrawalReview(
         value:
           data.remainingBalance === 0n
             ? `${data.poolAccountId} fully withdrawn`
-            : `${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`,
+            : `${formatAmount(data.remainingBalance, data.decimals, data.asset)}${usd(data.remainingBalance)}`,
         valueTone:
           data.remainingBalance > 0n && data.remainingBelowMinAdvisory
             ? "danger"
@@ -254,7 +303,7 @@ export function formatDirectWithdrawalReview(
       {
         label: "Amount",
         value:
-          `${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          `${formatAmount(data.amount, data.decimals, data.asset)}` +
           (amountUsd === "-" ? "" : ` (${amountUsd})`),
       },
       { label: "Recipient", value: data.recipient },
@@ -408,12 +457,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
         { label: "Mode", value: data.withdrawMode },
         {
           label: "Amount",
-          value: formatAmount(
-            data.amount,
-            data.decimals,
-            data.asset,
-            displayDecimals(data.decimals),
-          ),
+          value: formatAmount(data.amount, data.decimals, data.asset),
         },
         { label: "Recipient", value: formatAddress(data.recipient) },
         { label: "Pool Account", value: data.poolAccountId },
@@ -421,7 +465,10 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
           ? [{ label: "Relayer fee", value: formatBPS(data.feeBPS) }]
           : []),
         ...(data.withdrawMode === "relayed" && data.quoteExpiresAt
-          ? [{ label: "Quote expires", value: data.quoteExpiresAt }]
+          ? [{
+              label: "Quote expires",
+              value: formatHumanQuoteExpiry(new Date(data.quoteExpiresAt).getTime()).label,
+            }]
           : []),
         ...(data.withdrawMode === "relayed" && data.extraGas
           ? [{
@@ -437,12 +484,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
           : []),
         {
           label: "Pool Account balance",
-          value: formatAmount(
-            data.selectedCommitmentValue,
-            data.decimals,
-            data.asset,
-            displayDecimals(data.decimals),
-          ),
+          value: formatAmount(data.selectedCommitmentValue, data.decimals, data.asset),
         },
       ]),
     );
@@ -554,7 +596,6 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  const dd = displayDecimals(data.decimals);
   const usd = (amount: bigint): string => {
     const val = formatUsdValue(amount, data.decimals, data.tokenPrice ?? null);
     return val === "-" ? "" : ` (${val})`;
@@ -569,7 +610,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
         outcome: data.withdrawMode === "direct" ? "success" : "withdraw",
         message:
           `${data.withdrawMode === "direct" ? "Withdrew" : "Withdrew privately"} ` +
-          `${formatAmount(data.amount, data.decimals, data.asset, dd)} ` +
+          `${formatAmount(data.amount, data.decimals, data.asset)} ` +
           `-> ${formatAddress(data.recipient)}${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
         url: data.explorerUrl,
       }),
@@ -582,7 +623,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
         { label: "Recipient", value: data.recipient },
         {
           label: "Amount",
-          value: formatAmount(data.amount, data.decimals, data.asset, dd),
+          value: formatAmount(data.amount, data.decimals, data.asset),
         },
         { label: "Tx", value: formatTxHash(data.txHash) },
         ...(data.explorerUrl
@@ -597,7 +638,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
         ...(netAmount !== null
           ? [{
               label: "You receive",
-              value: `~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`,
+              value: `${formatAmount(netAmount, data.decimals, data.asset)}${usd(netAmount)}`,
             }]
           : []),
         ...(data.withdrawMode === "relayed" && data.extraGas
@@ -621,7 +662,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
           ? [{ label: "Remaining", value: `${data.poolAccountId} fully withdrawn`, valueTone: "success" as const }]
           : [{
               label: `Remaining in ${data.poolAccountId}`,
-              value: `${formatAmount(data.remainingBalance, data.decimals, data.asset, dd)}${usd(data.remainingBalance)}`,
+              value: `${formatAmount(data.remainingBalance, data.decimals, data.asset)}${usd(data.remainingBalance)}`,
             }]),
       ]),
     );
@@ -677,12 +718,10 @@ export interface WithdrawQuoteData {
 export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData): void {
   guardCsvUnsupported(ctx, "withdraw quote");
 
-  const dd = displayDecimals(data.decimals);
   const minWithdrawFormatted = formatAmount(
     BigInt(data.minWithdrawAmount),
     data.decimals,
     data.asset,
-    dd,
   );
 
   const feeBPS = BigInt(data.quoteFeeBPS);
@@ -694,7 +733,6 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     BigInt(relayTxCost.eth),
     18,
     "ETH",
-    displayDecimals(18),
   );
   const extraGasFundFormatted = data.extraGasFundAmount
     ? formatNativeGasTokenAmount(
@@ -707,7 +745,6 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
         BigInt(data.extraGasTxCost.eth),
         18,
         "ETH",
-        displayDecimals(18),
       )
     : null;
 
@@ -730,7 +767,10 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       {
         args: [formatUnits(data.amount, data.decimals), data.asset],
         options: { agent: true, chain: data.chain, ...(hasRecipient ? { to: data.recipient } : {}), extraGas: data.extraGas ?? null },
-        ...(!hasRecipient && { runnable: false }),
+        ...(!hasRecipient && {
+          runnable: false,
+          parameters: [{ name: "to", type: "address", required: true }],
+        }),
       },
     ),
   ];
@@ -790,38 +830,43 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
   if (!silent) {
+    const humanQuoteExpiry = data.quoteExpiresAt
+      ? formatHumanQuoteExpiry(new Date(data.quoteExpiresAt).getTime())
+      : null;
     const quoteRows = [
       { label: "Asset", value: data.asset },
       {
         label: "Withdraw amount",
-        value: `${formatAmount(data.amount, data.decimals, data.asset, dd)}${usd(data.amount)}`,
+        value: `${formatAmount(data.amount, data.decimals, data.asset)}${usd(data.amount)}`,
+      },
+      {
+        label: "Total fee",
+        value: `${formatAmount(feeAmount, data.decimals, data.asset)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)} of withdrawal)`,
       },
       {
         label: "Relayer fee",
-        value: `${formatAmount(feeAmount, data.decimals, data.asset, dd)}${usd(feeAmount)} (${formatBPS(data.quoteFeeBPS)} of withdrawal)`,
+        value: `${formatAmount((data.amount * BigInt(baseFeeBPS)) / 10000n, data.decimals, data.asset)}${usd((data.amount * BigInt(baseFeeBPS)) / 10000n)} (${formatBPS(baseFeeBPS)})`,
       },
+      { label: "Blockchain relay cost", value: relayTxCostFormatted },
       ...(extraGasFundFormatted
         ? [{ label: "Gas token received", value: extraGasFundFormatted }]
         : []),
+      ...(extraGasTxCostFormatted
+        ? [{ label: "Gas token top-up cost", value: extraGasTxCostFormatted }]
+        : []),
       {
         label: "You receive",
-        value: `~${formatAmount(netAmount, data.decimals, data.asset, dd)}${usd(netAmount)}`,
+        value: `${formatAmount(netAmount, data.decimals, data.asset)}${usd(netAmount)}`,
       },
       { label: "Min withdraw", value: minWithdrawFormatted },
       ...(data.recipient
         ? [{ label: "Recipient", value: formatAddress(data.recipient) }]
         : []),
-      ...(data.quoteExpiresAt
-        ? (() => {
-            const expiresIn = new Date(data.quoteExpiresAt).getTime() - Date.now();
-            const expiresLabel = expiresIn > 0
-              ? `${Math.ceil(expiresIn / 1000)}s remaining`
-              : "expired";
-            return [{
-              label: "Quote expires",
-              value: `${data.quoteExpiresAt} (${expiresLabel})`,
-            }];
-          })()
+      ...(humanQuoteExpiry
+        ? [{
+            label: "Quote expires",
+            value: humanQuoteExpiry.label,
+          }]
         : []),
       ...(data.extraGas && !extraGasFundFormatted
         ? [{

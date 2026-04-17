@@ -154,11 +154,12 @@ export async function createRootProgram(
       new Option(
         "--format <format>",
         rootGlobalFlagDescription("--format <format>"),
-      )
+    )
         .choices([...rootGlobalFlagValues("--format <format>")])
         .hideHelp(),
     )
-    .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"));
+    .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"))
+    .option("--web", rootGlobalFlagDescription("--web"));
 
   // Registration order here determines the flag order in `--help` output.
   // Keep it in sync with ROOT_HELP_BASE_LINES in src/utils/root-help.ts.

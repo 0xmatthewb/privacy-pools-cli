@@ -10,8 +10,14 @@ export function createPoolsCommand(): Command {
     .description(metadata.description)
     .argument("[asset]", "Asset symbol for detail view (e.g. ETH, BOLD)")
     .option(
-      "--all-chains",
+      "--include-testnets",
       "Include supported testnets (default: CLI-supported mainnet chains only)",
+    )
+    .addOption(
+      new Option(
+        "--all-chains",
+        "Include supported testnets (default: CLI-supported mainnet chains only)",
+      ).hideHelp(),
     )
     .option("--search <query>", "Filter by chain/symbol/address/scope")
     .addOption(

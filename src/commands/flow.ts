@@ -15,6 +15,7 @@ import {
   buildAmountPatternLinkabilityWarning,
   FlowCancelledError,
   FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE,
+  type FlowSnapshot,
   getWorkflowStatus,
   listSavedWorkflowIds,
   ragequitWorkflow,
@@ -25,7 +26,7 @@ import {
 } from "../services/workflow.js";
 import type { GlobalOptions } from "../types.js";
 import { formatAmountDecimal, isRoundAmount, suggestRoundAmounts } from "../utils/amount-privacy.js";
-import { isNativePoolAsset } from "../config/chains.js";
+import { isNativePoolAsset, POA_PORTAL_URL } from "../config/chains.js";
 import { CLIError, printError, promptCancelledError } from "../utils/errors.js";
 import { deriveTokenPrice, info, warn } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -46,7 +47,9 @@ import {
   PreviewScenarioRenderedError,
 } from "../preview/runtime.js";
 import { confirmActionWithSeverity } from "../utils/prompts.js";
+import { CONFIRMATION_TOKENS } from "../utils/prompts.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import { maybeLaunchBrowser } from "../utils/web.js";
 
 interface FlowStartCommandOptions {
   to?: string;
@@ -63,6 +66,37 @@ interface FlowWatchCommandOptions {
 }
 
 export { createFlowCommand } from "../command-shells/flow.js";
+
+function getFlowBrowserTarget(snapshot: FlowSnapshot): {
+  url: string;
+  label: string;
+} | null {
+  if (snapshot.phase === "paused_poa_required") {
+    return {
+      url: POA_PORTAL_URL,
+      label: "PoA portal",
+    };
+  }
+  if (snapshot.ragequitExplorerUrl) {
+    return {
+      url: snapshot.ragequitExplorerUrl,
+      label: "flow ragequit transaction",
+    };
+  }
+  if (snapshot.withdrawExplorerUrl) {
+    return {
+      url: snapshot.withdrawExplorerUrl,
+      label: "flow withdrawal transaction",
+    };
+  }
+  if (snapshot.depositExplorerUrl) {
+    return {
+      url: snapshot.depositExplorerUrl,
+      label: "flow deposit transaction",
+    };
+  }
+  return null;
+}
 
 function getRootGlobalOptions(cmd: Command): GlobalOptions {
   const withGlobals = (cmd as Command & {
@@ -166,7 +200,7 @@ async function confirmRecipientIfNew(params: {
   const ok = await confirmActionWithSeverity({
     severity: "standard",
     standardMessage: "Use this new recipient?",
-    highStakesToken: "RECIPIENT",
+    highStakesToken: CONFIRMATION_TOKENS.recipient,
     highStakesWarning: "Recipient review changed while waiting for confirmation.",
     confirm,
   });
@@ -218,7 +252,12 @@ async function renderFlowStartDryRunForInputs(params: {
       `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy. ` +
       `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText}`;
     if (params.mode.skipPrompts) {
-      throw new CLIError(message, "INPUT", suggestionText || "Use a round amount.");
+      throw new CLIError(
+        message,
+        "INPUT",
+        suggestionText || "Use a round amount.",
+        "INPUT_NONROUND_AMOUNT",
+      );
     }
     warnings.push({
       code: "amount_pattern_linkability",
@@ -332,6 +371,7 @@ export async function handleFlowRootCommand(
       Promise.resolve(listSavedWorkflowIds()),
     ]);
     const latestWorkflowId = savedWorkflowIds[0];
+    const hasMultipleSavedWorkflows = savedWorkflowIds.length > 1;
     const workflowChoiceSuffix = latestWorkflowId
       ? ` (${latestWorkflowId})`
       : "";
@@ -362,6 +402,16 @@ export async function handleFlowRootCommand(
                 description:
                   "Use the public recovery path for the latest saved flow.",
               },
+              ...(hasMultipleSavedWorkflows
+                ? [
+                    {
+                      name: "Choose another saved flow",
+                      value: "choose_saved",
+                      description:
+                        "Pick a specific saved flow, then watch, inspect, or ragequit it.",
+                    },
+                  ]
+                : []),
             ]
           : []),
       ],
@@ -396,6 +446,50 @@ export async function handleFlowRootCommand(
 
     if (action === "ragequit") {
       await handleFlowRagequitCommand("latest", {}, cmd);
+      return;
+    }
+
+    if (action === "choose_saved") {
+      const selectedWorkflowId = await select({
+        message: "Choose a saved flow:",
+        choices: savedWorkflowIds.map((workflowId) => ({
+          name: workflowId,
+          value: workflowId,
+        })),
+      });
+      const savedWorkflowAction = await select({
+        message: `What would you like to do with ${selectedWorkflowId}?`,
+        choices: [
+          {
+            name: "Watch this saved flow",
+            value: "watch",
+            description:
+              "Resume the selected flow through review, delay, and withdrawal.",
+          },
+          {
+            name: "Check saved flow status",
+            value: "status",
+            description: "Show the saved flow snapshot without advancing it.",
+          },
+          {
+            name: "Ragequit this saved flow",
+            value: "ragequit",
+            description: "Use the public recovery path for the selected flow.",
+          },
+        ],
+      });
+
+      if (savedWorkflowAction === "watch") {
+        await handleFlowWatchCommand(selectedWorkflowId, {}, cmd);
+        return;
+      }
+
+      if (savedWorkflowAction === "status") {
+        await handleFlowStatusCommand(selectedWorkflowId, {}, cmd);
+        return;
+      }
+
+      await handleFlowRagequitCommand(selectedWorkflowId, {}, cmd);
       return;
     }
   } catch (error) {
@@ -443,9 +537,9 @@ export async function handleFlowStartCommand(
 
     if (!recipient) {
       throw new CLIError(
-        "Missing required --to <address>.",
+        "Missing required --to <address> in non-interactive mode.",
         "INPUT",
-        "Use 'privacy-pools flow start <amount> <asset> --to 0xRecipient...'.",
+        "Use 'privacy-pools flow start <amount> <asset> --to 0xRecipient...' or re-run interactively to be prompted.",
       );
     }
 
@@ -481,7 +575,7 @@ export async function handleFlowStartCommand(
     const recipientWarnings = await confirmRecipientIfNew({
       address: recipient,
       knownRecipients: collectKnownFlowRecipients(),
-      skipPrompts: mode.skipPrompts,
+      skipPrompts: mode.skipPrompts || Boolean(opts.dryRun),
       silent: mode.isQuiet || mode.isJson,
     });
 
@@ -517,6 +611,16 @@ export async function handleFlowStartCommand(
       snapshot,
       extraWarnings: recipientWarnings,
     });
+    const browserTarget = getFlowBrowserTarget(snapshot);
+    if (browserTarget) {
+      maybeLaunchBrowser({
+        globalOpts,
+        mode,
+        url: browserTarget.url,
+        label: browserTarget.label,
+        silent: mode.isQuiet,
+      });
+    }
   } catch (error) {
     await handleFlowCommandError(error, {
       cmd,
@@ -556,7 +660,7 @@ export async function handleFlowRagequitCommand(
       const ok = await confirmActionWithSeverity({
         severity: "high_stakes",
         standardMessage: "Confirm ragequit?",
-        highStakesToken: "RAGEQUIT",
+        highStakesToken: CONFIRMATION_TOKENS.ragequit,
         highStakesWarning:
           "This saved flow will ragequit funds back to the original deposit address. It does not preserve privacy.",
         confirm,
@@ -577,6 +681,16 @@ export async function handleFlowRagequitCommand(
       action: "ragequit",
       snapshot,
     });
+    const browserTarget = getFlowBrowserTarget(snapshot);
+    if (browserTarget) {
+      maybeLaunchBrowser({
+        globalOpts,
+        mode,
+        url: browserTarget.url,
+        label: browserTarget.label,
+        silent: mode.isQuiet,
+      });
+    }
   } catch (error) {
     await handleFlowCommandError(error, {
       cmd,
@@ -621,6 +735,16 @@ export async function handleFlowWatchCommand(
       action: "watch",
       snapshot,
     });
+    const browserTarget = getFlowBrowserTarget(snapshot);
+    if (browserTarget) {
+      maybeLaunchBrowser({
+        globalOpts,
+        mode,
+        url: browserTarget.url,
+        label: browserTarget.label,
+        silent: mode.isQuiet,
+      });
+    }
   } catch (error) {
     if (
       error instanceof CLIError &&
@@ -632,6 +756,16 @@ export async function handleFlowWatchCommand(
           action: "watch",
           snapshot,
         });
+        const browserTarget = getFlowBrowserTarget(snapshot);
+        if (browserTarget) {
+          maybeLaunchBrowser({
+            globalOpts,
+            mode,
+            url: browserTarget.url,
+            label: browserTarget.label,
+            silent: mode.isQuiet,
+          });
+        }
         return;
       } catch {
         // Fall through to the original error if the saved workflow itself
@@ -666,6 +800,16 @@ export async function handleFlowStatusCommand(
       action: "status",
       snapshot,
     });
+    const browserTarget = getFlowBrowserTarget(snapshot);
+    if (browserTarget) {
+      maybeLaunchBrowser({
+        globalOpts,
+        mode,
+        url: browserTarget.url,
+        label: browserTarget.label,
+        silent: mode.isQuiet,
+      });
+    }
   } catch (error) {
     await handleFlowCommandError(error, {
       cmd,

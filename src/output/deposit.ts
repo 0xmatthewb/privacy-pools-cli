@@ -25,7 +25,6 @@ import {
   formatBPS,
   formatDenseOutcomeLine,
   formatTxHash,
-  displayDecimals,
 } from "../utils/format.js";
 import { inlineSeparator } from "../utils/terminal.js";
 import { isTestnetChain, POA_PORTAL_URL } from "../config/chains.js";
@@ -77,21 +76,21 @@ export function formatDepositReview(data: DepositReviewData): string {
       {
         label: "Amount",
         value:
-          `${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          `${formatAmount(data.amount, data.decimals, data.asset)}` +
           depositUsdSuffix(data.amount, data.decimals, data.tokenPrice),
       },
       { label: "Chain", value: data.chain },
       {
         label: `Vetting fee (${formatBPS(data.vettingFeeBPS)})`,
         value:
-          `${formatAmount(data.feeAmount, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          `${formatAmount(data.feeAmount, data.decimals, data.asset)}` +
           depositUsdSuffix(data.feeAmount, data.decimals, data.tokenPrice),
         valueTone: "warning",
       },
       {
         label: "Net deposited",
         value:
-          `~${formatAmount(data.estimatedCommitted, data.decimals, data.asset, displayDecimals(data.decimals))}` +
+          `${formatAmount(data.estimatedCommitted, data.decimals, data.asset)}` +
           depositUsdSuffix(data.estimatedCommitted, data.decimals, data.tokenPrice),
         valueTone: "success",
       },
@@ -103,7 +102,6 @@ export function formatDepositReview(data: DepositReviewData): string {
                 data.estimatedGasCost,
                 18,
                 data.gasSymbol ?? "ETH",
-                displayDecimals(18),
               ),
               valueTone: "muted" as const,
             },
@@ -247,7 +245,6 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
             data.amount,
             data.decimals,
             data.asset,
-            displayDecimals(data.decimals),
           ),
         },
         {
@@ -341,13 +338,12 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
 
   const silent = isSilent(ctx);
   if (!silent) process.stderr.write("\n");
-  const dd = displayDecimals(data.decimals);
   if (!silent) {
     process.stderr.write(
       formatDenseOutcomeLine({
         outcome: "deposit",
         message:
-          `Deposited ${formatAmount(data.amount, data.decimals, data.asset, dd)} ` +
+          `Deposited ${formatAmount(data.amount, data.decimals, data.asset)} ` +
           `-> ${data.chain} ${data.asset} pool${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
         url: data.explorerUrl,
       }),
@@ -360,12 +356,12 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       { label: "Pool Account", value: data.poolAccountId },
       {
         label: "Amount",
-        value: formatAmount(data.amount, data.decimals, data.asset, dd),
+        value: formatAmount(data.amount, data.decimals, data.asset),
       },
       ...(data.committedValue !== undefined
         ? [{
             label: "Net deposited",
-            value: `${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after ASP vetting fee)`,
+            value: `${formatAmount(data.committedValue, data.decimals, data.asset)} (after ASP vetting fee)`,
           }]
         : []),
       { label: "Tx", value: formatTxHash(data.txHash) },

@@ -62,6 +62,10 @@ export function createInitCommand(): Command {
         "No-op (proof commands use bundled circuit artifacts by default)",
       ).hideHelp(),
     )
+    .addHelpText(
+      "after",
+      "\nUse only one secret stdin source per run: either --recovery-phrase-stdin or --private-key-stdin.\n",
+    )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

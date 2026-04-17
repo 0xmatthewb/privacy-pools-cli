@@ -23,7 +23,6 @@ import {
   formatAmount,
   formatDenseOutcomeLine,
   formatTxHash,
-  displayDecimals,
   formatUsdValue,
 } from "../utils/format.js";
 import { inlineSeparator } from "../utils/terminal.js";
@@ -84,7 +83,6 @@ export function formatRagequitReview(data: RagequitReviewData): string {
             data.amount,
             data.decimals,
             data.asset,
-            displayDecimals(data.decimals),
           ) + (amountUsd === "-" ? "" : ` (${amountUsd})`),
       },
       { label: "Chain", value: data.chain },
@@ -162,7 +160,12 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
       "after_dry_run",
       {
         args: [data.asset],
-        options: { agent: true, chain: data.chain, poolAccount: data.poolAccountId },
+        options: {
+          agent: true,
+          chain: data.chain,
+          poolAccount: data.poolAccountId,
+          yesIUnderstandPrivacyLoss: true,
+        },
       },
     ),
   ];
@@ -173,7 +176,11 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
       "after_dry_run",
       {
         args: [data.asset],
-        options: { chain: data.chain, poolAccount: data.poolAccountId },
+        options: {
+          chain: data.chain,
+          poolAccount: data.poolAccountId,
+          yesIUnderstandPrivacyLoss: true,
+        },
       },
     ),
   ];
@@ -225,7 +232,6 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
               data.amount,
               data.decimals,
               data.asset,
-              displayDecimals(data.decimals),
             ) +
             (() => {
               const amountUsd = formatUsdValue(
@@ -317,7 +323,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
       formatDenseOutcomeLine({
         outcome: "recovery",
         message:
-          `Ragequit ${formatAmount(data.amount, data.decimals, data.asset, displayDecimals(data.decimals))} ` +
+          `Ragequit ${formatAmount(data.amount, data.decimals, data.asset)} ` +
           `-> ${destinationLabel}${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
         url: data.explorerUrl,
       }),
@@ -334,7 +340,6 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
               data.amount,
               data.decimals,
               data.asset,
-              displayDecimals(data.decimals),
             ) +
             (() => {
               const amountUsd = formatUsdValue(

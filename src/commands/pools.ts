@@ -38,6 +38,7 @@ import type {
   PoolStats,
   AspPublicEvent,
 } from "../types.js";
+import { warnLegacyAllChainsFlag } from "../utils/deprecations.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { normalizeActivityEvent } from "../utils/public-activity.js";
 import {
@@ -61,6 +62,7 @@ import type {
 } from "../output/pools.js";
 
 interface PoolsCommandOptions {
+  includeTestnets?: boolean;
   allChains?: boolean;
   search?: string;
   sort?: string;
@@ -88,6 +90,46 @@ function parseSortMode(raw: string | undefined): PoolsSortMode {
 
 function poolFundsMetric(pool: PoolStats): bigint {
   return pool.totalInPoolValue ?? pool.acceptedDepositsValue ?? 0n;
+}
+
+function parseUsdMetric(value: string | undefined | null): number | null {
+  if (!value) return null;
+  const parsed = Number(value.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeTokenMetric(pool: PoolStats, value: bigint): bigint {
+  const targetDecimals = 18;
+  if (pool.decimals === targetDecimals) {
+    return value;
+  }
+  if (pool.decimals < targetDecimals) {
+    return value * 10n ** BigInt(targetDecimals - pool.decimals);
+  }
+  return value / 10n ** BigInt(pool.decimals - targetDecimals);
+}
+
+function comparePoolValueMetric(
+  left: PoolStats,
+  right: PoolStats,
+  selectUsd: (pool: PoolStats) => string | undefined | null,
+  selectValue: (pool: PoolStats) => bigint | undefined,
+): number {
+  const leftUsd = parseUsdMetric(selectUsd(left));
+  const rightUsd = parseUsdMetric(selectUsd(right));
+  if (leftUsd !== null || rightUsd !== null) {
+    if (leftUsd === null) return -1;
+    if (rightUsd === null) return 1;
+    if (leftUsd < rightUsd) return -1;
+    if (leftUsd > rightUsd) return 1;
+    return 0;
+  }
+
+  const leftValue = normalizeTokenMetric(left, selectValue(left) ?? 0n);
+  const rightValue = normalizeTokenMetric(right, selectValue(right) ?? 0n);
+  if (leftValue < rightValue) return -1;
+  if (leftValue > rightValue) return 1;
+  return 0;
 }
 
 function poolDepositsMetric(pool: PoolStats): number {
@@ -249,15 +291,21 @@ function sortPools(
         diff = right.pool.symbol.localeCompare(left.pool.symbol);
         break;
       case "tvl-desc": {
-        const l = poolFundsMetric(left.pool);
-        const r = poolFundsMetric(right.pool);
-        diff = l === r ? 0 : l > r ? -1 : 1;
+        diff = comparePoolValueMetric(
+          right.pool,
+          left.pool,
+          (pool) => pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd,
+          (pool) => poolFundsMetric(pool),
+        );
         break;
       }
       case "tvl-asc": {
-        const l = poolFundsMetric(left.pool);
-        const r = poolFundsMetric(right.pool);
-        diff = l === r ? 0 : l < r ? -1 : 1;
+        diff = comparePoolValueMetric(
+          left.pool,
+          right.pool,
+          (pool) => pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd,
+          (pool) => poolFundsMetric(pool),
+        );
         break;
       }
       case "deposits-desc":
@@ -401,7 +449,11 @@ export async function handlePoolsCommand(
           ? eventsPage.events
           : [];
         recentActivity = events.map((event: AspPublicEvent) => {
-          const normalized = normalizeActivityEvent(event, pool.symbol);
+          const normalized = normalizeActivityEvent(
+            event,
+            pool.symbol,
+            pool.decimals,
+          );
           return {
             type: normalized.type,
             amount: normalized.amountFormatted,
@@ -433,8 +485,12 @@ export async function handlePoolsCommand(
 
   // ── Listing view ──────────────────────────────────────────────────
   try {
+    if (opts.allChains && !opts.includeTestnets) {
+      warnLegacyAllChainsFlag(silent);
+    }
     const explicitChain = globalOpts?.chain;
-    const isMultiChain = opts.allChains || !explicitChain;
+    const includeTestnets = opts.includeTestnets || opts.allChains;
+    const isMultiChain = includeTestnets || !explicitChain;
 
     if (isMultiChain && globalOpts?.rpcUrl) {
       throw new CLIError(
@@ -449,7 +505,7 @@ export async function handlePoolsCommand(
     const searchQuery = opts.search?.trim();
 
     let chainsToQuery: ChainConfig[];
-    if (opts.allChains) {
+    if (includeTestnets) {
       chainsToQuery = getAllChainsWithOverrides();
     } else if (explicitChain) {
       chainsToQuery = [resolveChain(explicitChain, config.defaultChain)];

@@ -40,8 +40,10 @@ import {
 } from "../services/account.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import { warnLegacyAllChainsFlag } from "../utils/deprecations.js";
 
 interface MigrateStatusCommandOptions {
+  includeTestnets?: boolean;
   allChains?: boolean;
 }
 
@@ -287,9 +289,13 @@ export async function handleMigrateStatusCommand(
       return;
     }
 
+    if (opts.allChains && !opts.includeTestnets) {
+      warnLegacyAllChainsFlag(silent);
+    }
+    const includeTestnets = opts.includeTestnets === true || opts.allChains === true;
     const config = loadConfig();
     const explicitChain = globalOpts?.chain;
-    const useMultiChain = opts.allChains || !explicitChain;
+    const useMultiChain = includeTestnets || !explicitChain;
 
     if (useMultiChain && globalOpts?.rpcUrl) {
       throw new CLIError(
@@ -299,7 +305,7 @@ export async function handleMigrateStatusCommand(
       );
     }
 
-    const chainsToQuery = opts.allChains
+    const chainsToQuery = includeTestnets
       ? getAllChainsWithOverrides()
       : explicitChain
         ? [resolveChain(explicitChain, config.defaultChain)]
@@ -307,7 +313,7 @@ export async function handleMigrateStatusCommand(
 
     const rootChain = explicitChain
       ? chainsToQuery[0].name
-      : opts.allChains
+      : includeTestnets
         ? MULTI_CHAIN_SCOPE_ALL_CHAINS
         : MULTI_CHAIN_SCOPE_ALL_MAINNETS;
     const queriedChains = useMultiChain
@@ -317,7 +323,7 @@ export async function handleMigrateStatusCommand(
 
     spin = spinner(
       useMultiChain
-        ? formatMigrationLoadingText(opts.allChains)
+        ? formatMigrationLoadingText(includeTestnets)
         : `Checking legacy migration readiness on ${chainsToQuery[0].name}...`,
       silent,
     );
@@ -335,7 +341,7 @@ export async function handleMigrateStatusCommand(
       const updateAggregateProgress = () => {
         if (!showAggregateProgress || silent || !spin) return;
         spin.text = formatMigrationLoadingText(
-          opts.allChains,
+          includeTestnets,
           completedChains,
           totalChains,
         );
@@ -444,7 +450,7 @@ export async function handleMigrateStatusCommand(
     const renderData: MigrationRenderData = {
       mode: "migration-status",
       chain: rootChain,
-      ...(opts.allChains ? { allChains: true } : {}),
+      ...(includeTestnets ? { allChains: true } : {}),
       ...(queriedChains ? { chains: queriedChains } : {}),
       ...(warnings.length > 0 ? { warnings } : {}),
       status: normalizeTopLevelMigrationStatus(

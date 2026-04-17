@@ -84,10 +84,15 @@ import {
   maybeRenderPreviewScenario,
 } from "../preview/runtime.js";
 import {
+  CONFIRMATION_TOKENS,
   confirmActionWithSeverity,
   formatPoolAccountPromptChoice,
   formatPoolPromptChoice,
 } from "../utils/prompts.js";
+import {
+  warnLegacyAssetFlag,
+  warnLegacyPoolAccountFlag,
+} from "../utils/deprecations.js";
 import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
@@ -98,6 +103,7 @@ import {
   renderNarrativeSteps,
 } from "../output/progress.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import { maybeLaunchBrowser } from "../utils/web.js";
 
 const poolDepositorAbi = [
   {
@@ -119,6 +125,7 @@ interface RagequitCommandOptions {
   poolAccount?: string;
   fromPa?: string;
   commitment?: string;
+  yesIUnderstandPrivacyLoss?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
 }
@@ -312,15 +319,6 @@ export async function handleRagequitCommand(
   opts: RagequitCommandOptions,
   cmd: Command,
 ): Promise<void> {
-  // Deprecated --asset flag migration guard.
-  if (opts.asset !== undefined) {
-    throw new CLIError(
-      "--asset has been replaced by a positional argument.",
-      "INPUT",
-      "Use: privacy-pools ragequit <asset> (e.g. privacy-pools ragequit ETH)",
-    );
-  }
-
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
@@ -337,14 +335,39 @@ export async function handleRagequitCommand(
   const confirmationTimeoutSeconds = Math.round(
     getConfirmationTimeoutMs() / 1000,
   );
-  if (opts.fromPa !== undefined) {
-    throw new CLIError(
-      "--from-pa has been renamed to --pool-account.",
-      "INPUT",
-      `Use: --pool-account ${opts.fromPa}`,
+  const isPromptCancelled = (error: unknown): boolean => {
+    const normalized = String(error).trim().toLowerCase();
+    const name = typeof error === "object" && error !== null && "name" in error &&
+      typeof (error as { name?: unknown }).name === "string"
+      ? (error as { name: string }).name
+      : null;
+    const message = typeof error === "object" && error !== null && "message" in error &&
+      typeof (error as { message?: unknown }).message === "string"
+      ? (error as { message: string }).message.trim().toLowerCase()
+      : null;
+    return (
+      isPromptCancellationError(error) ||
+      name === "AbortPromptError" ||
+      name === "CancelPromptError" ||
+      name === "ExitPromptError" ||
+      message === PROMPT_CANCELLATION_MESSAGE.toLowerCase() ||
+      message === "cancelled" ||
+      message === "canceled" ||
+      normalized === PROMPT_CANCELLATION_MESSAGE.toLowerCase() ||
+      normalized === "cancelled" ||
+      normalized === "canceled"
+    );
+  };
+  if (opts.asset !== undefined) {
+    warnLegacyAssetFlag(
+      "privacy-pools ragequit <asset> (e.g. privacy-pools ragequit ETH)",
+      silent,
     );
   }
-  const fromPaRaw = opts.poolAccount as string | undefined;
+  if (opts.fromPa !== undefined) {
+    warnLegacyPoolAccountFlag(opts.fromPa, silent);
+  }
+  const fromPaRaw = (opts.poolAccount ?? opts.fromPa) as string | undefined;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
   const writeRagequitProgress = (activeIndex: number, note?: string) => {
@@ -850,7 +873,7 @@ export async function handleRagequitCommand(
         const ok = await confirmActionWithSeverity({
           severity: "high_stakes",
           standardMessage: "Confirm ragequit?",
-          highStakesToken: "RAGEQUIT",
+          highStakesToken: CONFIRMATION_TOKENS.ragequit,
           highStakesWarning:
             "This ragequit sends funds back to the original deposit address. It does not preserve privacy.",
           confirm,
@@ -859,6 +882,12 @@ export async function handleRagequitCommand(
           info("Ragequit cancelled.", silent);
           return;
         }
+      } else if (!isDryRun && opts.yesIUnderstandPrivacyLoss !== true) {
+        throw new CLIError(
+          "Ragequit requires explicit privacy-loss acknowledgement in non-interactive mode.",
+          "INPUT",
+          "Re-run with --yes-i-understand-privacy-loss only if you fully accept that this publicly recovers funds to the original deposit address.",
+        );
       }
 
       // Pre-flight gas check (skip for unsigned - relying on external signer)
@@ -1109,11 +1138,18 @@ export async function handleRagequitCommand(
         advisory: advisory?.message ?? null,
         tokenPrice,
       });
+      maybeLaunchBrowser({
+        globalOpts,
+        mode,
+        url: explorerTxUrl(chainConfig.id, tx.hash),
+        label: "ragequit transaction",
+        silent,
+      });
     } finally {
       releaseLock();
     }
   } catch (error) {
-    if (isPromptCancellationError(error)) {
+    if (isPromptCancelled(error)) {
       if (isJson || isUnsigned) {
         printError(promptCancelledError(), true);
       } else {

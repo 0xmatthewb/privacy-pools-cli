@@ -853,7 +853,7 @@ describe("init command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_INIT_GENERATE_REQUIRES_CAPTURE");
     expect(json.error.message ?? json.errorMessage).toContain(
       "requires recovery capture",
     );

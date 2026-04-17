@@ -7,15 +7,34 @@ const PROMPT_CANCELLATION_ERROR_NAMES = new Set([
 ]);
 
 export function isPromptCancellationError(error: unknown): boolean {
+  if (typeof error === "string") {
+    const normalized = error.trim().toLowerCase();
+    return (
+      normalized === PROMPT_CANCELLATION_MESSAGE.toLowerCase() ||
+      normalized === "cancelled" ||
+      normalized === "canceled"
+    );
+  }
+
   if (typeof error !== "object" || error === null) {
     return false;
   }
 
-  if (!("name" in error) || typeof (error as { name?: unknown }).name !== "string") {
-    return false;
+  const name = "name" in error && typeof (error as { name?: unknown }).name === "string"
+    ? (error as { name: string }).name
+    : null;
+  if (name && PROMPT_CANCELLATION_ERROR_NAMES.has(name)) {
+    return true;
   }
 
-  return PROMPT_CANCELLATION_ERROR_NAMES.has((error as { name: string }).name);
+  const message = "message" in error && typeof (error as { message?: unknown }).message === "string"
+    ? (error as { message: string }).message.trim().toLowerCase()
+    : null;
+  return (
+    message === PROMPT_CANCELLATION_MESSAGE.toLowerCase() ||
+    message === "cancelled" ||
+    message === "canceled"
+  );
 }
 
 export function canPrompt(): boolean {

@@ -30,6 +30,7 @@ export interface GlobalOptions {
   jsonFields?: string;
   template?: string;
   output?: string;
+  web?: boolean;
   agent?: boolean;
   quiet?: boolean;
   yes?: boolean;
@@ -44,6 +45,12 @@ export interface GlobalOptions {
 }
 
 export type NextActionOptionValue = string | number | boolean | null;
+
+export interface NextActionParameter {
+  name: string;
+  type: string;
+  required: boolean;
+}
 
 /**
  * Discriminator for _when_ a next-action applies.
@@ -104,6 +111,7 @@ export interface NextAction {
   when: NextActionWhen;
   args?: string[];
   options?: Record<string, NextActionOptionValue>;
+  parameters?: NextActionParameter[];
   /**
    * Whether the command is fully specified and can be executed as-is.
    * `false` means the command is a template that requires additional

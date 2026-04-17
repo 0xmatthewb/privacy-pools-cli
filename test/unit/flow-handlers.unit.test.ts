@@ -572,7 +572,7 @@ describe("flow command handlers", () => {
     const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
     expect(error).toBeInstanceOf(realErrors.CLIError);
     expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
-      "Missing required --to <address>.",
+      "Missing required --to <address> in non-interactive mode.",
     );
     expect(isJson).toBe(true);
   });

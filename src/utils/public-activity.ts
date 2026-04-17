@@ -35,6 +35,7 @@ export function toMsTimestamp(value: unknown): number | null {
 export function normalizeActivityEvent(
   event: AspPublicEvent,
   fallbackSymbol?: string,
+  fallbackDecimals?: number,
 ): NormalizedPublicActivityEvent {
   const pool = event.pool ?? {};
   const chainId = parseNumberish(pool.chainId);
@@ -49,7 +50,7 @@ export function normalizeActivityEvent(
     typeof pool.tokenSymbol === "string" && pool.tokenSymbol.trim() !== ""
       ? pool.tokenSymbol
       : fallbackSymbol ?? null;
-  const decimals = parseNumberish(pool.denomination) ?? 18;
+  const decimals = parseNumberish(pool.denomination) ?? fallbackDecimals ?? 18;
 
   let amountFormatted = "-";
   if (amountRaw && /^-?\d+$/.test(amountRaw)) {

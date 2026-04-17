@@ -12,6 +12,7 @@ import { printJsonSuccess } from "../utils/json.js";
 import { printCsv } from "./csv.js";
 import type {
   NextAction,
+  NextActionParameter,
   NextActionOptionValue,
   NextActionWhen,
 } from "../types.js";
@@ -101,6 +102,7 @@ export function createNextAction(
   config: {
     args?: string[];
     options?: Record<string, NextActionOptionValue>;
+    parameters?: NextActionParameter[];
     /** False when the command is a template requiring additional user input. */
     runnable?: boolean;
   } = {},
@@ -124,6 +126,10 @@ export function createNextAction(
     if (Object.keys(options).length > 0) {
       action.options = options;
     }
+  }
+
+  if (config.parameters && config.parameters.length > 0) {
+    action.parameters = config.parameters;
   }
 
   if (config.runnable === false) {
@@ -215,6 +221,9 @@ function withCliCommand(action: NextAction, includeAgent: boolean = false): Next
       ? { options: normalizedOptions }
       : { options: undefined }),
   };
+  if (normalizedAction.runnable === false && !normalizedAction.cliCommand) {
+    return normalizedAction;
+  }
   return normalizedAction.cliCommand
     ? normalizedAction
     : {

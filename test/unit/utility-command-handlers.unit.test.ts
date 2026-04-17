@@ -108,6 +108,21 @@ describe("utility command handlers", () => {
     expect(stderr).toBe("");
   });
 
+  test("describe returns JSON contract fragments for envelope paths", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleDescribeCommand(
+        ["envelope.shared.nextAction"],
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.path).toBe("envelope.shared.nextAction");
+    expect(json.schema.cliCommand).toContain("omitted when runnable = false");
+    expect(json.schema.parameters).toContain("required");
+    expect(stderr).toBe("");
+  });
+
   test("describe returns a structured INPUT error for an unknown command path", async () => {
     const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleDescribeCommand(["definitely", "missing"], fakeCommand({ json: true })),

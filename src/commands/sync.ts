@@ -11,7 +11,7 @@ import {
 } from "../services/account.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
-import { spinner, verbose, warn } from "../utils/format.js";
+import { spinner, verbose } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -19,6 +19,7 @@ import { createOutputContext, isSilent } from "../output/common.js";
 import { renderSyncEmpty, renderSyncComplete } from "../output/sync.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import { warnLegacyAssetFlag } from "../utils/deprecations.js";
 
 export { createSyncCommand } from "../command-shells/sync.js";
 
@@ -36,7 +37,7 @@ export async function handleSyncCommand(
   // Resolve positional vs deprecated --asset flag.
   const asset = positionalAsset ?? opts.asset;
   if (opts.asset !== undefined && positionalAsset === undefined) {
-    warn("--asset is deprecated. Use: privacy-pools sync <asset> (e.g. privacy-pools sync ETH)", silent);
+    warnLegacyAssetFlag("privacy-pools sync <asset> (e.g. privacy-pools sync ETH)", silent);
   }
 
   try {

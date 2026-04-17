@@ -7,7 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printCsv, printTable, info, isSilent, createNextAction, appendNextActions } from "./common.js";
+import { printJsonSuccess, printCsv, printTable, info, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
 import { formatAddress, formatAmount, formatTxHash, displayDecimals, formatApproxBlockTimeAgo } from "../utils/format.js";
 import {
   accentBold,
@@ -68,12 +68,30 @@ export function renderHistoryNoPools(ctx: OutputContext, chain: string): void {
  */
 export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void {
   const { chain, chainId, events, poolByAddress, explorerTxUrl, currentBlock, avgBlockTimeSec } = data;
+  const nextActions = [
+    createNextAction("accounts", "View current Pool Account balances and statuses.", "after_history", { options: { chain } }),
+    createNextAction("pools", "Browse available pools before making a first deposit.", "after_history", {
+      options: { chain },
+    }),
+    createNextAction("deposit", "Deposit into a pool once you choose an amount and asset.", "after_history", {
+      options: { chain },
+      runnable: false,
+      parameters: [
+        { name: "amount", type: "token_amount", required: true },
+        { name: "asset", type: "asset_symbol", required: true },
+      ],
+    }),
+  ];
 
   if (ctx.mode.isJson) {
-    const agentNextActions = [
-      createNextAction("accounts", "View current Pool Account balances and statuses.", "after_history", { options: { agent: true, chain } }),
-      createNextAction("withdraw", "Withdraw from an approved Pool Account.", "after_history", { runnable: false }),
-    ];
+    const agentNextActions = nextActions.map((action) =>
+      createNextAction(action.command, action.reason, action.when, {
+        ...(action.args ? { args: action.args } : {}),
+        ...(action.parameters ? { parameters: action.parameters } : {}),
+        ...(action.runnable === false ? { runnable: false } : {}),
+        options: { ...(action.options ?? {}), agent: true },
+      }),
+    );
     printJsonSuccess(appendNextActions({
       chain,
       events: events.map((e) => ({
@@ -113,6 +131,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
   if (events.length === 0) {
     if (!silent) process.stderr.write("\n");
     info(`No events found on ${chain}.`, silent);
+    renderNextSteps(ctx, nextActions);
     return;
   }
 

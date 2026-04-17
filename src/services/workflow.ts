@@ -136,7 +136,10 @@ import {
   maybeRenderPreviewScenario,
   PreviewScenarioRenderedError,
 } from "../preview/runtime.js";
-import { confirmActionWithSeverity } from "../utils/prompts.js";
+import {
+  CONFIRMATION_TOKENS,
+  confirmActionWithSeverity,
+} from "../utils/prompts.js";
 import {
   createNarrativeSteps,
   renderNarrativeSteps,
@@ -1628,7 +1631,7 @@ async function confirmHumanFlowStartReview(
   const ok = await confirmActionWithSeverity({
     severity: "standard",
     standardMessage: "Confirm flow start?",
-    highStakesToken: "FLOW",
+    highStakesToken: CONFIRMATION_TOKENS.flow,
     highStakesWarning: "Saved flow review changed while waiting for confirmation.",
     confirm,
   });
@@ -4279,6 +4282,7 @@ export async function startWorkflow(
         `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy.`,
         "INPUT",
         `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText}`,
+        "INPUT_NONROUND_AMOUNT",
       );
     }
 
@@ -4291,7 +4295,7 @@ export async function startWorkflow(
     const proceed = await confirmActionWithSeverity({
       severity: "standard",
       standardMessage: "Proceed with this amount anyway?",
-      highStakesToken: "PROCEED",
+      highStakesToken: CONFIRMATION_TOKENS.proceed,
       highStakesWarning: "Amount review changed while waiting for confirmation.",
       confirm,
     });

@@ -10,8 +10,14 @@ export function createAccountsCommand(): Command {
     .description(metadata.description)
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .option(
-      "--all-chains",
+      "--include-testnets",
       "Include supported testnets (default: CLI-supported mainnet chains only)",
+    )
+    .addOption(
+      new Option(
+        "--all-chains",
+        "Include supported testnets (default: CLI-supported mainnet chains only)",
+      ).hideHelp(),
     )
     .option("--details", "Show additional details per Pool Account")
     .option("--summary", "Show counts and balances only")

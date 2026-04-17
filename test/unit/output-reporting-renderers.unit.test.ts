@@ -153,7 +153,11 @@ describe("renderPools parity", () => {
     expect(json.nextActions[0].runnable).toBe(false);
     // Single-chain query must carry chain context to prevent wrong-network deposits
     expect(json.nextActions[0].options?.chain).toBe("sepolia");
-    expect(json.nextActions[0].cliCommand).toContain("--chain sepolia");
+    expect(json.nextActions[0].cliCommand).toBeUndefined();
+    expect(json.nextActions[0].parameters).toEqual([
+      { name: "amount", type: "token_amount", required: true },
+      { name: "asset", type: "asset_symbol", required: true },
+    ]);
     expect(stderr).toBe("");
   });
 
@@ -200,7 +204,11 @@ describe("renderPools parity", () => {
     expect(json.nextActions[0].command).toBe("deposit");
     // All-chains query must NOT include chain — agent picks the target chain
     expect(json.nextActions[0].options?.chain).toBeUndefined();
-    expect(json.nextActions[0].cliCommand).not.toContain("--chain");
+    expect(json.nextActions[0].cliCommand).toBeUndefined();
+    expect(json.nextActions[0].parameters).toEqual([
+      { name: "amount", type: "token_amount", required: true },
+      { name: "asset", type: "asset_symbol", required: true },
+    ]);
   });
 
   test("JSON mode: all-chains query preserves chain summaries, warnings, and pool account counts", () => {
@@ -1009,12 +1017,15 @@ describe("renderPoolDetail parity", () => {
     expect(json.nextActions[0]).toMatchObject({
       command: "withdraw",
       runnable: false,
+      args: ["ETH"],
       options: {
         chain: "sepolia",
         poolAccount: "PA-1",
         all: true,
-        to: "<recipient>",
       },
+      parameters: [{ name: "to", type: "address", required: true }],
+      reason: "Withdraw privately from PA-1 once you provide the recipient address.",
+      when: "after_pool_detail",
     });
     expect(json.nextActions[1]).toMatchObject({
       command: "ragequit",

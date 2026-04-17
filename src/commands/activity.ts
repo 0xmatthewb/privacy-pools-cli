@@ -2,13 +2,15 @@ import type { Command } from "commander";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import {
+  getAllChainsWithOverrides,
   getDefaultReadOnlyChains,
+  MULTI_CHAIN_SCOPE_ALL_CHAINS,
   MULTI_CHAIN_SCOPE_ALL_MAINNETS,
 } from "../config/chains.js";
 import { resolvePool } from "../services/pools.js";
 import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
-import { spinner, warn } from "../utils/format.js";
+import { spinner } from "../utils/format.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
@@ -21,9 +23,12 @@ import {
   normalizeActivityEvent,
   parseNumberish as parseNumberishValue,
 } from "../utils/public-activity.js";
+import { warnLegacyAllChainsFlag, warnLegacyAssetFlag } from "../utils/deprecations.js";
 
 interface ActivityCommandOptions {
   asset?: string;
+  includeTestnets?: boolean;
+  allChains?: boolean;
   page?: string;
   limit?: string;
 }
@@ -63,7 +68,10 @@ export async function handleActivityCommand(
   // Resolve positional vs deprecated --asset flag.
   const resolvedAsset = positionalAsset ?? opts.asset;
   if (opts.asset !== undefined && positionalAsset === undefined) {
-    warn("--asset is deprecated. Use: privacy-pools activity <asset> (e.g. privacy-pools activity ETH)", silent);
+    warnLegacyAssetFlag("privacy-pools activity <asset> (e.g. privacy-pools activity ETH)", silent);
+  }
+  if (opts.allChains && !opts.includeTestnets) {
+    warnLegacyAllChainsFlag(silent);
   }
 
   try {
@@ -74,6 +82,7 @@ export async function handleActivityCommand(
     const page = parsePositiveInt(opts.page, "page");
     const perPage = parsePositiveInt(opts.limit, "limit");
     const explicitChain = globalOpts?.chain;
+    const includeTestnets = opts.includeTestnets === true || opts.allChains === true;
 
     const config = loadConfig();
     const ctx = createOutputContext(mode);
@@ -128,29 +137,66 @@ export async function handleActivityCommand(
     // so we call it exactly once regardless of how many chains are configured.
     // Use the first default chain config (for its aspHost).
     if (!explicitChain) {
-      const chainsToQuery = getDefaultReadOnlyChains();
+      const chainsToQuery = includeTestnets
+        ? getAllChainsWithOverrides()
+        : getDefaultReadOnlyChains();
       const chainNames = chainsToQuery.map((c) => c.name);
-      const representativeChain = chainsToQuery[0];
+      if (!includeTestnets) {
+        const representativeChain = chainsToQuery[0];
+        const response = await fetchGlobalEvents(
+          representativeChain,
+          page,
+          perPage,
+        );
+        spin.stop();
 
-      const response = await fetchGlobalEvents(
-        representativeChain,
-        page,
-        perPage,
+        const eventsRaw = Array.isArray(response.events) ? response.events : [];
+        const events = eventsRaw.map((e) => normalizeActivityEvent(e));
+
+        renderActivity(ctx, {
+          mode: "global-activity",
+          chain: MULTI_CHAIN_SCOPE_ALL_MAINNETS,
+          chains: chainNames,
+          page: parseNumberishValue(response.page) ?? page,
+          perPage: parseNumberishValue(response.perPage) ?? perPage,
+          total: parseNumberishValue(response.total) ?? null,
+          totalPages: parseNumberishValue(response.totalPages) ?? null,
+          events,
+        });
+        return;
+      }
+
+      const representativeChains = [...new Map(
+        chainsToQuery.map((chainConfig) => [chainConfig.aspHost, chainConfig] as const),
+      ).values()];
+      const fetchWindow = Math.max(page * perPage, perPage);
+      const responses = await Promise.all(
+        representativeChains.map((chainConfig) =>
+          fetchGlobalEvents(chainConfig, 1, fetchWindow),
+        ),
       );
       spin.stop();
 
-      const eventsRaw = Array.isArray(response.events) ? response.events : [];
-      const events = eventsRaw.map((e) => normalizeActivityEvent(e));
+      const events = responses
+        .flatMap((response) => Array.isArray(response.events) ? response.events : [])
+        .map((event) => normalizeActivityEvent(event))
+        .sort((left, right) => {
+          const leftTs = left.timestampMs ?? 0;
+          const rightTs = right.timestampMs ?? 0;
+          return rightTs - leftTs;
+        })
+        .slice((page - 1) * perPage, page * perPage);
 
       renderActivity(ctx, {
         mode: "global-activity",
-        chain: MULTI_CHAIN_SCOPE_ALL_MAINNETS,
+        chain: MULTI_CHAIN_SCOPE_ALL_CHAINS,
         chains: chainNames,
-        page: parseNumberishValue(response.page) ?? page,
-        perPage: parseNumberishValue(response.perPage) ?? perPage,
-        total: parseNumberishValue(response.total) ?? null,
-        totalPages: parseNumberishValue(response.totalPages) ?? null,
+        page,
+        perPage,
+        total: null,
+        totalPages: null,
         events,
+        note: "Pagination totals are unavailable when aggregating mainnet and testnet activity together. Results may be sparse.",
       });
       return;
     }

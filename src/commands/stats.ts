@@ -4,7 +4,7 @@ import { loadConfig } from "../services/config.js";
 import { resolvePool } from "../services/pools.js";
 import { fetchGlobalStatistics, fetchPoolStatistics } from "../services/asp.js";
 import { CLIError, printError } from "../utils/errors.js";
-import { spinner, warn } from "../utils/format.js";
+import { spinner } from "../utils/format.js";
 import type {
   GlobalOptions,
   PoolStatisticsResponse,
@@ -18,6 +18,7 @@ import {
   getDefaultReadOnlyChains,
   MULTI_CHAIN_SCOPE_ALL_MAINNETS,
 } from "../config/chains.js";
+import { warnLegacyAssetFlag } from "../utils/deprecations.js";
 
 interface PoolStatsCommandOptions {
   asset?: string;
@@ -97,7 +98,7 @@ export async function handlePoolStatsCommand(
   // Resolve positional vs deprecated --asset flag.
   const asset = positionalAsset ?? opts.asset;
   if (opts.asset !== undefined && positionalAsset === undefined) {
-    warn("--asset is deprecated. Use: privacy-pools stats pool <asset> (e.g. privacy-pools stats pool ETH)", silent);
+    warnLegacyAssetFlag("privacy-pools stats pool <asset> (e.g. privacy-pools stats pool ETH)", silent);
   }
 
   try {

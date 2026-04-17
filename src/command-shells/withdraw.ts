@@ -25,7 +25,7 @@ export function createWithdrawCommand(): Command {
     .addOption(
       new Option(
         "--yes-i-understand-privacy-loss",
-        "Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses",
+        "Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses (required with --direct when prompts are skipped)",
       ),
     )
     .addOption(
@@ -63,9 +63,9 @@ export function createWithdrawCommand(): Command {
     .description(quoteMetadata.description)
     .argument(
       "<amountOrAsset>",
-      "Amount to withdraw (or asset symbol, see examples)",
+      "Amount to withdraw (preferred first positional) or asset symbol",
     )
-    .argument("[amount]", "Amount (when asset is the first argument)")
+    .argument("[amount]", "Asset symbol (preferred second positional) or amount when the asset is first")
     .addOption(
       new Option(
         "-a, --asset <symbol|address>",
@@ -75,6 +75,10 @@ export function createWithdrawCommand(): Command {
     .option(
       "-t, --to <address>",
       "Recipient address (recommended for an accurate fee quote)",
+    )
+    .addHelpText(
+      "after",
+      "\nPreferred order: privacy-pools withdraw quote <amount> <asset>\nAlso supported: privacy-pools withdraw quote <asset> <amount>\n",
     )
     .addHelpText("after", commandHelpText(quoteMetadata.help ?? {}))
     .action(

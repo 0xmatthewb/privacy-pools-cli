@@ -33,6 +33,10 @@ export function createRagequitCommand(): Command {
       ).choices(["envelope", "tx"]),
     )
     .option("--dry-run", "Generate proof and validate without submitting")
+    .option(
+      "--yes-i-understand-privacy-loss",
+      "Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address",
+    )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

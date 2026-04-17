@@ -15,10 +15,10 @@ describe("accounts loading helpers", () => {
 
   test("formatAccountsLoadingText adds per-chain progress only when available", () => {
     expect(formatAccountsLoadingText(false)).toBe(
-      "Loading My Pools across mainnet chains...",
+      "Loading Pool Accounts across mainnet chains...",
     );
     expect(formatAccountsLoadingText(true, 2, 3)).toBe(
-      "Loading My Pools across all chains... (2/3 complete)",
+      "Loading Pool Accounts across all chains... (2/3 complete)",
     );
   });
 });

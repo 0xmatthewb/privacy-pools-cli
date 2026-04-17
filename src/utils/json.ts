@@ -1,5 +1,6 @@
 import jmespath from "jmespath";
 import { CLIError } from "./errors.js";
+import { didYouMeanMany } from "./fuzzy.js";
 
 export const JSON_SCHEMA_VERSION = "2.0.0";
 
@@ -70,14 +71,31 @@ function applyFieldSelection(
   const availableFields = Object.keys(payload).sort();
   const unknownFields = fields.filter((field) => !(field in payload));
   if (unknownFields.length > 0) {
+    const suggestions = Object.fromEntries(
+      unknownFields.map((field) => [
+        field,
+        didYouMeanMany(field, availableFields),
+      ]),
+    );
+    const suggestionText = unknownFields
+      .map((field) => {
+        const matches = suggestions[field] ?? [];
+        return matches.length > 0
+          ? `${field} -> ${matches.join(", ")}`
+          : null;
+      })
+      .filter((value): value is string => value !== null)
+      .join("; ");
     throw new CLIError(
       `Unknown JSON field${unknownFields.length === 1 ? "" : "s"}: ${unknownFields.join(", ")}.`,
       "INPUT",
-      `Available fields: ${availableFields.join(", ")}.`,
+      suggestionText.length > 0
+        ? `Available fields: ${availableFields.join(", ")}. Did you mean: ${suggestionText}?`
+        : `Available fields: ${availableFields.join(", ")}.`,
       "INPUT_UNKNOWN_JSON_FIELD",
       false,
       "inline",
-      { availableFields, unknownFields },
+      { availableFields, unknownFields, suggestions },
     );
   }
 

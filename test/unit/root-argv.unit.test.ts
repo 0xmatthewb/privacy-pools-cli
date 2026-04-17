@@ -96,6 +96,15 @@ describe("root argv parsing", () => {
     expect(prelude?.globalOpts.jmes).toBe("nextActions");
   });
 
+  test("--web is parsed into globals without changing machine mode", () => {
+    const argv = ["--web", "status"];
+    const parsed = parseRootArgv(argv);
+    const prelude = parseValidatedRootPrelude(argv);
+
+    expect(parsed.isMachineMode).toBe(false);
+    expect(prelude?.globalOpts.web).toBe(true);
+  });
+
   test("--jq compatibility alias implies structured JSON output", () => {
     const argv = ["--jq=nextActions", "status"];
     const parsed = parseRootArgv(argv);

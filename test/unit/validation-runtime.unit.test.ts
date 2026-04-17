@@ -129,6 +129,22 @@ describe("validation runtime coverage", () => {
     );
   });
 
+  test("validateAddress surfaces checksum-specific guidance for mixed-case addresses", () => {
+    expect(() =>
+      validateAddress(
+        "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb4",
+        "Recipient",
+      ),
+    ).toThrow(
+      new CLIError(
+        "Recipient is not a valid Ethereum address: 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb4",
+        "INPUT",
+        "Provide an address with the correct EIP-55 checksum, or use the all-lowercase / all-uppercase form.",
+        "INPUT_ADDRESS_CHECKSUM_INVALID",
+      ),
+    );
+  });
+
   test("parseAmount supports negative values only when explicitly allowed", () => {
     expect(parseAmount("-1.5", 18, { allowNegative: true })).toBe(
       -1500000000000000000n,

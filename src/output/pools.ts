@@ -164,7 +164,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
             {
               options: {
                 agent: true,
-                ...(allChains ? { allChains: true } : { chain: chainName }),
+                ...(allChains ? { includeTestnets: true } : { chain: chainName }),
               },
             },
           ),
@@ -180,19 +180,22 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
               args: [ownedPools[0]!.pool.symbol],
               options: {
                 agent: true,
-                chain: allChains ? ownedPools[0]!.chain : chainName,
+                ...(allChains ? { includeTestnets: true } : { chain: chainName }),
               },
             },
           ),
         ]
       : []),
     createNextAction("deposit", "Deposit into a pool.", "after_pools", {
-      args: ["<amount>", "<asset>"],
       options: {
         agent: true,
         ...(allChains ? {} : { chain: chainName }),
       },
       runnable: false,
+      parameters: [
+        { name: "amount", type: "token_amount", required: true },
+        { name: "asset", type: "asset_symbol", required: true },
+      ],
     }),
   ];
   const humanNextActions = [
@@ -207,7 +210,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
         ]
       : []),
     createNextAction("activity", "Review recent public activity before depositing.", "after_pools", {
-      options: allChains ? undefined : { chain: chainName },
+      options: allChains ? { includeTestnets: true } : { chain: chainName },
     }),
   ];
 
@@ -479,9 +482,10 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
       return [
         createNextAction("accounts", "View your Pool Account balances.", "after_pool_detail", { options: { agent: true, chain } }),
         createNextAction("deposit", `Deposit into the ${pool.symbol} pool.`, "after_pool_detail", {
-          args: ["<amount>", pool.symbol],
+          args: [pool.symbol],
           options: { agent: true, chain },
           runnable: false,
+          parameters: [{ name: "amount", type: "token_amount", required: true }],
         }),
       ];
     }
@@ -514,9 +518,9 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
               chain,
               poolAccount: pa.paId,
               all: true,
-              to: "<recipient>",
             },
             runnable: false,
+            parameters: [{ name: "to", type: "address", required: true }],
           },
         ),
       ),
@@ -533,9 +537,10 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
       ),
       createNextAction("accounts", "View your Pool Account balances.", "after_pool_detail", { options: { agent: true, chain } }),
       createNextAction("deposit", `Deposit into the ${pool.symbol} pool.`, "after_pool_detail", {
-        args: ["<amount>", pool.symbol],
+        args: [pool.symbol],
         options: { agent: true, chain },
         runnable: false,
+        parameters: [{ name: "amount", type: "token_amount", required: true }],
       }),
     ];
   };

@@ -143,7 +143,7 @@ function buildAccountsActionOptions(
   }
 
   if (hasTestnetChain) {
-    options.allChains = true;
+    options.includeTestnets = true;
   }
 
   return options;
@@ -194,7 +194,7 @@ function buildAgentNextActions(result: InitRenderResult) {
             "migrate status",
             "Some legacy deposits still need website migration or website-based recovery before the CLI can manage them safely.",
             "after_restore",
-            { options: { agent: true, allChains: true } },
+            { options: { agent: true, includeTestnets: true } },
           ),
         ];
       case "degraded":
@@ -266,7 +266,7 @@ function buildHumanNextActions(result: InitRenderResult) {
           "migrate status",
           "Review which legacy chains still need website migration or website-based recovery.",
           "after_restore",
-          { options: { allChains: true } },
+          { options: { includeTestnets: true } },
         ),
       ];
     case "degraded":
@@ -421,10 +421,12 @@ export function renderGeneratedRecoveryPhraseReview(mnemonic: string): string {
   })}${formatCallout("recovery", [
     "This recovery phrase is the master key to your Privacy Pools account.",
     "The signer key submits transactions and may come from the same wallet or a separate key.",
+    "Never share it.",
   ])}${gridLines.join("\n")}\n${formatCallout("danger", [
     "Save this recovery phrase now.",
     "This is the only time the CLI will display it.",
     "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
+    "If you copied it digitally, clear your clipboard and any temporary notes after you move it somewhere safe.",
   ])}`;
 }
 
@@ -475,6 +477,7 @@ export function renderInitBackupSaved(backupPath: string): string {
     primaryCallout: {
       kind: "danger",
       lines: [
+        "Never share this file.",
         "Move this file to a secure location now, then delete the original copy.",
       ],
     },
@@ -609,6 +612,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
         readiness: result.readiness,
         defaultChain: result.defaultChain,
         signerKeySet: result.signerKeySet,
+        mnemonicImported: result.mnemonicImported,
       },
       agentNextActions,
     ) as Record<string, unknown>;
@@ -699,14 +703,14 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
           process.stderr.write(
             formatCallout("warning", [
               "Some legacy deposits still need website migration or website-based recovery before the CLI can manage them safely.",
-              "Run privacy-pools migrate status --all-chains to see which supported chains still need website action.",
+              "Run privacy-pools migrate status --include-testnets to see which supported chains still need website action.",
             ]),
           );
           break;
         case "degraded":
           process.stderr.write(
             formatCallout("warning", [
-              "Discovery did not complete. Retry after RPC and ASP health are stable. Your account is unchanged.",
+              "Discovery did not complete. Retry after RPC and 0xBow ASP health are stable. Your account is unchanged.",
             ]),
           );
           break;

@@ -10,6 +10,7 @@ import type { Command } from "commander";
 import { confirm, input, password, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import { Separator } from "@inquirer/select";
+import { warnLegacyMnemonicFlag } from "../utils/deprecations.js";
 import {
   CHAIN_NAMES,
   CHAINS,
@@ -188,7 +189,7 @@ interface CollectDefaultChainParams {
   existingConfig: CLIConfig | null;
   skipPrompts: boolean;
   silent: boolean;
-  stage: { step: number; total: number };
+  stage: { step: number; total: number; path: InitStagePath };
 }
 
 interface DeriveReadinessParams {
@@ -197,7 +198,11 @@ interface DeriveReadinessParams {
   restoreDiscovery?: RestoreDiscoverySummary;
 }
 
+type InitStagePath = "create" | "restore" | "configured";
+
 const INIT_TEST_SENTINELS_ENV = "PRIVACY_POOLS_TEST_INIT_SENTINELS";
+// Generated CLI recovery phrases intentionally stay at 24 words for
+// maximum entropy. Keep verification prompts in sync with that invariant.
 const RECOVERY_VERIFICATION_WORDS = [3, 12, 24] as const;
 
 export { createInitCommand } from "../command-shells/init.js";
@@ -214,11 +219,14 @@ export function buildRecoveryBackupContents(mnemonic: string): string {
   return [
     "Privacy Pools Recovery Phrase",
     "",
+    "Wallet Address: signer key not configured yet",
+    "",
     "Recovery Phrase:",
     mnemonic,
     "",
-    "IMPORTANT: Keep this file secure. Delete it after transferring to a safe location.",
+    "IMPORTANT: Never share this phrase. Keep this file secure.",
     "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
+    "Delete it after transferring it to a safe location.",
   ].join("\n");
 }
 
@@ -304,14 +312,15 @@ function initStageHeader(
   step: number,
   total: number,
   label: string,
+  path: InitStagePath,
   quiet: boolean = false,
 ): void {
   stageHeader(step, total, label, quiet);
   if (quiet) return;
   const labels =
-    total === 2
+    path === "configured"
       ? ["Choose setup path", "Choose default network"]
-      : label === "Load existing account" || label === "Discover existing deposits"
+      : path === "restore"
         ? ["Load existing account", "Signer key", "Choose default network", "Discover existing deposits"]
         : ["Choose setup path", "Secure recovery phrase", "Signer key", "Choose default network"];
   if (labels.length === total) {
@@ -493,7 +502,7 @@ export async function promptForWorkflowGoal(
   silent: boolean,
 ): Promise<InitPlan> {
   if (!state.hasRecoveryPhrase) {
-    initStageHeader(1, 4, "Choose setup path", silent);
+    initStageHeader(1, 4, "Choose setup path", "create", silent);
     process.stderr.write(
       renderInitGoalReview({
         hasRecoveryPhrase: false,
@@ -526,7 +535,7 @@ export async function promptForWorkflowGoal(
   }
 
   if (state.signerKeyValid) {
-    initStageHeader(1, 2, "Choose setup path", silent);
+    initStageHeader(1, 2, "Choose setup path", "configured", silent);
     process.stderr.write(
       renderInitConfiguredReview({
         defaultChain: state.existingConfig?.defaultChain ?? "mainnet",
@@ -570,7 +579,7 @@ export async function promptForWorkflowGoal(
     };
   }
 
-  initStageHeader(1, 4, "Choose setup path", silent);
+  initStageHeader(1, 4, "Choose setup path", "create", silent);
   process.stderr.write(
     renderInitGoalReview({
       hasRecoveryPhrase: true,
@@ -732,7 +741,7 @@ export async function maybeConfirmReplacement(
 }
 
 export async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<string> {
-  initStageHeader(1, 4, "Load existing account", silent);
+  initStageHeader(1, 4, "Load existing account", "restore", silent);
   process.stderr.write(renderInitLoadRecoveryReview());
   if (await maybeRenderPreviewScenario("init import recovery prompt")) {
     throw new PreviewScenarioRenderedError();
@@ -746,12 +755,12 @@ export async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<st
       ),
       mask: "*",
     });
-    const trimmed = phrase.trim();
-    if (validateMnemonic(trimmed)) {
-      return trimmed;
+    const normalized = phrase.trim().replace(/\s+/g, " ");
+    if (validateMnemonic(normalized)) {
+      return normalized;
     }
     warn(
-      "That recovery phrase doesn't look right. Please check and try again.",
+      "That recovery phrase doesn't look right yet. Please check the words and try again. If your terminal keeps mangling paste, re-run with --recovery-phrase-file or --recovery-phrase-stdin.",
       silent,
     );
   }
@@ -787,7 +796,7 @@ export async function handleGeneratedRecoveryBackup(
     return null;
   }
 
-  initStageHeader(2, 4, "Secure recovery phrase", params.silent);
+  initStageHeader(2, 4, "Secure recovery phrase", "create", params.silent);
   process.stderr.write(renderInitBackupMethodReview());
   if (await maybeRenderPreviewScenario("init backup method")) {
     throw new PreviewScenarioRenderedError();
@@ -853,6 +862,14 @@ export async function verifyGeneratedRecoveryPhrase(
   silent: boolean,
 ): Promise<void> {
   const words = mnemonic.trim().split(/\s+/).filter(Boolean);
+  if (words.length !== 24) {
+    throw new CLIError(
+      `Generated recovery phrase has ${words.length} words, but the CLI requires 24-word generated phrases.`,
+      "UNKNOWN",
+      "Re-run init and report this issue if it happens again.",
+      "INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID",
+    );
+  }
   while (true) {
     process.stderr.write(
       renderInitRecoveryVerificationReview(RECOVERY_VERIFICATION_WORDS),
@@ -961,6 +978,7 @@ export async function collectDefaultChain(
     params.stage.step,
     params.stage.total,
     "Choose default network",
+    params.stage.path,
     params.silent,
   );
   if (await maybeRenderPreviewScenario("init default chain")) {
@@ -1010,6 +1028,19 @@ export async function handleInitCommand(
   const skipPrompts = mode.skipPrompts;
   const staged = opts.staged === true && isJson;
   let backupFilePath: string | null = null;
+
+  if (opts.mnemonic !== undefined) {
+    warnLegacyMnemonicFlag("--mnemonic", "--recovery-phrase", silent);
+  }
+  if (opts.mnemonicFile !== undefined) {
+    warnLegacyMnemonicFlag("--mnemonic-file", "--recovery-phrase-file", silent);
+  }
+  if (opts.mnemonicStdin === true) {
+    warnLegacyMnemonicFlag("--mnemonic-stdin", "--recovery-phrase-stdin", silent);
+  }
+  if (opts.showMnemonic === true) {
+    warnLegacyMnemonicFlag("--show-mnemonic", "--show-recovery-phrase", silent);
+  }
 
   try {
     const phrase = opts.recoveryPhrase ?? opts.mnemonic;
@@ -1274,6 +1305,7 @@ export async function handleInitCommand(
         "Creating a new account in non-interactive mode requires recovery capture.",
         "INPUT",
         "Pass --show-recovery-phrase or --backup-file so the generated recovery phrase is captured before init completes.",
+        "INPUT_INIT_GENERATE_REQUIRES_CAPTURE",
       );
     }
 
@@ -1374,10 +1406,10 @@ export async function handleInitCommand(
       silent,
       stage:
         plan.workflow === "signer_only"
-          ? { step: 2, total: 2 }
+          ? { step: 2, total: 2, path: "configured" }
           : plan.workflow === "restore"
-            ? { step: 3, total: 4 }
-            : { step: 4, total: 4 },
+            ? { step: 3, total: 4, path: "restore" }
+            : { step: 4, total: 4, path: "create" },
     });
 
     if (await maybeRenderPreviewScenario("init")) {
@@ -1427,7 +1459,7 @@ export async function handleInitCommand(
         status: "started",
         defaultChain: config.defaultChain,
       });
-      initStageHeader(4, 4, "Discover existing deposits", silent);
+      initStageHeader(4, 4, "Discover existing deposits", "restore", silent);
       const discoverySpinner =
         !silent && !isJson
           ? spinner("Checking supported chains for existing deposits...", false)

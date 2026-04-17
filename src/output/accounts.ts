@@ -250,7 +250,7 @@ function buildPollNextActions(meta: AccountsRootMeta, pendingCount: number) {
       {
         options: {
           agent: true,
-          ...(meta.allChains ? { allChains: true } : {}),
+          ...(meta.allChains ? { includeTestnets: true } : {}),
           ...(isMultiChain(meta) ? {} : !isMultiChainScope(meta.chain)
             ? { chain: meta.chain }
             : {}),
@@ -269,7 +269,7 @@ function buildEmptyAccountsNextActions(
   },
 ) {
   const scopeOptions: Record<string, NextActionOptionValue> | undefined = meta.allChains
-    ? { allChains: true }
+    ? { includeTestnets: true }
     : isMultiChain(meta)
       ? undefined
       : { chain: meta.chain };
@@ -319,7 +319,7 @@ function buildEmptyAccountsHumanNextActions(
         "accounts_other_chain_activity",
         singleOtherChain
           ? { options: { chain: singleOtherChain } }
-          : { options: { allChains: true } },
+          : { options: { includeTestnets: true } },
       ),
     ];
   }
@@ -331,8 +331,9 @@ function buildEmptyAccountsHumanNextActions(
         "If this account came from the website, rerun init with the downloaded recovery phrase to refresh supported-chain discovery.",
         "accounts_restore_check",
         {
-          options: { recoveryPhraseFile: "<downloaded-file>" },
+          options: {},
           runnable: false,
+          parameters: [{ name: "recoveryPhraseFile", type: "file_path", required: true }],
         },
       ),
       ...buildEmptyAccountsNextActions(meta, {
@@ -365,7 +366,7 @@ function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
         [
           `No pending Pool Accounts are left on ${scopeLabel}.`,
           isMultiChain(data)
-            ? `Re-run ${data.allChains ? "privacy-pools accounts --all-chains" : "privacy-pools accounts"} without --pending-only to confirm approved, declined, or Proof of Association results.`
+            ? `Re-run ${data.allChains ? "privacy-pools accounts --include-testnets" : "privacy-pools accounts"} without --pending-only to confirm approved, declined, or Proof of Association results.`
             : `Re-run privacy-pools accounts --chain ${data.chain} without --pending-only to review the final outcome.`,
         ],
       );
@@ -378,7 +379,7 @@ function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
             : `No Pool Accounts are visible on ${data.chain}, but saved deposit state exists on other chains: ${(data.otherChains ?? []).join(", ")}.`,
           data.otherChains && data.otherChains.length === 1
             ? `Try privacy-pools accounts --chain ${data.otherChains[0]} to open that chain directly.`
-            : "Try privacy-pools accounts --all-chains to open the full dashboard.",
+            : "Try privacy-pools accounts --include-testnets to open the full dashboard.",
         ],
       );
     case "restore_check_recommended":
@@ -851,7 +852,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
   const hasDeclinedApprovals = summary.declinedCount > 0;
   const title = showSummary
     ? includeChainFields
-      ? `My Pools summary across ${allChains ? "all chains" : "mainnet chains"}:`
+      ? `Pool Account summary across ${allChains ? "all chains" : "mainnet chains"}:`
       : `Pool Account summary on ${chain}:`
     : showPendingOnly
       ? includeChainFields
@@ -862,7 +863,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
           ? `${data.statusFilter.replaceAll("_", " ")} Pool Accounts across ${allChains ? "all chains" : "mainnet chains"}:`
           : `${data.statusFilter.replaceAll("_", " ")} Pool Accounts on ${chain}:`
       : includeChainFields
-        ? `My Pools across ${allChains ? "all chains" : "mainnet chains"}:`
+        ? `Pool Accounts across ${allChains ? "all chains" : "mainnet chains"}:`
         : `Pool Accounts on ${chain}:`;
 
   if (!silent) {

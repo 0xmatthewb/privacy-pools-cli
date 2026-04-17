@@ -347,7 +347,7 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   },
   nextActions: {
     shape:
-      "{ command, reason, when, args?: string[], options?: Record<string, string|number|boolean|null>, runnable?: boolean }",
+      "{ command, reason, when, cliCommand?: string, args?: string[], options?: Record<string, string|number|boolean|null>, parameters?: [{ name, type, required }], runnable?: boolean }",
     whenValues: [...NEXT_ACTION_WHEN_VALUES],
     description:
       "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. "
@@ -355,7 +355,7 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
       + "JSON nextActions are emitted in --agent mode even though --agent implies --quiet; quiet only suppresses human-oriented stderr sections. "
       + "Ordering is deterministic and priority-ordered: primary private/resume paths first, required public recovery before optional public recovery, optional public recovery after private paths, and deposit templates last. "
       + "When runnable is omitted or true, the command is fully specified and can be executed as shown. "
-      + "When runnable is false, the action is a template and requires additional user input before execution.",
+      + "When runnable is false, cliCommand is omitted and parameters[] describes the missing user input before execution.",
   },
   sideEffectClass: {
     values: ["read_only", "local_state_write", "network_write", "fund_movement"],

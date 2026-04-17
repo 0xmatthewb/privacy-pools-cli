@@ -703,7 +703,7 @@ describe("deposit command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_NONROUND_AMOUNT");
     expect(json.error.message ?? json.errorMessage).toContain(
       "may reduce privacy",
     );

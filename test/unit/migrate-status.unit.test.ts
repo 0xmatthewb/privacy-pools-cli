@@ -296,7 +296,9 @@ describe("renderMigrationStatus", () => {
     expect(json.nextActions[0]).toMatchObject({
       command: "migrate status",
       when: "after_restore",
-      cliCommand: "privacy-pools migrate status --agent --all-chains",
+      reason: "Retry once legacy ASP review data is available.",
+      options: { includeTestnets: true },
+      cliCommand: "privacy-pools migrate status --agent --include-testnets",
     });
   });
 });

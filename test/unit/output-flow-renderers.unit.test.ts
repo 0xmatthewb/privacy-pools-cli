@@ -8,6 +8,7 @@ import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts
 const realFormat = await import("../../src/utils/format.ts");
 
 let createOutputContext: typeof import("../../src/output/common.ts").createOutputContext;
+let formatFlowStartReview: typeof import("../../src/output/flow.ts").formatFlowStartReview;
 let formatFlowRagequitReview: typeof import("../../src/output/flow.ts").formatFlowRagequitReview;
 let renderFlowStartDryRun: typeof import("../../src/output/flow.ts").renderFlowStartDryRun;
 let renderFlowResult: typeof import("../../src/output/flow.ts").renderFlowResult;
@@ -40,6 +41,7 @@ beforeAll(async () => {
   mock.module("../../src/utils/format.ts", () => realFormat);
   ({ createOutputContext } = await import("../../src/output/common.ts"));
   ({
+    formatFlowStartReview,
     formatFlowRagequitReview,
     renderFlowStartDryRun,
     renderFlowResult,
@@ -87,6 +89,25 @@ describe("renderFlowResult", () => {
     expect(review).toContain("PA-9");
     expect(review).toContain("original deposit address");
     expect(review).toContain("original depositor signer");
+  });
+
+  test("formatFlowStartReview renders embedded callouts without nested gutters", () => {
+    const review = formatFlowStartReview({
+      amount: 100000000000000000n,
+      feeAmount: 500000000000000n,
+      estimatedCommitted: 99500000000000000n,
+      asset: "ETH",
+      chain: "mainnet",
+      decimals: 18,
+      recipient: "0x4444444444444444444444444444444444444444",
+      privacyDelaySummary: "Balanced",
+      newWallet: false,
+      isErc20: false,
+    });
+
+    expect(review).toContain("Privacy note:");
+    expect(review).not.toContain("| | Privacy note:");
+    expect(review).not.toContain("│ │ Privacy note:");
   });
 
   test("JSON mode emits the shared flow snapshot contract with watch nextActions", () => {
@@ -338,7 +359,7 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("privacy-pools flow ragequit wf-123");
   });
 
-  test("JSON mode marks PoA watch follow-up as non-runnable and surfaces public recovery", () => {
+  test("JSON mode keeps the PoA watch follow-up runnable and surfaces public recovery", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
       renderFlowResult(ctx, {
@@ -361,7 +382,6 @@ describe("renderFlowResult", () => {
         when: "flow_resume",
         args: ["wf-123"],
         options: { agent: true },
-        runnable: false,
       },
       "privacy-pools flow watch wf-123 --agent",
     );
@@ -806,7 +826,7 @@ describe("renderFlowResult", () => {
       {
         command: "flow watch",
         reason:
-          "Fund the dedicated workflow wallet with 456 USDC and 0.12 ETH first, then re-run flow watch to continue.",
+          "Fund the dedicated workflow wallet with 456 USDC and 0.123 ETH first, then re-run flow watch to continue.",
         when: "flow_resume",
         args: ["wf-123"],
         options: { agent: true },

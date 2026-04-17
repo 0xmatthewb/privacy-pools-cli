@@ -423,7 +423,7 @@ describe("renderRagequitDryRun parity", () => {
         args: ["ETH"],
         options: { agent: true, chain: "sepolia", poolAccount: "PA-2" },
       },
-      "privacy-pools ragequit ETH --agent --chain sepolia --pool-account PA-2",
+      "privacy-pools ragequit ETH --agent --chain sepolia --pool-account PA-2 --yes-i-understand-privacy-loss",
     );
     expect(stderr).toBe("");
   });

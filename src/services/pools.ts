@@ -929,42 +929,9 @@ export async function resolvePool(
     }
   }
 
-  // Try to resolve by symbol name via ASP first.
+  // Resolve symbol names through the ASP-backed registry first so callers
+  // receive aggregate TVL/deposit metrics when they are available.
   const normalized = assetInput.toUpperCase();
-  try {
-    const knownPool = await resolveKnownPool(
-      rpcSession,
-      chainConfig,
-      normalized,
-      assetInput,
-      rpcOverride,
-    );
-    if (knownPool) {
-      emitRuntimeDiagnostic("pool-resolution", {
-        chain: chainConfig.name,
-        operation: "resolve",
-        mode: "known-pool",
-        asset: assetInput,
-        elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
-        outcome: "ok",
-      });
-      return knownPool;
-    }
-  } catch (error) {
-    emitRuntimeDiagnostic("pool-resolution", {
-      chain: chainConfig.name,
-      operation: "resolve",
-      mode: "known-pool",
-      asset: assetInput,
-      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
-      outcome: "error",
-      errorCategory: error instanceof CLIError ? error.category : undefined,
-    });
-    if (!hasCustomRpc) {
-      throw error;
-    }
-  }
-
   let availableAssetsHint: string | null = null;
   let aspLookupFailed = false;
 
@@ -1000,6 +967,40 @@ export async function resolvePool(
     }
     // ASP unavailable — fall through to hardcoded fallback.
     aspLookupFailed = true;
+  }
+
+  try {
+    const knownPool = await resolveKnownPool(
+      rpcSession,
+      chainConfig,
+      normalized,
+      assetInput,
+      rpcOverride,
+    );
+    if (knownPool) {
+      emitRuntimeDiagnostic("pool-resolution", {
+        chain: chainConfig.name,
+        operation: "resolve",
+        mode: "known-pool",
+        asset: assetInput,
+        elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+        outcome: "ok",
+      });
+      return knownPool;
+    }
+  } catch (error) {
+    emitRuntimeDiagnostic("pool-resolution", {
+      chain: chainConfig.name,
+      operation: "resolve",
+      mode: "known-pool",
+      asset: assetInput,
+      elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+      outcome: "error",
+      errorCategory: error instanceof CLIError ? error.category : undefined,
+    });
+    if (!aspLookupFailed || !hasCustomRpc) {
+      throw error;
+    }
   }
 
   // Fallback: resolve symbol via hardcoded known-pool registry and

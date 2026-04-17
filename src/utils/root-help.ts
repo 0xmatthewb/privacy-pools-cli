@@ -86,6 +86,8 @@ function buildRootHelpBaseLines(): string[] {
     `  -o, --output <format>   ${OUTPUT_FORMAT_DESCRIPTION}`,
     `                          (choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`,
     "  -y, --yes               Skip confirmation prompts",
+    "  --web                   Open the primary explorer or portal link in your",
+    "                          browser when available",
     "  -r, --rpc-url <url>     Override RPC URL",
     "  --json-fields <fields>  Select specific JSON fields (comma-separated, implies",
     "                          --json)",

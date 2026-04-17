@@ -7,7 +7,7 @@ export function createStatusCommand(): Command {
   const metadata = getCommandMetadata("status");
   return new Command("status")
     .description(metadata.description)
-    .option("--check", "Force both RPC and ASP health checks (default when a chain is selected)")
+    .option("--check [scope]", "Run health checks: all (default), rpc, asp, or none")
     .option("--no-check", "Disable the default RPC and ASP health checks")
     .option("--check-rpc", "Run only the RPC health check")
     .option("--check-asp", "Run only the ASP health check")

@@ -6,6 +6,7 @@ import {
   getDefaultReadOnlyChains,
   MULTI_CHAIN_SCOPE_ALL_MAINNETS,
   MULTI_CHAIN_SCOPE_ALL_CHAINS,
+  POA_PORTAL_URL,
 } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
@@ -20,7 +21,6 @@ import {
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import {
-  accountExists,
   accountHasDeposits,
 } from "../services/account-storage.js";
 import {
@@ -38,6 +38,7 @@ import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
 import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { warnLegacyAllChainsFlag } from "../utils/deprecations.js";
 import {
   buildAllPoolAccountRefs,
   buildDeclinedLegacyPoolAccountRefs,
@@ -52,11 +53,13 @@ import {
   POOL_ACCOUNT_STATUSES,
   type PoolAccountStatus,
 } from "../utils/statuses.js";
+import { maybeLaunchBrowser } from "../utils/web.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
 interface AccountsCommandOptions {
   sync?: boolean;
+  includeTestnets?: boolean;
   allChains?: boolean;
   details?: boolean;
   summary?: boolean;
@@ -115,7 +118,7 @@ function resolveAccountsEmptyState(params: {
   }
 
   const hasStoredAccountState = Object.values(CHAINS).some((chain) =>
-    accountExists(chain.id)
+    accountHasDeposits(chain.id)
   );
 
   return {
@@ -136,7 +139,7 @@ export function formatAccountsLoadingText(
   completedChains?: number,
   totalChains?: number,
 ): string {
-  const baseText = `Loading My Pools across ${describeAccountsChainScope(allChains)}...`;
+  const baseText = `Loading Pool Accounts across ${describeAccountsChainScope(allChains)}...`;
   if (completedChains === undefined || totalChains === undefined)
     return baseText;
   return `${baseText} (${completedChains}/${totalChains} complete)`;
@@ -449,6 +452,10 @@ export async function handleAccountsCommand(
       return;
     }
 
+    if (opts.allChains && !opts.includeTestnets) {
+      warnLegacyAllChainsFlag(silent);
+    }
+
     if (opts.summary && opts.pendingOnly) {
       throw new CLIError(
         "Cannot specify both --summary and --pending-only.",
@@ -506,7 +513,8 @@ export async function handleAccountsCommand(
     const renderOnce = async (): Promise<number> => {
       const config = loadConfig();
       const explicitChain = globalOpts?.chain;
-      const useMultiChain = opts.allChains || !explicitChain;
+      const includeTestnets = opts.includeTestnets || opts.allChains;
+      const useMultiChain = includeTestnets || !explicitChain;
 
       if (useMultiChain && globalOpts?.rpcUrl) {
         throw new CLIError(
@@ -516,7 +524,7 @@ export async function handleAccountsCommand(
         );
       }
 
-      const chainsToQuery = opts.allChains
+      const chainsToQuery = includeTestnets
         ? getAllChainsWithOverrides()
         : explicitChain
           ? [resolveChain(explicitChain, config.defaultChain)]
@@ -524,7 +532,7 @@ export async function handleAccountsCommand(
 
       const rootChain = explicitChain
         ? chainsToQuery[0].name
-        : opts.allChains
+        : includeTestnets
           ? MULTI_CHAIN_SCOPE_ALL_CHAINS
           : MULTI_CHAIN_SCOPE_ALL_MAINNETS;
       const queriedChains = useMultiChain
@@ -534,7 +542,7 @@ export async function handleAccountsCommand(
 
       const spin = spinner(
         useMultiChain
-          ? formatAccountsLoadingText(opts.allChains)
+          ? formatAccountsLoadingText(includeTestnets)
           : `Loading Pool Accounts on ${chainsToQuery[0].name}...`,
         silent,
       );
@@ -563,7 +571,7 @@ export async function handleAccountsCommand(
         const updateAggregateProgress = () => {
           if (!showAggregateProgress || silent) return;
           spin.text = formatAccountsLoadingText(
-            opts.allChains,
+            includeTestnets,
             completedChains,
             totalChains,
           );
@@ -654,7 +662,7 @@ export async function handleAccountsCommand(
         });
         renderAccountsNoPools(outCtx, {
           chain: rootChain,
-          allChains: opts.allChains || undefined,
+          allChains: includeTestnets || undefined,
           chains: queriedChains,
           warnings,
           summary: !!opts.summary,
@@ -667,7 +675,7 @@ export async function handleAccountsCommand(
 
       renderAccounts(outCtx, {
         chain: rootChain,
-        allChains: opts.allChains || undefined,
+        allChains: includeTestnets || undefined,
         chains: queriedChains,
         warnings,
         groups,
@@ -677,6 +685,15 @@ export async function handleAccountsCommand(
         statusFilter: effectiveStatus,
         lastSyncTime,
       });
+      if (groups.some((group) => group.poolAccounts.some((poolAccount) => poolAccount.status === "poa_required"))) {
+        maybeLaunchBrowser({
+          globalOpts,
+          mode,
+          url: POA_PORTAL_URL,
+          label: "PoA portal",
+          silent,
+        });
+      }
 
       return effectiveStatus === "pending"
         ? groups.reduce(

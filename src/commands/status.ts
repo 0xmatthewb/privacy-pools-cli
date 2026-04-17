@@ -11,7 +11,11 @@ import {
 } from "../services/config.js";
 import { CHAINS } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
-import { printError, sanitizeEndpointForDisplay } from "../utils/errors.js";
+import {
+  CLIError,
+  printError,
+  sanitizeEndpointForDisplay,
+} from "../utils/errors.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
@@ -27,7 +31,7 @@ import {
 const resolveCliPackageInfo = createCliPackageInfoResolver(import.meta.url);
 
 interface StatusCommandOptions {
-  check?: boolean;
+  check?: boolean | string;
   checkAsp?: boolean;
   checkRpc?: boolean;
 }
@@ -105,13 +109,43 @@ export async function handleStatusCommand(
     // Health checks — run by default when a chain is selected.
     // --check, --check-rpc, and --check-asp still work for explicit control.
     if (selectedChainConfig) {
+      const checkScope = typeof opts.check === "string"
+        ? opts.check.trim().toLowerCase()
+        : opts.check === true
+          ? "all"
+          : opts.check === false
+            ? "none"
+            : undefined;
+      if (
+        checkScope &&
+        checkScope !== "all" &&
+        checkScope !== "rpc" &&
+        checkScope !== "asp" &&
+        checkScope !== "none"
+      ) {
+        throw new CLIError(
+          `Unknown --check scope: ${checkScope}.`,
+          "INPUT",
+          "Use one of: all, rpc, asp, none.",
+        );
+      }
       const explicitOpt =
         opts.check !== undefined ||
         opts.checkAsp !== undefined ||
         opts.checkRpc !== undefined;
-      const shouldCheckAll = explicitOpt ? opts.check === true : true;
-      const shouldCheckAsp = shouldCheckAll || opts.checkAsp === true;
-      const shouldCheckRpc = shouldCheckAll || opts.checkRpc === true;
+      const shouldCheckAll = explicitOpt
+        ? checkScope === "all"
+        : true;
+      const shouldCheckAsp = checkScope === "none"
+        ? false
+        : checkScope === "asp"
+          ? true
+          : shouldCheckAll || opts.checkAsp === true;
+      const shouldCheckRpc = checkScope === "none"
+        ? false
+        : checkScope === "rpc"
+          ? true
+          : shouldCheckAll || opts.checkRpc === true;
 
       result.healthChecksEnabled = { rpc: shouldCheckRpc, asp: shouldCheckAsp };
       const shouldShowProgress =

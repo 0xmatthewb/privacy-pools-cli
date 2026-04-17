@@ -210,7 +210,7 @@ describe("accounts command watch and empty states", () => {
     expect(stderr).toContain("privacy-pools accounts --chain optimism");
   });
 
-  test("accounts empty state recommends migration discovery when only local account state exists", async () => {
+  test("accounts empty state treats empty account files as a fresh wallet without local deposit history", async () => {
     useIsolatedHome("mainnet");
     const { handleAccountsCommand } = getReadonlyCommandHandlers();
     readonlyHarnessMocks.initializeAccountServiceWithStateMock.mockImplementationOnce(
@@ -234,8 +234,9 @@ describe("accounts command watch and empty states", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("No active Pool Accounts found");
-    expect(stderr).toContain("rerun privacy-pools init");
+    expect(stderr).toContain("No Pool Accounts are visible on mainnet yet.");
+    expect(stderr).toContain("privacy-pools flow start");
+    expect(stderr).toContain("easiest path once you have chosen an amount and recipient");
   });
 
   test("accounts empty state explains status filters that remove every pool account", async () => {
