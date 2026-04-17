@@ -28,11 +28,11 @@ describe("docs generation drift detection", () => {
     expect(result.status).toBe(0);
   });
 
-  test("docs/reference.md keeps accounts compact-mode nextActions contracts", () => {
-    const reference = readFileSync(join(CLI_ROOT, "docs", "reference.md"), "utf8");
+  test("docs/reference/accounts.md keeps accounts compact-mode nextActions contracts", () => {
+    const reference = readFileSync(join(CLI_ROOT, "docs", "reference", "accounts.md"), "utf8");
     const normalizedReference = reference.replace(/\s+/g, " ");
 
-    expect(reference).toContain("### `accounts`");
+    expect(reference).toContain("## `accounts`");
     expect(reference).toContain("**JSON variants:**");
     expect(normalizedReference).toContain(
       "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
@@ -42,11 +42,11 @@ describe("docs generation drift detection", () => {
     );
   });
 
-  test("docs/reference.md keeps the full pools machine contract", () => {
-    const reference = readFileSync(join(CLI_ROOT, "docs", "reference.md"), "utf8");
+  test("docs/reference/pools.md keeps the full pools machine contract", () => {
+    const reference = readFileSync(join(CLI_ROOT, "docs", "reference", "pools.md"), "utf8");
     const normalizedReference = reference.replace(/\s+/g, " ");
 
-    expect(reference).toContain("### `pools`");
+    expect(reference).toContain("## `pools`");
     expect(normalizedReference).toContain(
       "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
     );

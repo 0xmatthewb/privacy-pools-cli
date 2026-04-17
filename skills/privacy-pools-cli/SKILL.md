@@ -61,7 +61,7 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Withdraw (unsigned) | `privacy-pools withdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
 | Withdrawal quote | `privacy-pools withdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
 | Pool detail | `privacy-pools pools ETH --agent` | Combined stats + my funds |
-| Ragequit (exit alias) | `privacy-pools ragequit ETH --from-pa PA-1 --agent` | Emergency public recovery |
+| Ragequit (exit alias) | `privacy-pools ragequit ETH --pool-account PA-1 --agent` | Emergency public recovery |
 | Dry-run | `privacy-pools deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
 | Event history | `privacy-pools history --agent` | Requires init |
 | Force sync | `privacy-pools sync --agent` | Rarely needed (auto-sync with 2min TTL) |
@@ -214,7 +214,7 @@ Validate inputs, check balances, and preview transaction details without submitt
 ```bash
 privacy-pools deposit 0.1 ETH --dry-run --agent
 privacy-pools withdraw 0.05 ETH --to 0x... --dry-run --agent
-privacy-pools ragequit ETH --from-pa PA-1 --dry-run --agent
+privacy-pools ragequit ETH --pool-account PA-1 --dry-run --agent
 ```
 
 Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `ragequit` (alias: `exit`).
@@ -289,7 +289,7 @@ Flow caveats for agents:
 
 If `status --agent --check` returns `recommendedMode: "read-only"`, follow the status `nextActions` rather than guessing. That usually means public discovery only. If the ASP is down but RPC is healthy, public recovery still remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the affected account or workflow is already known. Avoid `accounts`, `deposit`, `withdraw`, or `flow` advancement until RPC and ASP connectivity recover.
 
-`flow start` follows the same machine-mode non-round amount privacy guard as `deposit`, so use round amounts in agent/non-interactive runs. A round deposit input can still become a non-round committed balance after the vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. `flow start --new-wallet` is a flow-scoped convenience path, not a general wallet manager. It generates a dedicated wallet for one workflow, requires a backup before continuing, and then waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts. The workflow key is also stored locally under `~/.privacy-pools/workflow-secrets/` until the workflow completes, public-recovers, or is externally stopped, so the export file is a backup copy rather than the only retained secret.
+`flow start` follows the same machine-mode non-round amount privacy guard as `deposit`, so use round amounts in agent/non-interactive runs. A round deposit input can still become a non-round committed balance after the ASP vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. `flow start --new-wallet` is a flow-scoped convenience path, not a general wallet manager. It generates a dedicated wallet for one workflow, requires a backup before continuing, and then waits for funding automatically. ETH flows wait for the full ETH target. ERC20 flows wait for both the token amount and a native ETH gas reserve in the same wallet. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts. The workflow key is also stored locally under `~/.privacy-pools/workflow-secrets/` until the workflow completes, public-recovers, or is externally stopped, so the export file is a backup copy rather than the only retained secret.
 
 For saved-workflow public recovery, `flow ragequit` uses the stored workflow wallet key for `walletMode = "new_wallet"`, but configured-wallet recovery only works when the active signer still matches the original depositor address saved with the workflow. If a saved workflow is `paused_poa_required`, agents can either resume privately after the external PoA step or choose `flow ragequit` for public recovery instead.
 
