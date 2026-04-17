@@ -175,6 +175,12 @@ export async function createRootProgram(
     ),
   );
   program.addOption(
+    new Option(
+      "--template <template>",
+      rootGlobalFlagDescription("--template <template>"),
+    ),
+  );
+  program.addOption(
     new Option("--agent", rootGlobalFlagDescription("--agent")),
   );
   program.addOption(

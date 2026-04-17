@@ -90,6 +90,11 @@ export const GUIDE_TOPICS = [
   { name: "flow-states", description: "Flow state machine and transitions" },
   { name: "ragequit", description: "Public recovery to the deposit address" },
   { name: "automation", description: "Global flags, env vars, and agent/CI integration" },
+  { name: "env-vars", description: "Environment variable fallbacks and overrides" },
+  { name: "next-actions", description: "How nextActions guide agent follow-up" },
+  { name: "profiles", description: "Named profiles and wallet/config separation" },
+  { name: "pool-accounts", description: "Pool Account states, approval, and recovery" },
+  { name: "agents", description: "Agent mode, discovery, and machine workflows" },
   { name: "json", description: "JSON envelope, field selection, and JMESPath filtering" },
   { name: "modes", description: "Confirmation, dry-run, unsigned, and agent modes" },
   { name: "troubleshooting", description: "Common issues and fixes" },
@@ -99,6 +104,34 @@ export const GUIDE_TOPICS = [
 export type GuideTopic = (typeof GUIDE_TOPICS)[number]["name"];
 
 const GUIDE_TOPIC_NAMES = GUIDE_TOPICS.map((t) => t.name);
+const GUIDE_TOPIC_ALIASES: Record<string, GuideTopic> = {
+  automation: "automation",
+  agent: "agents",
+  agents: "agents",
+  env: "env-vars",
+  "env-vars": "env-vars",
+  envvars: "env-vars",
+  "next-actions": "next-actions",
+  nextactions: "next-actions",
+  profiles: "profiles",
+  "pool-account": "pool-accounts",
+  "pool-accounts": "pool-accounts",
+  poolaccounts: "pool-accounts",
+};
+
+export function resolveGuideTopic(topic?: string): GuideTopic | null {
+  if (!topic) return null;
+  const normalized = topic.trim().toLowerCase();
+  if (!normalized) return null;
+  if (GUIDE_TOPIC_NAMES.includes(normalized as GuideTopic)) {
+    return normalized as GuideTopic;
+  }
+  return GUIDE_TOPIC_ALIASES[normalized] ?? null;
+}
+
+export function isGuideTopic(topic?: string): boolean {
+  return resolveGuideTopic(topic) !== null;
+}
 
 // ── Guide section builders (keyed by topic) ────────────────────────────────
 
@@ -154,7 +187,7 @@ const guideSections: Record<string, () => string[]> = {
     `  3. ${accent("flow watch")}     Resume a saved workflow through funding, approval, delay, and withdrawal`,
     `  4. ${accent("flow ragequit")}  Self-custody recovery for saved workflows (always available)`,
     `  5. ${accent("pools")}          Manual path: browse available pools`,
-    `  6. ${accent("deposit")}        Manual path: deposit into a pool (vetting fee shown before confirming)`,
+    `  6. ${accent("deposit")}        Manual path: deposit into a pool (ASP vetting fee shown before confirming)`,
     `  7. ${accent("accounts")}       Manual path: poll pending review, then confirm approval status and balances`,
     `  8. ${accent("migrate status")} Read-only legacy check on CLI-supported chains`,
     `  9. ${accent("withdraw")}       Manual path: withdraw privately (once approved; fee shown before confirming)`,
@@ -217,6 +250,7 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("--timeout <seconds>")}  Network/transaction timeout (default: 30)`,
     `  ${notice("--jmes <expr>")}        Filter JSON output with JMESPath syntax`,
     `  ${notice("--jq <expr>")}          Compatibility alias for --jmes (not jq syntax)`,
+    `  ${notice("--template <template>")} Render structured output through a lightweight {{path.to.value}} template`,
     `  ${notice("--no-banner")}           Disable ASCII banner`,
     `  ${notice("--profile <name>")}     Use a named profile (separate wallet identity and config)`,
     "",
@@ -233,6 +267,10 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("PRIVACY_POOLS_CIRCUITS_DIR")}   Override the circuit artifact directory`,
     `  ${notice("NO_COLOR")}                     Disable colored output (same as --no-color)`,
     `  ${notice("PP_NO_UPDATE_CHECK")}           Set to 1 to disable the update-available notification`,
+    `  ${notice("PRIVACY_POOLS_AGENT")}          Default to --agent semantics`,
+    `  ${notice("PRIVACY_POOLS_QUIET")}          Default to --quiet semantics`,
+    `  ${notice("PRIVACY_POOLS_YES")}            Default to --yes semantics`,
+    `  ${notice("PRIVACY_POOLS_NO_PROGRESS")}    Default to --no-progress semantics`,
     "",
     chalk.bold("Interaction Modes"),
     "  Human mode (default): interactive prompts + readable output.",
@@ -250,6 +288,100 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("--dry-run")}    Validate and generate proofs without submitting.`,
   ],
 
+  "env-vars": () => [
+    chalk.bold("Environment Variable Fallbacks"),
+    `  ${notice("PRIVACY_POOLS_AGENT")}       Enable agent mode by default (${chalk.dim("--agent")})`,
+    `  ${notice("PRIVACY_POOLS_QUIET")}       Suppress human stderr by default (${chalk.dim("--quiet")})`,
+    `  ${notice("PRIVACY_POOLS_YES")}         Skip confirmations by default (${chalk.dim("--yes")})`,
+    `  ${notice("PRIVACY_POOLS_NO_PROGRESS")} Suppress spinners by default (${chalk.dim("--no-progress")})`,
+    `  ${notice("NO_COLOR")}                  Disable color (${chalk.dim("--no-color")})`,
+    "",
+    chalk.bold("Configuration Overrides"),
+    `  ${notice("PRIVACY_POOLS_HOME / PRIVACY_POOLS_CONFIG_DIR")}  Config directory override`,
+    `  ${notice("XDG_CONFIG_HOME")}       Fallback config base when no override or legacy directory exists`,
+    `  ${notice("PRIVACY_POOLS_PRIVATE_KEY")}   Signer key (takes precedence over saved signer key file)`,
+    `  ${notice("PRIVACY_POOLS_RPC_URL / PP_RPC_URL")}             Override RPC endpoint for all chains`,
+    `  ${notice("PRIVACY_POOLS_ASP_HOST / PP_ASP_HOST")}           Override ASP endpoint for all chains`,
+    `  ${notice("PRIVACY_POOLS_RELAYER_HOST / PP_RELAYER_HOST")}   Override relayer endpoint for all chains`,
+    `  ${notice("PRIVACY_POOLS_RPC_URL_<CHAIN> / PP_RPC_URL_<CHAIN>")}         Override RPC endpoint per chain`,
+    `  ${notice("PRIVACY_POOLS_ASP_HOST_<CHAIN> / PP_ASP_HOST_<CHAIN>")}       Override ASP endpoint per chain`,
+    `  ${notice("PRIVACY_POOLS_RELAYER_HOST_<CHAIN> / PP_RELAYER_HOST_<CHAIN>")} Override relayer endpoint per chain`,
+    `  ${notice("PRIVACY_POOLS_CIRCUITS_DIR")} Override the packaged circuit artifact directory`,
+    `  ${notice("PP_NO_UPDATE_CHECK")}       Disable update notifications when set to 1`,
+  ],
+
+  "next-actions": () => [
+    chalk.bold("nextActions"),
+    "  Success JSON responses may include nextActions[] when the CLI has a low-ambiguity follow-up to recommend.",
+    "  Each entry includes command, reason, when, cliCommand, args?, options?, and runnable?.",
+    "",
+    chalk.bold("Runnable Semantics"),
+    "  runnable=true  The cliCommand is complete and can be executed as-is.",
+    "  runnable=false The action is a template; fill in missing user input first.",
+    "",
+    chalk.bold("Ordering"),
+    "  The first matching action is the highest-priority recommendation.",
+    "  Private/resume paths come first, required public recovery comes before optional public recovery, and template deposit/withdraw actions come last.",
+    "",
+    chalk.bold("Common Uses"),
+    `  ${accent("privacy-pools deposit --agent")}         Emits the canonical pending-review polling command.`,
+    `  ${accent("privacy-pools status --agent")}          Emits the canonical init/pools/accounts follow-up.`,
+    `  ${accent("privacy-pools flow watch --agent")}      Emits resume, manual follow-up, or ragequit guidance.`,
+  ],
+
+  profiles: () => [
+    chalk.bold("Profiles"),
+    "  Profiles let one machine keep separate Privacy Pools config, wallet state, and signer setup under different names.",
+    `  Use ${notice("--profile <name>")} on any command to select one profile for that invocation.`,
+    "",
+    chalk.bold("Commands"),
+    `  ${accent("privacy-pools config profile list")}`,
+    `  ${accent("privacy-pools config profile create <name>")}`,
+    `  ${accent("privacy-pools config profile use <name>")}`,
+    `  ${accent("privacy-pools config profile active")}`,
+    "",
+    chalk.bold("When To Use Them"),
+    "  Use profiles when you need separate operator identities, separate test/main workflows, or isolated machine-runner state on one host.",
+  ],
+
+  "pool-accounts": () => [
+    chalk.bold("Pool Accounts"),
+    "  A Pool Account (PA) is one deposit and its remaining balance lineage.",
+    "  Approval and withdrawal happen per Pool Account, not per wallet.",
+    "",
+    chalk.bold("Statuses"),
+    `  ${successTone("approved")}       Ready for private withdrawal`,
+    `  ${notice("pending")}        Still under ASP review`,
+    `  ${notice("poa_required")}   Proof of Association is required before private withdrawal`,
+    `  ${dangerTone("declined")}       Private withdrawal unavailable; ragequit remains available`,
+    `  ${chalk.dim("spent")}          Already withdrawn`,
+    `  ${chalk.dim("exited")}         Ragequit completed`,
+    "",
+    chalk.bold("Useful Commands"),
+    `  ${accent("privacy-pools accounts --chain <chain>")}`,
+    `  ${accent("privacy-pools withdraw --pool-account PA-1 --to 0xRecipient")}`,
+    `  ${accent("privacy-pools ragequit --pool-account PA-1")}`,
+    `  ${accent("privacy-pools migrate status --agent --all-chains")}  ${chalk.dim("(legacy readiness only)")}`,
+  ],
+
+  agents: () => [
+    chalk.bold("Agent Mode"),
+    `  ${notice("--agent")} is shorthand for ${chalk.dim("--json --yes --quiet")}.`,
+    "  Structured JSON stays on stdout. Human-oriented narration stays on stderr and is suppressed in agent mode.",
+    "",
+    chalk.bold("Discovery"),
+    `  ${accent("privacy-pools capabilities --agent")}      Full runtime capability manifest`,
+    `  ${accent("privacy-pools describe withdraw --agent")} Command-specific flags, risks, and JSON fields`,
+    `  ${accent("privacy-pools guide next-actions --agent")} Shared nextActions contract`,
+    "",
+    chalk.bold("Recommended Flow"),
+    `  1. ${accent("privacy-pools status --agent")}`,
+    `  2. ${accent("privacy-pools init --agent --default-chain <chain> --backup-file <path>")}`,
+    `  3. ${accent("privacy-pools pools --agent --chain <chain>")}`,
+    `  4. ${accent("privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>")}`,
+    `  5. ${accent("privacy-pools flow watch latest --agent")}`,
+  ],
+
   json: () => [
     chalk.bold("JSON Contract"),
     "  Use --json for machine-readable output. Use --agent for --json --yes --quiet.",
@@ -262,8 +394,10 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("--json-fields <fields>")}  Select top-level fields by comma-separated name.`,
     `  ${notice("--jmes <expression>")}     Apply a JMESPath expression to the final envelope.`,
     `  ${notice("--jq <expression>")}       Compatibility alias for --jmes (not jq syntax).`,
+    `  ${notice("--template <template>")}   Interpolate the final envelope with {{path.to.value}} placeholders.`,
     "  Unknown --json-fields fail with INPUT_UNKNOWN_JSON_FIELD and availableFields[].",
     "  Invalid JMESPath expressions fail before command output is emitted.",
+    "  --json-fields, --jmes/--jq, and --template are mutually exclusive.",
     "",
     chalk.bold("Discovery"),
     `  ${accent("privacy-pools capabilities --agent")}      Full command and schema manifest.`,
@@ -358,7 +492,8 @@ function guideAppendixSections(): string[] {
  */
 export function guideText(topic?: string): string {
   if (topic) {
-    const builder = guideSections[topic];
+    const resolvedTopic = resolveGuideTopic(topic);
+    const builder = resolvedTopic ? guideSections[resolvedTopic] : undefined;
     if (!builder) {
       const available = GUIDE_TOPICS.map((t) => `  ${accent(t.name)}  ${chalk.dim(t.description)}`).join("\n");
       return [
@@ -370,7 +505,7 @@ export function guideText(topic?: string): string {
         chalk.dim("  Run 'privacy-pools guide' with no topic for the full guide."),
       ].join("\n");
     }
-    return [accentBold(`Privacy Pools: ${topic}`), "", ...builder()].join("\n");
+    return [accentBold(`Privacy Pools: ${resolvedTopic}`), "", ...builder()].join("\n");
   }
 
   // Full guide: all sections + appendix.

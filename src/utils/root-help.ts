@@ -89,6 +89,8 @@ function buildRootHelpBaseLines(): string[] {
     "  -r, --rpc-url <url>     Override RPC URL",
     "  --json-fields <fields>  Select specific JSON fields (comma-separated, implies",
     "                          --json)",
+    "  --template <template>   Render structured output through a lightweight",
+    "                          {{path.to.value}} template",
     "  --agent                 Machine-friendly mode (alias for --json --yes --quiet)",
     "  -q, --quiet             Suppress human-oriented stderr output",
     "  -v, --verbose           Enable verbose/debug output (-v info, -vv debug, -vvv",

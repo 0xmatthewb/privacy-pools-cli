@@ -56,7 +56,11 @@ function resolveSdkInstall(): SdkInstall {
       "Could not determine the installed Privacy Pools SDK version.",
       "PROOF",
       "Reinstall the CLI or set PRIVACY_POOLS_CIRCUITS_DIR to a directory containing the circuit artifacts.",
-      "PROOF_GENERATION_FAILED"
+      "PROOF_GENERATION_FAILED",
+      false,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
 
@@ -85,7 +89,11 @@ function checksumManifest(tag: string): Record<string, string> {
       `No circuit checksum manifest is defined for ${tag}.`,
       "PROOF",
       "Update the CLI to a version that knows how to verify this SDK release, or pre-provision matching artifacts after updating the checksum manifest.",
-      "PROOF_GENERATION_FAILED"
+      "PROOF_GENERATION_FAILED",
+      false,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
   return checksums;
@@ -132,6 +140,10 @@ function buildMissingArtifactsError(
     "PROOF",
     `Checked ${locationText}. Missing or invalid: ${remaining.join(", ")}. Reinstall the CLI, or set PRIVACY_POOLS_CIRCUITS_DIR to a trusted pre-provisioned directory.`,
     "PROOF_GENERATION_FAILED",
+    false,
+    undefined,
+    undefined,
+    "guide/troubleshooting",
   );
 }
 

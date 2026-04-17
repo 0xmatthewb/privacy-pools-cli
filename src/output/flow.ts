@@ -1194,7 +1194,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         if (committedValue) {
           phaseRows.push({
             label: "Net deposited",
-            value: `${committedValue} (net after vetting fee)`,
+            value: `${committedValue} (net after ASP vetting fee)`,
           });
         }
         phaseRows.push({

@@ -31,9 +31,18 @@ export interface ResolvedGlobalMode {
   skipPrompts: boolean;
   jsonFields: string[] | null;
   jqExpression: string | null;
+  template: string | null;
 }
 
 let _activeModeArgv: readonly string[] = [];
+
+const TRUE_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
+
+function readBooleanEnv(name: string): boolean {
+  const raw = process.env[name];
+  if (typeof raw !== "string") return false;
+  return TRUE_ENV_VALUES.has(raw.trim().toLowerCase());
+}
 
 export function setModeArgv(argv: readonly string[]): void {
   _activeModeArgv = [...argv];
@@ -70,6 +79,21 @@ function readJsonFieldsFromArgv(argv: readonly string[]): string | null {
   return null;
 }
 
+function readTemplateFromArgv(argv: readonly string[]): string | null {
+  const boundary = argv.indexOf("--");
+  const args = boundary === -1 ? argv : argv.slice(0, boundary);
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (token === "--template") {
+      return i + 1 < args.length ? (args[i + 1] ?? null) : null;
+    }
+    if (typeof token === "string" && token.startsWith("--template=")) {
+      return token.slice("--template=".length);
+    }
+  }
+  return null;
+}
+
 export function invalidOutputFormatMessage(value: string): string {
   return `option '--format <format>' argument '${value}' is invalid. Allowed choices are ${OUTPUT_FORMAT_CHOICES_TEXT}.`;
 }
@@ -82,17 +106,28 @@ export function resolveGlobalMode(
     setActiveProfile(globalOpts.profile);
   }
 
-  const isAgent = globalOpts?.agent ?? false;
+  const isAgent = (globalOpts?.agent ?? false) || readBooleanEnv("PRIVACY_POOLS_AGENT");
   const argvJsonFields = readJsonFieldsFromArgv(_activeModeArgv);
+  const argvTemplate = readTemplateFromArgv(_activeModeArgv);
   const rawJsonFields =
     typeof globalOpts?.jsonFields === "string"
       ? globalOpts.jsonFields
       : argvJsonFields;
+  const template =
+    typeof globalOpts?.template === "string"
+      ? globalOpts.template
+      : argvTemplate;
   const hasJq = typeof globalOpts?.jq === "string";
   const hasJmes = typeof globalOpts?.jmes === "string";
   const hasJsonFieldsFlag = typeof rawJsonFields === "string";
+  const hasTemplateFlag = typeof template === "string";
   const hasStructuredJsonFlag =
-    (globalOpts?.json ?? false) || isAgent || hasJq || hasJmes || hasJsonFieldsFlag;
+    (globalOpts?.json ?? false) ||
+    isAgent ||
+    hasJq ||
+    hasJmes ||
+    hasJsonFieldsFlag ||
+    hasTemplateFlag;
   const explicitFormat = normalizeOutputFormat(globalOpts?.output ?? globalOpts?.format);
   const isWide = explicitFormat === "wide";
   const format: OutputFormat =
@@ -101,11 +136,20 @@ export function resolveGlobalMode(
     "table"; // "wide" also uses table rendering
   const isJson = format === "json";
   const isCsv = format === "csv";
-  const isQuiet = (globalOpts?.quiet ?? false) || isAgent;
+  const isQuiet =
+    (globalOpts?.quiet ?? false) ||
+    isAgent ||
+    readBooleanEnv("PRIVACY_POOLS_QUIET");
   // JSON/CSV/machine mode must never block on interactive prompts.
   // Also auto-detect CI environments (CI=true or CI=1) to prevent hanging.
   const isCI = process.env.CI === "true" || process.env.CI === "1";
-  const skipPrompts = (globalOpts?.yes ?? false) || isAgent || isJson || isCsv || isCI;
+  const skipPrompts =
+    (globalOpts?.yes ?? false) ||
+    isAgent ||
+    isJson ||
+    isCsv ||
+    isCI ||
+    readBooleanEnv("PRIVACY_POOLS_YES");
 
   // Parse --json-fields <fields> comma-separated field selection.
   const jsonFields: string[] | null =
@@ -129,6 +173,20 @@ export function resolveGlobalMode(
       ? globalOpts!.jq!
       : null;
 
+  const structuredFilters = [
+    hasJsonFieldsFlag ? "--json-fields" : null,
+    jqExpression ? "--jmes/--jq" : null,
+    hasTemplateFlag ? "--template" : null,
+  ].filter((value): value is string => value !== null);
+  if (structuredFilters.length > 1) {
+    throw new CLIError(
+      `Choose only one structured output filter: ${structuredFilters.join(", ")}.`,
+      "INPUT",
+      "Use one of --json-fields, --template, or --jmes/--jq at a time.",
+      "INPUT_MUTUALLY_EXCLUSIVE",
+    );
+  }
+
   // Persist timeout from global flags for services to pick up.
   if (globalOpts?.timeout !== undefined) {
     setNetworkTimeoutMs(parseTimeoutFlag(globalOpts.timeout));
@@ -148,7 +206,8 @@ export function resolveGlobalMode(
   // while the root-argv parser sets noProgress=true.  Accept both.
   const noProgress =
     globalOpts?.noProgress === true ||
-    (globalOpts as Record<string, unknown> | undefined)?.progress === false;
+    (globalOpts as Record<string, unknown> | undefined)?.progress === false ||
+    readBooleanEnv("PRIVACY_POOLS_NO_PROGRESS");
   if (noProgress) {
     setSuppressProgress(true);
   } else {
@@ -161,9 +220,24 @@ export function resolveGlobalMode(
   setSuppressHeaders(noHeader);
 
   // Configure the JSON output module with field selection and jq filtering.
-  configureJsonOutput(jsonFields, jqExpression);
+  configureJsonOutput(jsonFields, jqExpression, template ?? null);
 
-  return { isAgent, isJson, isCsv, isWide, isQuiet, noProgress, noHeader, isVerbose, verboseLevel, format, skipPrompts, jsonFields, jqExpression };
+  return {
+    isAgent,
+    isJson,
+    isCsv,
+    isWide,
+    isQuiet,
+    noProgress,
+    noHeader,
+    isVerbose,
+    verboseLevel,
+    format,
+    skipPrompts,
+    jsonFields,
+    jqExpression,
+    template: template ?? null,
+  };
 }
 
 const DEFAULT_NETWORK_TIMEOUT_MS = 30_000;

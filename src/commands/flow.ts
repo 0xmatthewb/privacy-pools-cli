@@ -59,6 +59,7 @@ interface FlowStartCommandOptions {
 
 interface FlowWatchCommandOptions {
   privacyDelay?: string;
+  streamJson?: boolean;
 }
 
 export { createFlowCommand } from "../command-shells/flow.js";
@@ -557,7 +558,7 @@ export async function handleFlowRagequitCommand(
         standardMessage: "Confirm ragequit?",
         highStakesToken: "RAGEQUIT",
         highStakesWarning:
-          "This saved flow will ragequit funds back to the original deposit address. Privacy will not be preserved.",
+          "This saved flow will ragequit funds back to the original deposit address. It does not preserve privacy.",
         confirm,
       });
       if (!ok) {
@@ -591,7 +592,10 @@ export async function handleFlowWatchCommand(
   cmd: Command,
 ): Promise<void> {
   const globalOpts = getRootGlobalOptions(cmd);
-  const mode = resolveGlobalMode(globalOpts);
+  const mode = resolveGlobalMode({
+    ...globalOpts,
+    ...(opts.streamJson ? { json: true } : {}),
+  });
   const isVerbose = globalOpts?.verbose ?? false;
   const ctx = createOutputContext(mode, isVerbose);
 

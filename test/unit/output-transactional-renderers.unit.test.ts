@@ -337,7 +337,7 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("ETH");
     expect(stderr).toContain("PA-1");
     expect(stderr).toContain("Net deposited");
-    expect(stderr).toContain("after vetting fee");
+    expect(stderr).toContain("after ASP vetting fee");
     expect(stderr).toContain("Tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("under Association Set Provider (ASP) review");

@@ -18,6 +18,7 @@ function bigintReplacer(_key: string, value: unknown): unknown {
 
 let _jsonFields: string[] | null = null;
 let _jqExpression: string | null = null;
+let _template: string | null = null;
 
 /**
  * Configure global JSON output filtering.
@@ -29,6 +30,7 @@ let _jqExpression: string | null = null;
 export function configureJsonOutput(
   jsonFields: string[] | null,
   jqExpression: string | null,
+  template: string | null = null,
 ): void {
   if (jqExpression) {
     try {
@@ -46,11 +48,13 @@ export function configureJsonOutput(
 
   _jsonFields = jsonFields;
   _jqExpression = jqExpression;
+  _template = template;
 }
 
 export function resetJsonOutputConfig(): void {
   _jsonFields = null;
   _jqExpression = null;
+  _template = null;
 }
 
 /**
@@ -86,6 +90,47 @@ function applyFieldSelection(
   return filtered;
 }
 
+function templateValue(path: string, payload: unknown): unknown {
+  const trimmed = path.trim();
+  if (!trimmed) return "";
+  return trimmed.split(".").reduce<unknown>((current, segment) => {
+    if (current === null || current === undefined) return undefined;
+    if (Array.isArray(current) && /^\d+$/.test(segment)) {
+      return current[Number(segment)];
+    }
+    if (
+      typeof current === "object" &&
+      segment in (current as Record<string, unknown>)
+    ) {
+      return (current as Record<string, unknown>)[segment];
+    }
+    return undefined;
+  }, payload);
+}
+
+function stringifyTemplateValue(value: unknown): string {
+  if (value === undefined) return "";
+  if (value === null) return "null";
+  if (typeof value === "string") return value;
+  if (typeof value === "bigint") return value.toString();
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return String(value);
+  }
+  return JSON.stringify(value, bigintReplacer);
+}
+
+function maybeWriteTemplateOutput(payload: Record<string, unknown>): boolean {
+  if (!_template) return false;
+  const rendered = _template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, path: string) =>
+    stringifyTemplateValue(templateValue(path, payload)),
+  );
+  process.stdout.write(`${rendered}\n`);
+  return true;
+}
+
 export function printJsonSuccess(
   payload: object,
   pretty: boolean = false,
@@ -106,6 +151,10 @@ export function printJsonSuccess(
       success: true,
       ...applyFieldSelection(output, _jsonFields),
     };
+  }
+
+  if (maybeWriteTemplateOutput(output)) {
+    return;
   }
 
   // Apply --jq <expression> filtering.
@@ -134,6 +183,7 @@ export function printJsonError(
     message: string;
     hint?: string;
     retryable?: boolean;
+    docsSlug?: string;
     details?: Record<string, unknown>;
   },
   pretty: boolean = false,
@@ -153,6 +203,11 @@ export function printJsonError(
     ...(details ?? {}),
     error: errorObject,
   };
+
+  // Apply --jq to error output as well for consistent behavior.
+  if (maybeWriteTemplateOutput(output)) {
+    return;
+  }
 
   // Apply --jq to error output as well for consistent behavior.
   if (_jqExpression) {

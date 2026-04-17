@@ -21,7 +21,7 @@ import {
   cliMainHelperInternals,
 } from "./runtime/cli-main-helpers.js";
 import { installOutputAnsiGuards } from "./utils/terminal.js";
-import { guideText } from "./utils/help.js";
+import { guideText, resolveGuideTopic } from "./utils/help.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { setModeArgv } from "./utils/mode.js";
 
@@ -83,14 +83,14 @@ export async function runCli(
   );
 
   const [firstToken, secondToken] = allNonOptionTokens(argv);
-  if (
-    firstToken === "help" &&
-    secondToken &&
-    ["exit-codes", "json", "modes"].includes(secondToken)
-  ) {
-    const help = guideText(secondToken);
+  const resolvedGuideTopic =
+    firstToken === "help" && secondToken
+      ? resolveGuideTopic(secondToken)
+      : null;
+  if (firstToken === "help" && secondToken && resolvedGuideTopic) {
+    const help = guideText(resolvedGuideTopic);
     if (isStructuredOutputMode) {
-      printJsonSuccess({ mode: "help", topic: secondToken, help });
+      printJsonSuccess({ mode: "help", topic: resolvedGuideTopic, help });
     } else if (!isQuiet) {
       process.stdout.write(`${help}\n`);
     }

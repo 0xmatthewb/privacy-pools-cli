@@ -110,6 +110,21 @@ function repositoryIssueHint(): string {
   return "If the problem persists, open a GitHub issue in the privacy-pools-cli repository.";
 }
 
+function formatDocsReference(docsSlug: string): string | null {
+  const [path, anchor] = docsSlug.split("#", 2);
+  if (path.startsWith("guide/")) {
+    const topic = path.slice("guide/".length);
+    if (!topic) return null;
+    return `Docs: privacy-pools guide ${topic}`;
+  }
+  if (path.startsWith("reference/")) {
+    const page = path.slice("reference/".length);
+    if (!page) return null;
+    return `Docs: docs/reference/${page}.md${anchor ? `#${anchor}` : ""}`;
+  }
+  return null;
+}
+
 function isSensitiveEndpointSegment(segment: string): boolean {
   const decoded = segment.trim();
   if (!decoded) return false;
@@ -251,6 +266,7 @@ export class CLIError extends Error {
     public readonly retryable: boolean = false,
     public readonly presentation: ErrorPresentation = defaultErrorPresentation(category),
     public readonly details?: Record<string, unknown>,
+    public readonly docsSlug?: string,
   ) {
     super(message);
     this.name = "CLIError";
@@ -307,6 +323,12 @@ function renderBoxedError(error: CLIError): string {
     ...(error.hint
       ? wrapDisplayText(notice(`Hint: ${error.hint}`), width)
       : []),
+    ...(error.docsSlug
+      ? wrapDisplayText(
+          notice(formatDocsReference(error.docsSlug) ?? `Docs: ${error.docsSlug}`),
+          width,
+        )
+      : []),
   ];
   const contentWidth = Math.max(...body.map((line) => visibleWidth(line)), 24);
   const top = `${topLeft}${horizontal.repeat(contentWidth + 2)}${topRight}`;
@@ -326,6 +348,9 @@ export function accountMigrationRequiredError(
     hint,
     "ACCOUNT_MIGRATION_REQUIRED",
     false,
+    undefined,
+    undefined,
+    "reference/migrate#migrate-status",
   );
 }
 
@@ -338,6 +363,9 @@ export function accountWebsiteRecoveryRequiredError(
     hint,
     "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
     false,
+    undefined,
+    undefined,
+    "reference/migrate#migrate-status",
   );
 }
 
@@ -350,26 +378,38 @@ export function accountMigrationReviewIncompleteError(
     hint,
     "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE",
     true,
+    undefined,
+    undefined,
+    "reference/migrate#migrate-status",
   );
 }
 
-const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: string; retryable?: boolean }> = {
+const CONTRACT_ERROR_MAP: Record<string, {
+  message: string;
+  hint: string;
+  code: string;
+  retryable?: boolean;
+  docsSlug?: string;
+}> = {
   NullifierAlreadySpent: {
     message: "This Pool Account has already been withdrawn.",
     hint: "Each Pool Account can only be spent once. Check 'privacy-pools accounts' for other available accounts.",
     code: "CONTRACT_NULLIFIER_ALREADY_SPENT",
+    docsSlug: "reference/accounts#accounts",
   },
   IncorrectASPRoot: {
     message: "Pool state changed since proof generation.",
     hint: "Refresh pool data and generate a new proof.",
     code: "CONTRACT_INCORRECT_ASP_ROOT",
     retryable: true,
+    docsSlug: "reference/sync#sync",
   },
   UnknownStateRoot: {
     message: "Pool state root is outdated or unknown.",
     hint: "Run 'privacy-pools sync --chain <chain>' and retry to generate a fresh proof against the latest state root.",
     code: "CONTRACT_UNKNOWN_STATE_ROOT",
     retryable: true,
+    docsSlug: "reference/sync#sync",
   },
   ScopeMismatch: {
     message: "Invalid scope for this privacy pool.",
@@ -391,6 +431,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "ZK proof verification failed onchain.",
     hint: "Your local proof inputs may be stale. Run 'privacy-pools sync --chain <chain>' and retry.",
     code: "CONTRACT_INVALID_PROOF",
+    docsSlug: "guide/troubleshooting",
   },
   PrecommitmentAlreadyUsed: {
     message: "This precommitment hash was already used in a previous deposit.",
@@ -406,6 +447,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "Only the original depositor can ragequit this Pool Account.",
     hint: "Use the same signer address that made the deposit.",
     code: "CONTRACT_ONLY_ORIGINAL_DEPOSITOR",
+    docsSlug: "reference/ragequit#ragequit",
   },
   NotYetRagequitteable: {
     message: "This Pool Account cannot be ragequit yet.",
@@ -428,6 +470,7 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "Deposit amount is below the pool minimum.",
     hint: "Increase the amount to meet the pool minimum shown by 'privacy-pools pools' or the deposit validation output, then retry.",
     code: "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
+    docsSlug: "reference/pools#pools",
   },
   InvalidDepositValue: {
     message: "Deposit amount is too large for this pool.",
@@ -438,11 +481,13 @@ const CONTRACT_ERROR_MAP: Record<string, { message: string; hint: string; code: 
     message: "Withdrawal amount is invalid for this Pool Account.",
     hint: "Check the requested amount, available balance, and selected Pool Account, then retry with a valid withdrawal amount.",
     code: "CONTRACT_INVALID_WITHDRAWAL_AMOUNT",
+    docsSlug: "reference/withdraw#withdraw",
   },
   PoolNotFound: {
     message: "The requested pool is not available on this chain.",
     hint: "Run 'privacy-pools pools' to confirm the asset is supported on this chain, or choose another pool or asset.",
     code: "CONTRACT_POOL_NOT_FOUND",
+    docsSlug: "reference/pools#pools",
   },
   PoolIsDead: {
     message: "This pool is no longer accepting new activity.",
@@ -491,7 +536,10 @@ export function classifyError(error: unknown): CLIError {
         "CONTRACT",
         mapped.hint,
         mapped.code,
-        mapped.retryable ?? false
+        mapped.retryable ?? false,
+        undefined,
+        undefined,
+        mapped.docsSlug,
       );
     }
   }
@@ -505,7 +553,10 @@ export function classifyError(error: unknown): CLIError {
         "PROOF",
         "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync --chain <chain>' and retry.",
         "PROOF_MERKLE_ERROR",
-        true
+        true,
+        undefined,
+        undefined,
+        "reference/sync#sync",
       );
     }
     if (code === "PROOF_GENERATION_FAILED") {
@@ -513,7 +564,11 @@ export function classifyError(error: unknown): CLIError {
         "Proof generation failed.",
         "PROOF",
         "Run 'privacy-pools sync' to refresh local state and retry. If it persists, verify you are using the correct recovery phrase and that the Pool Account has not already been spent.",
-        "PROOF_GENERATION_FAILED"
+        "PROOF_GENERATION_FAILED",
+        false,
+        undefined,
+        undefined,
+        "guide/troubleshooting",
       );
     }
     if (code === "PROOF_VERIFICATION_FAILED") {
@@ -521,7 +576,11 @@ export function classifyError(error: unknown): CLIError {
         "Proof verification failed.",
         "PROOF",
         "Run 'privacy-pools sync' to refresh local state and retry. If it persists, reinstall the CLI to refresh the bundled circuit artifacts.",
-        "PROOF_VERIFICATION_FAILED"
+        "PROOF_VERIFICATION_FAILED",
+        false,
+        undefined,
+        undefined,
+        "guide/troubleshooting",
       );
     }
   }
@@ -533,7 +592,10 @@ export function classifyError(error: unknown): CLIError {
       "RPC",
       "Check your RPC URL and network connectivity. If the request is timing out, try --timeout <seconds>.",
       "RPC_NETWORK_ERROR",
-      true
+      true,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
 
@@ -546,7 +608,10 @@ export function classifyError(error: unknown): CLIError {
       "RPC",
       "Your RPC provider is rate-limiting requests. Wait a moment and retry, or use a dedicated RPC URL with --rpc-url.",
       "RPC_RATE_LIMITED",
-      true
+      true,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
 
@@ -563,7 +628,10 @@ export function classifyError(error: unknown): CLIError {
       "RPC",
       "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable.",
       "RPC_NETWORK_ERROR",
-      true
+      true,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
 
@@ -576,7 +644,11 @@ export function classifyError(error: unknown): CLIError {
       "Insufficient funds for transaction.",
       "CONTRACT",
       "Your wallet does not have enough ETH to cover the deposit amount plus gas fees. Check your signer wallet balance in a block explorer or wallet app, then fund it before retrying.",
-      "CONTRACT_INSUFFICIENT_FUNDS"
+      "CONTRACT_INSUFFICIENT_FUNDS",
+      false,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
 
@@ -590,14 +662,22 @@ export function classifyError(error: unknown): CLIError {
       "CONTRACT",
       "A previous transaction may be pending. Wait for it to confirm or use a wallet management tool to resolve stuck transactions.",
       "CONTRACT_NONCE_ERROR",
-      true
+      true,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
 
   return new CLIError(
     message,
     "UNKNOWN",
-    `Try 'privacy-pools sync' to refresh local state, then retry. ${repositoryIssueHint()}`
+    `Try 'privacy-pools sync' to refresh local state, then retry. ${repositoryIssueHint()}`,
+    undefined,
+    false,
+    undefined,
+    undefined,
+    "guide/troubleshooting",
   );
 }
 
@@ -626,6 +706,7 @@ export function printError(error: unknown, json: boolean = false, quiet?: boolea
         hint: classified.hint,
         retryable: classified.retryable,
         details: classified.details,
+        docsSlug: classified.docsSlug,
       },
       false
     );
@@ -636,6 +717,13 @@ export function printError(error: unknown, json: boolean = false, quiet?: boolea
       process.stderr.write(dangerTone(`Error [${classified.category}]: ${classified.message}`) + "\n");
       if (classified.hint) {
         process.stderr.write(notice(`Hint: ${classified.hint}`) + "\n");
+      }
+      if (classified.docsSlug) {
+        process.stderr.write(
+          notice(
+            formatDocsReference(classified.docsSlug) ?? `Docs: ${classified.docsSlug}`,
+          ) + "\n",
+        );
       }
     }
   }

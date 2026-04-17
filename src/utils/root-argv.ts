@@ -9,6 +9,29 @@ import {
 } from "./verbose-level.js";
 import type { GlobalOptions } from "../types.js";
 
+const TRUE_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
+
+function readBooleanEnv(name: string): boolean {
+  const raw = process.env[name];
+  if (typeof raw !== "string") return false;
+  return TRUE_ENV_VALUES.has(raw.trim().toLowerCase());
+}
+
+function applyEnvFallbackRootOptions(globalOpts: GlobalOptions): void {
+  if (readBooleanEnv("PRIVACY_POOLS_AGENT")) {
+    globalOpts.agent = true;
+  }
+  if (readBooleanEnv("PRIVACY_POOLS_QUIET")) {
+    globalOpts.quiet = true;
+  }
+  if (readBooleanEnv("PRIVACY_POOLS_YES")) {
+    globalOpts.yes = true;
+  }
+  if (readBooleanEnv("PRIVACY_POOLS_NO_PROGRESS")) {
+    globalOpts.noProgress = true;
+  }
+}
+
 export interface ParsedRootArgv {
   argv: string[];
   firstCommandToken: string | undefined;
@@ -171,6 +194,18 @@ export function parseRootPreludeLongOption(
         return { consumedNext: true, helpLike: false, versionLike: false };
       }
       return { consumedNext: false, helpLike: false, versionLike: false };
+    case "--template":
+      if (inlineValue !== undefined) {
+        globalOpts.template = inlineValue;
+        globalOpts.json = true;
+        return { consumedNext: false, helpLike: false, versionLike: false };
+      }
+      if (nextToken !== undefined) {
+        globalOpts.template = nextToken;
+        globalOpts.json = true;
+        return { consumedNext: true, helpLike: false, versionLike: false };
+      }
+      return { consumedNext: false, helpLike: false, versionLike: false };
     case "--jq":
     case "--jmes":
       if (inlineValue !== undefined) {
@@ -325,6 +360,7 @@ export function parseValidatedRootPrelude(
 ): ParsedRootPrelude | null {
   const rootArgs = rootArgvSlice(argv);
   const globalOpts: GlobalOptions = {};
+  applyEnvFallbackRootOptions(globalOpts);
   let commandIndex: number | null = null;
 
   for (let index = 0; index < rootArgs.length; index++) {
@@ -411,10 +447,13 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
       readLongOptionValue(argv, "--format") ??
       readShortOptionValue(argv, "-o")
     )?.toLowerCase() ?? null;
-  const isAgent = hasLongFlag(argv, "--agent");
+  const envAgent = readBooleanEnv("PRIVACY_POOLS_AGENT");
+  const envQuiet = readBooleanEnv("PRIVACY_POOLS_QUIET");
+  const isAgent = hasLongFlag(argv, "--agent") || envAgent;
   const hasJq = hasLongFlag(argv, "--jq");
   const hasJmes = hasLongFlag(argv, "--jmes");
   const hasJsonFields = hasLongFlag(argv, "--json-fields");
+  const hasTemplate = hasLongFlag(argv, "--template");
   const isJson =
     hasLongFlag(argv, "--json") ||
     hasShortFlag(argv, "j") ||
@@ -422,7 +461,8 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
     isAgent ||
     hasJq ||
     hasJmes ||
-    hasJsonFields;
+    hasJsonFields ||
+    hasTemplate;
   const isCsvMode = formatFlagValue === "csv" && !isJson;
   const isUnsigned = hasLongFlag(argv, "--unsigned");
   const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
@@ -438,7 +478,11 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
     (nonOptionTokens.length === 0 ||
       (nonOptionTokens.length === 1 && nonOptionTokens[0] === "help"));
   const suppressBanner = rootArgs.includes("--no-banner");
-  const isQuiet = rootArgs.includes("--quiet") || hasShortFlag(argv, "q");
+  const isQuiet =
+    rootArgs.includes("--quiet") ||
+    hasShortFlag(argv, "q") ||
+    isAgent ||
+    envQuiet;
   const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
 
   setParsedVerboseLevel(countVerboseFlags(argv));

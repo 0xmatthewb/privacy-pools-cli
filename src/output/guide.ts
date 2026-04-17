@@ -6,17 +6,18 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, isSilent, guardCsvUnsupported } from "./common.js";
-import { guideText } from "../utils/help.js";
+import { guideText, resolveGuideTopic } from "../utils/help.js";
 import { renderHumanGuideText } from "./discovery.js";
 
 /**
  * Render guide output, optionally filtered to a single topic.
  */
 export function renderGuide(ctx: OutputContext, topic?: string): void {
+  const resolvedTopic = resolveGuideTopic(topic) ?? topic;
   if (ctx.mode.isJson) {
     printJsonSuccess({
       mode: "help",
-      ...(topic ? { topic } : {}),
+      ...(resolvedTopic ? { topic: resolvedTopic } : {}),
       help: guideText(topic),
     });
     return;

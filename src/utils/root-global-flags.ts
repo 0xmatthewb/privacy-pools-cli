@@ -23,6 +23,12 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
     welcomeBoolean: false,
   },
   {
+    flag: "--template <template>",
+    description: "Render structured output through a lightweight {{path.to.value}} template",
+    takesValue: true,
+    welcomeBoolean: false,
+  },
+  {
     flag: "-o, --output <format>",
     description: OUTPUT_FORMAT_DESCRIPTION,
     takesValue: true,

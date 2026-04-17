@@ -46,6 +46,7 @@ export interface RelayedWithdrawalReviewData {
   chain: string;
   decimals: number;
   recipient: string;
+  recipientEnsName?: string;
   quoteFeeBPS: bigint;
   expirationMs: number;
   remainingBalance: bigint;
@@ -65,6 +66,7 @@ export interface DirectWithdrawalReviewData {
   chain: string;
   decimals: number;
   recipient: string;
+  recipientEnsName?: string;
   tokenPrice?: number | null;
 }
 
@@ -158,6 +160,9 @@ export function formatRelayedWithdrawalReview(
         label: "Recipient",
         value: data.recipient,
       },
+      ...(data.recipientEnsName
+        ? [{ label: "Recipient ENS", value: data.recipientEnsName }]
+        : []),
       { label: "Chain", value: data.chain },
       {
         label: "Amount",
@@ -253,6 +258,9 @@ export function formatDirectWithdrawalReview(
           (amountUsd === "-" ? "" : ` (${amountUsd})`),
       },
       { label: "Recipient", value: data.recipient },
+      ...(data.recipientEnsName
+        ? [{ label: "Recipient ENS", value: data.recipientEnsName }]
+        : []),
       { label: "Chain", value: data.chain },
       {
         label: "Mode",

@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
+  createNextAction,
   guardCsvUnsupported,
   info,
   isSilent,
@@ -100,6 +101,29 @@ function countCell(value: number, known: boolean): string {
   return known ? String(value) : "?";
 }
 
+function migrationNextActions(
+  result: MigrationRenderData,
+): ReturnType<typeof createNextAction>[] {
+  if (result.status !== "review_incomplete") {
+    return [];
+  }
+
+  return [
+    createNextAction(
+      "migrate status",
+      "Retry once legacy ASP review data is available.",
+      "after_restore",
+      {
+        options: {
+          agent: true,
+          ...(result.allChains ? { allChains: true } : {}),
+          ...(!result.allChains && result.chain ? { chain: result.chain } : {}),
+        },
+      },
+    ),
+  ];
+}
+
 export function renderMigrationStatus(
   ctx: OutputContext,
   result: MigrationRenderData,
@@ -107,6 +131,7 @@ export function renderMigrationStatus(
   guardCsvUnsupported(ctx, "migrate status");
 
   if (ctx.mode.isJson) {
+    const nextActions = migrationNextActions(result);
     printJsonSuccess({
       mode: result.mode,
       chain: result.chain,
@@ -127,6 +152,7 @@ export function renderMigrationStatus(
       websiteRecoveryChainIds: result.websiteRecoveryChainIds,
       unresolvedChainIds: result.unresolvedChainIds,
       chainReadiness: result.chainReadiness,
+      nextActions,
     });
     return;
   }

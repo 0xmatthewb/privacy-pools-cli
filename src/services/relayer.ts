@@ -255,7 +255,12 @@ export function relayerUnavailableError(message: string): CLIError {
       ? "Relayer request failed."
       : `Relayer request failed: ${detail}`,
     "RELAYER",
-    "Check your network connection and try again. If it persists, the relayer may be temporarily down."
+    "Check your network connection and try again. If it persists, the relayer may be temporarily down.",
+    undefined,
+    false,
+    undefined,
+    undefined,
+    "reference/withdraw#withdraw-quote",
   );
 }
 
@@ -273,6 +278,11 @@ export function decodeValidatedRelayerWithdrawalData(
       "Relayer quote is missing required fee details.",
       "RELAYER",
       "The relayer may not support this asset/chain combination.",
+      undefined,
+      false,
+      undefined,
+      undefined,
+      "reference/withdraw#withdraw-quote",
     );
   }
 
@@ -293,6 +303,11 @@ export function decodeValidatedRelayerWithdrawalData(
       "Relayer returned malformed withdrawal data.",
       "RELAYER",
       "Run the withdraw command again to request a fresh quote.",
+      undefined,
+      false,
+      undefined,
+      undefined,
+      "reference/withdraw#withdraw-quote",
     );
   }
 
@@ -303,6 +318,11 @@ export function decodeValidatedRelayerWithdrawalData(
       "Relayer quote recipient does not match the requested withdrawal recipient.",
       "RELAYER",
       "Run the withdraw command again to request a fresh quote.",
+      undefined,
+      false,
+      undefined,
+      undefined,
+      "reference/withdraw#withdraw-quote",
     );
   }
 
@@ -311,6 +331,11 @@ export function decodeValidatedRelayerWithdrawalData(
       "Relayer quote fee data does not match the quoted relay fee.",
       "RELAYER",
       "Run the withdraw command again to request a fresh quote.",
+      undefined,
+      false,
+      undefined,
+      undefined,
+      "reference/withdraw#withdraw-quote",
     );
   }
 
@@ -319,6 +344,11 @@ export function decodeValidatedRelayerWithdrawalData(
       "Relayer quote recipient cannot be the zero address.",
       "RELAYER",
       "Run the withdraw command again to request a fresh quote.",
+      undefined,
+      false,
+      undefined,
+      undefined,
+      "reference/withdraw#withdraw-quote",
     );
   }
 
@@ -327,6 +357,11 @@ export function decodeValidatedRelayerWithdrawalData(
       "Relayer quote fee recipient cannot be the zero address.",
       "RELAYER",
       "Run the withdraw command again to request a fresh quote.",
+      undefined,
+      false,
+      undefined,
+      undefined,
+      "reference/withdraw#withdraw-quote",
     );
   }
 

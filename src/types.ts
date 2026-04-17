@@ -28,6 +28,7 @@ export interface GlobalOptions {
   rpcUrl?: string;
   json?: boolean;
   jsonFields?: string;
+  template?: string;
   output?: string;
   agent?: boolean;
   quiet?: boolean;
@@ -137,6 +138,11 @@ export interface RestoreDiscoverySummary {
 
 export type CommandLatencyClass = "fast" | "medium" | "slow";
 export type CommandExecutionOwner = "js-runtime" | "native-shell" | "hybrid";
+export type CommandGroup =
+  | "getting-started"
+  | "transaction"
+  | "monitoring"
+  | "advanced";
 export type CommandSideEffectClass =
   | "read_only"
   | "local_state_write"
@@ -161,6 +167,7 @@ export interface StructuredExample {
 export interface CapabilityCommandSummary {
   name: string;
   description: string;
+  group: CommandGroup;
   aliases?: string[];
   flags?: string[];
   usage?: string;
@@ -172,6 +179,7 @@ export interface CapabilityCommandSummary {
 export interface DetailedCommandDescriptor {
   command: string;
   description: string;
+  group: CommandGroup;
   aliases: string[];
   execution: CommandExecutionDescriptor;
   usage: string;

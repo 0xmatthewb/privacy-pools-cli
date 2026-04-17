@@ -1,5 +1,6 @@
 import type {
   CapabilitiesPayload,
+  CommandGroup,
   DetailedCommandDescriptor,
 } from "../types.js";
 import { accentBold } from "../utils/theme.js";
@@ -58,15 +59,37 @@ export function renderHumanGuideText(text: string): void {
 export function renderHumanCapabilities(
   payload: CapabilitiesPayload,
 ): void {
+  const commandsByGroup = new Map<
+    CommandGroup,
+    CapabilitiesPayload["commands"]
+  >();
+  for (const command of payload.commands) {
+    const commands = commandsByGroup.get(command.group) ?? [];
+    commands.push(command);
+    commandsByGroup.set(command.group, commands);
+  }
+
+  const groupLabels: Array<{ id: CommandGroup; label: string }> = [
+    { id: "getting-started", label: "Getting started" },
+    { id: "transaction", label: "Transactions" },
+    { id: "monitoring", label: "Monitoring" },
+    { id: "advanced", label: "Advanced" },
+  ];
+
   process.stderr.write(`\n${accentBold("Privacy Pools CLI: Agent Capabilities")}\n`);
   process.stderr.write(formatSectionHeading("Commands", { divider: true }));
-  for (const command of payload.commands) {
-    const aliasStr = command.aliases ? ` (alias: ${command.aliases.join(", ")})` : "";
-    process.stderr.write(`  ${command.name}${aliasStr}: ${command.description}\n`);
-    if (command.agentFlags) {
-      process.stderr.write(
-        `    Agent usage: privacy-pools ${command.usage ?? command.name} ${command.agentFlags}\n`,
-      );
+  for (const group of groupLabels) {
+    const commands = commandsByGroup.get(group.id) ?? [];
+    if (commands.length === 0) continue;
+    process.stderr.write(`  ${group.label}\n`);
+    for (const command of commands) {
+      const aliasStr = command.aliases ? ` (alias: ${command.aliases.join(", ")})` : "";
+      process.stderr.write(`    ${command.name}${aliasStr}: ${command.description}\n`);
+      if (command.agentFlags) {
+        process.stderr.write(
+          `      Agent usage: privacy-pools ${command.usage ?? command.name} ${command.agentFlags}\n`,
+        );
+      }
     }
   }
 
@@ -131,6 +154,19 @@ function writeListSection(label: string, values: string[]): void {
   }
 }
 
+function formatGroupLabel(group: CommandGroup): string {
+  switch (group) {
+    case "getting-started":
+      return "Getting started";
+    case "transaction":
+      return "Transactions";
+    case "monitoring":
+      return "Monitoring";
+    case "advanced":
+      return "Advanced";
+  }
+}
+
 export function renderHumanCommandDescription(
   descriptor: DetailedCommandDescriptor,
 ): void {
@@ -139,6 +175,7 @@ export function renderHumanCommandDescription(
   process.stderr.write(
     formatKeyValueRows([
       { label: "Description", value: descriptor.description },
+      { label: "Group", value: formatGroupLabel(descriptor.group) },
       { label: "Usage", value: `privacy-pools ${descriptor.usage}` },
       { label: "Requires init", value: descriptor.requiresInit ? "yes" : "no" },
       { label: "Safe read-only", value: descriptor.safeReadOnly ? "yes" : "no" },

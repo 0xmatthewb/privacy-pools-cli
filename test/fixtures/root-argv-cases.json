@@ -113,7 +113,7 @@
       "isHelpLike": false,
       "isVersionLike": false,
       "isRootHelpInvocation": false,
-      "isQuiet": false,
+      "isQuiet": true,
       "isWelcome": false,
       "globalChain": null,
       "globalRpcUrl": null

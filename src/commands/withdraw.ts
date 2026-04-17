@@ -239,7 +239,9 @@ function validateRecipientAddressOrEnsInput(value: string): true | string {
   }
 }
 
-async function promptRecipientAddressOrEns(silent: boolean): Promise<Address> {
+async function promptRecipientAddressOrEns(
+  silent: boolean,
+): Promise<{ address: Address; ensName?: string }> {
   while (true) {
     const prompted = (await input({
       message: "Recipient address or ENS:",
@@ -253,7 +255,7 @@ async function promptRecipientAddressOrEns(silent: boolean): Promise<Address> {
       if (resolved.ensName) {
         info(`Resolved ${resolved.ensName} -> ${resolved.address}`, silent);
       }
-      return resolved.address;
+      return { address: resolved.address, ensName: resolved.ensName };
     } catch (error) {
       warn(error instanceof Error ? error.message : "Invalid address or ENS name.", silent);
     }
@@ -1517,7 +1519,9 @@ export async function handleWithdrawCommand(
           return;
         }
         ensurePromptInteractionAvailable();
-        recipientAddress = await promptRecipientAddressOrEns(silent);
+        const promptedRecipient = await promptRecipientAddressOrEns(silent);
+        recipientAddress = promptedRecipient.address;
+        recipientEnsName = promptedRecipient.ensName;
         spin.start();
       }
 
@@ -1634,6 +1638,7 @@ export async function handleWithdrawCommand(
               chain: chainConfig.name,
               decimals: pool.decimals,
               recipient: directAddress,
+              recipientEnsName,
               tokenPrice,
             }),
           );
@@ -2101,6 +2106,7 @@ export async function handleWithdrawCommand(
               chain: chainConfig.name,
               decimals: pool.decimals,
               recipient: resolvedRecipientAddress,
+              recipientEnsName,
               quoteFeeBPS,
               expirationMs,
               remainingBalance: selectedPoolAccount.value - withdrawalAmount,

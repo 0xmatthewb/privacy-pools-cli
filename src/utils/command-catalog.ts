@@ -50,7 +50,7 @@ export type CommandPath =
 export type CapabilityEntry = CapabilitiesPayload["commands"][number];
 
 export interface CommandCapabilityMetadata
-  extends Omit<CapabilityEntry, "name" | "description" | "aliases"> {
+  extends Omit<CapabilityEntry, "name" | "description" | "aliases" | "group"> {
   name?: string;
   /** Flags that agents must supply for unattended execution (no interactive fallback). */
   agentRequiredFlags?: string[];
@@ -536,6 +536,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires.",
         "Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.",
         "flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.",
+        "With --stream-json, flow watch emits line-delimited JSON phase_change events as the workflow advances, followed by the final snapshot as the last JSON line.",
       ],
       examples: [
         { category: "Basic", commands: [
@@ -545,11 +546,15 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         { category: "With options", commands: [
           "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
           "privacy-pools flow watch latest --agent",
+          "privacy-pools flow watch latest --stream-json",
         ]},
       ],
       prerequisites: "init",
       jsonFields:
         "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+      jsonVariants: [
+        "--stream-json: { mode: \"flow\", action: \"watch\", event: \"phase_change\", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot",
+      ],
       safetyNotes: [
         "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
         "If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.",
@@ -567,8 +572,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "flow watch [workflowId|latest]",
-      flags: ["[workflowId|latest]", "--privacy-delay <profile>"],
-      agentFlags: "--agent [--privacy-delay <profile>]",
+      flags: ["[workflowId|latest]", "--privacy-delay <profile>", "--stream-json"],
+      agentFlags: "--agent [--privacy-delay <profile>] [--stream-json]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -817,7 +822,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools capabilities --agent",
       ],
       jsonFields:
-        "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
+        "{ commands[{ group, ... }], commandDetails{ ...group... }, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
       seeAlso: ["describe", "guide"],
     },
     capabilities: {
@@ -842,7 +847,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools describe stats global --agent",
       ],
       jsonFields:
-        "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+        "{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
       seeAlso: ["capabilities","guide"],
     },
     capabilities: {
@@ -908,7 +913,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       safetyNotes: [
         `Deposits are reviewed by the ASP before approval. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
-        "A vetting fee is deducted from the deposit amount by the pool's ASP.",
+        "An ASP vetting fee is deducted from the deposit amount.",
         `Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at ${POA_PORTAL_URL} before they can withdraw privately.`,
         SIGNING_SOURCE_NOTE,
       ],
@@ -1173,7 +1178,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }",
+        "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }], nextActions: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       safetyNotes: [
         "This command is read-only. It never submits migration transactions and does not persist rebuilt account state.",
         "When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.",

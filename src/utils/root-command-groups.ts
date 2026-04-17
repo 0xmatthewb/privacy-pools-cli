@@ -1,3 +1,5 @@
+import type { CommandGroup } from "../types.js";
+
 export type RootCommandName =
   | "init"
   | "status"
@@ -20,6 +22,7 @@ export type RootCommandName =
   | "describe";
 
 export interface RootCommandGroup {
+  id: CommandGroup;
   heading: string;
   commands: RootCommandName[];
 }
@@ -70,18 +73,22 @@ export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
 
 export const ROOT_COMMAND_GROUPS: RootCommandGroup[] = [
   {
+    id: "getting-started",
     heading: "Getting started",
     commands: ["init", "status", "guide"],
   },
   {
+    id: "transaction",
     heading: "Transactions",
     commands: ["flow", "deposit", "withdraw", "ragequit"],
   },
   {
+    id: "monitoring",
     heading: "Monitoring",
     commands: ["accounts", "pools", "history", "activity", "stats", "sync"],
   },
   {
+    id: "advanced",
     heading: "Advanced",
     commands: [
       "migrate",
@@ -115,3 +122,20 @@ export const ROOT_COMMAND_ORDER: RootCommandName[] = [
   "describe",
   "completion",
 ];
+
+const ROOT_COMMAND_GROUP_BY_NAME = Object.fromEntries(
+  ROOT_COMMAND_GROUPS.flatMap((group) =>
+    group.commands.map((command) => [command, group.id]),
+  ),
+) as Record<RootCommandName, CommandGroup>;
+
+export function rootCommandGroupIdFor(
+  commandPath: string,
+): CommandGroup {
+  const [rootCommand] = commandPath.split(/\s+/, 1);
+  if (!rootCommand || !(rootCommand in ROOT_COMMAND_GROUP_BY_NAME)) {
+    return "advanced";
+  }
+
+  return ROOT_COMMAND_GROUP_BY_NAME[rootCommand as RootCommandName];
+}

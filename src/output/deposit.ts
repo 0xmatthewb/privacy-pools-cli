@@ -365,7 +365,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       ...(data.committedValue !== undefined
         ? [{
             label: "Net deposited",
-            value: `${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after vetting fee)`,
+            value: `${formatAmount(data.committedValue, data.decimals, data.asset, dd)} (after ASP vetting fee)`,
           }]
         : []),
       { label: "Tx", value: formatTxHash(data.txHash) },

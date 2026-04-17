@@ -19,6 +19,8 @@ export function staticGlobalOptsFromParsedRootArgv(
     noHeader: preludeGlobalOpts?.noHeader,
     jsonFields: preludeGlobalOpts?.jsonFields,
     jq: preludeGlobalOpts?.jq,
+    jmes: preludeGlobalOpts?.jmes,
+    template: preludeGlobalOpts?.template,
   };
 }
 

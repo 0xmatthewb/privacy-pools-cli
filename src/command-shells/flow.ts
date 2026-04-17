@@ -55,6 +55,10 @@ export function createFlowCommand(): Command {
         "Persist or override the saved privacy delay profile: off = no added hold, balanced = randomized 15 to 90 minutes (default), aggressive = randomized 2 to 12 hours",
       ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
+    .option(
+      "--stream-json",
+      "Emit line-delimited JSON phase_change events plus the final snapshot",
+    )
     .addHelpText("after", commandHelpText(watchMetadata.help ?? {}))
     .action(
       createLazyAction(

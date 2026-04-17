@@ -406,6 +406,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "init",
       "description": "Create, load, or finish setting up your Privacy Pools account",
+      "group": "getting-started",
       "usage": "init",
       "flags": [
         "--recovery-phrase <phrase>",
@@ -429,6 +430,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "upgrade",
       "description": "Check for CLI updates",
+      "group": "advanced",
       "usage": "upgrade",
       "flags": [
         "--check"
@@ -440,6 +442,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "config",
       "description": "View and manage CLI configuration",
+      "group": "advanced",
       "usage": "config",
       "flags": [
         "list",
@@ -454,6 +457,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "config list",
       "description": "List all configuration keys and their current values",
+      "group": "advanced",
       "usage": "config list",
       "flags": [],
       "agentFlags": "--agent",
@@ -463,6 +467,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "config get",
       "description": "Read a single configuration key",
+      "group": "advanced",
       "usage": "config get <key>",
       "flags": [
         "--reveal"
@@ -474,6 +479,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "config set",
       "description": "Write a single configuration key",
+      "group": "advanced",
       "usage": "config set <key> [value]",
       "flags": [
         "--file <path>",
@@ -486,6 +492,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "config path",
       "description": "Print the configuration directory path",
+      "group": "advanced",
       "usage": "config path",
       "flags": [],
       "agentFlags": "--agent",
@@ -495,6 +502,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "flow",
       "description": "Deposit and privately withdraw in one guided workflow",
+      "group": "transaction",
       "usage": "flow",
       "flags": [
         "start <amount> <asset> --to <address>",
@@ -509,6 +517,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "flow start",
       "description": "Deposit now and save a later private withdrawal workflow",
+      "group": "transaction",
       "usage": "flow start <amount> <asset> --to <address>",
       "flags": [
         "--to <address>",
@@ -525,18 +534,21 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "flow watch",
       "description": "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
+      "group": "transaction",
       "usage": "flow watch [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
-        "--privacy-delay <profile>"
+        "--privacy-delay <profile>",
+        "--stream-json"
       ],
-      "agentFlags": "--agent [--privacy-delay <profile>]",
+      "agentFlags": "--agent [--privacy-delay <profile>] [--stream-json]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
     {
       "name": "flow status",
       "description": "Show the saved easy-path workflow state",
+      "group": "transaction",
       "usage": "flow status [workflowId|latest]",
       "flags": [
         "[workflowId|latest]"
@@ -548,6 +560,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "flow ragequit",
       "description": "Recover a saved workflow publicly via ragequit",
+      "group": "transaction",
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
         "[workflowId|latest]"
@@ -559,6 +572,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "pools",
       "description": "Browse available pools",
+      "group": "monitoring",
       "usage": "pools",
       "flags": [
         "--all-chains",
@@ -572,6 +586,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "activity",
       "description": "View recent deposits and withdrawals across pools",
+      "group": "monitoring",
       "usage": "activity",
       "flags": [
         "[asset]",
@@ -585,6 +600,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "stats",
       "description": "View pool and network statistics",
+      "group": "monitoring",
       "usage": "stats",
       "flags": [
         "global",
@@ -597,6 +613,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "stats global",
       "description": "Show global Privacy Pools statistics (all-time and last 24h)",
+      "group": "monitoring",
       "usage": "stats global",
       "flags": [],
       "agentFlags": "--agent",
@@ -606,6 +623,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "stats pool",
       "description": "Show statistics for a specific pool (all-time and last 24h)",
+      "group": "monitoring",
       "usage": "stats pool --asset <symbol|address>",
       "flags": [
         "--asset <symbol|address>"
@@ -617,6 +635,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "describe",
       "description": "Describe a command's flags, args, and output schema",
+      "group": "advanced",
       "usage": "describe <command...>",
       "flags": [
         "<command...>"
@@ -628,6 +647,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "deposit",
       "description": "Deposit ETH or ERC-20 tokens into a pool",
+      "group": "transaction",
       "usage": "deposit <amount> [asset]",
       "flags": [
         "--asset <symbol|address> (deprecated alias)",
@@ -642,6 +662,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "withdraw",
       "description": "Withdraw privately from a pool",
+      "group": "transaction",
       "usage": "withdraw [amount] [asset] --to <address>",
       "flags": [
         "--asset <symbol|address> (deprecated alias)",
@@ -662,6 +683,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "withdraw quote",
       "description": "Request relayer quote and limits without generating a proof",
+      "group": "transaction",
       "usage": "withdraw quote <amount> <asset>",
       "flags": [
         "--to <address>",
@@ -674,6 +696,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "accounts",
       "description": "View balances, approval status, and pool accounts",
+      "group": "monitoring",
       "usage": "accounts",
       "flags": [
         "--no-sync",
@@ -691,6 +714,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "migrate",
       "description": "Check migration status for legacy pool accounts",
+      "group": "advanced",
       "usage": "migrate",
       "flags": [
         "status [--all-chains]"
@@ -702,6 +726,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "migrate status",
       "description": "Check migration status for legacy pool accounts",
+      "group": "advanced",
       "usage": "migrate status",
       "flags": [
         "--all-chains"
@@ -713,6 +738,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "history",
       "description": "View your deposit and withdrawal history",
+      "group": "monitoring",
       "usage": "history",
       "flags": [
         "--no-sync",
@@ -725,6 +751,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "sync",
       "description": "Sync account state with the latest onchain data",
+      "group": "monitoring",
       "usage": "sync",
       "flags": [
         "-a, --asset <symbol|address>"
@@ -736,6 +763,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "status",
       "description": "Check account setup and network status",
+      "group": "getting-started",
       "usage": "status",
       "flags": [
         "--check",
@@ -750,6 +778,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "ragequit",
       "description": "Recover funds publicly to your deposit address",
+      "group": "transaction",
       "aliases": [
         "exit"
       ],
@@ -767,6 +796,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "guide",
       "description": "Learn key concepts, workflows, and troubleshooting",
+      "group": "getting-started",
       "usage": "guide",
       "flags": [],
       "agentFlags": "--agent",
@@ -776,6 +806,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "completion",
       "description": "Generate or install shell tab completion",
+      "group": "advanced",
       "usage": "completion",
       "flags": [
         "[shell]",
@@ -789,6 +820,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "capabilities",
       "description": "Describe CLI capabilities for agents",
+      "group": "advanced",
       "usage": "capabilities",
       "flags": [],
       "agentFlags": "--agent",
@@ -800,6 +832,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "init": {
       "command": "init",
       "description": "Create, load, or finish setting up your Privacy Pools account",
+      "group": "getting-started",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -827,6 +860,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -925,6 +959,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "upgrade": {
       "command": "upgrade",
       "description": "Check for CLI updates",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -940,6 +975,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1018,6 +1054,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config": {
       "command": "config",
       "description": "View and manage CLI configuration",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1036,6 +1073,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1093,6 +1131,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config list": {
       "command": "config list",
       "description": "List all configuration keys and their current values",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1106,6 +1145,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1153,6 +1193,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config get": {
       "command": "config get",
       "description": "Read a single configuration key",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1168,6 +1209,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1225,6 +1267,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config set": {
       "command": "config set",
       "description": "Write a single configuration key",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1241,6 +1284,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1301,6 +1345,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config path": {
       "command": "config path",
       "description": "Print the configuration directory path",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1314,6 +1359,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1361,6 +1407,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config profile": {
       "command": "config profile",
       "description": "Manage named profiles",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1374,6 +1421,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1426,6 +1474,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config profile list": {
       "command": "config profile list",
       "description": "List available profiles",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1439,6 +1488,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1486,6 +1536,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config profile create": {
       "command": "config profile create",
       "description": "Create a new named profile",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1499,6 +1550,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1546,6 +1598,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config profile active": {
       "command": "config profile active",
       "description": "Show the currently active profile",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1559,6 +1612,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1606,6 +1660,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config profile use": {
       "command": "config profile use",
       "description": "Persist the active profile",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1619,6 +1674,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1666,6 +1722,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "flow": {
       "command": "flow",
       "description": "Deposit and privately withdraw in one guided workflow",
+      "group": "transaction",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1684,6 +1741,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1773,6 +1831,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "flow start": {
       "command": "flow start",
       "description": "Deposit now and save a later private withdrawal workflow",
+      "group": "transaction",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1793,6 +1852,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1904,6 +1964,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "flow watch": {
       "command": "flow watch",
       "description": "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
+      "group": "transaction",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -1914,12 +1975,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "flow watch [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
-        "--privacy-delay <profile>"
+        "--privacy-delay <profile>",
+        "--stream-json"
       ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -1961,7 +2024,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "category": "With options",
           "commands": [
             "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
-            "privacy-pools flow watch latest --agent"
+            "privacy-pools flow watch latest --agent",
+            "privacy-pools flow watch latest --stream-json"
           ]
         }
       ],
@@ -1977,12 +2041,15 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "name": "With options",
           "value": [
             "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
-            "privacy-pools flow watch latest --agent"
+            "privacy-pools flow watch latest --agent",
+            "privacy-pools flow watch latest --stream-json"
           ]
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
-      "jsonVariants": [],
+      "jsonVariants": [
+        "--stream-json: { mode: \"flow\", action: \"watch\", event: \"phase_change\", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot"
+      ],
       "safetyNotes": [
         "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
         "If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.",
@@ -2010,6 +2077,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "flow status": {
       "command": "flow status",
       "description": "Show the saved easy-path workflow state",
+      "group": "transaction",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2025,6 +2093,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2087,6 +2156,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "flow ragequit": {
       "command": "flow ragequit",
       "description": "Recover a saved workflow publicly via ragequit",
+      "group": "transaction",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2102,6 +2172,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2168,6 +2239,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "pools": {
       "command": "pools",
       "description": "Browse available pools",
+      "group": "monitoring",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
@@ -2189,6 +2261,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2273,6 +2346,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "activity": {
       "command": "activity",
       "description": "View recent deposits and withdrawals across pools",
+      "group": "monitoring",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
@@ -2293,6 +2367,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2358,6 +2433,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "stats": {
       "command": "stats",
       "description": "View pool and network statistics",
+      "group": "monitoring",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
@@ -2377,6 +2453,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2429,6 +2506,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "stats global": {
       "command": "stats global",
       "description": "Show global Privacy Pools statistics (all-time and last 24h)",
+      "group": "monitoring",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
@@ -2444,6 +2522,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2491,6 +2570,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "stats pool": {
       "command": "stats pool",
       "description": "Show statistics for a specific pool (all-time and last 24h)",
+      "group": "monitoring",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
@@ -2509,6 +2589,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2556,6 +2637,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "status": {
       "command": "status",
       "description": "Check account setup and network status",
+      "group": "getting-started",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2574,6 +2656,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2641,6 +2724,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "capabilities": {
       "command": "capabilities",
       "description": "Describe CLI capabilities for agents",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "native-shell",
@@ -2655,6 +2739,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2692,7 +2777,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools capabilities --agent"
         }
       ],
-      "jsonFields": "{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
+      "jsonFields": "{ commands[{ group, ... }], commandDetails{ ...group... }, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -2702,6 +2787,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "describe": {
       "command": "describe",
       "description": "Describe a command's flags, args, and output schema",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "native-shell",
@@ -2718,6 +2804,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2760,7 +2847,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools describe stats global --agent"
         }
       ],
-      "jsonFields": "{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
+      "jsonFields": "{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }",
       "jsonVariants": [],
       "safetyNotes": [],
       "supportsUnsigned": false,
@@ -2770,6 +2857,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "guide": {
       "command": "guide",
       "description": "Learn key concepts, workflows, and troubleshooting",
+      "group": "getting-started",
       "aliases": [],
       "execution": {
         "owner": "native-shell",
@@ -2784,6 +2872,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2841,6 +2930,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "deposit": {
       "command": "deposit",
       "description": "Deposit ETH or ERC-20 tokens into a pool",
+      "group": "transaction",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2859,6 +2949,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -2942,7 +3033,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "safetyNotes": [
         "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
-        "A vetting fee is deducted from the deposit amount by the pool's ASP.",
+        "An ASP vetting fee is deducted from the deposit amount.",
         "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at tornado.0xbow.io before they can withdraw privately.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
       ],
@@ -2956,6 +3047,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "withdraw": {
       "command": "withdraw",
       "description": "Withdraw privately from a pool",
+      "group": "transaction",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -2980,6 +3072,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -3095,6 +3188,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "withdraw quote": {
       "command": "withdraw quote",
       "description": "Request relayer quote and limits without generating a proof",
+      "group": "transaction",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -3111,6 +3205,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -3163,6 +3258,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "ragequit": {
       "command": "ragequit",
       "description": "Recover funds publicly to your deposit address",
+      "group": "transaction",
       "aliases": [
         "exit"
       ],
@@ -3183,6 +3279,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -3262,6 +3359,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "accounts": {
       "command": "accounts",
       "description": "View balances, approval status, and pool accounts",
+      "group": "monitoring",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -3283,6 +3381,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -3377,6 +3476,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "migrate": {
       "command": "migrate",
       "description": "Check migration status for legacy pool accounts",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -3392,6 +3492,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -3446,6 +3547,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "migrate status": {
       "command": "migrate status",
       "description": "Check migration status for legacy pool accounts",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -3461,6 +3563,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -3505,7 +3608,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools migrate status --all-chains --agent"
         }
       ],
-      "jsonFields": "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }",
+      "jsonFields": "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }], nextActions: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "This command is read-only. It never submits migration transactions and does not persist rebuilt account state.",
@@ -3521,6 +3624,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "history": {
       "command": "history",
       "description": "View your deposit and withdrawal history",
+      "group": "monitoring",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -3537,6 +3641,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -3604,6 +3709,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "sync": {
       "command": "sync",
       "description": "Sync account state with the latest onchain data",
+      "group": "monitoring",
       "aliases": [],
       "execution": {
         "owner": "js-runtime",
@@ -3619,6 +3725,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -3675,6 +3782,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "completion": {
       "command": "completion",
       "description": "Generate or install shell tab completion",
+      "group": "advanced",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
@@ -3693,6 +3801,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
+        "--template <template>",
         "-o, --output <format>",
         "--format <format>",
         "-y, --yes",
@@ -4011,6 +4120,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Select specific JSON fields (comma-separated, implies --json)"
     },
     {
+      "flag": "--template <template>",
+      "description": "Render structured output through a lightweight {{path.to.value}} template"
+    },
+    {
       "flag": "-o, --output <format>",
       "description": "Output format: table (default), csv, json, wide"
     },
@@ -4194,6 +4307,22 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "PRIVACY_POOLS_CLI_JS_WORKER",
       "description": "Advanced maintainer override for the packaged JS worker entrypoint."
+    },
+    {
+      "name": "PRIVACY_POOLS_AGENT",
+      "description": "Enable agent mode by default (equivalent to --agent)."
+    },
+    {
+      "name": "PRIVACY_POOLS_QUIET",
+      "description": "Suppress human-oriented stderr output by default, matching --quiet."
+    },
+    {
+      "name": "PRIVACY_POOLS_YES",
+      "description": "Skip confirmation prompts by default, matching --yes."
+    },
+    {
+      "name": "PRIVACY_POOLS_NO_PROGRESS",
+      "description": "Suppress spinners/progress indicators by default, matching --no-progress."
     },
     {
       "name": "NO_COLOR",
@@ -4412,7 +4541,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "migrate",
     "migrate status"
   ],
-  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docsSlug? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "documentation": {
     "reference": "docs/reference.md",
     "agentGuide": "AGENTS.md",

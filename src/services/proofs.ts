@@ -89,6 +89,10 @@ function createLocalProofVerificationError(
     "PROOF",
     hint,
     "PROOF_VERIFICATION_FAILED",
+    false,
+    undefined,
+    undefined,
+    "guide/troubleshooting",
   );
 }
 
@@ -232,7 +236,11 @@ export async function proveCommitment(
       sanitizeDiagnosticText(
         error instanceof Error ? error.message : String(error),
       ),
-      "PROOF_GENERATION_FAILED"
+      "PROOF_GENERATION_FAILED",
+      false,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
 }
@@ -289,6 +297,10 @@ function deriveTreeDepthFromSiblings(
       "PROOF",
       `The bundled circuit supports up to ${WITHDRAW_CIRCUIT_MAX_TREE_DEPTH} levels.`,
       "PROOF_GENERATION_FAILED",
+      false,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
   return depth;
@@ -330,7 +342,11 @@ export async function proveWithdrawal(
       sanitizeDiagnosticText(
         error instanceof Error ? error.message : String(error),
       ),
-      "PROOF_GENERATION_FAILED"
+      "PROOF_GENERATION_FAILED",
+      false,
+      undefined,
+      undefined,
+      "guide/troubleshooting",
     );
   }
 }

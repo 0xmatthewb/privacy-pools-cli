@@ -852,7 +852,7 @@ export async function handleRagequitCommand(
           standardMessage: "Confirm ragequit?",
           highStakesToken: "RAGEQUIT",
           highStakesWarning:
-            "This public self-custody recovery returns funds to the original deposit address. You will not gain privacy from this exit.",
+            "This ragequit sends funds back to the original deposit address. It does not preserve privacy.",
           confirm,
         });
         if (!ok) {
