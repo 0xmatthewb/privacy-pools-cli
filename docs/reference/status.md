@@ -31,7 +31,5 @@ privacy-pools status --chain mainnet --rpc-url https://...
 |------|-------------|
 | `--check [scope]` | Run health checks: all (default), rpc, asp, or none |
 | `--no-check` | Disable the default RPC and ASP health checks |
-| `--check-rpc` | Run only the RPC health check |
-| `--check-asp` | Run only the ASP health check |
 
 **JSON output:** `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`

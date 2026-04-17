@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
@@ -9,8 +9,12 @@ export function createStatusCommand(): Command {
     .description(metadata.description)
     .option("--check [scope]", "Run health checks: all (default), rpc, asp, or none")
     .option("--no-check", "Disable the default RPC and ASP health checks")
-    .option("--check-rpc", "Run only the RPC health check")
-    .option("--check-asp", "Run only the ASP health check")
+    .addOption(
+      new Option("--check-rpc", "Run only the RPC health check").hideHelp(),
+    )
+    .addOption(
+      new Option("--check-asp", "Run only the ASP health check").hideHelp(),
+    )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

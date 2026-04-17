@@ -112,6 +112,10 @@ describe("command metadata conformance", () => {
     const accountsJsonVariants = getCommandMetadata("accounts").help?.jsonVariants ?? [];
     const poolsJsonFields = getCommandMetadata("pools").help?.jsonFields ?? [];
     const poolsJsonVariants = (getCommandMetadata("pools").help?.jsonVariants ?? []).join(" ");
+    const poolsAgentWorkflow = (getCommandMetadata("pools").help?.agentWorkflowNotes ?? []).join(" ");
+    const statusFlags = getCommandMetadata("status").capabilities?.flags ?? [];
+    const syncOverview = (getCommandMetadata("sync").help?.overview ?? []).join(" ");
+    const syncExamples = getCommandMetadata("sync").help?.examples ?? [];
     const withdrawQuoteFields = getCommandMetadata("withdraw quote").help?.jsonFields ?? "";
     const summaryVariant = accountsJsonVariants.find((variant) =>
       variant.startsWith("--summary:")
@@ -147,6 +151,12 @@ describe("command metadata conformance", () => {
     expect(poolsJsonFields).toContain("cliCommand");
     expect(poolsJsonVariants).toContain("myFundsWarning");
     expect(poolsJsonVariants).toContain("recentActivity");
+    expect(poolsAgentWorkflow).toContain("may be null");
+    expect(poolsAgentWorkflow).toContain("totalInPoolValue*");
+    expect(statusFlags).toEqual(["--check [scope]", "--no-check"]);
+    expect(syncOverview).toContain("Bare `privacy-pools sync` re-syncs every discovered pool");
+    expect(syncExamples).toContain("privacy-pools sync");
+    expect(syncExamples).toContain("privacy-pools sync ETH --agent");
     expect(withdrawQuoteFields).toContain("baseFeeBPS");
     expect(withdrawQuoteFields).toContain("relayTxCost");
   });

@@ -10,11 +10,11 @@ Sync account state with the latest onchain data
 
 **Usage:** `privacy-pools sync [asset] [options]`
 
-Most wallet-aware commands already auto-sync with a 2-minute freshness window, so explicit sync is mainly a crash-recovery or reconciliation tool rather than a command you should need on every workflow step.
+Most wallet-aware commands already auto-sync with a 2-minute freshness window, so explicit sync is mainly a crash-recovery or reconciliation tool rather than a command you should need on every workflow step. Bare `privacy-pools sync` re-syncs every discovered pool on the selected chain. Pass an asset symbol to limit the rebuild to one pool.
 
 ```bash
 privacy-pools sync
-privacy-pools sync --asset ETH --agent
+privacy-pools sync ETH --agent
 privacy-pools sync --chain mainnet
 ```
 

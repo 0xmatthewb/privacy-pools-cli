@@ -755,9 +755,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "group": "monitoring",
       "usage": "sync",
       "flags": [
-        "-a, --asset <symbol|address>"
+        "[asset]"
       ],
-      "agentFlags": "--agent [--asset <symbol>]",
+      "agentFlags": "--agent [asset]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -768,9 +768,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "status",
       "flags": [
         "--check [scope]",
-        "--no-check",
-        "--check-rpc",
-        "--check-asp"
+        "--no-check"
       ],
       "agentFlags": "--agent [--check <all|rpc|asp|none>] [--no-check]",
       "requiresInit": false,
@@ -2362,7 +2360,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
-        "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address."
+        "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
+        "Registry-backed aggregate fields may be null when upstream data is unavailable for that pool/chain: totalInPoolValue*, totalDeposits*, acceptedDeposits*, pendingDeposits*, *Count, growth24h, and pendingGrowth24h."
       ]
     },
     "activity": {
@@ -2677,9 +2676,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "status",
       "flags": [
         "--check [scope]",
-        "--no-check",
-        "--check-rpc",
-        "--check-asp"
+        "--no-check"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3777,7 +3774,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "sync",
       "flags": [
-        "-a, --asset <symbol|address>"
+        "[asset]"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3812,7 +3809,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "examples": [
         "privacy-pools sync",
-        "privacy-pools sync --asset ETH --agent",
+        "privacy-pools sync ETH --agent",
         "privacy-pools sync --chain mainnet"
       ],
       "structuredExamples": [
@@ -3822,7 +3819,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "name": "Example 2",
-          "value": "privacy-pools sync --asset ETH --agent"
+          "value": "privacy-pools sync ETH --agent"
         },
         {
           "name": "Example 3",

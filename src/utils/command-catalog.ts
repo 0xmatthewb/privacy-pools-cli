@@ -653,6 +653,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --include-testnets to include supported testnets.",
+        "Aggregate registry-backed value, count, and growth fields may be null when upstream data is unavailable for a specific pool or chain.",
         "Deprecated or wind-down pool badges are only shown when the upstream registry exposes an explicit lifecycle status. Current CLI-supported sources do not expose a canonical status signal, so the pools output intentionally leaves lifecycle badges unchanged for now.",
       ],
       examples: [
@@ -676,6 +677,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       agentWorkflowNotes: [
         "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
+        "Registry-backed aggregate fields may be null when upstream data is unavailable for that pool/chain: totalInPoolValue*, totalDeposits*, acceptedDeposits*, pendingDeposits*, *Count, growth24h, and pendingGrowth24h.",
       ],
       seeAlso: ["deposit","stats","activity"],
     },
@@ -813,7 +815,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["init","sync","upgrade"],
     },
     capabilities: {
-      flags: ["--check [scope]", "--no-check", "--check-rpc", "--check-asp"],
+      flags: ["--check [scope]", "--no-check"],
       agentFlags: "--agent [--check <all|rpc|asp|none>] [--no-check]",
       requiresInit: false,
       expectedLatencyClass: "fast",
@@ -1249,10 +1251,11 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Most wallet-aware commands already auto-sync with a 2-minute freshness window, so explicit sync is mainly a crash-recovery or reconciliation tool rather than a command you should need on every workflow step.",
+        "Bare `privacy-pools sync` re-syncs every discovered pool on the selected chain. Pass an asset symbol to limit the rebuild to one pool.",
       ],
       examples: [
         "privacy-pools sync",
-        "privacy-pools sync --asset ETH --agent",
+        "privacy-pools sync ETH --agent",
         "privacy-pools sync --chain mainnet",
       ],
       prerequisites: "init",
@@ -1264,8 +1267,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["accounts","status"],
     },
     capabilities: {
-      flags: ["-a, --asset <symbol|address>"],
-      agentFlags: "--agent [--asset <symbol>]",
+      flags: ["[asset]"],
+      agentFlags: "--agent [asset]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },

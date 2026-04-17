@@ -50,5 +50,27 @@ describe("docs generation drift detection", () => {
     expect(normalizedReference).toContain(
       "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
     );
+    expect(reference).toContain(
+      "Aggregate registry-backed value, count, and growth fields may be null when upstream data is unavailable for a specific pool or chain.",
+    );
+  });
+
+  test("docs/reference/status.md keeps only the canonical health-check flags", () => {
+    const reference = readFileSync(join(CLI_ROOT, "docs", "reference", "status.md"), "utf8");
+
+    expect(reference).toContain("| `--check [scope]` |");
+    expect(reference).toContain("| `--no-check` |");
+    expect(reference).not.toContain("`--check-rpc`");
+    expect(reference).not.toContain("`--check-asp`");
+  });
+
+  test("docs/reference/sync.md explains bare sync and the scoped asset form", () => {
+    const reference = readFileSync(join(CLI_ROOT, "docs", "reference", "sync.md"), "utf8");
+
+    expect(reference).toContain(
+      "Bare `privacy-pools sync` re-syncs every discovered pool on the selected chain.",
+    );
+    expect(reference).toContain("privacy-pools sync");
+    expect(reference).toContain("privacy-pools sync ETH --agent");
   });
 });
