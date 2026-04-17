@@ -1,14 +1,22 @@
-import { expect } from "bun:test";
+import { afterAll, beforeAll, expect } from "bun:test";
+import { CHAINS } from "../../src/config/chains.ts";
 import {
   CLI_PROTOCOL_PROFILE,
   buildRuntimeCompatibilityDescriptor,
 } from "../../src/config/protocol-profile.js";
 import { readCliPackageInfo } from "../../src/package-info.ts";
+import { saveAccount } from "../../src/services/account-storage.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+import {
+  killFixtureServer,
+  launchFixtureServer,
+  type FixtureServer,
+} from "../helpers/fixture-server.ts";
 import { writeWorkflowSnapshot } from "../helpers/workflow-snapshot.ts";
 import {
   assertExit,
   assertJson,
+  assertStdout,
   assertStderrEmpty,
   defineScenario,
   defineScenarioSuite,
@@ -25,6 +33,127 @@ const UPDATE_REGISTRY_ENV = {
   PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
 };
 const CLI_VERSION = readCliPackageInfo(import.meta.url).version;
+const FLOW_STREAM_WORKFLOW_ID = "wf-json-watch-stream";
+const FLOW_STREAM_SCOPE = 12345n;
+const FLOW_STREAM_TX_HASH =
+  "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+let fixture: FixtureServer;
+
+beforeAll(async () => {
+  fixture = await launchFixtureServer();
+});
+
+afterAll(async () => {
+  await killFixtureServer(fixture);
+});
+
+function fixtureEnv() {
+  return {
+    PRIVACY_POOLS_ASP_HOST: fixture.url,
+    PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture.url,
+  };
+}
+
+function commitment(
+  label: bigint,
+  hash: bigint,
+  value: bigint,
+  blockNumber: bigint,
+  txHash: `0x${string}`,
+) {
+  return {
+    label,
+    hash,
+    value,
+    blockNumber,
+    txHash,
+    nullifier: (label + 1000n) as any,
+    secret: (label + 2000n) as any,
+  };
+}
+
+function seedFlowWatchStreamState() {
+  return (ctx: { home: string; useConfigHome: () => string }) => {
+    ctx.useConfigHome();
+
+    const cachedCommitment = commitment(
+      1n,
+      11n,
+      9_950_000_000_000_000n,
+      12345n,
+      FLOW_STREAM_TX_HASH,
+    );
+
+    saveAccount(CHAINS.sepolia.id, {
+      masterKeys: [1n, 2n],
+      poolAccounts: new Map([
+        [
+          FLOW_STREAM_SCOPE,
+          [
+            {
+              label: cachedCommitment.label as any,
+              deposit: cachedCommitment,
+              children: [],
+            },
+          ],
+        ],
+      ]),
+      __legacyPoolAccounts: new Map(),
+      __legacyMigrationReadinessStatus: "no_legacy",
+    });
+
+    writeWorkflowSnapshot(ctx.home, FLOW_STREAM_WORKFLOW_ID, {
+      phase: "awaiting_asp",
+      chain: "sepolia",
+      asset: "ETH",
+      assetDecimals: 18,
+      depositAmount: "10000000000000000",
+      recipient: "0x4444444444444444444444444444444444444444",
+      walletMode: "configured",
+      poolAccountId: "PA-1",
+      poolAccountNumber: 1,
+      depositTxHash: FLOW_STREAM_TX_HASH,
+      depositBlockNumber: "12345",
+      depositLabel: "1",
+      committedValue: "10000000000000000",
+      aspStatus: "pending",
+    });
+  };
+}
+
+function assertFlowWatchStreamOutput() {
+  return assertStdout((stdout) => {
+    const lines = stdout.trim().split("\n").filter(Boolean);
+    expect(lines).toHaveLength(2);
+
+    const phaseChange = JSON.parse(lines[0]!);
+    expect(phaseChange).toMatchObject({
+      schemaVersion: JSON_SCHEMA_VERSION,
+      success: true,
+      mode: "flow",
+      action: "watch",
+      event: "phase_change",
+      workflowId: FLOW_STREAM_WORKFLOW_ID,
+      previousPhase: "awaiting_asp",
+      phase: "stopped_external",
+    });
+    expect(typeof phaseChange.ts).toBe("string");
+
+    const finalSnapshot = JSON.parse(lines[1]!);
+    expect(finalSnapshot).toMatchObject({
+      schemaVersion: JSON_SCHEMA_VERSION,
+      success: true,
+      mode: "flow",
+      action: "watch",
+      workflowId: FLOW_STREAM_WORKFLOW_ID,
+      phase: "stopped_external",
+      chain: "sepolia",
+      asset: "ETH",
+      poolAccountId: "PA-1",
+    });
+    expect(finalSnapshot.event).toBeUndefined();
+  });
+}
 
 defineScenarioSuite("json-contract acceptance", [
   defineScenario("status without init keeps the readiness JSON contract", [
@@ -370,5 +499,29 @@ defineScenarioSuite("json-contract acceptance", [
         "before requesting the relayed private withdrawal.",
       );
     }),
+  ]),
+  defineScenario("flow watch --json streams phase changes before the final snapshot", [
+    seedHome("sepolia"),
+    seedFlowWatchStreamState(),
+    (ctx) =>
+      runCliStep(["--json", "flow", "watch", FLOW_STREAM_WORKFLOW_ID], {
+        timeoutMs: 10_000,
+        env: fixtureEnv(),
+      })(ctx),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertFlowWatchStreamOutput(),
+  ]),
+  defineScenario("flow watch --stream-json exposes the same NDJSON contract", [
+    seedHome("sepolia"),
+    seedFlowWatchStreamState(),
+    (ctx) =>
+      runCliStep(["flow", "watch", FLOW_STREAM_WORKFLOW_ID, "--stream-json"], {
+        timeoutMs: 10_000,
+        env: fixtureEnv(),
+      })(ctx),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertFlowWatchStreamOutput(),
   ]),
 ]);

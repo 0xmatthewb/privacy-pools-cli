@@ -129,6 +129,12 @@ const MT_LEAVES = {
   stateTreeLeaves: [],
 };
 
+const MT_ROOTS = {
+  mtRoot: "0",
+  createdAt: "2026-04-17T00:00:00.000Z",
+  onchainMtRoot: "0",
+};
+
 const SEPOLIA_ENTRYPOINT =
   "0x34a2068192b1297f2a7f85d7d8cde66f8f0921cb" as Address;
 const FIXTURE_POOL =
@@ -399,6 +405,8 @@ function route(req: IncomingMessage, res: ServerResponse): void {
     body = GLOBAL_STATISTICS;
   } else if (poolStatisticsChainId === 11155111) {
     body = POOL_STATISTICS;
+  } else if (path.match(/\/\d+\/public\/mt-roots$/)) {
+    body = MT_ROOTS;
   } else if (path.match(/\/\d+\/public\/mt-leaves$/)) {
     body = MT_LEAVES;
   } else if (path.match(/\/\d+\/health\/liveness$/)) {
@@ -454,6 +462,16 @@ function route(req: IncomingMessage, res: ServerResponse): void {
         return;
       }
 
+      if (method === "eth_blockNumber") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result: "0x1",
+        }));
+        return;
+      }
+
       if (method === "eth_call") {
         const call = json?.params?.[0] ?? {};
         const to = String(call.to ?? "").toLowerCase();
@@ -504,6 +522,72 @@ function route(req: IncomingMessage, res: ServerResponse): void {
           jsonrpc: "2.0",
           id,
           result,
+        }));
+        return;
+      }
+
+      if (method === "eth_getLogs") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result: [],
+        }));
+        return;
+      }
+
+      if (method === "eth_getBlockByNumber") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result: {
+            number: "0x1",
+            hash: "0x" + "11".repeat(32),
+            parentHash: "0x" + "22".repeat(32),
+            timestamp: "0x1",
+            transactions: [],
+          },
+        }));
+        return;
+      }
+
+      if (method === "eth_getTransactionReceipt" || method === "eth_getTransactionByHash") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result: null,
+        }));
+        return;
+      }
+
+      if (method === "eth_getCode") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result: "0x",
+        }));
+        return;
+      }
+
+      if (method === "net_version") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result: "11155111",
+        }));
+        return;
+      }
+
+      if (method === "web3_clientVersion") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          result: "privacy-pools-fixture/1.0.0",
         }));
         return;
       }
