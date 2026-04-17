@@ -165,9 +165,33 @@ export function isHighStakesWithdrawal(params: {
   return Number.isFinite(parsed) && parsed >= HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD;
 }
 
+export function isHighStakesUsdAmount(params: {
+  amount: bigint;
+  decimals: number;
+  chainIsTestnet: boolean;
+  tokenPrice?: number | null;
+}): boolean {
+  if (params.chainIsTestnet) {
+    return false;
+  }
+
+  const usdValue = formatUsdValue(
+    params.amount,
+    params.decimals,
+    params.tokenPrice ?? null,
+  );
+  if (usdValue === "-") {
+    return false;
+  }
+
+  const parsed = Number(usdValue.replace(/[$,]/g, ""));
+  return Number.isFinite(parsed) && parsed >= HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD;
+}
+
 export async function confirmActionWithSeverity(params: {
   severity: ConfirmationSeverity;
   standardMessage: string;
+  standardDefault?: boolean;
   highStakesToken: string;
   highStakesWarning: string;
   confirm: (options: { message: string; default?: boolean }) => Promise<boolean>;
@@ -177,7 +201,7 @@ export async function confirmActionWithSeverity(params: {
   if (params.severity === "standard") {
     return params.confirm({
       message: params.standardMessage,
-      default: true,
+      default: params.standardDefault ?? true,
     });
   }
 

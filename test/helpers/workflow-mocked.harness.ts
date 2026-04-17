@@ -1,7 +1,9 @@
 export { registerWorkflowMockedHarness } from "./workflow-mocked/register.ts";
 export {
+  confirmPromptCalls,
   GLOBAL_SIGNER_ADDRESS,
   GLOBAL_SIGNER_PRIVATE_KEY,
+  inputPromptCalls,
   MISMATCH_SIGNER_ADDRESS,
   MISMATCH_SIGNER_PRIVATE_KEY,
   NEW_WALLET_ADDRESS,

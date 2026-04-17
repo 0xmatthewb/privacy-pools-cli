@@ -139,6 +139,7 @@ import {
 import {
   CONFIRMATION_TOKENS,
   confirmActionWithSeverity,
+  isHighStakesUsdAmount,
 } from "../utils/prompts.js";
 import {
   createNarrativeSteps,
@@ -1588,6 +1589,7 @@ async function confirmHumanFlowStartReview(
   params: ConfirmHumanFlowStartReviewParams,
 ): Promise<void> {
   const { chainName, pool, amount, recipient, privacyDelayProfile, silent, newWallet } = params;
+  const chainConfig = resolveChain(chainName);
   const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
   const estimatedCommitted = amount - feeAmount;
   const estimatedAmountPatternWarning = buildAmountPatternLinkabilityWarning(
@@ -1597,7 +1599,15 @@ async function confirmHumanFlowStartReview(
     { estimated: true },
   );
   const tokenPrice = deriveTokenPrice(pool);
-  const isErc20 = !isNativePoolAsset(resolveChain(chainName).id, pool.asset);
+  const isErc20 = !isNativePoolAsset(chainConfig.id, pool.asset);
+  const severity = isHighStakesUsdAmount({
+    amount,
+    decimals: pool.decimals,
+    chainIsTestnet: chainConfig.isTestnet,
+    tokenPrice,
+  })
+    ? "high_stakes"
+    : "standard";
 
   if (!silent) {
     process.stderr.write("\n");
@@ -1629,10 +1639,12 @@ async function confirmHumanFlowStartReview(
   const { confirm } = await import("@inquirer/prompts");
   ensurePromptInteractionAvailable();
   const ok = await confirmActionWithSeverity({
-    severity: "standard",
+    severity,
     standardMessage: "Confirm flow start?",
-    highStakesToken: CONFIRMATION_TOKENS.flow,
-    highStakesWarning: "Saved flow review changed while waiting for confirmation.",
+    standardDefault: false,
+    highStakesToken: CONFIRMATION_TOKENS.deposit,
+    highStakesWarning:
+      `This mainnet deposit sends ${formatAmount(amount, pool.decimals, pool.symbol)} into a public pool before ASP review.`,
     confirm,
   });
   if (!ok) {

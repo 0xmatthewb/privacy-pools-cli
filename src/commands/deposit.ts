@@ -26,7 +26,6 @@ import {
   verbose,
   formatAmount,
   deriveTokenPrice,
-  formatUsdValue,
 } from "../utils/format.js";
 import {
   printError,
@@ -79,9 +78,9 @@ import {
 } from "../preview/runtime.js";
 import {
   CONFIRMATION_TOKENS,
-  HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD,
   confirmActionWithSeverity,
   formatPoolPromptChoice,
+  isHighStakesUsdAmount,
 } from "../utils/prompts.js";
 import { warnLegacyAssetFlag } from "../utils/deprecations.js";
 import {
@@ -114,21 +113,7 @@ function isHighStakesDeposit(params: {
   chainIsTestnet: boolean;
   tokenPrice?: number | null;
 }): boolean {
-  if (params.chainIsTestnet) {
-    return false;
-  }
-
-  const usdValue = formatUsdValue(
-    params.amount,
-    params.decimals,
-    params.tokenPrice ?? null,
-  );
-  if (usdValue === "-") {
-    return false;
-  }
-
-  const parsed = Number(usdValue.replace(/[$,]/g, ""));
-  return Number.isFinite(parsed) && parsed >= HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD;
+  return isHighStakesUsdAmount(params);
 }
 
 function depositPoolFundsMetric(pool: {

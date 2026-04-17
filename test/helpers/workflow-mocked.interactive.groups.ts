@@ -7,7 +7,9 @@ import {
 import { join } from "node:path";
 import { captureAsyncOutput } from "../helpers/output.ts";
 import {
+  confirmPromptCalls,
   GLOBAL_SIGNER_ADDRESS,
+  inputPromptCalls,
   NEW_WALLET_ADDRESS,
   NEW_WALLET_PRIVATE_KEY,
   realConfig,
@@ -21,27 +23,38 @@ export function registerWorkflowMockedInteractiveTests(): void {
     test("interactive configured flows confirm the manual signer path before saving the workflow", async () => {
       setPromptResponses();
 
-      const snapshot = await startWorkflow({
-        amountInput: "0.01",
-        assetInput: "ETH",
-        recipient: "0x7777777777777777777777777777777777777777",
-        globalOpts: { chain: "sepolia" },
-        mode: {
-          isAgent: false,
-          isJson: false,
-          isCsv: false,
-          isQuiet: false,
-          format: "table",
-          skipPrompts: false,
-        },
-        isVerbose: false,
-        watch: false,
+      let snapshot: Awaited<ReturnType<typeof startWorkflow>> | null = null;
+      const { stderr } = await captureAsyncOutput(async () => {
+        snapshot = await startWorkflow({
+          amountInput: "0.01",
+          assetInput: "ETH",
+          recipient: "0x7777777777777777777777777777777777777777",
+          globalOpts: { chain: "sepolia" },
+          mode: {
+            isAgent: false,
+            isJson: false,
+            isCsv: false,
+            isQuiet: false,
+            format: "table",
+            skipPrompts: false,
+          },
+          isVerbose: false,
+          watch: false,
+        });
       });
 
-      expect(snapshot.phase).toBe("awaiting_asp");
-      expect(snapshot.walletMode).toBe("configured");
-      expect(snapshot.walletAddress).toBe(GLOBAL_SIGNER_ADDRESS);
-      expect(snapshot.depositTxHash).toBe(state.depositTxHash);
+      expect(snapshot).not.toBeNull();
+      expect(snapshot!.phase).toBe("awaiting_asp");
+      expect(snapshot!.walletMode).toBe("configured");
+      expect(snapshot!.walletAddress).toBe(GLOBAL_SIGNER_ADDRESS);
+      expect(snapshot!.depositTxHash).toBe(state.depositTxHash);
+      expect(stderr).toContain("Flow start review");
+      expect(confirmPromptCalls).toEqual([
+        {
+          message: "Confirm flow start?",
+          default: false,
+        },
+      ]);
     });
     test("interactive configured flows can cancel on the non-round amount privacy warning", async () => {
       setPromptResponses({ confirm: false });
@@ -71,12 +84,51 @@ export function registerWorkflowMockedInteractiveTests(): void {
     test("interactive configured flows can cancel at the final confirmation prompt", async () => {
       setPromptResponses({ confirm: false });
 
-      await expect(
-        startWorkflow({
-          amountInput: "0.01",
+      const { stderr } = await captureAsyncOutput(async () => {
+        await expect(
+          startWorkflow({
+            amountInput: "0.01",
+            assetInput: "ETH",
+            recipient: "0x7777777777777777777777777777777777777777",
+            globalOpts: { chain: "sepolia" },
+            mode: {
+              isAgent: false,
+              isJson: false,
+              isCsv: false,
+              isQuiet: false,
+              format: "table",
+              skipPrompts: false,
+            },
+            isVerbose: false,
+            watch: false,
+          }),
+        ).rejects.toThrow("Flow cancelled.");
+      });
+
+      expect(state.depositEthCalls).toBe(0);
+      expect(state.depositErc20Calls).toBe(0);
+      expect(stderr).toContain("Flow start review");
+      expect(confirmPromptCalls).toEqual([
+        {
+          message: "Confirm flow start?",
+          default: false,
+        },
+      ]);
+    });
+    test("interactive high-stakes configured flows require typing the DEPOSIT token", async () => {
+      setPromptResponses({ input: "DEPOSIT" });
+      state.pool = {
+        ...state.pool,
+        totalInPoolValue: 10000000000000000000n,
+        totalInPoolValueUsd: "20000",
+      } as typeof state.pool;
+
+      const { stderr } = await captureAsyncOutput(async () => {
+        const snapshot = await startWorkflow({
+          amountInput: "1",
           assetInput: "ETH",
           recipient: "0x7777777777777777777777777777777777777777",
-          globalOpts: { chain: "sepolia" },
+          globalOpts: { chain: "mainnet" },
           mode: {
             isAgent: false,
             isJson: false,
@@ -87,11 +139,19 @@ export function registerWorkflowMockedInteractiveTests(): void {
           },
           isVerbose: false,
           watch: false,
-        }),
-      ).rejects.toThrow("Flow cancelled.");
+        });
 
-      expect(state.depositEthCalls).toBe(0);
-      expect(state.depositErc20Calls).toBe(0);
+        expect(snapshot.phase).toBe("awaiting_asp");
+      });
+
+      expect(confirmPromptCalls).toHaveLength(0);
+      expect(inputPromptCalls).toEqual([
+        {
+          message: 'Type "DEPOSIT" to confirm:',
+        },
+      ]);
+      expect(stderr).toContain("Flow start review");
+      expect(stderr).toContain("This mainnet deposit sends 1 ETH into a public pool before ASP review.");
     });
     test("interactive new-wallet flows can confirm backup and complete", async () => {
       setPromptResponses({ input: join(state.tempHome, "ignored-wallet.txt") });

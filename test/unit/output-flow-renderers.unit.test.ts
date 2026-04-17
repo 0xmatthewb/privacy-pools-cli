@@ -328,6 +328,10 @@ describe("renderFlowResult", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("Proof of Association");
     expect(stderr).toContain(POA_PORTAL_URL);
+    expect(stderr).toContain("This configured-wallet workflow still requires the original depositor signer.");
+    expect(stderr).not.toContain(
+      `Complete Proof of Association at ${POA_PORTAL_URL} to continue privately, or use flow ragequit if you prefer the safe public recovery path back to original deposit address. This configured-wallet workflow still requires the original depositor signer.`,
+    );
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools flow watch wf-123");
     expect(stderr).toContain("privacy-pools flow ragequit wf-123");
@@ -357,6 +361,10 @@ describe("renderFlowResult", () => {
     expect(stderr).not.toContain("Approved and ready to withdraw");
     expect(stderr).toContain("Recover publicly");
     expect(stderr).toContain("privacy-pools flow ragequit wf-123");
+    expect(stderr).toContain("This configured-wallet workflow still requires the original depositor signer.");
+    expect(stderr).not.toContain(
+      "This saved workflow cannot continue privately because the full remaining balance is below the relayer minimum. Use flow ragequit for public recovery instead. This configured-wallet workflow still requires the original depositor signer.",
+    );
   });
 
   test("JSON mode keeps the PoA watch follow-up runnable and surfaces public recovery", () => {
@@ -546,6 +554,10 @@ describe("renderFlowResult", () => {
     );
 
     expect(stderr).toContain("was declined by the ASP");
+    expect(stderr).toContain("This configured-wallet workflow still requires the original depositor signer.");
+    expect(stderr).not.toContain(
+      "This workflow was declined by the ASP. Your funds can still return safely to original deposit address with privacy-pools flow ragequit wf-123. Privacy will not be preserved. This configured-wallet workflow still requires the original depositor signer.",
+    );
     expect(stderr).not.toContain(
       "the private withdrawal will run after ASP approval",
     );

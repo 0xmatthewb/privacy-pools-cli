@@ -341,6 +341,10 @@ function relayerMinimumRecoveryReason(snapshot: FlowSnapshot): string {
   return `This saved workflow cannot continue privately because the full remaining balance is below the relayer minimum. Use flow ragequit for public recovery instead.${configuredSignerRecoverySuffix(snapshot)}`;
 }
 
+function relayerMinimumRecoveryCallout(snapshot: FlowSnapshot): string {
+  return "This saved workflow cannot continue privately because the full remaining balance is below the relayer minimum. Use flow ragequit for public recovery instead.";
+}
+
 function shouldExposeConfirmedPoolAccount(snapshot: FlowSnapshot): boolean {
   return Boolean(
     snapshot.depositBlockNumber ||
@@ -355,6 +359,11 @@ function configuredSignerRecoverySuffix(snapshot: FlowSnapshot): string {
   return (snapshot.walletMode ?? "configured") === "configured"
     ? " This configured-wallet workflow still requires the original depositor signer."
     : "";
+}
+
+function configuredSignerRecoveryLine(snapshot: FlowSnapshot): string | null {
+  const suffix = configuredSignerRecoverySuffix(snapshot).trim();
+  return suffix.length > 0 ? suffix : null;
 }
 
 function ragequitOptionalReason(snapshot: FlowSnapshot, base: string): string {
@@ -655,7 +664,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
     return [
       createNextAction(
         "flow ragequit",
-        relayerMinimumRecoveryReason(snapshot),
+        relayerMinimumRecoveryCallout(snapshot),
         "flow_public_recovery_required",
         {
           args: [snapshot.workflowId],
@@ -733,10 +742,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         ),
         createNextAction(
           "flow ragequit",
-          ragequitOptionalReason(
-            snapshot,
-            "Use flow ragequit instead if you want to recover publicly without completing Proof of Association.",
-          ),
+          "Use flow ragequit instead if you want to recover publicly without completing Proof of Association.",
           "flow_public_recovery_optional",
           {
             args: [snapshot.workflowId],
@@ -747,10 +753,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
       return [
         createNextAction(
           "flow ragequit",
-          ragequitDeclinedReason(
-            snapshot,
-            "This workflow was declined, so run flow ragequit to recover publicly to the original deposit address.",
-          ),
+          "This workflow was declined, so run flow ragequit to recover publicly to the original deposit address.",
           "flow_declined",
           {
             args: [snapshot.workflowId],
@@ -961,12 +964,12 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     );
   } else if (data.snapshot.phase === "paused_declined") {
     warn(
-      `${data.snapshot.poolAccountId ?? "This workflow"} was declined by the ASP. This saved workflow is paused and ready for public recovery via flow ragequit.${configuredSignerRecoverySuffix(data.snapshot)}`,
+      `${data.snapshot.poolAccountId ?? "This workflow"} was declined by the ASP. This saved workflow is paused and ready for public recovery via flow ragequit.`,
       silent,
     );
   } else if (data.snapshot.phase === "paused_poa_required") {
     warn(
-      `${data.snapshot.poolAccountId ?? "This workflow"} needs Proof of Association before the private withdrawal can continue. Complete PoA to continue privately, or use flow ragequit to recover publicly.${configuredSignerRecoverySuffix(data.snapshot)}`,
+      `${data.snapshot.poolAccountId ?? "This workflow"} needs Proof of Association before the private withdrawal can continue. Complete PoA to continue privately, or use flow ragequit to recover publicly.`,
       silent,
     );
   } else if (
@@ -986,7 +989,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       silent,
     );
   } else if (requiresPublicRecoveryBecauseRelayerMinimum(data.snapshot)) {
-    warn(relayerMinimumRecoveryReason(data.snapshot), silent);
+    warn(relayerMinimumRecoveryCallout(data.snapshot), silent);
   } else if (data.action === "start") {
     if (data.snapshot.phase === "awaiting_funding" && data.snapshot.walletAddress) {
       success(
@@ -1153,6 +1156,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       | "read-only"
       | null = null;
     let phaseCalloutLines: string[] = [];
+    let phaseSecondaryCalloutLines: string[] = [];
 
     switch (phase) {
       case "awaiting_funding":
@@ -1255,10 +1259,16 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = publicRecoveryRequired ? "recovery" : "success";
         phaseCalloutLines = publicRecoveryRequired
-          ? [relayerMinimumRecoveryReason(data.snapshot)]
+          ? [relayerMinimumRecoveryCallout(data.snapshot)]
           : [
               "The saved workflow is clear to request its relayed private withdrawal on the next flow watch run.",
             ];
+        if (publicRecoveryRequired) {
+          const signerLine = configuredSignerRecoveryLine(data.snapshot);
+          if (signerLine) {
+            phaseSecondaryCalloutLines = [signerLine];
+          }
+        }
         break;
       case "withdrawing":
         phaseSectionTitle = "Withdrawal in progress";
@@ -1292,8 +1302,14 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "recovery";
         phaseCalloutLines = [
-          `This workflow was declined by the ASP. Your funds can still return safely to ${flowRecoveryDestination(data.snapshot)} with privacy-pools flow ragequit ${data.snapshot.workflowId}. Privacy will not be preserved.${configuredSignerRecoverySuffix(data.snapshot)}`,
+          `This workflow was declined by the ASP. Your funds can still return safely to ${flowRecoveryDestination(data.snapshot)} with privacy-pools flow ragequit ${data.snapshot.workflowId}. Privacy will not be preserved.`,
         ];
+        {
+          const signerLine = configuredSignerRecoveryLine(data.snapshot);
+          if (signerLine) {
+            phaseSecondaryCalloutLines = [signerLine];
+          }
+        }
         break;
       case "paused_poa_required":
         phaseSectionTitle = "Recovery decision";
@@ -1306,8 +1322,14 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "recovery";
         phaseCalloutLines = [
-          `Complete Proof of Association at ${POA_PORTAL_URL} to continue privately, or use flow ragequit if you prefer the safe public recovery path back to ${flowRecoveryDestination(data.snapshot)}.${configuredSignerRecoverySuffix(data.snapshot)}`,
+          `Complete Proof of Association at ${POA_PORTAL_URL} to continue privately, or use flow ragequit if you prefer the safe public recovery path back to ${flowRecoveryDestination(data.snapshot)}.`,
         ];
+        {
+          const signerLine = configuredSignerRecoveryLine(data.snapshot);
+          if (signerLine) {
+            phaseSecondaryCalloutLines = [signerLine];
+          }
+        }
         break;
       case "stopped_external":
         phaseSectionTitle = "Manual follow-up";
@@ -1361,6 +1383,9 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
     }
     if (phaseCalloutKind && phaseCalloutLines.length > 0) {
       process.stderr.write(formatCallout(phaseCalloutKind, phaseCalloutLines));
+    }
+    if (phaseSecondaryCalloutLines.length > 0) {
+      process.stderr.write(formatCallout("read-only", phaseSecondaryCalloutLines));
     }
     if (showFullBalanceNote) {
       process.stderr.write(

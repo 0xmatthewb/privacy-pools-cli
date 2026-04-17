@@ -125,6 +125,9 @@ export interface MockState {
 
 export const state: MockState = {} as MockState;
 export type PromptBackupChoice = "copied" | "file";
+export const confirmPromptCalls: Array<{ message?: string; default?: boolean }> = [];
+export const inputPromptCalls: Array<{ message?: string }> = [];
+export const selectPromptCalls: Array<{ message?: string }> = [];
 
 export const confirmPromptMock = mock(async () => true);
 export const inputPromptMock = mock(async () =>
@@ -184,13 +187,28 @@ export function setPromptResponses({
   select?: PromptBackupChoice;
 } = {}): void {
   confirmPromptMock.mockClear();
+  confirmPromptCalls.splice(0);
   const confirmQueue = Array.isArray(confirm) ? [...confirm] : [confirm];
   const finalConfirm = confirmQueue[confirmQueue.length - 1] ?? true;
-  confirmPromptMock.mockImplementation(async () => confirmQueue.shift() ?? finalConfirm);
+  confirmPromptMock.mockImplementation(async (options?: { message?: string; default?: boolean }) => {
+    confirmPromptCalls.push({
+      message: options?.message,
+      default: options?.default,
+    });
+    return confirmQueue.shift() ?? finalConfirm;
+  });
   inputPromptMock.mockClear();
-  inputPromptMock.mockImplementation(async () => input);
+  inputPromptCalls.splice(0);
+  inputPromptMock.mockImplementation(async (options?: { message?: string }) => {
+    inputPromptCalls.push({ message: options?.message });
+    return input;
+  });
   selectPromptMock.mockClear();
-  selectPromptMock.mockImplementation(async () => select);
+  selectPromptCalls.splice(0);
+  selectPromptMock.mockImplementation(async (options?: { message?: string }) => {
+    selectPromptCalls.push({ message: options?.message });
+    return select;
+  });
 }
 
 export function useImmediateTimers(): () => void {
