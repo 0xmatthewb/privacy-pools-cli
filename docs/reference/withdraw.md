@@ -10,7 +10,7 @@ Withdraw privately from a pool
 
 **Usage:** `privacy-pools withdraw [amount] [asset] [options]`
 
-Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off. Pool Accounts marked poa_required cannot withdraw privately until Proof of Association is completed at tornado.0xbow.io. Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off. In interactive mode, omitting the amount prompts for it after the pool is selected. Relayer quotes are refreshed automatically before proof generation when they are close to expiry.
+Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off. Pool Accounts marked poa_required cannot withdraw privately until Proof of Association is completed at https://tornado.0xbow.io. Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off. In interactive mode, omitting the amount prompts for it after the pool is selected. Relayer quotes are refreshed automatically before proof generation when they are close to expiry.
 
 **Basic:**
 
@@ -45,7 +45,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 | `-t, --to <address>` | Recipient address (required unless --direct; prompted interactively) |
 | `-p, --pool-account <PA-ID \| numeric-index>` | Withdraw from a specific Pool Account (examples: PA-2 or 2) |
 | `--direct` | WILL publicly link deposit and withdrawal addresses onchain. This cannot be undone. |
-| `--yes-i-understand-privacy-loss` | Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses |
+| `--yes-i-understand-privacy-loss` | Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses (required with --direct when prompts are skipped) |
 | `--unsigned [format]` | Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx) |
 | `--dry-run` | Generate and verify withdrawal artifacts without submitting |
 | `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
@@ -56,14 +56,15 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 **Safety:** Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.
 **Safety:** ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.
 **Safety:** Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
+**Safety:** When prompts are skipped, --direct requires --yes-i-understand-privacy-loss.
 **Safety:** --extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
-**JSON output:** `{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+**JSON output:** `{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `direct: same fields but mode: "direct", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.`
-- `quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+- `quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 - `--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }`
 - `--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]`
 - `--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, extraGas?, anonymitySet?: { eligible, total, percentage } }`
@@ -76,6 +77,7 @@ Request relayer quote and limits without generating a proof
 
 ```bash
 privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
+privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...
 privacy-pools withdraw quote 100 USDC --agent --chain mainnet
 ```
 
@@ -84,4 +86,4 @@ privacy-pools withdraw quote 100 USDC --agent --chain mainnet
 | `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
 | `-t, --to <address>` | Recipient address (recommended for an accurate fee quote) |
 
-**JSON output:** `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+**JSON output:** `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

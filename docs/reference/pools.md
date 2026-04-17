@@ -10,7 +10,7 @@ Browse available pools
 
 **Usage:** `privacy-pools pools [asset] [options]`
 
-Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets. Deprecated or wind-down pool badges are only shown when the upstream registry exposes an explicit lifecycle status. Current CLI-supported sources do not expose a canonical status signal, so the pools output intentionally leaves lifecycle badges unchanged for now.
+Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --include-testnets to include supported testnets. Deprecated or wind-down pool badges are only shown when the upstream registry exposes an explicit lifecycle status. Current CLI-supported sources do not expose a canonical status signal, so the pools output intentionally leaves lifecycle badges unchanged for now.
 
 **Basic:**
 
@@ -23,7 +23,7 @@ privacy-pools pools BOLD --chain mainnet
 **Search and sort:**
 
 ```bash
-privacy-pools pools --all-chains --sort tvl-desc
+privacy-pools pools --include-testnets --sort tvl-desc
 privacy-pools pools --search usdc --sort asset-asc
 ```
 
@@ -36,11 +36,11 @@ privacy-pools pools --agent --chain mainnet
 
 | Flag | Description |
 |------|-------------|
-| `--all-chains` | Include supported testnets (default: CLI-supported mainnet chains only) |
+| `--include-testnets` | Include supported testnets (default: CLI-supported mainnet chains only) |
 | `--search <query>` | Filter by chain/symbol/address/scope |
 | `--sort <mode>` | Sort mode (default, asset-asc, asset-desc, tvl-desc, tvl-asc, deposits-desc, deposits-asc, chain-asset) |
 
-**JSON output:** `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+**JSON output:** `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }`

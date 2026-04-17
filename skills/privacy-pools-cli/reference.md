@@ -171,12 +171,12 @@ The envelope format includes additional context fields depending on the operatio
 
 All responses include `{ "schemaVersion": "2.0.0", "success": true, ... }` envelope.
 
-Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field, and prefer `cliCommand` when you want the directly executable CLI string. When `runnable` is `false`, the action is a template that needs additional user input before execution.
+Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `true` (or omitted), `cliCommand` is executable as-is. When `runnable` is `false`, `cliCommand` is omitted and `parameters[]` describes the extra user input required before execution.
 
 ### `pools`
 
 ```bash
-privacy-pools pools --agent [--all-chains] [--search <query>] [--sort <mode>]
+privacy-pools pools --agent [--include-testnets] [--search <query>] [--sort <mode>]
 privacy-pools pools ETH --agent                    # detail view for a specific pool
 ```
 
@@ -218,7 +218,7 @@ Defaults to all CLI-supported mainnet chains when no `--chain` is specified. Def
 }
 ```
 
-**All chains** (`--all-chains`): each pool includes a `chain` field and root includes:
+**All chains** (`--include-testnets`, legacy alias `--all-chains`): each pool includes a `chain` field and root includes:
 
 ```json
 {
@@ -411,7 +411,7 @@ Representative payload (abridged):
   "commandDetails": {
     "accounts": {
       "command": "accounts",
-      "flags": ["--no-sync", "--all-chains", "--details", "--summary", "--pending-only"],
+      "flags": ["--no-sync", "--include-testnets", "--details", "--summary", "--pending-only"],
       "sideEffectClass": "local_state_write",
       "touchesFunds": false,
       "requiresHumanReview": false
@@ -438,13 +438,13 @@ Representative payload (abridged):
     "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
     "5. privacy-pools flow watch [workflowId|latest] --agent",
     "6. privacy-pools flow ragequit [workflowId|latest] --agent  (optional public recovery after the deposit exists; canonical if the saved workflow is declined or the private path is blocked below the relayer minimum)",
-    "7. privacy-pools deposit <amount> --asset <symbol> --agent --chain <chain>  (manual alternative)",
+    "7. privacy-pools deposit <amount> <asset> --agent --chain <chain>  (manual alternative)",
     "8. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poa_required with accounts --agent --chain <chain>)",
-    "9. privacy-pools withdraw <amount> --asset <symbol> --to <address> --agent --chain <chain>"
+    "9. privacy-pools withdraw <amount> <asset> --to <address> --agent --chain <chain>"
   ],
   "agentNotes": {
     "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poa_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at the Privacy Pools portal first if poa_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). Follow nextActions from the deposit response for the canonical polling command.",
-    "withdrawQuote": "Use 'withdraw quote <amount> --asset <symbol> --agent' to check relayer fees before committing to a withdrawal.",
+    "withdrawQuote": "Use 'withdraw quote <amount> <asset> --agent' to check relayer fees before committing to a withdrawal.",
     "firstRun": "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
@@ -458,8 +458,8 @@ Representative payload (abridged):
       "description": "Error responses include top-level errorCode/errorMessage plus error.{ code, category, message, hint?, retryable? }."
     },
     "nextActions": {
-      "shape": "{ command, reason, when, args?, options?, runnable? }",
-      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. When runnable is false, the action is a template that needs additional user input before execution."
+      "shape": "{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }",
+      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. When runnable is false, cliCommand is omitted and parameters[] describes the additional user input required before execution."
     }
   },
   "protocol": {
@@ -511,8 +511,8 @@ privacy-pools describe stats global --agent
   "command": "withdraw quote",
   "description": "Request relayer quote and limits without generating a proof",
   "aliases": [],
-  "usage": "withdraw quote <amount> --asset <symbol|address>",
-  "flags": ["--asset <symbol|address>", "--to <address>"],
+  "usage": "withdraw quote <amount> <asset>",
+  "flags": ["--asset <symbol|address> (deprecated alias)", "--to <address>"],
   "globalFlags": ["--agent", "-j, --json", "-y, --yes"],
   "requiresInit": true,
   "expectedLatencyClass": "medium",
@@ -522,7 +522,7 @@ privacy-pools describe stats global --agent
   "requiresHumanReview": false,
   "prerequisites": ["init"],
   "examples": ["privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."],
-  "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+  "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
   "jsonVariants": [],
   "safetyNotes": [],
   "supportsUnsigned": false,
@@ -612,7 +612,7 @@ When importing an existing recovery phrase or private key, neither `recoveryPhra
 
 New CLI-generated recovery phrases use 24 words (256-bit entropy). Imported recovery phrases may still be 12 or 24 words.
 
-When `init` imports an existing recovery phrase, `nextActions` points to `migrate status --agent --all-chains` first so legacy migration or website-based recovery readiness can be checked before assuming imported account state is fully restorable in the CLI. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>`.
+When `init` imports an existing recovery phrase, `nextActions` points to `migrate status --agent --include-testnets` first so legacy migration or website-based recovery readiness can be checked before assuming imported account state is fully restorable in the CLI. When `init` generates a new wallet, `nextActions` points to `status --agent --chain <defaultChain>`.
 
 Use only one stdin secret source per invocation: either `--recovery-phrase-stdin` or `--private-key-stdin`.
 
@@ -647,7 +647,7 @@ privacy-pools deposit 0.1 --asset ETH --agent
   "nextActions": [
     {
       "command": "accounts",
-      "reason": "Poll pending review for PA-1. When it disappears from pending results, re-run accounts --chain mainnet to confirm whether it was approved, declined, or needs Proof of Association (tornado.0xbow.io) before choosing withdraw or ragequit.",
+      "reason": "Poll pending review for PA-1. When it disappears from pending results, re-run accounts --chain mainnet to confirm whether it was approved, declined, or needs Proof of Association (https://tornado.0xbow.io) before choosing withdraw or ragequit.",
       "when": "after_deposit",
       "cliCommand": "privacy-pools accounts --agent --chain mainnet --pending-only",
       "options": { "agent": true, "chain": "mainnet", "pendingOnly": true }
@@ -847,7 +847,7 @@ privacy-pools exit ETH --pool-account PA-1 --agent
 
 ```bash
 privacy-pools accounts --agent [--details]
-privacy-pools accounts --agent --all-chains
+privacy-pools accounts --agent --include-testnets
 privacy-pools accounts --agent --summary
 privacy-pools accounts --agent --chain <chain> --pending-only
 ```
@@ -890,13 +890,13 @@ privacy-pools accounts --agent --chain <chain> --pending-only
 
 `status` values: `"approved"`, `"pending"`, `"poa_required"`, `"declined"`, `"unknown"`, `"spent"`, `"exited"`. `aspStatus` values: `"pending"`, `"approved"`, `"poa_required"`, `"declined"`, `"unknown"` (`"unknown"` for spent or exited accounts, or when ASP review data is unavailable). `pendingCount` is the number of accounts with `status: "pending"`.
 
-Without `--chain`, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--all-chains` to include testnets. In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId`.
+Without `--chain`, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--include-testnets` to include testnets. In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId`.
 
 `balances` contains per-pool totals for Pool Accounts with remaining balance. `balance` is the total amount in wei (string). `usdValue` is a formatted USD string (or `null` when price data is unavailable).
 
-`--summary` returns `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }` and omits `accounts`.
+`--summary` returns `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }` and omits `accounts`.
 
-`--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`, filters to `aspStatus: "pending"`, and omits `balances`.
+`--pending-only` returns `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`, filters to `aspStatus: "pending"`, and omits `balances`.
 
 After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Reviewed entries disappear from `--pending-only` results instead of changing in place; once gone, re-run `accounts --agent --chain <chain>` to confirm whether the final status is `approved`, `declined`, or `poa_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without it. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). `nextActions` on `accounts` appear when pending approvals still exist.
 
@@ -904,13 +904,13 @@ After depositing, poll `accounts --agent --chain <chain> --pending-only` while t
 
 ```bash
 privacy-pools migrate status --agent
-privacy-pools migrate status --agent --all-chains
+privacy-pools migrate status --agent --include-testnets
 privacy-pools migrate status --agent --chain mainnet
 ```
 
 `migrate status` is a strictly read-only legacy website migration or recovery check on CLI-supported chains. It rebuilds the legacy account view from the installed SDK, the built-in CLI pool registry for CLI-supported chains, and current onchain events without persisting trusted account or sync state, then reports whether legacy pre-upgrade commitments still need website migration, already appear fully migrated, require website-based public recovery because they were declined, or cannot be classified safely because ASP review data is incomplete.
 
-Without `--chain`, `migrate status` checks all CLI-supported mainnet chains by default. Use `--all-chains` to include supported testnets. As with other multi-chain read-only commands, `--rpc-url` is only valid alongside `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
+Without `--chain`, `migrate status` checks all CLI-supported mainnet chains by default. Use `--include-testnets` to include supported testnets. As with other multi-chain read-only commands, `--rpc-url` is only valid alongside `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
 
 ```json
 {
@@ -992,7 +992,7 @@ privacy-pools history --agent [--limit <n>]
 Force-sync local account state. Most commands auto-sync with a 2-minute freshness TTL, so explicit sync is rarely needed.
 
 ```bash
-privacy-pools sync --agent [--asset <symbol>]
+privacy-pools sync --agent [asset]
 ```
 
 ```json
@@ -1099,7 +1099,7 @@ All errors in JSON mode:
 | `ACCOUNT_MIGRATION_REQUIRED` | INPUT | No | Legacy pre-upgrade account must be migrated in the website before CLI restore/sync |
 | `ACCOUNT_WEBSITE_RECOVERY_REQUIRED` | INPUT | No | Legacy declined deposits require website-based recovery before CLI restore/sync |
 | `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | Legacy ASP review data is incomplete; retry before acting on restore/sync |
-| `ACCOUNT_NOT_APPROVED` | ASP | No | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
+| `ACCOUNT_NOT_APPROVED` | INPUT | No | Deposit is not approved for withdrawal; it may still be pending, may require Proof of Association, or may have been declined |
 | `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error |
 
 ### Exit codes
@@ -1126,7 +1126,7 @@ When `retryable: false`:
 4. `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
 5. `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
 6. `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
-7. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poa_required`, complete Proof of Association at tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit --chain <chain> --asset <symbol> --pool-account <PA-#>`.
+7. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poa_required`, complete Proof of Association at https://tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit <symbol> --chain <chain> --pool-account <PA-#>`.
 
 ---
 

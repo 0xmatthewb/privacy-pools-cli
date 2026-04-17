@@ -41,9 +41,10 @@
       "command": "string (CLI command name)",
       "reason": "string (why the follow-up is relevant)",
       "when": "string (machine-readable timing label)",
-      "cliCommand": "string (fully executable CLI invocation with kebab-case flags)",
+      "cliCommand": "string? (fully executable CLI invocation with kebab-case flags; omitted when runnable = false)",
       "args": "string[]? (positional arguments to pass)",
       "options": "Record<string, string|number|boolean|null>? (named options in source-object form; prefer cliCommand for direct execution)",
+      "parameters": "[{ name: string, type: string, required: boolean }]? (present when runnable = false and extra user input is required)",
       "runnable": "boolean? (false means the action is a template and needs additional user input before execution)",
       "ordering": "private/resume paths first; required public recovery before optional public recovery; optional public recovery after private paths; deposit templates last"
     },
@@ -101,12 +102,26 @@
         "readiness": "\"ready\"|\"read_only\"|\"discovery_required\"",
         "defaultChain": "string",
         "signerKeySet": "boolean",
+        "mnemonicImported": "boolean (true when the recovery phrase was loaded rather than generated)",
         "backupFilePath": "string? (present when the generated recovery phrase was written to a backup file)",
         "recoveryPhraseRedacted": "boolean? (true when a new recovery phrase was generated but not printed)",
         "recoveryPhrase": "string? (present only when newly generated and --show-recovery-phrase is provided)",
         "restoreDiscovery": "{ status: \"deposits_found\"|\"no_deposits\"|\"legacy_website_action_required\"|\"degraded\", chainsChecked: string[], foundAccountChains?: string[] }? (present for existing-account load flows)",
         "warning": "string? (security guidance for agents)",
         "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)"
+      },
+      "stagedJsonl": {
+        "mode": "\"init-staged\"",
+        "operation": "\"init\"",
+        "stage": "\"preflight\"|\"recovery\"|\"backup\"|\"signer\"|\"chain\"|\"write\"|\"discovery\"|\"complete\"",
+        "preflight": "{ existingConfig: boolean, existingRecoveryPhrase: boolean, existingSignerKey: boolean, signerKeyValid: boolean, importedRecoveryPhrase: boolean, importedSignerKey: boolean }",
+        "recovery": "{ source: \"generated\"|\"imported\"|\"existing\", words?: number }",
+        "backup": "{ backupFilePath?: string|null, verificationRequired?: boolean }",
+        "signer": "{ signerKeySource: string, signerKeySet: boolean, required: boolean }",
+        "chain": "{ defaultChain: string }",
+        "write": "{ writeTargets: string[] }",
+        "discovery": "{ status: \"deposits_found\"|\"no_deposits\"|\"legacy_website_action_required\"|\"degraded\", chainsChecked?: string[], foundAccountChains?: string[] }",
+        "complete": "{ setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, backupFilePath?, restoreDiscovery?, warning? }"
       }
     },
     "upgrade": {
@@ -482,7 +497,7 @@
     "accounts": {
       "successFields": {
         "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
-        "allChains": "boolean? (true when --all-chains is used)",
+        "allChains": "boolean? (true when --include-testnets / legacy --all-chains is used)",
         "chains": "string[]? (queried chains in multi-chain mode)",
         "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "accounts": "Account[]",
@@ -492,7 +507,7 @@
       },
       "summaryVariant": {
         "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
-        "allChains": "boolean? (true when --all-chains is used)",
+        "allChains": "boolean? (true when --include-testnets / legacy --all-chains is used)",
         "chains": "string[]? (queried chains in multi-chain mode)",
         "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "pendingCount": "number",
@@ -540,7 +555,7 @@
       "successFields": {
         "mode": "\"migration-status\"",
         "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
-        "allChains": "boolean? (true when --all-chains is used)",
+        "allChains": "boolean? (true when --include-testnets / legacy --all-chains is used)",
         "chains": "string[]? (queried chains in multi-chain mode)",
         "warnings": "MigrationWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "status": "\"no_legacy\"|\"migration_required\"|\"fully_migrated\"|\"website_recovery_required\"|\"review_incomplete\"",
@@ -705,6 +720,10 @@
         "touchesFunds": "boolean",
         "requiresHumanReview": "boolean",
         "preferredSafeVariant": "{ command: string, reason: string }|undefined"
+      },
+      "schemaVariant": {
+        "path": "string (contract path passed to describe envelope.<path>)",
+        "schema": "unknown (JSON contract fragment at that path)"
       }
     },
     "sync": {

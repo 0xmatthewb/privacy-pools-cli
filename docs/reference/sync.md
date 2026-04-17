@@ -18,4 +18,4 @@ privacy-pools sync --asset ETH --agent
 privacy-pools sync --chain mainnet
 ```
 
-**JSON output:** `{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+**JSON output:** `{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

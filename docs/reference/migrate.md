@@ -13,24 +13,24 @@ Read-only command for legacy pre-upgrade accounts on chains currently supported 
 ```bash
 privacy-pools migrate status
 privacy-pools migrate status --chain mainnet
-privacy-pools migrate status --all-chains --agent
+privacy-pools migrate status --include-testnets --agent
 ```
 
 ## `migrate status`
 
 Check migration status for legacy pool accounts
 
-Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy Pool Accounts still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --all-chains to include supported testnets.
+Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy Pool Accounts still need website migration, appear fully migrated already, or require website-based public recovery instead. Without --chain, migrate status checks all CLI-supported mainnet chains by default. Use --include-testnets to include supported testnets.
 
 ```bash
 privacy-pools migrate status
 privacy-pools migrate status --chain mainnet
-privacy-pools migrate status --all-chains --agent
+privacy-pools migrate status --include-testnets --agent
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--all-chains` | Include supported testnets (default: CLI-supported mainnet chains only) |
+| `--include-testnets` | Include supported testnets (default: CLI-supported mainnet chains only) |
 
 **Safety:** This command is read-only. It never submits migration transactions and does not persist rebuilt account state.
 **Safety:** When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.

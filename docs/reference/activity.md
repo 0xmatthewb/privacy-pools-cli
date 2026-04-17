@@ -10,13 +10,14 @@ View recent deposits and withdrawals across pools
 
 **Usage:** `privacy-pools activity [asset] [options]`
 
-Shows the public onchain event feed across Privacy Pools, including deposits and withdrawals from all participants. For your own private transaction history, use 'history' instead.
+Shows the public onchain event feed across Privacy Pools, including deposits and withdrawals from all participants. Bare `activity` stays on CLI-supported mainnet chains by default. Use --include-testnets to aggregate supported mainnet and testnet activity together. For your own private transaction history, use 'history' instead.
 
 **Basic:**
 
 ```bash
 privacy-pools activity
 privacy-pools activity --page 2 --limit 20
+privacy-pools activity --include-testnets
 privacy-pools activity --asset ETH
 ```
 
@@ -29,7 +30,8 @@ privacy-pools activity --asset USDC --agent --chain mainnet
 
 | Flag | Description |
 |------|-------------|
+| `--include-testnets` | Include supported testnets (default: CLI-supported mainnet chains only) |
 | `--page <n>` | Page number |
 | `-n, --limit <n>` | Items per page |
 
-**JSON output:** `{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+**JSON output:** `{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

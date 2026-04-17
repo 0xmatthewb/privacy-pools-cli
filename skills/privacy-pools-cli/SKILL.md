@@ -108,7 +108,7 @@ Errors:
 
 Parse `success` first. On failure, use `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
 
-Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field, and prefer `cliCommand` when you want the directly executable CLI string. When `runnable` is `false`, the action is a template that needs additional user input before execution.
+Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `true` (or omitted), `cliCommand` is executable as-is. When `runnable` is `false`, `cliCommand` is omitted and `parameters[]` describes the extra user input required before execution.
 
 ---
 
@@ -307,7 +307,7 @@ Manual path remains available when you need custom Pool Account selection, parti
 
 New CLI-generated recovery phrases use 24 words by default. Imported recovery phrases may still be 12 or 24 words.
 
-In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `migrate status --agent --all-chains` first. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely. `migrate status` is the read-only legacy readiness check on CLI-supported chains; the CLI does not submit migration transactions, and beta or website-only migration surfaces must still be reviewed in the website.
+In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `migrate status --agent --include-testnets` first. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely. `migrate status` is the read-only legacy readiness check on CLI-supported chains; the CLI does not submit migration transactions, and beta or website-only migration surfaces must still be reviewed in the website.
 
 In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when that tradeoff is intentional.
 
@@ -324,7 +324,7 @@ Recommended retry strategy:
 - `CONTRACT_INCORRECT_ASP_ROOT` / `CONTRACT_UNKNOWN_STATE_ROOT` / `PROOF_MERKLE_ERROR`: run `privacy-pools sync --agent` first, then retry.
 - `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR` / `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` / `CONTRACT_NOT_YET_RAGEQUITTEABLE`: wait 30-60s or request a fresh quote, then retry.
 - `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
-- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poa_required`, complete Proof of Association at the Privacy Pools portal first. If it is `declined`, the manual recovery path is `ragequit` and the saved easy-path recovery is `flow ragequit <workflowId>`.
+- `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poa_required`, complete Proof of Association at [https://tornado.0xbow.io](https://tornado.0xbow.io) first. If it is `declined`, the manual recovery path is `ragequit` and the saved easy-path recovery is `flow ragequit <workflowId>`.
 
 ---
 
