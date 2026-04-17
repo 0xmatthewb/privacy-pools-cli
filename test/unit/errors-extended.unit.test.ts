@@ -404,6 +404,33 @@ describe("printError", () => {
     expect(assignedExitCode).toBe(2); // INPUT exit code
   });
 
+  test("JSON mode preserves docsSlug on structured errors", () => {
+    const originalExitCode = process.exitCode;
+    clearProcessExitCode();
+
+    try {
+      const output = captureStdout(() => {
+        printError(
+          new CLIError(
+            "test error",
+            "INPUT",
+            "try again",
+            "INPUT_ERROR",
+            false,
+            "inline",
+            undefined,
+            "reference/withdraw#withdraw",
+          ),
+          true,
+        );
+      });
+      const parsed = JSON.parse(output.trim());
+      expect(parsed.error.docsSlug).toBe("reference/withdraw#withdraw");
+    } finally {
+      restoreProcessExitCode(originalExitCode);
+    }
+  });
+
   test("human mode writes to stderr via process.stderr.write", () => {
     const stderrOutput: string[] = [];
     const origWrite = process.stderr.write;
@@ -428,6 +455,54 @@ describe("printError", () => {
     expect(combined).toContain("test error");
     expect(combined).toContain("check ASP");
     expect(assignedExitCode).toBe(4); // ASP exit code
+  });
+
+  test("human mode renders docs references for guide and reference slugs", () => {
+    const stderrOutput: string[] = [];
+    const origWrite = process.stderr.write;
+    const originalExitCode = process.exitCode;
+
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrOutput.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString());
+      return true;
+    }) as typeof process.stderr.write;
+    clearProcessExitCode();
+
+    try {
+      printError(
+        new CLIError(
+          "proof failed",
+          "PROOF",
+          "retry",
+          "PROOF_ERROR",
+          false,
+          "inline",
+          undefined,
+          "guide/troubleshooting#proofs",
+        ),
+        false,
+      );
+      printError(
+        new CLIError(
+          "withdraw failed",
+          "INPUT",
+          "check amount",
+          "INPUT_ERROR",
+          false,
+          "inline",
+          undefined,
+          "reference/withdraw#withdraw",
+        ),
+        false,
+      );
+    } finally {
+      process.stderr.write = origWrite;
+      restoreProcessExitCode(originalExitCode);
+    }
+
+    const combined = stderrOutput.join("");
+    expect(combined).toContain("Docs: privacy-pools guide troubleshooting");
+    expect(combined).toContain("Docs: docs/reference/withdraw.md#withdraw");
   });
 
   test("classifies unknown errors before printing", () => {

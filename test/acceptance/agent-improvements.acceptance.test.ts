@@ -55,6 +55,7 @@ defineScenarioSuite("agent improvements acceptance", [
       assertStderrEmpty(),
       assertJson<{
         command: string;
+        group: string;
         usage: string;
         flags: string[];
         globalFlags: string[];
@@ -62,6 +63,7 @@ defineScenarioSuite("agent improvements acceptance", [
         expectedLatencyClass: string;
       }>((json) => {
         expect(json.command).toBe("withdraw quote");
+        expect(json.group).toBe("transaction");
         expect(json.usage).toBe("withdraw quote <amount> <asset>");
         expect(json.flags).toContain("--to <address>");
         expect(json.globalFlags).toContain("--agent");
@@ -73,11 +75,13 @@ defineScenarioSuite("agent improvements acceptance", [
       assertStderrEmpty(),
       assertJson<{
         command: string;
+        group: string;
         usage: string;
         expectedLatencyClass: string;
         globalFlags: string[];
       }>((json) => {
         expect(json.command).toBe("stats global");
+        expect(json.group).toBe("monitoring");
         expect(json.usage).toBe("stats global");
         expect(json.expectedLatencyClass).toBe("medium");
         expect(json.globalFlags).not.toContain("-c, --chain <name>");
@@ -133,14 +137,19 @@ defineScenarioSuite("agent improvements acceptance", [
     runCliStep(["capabilities", "--agent"]),
     assertExit(0),
     assertStderrEmpty(),
-    assertJson<{
-      commandDetails: Record<string, { expectedNextActionWhen?: string[]; jsonVariants?: string[] }>;
-    }>((json) => {
-      expect(json.commandDetails.flow?.expectedNextActionWhen?.[0]).toBe("after_dry_run");
-      expect(json.commandDetails["flow start"]?.expectedNextActionWhen?.[0]).toBe("after_dry_run");
-      expect(
-        json.commandDetails["flow start"]?.jsonVariants?.some((variant) =>
-          variant.includes("--dry-run"),
+      assertJson<{
+        commands: Array<{ name: string; group: string }>;
+        commandDetails: Record<string, { expectedNextActionWhen?: string[]; jsonVariants?: string[]; group?: string }>;
+      }>((json) => {
+        expect(json.commands.find((command) => command.name === "flow watch")?.group).toBe(
+          "transaction",
+        );
+        expect(json.commandDetails.flow?.expectedNextActionWhen?.[0]).toBe("after_dry_run");
+        expect(json.commandDetails["flow start"]?.expectedNextActionWhen?.[0]).toBe("after_dry_run");
+        expect(json.commandDetails["flow watch"]?.group).toBe("transaction");
+        expect(
+          json.commandDetails["flow start"]?.jsonVariants?.some((variant) =>
+            variant.includes("--dry-run"),
         ),
       ).toBe(true);
     }),
@@ -168,6 +177,7 @@ defineScenarioSuite("agent improvements acceptance", [
           string,
           {
             command: string;
+            group: string;
             execution: { owner: string; nativeModes: string[] };
             flags: string[];
             globalFlags: string[];
@@ -188,8 +198,12 @@ defineScenarioSuite("agent improvements acceptance", [
         expect(json.commands.map((command) => command.name)).toContain(
           "describe",
         );
+        expect(json.commands.find((command) => command.name === "capabilities")).toMatchObject({
+          name: "capabilities",
+        });
         expect(json.commandDetails.accounts?.flags).toContain("--summary");
         expect(json.commandDetails.describe?.command).toBe("describe");
+        expect(json.commandDetails.describe?.group).toBe("advanced");
         expect(json.commandDetails["stats global"]?.globalFlags).not.toContain(
           "-c, --chain <name>",
         );
@@ -217,13 +231,17 @@ defineScenarioSuite("agent improvements acceptance", [
       assertExit(0),
       assertStderrEmpty(),
       assertJson<{
-        commands: Array<{ name: string }>;
-        commandDetails: Record<string, { command: string }>;
+        commands: Array<{ name: string; group: string }>;
+        commandDetails: Record<string, { command: string; group: string }>;
       }>((json) => {
         expect(json.commands.map((command) => command.name)).toContain(
           "describe",
         );
+        expect(json.commands.find((command) => command.name === "status")?.group).toBe(
+          "getting-started",
+        );
         expect(json.commandDetails.capabilities?.command).toBe("capabilities");
+        expect(json.commandDetails.capabilities?.group).toBe("advanced");
       }),
       runCliStep(["guide", "--agent", "--chain", "mainnet"]),
       assertExit(0),

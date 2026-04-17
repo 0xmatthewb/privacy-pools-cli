@@ -4,6 +4,9 @@ import {
   summarizeMigrationStatusState,
   type MigrationStatusSummaryState,
 } from "../../src/commands/migrate.ts";
+import { renderMigrationStatus, type MigrationRenderData } from "../../src/output/migrate.ts";
+import { createOutputContext } from "../../src/output/common.ts";
+import { captureOutput, makeMode, parseCapturedJson } from "../helpers/output.ts";
 
 function summarize(
   overrides: Array<{
@@ -239,5 +242,61 @@ describe("migrate command internal helpers", () => {
     expect(
       migrateCommandTestInternals.dedupeSortedChainIds([10, 1, 10, 42161]),
     ).toEqual([1, 10, 42161]);
+  });
+});
+
+describe("renderMigrationStatus", () => {
+  test("JSON mode emits explicit empty nextActions outside review_incomplete", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: MigrationRenderData = {
+      mode: "migration-status",
+      chain: "mainnet",
+      status: "fully_migrated",
+      requiresMigration: false,
+      requiresWebsiteRecovery: false,
+      isFullyMigrated: true,
+      readinessResolved: true,
+      submissionSupported: false,
+      requiredChainIds: [],
+      migratedChainIds: [1],
+      missingChainIds: [],
+      websiteRecoveryChainIds: [],
+      unresolvedChainIds: [],
+      chainReadiness: [],
+    };
+
+    const { stdout } = captureOutput(() => renderMigrationStatus(ctx, data));
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toEqual([]);
+  });
+
+  test("JSON mode emits a retry nextAction only for review_incomplete", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: MigrationRenderData = {
+      mode: "migration-status",
+      chain: "sepolia",
+      allChains: true,
+      status: "review_incomplete",
+      requiresMigration: true,
+      requiresWebsiteRecovery: false,
+      isFullyMigrated: false,
+      readinessResolved: false,
+      submissionSupported: false,
+      requiredChainIds: [11155111],
+      migratedChainIds: [],
+      missingChainIds: [11155111],
+      websiteRecoveryChainIds: [],
+      unresolvedChainIds: [11155111],
+      chainReadiness: [],
+    };
+
+    const { stdout } = captureOutput(() => renderMigrationStatus(ctx, data));
+    const json = parseCapturedJson(stdout);
+    expect(json.nextActions).toHaveLength(1);
+    expect(json.nextActions[0]).toMatchObject({
+      command: "migrate status",
+      when: "after_restore",
+      cliCommand: "privacy-pools migrate status --agent --all-chains",
+    });
   });
 });

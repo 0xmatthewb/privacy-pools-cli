@@ -2,10 +2,24 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { resolveGlobalMode, setModeArgv } from "../../src/utils/mode.ts";
 import { resetJsonOutputConfig } from "../../src/utils/json.ts";
 
+const ORIGINAL_ENV = {
+  PRIVACY_POOLS_AGENT: process.env.PRIVACY_POOLS_AGENT,
+  PRIVACY_POOLS_QUIET: process.env.PRIVACY_POOLS_QUIET,
+  PRIVACY_POOLS_YES: process.env.PRIVACY_POOLS_YES,
+  PRIVACY_POOLS_NO_PROGRESS: process.env.PRIVACY_POOLS_NO_PROGRESS,
+};
+
 describe("resolveGlobalMode", () => {
   afterEach(() => {
     setModeArgv([]);
     resetJsonOutputConfig();
+    for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
   });
 
   test("defaults all flags to false when no options", () => {
@@ -152,5 +166,55 @@ describe("resolveGlobalMode", () => {
     expect(result.isJson).toBe(true);
     expect(result.format).toBe("json");
     expect(result.jqExpression).toBe("nextActions");
+  });
+
+  test("env fallbacks enable agent semantics without explicit flags", () => {
+    process.env.PRIVACY_POOLS_AGENT = "1";
+
+    const result = resolveGlobalMode({});
+
+    expect(result.isAgent).toBe(true);
+    expect(result.isJson).toBe(true);
+    expect(result.isQuiet).toBe(true);
+    expect(result.skipPrompts).toBe(true);
+    expect(result.format).toBe("json");
+  });
+
+  test("env fallbacks enable quiet, yes, and no-progress behavior", () => {
+    process.env.PRIVACY_POOLS_QUIET = "true";
+    process.env.PRIVACY_POOLS_YES = "yes";
+    process.env.PRIVACY_POOLS_NO_PROGRESS = "on";
+
+    const result = resolveGlobalMode({});
+
+    expect(result.isQuiet).toBe(true);
+    expect(result.skipPrompts).toBe(true);
+    expect(result.noProgress).toBe(true);
+  });
+
+  test("--template implies structured JSON output", () => {
+    const result = resolveGlobalMode({ template: "{{command}}" });
+
+    expect(result.isJson).toBe(true);
+    expect(result.format).toBe("json");
+    expect(result.template).toBe("{{command}}");
+  });
+
+  test("--template is mutually exclusive with --json-fields", () => {
+    expect(() =>
+      resolveGlobalMode({
+        template: "{{command}}",
+        jsonFields: "command",
+      }),
+    ).toThrow("Choose only one structured output filter: --json-fields, --template.");
+  });
+
+  test("--template is mutually exclusive with --jmes", () => {
+    expect(() =>
+      resolveGlobalMode({
+        template: "{{command}}",
+        jmes: "command",
+      }),
+    ).toThrow("Choose only one structured output filter: --jmes/--jq, --template.");
   });
 });

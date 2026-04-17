@@ -10,7 +10,7 @@ Browse available pools
 
 **Usage:** `privacy-pools pools [asset] [options]`
 
-Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets.
+Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --all-chains to include supported testnets. Deprecated or wind-down pool badges are only shown when the upstream registry exposes an explicit lifecycle status. Current CLI-supported sources do not expose a canonical status signal, so the pools output intentionally leaves lifecycle badges unchanged for now.
 
 **Basic:**
 

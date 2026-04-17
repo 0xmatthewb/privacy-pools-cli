@@ -88,6 +88,16 @@ describe("JSON output helpers", () => {
     test("validates --jmes expressions before output is configured", () => {
       expect(() => configureJsonOutput(null, "foo[")).toThrow(CLIError);
     });
+
+    test("renders lightweight template output from the final success envelope", () => {
+      configureJsonOutput(null, null, "{{success}} {{command}} {{group}}");
+
+      const output = captureStdout(() => {
+        printJsonSuccess({ command: "withdraw", group: "transaction" });
+      });
+
+      expect(output).toBe("true withdraw transaction\n");
+    });
   });
 
   describe("printJsonError", () => {
@@ -169,6 +179,35 @@ describe("JSON output helpers", () => {
       expect(output).toContain("  ");
       const parsed = JSON.parse(output.trim());
       expect(parsed.success).toBe(false);
+    });
+
+    test("includes docsSlug in structured error output when provided", () => {
+      const output = captureStdout(() => {
+        printJsonError({
+          code: "RPC_TIMEOUT",
+          category: "RPC",
+          message: "Timeout",
+          docsSlug: "guide/troubleshooting#rpc",
+        });
+      });
+
+      const parsed = JSON.parse(output.trim());
+      expect(parsed.error.docsSlug).toBe("guide/troubleshooting#rpc");
+    });
+
+    test("renders lightweight template output from the final error envelope", () => {
+      configureJsonOutput(null, null, "{{success}} {{error.code}} {{error.docsSlug}}");
+
+      const output = captureStdout(() => {
+        printJsonError({
+          code: "RPC_TIMEOUT",
+          category: "RPC",
+          message: "Timeout",
+          docsSlug: "reference/status#status",
+        });
+      });
+
+      expect(output).toBe("false RPC_TIMEOUT reference/status#status\n");
     });
   });
 });

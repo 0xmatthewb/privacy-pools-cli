@@ -47,6 +47,7 @@ describe("formatRelayedWithdrawalReview", () => {
       chain: "sepolia",
       decimals: 6,
       recipient: "0x1111111111111111111111111111111111111111",
+      recipientEnsName: "alice.eth",
       quoteFeeBPS: 100n,
       expirationMs: Date.parse("2026-03-24T13:00:00.000Z"),
       remainingBalance: 10_000_000n,
@@ -64,6 +65,8 @@ describe("formatRelayedWithdrawalReview", () => {
         "Withdrawal review",
         "PA-7",
         "0x1111111111111111111111111111111111111111",
+        "Recipient ENS",
+        "alice.eth",
         "($3.00)",
         "The remaining balance would fall below the relayer minimum.",
       ],
@@ -140,6 +143,7 @@ describe("shared runtime review renderers", () => {
       chain: "sepolia",
       decimals: 18,
       recipient: "0x1111111111111111111111111111111111111111",
+      recipientEnsName: "bob.eth",
       tokenPrice: 3200,
     });
     const ragequit = formatRagequitReview({
@@ -179,6 +183,8 @@ describe("shared runtime review renderers", () => {
         "Direct withdrawal review",
         "public onchain withdrawal",
         "0x1111111111111111111111111111111111111111",
+        "Recipient ENS",
+        "bob.eth",
       ],
     });
     expectSemanticText(ragequit, {

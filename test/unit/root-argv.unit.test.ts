@@ -1,17 +1,34 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import {
   parseRootArgv,
   parseValidatedRootPrelude,
   rootArgvSlice,
 } from "../../src/utils/root-argv.ts";
 
+const ORIGINAL_ENV = {
+  PRIVACY_POOLS_AGENT: process.env.PRIVACY_POOLS_AGENT,
+  PRIVACY_POOLS_QUIET: process.env.PRIVACY_POOLS_QUIET,
+  PRIVACY_POOLS_YES: process.env.PRIVACY_POOLS_YES,
+  PRIVACY_POOLS_NO_PROGRESS: process.env.PRIVACY_POOLS_NO_PROGRESS,
+};
+
 const rootArgvCases = JSON.parse(
   readFileSync(resolve(process.cwd(), "test/fixtures/root-argv-cases.json"), "utf8"),
 );
 
 describe("root argv parsing", () => {
+  afterEach(() => {
+    for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  });
+
   for (const testCase of rootArgvCases) {
     test(`matches shared root argv parity fixture: ${testCase.name}`, () => {
       const parsed = parseRootArgv(testCase.argv);
@@ -87,5 +104,30 @@ describe("root argv parsing", () => {
     expect(parsed.isStructuredOutputMode).toBe(true);
     expect(parsed.isMachineMode).toBe(true);
     expect(prelude?.globalOpts.jq).toBe("nextActions");
+  });
+
+  test("env fallbacks affect parsed root modes before command execution", () => {
+    process.env.PRIVACY_POOLS_AGENT = "1";
+    process.env.PRIVACY_POOLS_QUIET = "1";
+
+    const parsed = parseRootArgv(["capabilities"]);
+    const prelude = parseValidatedRootPrelude(["capabilities"]);
+
+    expect(parsed.isAgent).toBe(true);
+    expect(parsed.isStructuredOutputMode).toBe(true);
+    expect(parsed.isQuiet).toBe(true);
+    expect(prelude?.globalOpts.agent).toBe(true);
+    expect(prelude?.globalOpts.quiet).toBe(true);
+  });
+
+  test("--template implies structured output and is parsed into globals", () => {
+    const argv = ["--template", "{{command}}", "describe", "withdraw"];
+    const parsed = parseRootArgv(argv);
+    const prelude = parseValidatedRootPrelude(argv);
+
+    expect(parsed.isStructuredOutputMode).toBe(true);
+    expect(parsed.isMachineMode).toBe(true);
+    expect(prelude?.globalOpts.template).toBe("{{command}}");
+    expect(prelude?.globalOpts.json).toBe(true);
   });
 });

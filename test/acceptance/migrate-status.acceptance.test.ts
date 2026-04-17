@@ -114,6 +114,7 @@ defineScenarioSuite("migrate status acceptance", [
         readinessResolved: boolean;
         submissionSupported: boolean;
         warnings?: Array<{ category: string; message: string }>;
+        nextActions: unknown[];
         chainReadiness: Array<{
           chain: string;
           status: string;
@@ -132,6 +133,7 @@ defineScenarioSuite("migrate status acceptance", [
         expect(json.isFullyMigrated).toBe(false);
         expect(json.readinessResolved).toBe(true);
         expect(json.submissionSupported).toBe(false);
+        expect(json.nextActions).toEqual([]);
         expect(json.warnings).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
@@ -189,6 +191,7 @@ defineScenarioSuite("migrate status acceptance", [
       requiresMigration: boolean;
       readinessResolved: boolean;
       warnings?: Array<{ category: string; message: string }>;
+      nextActions?: Array<{ command: string; when: string; cliCommand: string }>;
       chainReadiness: Array<{
         status: string;
         reviewStatusComplete: boolean;
@@ -202,6 +205,13 @@ defineScenarioSuite("migrate status acceptance", [
         status: "review_incomplete",
         reviewStatusComplete: false,
       });
+      expect(json.nextActions).toEqual([
+        expect.objectContaining({
+          command: "migrate status",
+          when: "after_restore",
+          cliCommand: "privacy-pools migrate status --agent --chain sepolia",
+        }),
+      ]);
       expect(json.warnings).toEqual(
         expect.arrayContaining([
           expect.objectContaining({

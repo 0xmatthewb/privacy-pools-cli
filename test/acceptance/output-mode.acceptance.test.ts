@@ -39,6 +39,22 @@ defineScenarioSuite("output-mode acceptance", [
     assertStdoutEmpty(),
     assertStderrEmpty(),
   ]),
+  defineScenario("help fast path resolves new env-vars and next-actions topics", [
+    runCliStep(["help", "env-vars"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("Environment Variable Fallbacks");
+      expect(stdout).toContain("PRIVACY_POOLS_AGENT");
+    }),
+    runCliStep(["help", "next-actions"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("nextActions");
+      expect(stdout).toContain("runnable=true");
+    }),
+  ]),
   defineScenario("capabilities writes the command catalog to stderr in human mode", [
     runCliStep(["capabilities"]),
     assertExit(0),
@@ -153,7 +169,38 @@ defineScenarioSuite("output-mode acceptance", [
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
       expect(json.commands.length).toBeGreaterThan(0);
+      }),
+  ]),
+  defineScenario("template mode renders structured output without the JSON envelope", [
+    runCliStep(["capabilities", "--template", "{{commands.0.group}}"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout.trim()).toMatch(/^(getting-started|transaction|monitoring|advanced)$/);
     }),
+  ]),
+  defineScenario("agent and quiet env fallbacks change real CLI behavior", [
+    runCliStep(["capabilities"], {
+      env: {
+        PRIVACY_POOLS_AGENT: "1",
+      },
+    }),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{ success: boolean; commands: Array<{ group: string }> }>((json) => {
+      expect(json.success).toBe(true);
+      expect(json.commands[0]?.group).toMatch(
+        /^(getting-started|transaction|monitoring|advanced)$/,
+      );
+    }),
+    runCliStep(["guide"], {
+      env: {
+        PRIVACY_POOLS_QUIET: "1",
+      },
+    }),
+    assertExit(0),
+    assertStdoutEmpty(),
+    assertStderrEmpty(),
   ]),
   defineScenario("agent describe emits JSON on stdout and nothing on stderr", [
     runCliStep(["--agent", "describe", "withdraw", "quote"]),
@@ -168,8 +215,8 @@ defineScenarioSuite("output-mode acceptance", [
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
       expect(json.command).toBe("withdraw quote");
-      expect(json.usage).toBe("withdraw quote <amount> <asset>");
-    }),
+        expect(json.usage).toBe("withdraw quote <amount> <asset>");
+      }),
   ]),
   defineScenario(
     "agent status emits JSON on stdout and nothing on stderr",
