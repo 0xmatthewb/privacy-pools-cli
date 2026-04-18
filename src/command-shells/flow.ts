@@ -90,12 +90,6 @@ export function createFlowCommand(): Command {
       "--confirm-ragequit",
       "Confirm non-interactive flow ragequit commands that intentionally choose the public recovery path",
     )
-    .addOption(
-      new Option(
-        "--yes-i-prefer-ragequit",
-        "Deprecated hidden alias for --confirm-ragequit",
-      ).hideHelp(),
-    )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(
       createLazyAction(

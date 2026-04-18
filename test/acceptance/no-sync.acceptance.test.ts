@@ -743,7 +743,7 @@ defineScenarioSuite("no-sync acceptance", [
       },
       (ctx) =>
         runCliStep(
-          ["--agent", "accounts", "--no-sync", "--all-chains", "--summary"],
+          ["--agent", "accounts", "--no-sync", "--include-testnets", "--summary"],
           {
             timeoutMs: 30_000,
             env: testEnv(),
@@ -829,10 +829,10 @@ defineScenarioSuite("no-sync acceptance", [
           reason:
             "Poll again until pending deposits leave ASP review, then confirm whether they were approved, declined, or need Proof of Association.",
           when: "has_pending",
-          options: { allChains: true, pendingOnly: true },
+          options: { includeTestnets: true, pendingOnly: true },
         });
         expect(json.nextActions?.[0]?.cliCommand).toBe(
-          "privacy-pools accounts --agent --all-chains --pending-only",
+          "privacy-pools accounts --agent --include-testnets --pending-only",
         );
       }),
     ],

@@ -62,7 +62,7 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Withdraw (unsigned) | `privacy-pools withdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
 | Withdrawal quote | `privacy-pools withdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
 | Pool detail | `privacy-pools pools ETH --agent` | Combined stats + my funds |
-| Ragequit (exit alias) | `privacy-pools ragequit ETH --pool-account PA-1 --agent` | Emergency public recovery |
+| Ragequit | `privacy-pools ragequit ETH --pool-account PA-1 --agent` | Emergency public recovery |
 | Broadcast signed envelope | `privacy-pools broadcast ./signed-envelope.json --agent` | Optional inverse for full-envelope workflows |
 | Dry-run | `privacy-pools deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
 | Event history | `privacy-pools history --agent` | Requires init |
@@ -179,7 +179,7 @@ privacy-pools deposit 0.1 ETH --unsigned tx --agent
 | `from` | string\|null | yes | Signer address when the caller is constrained; `null` when the signer is unconstrained |
 | `description` | string | yes | Human-readable step description |
 
-Supported on: `deposit`, `withdraw`, `ragequit` (alias: `exit`).
+Supported on: `deposit`, `withdraw`, `ragequit` .
 
 ERC-20 deposits produce two transactions (approve + deposit). Submit them in order.
 
@@ -188,7 +188,7 @@ ERC-20 deposits produce two transactions (approve + deposit). Submit them in ord
 - **Deposit**: `operation: "deposit"`, `precommitment`
 - **Withdraw (direct)**: `operation: "withdraw"`, `withdrawMode: "direct"`, `recipient`, `selectedCommitmentLabel`, `selectedCommitmentValue`
 - **Withdraw (relayed)**: `operation: "withdraw"`, `withdrawMode: "relayed"`, `recipient`, `selectedCommitmentLabel`, `selectedCommitmentValue`, `feeBPS`, `quoteExpiresAt`, `relayerRequest`
-- **Ragequit (exit alias)**: `operation: "ragequit"`, `selectedCommitmentLabel`, `selectedCommitmentValue`
+- **Ragequit**: `operation: "ragequit"`, `selectedCommitmentLabel`, `selectedCommitmentValue`
 
 ---
 
@@ -232,7 +232,7 @@ privacy-pools withdraw 0.05 ETH --to 0x... --dry-run --agent
 privacy-pools ragequit ETH --pool-account PA-1 --dry-run --agent
 ```
 
-Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `ragequit` (alias: `exit`).
+Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `ragequit` .
 
 `simulate` is a thin alias layer for these same previews:
 
@@ -370,7 +370,7 @@ Recommended retry strategy:
 |------|-------------|
 | `--agent` | Alias for `--json --yes --quiet` |
 | `-j, --json` | Machine-readable JSON on stdout |
-| `--format <fmt>` | Output format: `table` (default), `csv`, `json` |
+| `--output <fmt>` | Output format: `table` (default), `csv`, `json` |
 | `-y, --yes` | Skip confirmation prompts |
 | `-c, --chain <name>` | Target chain (mainnet, sepolia, ...) |
 | `-r, --rpc-url <url>` | Override RPC endpoint |

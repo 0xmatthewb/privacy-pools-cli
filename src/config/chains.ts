@@ -141,7 +141,7 @@ export const TESTNET_CHAIN_NAMES = CHAIN_NAMES.filter(
 
 /** JSON `chain` value when querying all mainnets (default, no --chain). */
 export const MULTI_CHAIN_SCOPE_ALL_MAINNETS = "all-mainnets";
-/** JSON `chain` value when --all-chains includes testnets. */
+/** JSON `chain` value when --include-testnets includes testnets. */
 export const MULTI_CHAIN_SCOPE_ALL_CHAINS = "all-chains";
 
 /** Whether a chain string represents a multi-chain scope rather than a specific chain. */

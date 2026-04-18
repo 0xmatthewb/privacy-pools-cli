@@ -68,7 +68,7 @@ describe("root argv parsing", () => {
   }
 
   test("invalid output formats are still detected without breaking machine mode", () => {
-    const parsed = parseRootArgv(["--json", "--format", "yaml", "guide"]);
+    const parsed = parseRootArgv(["--json", "--output", "yaml", "guide"]);
 
     expect(parsed.formatFlagValue).toBe("yaml");
     expect(parsed.isStructuredOutputMode).toBe(true);

@@ -47,7 +47,6 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 | `-j, --json` | Machine-readable JSON output on stdout. After the command name, pass --json <fields> or --json=<fields> to select top-level fields. |
 | `--template <template>` | Render structured output through a lightweight Mustache-style template with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration |
 | `-o, --output <format>` | Output format: table (default), csv, json, yaml, wide, name |
-| `--format <format>` | Output format: table (default), csv, json, yaml, wide, name |
 | `-y, --yes` | Skip confirmation prompts |
 | `--web` | Open the primary explorer or portal link in your browser when available |
 | `-r, --rpc-url <url>` | Override RPC URL |

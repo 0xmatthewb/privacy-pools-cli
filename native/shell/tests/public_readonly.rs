@@ -70,7 +70,7 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
     assert!(stdout_string(&human_activity).is_empty());
     assert!(stderr_string(&human_activity).contains("Global activity"));
 
-    let csv_activity = run_native_with_env(&["--format", "csv", "activity"], &env);
+    let csv_activity = run_native_with_env(&["--output", "csv", "activity"], &env);
     assert!(csv_activity.status.success());
     assert_csv_stderr_allows_progress(&csv_activity, "Fetching public activity...");
     assert!(stdout_string(&csv_activity).contains("Type,Pool,Amount,Status,Time,Tx"));
@@ -80,7 +80,7 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
     assert!(stdout_string(&human_stats).is_empty());
     assert!(stderr_string(&human_stats).contains("Global statistics (all-mainnets):"));
 
-    let csv_stats = run_native_with_env(&["--format", "csv", "stats"], &env);
+    let csv_stats = run_native_with_env(&["--output", "csv", "stats"], &env);
     assert!(csv_stats.status.success());
     assert_csv_stderr_allows_progress(&csv_stats, "Fetching global statistics...");
     assert!(stdout_string(&csv_stats).contains("Metric,All Time,Last 24h"));
@@ -104,7 +104,7 @@ fn native_wide_output_changes_human_read_only_layouts() {
     assert!(!default_pools_stderr.contains("Pool Address"));
 
     let wide_pools =
-        run_native_with_env(&["--format", "wide", "--chain", "sepolia", "pools"], &env);
+        run_native_with_env(&["--output", "wide", "--chain", "sepolia", "pools"], &env);
     assert!(wide_pools.status.success());
     let wide_pools_stderr = stderr_string(&wide_pools);
     assert!(wide_pools_stderr.contains("Pool Address"));
@@ -117,7 +117,7 @@ fn native_wide_output_changes_human_read_only_layouts() {
     assert!(!default_activity_stderr.contains("Pool Address"));
 
     let wide_activity = run_native_with_env(
-        &["--format", "wide", "--chain", "sepolia", "activity"],
+        &["--output", "wide", "--chain", "sepolia", "activity"],
         &env,
     );
     assert!(wide_activity.status.success());
@@ -133,7 +133,7 @@ fn native_wide_output_changes_human_read_only_layouts() {
     assert!(default_stats_stderr.contains("Last 24h:"));
     assert!(!default_stats_stderr.contains("Metric   All Time   Last 24h"));
 
-    let wide_stats = run_native_with_env(&["--format", "wide", "stats"], &env);
+    let wide_stats = run_native_with_env(&["--output", "wide", "stats"], &env);
     assert!(wide_stats.status.success());
     let wide_stats_stderr = stderr_string(&wide_stats);
     assert!(wide_stats_stderr.contains("Metric"));
@@ -241,9 +241,7 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
     );
 
     let stats_pool = run_native_with_env(
-        &[
-            "--chain", "sepolia", "stats", "pool", "ETH", "--agent",
-        ],
+        &["--chain", "sepolia", "stats", "pool", "ETH", "--agent"],
         &env,
     );
     assert!(stats_pool.status.success());
@@ -263,12 +261,7 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
         Value::String("12345".to_string())
     );
 
-    let activity = run_native_with_env(
-        &[
-            "--chain", "sepolia", "activity", "ETH", "--agent",
-        ],
-        &env,
-    );
+    let activity = run_native_with_env(&["--chain", "sepolia", "activity", "ETH", "--agent"], &env);
     assert!(activity.status.success());
     assert!(stderr_string(&activity).trim().is_empty());
     let activity_payload = parse_stdout_json(&activity);
@@ -504,22 +497,20 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     assert!(human_pool_detail_stderr.contains("Recent activity"));
     assert!(human_pool_detail_stderr.contains("Privacy note:"));
 
-    let csv_pools = run_native_with_env(&["--format", "csv", "--chain", "sepolia", "pools"], &env);
+    let csv_pools = run_native_with_env(&["--output", "csv", "--chain", "sepolia", "pools"], &env);
     assert!(csv_pools.status.success());
     assert_csv_stderr_allows_progress(&csv_pools, "Fetching pools for sepolia...");
     assert!(stdout_string(&csv_pools).contains("Asset,Total Deposits,Pool Balance"));
 
-    let human_stats_pool = run_native_with_env(
-        &["--chain", "sepolia", "stats", "pool", "ETH"],
-        &env,
-    );
+    let human_stats_pool =
+        run_native_with_env(&["--chain", "sepolia", "stats", "pool", "ETH"], &env);
     assert!(human_stats_pool.status.success());
     assert!(stdout_string(&human_stats_pool).is_empty());
     assert!(stderr_string(&human_stats_pool).contains("Pool statistics for ETH on sepolia:"));
 
     let csv_stats_pool = run_native_with_env(
         &[
-            "--format", "csv", "--chain", "sepolia", "stats", "pool", "ETH",
+            "--output", "csv", "--chain", "sepolia", "stats", "pool", "ETH",
         ],
         &env,
     );
@@ -538,12 +529,8 @@ fn explicit_native_read_only_subroutes_stay_covered_in_rust() {
         ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
     ];
 
-    let pool_activity = run_native_with_env(
-        &[
-            "--chain", "sepolia", "activity", "ETH", "--agent",
-        ],
-        &env,
-    );
+    let pool_activity =
+        run_native_with_env(&["--chain", "sepolia", "activity", "ETH", "--agent"], &env);
     assert!(pool_activity.status.success());
     assert!(stderr_string(&pool_activity).trim().is_empty());
     let pool_activity_payload = parse_stdout_json(&pool_activity);

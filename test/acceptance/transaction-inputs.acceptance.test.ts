@@ -339,9 +339,7 @@ defineScenarioSuite("transaction inputs acceptance", [
     }>((json) => {
       expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain(
-        "Cannot use --pool-account and --commitment together",
-      );
+      expect(json.error.message).toContain("unknown option '--commitment'");
     }),
   ]),
 ]);

@@ -77,7 +77,6 @@ export async function handleSimulateWithdrawCommand(
     poolAccount?: string;
     direct?: boolean;
     confirmDirectWithdraw?: boolean;
-    yesIUnderstandPrivacyLoss?: boolean;
     all?: boolean;
     extraGas?: boolean;
   },
@@ -102,9 +101,7 @@ export async function handleSimulateRagequitCommand(
   assetArg: string | undefined,
   opts: SimulateSharedOptions & {
     poolAccount?: string;
-    commitment?: string;
     confirmRagequit?: boolean;
-    yesIPreferRagequit?: boolean;
   },
   cmd: Command,
 ): Promise<void> {

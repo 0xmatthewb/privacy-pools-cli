@@ -234,7 +234,7 @@ defineScenarioSuite("completion acceptance", [
         "2",
         "--",
         "privacy-pools",
-        "--format",
+        "--output",
         "",
       ],
       { timeoutMs: 10_000 },

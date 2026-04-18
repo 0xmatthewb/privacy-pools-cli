@@ -218,7 +218,7 @@ pub fn commander_too_many_arguments_error(
 fn guard_csv_unsupported(parsed: &ParsedRootArgv, command_name: &str) -> Result<(), CliError> {
     if parsed.is_csv_mode {
         return Err(CliError::input(
-            format!("--format csv is not supported for '{command_name}'."),
+            format!("--output csv is not supported for '{command_name}'."),
             Some(format!(
                 "CSV output is available for: {}.",
                 crate::CSV_SUPPORTED_COMMANDS.join(", ")
@@ -428,12 +428,12 @@ mod tests {
     #[test]
     fn guide_and_capabilities_reject_csv() {
         let manifest = manifest();
-        let guide_error = handle_guide(&parsed(&["--format", "csv", "guide"]), manifest)
+        let guide_error = handle_guide(&parsed(&["--output", "csv", "guide"]), manifest)
             .expect_err("guide csv should fail");
         assert_eq!(guide_error.code, "INPUT_ERROR");
 
         let capabilities_error =
-            handle_capabilities(&parsed(&["--format", "csv", "capabilities"]), manifest)
+            handle_capabilities(&parsed(&["--output", "csv", "capabilities"]), manifest)
                 .expect_err("capabilities csv should fail");
         assert_eq!(capabilities_error.code, "INPUT_ERROR");
     }
@@ -591,11 +591,11 @@ mod tests {
     #[test]
     fn commander_error_helpers_match_commander_style() {
         let unknown = commander_unknown_option_error("--weird");
-        assert_eq!(unknown.code, "INPUT_ERROR");
+        assert_eq!(unknown.code, "INPUT_UNKNOWN_OPTION");
         assert!(unknown.message.contains("unknown option '--weird'"));
 
         let too_many = commander_too_many_arguments_error("pools", 1, 3);
-        assert_eq!(too_many.code, "INPUT_ERROR");
+        assert_eq!(too_many.code, "INPUT_PARSE_ERROR");
         assert!(too_many.message.contains("too many arguments"));
     }
 }

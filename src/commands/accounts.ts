@@ -38,7 +38,6 @@ import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
 import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import { warnLegacyAllChainsFlag } from "../utils/deprecations.js";
 import {
   buildAllPoolAccountRefs,
   buildDeclinedLegacyPoolAccountRefs,
@@ -60,7 +59,6 @@ import { maybeLaunchBrowser } from "../utils/web.js";
 interface AccountsCommandOptions {
   sync?: boolean;
   includeTestnets?: boolean;
-  allChains?: boolean;
   details?: boolean;
   summary?: boolean;
   pendingOnly?: boolean;
@@ -452,10 +450,6 @@ export async function handleAccountsCommand(
       return;
     }
 
-    if (opts.allChains && !opts.includeTestnets) {
-      warnLegacyAllChainsFlag(silent);
-    }
-
     if (opts.summary && opts.pendingOnly) {
       throw new CLIError(
         "Cannot specify both --summary and --pending-only.",
@@ -490,7 +484,7 @@ export async function handleAccountsCommand(
       throw new CLIError(
         "--watch is only available in interactive TTY terminals. Use privacy-pools accounts --no-sync for a single snapshot.",
         "INPUT",
-        "Re-run without --json, --agent, or --format csv, or use accounts --no-sync for one read.",
+        "Re-run without --json, --agent, or --output csv, or use accounts --no-sync for one read.",
       );
     }
 
@@ -513,7 +507,7 @@ export async function handleAccountsCommand(
     const renderOnce = async (): Promise<number> => {
       const config = loadConfig();
       const explicitChain = globalOpts?.chain;
-      const includeTestnets = opts.includeTestnets || opts.allChains;
+      const includeTestnets = opts.includeTestnets === true;
       const useMultiChain = includeTestnets || !explicitChain;
 
       if (useMultiChain && globalOpts?.rpcUrl) {

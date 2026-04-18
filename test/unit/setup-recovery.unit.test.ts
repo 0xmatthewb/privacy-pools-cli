@@ -35,6 +35,15 @@ const confirmMock = mock(async () => true);
 
 let maybeRecoverMissingWalletSetup: typeof import("../../src/utils/setup-recovery.ts").maybeRecoverMissingWalletSetup;
 
+function missingRecoveryPhraseError(): CLIError {
+  return new CLIError(
+    "No recovery phrase found. Run 'privacy-pools init' first.",
+    "SETUP",
+    "Initialize with 'privacy-pools init'.",
+    "SETUP_RECOVERY_PHRASE_MISSING",
+  );
+}
+
 function fakeRoot(globalOpts: Record<string, unknown> = {}): Command {
   return {
     opts: () => globalOpts,
@@ -95,7 +104,7 @@ describe("setup recovery helper", () => {
 
   test("offers to run init for interactive missing-recovery errors", async () => {
     const handled = await maybeRecoverMissingWalletSetup(
-      new CLIError("No recovery phrase found. Run 'privacy-pools init' first.", "INPUT"),
+      missingRecoveryPhraseError(),
       fakeCommand({ chain: "mainnet" }),
     );
 
@@ -120,7 +129,7 @@ describe("setup recovery helper", () => {
     confirmMock.mockImplementation(async () => false);
 
     const handled = await maybeRecoverMissingWalletSetup(
-      new CLIError("No recovery phrase found. Run 'privacy-pools init' first.", "INPUT"),
+      missingRecoveryPhraseError(),
       fakeCommand({ chain: "mainnet" }),
     );
 
@@ -130,7 +139,7 @@ describe("setup recovery helper", () => {
 
   test("stays inactive in machine mode and does not prompt", async () => {
     const handled = await maybeRecoverMissingWalletSetup(
-      new CLIError("No recovery phrase found. Run 'privacy-pools init' first.", "INPUT"),
+      missingRecoveryPhraseError(),
       fakeCommand({ json: true }),
     );
 
@@ -147,7 +156,7 @@ describe("setup recovery helper", () => {
     });
 
     const handled = await maybeRecoverMissingWalletSetup(
-      new CLIError("No recovery phrase found. Run 'privacy-pools init' first.", "INPUT"),
+      missingRecoveryPhraseError(),
       fakeCommand(),
     );
 

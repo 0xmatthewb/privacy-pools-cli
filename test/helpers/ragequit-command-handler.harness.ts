@@ -451,7 +451,7 @@ export function registerRagequitEntrySubmitTests(): void {
           asset: "ETH",
           poolAccount: "PA-1",
           unsigned: true,
-          yesIPreferRagequit: true,
+          confirmRagequit: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -475,7 +475,7 @@ export function registerRagequitEntrySubmitTests(): void {
         {
           poolAccount: "PA-1",
           unsigned: true,
-          yesIPreferRagequit: true,
+          confirmRagequit: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -524,30 +524,6 @@ export function registerRagequitEntrySubmitTests(): void {
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
       'Unsupported unsigned format: "raw".',
-    );
-    expect(exitCode).toBe(2);
-    expect(resolvePoolMock).not.toHaveBeenCalled();
-  });
-
-  test("rejects mixing --pool-account with the deprecated --commitment selector", async () => {
-    useIsolatedHome();
-
-    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      handleRagequitCommand(
-        "ETH",
-        {
-          poolAccount: "PA-1",
-          commitment: "0",
-          unsigned: true,
-        },
-        fakeCommand({ json: true, chain: "mainnet" }),
-      ),
-    );
-
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain(
-      "Cannot use --pool-account and --commitment together.",
     );
     expect(exitCode).toBe(2);
     expect(resolvePoolMock).not.toHaveBeenCalled();
@@ -943,77 +919,6 @@ export function registerRagequitUnsignedTests(): void {
 }
 
 export function registerRagequitEntrySubmitCompletionTests(): void {
-  test("supports the deprecated --commitment selector without requiring --pool-account", async () => {
-    useIsolatedHome();
-
-    const { json } = await captureAsyncJsonOutput(() =>
-      handleRagequitCommand(
-        "ETH",
-        {
-          commitment: "0",
-          dryRun: true,
-        },
-        fakeCommand({ json: true, chain: "mainnet" }),
-      ),
-    );
-
-    expect(json.success).toBe(true);
-    expect(json.operation).toBe("ragequit");
-    expect(json.poolAccountId).toBe("PA-1");
-  });
-
-  test("warns humans when the deprecated --commitment selector is used during signed review", async () => {
-    useIsolatedHome({ withSigner: true });
-    inputPromptMock.mockImplementationOnce(async () => "");
-
-    const { stderr } = await captureAsyncOutput(() =>
-      handleRagequitCommand(
-        "ETH",
-        {
-          commitment: "0",
-        },
-        fakeCommand({ chain: "mainnet" }),
-      ),
-    );
-
-    expect(stderr).toContain("--commitment is deprecated");
-    expect(stderr).toContain("Ragequit cancelled.");
-  });
-
-  test("falls back to a synthetic Pool Account when the deprecated commitment selector no longer matches a live Pool Account", async () => {
-    useIsolatedHome();
-    const differentPoolAccount = {
-      ...APPROVED_POOL_ACCOUNT,
-      paNumber: 2,
-      paId: "PA-2",
-      label: 999n,
-      commitment: {
-        ...APPROVED_POOL_ACCOUNT.commitment,
-        hash: 777n,
-        label: 999n,
-      },
-      value: APPROVED_POOL_ACCOUNT.value,
-      blockNumber: APPROVED_POOL_ACCOUNT.blockNumber,
-      txHash: APPROVED_POOL_ACCOUNT.txHash,
-    };
-    buildAllPoolAccountRefsMock.mockImplementationOnce(() => [differentPoolAccount]);
-    buildPoolAccountRefsMock.mockImplementationOnce(() => [differentPoolAccount]);
-
-    const { stderr } = await captureAsyncOutput(() =>
-      handleRagequitCommand(
-        "ETH",
-        {
-          commitment: "0",
-          dryRun: true,
-        },
-        fakeCommand({ chain: "mainnet" }),
-      ),
-    );
-
-    expect(stderr).toContain("Pool Account: PA-1");
-    expect(stderr).not.toContain("Pool Account: PA-2");
-  });
-
   test("submits a signed ragequit and persists the local account update", async () => {
     useIsolatedHome({ withSigner: true });
     const addRagequitToAccountMock = mock(() => undefined);
@@ -1105,29 +1010,6 @@ export function registerRagequitEntrySubmitCompletionTests(): void {
 }
 
 export function registerRagequitOwnershipTests(): void {
-  test("fails closed when --pool-account and --commitment are combined", async () => {
-    useIsolatedHome();
-
-    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      handleRagequitCommand(
-        "ETH",
-        {
-          poolAccount: "PA-1",
-          commitment: "0",
-          unsigned: true,
-        },
-        fakeCommand({ json: true, chain: "mainnet" }),
-      ),
-    );
-
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain(
-      "Cannot use --pool-account and --commitment together",
-    );
-    expect(exitCode).toBe(2);
-  });
-
   test("fails closed when no Pool Accounts remain spendable in the selected pool", async () => {
     useIsolatedHome();
     initializeAccountServiceMock.mockImplementationOnce(async () => ({
@@ -1440,7 +1322,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(selectPromptMock).toHaveBeenCalledTimes(2);
     expect(inputPromptMock).toHaveBeenCalledTimes(1);
     expect(stderr).toContain("Ragequit review");
-    expect(stderr).toContain("publicly withdrawing all funds to your deposit address");
+    expect(stderr).toContain("publicly recovers all funds to your deposit address");
     expect(stderr).toContain("Ragequit cancelled.");
     expect(ragequitMock).not.toHaveBeenCalled();
   });
@@ -1774,28 +1656,6 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
       "already been exited",
-    );
-    expect(exitCode).toBe(2);
-  });
-
-  test("rejects deprecated commitment indexes that are out of range", async () => {
-    useIsolatedHome();
-
-    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      handleRagequitCommand(
-        "ETH",
-        {
-          commitment: "99",
-          unsigned: true,
-        },
-        fakeCommand({ json: true, chain: "mainnet" }),
-      ),
-    );
-
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain(
-      "Invalid legacy Pool Account index",
     );
     expect(exitCode).toBe(2);
   });

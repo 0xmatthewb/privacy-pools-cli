@@ -161,7 +161,7 @@ The envelope format includes additional context fields depending on the operatio
 - `quoteExpiresAt`: ISO timestamp for quote expiry
 - `relayerRequest`: full relayer request payload (for submission)
 
-**Ragequit (exit alias):**
+**Ragequit:**
 - `operation`: `"ragequit"`
 - `selectedCommitmentLabel`, `selectedCommitmentValue`: commitment details as decimal strings
 
@@ -231,7 +231,7 @@ Defaults to all CLI-supported mainnet chains when no `--chain` is specified. Def
 }
 ```
 
-**All chains** (`--include-testnets`, legacy alias `--all-chains`): each pool includes a `chain` field and root includes:
+**All chains** (`--include-testnets`): each pool includes a `chain` field and root includes:
 
 ```json
 {
@@ -820,11 +820,10 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 
 `feeAmount` and `netAmount` are computed from `amount` and `quoteFeeBPS`. `baseFeeBPS` isolates the relayer base fee, while `relayTxCost` captures the estimated execution cost. `extraGas` is present for ERC20 tokens (default `true`), omitted for native ETH; when extra gas funding is included, `extraGasFundAmount` and `extraGasTxCost` describe the additional ETH components. `nextActions` provides a `withdraw` follow-up with the quoted parameters; check `runnable`: quotes without a `--to` recipient produce a template action (`runnable: false`) that still needs the recipient before execution.
 
-### `ragequit` (alias: `exit`)
+### `ragequit`
 
 ```bash
 privacy-pools ragequit ETH --pool-account PA-1 --agent
-privacy-pools exit ETH --pool-account PA-1 --agent
 ```
 
 **Success:**

@@ -38,7 +38,6 @@ import type {
   PoolStats,
   AspPublicEvent,
 } from "../types.js";
-import { warnLegacyAllChainsFlag } from "../utils/deprecations.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { normalizeActivityEvent } from "../utils/public-activity.js";
 import {
@@ -63,7 +62,6 @@ import type {
 
 interface PoolsCommandOptions {
   includeTestnets?: boolean;
-  allChains?: boolean;
   search?: string;
   sort?: string;
 }
@@ -485,11 +483,8 @@ export async function handlePoolsCommand(
 
   // ── Listing view ──────────────────────────────────────────────────
   try {
-    if (opts.allChains && !opts.includeTestnets) {
-      warnLegacyAllChainsFlag(silent);
-    }
     const explicitChain = globalOpts?.chain;
-    const includeTestnets = opts.includeTestnets || opts.allChains;
+    const includeTestnets = opts.includeTestnets === true;
     const isMultiChain = includeTestnets || !explicitChain;
 
     if (isMultiChain && globalOpts?.rpcUrl) {

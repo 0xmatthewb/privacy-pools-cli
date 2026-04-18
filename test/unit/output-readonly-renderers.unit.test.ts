@@ -219,7 +219,7 @@ describe("read-only output renderers", () => {
         explorerUrl: "https://etherscan.io/tx/demo",
       }),
     ]);
-    expect(historyHuman.stderr).toContain("No history events are available on mainnet yet.");
+    expect(historyHuman.stderr).toContain("No history events found on mainnet.");
   });
 
   test("renderSyncComplete and renderSyncEmpty cover JSON and human branches", () => {

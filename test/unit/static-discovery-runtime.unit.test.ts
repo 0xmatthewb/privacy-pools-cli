@@ -63,23 +63,23 @@ describe("static discovery runtime", () => {
 
     expect(
       staticDiscoveryTestInternals.fallbackJsonModeFromArgv([
-        "--format",
+        "--output",
         "json",
       ]),
     ).toBe(true);
     expect(
-      staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["--format=json"]),
+      staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["--output=json"]),
     ).toBe(true);
     expect(
       staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["-qj"]),
     ).toBe(true);
     expect(
-      staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["--format", "csv"]),
+      staticDiscoveryTestInternals.fallbackJsonModeFromArgv(["--output", "csv"]),
     ).toBe(false);
     expect(
       staticDiscoveryTestInternals.fallbackJsonModeFromArgv([
         "--agent",
-        "--format",
+        "--output",
         "csv",
       ]),
     ).toBe(true);
@@ -513,7 +513,7 @@ describe("static discovery runtime", () => {
   test("rejects csv mode for static discovery commands", async () => {
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(async () => {
       const handled = await runStaticDiscoveryCommand([
-        "--format",
+        "--output",
         "csv",
         "guide",
       ]);
@@ -522,12 +522,12 @@ describe("static discovery runtime", () => {
 
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-    expect(stderr).toContain("--format csv is not supported for 'guide'");
+    expect(stderr).toContain("--output csv is not supported for 'guide'");
   });
 
   test("machine flags keep static discovery structured even when csv is also requested", async () => {
     const guide = await captureAsyncJsonOutput(() =>
-      runStaticDiscoveryCommand(["--agent", "--format", "csv", "guide"]),
+      runStaticDiscoveryCommand(["--agent", "--output", "csv", "guide"]),
     );
     expect(guide.json.success).toBe(true);
     expect(guide.json.mode).toBe("help");
@@ -536,7 +536,7 @@ describe("static discovery runtime", () => {
     const capabilities = await captureAsyncJsonOutput(() =>
       runStaticDiscoveryCommand([
         "--json",
-        "--format",
+        "--output",
         "csv",
         "capabilities",
       ]),
@@ -548,7 +548,7 @@ describe("static discovery runtime", () => {
 
   test("invalid output formats fail cleanly for static discovery and completion", async () => {
     const discovery = await captureAsyncJsonOutputAllowExit(() =>
-      runStaticDiscoveryCommand(["--json", "--format", "toml", "guide"]),
+      runStaticDiscoveryCommand(["--json", "--output", "toml", "guide"]),
     );
     expect(discovery.exitCode).toBe(2);
     expect(discovery.stderr).toBe("");
@@ -559,7 +559,7 @@ describe("static discovery runtime", () => {
     const completion = await captureAsyncJsonOutputAllowExit(() =>
       runStaticCompletionQuery([
         "--json",
-        "--format",
+        "--output",
         "toml",
         "completion",
         "--query",
@@ -818,8 +818,8 @@ describe("static discovery runtime", () => {
       ["-j", "completion", "--query", "--shell", "elvish", "--", "privacy-pools"],
       ["-qj", "completion", "--query", "--shell", "elvish", "--", "privacy-pools"],
       ["--agent", "completion", "--query", "--shell", "elvish", "--", "privacy-pools"],
-      ["--format", "json", "completion", "--query", "--shell", "elvish", "--", "privacy-pools"],
-      ["--format=json", "completion", "--query", "--shell", "elvish", "--", "privacy-pools"],
+      ["--output", "json", "completion", "--query", "--shell", "elvish", "--", "privacy-pools"],
+      ["--output=json", "completion", "--query", "--shell", "elvish", "--", "privacy-pools"],
     ];
 
     for (const argv of cases) {
@@ -901,7 +901,7 @@ describe("static discovery runtime", () => {
     const { json, stderr } = await captureAsyncJsonOutput(async () => {
       const handled = await runStaticCompletionQuery([
         "--json",
-        "--format",
+        "--output",
         "csv",
         "completion",
         "--query",
@@ -921,7 +921,7 @@ describe("static discovery runtime", () => {
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(
       async () => {
         const handled = await runStaticCompletionQuery([
-          "--format",
+          "--output",
           "csv",
           "completion",
           "--query",
@@ -937,7 +937,7 @@ describe("static discovery runtime", () => {
 
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-    expect(stderr).toContain("--format csv is not supported for 'completion'");
+    expect(stderr).toContain("--output csv is not supported for 'completion'");
   });
 
   test("rejects conflicting completion shell declarations and keeps empty human completions silent", async () => {

@@ -208,10 +208,10 @@ defineScenarioSuite("agent improvements acceptance", [
           "-c, --chain <name>",
         );
         expect(json.commandDetails.guide?.globalFlags).toContain(
-          "--format <format>",
+          "-o, --output <format>",
         );
         expect(json.commandDetails.capabilities?.globalFlags).toContain(
-          "--format <format>",
+          "-o, --output <format>",
         );
         expect(json.commandDetails.status?.execution.owner).toBe("js-runtime");
         expect(json.commandDetails.capabilities?.execution.owner).toBe(
@@ -432,7 +432,7 @@ defineScenarioSuite("agent improvements acceptance", [
         expect(json.success).toBe(false);
         expect(json.error.category).toBe("INPUT");
         expect(json.error.message).toContain(
-          "Non-round amount 1.276848 ETH may reduce privacy",
+          "distinctive committed amount",
         );
         expect(json.error.hint).toContain("--ignore-unique-amount");
         expect(json.error.hint).not.toContain("privacy-pools init");
@@ -458,14 +458,14 @@ defineScenarioSuite("agent improvements acceptance", [
             timeoutMs: 15_000,
           },
         )(ctx),
-      assertExit(2),
+      assertExit(4),
       assertStderrEmpty(),
       assertJson<{
         success: boolean;
         error: { category: string; message: string; hint: string };
       }>((json) => {
         expect(json.success).toBe(false);
-        expect(json.error.category).toBe("INPUT");
+        expect(json.error.category).toBe("SETUP");
         expect(json.error.message).toContain("No signer key found");
         expect(json.error.message).not.toContain("Non-round amount");
         expect(json.error.hint).toContain("privacy-pools init");

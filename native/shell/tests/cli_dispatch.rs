@@ -37,14 +37,14 @@ fn quiet_capabilities_stays_silent() {
 
 #[test]
 fn machine_mode_beats_csv_for_native_discovery_commands() {
-    let guide = run_native(&["--agent", "--format", "csv", "guide"]);
+    let guide = run_native(&["--agent", "--output", "csv", "guide"]);
     assert!(guide.status.success());
     assert!(stderr_string(&guide).trim().is_empty());
     let guide_json = parse_stdout_json(&guide);
     assert_eq!(guide_json["success"], Value::Bool(true));
     assert_eq!(guide_json["mode"], Value::String("help".to_string()));
 
-    let capabilities = run_native(&["--json", "--format", "csv", "capabilities"]);
+    let capabilities = run_native(&["--json", "--output", "csv", "capabilities"]);
     assert!(capabilities.status.success());
     assert!(stderr_string(&capabilities).trim().is_empty());
     let capabilities_json = parse_stdout_json(&capabilities);
@@ -54,7 +54,7 @@ fn machine_mode_beats_csv_for_native_discovery_commands() {
 
 #[test]
 fn invalid_output_formats_fail_cleanly_for_native_fast_paths() {
-    let guide = run_native(&["--json", "--format", "yaml", "guide"]);
+    let guide = run_native(&["--json", "--output", "markdown", "guide"]);
     assert_eq!(guide.status.code(), Some(2));
     assert!(stderr_string(&guide).trim().is_empty());
     let guide_payload = parse_stdout_json(&guide);
@@ -66,9 +66,9 @@ fn invalid_output_formats_fail_cleanly_for_native_fast_paths() {
     assert!(guide_payload["errorMessage"]
         .as_str()
         .unwrap_or_default()
-        .contains("argument 'yaml' is invalid"),);
+        .contains("argument 'markdown' is invalid"),);
 
-    let version = run_native(&["--json", "--format", "yaml", "--version"]);
+    let version = run_native(&["--json", "--output", "markdown", "--version"]);
     assert_eq!(version.status.code(), Some(2));
     assert!(stderr_string(&version).trim().is_empty());
     let version_payload = parse_stdout_json(&version);

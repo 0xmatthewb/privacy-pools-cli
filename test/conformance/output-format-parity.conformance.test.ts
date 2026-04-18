@@ -35,32 +35,33 @@ const nativeManifestPath = join(
 
 describe("output format parity conformance", () => {
   const sorted = (values: readonly string[]) => [...values].sort();
+  const normalizeWhitespace = (value: string) => value.replace(/\s+/g, " ").trim();
 
   test("runtime parsing accepts only declared output formats", () => {
     for (const format of OUTPUT_FORMATS) {
       expect(normalizeOutputFormat(format)).toBe(format);
     }
-    expect(normalizeOutputFormat("yaml")).toBeNull();
-    expect(invalidOutputFormatMessage("yaml")).toContain(OUTPUT_FORMAT_CHOICES_TEXT);
+    expect(normalizeOutputFormat("toml")).toBeNull();
+    expect(invalidOutputFormatMessage("toml")).toContain(OUTPUT_FORMAT_CHOICES_TEXT);
   });
 
   test("completion and root flag metadata expose the same format choices", () => {
     const formatOption = STATIC_COMPLETION_SPEC.options?.find((option) =>
-      option.names.includes("--format"),
+      option.names.includes("--output"),
     );
     expect(formatOption?.values).toEqual(sorted(OUTPUT_FORMATS));
 
-    expect(rootGlobalFlagDescription("--format <format>")).toBe(
+    expect(rootGlobalFlagDescription("--output <format>")).toBe(
       OUTPUT_FORMAT_DESCRIPTION,
     );
     expect(
-      ROOT_GLOBAL_FLAG_METADATA.find((flag) => flag.flag === "--format <format>")
+      ROOT_GLOBAL_FLAG_METADATA.find((flag) => flag.flag === "-o, --output <format>")
         ?.values,
     ).toEqual([...OUTPUT_FORMATS]);
   });
 
   test("human and generated help advertise the format contract", () => {
-    const rootHelp = rootHelpBaseText();
+    const rootHelp = normalizeWhitespace(rootHelpBaseText());
     expect(rootHelp).toContain(OUTPUT_FORMAT_DESCRIPTION);
     expect(rootHelp).toContain(`(choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`);
 
@@ -71,7 +72,7 @@ describe("output format parity conformance", () => {
       values?: string[];
     }>;
     expect(
-      nativeRootFlags.find((flag) => flag.flag === "--format <format>")?.values,
+      nativeRootFlags.find((flag) => flag.flag === "-o, --output <format>")?.values,
     ).toEqual([...OUTPUT_FORMATS]);
   });
 
@@ -82,12 +83,12 @@ describe("output format parity conformance", () => {
       rootHelp: string;
       structuredRootHelp: string;
     };
-    expect(nativeManifest.rootHelp).toContain(OUTPUT_FORMAT_DESCRIPTION);
-    expect(nativeManifest.rootHelp).toContain(
+    expect(normalizeWhitespace(nativeManifest.rootHelp)).toContain(OUTPUT_FORMAT_DESCRIPTION);
+    expect(normalizeWhitespace(nativeManifest.rootHelp)).toContain(
       `(choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`,
     );
-    expect(nativeManifest.structuredRootHelp).toContain(OUTPUT_FORMAT_DESCRIPTION);
-    expect(nativeManifest.structuredRootHelp).toContain(
+    expect(normalizeWhitespace(nativeManifest.structuredRootHelp)).toContain(OUTPUT_FORMAT_DESCRIPTION);
+    expect(normalizeWhitespace(nativeManifest.structuredRootHelp)).toContain(
       `(choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`,
     );
   });

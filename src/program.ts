@@ -160,14 +160,6 @@ export async function createRootProgram(
         rootGlobalFlagDescription("-o, --output <format>"),
       ).choices([...rootGlobalFlagValues("-o, --output <format>")]),
     )
-    .addOption(
-      new Option(
-        "--format <format>",
-        rootGlobalFlagDescription("--format <format>"),
-    )
-        .choices([...rootGlobalFlagValues("--format <format>")])
-        .hideHelp(),
-    )
     .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"))
     .option("--web", rootGlobalFlagDescription("--web"));
 

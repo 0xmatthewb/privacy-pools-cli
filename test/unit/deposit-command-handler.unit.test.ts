@@ -32,6 +32,9 @@ const realContracts = captureModuleExports(
 const realInquirerPrompts = captureModuleExports(
   await import("@inquirer/prompts"),
 );
+const realDepositEvents = captureModuleExports(
+  await import("../../src/services/deposit-events.ts"),
+);
 const realPoolAccounts = captureModuleExports(
   await import("../../src/utils/pool-accounts.ts"),
 );
@@ -50,6 +53,7 @@ const realViem = captureModuleExports(await import("viem"));
 
 const DEPOSIT_HANDLER_MODULE_RESTORES = [
   ["@inquirer/prompts", realInquirerPrompts],
+  ["../../src/services/deposit-events.ts", realDepositEvents],
   ["../../src/services/account.ts", realAccount],
   ["../../src/services/sdk.ts", realSdk],
   ["../../src/services/pools.ts", realPools],
@@ -125,6 +129,11 @@ const checkHasGasMock = mock(async () => undefined);
 const approveERC20Mock = mock(async () => ({
   hash: "0x" + "12".repeat(32),
 }));
+const hasSufficientErc20AllowanceMock = mock(async () => ({
+  ownerAddress: "0x1234567890123456789012345678901234567890",
+  allowance: 0n,
+  sufficient: false,
+}));
 const depositETHMock = mock(async () => ({
   hash: "0x" + "34".repeat(32),
 }));
@@ -145,6 +154,14 @@ const decodeEventLogMock = mock(() => ({
 }));
 const confirmPromptMock = mock(async () => true);
 const selectPromptMock = mock(async () => ETH_POOL.asset);
+const inputPromptMock = mock(async () => "DEPOSIT");
+const decodeDepositReceiptLogMock = mock(() => ({
+  depositor: "0x1234567890123456789012345678901234567890",
+  commitment: 333n,
+  label: 444n,
+  value: 99000000000000000n,
+  precommitment: 777n,
+}));
 
 let handleDepositCommand: typeof import("../../src/commands/deposit.ts").handleDepositCommand;
 let world: TestWorld;
@@ -171,6 +188,7 @@ async function loadDepositCommandHandler(): Promise<void> {
   mock.module("@inquirer/prompts", () => ({
     ...realInquirerPrompts,
     confirm: confirmPromptMock,
+    input: inputPromptMock,
     select: selectPromptMock,
   }));
   mock.module("../../src/services/account.ts", () => ({
@@ -198,8 +216,13 @@ async function loadDepositCommandHandler(): Promise<void> {
   mock.module("../../src/services/contracts.ts", () => ({
     ...realContracts,
     approveERC20: approveERC20Mock,
+    hasSufficientErc20Allowance: hasSufficientErc20AllowanceMock,
     depositETH: depositETHMock,
     depositERC20: depositERC20Mock,
+  }));
+  mock.module("../../src/services/deposit-events.ts", () => ({
+    ...realDepositEvents,
+    decodeDepositReceiptLog: decodeDepositReceiptLogMock,
   }));
   mock.module("../../src/utils/pool-accounts.ts", () => ({
     ...realPoolAccounts,
@@ -234,6 +257,7 @@ beforeEach(() => {
   saveSyncMetaMock.mockClear();
   getDataServiceMock.mockClear();
   approveERC20Mock.mockClear();
+  hasSufficientErc20AllowanceMock.mockClear();
   depositETHMock.mockClear();
   depositERC20Mock.mockClear();
   checkNativeBalanceMock.mockClear();
@@ -243,14 +267,21 @@ beforeEach(() => {
   guardCriticalSectionMock.mockClear();
   releaseCriticalSectionMock.mockClear();
   confirmPromptMock.mockClear();
+  inputPromptMock.mockClear();
   selectPromptMock.mockClear();
   confirmPromptMock.mockImplementation(async () => true);
+  inputPromptMock.mockImplementation(async () => "DEPOSIT");
   selectPromptMock.mockImplementation(async () => ETH_POOL.asset);
   saveAccountMock.mockImplementation(() => undefined);
   saveSyncMetaMock.mockImplementation(() => undefined);
   getDataServiceMock.mockImplementation(async () => ({}));
   approveERC20Mock.mockImplementation(async () => ({
     hash: "0x" + "12".repeat(32),
+  }));
+  hasSufficientErc20AllowanceMock.mockImplementation(async () => ({
+    ownerAddress: "0x1234567890123456789012345678901234567890",
+    allowance: 0n,
+    sufficient: false,
   }));
   depositETHMock.mockImplementation(async () => ({
     hash: "0x" + "34".repeat(32),
@@ -296,6 +327,13 @@ beforeEach(() => {
       _value: 99000000000000000n,
       _precommitmentHash: 777n,
     },
+  }));
+  decodeDepositReceiptLogMock.mockImplementation(() => ({
+    depositor: "0x1234567890123456789012345678901234567890",
+    commitment: 333n,
+    label: 444n,
+    value: 99000000000000000n,
+    precommitment: 777n,
   }));
 });
 
@@ -705,7 +743,7 @@ describe("deposit command handler", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_NONROUND_AMOUNT");
     expect(json.error.message ?? json.errorMessage).toContain(
-      "may reduce privacy",
+      "distinctive committed amount",
     );
     expect(exitCode).toBe(2);
   });
@@ -724,7 +762,7 @@ describe("deposit command handler", () => {
     );
 
     expectStderrOnlyContains({ stdout: "", stderr }, [
-      "may reduce your privacy",
+      "Round committed balances are harder to fingerprint",
       "Deposit cancelled",
     ]);
     expect(depositETHMock).not.toHaveBeenCalled();

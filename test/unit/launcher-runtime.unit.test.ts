@@ -175,7 +175,7 @@ describe("launcher runtime coverage", () => {
     ).toBe(false);
     expect(
       launcherTestInternals.invocationRequiresJsWorker(
-        parseRootArgv(["pools", "--format", "csv"]),
+        parseRootArgv(["pools", "--output", "csv"]),
       ),
     ).toBe(false);
     expect(
@@ -185,7 +185,7 @@ describe("launcher runtime coverage", () => {
     ).toBe(false);
     expect(
       launcherTestInternals.invocationRequiresJsWorker(
-        parseRootArgv(["activity", "--format", "csv"]),
+        parseRootArgv(["activity", "--output", "csv"]),
       ),
     ).toBe(false);
     expect(
@@ -356,7 +356,7 @@ describe("launcher runtime coverage", () => {
 
   test("tryRunLocalFastPath rejects invalid output formats before serving fast paths", async () => {
     const version = await captureAsyncJsonOutputAllowExit(() =>
-      runLauncher(PKG, ["--json", "--format", "bogus", "--version"]),
+      runLauncher(PKG, ["--json", "--output", "bogus", "--version"]),
     );
     expect(version.exitCode).toBe(2);
     expect(version.stderr).toBe("");
@@ -365,7 +365,7 @@ describe("launcher runtime coverage", () => {
     expect(version.json.errorMessage).toContain("argument 'bogus' is invalid");
 
     const guide = await captureAsyncJsonOutputAllowExit(() =>
-      runLauncher(PKG, ["--json", "--format", "bogus", "guide"]),
+      runLauncher(PKG, ["--json", "--output", "bogus", "guide"]),
     );
     expect(guide.exitCode).toBe(2);
     expect(guide.stderr).toBe("");

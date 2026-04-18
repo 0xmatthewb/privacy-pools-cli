@@ -85,7 +85,7 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         if parsed.has_invalid_output_format() {
             return Err(CliError::input(
                 format!(
-                    "option '--format <format>' argument '{}' is invalid. Allowed choices are {}.",
+                    "option '--output <format>' argument '{}' is invalid. Allowed choices are {}.",
                     format_value,
                     output_format_choices_text()
                 ),
@@ -212,16 +212,16 @@ mod tests {
 
     #[test]
     fn run_rejects_invalid_output_formats() {
-        let argv = argv(&["--json", "--format", "yaml", "guide"]);
+        let argv = argv(&["--json", "--output", "markdown", "guide"]);
         let parsed = parse_root_argv(&argv);
         let error = run(&argv, &parsed).expect_err("invalid format should fail");
         assert_eq!(error.code, "INPUT_ERROR");
-        assert!(error.message.contains("argument 'yaml' is invalid"));
+        assert!(error.message.contains("argument 'markdown' is invalid"));
     }
 
     #[test]
     fn run_accepts_wide_output_format_for_native_help_paths() {
-        let argv = argv(&["--format", "wide", "guide"]);
+        let argv = argv(&["--output", "wide", "guide"]);
         let parsed = parse_root_argv(&argv);
         assert_eq!(run(&argv, &parsed).unwrap(), 0);
     }

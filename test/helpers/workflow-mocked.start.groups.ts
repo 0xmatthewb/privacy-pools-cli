@@ -403,30 +403,32 @@ export function registerWorkflowMockedStartTests(): void {
       expect(state.depositEthCalls).toBe(1);
       expect(state.addPoolAccountCalls).toBe(0);
     });
-    test("configured deposits fail closed when receipt metadata cannot be recovered", async () => {
+    test("configured deposits mark reconciliation required when receipt metadata cannot be recovered", async () => {
       state.depositConfirmationMode = "missing_metadata";
 
-      await expect(
-        startWorkflow({
-          amountInput: "0.01",
-          assetInput: "ETH",
-          recipient: "0x7777777777777777777777777777777777777777",
-          globalOpts: { chain: "sepolia" },
-          mode: {
-            isAgent: true,
-            isJson: true,
-            isCsv: false,
-            isQuiet: true,
-            format: "json",
-            skipPrompts: true,
-          },
-          isVerbose: false,
-          watch: false,
-        }),
-      ).rejects.toThrow(
-        "Deposit confirmed, but the workflow could not capture the new Pool Account metadata.",
-      );
+      const snapshot = await startWorkflow({
+        amountInput: "0.01",
+        assetInput: "ETH",
+        recipient: "0x7777777777777777777777777777777777777777",
+        globalOpts: { chain: "sepolia" },
+        mode: {
+          isAgent: true,
+          isJson: true,
+          isCsv: false,
+          isQuiet: true,
+          format: "json",
+          skipPrompts: true,
+        },
+        isVerbose: false,
+        watch: false,
+      });
 
+      expect(snapshot.phase).toBe("awaiting_asp");
+      expect(snapshot.depositLabel).toBeNull();
+      expect(snapshot.committedValue).toBeNull();
+      expect(snapshot.reconciliationRequired).toBe(true);
+      expect(snapshot.localStateSynced).toBe(false);
+      expect(snapshot.warningCode).toBe("LOCAL_STATE_RECONCILIATION_REQUIRED");
       expect(state.depositEthCalls).toBe(1);
       expect(state.addPoolAccountCalls).toBe(0);
     });

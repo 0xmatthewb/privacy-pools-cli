@@ -79,8 +79,8 @@ describe("completion query helpers", () => {
     ).toEqual(expect.arrayContaining(["mainnet", "sepolia"]));
 
     expect(
-      queryCompletionCandidates(["privacy-pools", "--format=j"], 1),
-    ).toEqual(["--format=json"]);
+      queryCompletionCandidates(["privacy-pools", "--output=j"], 1),
+    ).toEqual(["--output=json"]);
 
     expect(
       queryCompletionCandidates(

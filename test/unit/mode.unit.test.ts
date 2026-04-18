@@ -83,16 +83,16 @@ describe("resolveGlobalMode", () => {
     expect(result.skipPrompts).toBe(true);
   });
 
-  test("--format csv sets isCsv and skipPrompts", () => {
-    const result = resolveGlobalMode({ format: "csv" });
+  test("--output csv sets isCsv and skipPrompts", () => {
+    const result = resolveGlobalMode({ output: "csv" });
     expect(result.isCsv).toBe(true);
     expect(result.isJson).toBe(false);
     expect(result.format).toBe("csv");
     expect(result.skipPrompts).toBe(true);
   });
 
-  test("--agent takes precedence over --format csv", () => {
-    const result = resolveGlobalMode({ agent: true, format: "csv" });
+  test("--agent takes precedence over --output csv", () => {
+    const result = resolveGlobalMode({ agent: true, output: "csv" });
     expect(result.isAgent).toBe(true);
     expect(result.isJson).toBe(true);
     expect(result.isCsv).toBe(false);
@@ -100,37 +100,37 @@ describe("resolveGlobalMode", () => {
     expect(result.isQuiet).toBe(true);
   });
 
-  test("--json takes precedence over --format csv", () => {
-    const result = resolveGlobalMode({ json: true, format: "csv" });
+  test("--json takes precedence over --output csv", () => {
+    const result = resolveGlobalMode({ json: true, output: "csv" });
     expect(result.isJson).toBe(true);
     expect(result.isCsv).toBe(false);
     expect(result.format).toBe("json");
   });
 
-  test("--format json is equivalent to --json", () => {
-    const result = resolveGlobalMode({ format: "json" });
+  test("--output json is equivalent to --json", () => {
+    const result = resolveGlobalMode({ output: "json" });
     expect(result.isJson).toBe(true);
     expect(result.isCsv).toBe(false);
     expect(result.format).toBe("json");
     expect(result.skipPrompts).toBe(true);
   });
 
-  test("--format table is the default", () => {
-    const result = resolveGlobalMode({ format: "table" });
+  test("--output table is the default", () => {
+    const result = resolveGlobalMode({ output: "table" });
     expect(result.isJson).toBe(false);
     expect(result.isCsv).toBe(false);
     expect(result.format).toBe("table");
     expect(result.skipPrompts).toBe(false);
   });
 
-  test("--json takes precedence when --format is not set", () => {
+  test("--json takes precedence when --output is not set", () => {
     const result = resolveGlobalMode({ json: true });
     expect(result.format).toBe("json");
     expect(result.isJson).toBe(true);
   });
 
-  test("--format wide sets isWide and uses table format", () => {
-    const result = resolveGlobalMode({ format: "wide" });
+  test("--output wide sets isWide and uses table format", () => {
+    const result = resolveGlobalMode({ output: "wide" });
     expect(result.isWide).toBe(true);
     expect(result.isJson).toBe(false);
     expect(result.isCsv).toBe(false);
@@ -138,8 +138,8 @@ describe("resolveGlobalMode", () => {
     expect(result.skipPrompts).toBe(false);
   });
 
-  test("--agent takes precedence over --format wide", () => {
-    const result = resolveGlobalMode({ agent: true, format: "wide" });
+  test("--agent takes precedence over --output wide", () => {
+    const result = resolveGlobalMode({ agent: true, output: "wide" });
     expect(result.isAgent).toBe(true);
     expect(result.isJson).toBe(true);
     expect(result.isWide).toBe(true);

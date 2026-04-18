@@ -693,7 +693,7 @@ describe("renderStatus parity", () => {
   });
 });
 
-// ── CSV guard: utility renderers throw on --format csv ──────────────────────
+// ── CSV guard: utility renderers throw on --output csv ──────────────────────
 
 describe("CSV guard: utility renderers", () => {
   const csvCtx = createOutputContext(makeMode({ isCsv: true }));

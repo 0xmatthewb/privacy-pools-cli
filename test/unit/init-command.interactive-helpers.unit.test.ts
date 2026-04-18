@@ -488,11 +488,13 @@ describe("init command interactive helpers", () => {
 
   test("verifyGeneratedRecoveryPhrase stays fail-closed when preview rendering takes over verification", async () => {
     const initHelpers = await loadInitHelpers();
+    const verificationMnemonic =
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
     maybeRenderPreviewScenarioMock.mockImplementationOnce(async () => true);
 
     await expect(
       initHelpers.verifyGeneratedRecoveryPhrase(
-        VALID_MNEMONIC,
+        verificationMnemonic,
         true,
       ),
     ).rejects.toThrow("Preview scenario rendered.");

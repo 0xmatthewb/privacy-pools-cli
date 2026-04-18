@@ -7,17 +7,14 @@ export function createRagequitCommand(): Command {
   const metadata = getCommandMetadata("ragequit");
   return new Command("ragequit")
     .alias("exit")
+    .configureHelp({
+      commandUsage: () => "privacy-pools ragequit [options] [asset]",
+    })
     .description(metadata.description)
     .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
     .option(
       "-p, --pool-account <PA-ID | numeric-index>",
       "Ragequit a specific Pool Account (examples: PA-2 or 2)",
-    )
-    .addOption(
-      new Option(
-        "-i, --commitment <index>",
-        "Deprecated: 0-based spendable Pool Account index (use --pool-account)",
-      ).hideHelp(),
     )
     .addOption(
       new Option(
@@ -29,12 +26,6 @@ export function createRagequitCommand(): Command {
     .option(
       "--confirm-ragequit",
       "Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address",
-    )
-    .addOption(
-      new Option(
-        "--yes-i-prefer-ragequit",
-        "Deprecated hidden alias for --confirm-ragequit",
-      ).hideHelp(),
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(

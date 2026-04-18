@@ -30,12 +30,6 @@ export function createWithdrawCommand(): Command {
     )
     .addOption(
       new Option(
-        "--yes-i-understand-privacy-loss",
-        "Deprecated hidden alias for --confirm-direct-withdraw",
-      ).hideHelp(),
-    )
-    .addOption(
-      new Option(
         "--unsigned [format]",
         "Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data)",
       ).choices(["envelope", "tx"]),

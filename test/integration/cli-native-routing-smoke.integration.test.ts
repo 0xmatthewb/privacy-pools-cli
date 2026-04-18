@@ -167,18 +167,18 @@ describe("native routing smoke", () => {
 
     for (const { args, expectedText } of [
       { args: ["stats"], expectedText: "All Time" },
-      { args: ["--format", "csv", "stats"], expectedText: "Metric,All Time,Last 24h" },
+      { args: ["--output", "csv", "stats"], expectedText: "Metric,All Time,Last 24h" },
       { args: ["--chain", "sepolia", "stats", "pool", "ETH"] },
       { args: ["activity"] },
-      { args: ["--format", "csv", "activity"], expectedText: "Type,Pool,Amount" },
+      { args: ["--output", "csv", "activity"], expectedText: "Type,Pool,Amount" },
       { args: ["--chain", "sepolia", "pools"] },
-      { args: ["--format", "csv", "--chain", "sepolia", "pools"], expectedText: null },
+      { args: ["--output", "csv", "--chain", "sepolia", "pools"], expectedText: null },
     ]) {
       const result = runNativeBinaryDirect(nativeBinary, args, { env });
       const renderedOutput = `${result.stdout}${result.stderr}`;
       expect(result.status).toBe(0);
       expect(renderedOutput.trim().length).toBeGreaterThan(0);
-      if (args.join(" ") === "--format csv --chain sepolia pools") {
+      if (args.join(" ") === "--output csv --chain sepolia pools") {
         expectCsvHeaderColumns(result.stdout, [
           "Asset",
           "Total Deposits",

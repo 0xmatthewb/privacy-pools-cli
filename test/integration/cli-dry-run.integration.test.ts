@@ -27,7 +27,7 @@ describe("--dry-run flag acceptance", () => {
       ["--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(2);
+    expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
       errorCode?: string;
@@ -35,10 +35,12 @@ describe("--dry-run flag acceptance", () => {
       error?: { category: string; hint?: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
-    expect(json.error?.category).toBe("INPUT");
-    expect(json.error?.hint).toContain("ASP may be offline");
+    expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+    expect(json.errorMessage).toContain(
+      'Built-in pool fallback also failed for "ETH" on sepolia.',
+    );
+    expect(json.error?.category).toBe("RPC");
+    expect(json.error?.hint).toContain("RPC URL");
   });
 
   test("withdraw --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
@@ -58,7 +60,7 @@ describe("--dry-run flag acceptance", () => {
       ],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(2);
+    expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
       errorCode?: string;
@@ -66,10 +68,12 @@ describe("--dry-run flag acceptance", () => {
       error?: { category: string; hint?: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
-    expect(json.error?.category).toBe("INPUT");
-    expect(json.error?.hint).toContain("ASP may be offline");
+    expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+    expect(json.errorMessage).toContain(
+      'Built-in pool fallback also failed for "ETH" on sepolia.',
+    );
+    expect(json.error?.category).toBe("RPC");
+    expect(json.error?.hint).toContain("RPC URL");
   });
 
   test("ragequit --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
@@ -78,7 +82,7 @@ describe("--dry-run flag acceptance", () => {
       ["--json", "ragequit", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(2);
+    expect(result.status).toBe(3);
     const json = parseJsonOutput<{
       success: boolean;
       errorCode?: string;
@@ -86,10 +90,12 @@ describe("--dry-run flag acceptance", () => {
       error?: { category: string; hint?: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
-    expect(json.error?.category).toBe("INPUT");
-    expect(json.error?.hint).toContain("ASP may be offline");
+    expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+    expect(json.errorMessage).toContain(
+      'Built-in pool fallback also failed for "ETH" on sepolia.',
+    );
+    expect(json.error?.category).toBe("RPC");
+    expect(json.error?.hint).toContain("RPC URL");
   });
 
   test("deposit --dry-run --json produces valid JSON error envelope", () => {
@@ -98,7 +104,7 @@ describe("--dry-run flag acceptance", () => {
       ["--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(2);
+    expect(result.status).toBe(3);
     const parsed = parseJsonOutput<{
       success: boolean;
       schemaVersion: string;
@@ -107,8 +113,8 @@ describe("--dry-run flag acceptance", () => {
     }>(result.stdout);
     expect(parsed.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(parsed.success).toBe(false);
-    expect(parsed.errorCode).toBe("INPUT_ERROR");
-    expect(parsed.error?.category).toBe("INPUT");
-    expect(parsed.error?.hint).toContain("ASP may be offline");
+    expect(parsed.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+    expect(parsed.error?.category).toBe("RPC");
+    expect(parsed.error?.hint).toContain("RPC URL");
   });
 });

@@ -2603,8 +2603,8 @@ export const PREVIEW_CASES = [
     requiredSetup: ["native-binary"],
     covers: ["validation-error", "selection"],
     expectedExitCodes: [2],
-    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3", "--commitment", "123"],
-    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3 --commitment 123",
+    args: ["--no-banner", "--chain", "sepolia", "ragequit", "ETH", "--pool-account", "PA-3", "--mystery"],
+    commandLabel: "privacy-pools --no-banner --chain sepolia ragequit ETH --pool-account PA-3 --mystery",
   }),
   createLivePreviewCase({
     id: "ragequit-select",

@@ -33,7 +33,7 @@ impl ParsedRootArgv {
         self.format_flag_value
             .as_deref()
             .map(|value| {
-                root_flag_allowed_values_set("--format")
+                root_flag_allowed_values_set("--output")
                     .map(|choices| !choices.contains(value))
                     .unwrap_or(true)
             })
@@ -149,7 +149,7 @@ fn root_flag_allowed_values_set(flag: &str) -> Option<&BTreeSet<String>> {
 pub(crate) fn output_format_choices_text() -> String {
     root_flag_contract()
         .option_value_lists
-        .get("--format")
+        .get("--output")
         .map(|values| values.join(", "))
         .unwrap_or_else(|| "unknown".to_string())
 }
@@ -158,8 +158,9 @@ pub(crate) fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
     let root_args = root_argv_slice(argv);
     let first_command_token = first_non_option_token(argv);
     let non_option_tokens = all_non_option_tokens(argv);
-    let format_flag_value =
-        read_long_option_value(argv, "--format").map(|value| value.to_lowercase());
+    let format_flag_value = read_long_option_value(argv, "--output")
+        .or_else(|| read_short_option_value(argv, "-o"))
+        .map(|value| value.to_lowercase());
     let is_agent = has_long_flag(argv, "--agent");
     let is_json = has_long_flag(argv, "--json")
         || has_short_flag(argv, 'j')
@@ -177,7 +178,8 @@ pub(crate) fn parse_root_argv(argv: &[String]) -> ParsedRootArgv {
     let is_root_help_invocation = is_help_like
         && (non_option_tokens.is_empty()
             || (non_option_tokens.len() == 1 && non_option_tokens[0] == "help"));
-    let is_quiet = root_args.iter().any(|token| token == "--quiet") || has_short_flag(argv, 'q');
+    let is_quiet =
+        is_agent || root_args.iter().any(|token| token == "--quiet") || has_short_flag(argv, 'q');
     let is_no_header = root_args.iter().any(|token| token == "--no-header");
     let _is_welcome = is_welcome_flag_only_invocation(argv) && !is_machine_mode;
 
@@ -522,14 +524,14 @@ mod tests {
 
     #[test]
     fn json_flag_outranks_csv_mode() {
-        let parsed = parse_root_argv(&argv(&["--json", "--format", "csv", "capabilities"]));
+        let parsed = parse_root_argv(&argv(&["--json", "--output", "csv", "capabilities"]));
         assert!(!parsed.is_csv_mode);
         assert!(parsed.is_structured_output_mode);
     }
 
     #[test]
     fn wide_output_format_is_treated_as_valid_table_mode() {
-        let parsed = parse_root_argv(&argv(&["--format", "wide", "guide"]));
+        let parsed = parse_root_argv(&argv(&["--output", "wide", "guide"]));
         assert_eq!(parsed.format_flag_value.as_deref(), Some("wide"));
         assert!(!parsed.has_invalid_output_format());
         assert!(!parsed.is_csv_mode);
@@ -538,13 +540,16 @@ mod tests {
 
     #[test]
     fn output_format_choices_are_loaded_from_generated_root_flags() {
-        assert_eq!(output_format_choices_text(), "table, csv, json, wide");
+        assert_eq!(
+            output_format_choices_text(),
+            "table, csv, json, yaml, wide, name"
+        );
     }
 
     #[test]
     fn invalid_output_formats_are_flagged_without_breaking_machine_mode() {
-        let parsed = parse_root_argv(&argv(&["--json", "--format", "yaml", "guide"]));
-        assert_eq!(parsed.format_flag_value.as_deref(), Some("yaml"));
+        let parsed = parse_root_argv(&argv(&["--json", "--output", "markdown", "guide"]));
+        assert_eq!(parsed.format_flag_value.as_deref(), Some("markdown"));
         assert!(parsed.is_structured_output_mode);
         assert!(parsed.has_invalid_output_format());
     }
@@ -620,7 +625,7 @@ mod tests {
             Some("mainnet".to_string())
         );
         assert_eq!(
-            read_long_option_value(&argv(&["--format=json"]), "--format"),
+            read_long_option_value(&argv(&["--output=json"]), "--output"),
             Some("json".to_string())
         );
     }

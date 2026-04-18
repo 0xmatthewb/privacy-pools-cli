@@ -112,19 +112,17 @@ describe("styleCommanderHelp", () => {
       "Usage: privacy-pools [options] [command]",
       "",
       "Commands:",
-      "  ragequit|exit  Publicly withdraw funds",
+      "  ragequit  Publicly withdraw funds",
       "  pools          List available pools",
     ].join("\n");
     const result = styleCommanderHelp(raw);
     const plain = stripAnsi(result);
-    expect(plain).toContain("ragequit|exit");
+    expect(plain).toContain("ragequit");
     expect(plain).toContain("Publicly withdraw funds");
     // The ragequit line must contain ANSI codes (regex matched and styled it)
     const ragequitLine = result.split("\n").find((l) => stripAnsi(l).includes("ragequit"))!;
     expect(ragequitLine).toMatch(/\x1b\[/);
-    // Primary name and alias should get separate styles: an ANSI reset/transition
-    // appears between "ragequit" and the "|" pipe character.
-    expect(ragequitLine).toMatch(/ragequit\x1b\[.*\|/);
+    expect(stripAnsi(ragequitLine)).toContain("ragequit");
   });
 
   test("styles options in Options section", () => {

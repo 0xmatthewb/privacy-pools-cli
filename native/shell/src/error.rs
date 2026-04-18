@@ -130,15 +130,13 @@ impl CliError {
         self.docs_slug = Some(docs_slug.into());
         self
     }
-
 }
 
 fn default_error_presentation(category: ErrorCategory) -> ErrorPresentation {
     match category {
-        ErrorCategory::Input
-        | ErrorCategory::Setup
-        | ErrorCategory::Rpc
-        | ErrorCategory::Asp => ErrorPresentation::Inline,
+        ErrorCategory::Input | ErrorCategory::Setup | ErrorCategory::Rpc | ErrorCategory::Asp => {
+            ErrorPresentation::Inline
+        }
         ErrorCategory::Relayer
         | ErrorCategory::Proof
         | ErrorCategory::Contract

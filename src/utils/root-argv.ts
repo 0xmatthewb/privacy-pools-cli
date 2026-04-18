@@ -387,15 +387,12 @@ export function parseRootPreludeLongOption(
       if (nextToken === undefined) return null;
       globalOpts.chain = nextToken;
       return { consumedNext: true, helpLike: false, versionLike: false };
-    case "--format":
     case "--output":
       if (inlineValue !== undefined) {
-        globalOpts.format = inlineValue;
         globalOpts.output = inlineValue;
         return { consumedNext: false, helpLike: false, versionLike: false };
       }
       if (nextToken === undefined) return null;
-      globalOpts.format = nextToken;
       globalOpts.output = nextToken;
       return { consumedNext: true, helpLike: false, versionLike: false };
     case "--rpc-url":
@@ -444,7 +441,6 @@ export function parseRootPreludeShortOption(
     case "-o":
       if (nextToken === undefined) return null;
       globalOpts.output = nextToken;
-      globalOpts.format = nextToken;
       return { consumedNext: true, helpLike: false, versionLike: false };
     case "-j":
       globalOpts.json = true;
@@ -585,7 +581,6 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
   const formatFlagValue =
     (
       readLongOptionValue(normalizedArgv, "--output") ??
-      readLongOptionValue(normalizedArgv, "--format") ??
       readShortOptionValue(normalizedArgv, "-o")
     )?.toLowerCase() ?? null;
   const envAgent = readBooleanEnv("PRIVACY_POOLS_AGENT");

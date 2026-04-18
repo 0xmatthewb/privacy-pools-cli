@@ -30,7 +30,7 @@ defineScenarioSuite("help acceptance", [
       expect(stdout).toContain("status");
       expect(stdout).toContain("pools");
       expect(stdout).toContain("withdraw");
-      expect(stdout).toContain("ragequit|exit");
+      expect(stdout).toContain("ragequit");
       expect(stdout).toContain("completion");
     }),
   ]),

@@ -8,6 +8,7 @@ import {
 } from "bun:test";
 import type { Command } from "commander";
 import {
+  captureAsyncJsonOutput,
   captureAsyncOutput,
 } from "../helpers/output.ts";
 import { restoreTestTty, setTestTty } from "../helpers/tty.ts";
@@ -424,10 +425,18 @@ describe("upgrade command handler", () => {
       throw new Error("boom");
     });
 
-    await captureAsyncOutput(() =>
+    const { json } = await captureAsyncJsonOutput(() =>
       handleUpgradeCommand({}, fakeCommand({ json: true })),
     );
 
-    expect(printErrorMock).toHaveBeenCalledWith(expect.any(Error), true);
+    expect(printErrorMock).not.toHaveBeenCalled();
+    expect(json.success).toBe(true);
+    expect(json.status).toBe("manual");
+    expect(json.warnings).toEqual([
+      expect.objectContaining({
+        code: "UPGRADE_CHECK_FAILED",
+        message: "boom",
+      }),
+    ]);
   });
 });

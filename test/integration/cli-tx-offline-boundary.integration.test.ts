@@ -44,12 +44,14 @@ function expectPoolResolutionFailure(
 ): void {
   expect(json.success).toBe(false);
   expect(json.error).toBeDefined();
-  expect(json.errorCode).toBe("INPUT_ERROR");
-  expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
-  expect(json.error!.category).toBe("INPUT");
-  expect(json.error!.hint).toContain("ASP may be offline");
-  expect(json.error!.retryable).toBe(false);
-  expect(result.status).toBe(2);
+  expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+  expect(json.errorMessage).toContain(
+    'Built-in pool fallback also failed for "ETH" on sepolia.',
+  );
+  expect(json.error!.category).toBe("RPC");
+  expect(json.error!.hint).toContain("RPC URL");
+  expect(json.error!.retryable).toBe(true);
+  expect(result.status).toBe(3);
   expect(result.stderr.trim()).toBe("");
 }
 

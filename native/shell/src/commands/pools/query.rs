@@ -478,7 +478,9 @@ pub(crate) fn resolve_pool_native(
                             "Built-in pool fallback also failed for \"{asset}\" on {}.",
                             chain.name
                         ),
-                        Some("Check your RPC URL and network connectivity, then retry.".to_string()),
+                        Some(
+                            "Check your RPC URL and network connectivity, then retry.".to_string(),
+                        ),
                         Some("RPC_POOL_RESOLUTION_FAILED"),
                     ));
                 }
@@ -540,7 +542,8 @@ fn pool_not_found_error(
         } else if let Some(hint) = available_assets_hint {
             format!("Available assets: {hint}")
         } else {
-            "No pools found. Try using the token contract address as the positional asset.".to_string()
+            "No pools found. Try using the token contract address as the positional asset."
+                .to_string()
         }),
     )
 }
@@ -562,7 +565,7 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
             unexpected_args += argv.len().saturating_sub(index + 1);
             break;
         }
-        if token == "--all-chains" {
+        if token == "--include-testnets" {
             all_chains = true;
             index += 1;
             continue;
@@ -689,10 +692,10 @@ mod tests {
             "privacy-pools".to_string(),
             "--chain".to_string(),
             "sepolia".to_string(),
-            "--format=json".to_string(),
+            "--output=json".to_string(),
             "--quiet".to_string(),
             "pools".to_string(),
-            "--all-chains".to_string(),
+            "--include-testnets".to_string(),
             "--search= eth  ".to_string(),
             "--sort".to_string(),
             "CHAIN-ASSET".to_string(),

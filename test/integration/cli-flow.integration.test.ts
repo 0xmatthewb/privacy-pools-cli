@@ -256,7 +256,6 @@ describe("flow command", () => {
           command: "flow watch",
           reasonContains: "Complete Proof of Association",
           when: "flow_resume",
-          runnable: false,
         },
         {
           command: "flow ragequit",
@@ -314,7 +313,9 @@ describe("flow command", () => {
 
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.errorMessage).toBe("Missing required --to <address>.");
+    expect(json.errorMessage).toBe(
+      "Missing required --to <address> in non-interactive mode.",
+    );
     expect(json.error.hint).toContain("privacy-pools flow start <amount> <asset> --to");
   });
 
@@ -418,7 +419,7 @@ describe("flow command", () => {
     }>(result.stdout);
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_NONROUND_AMOUNT");
     expect(json.errorMessage).toBe(
       "Non-round amount 0.011 ETH may reduce privacy.",
     );
@@ -1029,6 +1030,7 @@ describe("flow command", () => {
     expect(descriptor.flags).toEqual([
       "--to <address>",
       "--privacy-delay <profile>",
+      "--dry-run",
       "--watch",
       "--new-wallet",
       "--export-new-wallet <path>",

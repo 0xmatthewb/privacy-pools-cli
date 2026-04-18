@@ -6,6 +6,7 @@ import { STATIC_COMPLETION_SPEC } from "../../src/utils/completion-query.ts";
 import { COMPLETION_SHELL_CONTRACT } from "../../src/utils/completion-shell.ts";
 import {
   ROOT_GLOBAL_FLAG_METADATA,
+  visibleRootGlobalFlagMetadata,
 } from "../../src/utils/root-global-flags.ts";
 import { rootHelpBaseText } from "../../src/utils/root-help.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
@@ -26,6 +27,8 @@ function splitFlagNames(flag: string): string[] {
 function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
+
+const VISIBLE_ROOT_GLOBAL_FLAG_METADATA = visibleRootGlobalFlagMetadata();
 
 describe("root global flags conformance", () => {
   const rustSource = readFileSync(
@@ -51,7 +54,7 @@ describe("root global flags conformance", () => {
 
   test("JS discovery metadata reuses the shared root flag source of truth", () => {
     expect(GLOBAL_FLAG_METADATA).toEqual(
-      ROOT_GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({
+      VISIBLE_ROOT_GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({
         flag,
         description,
       })),
@@ -61,12 +64,10 @@ describe("root global flags conformance", () => {
   test("static root help includes every shared root flag description", () => {
     const helpText = rootHelpBaseText();
     const normalizedHelpText = normalizeWhitespace(helpText);
-    for (const { flag, description } of ROOT_GLOBAL_FLAG_METADATA) {
-      if (flag !== "--format <format>") {
-        expect(
-          splitFlagNames(flag).some((name) => helpText.includes(name)),
-        ).toBe(true);
-      }
+    for (const { flag, description } of VISIBLE_ROOT_GLOBAL_FLAG_METADATA) {
+      expect(
+        splitFlagNames(flag).some((name) => helpText.includes(name)),
+      ).toBe(true);
       expect(normalizedHelpText).toContain(normalizeWhitespace(description));
     }
   });
@@ -76,7 +77,7 @@ describe("root global flags conformance", () => {
       STATIC_COMPLETION_SPEC.options?.flatMap((option) => option.names) ?? [],
     );
     const sharedOptionNames = sorted(
-      ROOT_GLOBAL_FLAG_METADATA.flatMap(({ flag }) => splitFlagNames(flag)),
+      VISIBLE_ROOT_GLOBAL_FLAG_METADATA.flatMap(({ flag }) => splitFlagNames(flag)),
     );
 
     expect(rootOptionNames).toEqual(

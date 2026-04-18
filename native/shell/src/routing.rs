@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn resolve_mode_prefers_structured_machine_output() {
-        let parsed = parse_root_argv(&argv(&["--agent", "--format", "csv", "guide"]));
+        let parsed = parse_root_argv(&argv(&["--agent", "--output", "csv", "guide"]));
         let mode = resolve_mode(&parsed);
         assert!(mode.is_json());
         assert!(!mode.is_csv());
@@ -351,7 +351,7 @@ mod tests {
     #[test]
     fn stats_native_mode_prefers_structured_mode_for_agent_csv_mix() {
         let manifest = test_manifest();
-        let args = argv(&["--agent", "--format", "csv", "stats"]);
+        let args = argv(&["--agent", "--output", "csv", "stats"]);
         let parsed = parse_root_argv(&args);
         assert_eq!(
             stats_native_mode(&args, &parsed, &manifest),
@@ -396,7 +396,7 @@ mod tests {
 
     #[test]
     fn resolve_mode_preserves_wide_format_for_human_output() {
-        let parsed = parse_root_argv(&argv(&["--format", "wide", "activity"]));
+        let parsed = parse_root_argv(&argv(&["--output", "wide", "activity"]));
         let mode = resolve_mode(&parsed);
         assert!(!mode.is_json());
         assert!(!mode.is_csv());
@@ -410,7 +410,7 @@ mod tests {
             "--quiet", "guide"
         ]))));
         assert!(is_static_quiet_mode(&parse_root_argv(&argv(&[
-            "--format", "csv", "guide",
+            "--output", "csv", "guide",
         ]))));
         assert!(is_static_quiet_mode(&parse_root_argv(&argv(&[
             "--json", "guide"
@@ -428,9 +428,9 @@ mod tests {
             Some("default")
         );
 
-        let csv = parse_root_argv(&argv(&["--format", "csv", "activity"]));
+        let csv = parse_root_argv(&argv(&["--output", "csv", "activity"]));
         assert_eq!(
-            activity_native_mode(&argv(&["--format", "csv", "activity"]), &csv, &manifest),
+            activity_native_mode(&argv(&["--output", "csv", "activity"]), &csv, &manifest),
             Some("csv")
         );
 
@@ -452,7 +452,7 @@ mod tests {
             Some("default-list")
         );
 
-        let csv = argv(&["--format", "csv", "pools"]);
+        let csv = argv(&["--output", "csv", "pools"]);
         let csv_parsed = parse_root_argv(&csv);
         assert_eq!(
             pools_native_mode(&csv, &csv_parsed, &manifest),
@@ -475,7 +475,7 @@ mod tests {
             Some("default")
         );
 
-        let pool_args = argv(&["--format", "csv", "stats", "pool", "ETH"]);
+        let pool_args = argv(&["--output", "csv", "stats", "pool", "ETH"]);
         let pool_parsed = parse_root_argv(&pool_args);
         assert_eq!(
             stats_native_mode(&pool_args, &pool_parsed, &manifest),

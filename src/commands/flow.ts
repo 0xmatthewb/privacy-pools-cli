@@ -67,7 +67,6 @@ interface FlowWatchCommandOptions {
 
 interface FlowRagequitCommandOptions {
   confirmRagequit?: boolean;
-  yesIPreferRagequit?: boolean;
 }
 
 export { createFlowCommand } from "../command-shells/flow.js";
@@ -691,12 +690,11 @@ export async function handleFlowRagequitCommand(
     } else if (
       snapshot.aspStatus === "approved"
       && opts.confirmRagequit !== true
-      && opts.yesIPreferRagequit !== true
     ) {
       throw new CLIError(
         `${snapshot.poolAccountId ?? "This workflow"} is approved for private withdrawal.`,
         "INPUT",
-        "By exiting this pool, you are publicly withdrawing all funds to your deposit address. You will not gain any privacy. Use flow watch instead unless you intentionally prefer ragequit.",
+        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy. Use flow watch instead unless you intentionally prefer ragequit.",
         "INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE",
         false,
         undefined,

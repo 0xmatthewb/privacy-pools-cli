@@ -83,15 +83,17 @@ defineScenarioSuite("status/init acceptance", [
       assertStderrEmpty(),
       assertJsonEnvelopeStep({
         success: false,
-        errorCode: "INPUT_ERROR",
+        errorCode: "INPUT_INIT_GENERATE_REQUIRES_CAPTURE",
       }),
       assertJson<{
         error: { code: string; message: string; hint: string };
         recoveryPhrase?: string;
         recoveryPhraseRedacted?: boolean;
       }>((json) => {
-        expect(json.error.code).toBe("INPUT_ERROR");
-        expect(json.error.message).toContain("requires recovery capture");
+        expect(json.error.code).toBe("INPUT_INIT_GENERATE_REQUIRES_CAPTURE");
+        expect(json.error.message).toContain(
+          "requires recovery capture",
+        );
         expect(json.error.hint).toContain("--show-recovery-phrase");
         expect(json.recoveryPhrase).toBeUndefined();
         expect(json.recoveryPhraseRedacted).toBeUndefined();
@@ -174,12 +176,15 @@ defineScenarioSuite("status/init acceptance", [
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(4),
-    assertJsonEnvelopeStep({ success: false }),
+    assertExit(8),
+    assertJsonEnvelopeStep({ success: false, errorCode: "ASP_ERROR" }),
     assertJson<{
-      error: { category: string };
+      error: { category: string; code: string; message: string; hint: string };
     }>((json) => {
       expect(json.error.category).toBe("ASP");
+      expect(json.error.code).toBe("ASP_ERROR");
+      expect(json.error.message).toContain("Cannot reach ASP");
+      expect(json.error.hint).toContain("network connection");
     }),
   ]),
 ]);

@@ -9,6 +9,9 @@ import { createSeededRng, getFuzzSeed } from "../helpers/fuzz.ts";
  * a formatted string or the fallback "-".
  */
 describe("output renderers fuzz", () => {
+  const isUsdLike = (value: string): boolean =>
+    value === "-" || value.startsWith("$") || value.startsWith("-$");
+
   test("parseUsd stays within its output contract for weird inputs", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0xF0F0F0F0);
 
@@ -49,8 +52,7 @@ describe("output renderers fuzz", () => {
     for (const input of edgeCases) {
       const result = parseUsd(input);
       expect(typeof result).toBe("string");
-      // Must be either a formatted dollar string or "-"
-      expect(result === "-" || result.startsWith("$")).toBe(true);
+      expect(isUsdLike(result)).toBe(true);
     }
 
     // Random strings
@@ -64,7 +66,7 @@ describe("output renderers fuzz", () => {
 
       const result = parseUsd(s);
       expect(typeof result).toBe("string");
-      expect(result === "-" || result.startsWith("$")).toBe(true);
+      expect(isUsdLike(result)).toBe(true);
     }
 
   });
@@ -206,7 +208,7 @@ describe("output renderers fuzz", () => {
     for (const [amount, decimals, price] of edgeCases) {
       const result = formatUsdValue(amount, decimals, price);
       expect(typeof result).toBe("string");
-      expect(result === "-" || result.startsWith("$")).toBe(true);
+      expect(isUsdLike(result)).toBe(true);
     }
 
     // Random inputs
@@ -219,7 +221,7 @@ describe("output renderers fuzz", () => {
 
       const result = formatUsdValue(amount, decimals, price);
       expect(typeof result).toBe("string");
-      expect(result === "-" || result.startsWith("$")).toBe(true);
+      expect(isUsdLike(result)).toBe(true);
       if (price !== null && Number.isFinite(price) && price >= 0) {
         expect(result).not.toBe("-");
       }

@@ -101,18 +101,18 @@ describe("cli main internal helpers", () => {
   test("readLongOptionValue and firstNonOptionToken respect root options that consume values", () => {
     expect(
       cliMainTestInternals.readLongOptionValue(
-        ["--format", "json", "--timeout=5"],
-        "--format",
+        ["--output", "json", "--timeout=5"],
+        "--output",
       ),
     ).toBe("json");
     expect(
       cliMainTestInternals.readLongOptionValue(
-        ["--format", "json", "--timeout=5"],
+        ["--output", "json", "--timeout=5"],
         "--timeout",
       ),
     ).toBe("5");
     expect(
-      cliMainTestInternals.readLongOptionValue(["--format"], "--format"),
+      cliMainTestInternals.readLongOptionValue(["--output"], "--output"),
     ).toBeNull();
 
     expect(

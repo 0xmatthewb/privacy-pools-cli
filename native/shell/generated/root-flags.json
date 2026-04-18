@@ -39,20 +39,6 @@
     ]
   },
   {
-    "flag": "--format <format>",
-    "description": "Output format: table (default), csv, json, yaml, wide, name",
-    "takesValue": true,
-    "welcomeBoolean": false,
-    "values": [
-      "table",
-      "csv",
-      "json",
-      "yaml",
-      "wide",
-      "name"
-    ]
-  },
-  {
     "flag": "-y, --yes",
     "description": "Skip confirmation prompts",
     "takesValue": false,

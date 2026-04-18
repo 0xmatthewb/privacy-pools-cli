@@ -454,7 +454,7 @@ describe("printError", () => {
     const combined = stderrOutput.join("");
     expect(combined).toContain("test error");
     expect(combined).toContain("check ASP");
-    expect(assignedExitCode).toBe(4); // ASP exit code
+    expect(assignedExitCode).toBe(8); // ASP exit code
   });
 
   test("human mode renders docs references for guide and reference slugs", () => {
@@ -524,7 +524,7 @@ describe("printError", () => {
   const categoryCases = [
     { category: "INPUT", errorCode: "INPUT_ERROR", exitCode: 2 },
     { category: "RPC", errorCode: "RPC_ERROR", exitCode: 3 },
-    { category: "ASP", errorCode: "ASP_ERROR", exitCode: 4 },
+    { category: "ASP", errorCode: "ASP_ERROR", exitCode: 8 },
     { category: "RELAYER", errorCode: "RELAYER_ERROR", exitCode: 5 },
     { category: "PROOF", errorCode: "PROOF_ERROR", exitCode: 6 },
     { category: "CONTRACT", errorCode: "CONTRACT_ERROR", exitCode: 7 },

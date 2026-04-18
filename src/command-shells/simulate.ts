@@ -78,12 +78,6 @@ export function createSimulateCommand(): Command {
         "Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses.",
       ),
     )
-    .addOption(
-      new Option(
-        "--yes-i-understand-privacy-loss",
-        "Deprecated hidden alias for --confirm-direct-withdraw",
-      ).hideHelp(),
-    )
     .addOption(unsignedCompatOption())
     .addOption(impliedDryRunOption())
     .option("--all", "Withdraw entire Pool Account balance (requires asset: simulate withdraw --all ETH)")
@@ -108,23 +102,11 @@ export function createSimulateCommand(): Command {
       "-p, --pool-account <PA-ID | numeric-index>",
       "Ragequit a specific Pool Account (examples: PA-2 or 2)",
     )
-    .addOption(
-      new Option(
-        "-i, --commitment <index>",
-        "Deprecated: 0-based spendable Pool Account index (use --pool-account)",
-      ).hideHelp(),
-    )
     .addOption(unsignedCompatOption())
     .addOption(impliedDryRunOption())
     .option(
       "--confirm-ragequit",
       "Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address",
-    )
-    .addOption(
-      new Option(
-        "--yes-i-prefer-ragequit",
-        "Deprecated hidden alias for --confirm-ragequit",
-      ).hideHelp(),
     )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(

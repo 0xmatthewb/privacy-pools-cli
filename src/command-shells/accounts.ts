@@ -13,12 +13,6 @@ export function createAccountsCommand(): Command {
       "--include-testnets",
       "Include supported testnets (default: CLI-supported mainnet chains only)",
     )
-    .addOption(
-      new Option(
-        "--all-chains",
-        "Include supported testnets (default: CLI-supported mainnet chains only)",
-      ).hideHelp(),
-    )
     .option("--details", "Show additional details per Pool Account")
     .option("--summary", "Show counts and balances only")
     .option("--pending-only", "Show only pending ASP approvals")

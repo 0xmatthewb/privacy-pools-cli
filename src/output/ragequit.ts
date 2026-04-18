@@ -46,7 +46,7 @@ export interface RagequitReviewData {
 }
 
 const RAGEQUIT_PRIVACY_WARNING_COPY =
-  "By exiting this pool, you are publicly withdrawing all funds to your deposit address. You will not gain any privacy.";
+  "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.";
 
 export function buildRagequitPrivacyCostManifest(data: {
   poolAccountId: string;

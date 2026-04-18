@@ -297,7 +297,7 @@ describe("native package smoke", () => {
   });
 
   nativePackageSmokeTest("packaged native keeps discovery structured when agent mode and csv are mixed", () => {
-    const guideResult = runBuiltCli(["--agent", "--format", "csv", "guide"], {
+    const guideResult = runBuiltCli(["--agent", "--output", "csv", "guide"], {
       cwd: snapshotRoot,
     });
     expect(guideResult.status).toBe(0);
@@ -312,7 +312,7 @@ describe("native package smoke", () => {
     });
 
     const capabilitiesResult = runBuiltCli(
-      ["--json", "--format", "csv", "capabilities"],
+      ["--json", "--output", "csv", "capabilities"],
       {
         cwd: snapshotRoot,
       },
@@ -525,7 +525,7 @@ describe("native package smoke", () => {
       patterns: [/mainnet/i],
     });
 
-    const csvStatsResult = runBuiltCli(["--format", "csv", "stats"], {
+    const csvStatsResult = runBuiltCli(["--output", "csv", "stats"], {
       cwd: snapshotRoot,
       env,
     });
@@ -546,7 +546,7 @@ describe("native package smoke", () => {
       includes: ["Global activity"],
     });
 
-    const csvPoolsResult = runBuiltCli(["--format", "csv", "--chain", "sepolia", "pools"], {
+    const csvPoolsResult = runBuiltCli(["--output", "csv", "--chain", "sepolia", "pools"], {
       cwd: snapshotRoot,
       env,
     });

@@ -11,7 +11,7 @@ describe("completion script helpers", () => {
       .option("--query")
       .option("--cword <n>")
       .option("-c, --chain <name>")
-      .addOption(new Option("--format <fmt>").choices(["table", "json"]))
+      .addOption(new Option("--output <fmt>").choices(["table", "json"]))
       .command("sync")
       .option("--default-chain <chain>")
       .parent!;
@@ -21,14 +21,14 @@ describe("completion script helpers", () => {
 
     expect(optionNames).toContain("--chain");
     expect(optionNames).toContain("-c");
-    expect(optionNames).toContain("--format");
+    expect(optionNames).toContain("--output");
     expect(optionNames).not.toContain("--query");
     expect(optionNames).not.toContain("--cword");
 
     const chainOption = spec.options?.find((option) => option.names.includes("--chain"));
     expect(chainOption?.values).toEqual(expect.arrayContaining(["mainnet", "sepolia"]));
 
-    const formatOption = spec.options?.find((option) => option.names.includes("--format"));
+    const formatOption = spec.options?.find((option) => option.names.includes("--output"));
     expect(formatOption?.values).toEqual(["json", "table"]);
 
     const sync = spec.subcommands?.find((subcommand) => subcommand.name === "sync");

@@ -72,9 +72,10 @@ describe("validation runtime coverage", () => {
 
     await expect(resolveAddressOrEns("missing.eth", "Recipient")).rejects.toThrow(
       new CLIError(
-        'Could not resolve ENS name "missing.eth".',
+        "Invalid address or ENS name.",
         "INPUT",
         "Verify the name exists and try again. ENS resolution requires mainnet connectivity.",
+        "INPUT_BAD_ADDRESS",
       ),
     );
   });
@@ -98,9 +99,10 @@ describe("validation runtime coverage", () => {
 
     await expect(resolveAddressOrEns("unknown.eth", "Recipient")).rejects.toThrow(
       new CLIError(
-        'Could not resolve ENS name "unknown.eth".',
+        "Invalid address or ENS name.",
         "INPUT",
         "Verify the name exists and try again. ENS resolution requires mainnet connectivity.",
+        "INPUT_BAD_ADDRESS",
       ),
     );
   });
@@ -110,9 +112,10 @@ describe("validation runtime coverage", () => {
       resolveAddressOrEns("not-an-address", "Recipient"),
     ).rejects.toThrow(
       new CLIError(
-        "Recipient is not a valid Ethereum address: not-an-address",
+        "Invalid address or ENS name.",
         "INPUT",
-        "Provide a 0x-prefixed, 42-character hex address (e.g. 0xAbC...123).",
+        "Provide a 0x-prefixed Ethereum address or an ENS name (for example: vitalik.eth).",
+        "INPUT_BAD_ADDRESS",
       ),
     );
   });
@@ -137,7 +140,7 @@ describe("validation runtime coverage", () => {
       ),
     ).toThrow(
       new CLIError(
-        "Recipient is not a valid Ethereum address: 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb4",
+        "Invalid address or ENS name.",
         "INPUT",
         "Provide an address with the correct EIP-55 checksum, or use the all-lowercase / all-uppercase form.",
         "INPUT_ADDRESS_CHECKSUM_INVALID",

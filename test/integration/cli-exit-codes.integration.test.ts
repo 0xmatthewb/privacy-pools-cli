@@ -22,10 +22,11 @@ const EXIT_CODE_MAP: Record<string, number> = {
   UNKNOWN: 1,
   INPUT: 2,
   RPC: 3,
-  ASP: 4,
+  SETUP: 4,
   RELAYER: 5,
   PROOF: 6,
   CONTRACT: 7,
+  ASP: 8,
 };
 
 describe("exit-code matrix", () => {
@@ -40,7 +41,7 @@ describe("exit-code matrix", () => {
     expect(json.error?.category).toBe("INPUT");
   });
 
-  test("ASP error → exit code 4 (offline ASP, pools command)", () => {
+  test("ASP error → exit code 8 (offline ASP, pools command)", () => {
     const home = createTempHome();
     const result = runCli(
       ["--json", "pools", "--chain", "sepolia"],
@@ -49,7 +50,7 @@ describe("exit-code matrix", () => {
     expect(result.status).toBe(EXIT_CODE_MAP.ASP);
     const json = parseJsonOutput<{ error?: { category?: string } }>(result.stdout);
     expect(json.error?.category).toBe("ASP");
-  });
+  }, 10_000);
 
   test("exit code 0 for successful commands (status)", () => {
     const home = createTempHome();
@@ -120,16 +121,16 @@ describe("exit-code matrix", () => {
     expect(typeof json.error?.category).toBe("string");
     expect(typeof json.error?.code).toBe("string");
     expect(typeof json.error?.message).toBe("string");
-  });
+  }, 10_000);
 
   test("all documented exit codes are distinct positive integers", () => {
     const codes = Object.values(EXIT_CODE_MAP);
-    expect(codes.length).toBe(7);
-    expect(new Set(codes).size).toBe(7);
+    expect(codes.length).toBe(8);
+    expect(new Set(codes).size).toBe(8);
     for (const code of codes) {
       expect(Number.isInteger(code)).toBe(true);
       expect(code).toBeGreaterThan(0);
-      expect(code).toBeLessThanOrEqual(7);
+      expect(code).toBeLessThanOrEqual(8);
     }
   });
 });

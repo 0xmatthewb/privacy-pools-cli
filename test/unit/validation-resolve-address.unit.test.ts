@@ -84,9 +84,10 @@ describe("resolveAddressOrEns", () => {
 
     await expect(resolveAddressOrEns("missing.eth", "Recipient")).rejects.toThrow(
       new CLIError(
-        'Could not resolve ENS name "missing.eth".',
+        "Invalid address or ENS name.",
         "INPUT",
-        "Verify the name exists and try again. ENS resolution requires mainnet connectivity.",
+        "Verify the ENS name exists and try again. ENS resolution requires mainnet connectivity.",
+        "INPUT_BAD_ADDRESS",
       ),
     );
   });

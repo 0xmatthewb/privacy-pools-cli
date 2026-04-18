@@ -47,13 +47,6 @@ export const ROOT_GLOBAL_FLAG_METADATA: readonly RootGlobalFlagEntry[] = [
     values: [...OUTPUT_FORMATS],
   },
   {
-    flag: "--format <format>",
-    description: OUTPUT_FORMAT_DESCRIPTION,
-    takesValue: true,
-    welcomeBoolean: false,
-    values: [...OUTPUT_FORMATS],
-  },
-  {
     flag: "-y, --yes",
     description: "Skip confirmation prompts",
     takesValue: false,

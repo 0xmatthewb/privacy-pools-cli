@@ -399,7 +399,7 @@ describe("renderAccountsNoPools parity", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("No Pool Accounts are visible on sepolia yet.");
+    expect(stderr).toContain("No Pool Accounts found on sepolia.");
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools pools --chain sepolia");
   });
@@ -768,7 +768,7 @@ describe("renderHistoryNoPools parity", () => {
     const { stdout, stderr } = captureOutput(() => renderHistoryNoPools(ctx, "sepolia"));
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("No history events are available on sepolia yet.");
+    expect(stderr).toContain("No history events found on sepolia.");
   });
 
   test("quiet mode: emits nothing", () => {
@@ -907,7 +907,7 @@ describe("renderHistory parity", () => {
       }),
     );
 
-    expect(stderr).toContain("No events found on sepolia");
+    expect(stderr).toContain("No history events found on sepolia.");
   });
 
   test("quiet mode: emits nothing", () => {

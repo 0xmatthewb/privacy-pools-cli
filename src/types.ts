@@ -38,7 +38,6 @@ export interface GlobalOptions {
   noProgress?: boolean;
   noHeader?: boolean;
   timeout?: string;
-  format?: string;
   jq?: string;
   jmes?: string;
   profile?: string;

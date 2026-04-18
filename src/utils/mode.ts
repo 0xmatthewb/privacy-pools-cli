@@ -5,7 +5,6 @@ import {
   setSuppressHeaders,
   setSuppressProgress,
 } from "./format.js";
-import { warnLegacyFormatFlag } from "./deprecations.js";
 import { configureNextActionGlobals } from "./next-action-globals.js";
 import { getParsedVerboseLevel } from "./verbose-level.js";
 import { setActiveProfile } from "../runtime/config-paths.js";
@@ -50,7 +49,6 @@ export interface ResolvedGlobalMode {
 }
 
 let _activeModeArgv: readonly string[] = [];
-let _warnedFormatAlias = false;
 
 const TRUE_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
 
@@ -126,7 +124,7 @@ function readTemplateFromArgv(argv: readonly string[]): string | null {
 }
 
 export function invalidOutputFormatMessage(value: string): string {
-  return `option '--format <format>' argument '${value}' is invalid. Allowed choices are ${OUTPUT_FORMAT_CHOICES_TEXT}.`;
+  return `option '--output <format>' argument '${value}' is invalid. Allowed choices are ${OUTPUT_FORMAT_CHOICES_TEXT}.`;
 }
 
 export function resolveGlobalMode(
@@ -161,7 +159,7 @@ export function resolveGlobalMode(
     hasJmes ||
     hasJsonFieldsFlag ||
     hasTemplateFlag;
-  const explicitFormat = normalizeOutputFormat(globalOpts?.output ?? globalOpts?.format);
+  const explicitFormat = normalizeOutputFormat(globalOpts?.output);
   const isWide = explicitFormat === "wide";
   const isYaml = explicitFormat === "yaml";
   const isName = explicitFormat === "name";
@@ -177,14 +175,6 @@ export function resolveGlobalMode(
     (globalOpts?.quiet ?? false) ||
     isAgent ||
     readBooleanEnv("PRIVACY_POOLS_QUIET");
-  if (
-    globalOpts?.format !== undefined &&
-    globalOpts?.output === undefined &&
-    !_warnedFormatAlias
-  ) {
-    warnLegacyFormatFlag(isQuiet || hasStructuredJsonFlag);
-    _warnedFormatAlias = true;
-  }
   // JSON/CSV/machine mode must never block on interactive prompts.
   // Also auto-detect CI environments (CI=true or CI=1) to prevent hanging.
   const isCI = process.env.CI === "true" || process.env.CI === "1";

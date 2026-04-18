@@ -84,7 +84,7 @@ describe("loadPrivateKey", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(CLIError);
       const e = err as CLIError;
-      expect(e.category).toBe("INPUT");
+      expect(e.category).toBe("SETUP");
       expect(e.message).toContain("Invalid private key format");
       expect(e.hint).toContain("64-character hex");
     }
@@ -102,7 +102,7 @@ describe("loadPrivateKey", () => {
       expect.unreachable("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(CLIError);
-      expect((err as CLIError).category).toBe("INPUT");
+      expect((err as CLIError).category).toBe("SETUP");
     }
   });
 
@@ -116,7 +116,7 @@ describe("loadPrivateKey", () => {
       expect.unreachable("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(CLIError);
-      expect((err as CLIError).category).toBe("INPUT");
+      expect((err as CLIError).category).toBe("SETUP");
     }
   });
 

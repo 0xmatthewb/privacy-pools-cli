@@ -1,4 +1,4 @@
-import { Command, Option } from "commander";
+import { Command } from "commander";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
@@ -14,17 +14,9 @@ export function createMigrateCommand(): Command {
   command
     .command("status")
     .description(statusMetadata.description)
-    .addOption(
-      new Option(
-        "--include-testnets",
-        "Include supported testnets (default: CLI-supported mainnet chains only)",
-      ),
-    )
-    .addOption(
-      new Option(
-        "--all-chains",
-        "Deprecated: use --include-testnets",
-      ).hideHelp(),
+    .option(
+      "--include-testnets",
+      "Include supported testnets (default: CLI-supported mainnet chains only)",
     )
     .addHelpText("after", commandHelpText(statusMetadata.help ?? {}))
     .action(

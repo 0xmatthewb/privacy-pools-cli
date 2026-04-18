@@ -1294,9 +1294,9 @@ function renderRagequitPreview(caseId) {
       return;
     case "ragequit-validation":
       throw new CLIError(
-        "Cannot use --pool-account and --commitment together.",
+        "unknown option '--mystery'",
         "INPUT",
-        "Use --pool-account for Pool Account selection. --commitment is deprecated.",
+        "Use --help to see usage and examples.",
       );
     default:
       return false;

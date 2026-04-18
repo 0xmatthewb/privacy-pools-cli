@@ -38,7 +38,7 @@ privacy-pools simulate deposit 0.1 ETH --agent                  # same JSON as d
 privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
 privacy-pools accounts --agent --chain mainnet                  # once pending disappears, confirm approved vs declined vs poa_required
-privacy-pools migrate status --agent --all-chains               # read-only legacy migration or recovery check on CLI-supported chains
+privacy-pools migrate status --agent --include-testnets               # read-only legacy migration or recovery check on CLI-supported chains
 privacy-pools withdraw --all ETH --to 0xRecipient --agent
 privacy-pools broadcast ./signed-envelope.json --agent          # optional inverse for full-envelope offline signing flows
 ```
@@ -422,7 +422,6 @@ When a human delegates CLI operations to an agent:
 | `--agent` | Machine-friendly mode (alias for `--json --yes --quiet`) |
 | `-j, --json` | Machine-readable JSON output on stdout |
 | `-o, --output <fmt>` | Output format: `table` (default), `csv`, `json` |
-| `--format <fmt>` | Alias for `--output <fmt>` |
 | `--jmes <expression>` | Filter JSON output with a JMESPath expression (implies `--json`) |
 | `--jq <expression>` | Compatibility alias for `--jmes`; this uses JMESPath, not jq syntax |
 | `-y, --yes` | Skip confirmation prompts |
@@ -465,7 +464,7 @@ List available Privacy Pools. When no `--chain` is specified, defaults to queryi
 
 ```bash
 privacy-pools pools --agent
-privacy-pools pools --agent --all-chains
+privacy-pools pools --agent --include-testnets
 privacy-pools pools --agent --search ETH
 privacy-pools pools --agent --sort tvl-desc
 privacy-pools pools ETH --agent             # detail view for a specific pool
@@ -477,9 +476,9 @@ Default sort is `tvl-desc` (highest pool balance first). Override with `--sort`.
 
 In pools JSON, `asset` is the symbol to use in follow-up CLI commands and `tokenAddress` is the token contract address.
 
-With `--all-chains`, each pool includes a `chain` field and the root includes `allChains: true`, `chains: [{ chain, pools, error }]`, and optional `warnings`.
+With `--include-testnets`, each pool includes a `chain` field and the root includes `allChains: true`, `chains: [{ chain, pools, error }]`, and optional `warnings`.
 
-**Detail view** (`pools <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON payload: `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. `recentActivityUnavailable: true` means the CLI attempted the fetch but could not load it. Supports `--json` and `--chain`. Does not support `--format csv`.
+**Detail view** (`pools <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON payload: `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. `recentActivityUnavailable: true` means the CLI attempted the fetch but could not load it. Supports `--json` and `--chain`. Does not support `--output csv`.
 
 #### `activity`
 
@@ -606,7 +605,7 @@ Newly generated CLI recovery phrases use 24 words (256-bit entropy). Imported re
 
 Human-facing onboarding uses **load** for the existing-account path. Machine fields and internal implementation still use **restore** terminology for precision.
 
-When `init` loads an existing recovery phrase, inspect `restoreDiscovery` and `nextActions` instead of assuming the account is immediately ready to transact. Website-created legacy accounts may still require `migrate status --agent --all-chains`, while supported deposits may surface directly through `accounts`.
+When `init` loads an existing recovery phrase, inspect `restoreDiscovery` and `nextActions` instead of assuming the account is immediately ready to transact. Website-created legacy accounts may still require `migrate status --agent --include-testnets`, while supported deposits may surface directly through `accounts`.
 
 > **CRITICAL**: When generating a new recovery phrase in machine mode, pass `--show-recovery-phrase` or `--backup-file`. The CLI now fails closed if neither capture path is provided. Losing the recovery phrase means losing access to all deposited funds.
 
@@ -755,7 +754,7 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient --agent
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --pool-account PA-2 --agent
 privacy-pools withdraw --all ETH --to 0xRecipient --agent
 privacy-pools withdraw 50% ETH --to 0xRecipient --agent
-privacy-pools withdraw 0.1 ETH --direct --yes-i-understand-privacy-loss --agent
+privacy-pools withdraw 0.1 ETH --direct --confirm-direct-withdraw --agent
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
@@ -763,7 +762,7 @@ JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, block
 
 JSON payload (direct): same but `mode: "direct"`, `feeBPS: null`, no `extraGas`. Human output includes a privacy note that direct withdrawals publicly link deposit and withdrawal addresses onchain.
 
-> **Note**: Direct withdrawals (`--direct`) will publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Non-interactive direct submissions and broadcastable unsigned direct payloads require `--yes-i-understand-privacy-loss`; dry-runs do not. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poa_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
+> **Note**: Direct withdrawals (`--direct`) will publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Non-interactive direct submissions and broadcastable unsigned direct payloads require `--confirm-direct-withdraw`; dry-runs do not. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poa_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
 
 **Amount shortcuts:**
 - `--all`: Withdraw the entire Pool Account balance
@@ -780,17 +779,16 @@ For relayed withdrawals, the CLI also warns if the chosen amount would leave a p
 privacy-pools withdraw quote 0.1 ETH --to 0xRecipient --agent
 ```
 
-JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof generation takes longer, the CLI will auto-refresh the quote if the fee hasn't changed. If the fee changes, re-run the command to generate a fresh proof. `nextActions` provides the canonical `withdraw` follow-up; check `runnable` because quotes without a recipient produce a template action that still needs `--to`.
 
-#### `ragequit` (alias: `exit`)
+#### `ragequit`
 
 Public recovery to the original deposit address. Does not preserve privacy. Use for declined deposits, PoA-blocked accounts, or when the user chooses not to wait for approval. Asset resolution still works when public pool discovery is offline because the CLI falls back to a built-in pool registry.
 
 ```bash
 privacy-pools ragequit ETH --pool-account PA-1 --agent
-privacy-pools exit ETH --pool-account PA-1 --agent   # same thing
 ```
 
 JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: "0", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
@@ -801,13 +799,13 @@ List Pool Accounts with their approval status and per-pool balance totals.
 
 ```bash
 privacy-pools accounts --agent
-privacy-pools accounts --agent --all-chains
+privacy-pools accounts --agent --include-testnets
 privacy-pools accounts --agent --summary
 privacy-pools accounts --agent --chain <chain> --pending-only
 privacy-pools accounts --agent --details
 ```
 
-When no `--chain` is specified, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--all-chains` to include testnets.
+When no `--chain` is specified, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--include-testnets` to include testnets.
 
 JSON payload: `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 Supports `--status <status>` for approved/pending/poa_required/declined/unknown/spent/exited filters. `--watch` is human-only and only valid with pending results.
@@ -828,13 +826,13 @@ Read-only legacy migration or recovery readiness check on CLI-supported chains.
 
 ```bash
 privacy-pools migrate status --agent
-privacy-pools migrate status --agent --all-chains
+privacy-pools migrate status --agent --include-testnets
 privacy-pools migrate status --agent --chain mainnet
 ```
 
 `migrate status` rebuilds the legacy account view from the installed SDK, the built-in CLI pool registry for CLI-supported chains, and current onchain events without persisting trusted account state. It reports whether legacy pre-upgrade commitments still need website migration, already appear fully migrated, require website-based public recovery because they were declined, or cannot be classified safely because ASP review data is incomplete. The CLI does **not** submit migration transactions.
 
-Without `--chain`, `migrate status` checks all CLI-supported mainnet chains by default. Use `--all-chains` to include supported testnets. Like other multi-chain read-only commands, `--rpc-url` is only valid with `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
+Without `--chain`, `migrate status` checks all CLI-supported mainnet chains by default. Use `--include-testnets` to include supported testnets. Like other multi-chain read-only commands, `--rpc-url` is only valid with `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
 
 JSON payload: `{ mode: "migration-status", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }`
 

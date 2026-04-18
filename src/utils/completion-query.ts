@@ -91,10 +91,10 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         "-o, --output <format>",
         rootGlobalFlagValues("-o, --output <format>"),
       ),
-      completionOption("--format <format>", rootGlobalFlagValues("--format <format>")),
       completionOption("-y, --yes"),
       completionOption("--web"),
       completionOption("-r, --rpc-url <url>"),
+      completionOption("--template <template>"),
       completionOption("--agent"),
       completionOption("-q, --quiet"),
       completionOption("--no-banner"),
@@ -124,7 +124,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--rpc-url <url>"),
           completionOption("--force"),
           completionOption("--dry-run"),
-          completionOption("--skip-circuits"),
           completionOption("--staged"),
         ],
       }),
@@ -204,7 +203,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       }),
       completionCommand("pools", {
         options: [
-          completionOption("--all-chains"),
+          completionOption("--include-testnets"),
           completionOption("--search <query>"),
           completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
         ],
@@ -219,7 +218,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("accounts", {
         options: [
           completionOption("--no-sync"),
-          completionOption("--all-chains"),
+          completionOption("--include-testnets"),
           completionOption("--details"),
           completionOption("--summary"),
           completionOption("--pending-only"),
@@ -231,7 +230,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         subcommands: [
           completionCommand("status", {
             options: [
-              completionOption("--all-chains"),
+              completionOption("--include-testnets"),
             ],
           }),
         ],
@@ -260,7 +259,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         aliases: ["exit"],
         options: [
           completionOption("-p, --pool-account <PA-#|#>"),
-          completionOption("-i, --commitment <index>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
           completionOption("--confirm-ragequit"),
@@ -286,6 +284,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       }),
       completionCommand("activity", {
         options: [
+          completionOption("--include-testnets"),
           completionOption("--page <n>"),
           completionOption("-n, --limit <n>"),
         ],

@@ -13,12 +13,6 @@ export function createPoolsCommand(): Command {
       "--include-testnets",
       "Include supported testnets (default: CLI-supported mainnet chains only)",
     )
-    .addOption(
-      new Option(
-        "--all-chains",
-        "Include supported testnets (default: CLI-supported mainnet chains only)",
-      ).hideHelp(),
-    )
     .option("--search <query>", "Filter by chain/symbol/address/scope")
     .addOption(
       new Option(

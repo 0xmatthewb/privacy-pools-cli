@@ -101,9 +101,9 @@
   },
   {
     "name": "agent mode outranks csv",
-    "argv": ["--agent", "--format", "csv", "guide"],
+    "argv": ["--agent", "--output", "csv", "guide"],
     "expected": {
-      "rootArgvSlice": ["--agent", "--format", "csv", "guide"],
+      "rootArgvSlice": ["--agent", "--output", "csv", "guide"],
       "firstCommandToken": "guide",
       "nonOptionTokens": ["guide"],
       "formatFlagValue": "csv",
@@ -161,9 +161,9 @@
   },
   {
     "name": "inline json format root help",
-    "argv": ["--format=json", "--help"],
+    "argv": ["--output=json", "--help"],
     "expected": {
-      "rootArgvSlice": ["--format=json", "--help"],
+      "rootArgvSlice": ["--output=json", "--help"],
       "firstCommandToken": null,
       "nonOptionTokens": [],
       "formatFlagValue": "json",

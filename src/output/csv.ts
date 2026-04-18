@@ -2,7 +2,7 @@
  * RFC 4180–compliant CSV output utility.
  *
  * Writes CSV to stdout (same stream as JSON output) so piping and
- * redirection work the same way: `privacy-pools pools --format csv > pools.csv`
+ * redirection work the same way: `privacy-pools pools --output csv > pools.csv`
  */
 
 import { shouldSuppressHeaders } from "../utils/format.js";

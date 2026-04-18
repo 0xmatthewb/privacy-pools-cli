@@ -25,6 +25,7 @@ import {
 import { getActiveProfile, resolveConfigHome, setActiveProfile } from "../../src/runtime/config-paths.ts";
 import {
   captureAsyncJsonOutput,
+  captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
 } from "../helpers/output.ts";
 import { cleanupTrackedTempDirs, createTrackedTempDir } from "../helpers/temp.ts";
@@ -140,7 +141,7 @@ describe("config command handlers", () => {
     expect(invalid.json.errorMessage).toContain("Unknown config key");
   });
 
-  test("sets default chain, rpc override, recovery phrase, and signer key", async () => {
+  test("sets default chain, rpc override, and recovery phrase while rejecting signer-key config writes", async () => {
     const home = useIsolatedHome();
     const phraseFile = join(home, "phrase.txt");
     const signerFile = join(home, "signer.txt");
@@ -179,15 +180,22 @@ describe("config command handlers", () => {
     );
     expect(loadMnemonicFromFile()).toContain("abandon");
 
-    await captureAsyncOutput(() =>
+    const signerUpdate = await captureAsyncJsonOutputAllowExit(() =>
       handleConfigSetCommand(
         "signer-key",
         undefined,
         { file: signerFile },
-        fakeCommand({}, 2),
+        fakeCommand({ json: true }, 2),
       ),
     );
-    expect(loadSignerKey()).toBe(`${"33".repeat(32)}`);
+    expect(signerUpdate.json.success).toBe(false);
+    expect(signerUpdate.json.errorCode).toBe("INPUT_ERROR");
+    expect(signerUpdate.json.error.message ?? signerUpdate.json.errorMessage).toContain(
+      "cannot be updated through config set",
+    );
+    expect(signerUpdate.json.error.hint).toContain("init --signer-only");
+    expect(loadSignerKey()).toBeNull();
+    expect(signerUpdate.exitCode).toBe(2);
 
     const invalidRpc = await captureAsyncJsonOutput(() =>
       handleConfigSetCommand(

@@ -79,7 +79,7 @@ function buildRootHelpBaseLines(): string[] {
     "  -V, --version           output the version number",
     "  -c, --chain <name>      Target chain (mainnet, arbitrum, optimism, ...)",
     "  -j, --json              Machine-readable JSON output on stdout. After the",
-    "                          command name, use --json <fields> or --json=<fields>",
+    "                          command name, pass --json <fields> or --json=<fields>",
     "                          to select top-level fields.",
     "  -o, --output <format>   Output format: table (default), csv, json, yaml, wide,",
     '                          name (choices: "table", "csv", "json", "yaml", "wide",',

@@ -444,7 +444,8 @@ describe("bootstrap runtime coverage", () => {
 
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-    expect(stderr).toBe("");
+    expect(stderr).toContain("Error [INPUT]: invalid value for '--timeout'");
+    expect(stderr).toContain("Hint: Use --help to see usage and examples.");
   });
 
   test("runCli human commander input errors set exitCode without forcing exit", async () => {
@@ -475,7 +476,8 @@ describe("bootstrap runtime coverage", () => {
 
       expect(seenExitCode).toBe(2);
       expect(stdout).toBe("");
-      expect(stderr).toBe("");
+      expect(stderr).toContain("Error [INPUT]: invalid value for '--timeout'");
+      expect(stderr).toContain("Hint: Use --help to see usage and examples.");
     } finally {
       process.exit = originalExit;
     }
@@ -564,8 +566,7 @@ describe("bootstrap runtime coverage", () => {
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain("styled:help body");
-    expect(stderr).toContain("stderr note");
-    expect(stderr).toContain("danger:danger body");
+    expect(stderr).toBe("");
   });
 
   test("runCli loads config-home dotenv for runtime commands", async () => {
@@ -889,10 +890,10 @@ describe("bootstrap runtime coverage", () => {
     expect(stderr).toBe("");
   });
 
-  test("runCli accepts both inline and split --format json for bare root help", async () => {
+  test("runCli accepts both inline and split --output json for bare root help", async () => {
     const inlineCli = await import("../../src/cli-main.ts?format-inline-json-help");
     const inline = await captureAsyncJsonOutputAllowExit(() =>
-      inlineCli.runCli({ version: "1.2.3" }, ["--format=json"]),
+      inlineCli.runCli({ version: "1.2.3" }, ["--output=json"]),
     );
     expect(inline.exitCode).toBe(0);
     expect(inline.json.success).toBe(true);
@@ -901,7 +902,7 @@ describe("bootstrap runtime coverage", () => {
 
     const splitCli = await import("../../src/cli-main.ts?format-split-json-help");
     const split = await captureAsyncJsonOutputAllowExit(() =>
-      splitCli.runCli({ version: "1.2.3" }, ["--format", "json"]),
+      splitCli.runCli({ version: "1.2.3" }, ["--output", "json"]),
     );
     expect(split.exitCode).toBe(0);
     expect(split.json.success).toBe(true);
@@ -1135,6 +1136,7 @@ describe("bootstrap runtime coverage", () => {
         }
       | undefined;
     const program = {
+      commands: [],
       configureOutput: (output: typeof configuredOutput) => {
         configuredOutput = output;
       },
@@ -1156,7 +1158,7 @@ describe("bootstrap runtime coverage", () => {
     });
 
     expect(captured.stdout).toBe("styled:help");
-    expect(captured.stderr).toBe("stderrdanger:warn");
+    expect(captured.stderr).toBe("");
   });
 
   test("cliMain internals write styled machine help when not capturing", async () => {
@@ -1553,7 +1555,7 @@ describe("bootstrap runtime coverage", () => {
     expect(human.stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
     expect(human.stderr).toBe("");
 
-    setIndexArgv(["--format=json", "--version"]);
+    setIndexArgv(["--output=json", "--version"]);
     const structured = await captureAsyncJsonOutputAllowExit(async () => {
       await runImportedIndex("version-json-fast-path");
     });
@@ -1590,7 +1592,7 @@ describe("bootstrap runtime coverage", () => {
     expect(runCliMock).not.toHaveBeenCalled();
   });
 
-  test("index routes structured root help when --format json is split across tokens", async () => {
+  test("index routes structured root help when --output json is split across tokens", async () => {
     forceJsLauncherFallback();
     const runStaticRootHelpMock = mock(async () => undefined);
     const runCliMock = mock(async () => undefined);
@@ -1604,7 +1606,7 @@ describe("bootstrap runtime coverage", () => {
       runCli: runCliMock,
     }));
 
-    setIndexArgv(["--format", "json", "help"]);
+    setIndexArgv(["--output", "json", "help"]);
 
     const { exitCode } = await captureAsyncOutputAllowExit(async () => {
       await runImportedIndex("root-help-format-split");

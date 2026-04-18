@@ -11,6 +11,7 @@ import {
   getCommandMetadata,
   GLOBAL_FLAG_METADATA,
 } from "../../src/utils/command-metadata.ts";
+import { ROOT_GLOBAL_FLAG_METADATA } from "../../src/utils/root-global-flags.ts";
 import { NEXT_ACTION_WHEN_VALUES } from "../../src/types.ts";
 
 interface RuntimeCommandEntry {
@@ -94,7 +95,10 @@ describe("command metadata conformance", () => {
 
   test("root global flags stay aligned with metadata", async () => {
     const rootOptions = collectRootOptions(await createRootProgram("0.0.0"));
-    const metadata = [...GLOBAL_FLAG_METADATA].sort((left, right) => left.flag.localeCompare(right.flag));
+    const metadata = ROOT_GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({
+      flag,
+      description,
+    })).sort((left, right) => left.flag.localeCompare(right.flag));
 
     expect(rootOptions).toEqual(metadata);
   });

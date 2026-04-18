@@ -81,7 +81,7 @@ defineScenarioSuite("machine-mode acceptance", [
     }),
   ]),
   defineScenario("agent guide stays structured when csv is also requested", [
-    runCliStep(["--agent", "--format", "csv", "guide"]),
+    runCliStep(["--agent", "--output", "csv", "guide"]),
     assertExit(0),
     assertStderrEmpty(),
     assertJson<{
@@ -97,7 +97,7 @@ defineScenarioSuite("machine-mode acceptance", [
     }),
   ]),
   defineScenario("json capabilities stays structured when csv is also requested", [
-    runCliStep(["--json", "--format", "csv", "capabilities"]),
+    runCliStep(["--json", "--output", "csv", "capabilities"]),
     assertExit(0),
     assertStderrEmpty(),
     assertJson<{
@@ -110,21 +110,18 @@ defineScenarioSuite("machine-mode acceptance", [
       expect(json.commands.length).toBeGreaterThan(0);
     }),
   ]),
-  defineScenario("invalid format is rejected on static machine routes", [
-    runCliStep(["--json", "--format", "yaml", "guide"]),
-    assertExit(2),
+  defineScenario("static guide supports yaml output when explicitly requested", [
+    runCliStep(["--json", "--output", "yaml", "guide"]),
+    assertExit(0),
     assertStderrEmpty(),
-    assertJson<{
-      schemaVersion: string;
-      success: boolean;
-      errorCode: string;
-      errorMessage: string;
-    }>((json) => {
-      expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-      expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_ERROR");
-      expect(json.errorMessage).toContain("argument 'yaml' is invalid");
-    }),
+    (ctx) => {
+      expect(ctx.lastResult).not.toBeNull();
+      const stdout = ctx.lastResult?.stdout ?? "";
+      expect(stdout).toContain("schemaVersion: 2.0.0");
+      expect(stdout).toContain("success: true");
+      expect(stdout).toContain("mode: help");
+      expect(stdout).toContain("Privacy Pools: Quick Guide");
+    },
   ]),
   defineScenario("agent root help returns a JSON envelope", [
     runCliStep(["--agent", "help"]),

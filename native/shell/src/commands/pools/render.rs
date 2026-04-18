@@ -412,10 +412,7 @@ fn build_deposit_template_next_action(data: &PoolsRenderData) -> Value {
         "reason".to_string(),
         Value::String("Deposit into a pool.".to_string()),
     );
-    action.insert(
-        "when".to_string(),
-        Value::String("after_pools".to_string()),
-    );
+    action.insert("when".to_string(), Value::String("after_pools".to_string()));
     action.insert("runnable".to_string(), Value::Bool(false));
     action.insert(
         "parameters".to_string(),

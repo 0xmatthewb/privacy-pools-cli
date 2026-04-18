@@ -206,7 +206,7 @@ export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "By exiting this pool, you are publicly withdrawing all funds to your deposit address. You will not gain any privacy.",
+        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.",
       ],
     },
     secondaryCallout: configuredSignerRecoverySuffix(snapshot)

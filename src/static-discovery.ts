@@ -142,7 +142,7 @@ export async function runStaticCompletionQuery(
     const mode = resolveGlobalMode(parsed.globalOpts);
     if (mode.isCsv) {
       throw new CLIError(
-        "--format csv is not supported for 'completion'.",
+        "--output csv is not supported for 'completion'.",
         "INPUT",
         "CSV output is available for: pools, accounts, activity, stats, history.",
       );

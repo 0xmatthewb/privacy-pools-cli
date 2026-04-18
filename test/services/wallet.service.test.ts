@@ -150,7 +150,7 @@ describe("wallet service", () => {
   });
 
   describe("loadMnemonic", () => {
-    test("throws CLIError with INPUT category when no mnemonic file exists", () => {
+    test("throws CLIError with SETUP category when no mnemonic file exists", () => {
       // With a fresh temp PRIVACY_POOLS_HOME, there's no mnemonic file
       const origHome = process.env.PRIVACY_POOLS_HOME;
       const tempDir = createTrackedTempDir("pp-wallet-test-");
@@ -161,7 +161,7 @@ describe("wallet service", () => {
           loadMnemonic();
         } catch (err) {
           expect(err).toBeInstanceOf(CLIError);
-          expect((err as CLIError).category).toBe("INPUT");
+          expect((err as CLIError).category).toBe("SETUP");
         }
       } finally {
         if (origHome !== undefined) {
@@ -172,7 +172,7 @@ describe("wallet service", () => {
       }
     });
 
-    test("throws CLIError with INPUT category when mnemonic file contains invalid content", () => {
+    test("throws CLIError with SETUP category when mnemonic file contains invalid content", () => {
       const origHome = process.env.PRIVACY_POOLS_HOME;
       const tempDir = createTrackedTempDir("pp-wallet-test-");
       writeFileSync(join(tempDir, ".mnemonic"), "not a valid bip39 mnemonic phrase at all", "utf-8");
@@ -184,7 +184,7 @@ describe("wallet service", () => {
         } catch (err) {
           expect(err).toBeInstanceOf(CLIError);
           const e = err as CLIError;
-          expect(e.category).toBe("INPUT");
+          expect(e.category).toBe("SETUP");
           expect(e.message).toContain("invalid or corrupted");
           expect(e.hint).toContain("Re-initialize");
         }
@@ -199,7 +199,7 @@ describe("wallet service", () => {
   });
 
   describe("loadPrivateKey", () => {
-    test("throws CLIError with INPUT category when no signer file exists", () => {
+    test("throws CLIError with SETUP category when no signer file exists", () => {
       const origHome = process.env.PRIVACY_POOLS_HOME;
       const origKey = process.env.PRIVACY_POOLS_PRIVATE_KEY;
       const tempDir = createTrackedTempDir("pp-wallet-test-");
@@ -211,7 +211,7 @@ describe("wallet service", () => {
           loadPrivateKey();
         } catch (err) {
           expect(err).toBeInstanceOf(CLIError);
-          expect((err as CLIError).category).toBe("INPUT");
+          expect((err as CLIError).category).toBe("SETUP");
         }
       } finally {
         if (origHome !== undefined) {

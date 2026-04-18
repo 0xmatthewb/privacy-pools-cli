@@ -40,11 +40,9 @@ import {
 } from "../services/account.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
-import { warnLegacyAllChainsFlag } from "../utils/deprecations.js";
 
 interface MigrateStatusCommandOptions {
   includeTestnets?: boolean;
-  allChains?: boolean;
 }
 
 interface LoadedChainMigration {
@@ -289,10 +287,7 @@ export async function handleMigrateStatusCommand(
       return;
     }
 
-    if (opts.allChains && !opts.includeTestnets) {
-      warnLegacyAllChainsFlag(silent);
-    }
-    const includeTestnets = opts.includeTestnets === true || opts.allChains === true;
+    const includeTestnets = opts.includeTestnets === true;
     const config = loadConfig();
     const explicitChain = globalOpts?.chain;
     const useMultiChain = includeTestnets || !explicitChain;

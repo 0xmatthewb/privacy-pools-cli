@@ -10,13 +10,12 @@ Recover funds publicly to your deposit address
 
 **Usage:** `privacy-pools ragequit [asset] [options]`
 
-Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or exit publicly via ragequit. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools. Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval. In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped, pass --confirm-ragequit.
+Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools. Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval. In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped, pass --confirm-ragequit.
 
 **Basic:**
 
 ```bash
 privacy-pools ragequit ETH --pool-account PA-1
-privacy-pools exit ETH --pool-account PA-1
 privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet
 ```
 
@@ -36,7 +35,7 @@ privacy-pools ragequit ETH --dry-run --pool-account PA-1
 | `--confirm-ragequit` | Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address |
 
 **Safety:** Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.
-**Safety:** By exiting this pool, you are publicly withdrawing all funds to your deposit address. You will not gain any privacy.
+**Safety:** Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
 **JSON output:** `{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: "0", reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

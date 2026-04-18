@@ -153,13 +153,8 @@ mod tests {
 
     #[test]
     fn rejects_deprecated_asset_flag() {
-        let error = parse_activity_options(&argv(&[
-            "privacy-pools",
-            "activity",
-            "--asset",
-            "ETH",
-        ]))
-        .expect_err("deprecated asset flag");
+        let error = parse_activity_options(&argv(&["privacy-pools", "activity", "--asset", "ETH"]))
+            .expect_err("deprecated asset flag");
         assert!(error.message.contains("unknown option '--asset'"));
     }
 

@@ -23,11 +23,9 @@ import {
   normalizeActivityEvent,
   parseNumberish as parseNumberishValue,
 } from "../utils/public-activity.js";
-import { warnLegacyAllChainsFlag } from "../utils/deprecations.js";
 
 interface ActivityCommandOptions {
   includeTestnets?: boolean;
-  allChains?: boolean;
   page?: string;
   limit?: string;
 }
@@ -87,10 +85,6 @@ export async function handleActivityCommand(
   const silent = isQuiet || isJson;
 
   const resolvedAsset = positionalAsset;
-  if (opts.allChains && !opts.includeTestnets) {
-    warnLegacyAllChainsFlag(silent);
-  }
-
   try {
     if (await maybeRenderPreviewScenario("activity")) {
       return;
@@ -99,7 +93,7 @@ export async function handleActivityCommand(
     const page = parsePositiveInt(opts.page, "page");
     const perPage = parsePositiveInt(opts.limit, "limit");
     const explicitChain = globalOpts?.chain;
-    const includeTestnets = opts.includeTestnets === true || opts.allChains === true;
+    const includeTestnets = opts.includeTestnets === true;
 
     const config = loadConfig();
     const ctx = createOutputContext(mode);

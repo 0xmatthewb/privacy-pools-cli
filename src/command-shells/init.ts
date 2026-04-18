@@ -1,4 +1,4 @@
-import { Command, Option } from "commander";
+import { Command } from "commander";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
@@ -50,12 +50,6 @@ export function createInitCommand(): Command {
     .option(
       "--staged",
       "Emit onboarding progress as JSONL envelopes in --json/--agent mode (preflight, recovery, backup, signer, chain, write, discovery, complete)",
-    )
-    .addOption(
-      new Option(
-        "--skip-circuits",
-        "No-op (proof commands use bundled circuit artifacts by default)",
-      ).hideHelp(),
     )
     .addHelpText(
       "after",

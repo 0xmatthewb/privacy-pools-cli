@@ -79,26 +79,26 @@ export function isCsv(ctx: OutputContext): boolean {
   return ctx.mode.isCsv;
 }
 
-/** Commands that support `--format csv` output. */
+/** Commands that support `--output csv` output. */
 const CSV_SUPPORTED_COMMANDS = ["pools", "accounts", "activity", "stats", "history"];
 const NAME_SUPPORTED_COMMANDS = ["pools", "accounts", "activity", "stats", "history"];
 
 /**
- * Throw an INPUT error when `--format csv` is used with a command that does
+ * Throw an INPUT error when `--output csv` is used with a command that does
  * not produce tabular data.  Call at the top of any renderer that lacks CSV
  * support.
  */
 export function guardCsvUnsupported(ctx: OutputContext, commandName: string): void {
   if (ctx.mode.isCsv) {
     throw new CLIError(
-      `--format csv is not supported for '${commandName}'.`,
+      `--output csv is not supported for '${commandName}'.`,
       "INPUT",
       `CSV output is available for: ${CSV_SUPPORTED_COMMANDS.join(", ")}.`,
     );
   }
   if (ctx.mode.isName) {
     throw new CLIError(
-      `--format name is not supported for '${commandName}'.`,
+      `--output name is not supported for '${commandName}'.`,
       "INPUT",
       `Name output is available for: ${NAME_SUPPORTED_COMMANDS.join(", ")}.`,
     );

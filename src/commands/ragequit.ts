@@ -72,7 +72,6 @@ import {
   describeUnavailablePoolAccount,
   getUnknownPoolAccountError,
   parsePoolAccountSelector,
-  poolAccountId,
   type PoolAccountRef,
 } from "../utils/pool-accounts.js";
 import {
@@ -118,9 +117,7 @@ interface RagequitAdvisory {
 
 interface RagequitCommandOptions {
   poolAccount?: string;
-  commitment?: string;
   confirmRagequit?: boolean;
-  yesIPreferRagequit?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
 }
@@ -128,7 +125,7 @@ interface RagequitCommandOptions {
 const LOCAL_STATE_RECONCILIATION_WARNING_CODE =
   "LOCAL_STATE_RECONCILIATION_REQUIRED";
 const RAGEQUIT_PRIVACY_WARNING_COPY =
-  "By exiting this pool, you are publicly withdrawing all funds to your deposit address. You will not gain any privacy.";
+  "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.";
 
 interface RagequitAccountLoadResult {
   accountService: AccountService;
@@ -387,14 +384,6 @@ export async function handleRagequitCommand(
         `Invalid --pool-account value: ${fromPaRaw}.`,
         "INPUT",
         "Use a Pool Account identifier like PA-2 (or just 2).",
-      );
-    }
-
-    if (fromPaRaw !== undefined && opts.commitment !== undefined) {
-      throw new CLIError(
-        "Cannot use --pool-account and --commitment together.",
-        "INPUT",
-        "Use --pool-account for Pool Account selection. --commitment is deprecated.",
       );
     }
 
@@ -720,42 +709,6 @@ export async function handleRagequitCommand(
           chainName: chainConfig.name,
           symbol: pool.symbol,
         });
-      } else if (opts.commitment !== undefined) {
-        const idx = parseInt(opts.commitment, 10);
-        if (isNaN(idx) || idx < 0 || idx >= poolCommitments.length) {
-          throw new CLIError(
-            `Invalid legacy Pool Account index: ${opts.commitment}. Valid range: 0-${poolCommitments.length - 1}`,
-            "INPUT",
-            "This legacy index is deprecated. Use --pool-account PA-<n> instead.",
-          );
-        }
-        const legacyCommitment = poolCommitments[idx];
-        const matchedPoolAccount = poolAccounts.find(
-          (pa) =>
-            pa.label.toString() === legacyCommitment.label.toString() &&
-            pa.commitment.hash.toString() === legacyCommitment.hash.toString(),
-        );
-        if (!matchedPoolAccount) {
-          selectedPoolAccount = {
-            paNumber: idx + 1,
-            paId: poolAccountId(idx + 1),
-            status: "unknown",
-            aspStatus: "unknown",
-            commitment: legacyCommitment,
-            label: legacyCommitment.label,
-            value: legacyCommitment.value,
-            blockNumber: legacyCommitment.blockNumber,
-            txHash: legacyCommitment.txHash,
-          };
-        } else {
-          selectedPoolAccount = matchedPoolAccount;
-        }
-        if (!silent) {
-          warn(
-            "--commitment is deprecated. Use --pool-account PA-<n> instead.",
-            false,
-          );
-        }
       } else if (!skipPrompts) {
         const tokenPrice = deriveTokenPrice(pool);
         ensurePromptInteractionAvailable();
@@ -892,8 +845,7 @@ export async function handleRagequitCommand(
       } else if (
         !isDryRun &&
         selectedPoolAccount.status !== "approved" &&
-        opts.confirmRagequit !== true &&
-        opts.yesIPreferRagequit !== true
+        opts.confirmRagequit !== true
       ) {
         throw new CLIError(
           "Ragequit requires explicit privacy-loss acknowledgement in non-interactive mode.",
@@ -933,8 +885,7 @@ export async function handleRagequitCommand(
         selectedPoolAccount.status === "approved" &&
         skipPrompts &&
         !isDryRun &&
-        opts.confirmRagequit !== true &&
-        opts.yesIPreferRagequit !== true
+        opts.confirmRagequit !== true
       ) {
         throw new CLIError(
           `${selectedPoolAccount.paId} is approved for private withdrawal.`,

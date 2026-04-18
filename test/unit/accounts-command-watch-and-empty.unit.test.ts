@@ -234,7 +234,7 @@ describe("accounts command watch and empty states", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("No Pool Accounts are visible on mainnet yet.");
+    expect(stderr).toContain("No Pool Accounts found on mainnet.");
     expect(stderr).toContain("privacy-pools flow start");
     expect(stderr).toContain("easiest path once you have chosen an amount and recipient");
   });
@@ -251,7 +251,7 @@ describe("accounts command watch and empty states", () => {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("No declined Pool Accounts are visible");
+    expect(stderr).toContain("No declined Pool Accounts found on mainnet.");
     expect(stderr).toContain("re-running accounts without --status");
   });
 });

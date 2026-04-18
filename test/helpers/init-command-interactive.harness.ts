@@ -187,7 +187,9 @@ export function registerInitCancelInvalidTests(): void {
 
     expect(stdout).toBe("");
     expect(exitCode).toBe(0);
-    expect(stderr).toContain("doesn't look right. Please check and try again");
+    expect(stderr).toContain(
+      "doesn't look right yet. Please check the words and try again",
+    );
     expect(stderr).toContain("Operation cancelled.");
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
   });

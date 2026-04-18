@@ -259,7 +259,15 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   },
   errorCategories: {
     values: ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"],
-    exitCodes: { INPUT: 2, RPC: 3, ASP: 4, RELAYER: 5, PROOF: 6, CONTRACT: 7, UNKNOWN: 1 },
+    exitCodes: {
+      INPUT: EXIT_CODES.INPUT,
+      RPC: EXIT_CODES.RPC,
+      ASP: EXIT_CODES.ASP,
+      RELAYER: EXIT_CODES.RELAYER,
+      PROOF: EXIT_CODES.PROOF,
+      CONTRACT: EXIT_CODES.CONTRACT,
+      UNKNOWN: EXIT_CODES.UNKNOWN,
+    },
     description:
       "Error responses include error.{ code, category, message, hint?, retryable? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message.",
   },

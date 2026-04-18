@@ -15,7 +15,7 @@ export function staticGlobalOptsFromParsedRootArgv(
     json: preludeGlobalOpts?.json ?? (parsed.isJson || undefined),
     agent: parsed.isAgent || undefined,
     quiet: parsed.isQuiet || undefined,
-    format: parsed.formatFlagValue ?? undefined,
+    output: parsed.formatFlagValue ?? undefined,
     noHeader: preludeGlobalOpts?.noHeader,
     jsonFields: preludeGlobalOpts?.jsonFields,
     jq: preludeGlobalOpts?.jq,
@@ -35,11 +35,11 @@ export function isQuietMode(globalOpts: GlobalOptions): boolean {
 
 export function assertSupportedOutputFormat(globalOpts: GlobalOptions): void {
   if (
-    globalOpts.format !== undefined &&
-    !isSupportedOutputFormat(globalOpts.format)
+    globalOpts.output !== undefined &&
+    !isSupportedOutputFormat(globalOpts.output)
   ) {
     throw new CLIError(
-      invalidOutputFormatMessage(globalOpts.format),
+      invalidOutputFormatMessage(globalOpts.output),
       "INPUT",
       "Use --help to see usage and examples.",
     );
@@ -52,7 +52,7 @@ export function guardStaticCsvUnsupported(
 ): void {
   if (resolveGlobalMode(globalOpts).isCsv) {
     throw new CLIError(
-      `--format csv is not supported for '${commandName}'.`,
+      `--output csv is not supported for '${commandName}'.`,
       "INPUT",
       "CSV output is available for: pools, accounts, activity, stats, history.",
     );

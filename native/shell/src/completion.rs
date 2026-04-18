@@ -346,7 +346,7 @@ mod tests {
     fn completion_query_ignores_machine_flags_and_csv_mix() {
         let query = parse_completion_query(&argv(&[
             "--agent",
-            "--format",
+            "--output",
             "csv",
             "completion",
             "--query",
