@@ -15,18 +15,18 @@ describe("verify npm published artifact helpers", () => {
     expect(
       normalizeViewedPackageMetadata({
         name: "privacy-pools-cli",
-        version: "2.0.0",
+        version: "2.1.0",
         dist: {
           integrity: "sha512-local",
-          tarball: "https://registry.npmjs.org/privacy-pools-cli/-/privacy-pools-cli-2.0.0.tgz",
+          tarball: "https://registry.npmjs.org/privacy-pools-cli/-/privacy-pools-cli-2.1.0.tgz",
         },
       }),
     ).toEqual({
       name: "privacy-pools-cli",
-      version: "2.0.0",
+      version: "2.1.0",
       integrity: "sha512-local",
       tarball:
-        "https://registry.npmjs.org/privacy-pools-cli/-/privacy-pools-cli-2.0.0.tgz",
+        "https://registry.npmjs.org/privacy-pools-cli/-/privacy-pools-cli-2.1.0.tgz",
     });
   });
 
@@ -34,17 +34,17 @@ describe("verify npm published artifact helpers", () => {
     expect(
       normalizeViewedPackageMetadata({
         name: "privacy-pools-cli",
-        version: "2.0.0",
+        version: "2.1.0",
         "dist.integrity": "sha512-flat",
         "dist.tarball":
-          "https://registry.npmjs.org/privacy-pools-cli/-/privacy-pools-cli-2.0.0.tgz",
+          "https://registry.npmjs.org/privacy-pools-cli/-/privacy-pools-cli-2.1.0.tgz",
       }),
     ).toEqual({
       name: "privacy-pools-cli",
-      version: "2.0.0",
+      version: "2.1.0",
       integrity: "sha512-flat",
       tarball:
-        "https://registry.npmjs.org/privacy-pools-cli/-/privacy-pools-cli-2.0.0.tgz",
+        "https://registry.npmjs.org/privacy-pools-cli/-/privacy-pools-cli-2.1.0.tgz",
     });
   });
 });

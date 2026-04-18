@@ -85,7 +85,7 @@ const GLOBAL_EVENTS = {
   ],
   page: 1,
   perPage: 12,
-  total: 1,
+  total: 13,
   totalPages: 1,
 };
 

@@ -112,10 +112,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
     subcommands: [
       completionCommand("init", {
         options: [
-          completionOption("--mnemonic <phrase>"),
-          completionOption("--mnemonic-file <path>"),
-          completionOption("--mnemonic-stdin"),
-          completionOption("--show-mnemonic"),
           completionOption("--recovery-phrase <phrase>"),
           completionOption("--recovery-phrase-file <path>"),
           completionOption("--recovery-phrase-stdin"),
@@ -189,7 +185,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       }),
       completionCommand("deposit", {
         options: [
-          completionOption("-a, --asset <symbol|address>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
           completionOption("--ignore-unique-amount"),
@@ -223,7 +218,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--yes-i-understand-privacy-loss"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
-          completionOption("-a, --asset <symbol|address>"),
           completionOption("--all"),
           completionOption("--extra-gas"),
           completionOption("--no-extra-gas"),
@@ -231,7 +225,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         subcommands: [
           completionCommand("quote", {
             options: [
-              completionOption("-a, --asset <symbol|address>"),
               completionOption("-t, --to <address>"),
             ],
           }),
@@ -240,11 +233,11 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("ragequit", {
         aliases: ["exit"],
         options: [
-          completionOption("-a, --asset <symbol|address>"),
           completionOption("-p, --pool-account <PA-#|#>"),
           completionOption("-i, --commitment <index>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
+          completionOption("--yes-i-prefer-ragequit"),
         ],
       }),
       completionCommand("history", {
@@ -254,7 +247,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         ],
       }),
       completionCommand("sync", {
-        options: [completionOption("-a, --asset <symbol|address>")],
+        options: [],
       }),
       completionCommand("status", {
         options: [
@@ -266,7 +259,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       }),
       completionCommand("activity", {
         options: [
-          completionOption("-a, --asset <symbol|address>"),
           completionOption("--page <n>"),
           completionOption("-n, --limit <n>"),
         ],
@@ -274,9 +266,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("stats", {
         subcommands: [
           completionCommand("global"),
-          completionCommand("pool", {
-            options: [completionOption("-a, --asset <symbol|address>")],
-          }),
+          completionCommand("pool"),
         ],
       }),
       completionCommand("guide"),
@@ -453,10 +443,6 @@ function filterByPrefix(candidates: string[], prefix: string): string[] {
 
 function isPoolAccountOption(option: CompletionOptionSpec): boolean {
   return option.names.some((n) => n === "--pool-account" || n === "-p");
-}
-
-function isAssetOption(option: CompletionOptionSpec): boolean {
-  return option.names.some((n) => n === "--asset" || n === "-a");
 }
 
 function isProfileOption(option: CompletionOptionSpec): boolean {
@@ -761,9 +747,7 @@ export function queryCompletionCandidates(
       }
       const values = isPoolAccountOption(option)
         ? dynamicPoolAccountCandidates(words)
-        : isAssetOption(option)
-          ? dynamicAssetCandidates(words)
-          : option.values;
+        : option.values;
       if (values.length > 0) {
         return filterByPrefix(values, valuePrefix).map(
           (value) => `${flag}=${value}`,
@@ -775,12 +759,6 @@ export function queryCompletionCandidates(
   if (expectingValueFor) {
     if (isPoolAccountOption(expectingValueFor)) {
       const dynamicValues = dynamicPoolAccountCandidates(words);
-      if (dynamicValues.length > 0) {
-        return filterByPrefix(dynamicValues, currentToken);
-      }
-    }
-    if (isAssetOption(expectingValueFor)) {
-      const dynamicValues = dynamicAssetCandidates(words);
       if (dynamicValues.length > 0) {
         return filterByPrefix(dynamicValues, currentToken);
       }

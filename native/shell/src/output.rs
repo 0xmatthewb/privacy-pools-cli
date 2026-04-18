@@ -306,18 +306,30 @@ pub fn print_json_success(payload: Value) {
 
 pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> ! {
     if structured {
+        let mut error_payload = Map::new();
+        error_payload.insert(
+            "category".to_string(),
+            Value::String(error.category.as_str().to_string()),
+        );
+        error_payload.insert("message".to_string(), Value::String(error.message.clone()));
+        error_payload.insert("retryable".to_string(), Value::Bool(error.retryable));
+        error_payload.insert("code".to_string(), Value::String(error.code.clone()));
+        if let Some(hint) = &error.hint {
+            error_payload.insert("hint".to_string(), Value::String(hint.clone()));
+        }
+        if let Some(docs_slug) = &error.docs_slug {
+            error_payload.insert("docsSlug".to_string(), Value::String(docs_slug.clone()));
+        }
+        if let Some(help_topic) = &error.help_topic {
+            error_payload.insert("helpTopic".to_string(), Value::String(help_topic.clone()));
+        }
+
         let payload = json!({
             "schemaVersion": json_schema_version(),
             "success": false,
             "errorCode": error.code,
             "errorMessage": error.message,
-            "error": {
-                "category": error.category.as_str(),
-                "message": error.message,
-                "hint": error.hint,
-                "retryable": error.retryable,
-                "code": error.code,
-            }
+            "error": error_payload,
         });
         write_stdout_text(&serde_json::to_string(&payload).expect("json error must serialize"));
     } else if !quiet {
@@ -535,10 +547,6 @@ pub fn write_info(message: &str) {
     write_stderr_text(&format!("{} {message}", styled_accent(info_glyph())));
 }
 
-pub fn write_notice(message: &str) {
-    write_stderr_text(&styled_notice(&format!("{} {message}", active_glyph())));
-}
-
 pub fn insert_optional_string(object: &mut Map<String, Value>, key: &str, value: Option<String>) {
     object.insert(
         key.to_string(),
@@ -666,7 +674,6 @@ pub fn build_next_action(
     options: Option<&Map<String, Value>>,
     runnable: Option<bool>,
 ) -> Value {
-    let cli_command = build_cli_command(command, args, options, true);
     let mut action = Map::new();
     action.insert("command".to_string(), Value::String(command.to_string()));
     action.insert("reason".to_string(), Value::String(reason.to_string()));
@@ -686,6 +693,7 @@ pub fn build_next_action(
             let filtered: Map<String, Value> = opts
                 .iter()
                 .filter(|(_, value)| !value.is_null())
+                .filter(|(key, _)| key.as_str() != "agent")
                 .map(|(key, value)| (key.clone(), value.clone()))
                 .collect();
             if !filtered.is_empty() {
@@ -696,9 +704,10 @@ pub fn build_next_action(
 
     if runnable == Some(false) {
         action.insert("runnable".to_string(), Value::Bool(false));
+    } else {
+        let cli_command = build_cli_command(command, args, options, true);
+        action.insert("cliCommand".to_string(), Value::String(cli_command));
     }
-
-    action.insert("cliCommand".to_string(), Value::String(cli_command));
     Value::Object(action)
 }
 
@@ -836,14 +845,6 @@ fn info_glyph() -> &'static str {
         "ℹ"
     } else {
         "i"
-    }
-}
-
-fn active_glyph() -> &'static str {
-    if supports_unicode_output() {
-        "●"
-    } else {
-        "*"
     }
 }
 

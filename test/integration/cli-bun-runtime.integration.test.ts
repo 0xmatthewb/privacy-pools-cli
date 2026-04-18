@@ -153,7 +153,7 @@ describe("supported Node runtime", () => {
       } from "./dist/runtime/current.js";
 
       const target = launcherTestInternals.resolveLaunchTarget(
-        { version: "2.0.0" },
+        { version: "2.1.0" },
         ["flow", "--help"],
         {
           npm_node_execpath: ${JSON.stringify(process.platform === "win32" ? "bun.exe" : "/tmp/bun")},

@@ -134,7 +134,7 @@ describe("withdraw command pipeline", () => {
     expectPoolResolutionFailure(result, json);
   });
 
-  test("withdraw --dry-run without --asset returns INPUT error", () => {
+  test("withdraw --dry-run without a positional asset returns INPUT error", () => {
     const result = runCli(
       [
         "--json", "withdraw", "0.01",
@@ -186,7 +186,7 @@ describe("ragequit command pipeline", () => {
     expectPoolResolutionFailure(result, json);
   });
 
-  test("ragequit --dry-run without --asset returns INPUT error", () => {
+  test("ragequit --dry-run without a positional asset returns INPUT error", () => {
     const result = runCli(
       ["--json", "ragequit", "--dry-run", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },

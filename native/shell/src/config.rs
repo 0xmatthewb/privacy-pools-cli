@@ -244,17 +244,6 @@ pub fn resolve_rpc_env_var(chain_id: u64, runtime_config: &RuntimeConfig) -> Opt
     }
 }
 
-pub fn has_custom_rpc_override(
-    chain_id: u64,
-    override_from_flag: Option<&str>,
-    config: &CliConfig,
-    runtime_config: &RuntimeConfig,
-) -> bool {
-    override_from_flag.is_some_and(|value| !value.trim().is_empty())
-        || resolve_rpc_env_var(chain_id, runtime_config).is_some()
-        || config.rpc_overrides.contains_key(&chain_id)
-}
-
 pub fn get_rpc_urls(
     chain_id: u64,
     override_from_flag: Option<String>,

@@ -10,7 +10,6 @@ import type { Command } from "commander";
 import { confirm, input, password, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import { Separator } from "@inquirer/select";
-import { warnLegacyMnemonicFlag } from "../utils/deprecations.js";
 import {
   CHAIN_NAMES,
   CHAINS,
@@ -90,11 +89,6 @@ interface InitCommandOptions {
   showRecoveryPhrase?: boolean;
   backupFile?: string;
   signerOnly?: boolean;
-  // Hidden aliases (backwards compatibility)
-  mnemonic?: string;
-  mnemonicFile?: string;
-  mnemonicStdin?: boolean;
-  showMnemonic?: boolean;
   privateKey?: string;
   privateKeyFile?: string;
   privateKeyStdin?: boolean;
@@ -1029,29 +1023,12 @@ export async function handleInitCommand(
   const staged = opts.staged === true && isJson;
   let backupFilePath: string | null = null;
 
-  if (opts.mnemonic !== undefined) {
-    warnLegacyMnemonicFlag("--mnemonic", "--recovery-phrase", silent);
-  }
-  if (opts.mnemonicFile !== undefined) {
-    warnLegacyMnemonicFlag("--mnemonic-file", "--recovery-phrase-file", silent);
-  }
-  if (opts.mnemonicStdin === true) {
-    warnLegacyMnemonicFlag("--mnemonic-stdin", "--recovery-phrase-stdin", silent);
-  }
-  if (opts.showMnemonic === true) {
-    warnLegacyMnemonicFlag("--show-mnemonic", "--show-recovery-phrase", silent);
-  }
-
   try {
-    const phrase = opts.recoveryPhrase ?? opts.mnemonic;
-    const phraseFile = opts.recoveryPhraseFile ?? opts.mnemonicFile;
-    const phraseStdin = opts.recoveryPhraseStdin ?? opts.mnemonicStdin;
-    const showPhrase = opts.showRecoveryPhrase ?? opts.showMnemonic;
-    const phraseInlineFlag = opts.recoveryPhrase
-      ? "--recovery-phrase"
-      : opts.mnemonic
-        ? "--mnemonic"
-        : undefined;
+    const phrase = opts.recoveryPhrase;
+    const phraseFile = opts.recoveryPhraseFile;
+    const phraseStdin = opts.recoveryPhraseStdin;
+    const showPhrase = opts.showRecoveryPhrase;
+    const phraseInlineFlag = opts.recoveryPhrase ? "--recovery-phrase" : undefined;
 
     mutuallyExclusive(
       [

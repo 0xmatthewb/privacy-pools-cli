@@ -24,7 +24,7 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
   },
   {
     flag: "--template <template>",
-    description: "Render structured output through a lightweight {{path.to.value}} template",
+    description: "Render structured output through a lightweight Mustache-style template with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration",
     takesValue: true,
     welcomeBoolean: false,
   },

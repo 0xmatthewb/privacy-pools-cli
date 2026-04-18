@@ -175,6 +175,7 @@ interface MockState {
   gasPriceError: boolean;
   nativeBalance: bigint;
   tokenBalance: bigint;
+  allowance: bigint;
   approvalReceiptMode: "success" | "timeout" | "reverted";
   depositSubmissionReceiptMode:
     | "success"
@@ -313,6 +314,7 @@ const getPublicClientMock = mock(() => ({
   getBalance: async () => state.nativeBalance,
   readContract: async ({ functionName }: { functionName: string }) => {
     if (functionName === "balanceOf") return state.tokenBalance;
+    if (functionName === "allowance") return state.allowance;
     if (functionName === "currentRoot") return state.poolCurrentRoot;
     if (functionName === "latestRoot") return state.latestRoot;
     return 0n;
@@ -851,6 +853,7 @@ beforeEach(() => {
   state.gasPriceError = false;
   state.nativeBalance = 2_000n;
   state.tokenBalance = 3_000n;
+  state.allowance = 0n;
   state.approvalReceiptMode = "success";
   state.depositSubmissionReceiptMode = "success";
   state.depositReceiptMode = "success";
@@ -2152,6 +2155,7 @@ describe("workflow internal helpers", () => {
     state.resolvedPool = USDC_POOL;
     state.nativeBalance = 1_000_000_000_000_000_000_000n;
     state.tokenBalance = 10_000_000n;
+    state.allowance = 0n;
     seedWorkflowWalletSecret();
 
     const result = await inspectFundingAndDeposit({
@@ -2180,6 +2184,7 @@ describe("workflow internal helpers", () => {
     state.resolvedPool = USDC_POOL;
     state.nativeBalance = 1_000_000_000_000_000_000_000n;
     state.tokenBalance = 10_000_000n;
+    state.allowance = 0n;
     state.approvalReceiptMode = "timeout";
     seedWorkflowWalletSecret();
 
@@ -2234,7 +2239,7 @@ describe("workflow internal helpers", () => {
       "Deposit confirmed onchain but failed to update local account state immediately",
     );
     expect(state.warnings.join("\n")).toContain(
-      "Run 'privacy-pools sync --chain sepolia --asset ETH' to refresh the local account cache.",
+      "Run 'privacy-pools sync --chain sepolia ETH' to refresh the local account cache.",
     );
   });
 
@@ -2398,12 +2403,10 @@ describe("workflow internal helpers", () => {
   });
 
   test("executeRelayedWithdrawalForFlow fails closed when the refreshed fee changes after proof generation", async () => {
-    const originalDateNow = Date.now;
-    Date.now = () => {
-      const next = dateNowValues.shift();
-      return next ?? 2;
-    };
-    const dateNowValues = [0, 2];
+    const nowValues = [0, 0, 20_000];
+    overrideWorkflowTimingForTests({
+      nowMs: () => nowValues.shift() ?? 20_000,
+    });
 
     requestQuoteMock
       .mockImplementationOnce(async () => ({
@@ -2413,7 +2416,7 @@ describe("workflow internal helpers", () => {
         feeBPS: "250",
         feeCommitment: {
           ...state.relayerQuote.feeCommitment,
-          expiration: 1,
+          expiration: 13_000,
         },
       }))
       .mockImplementationOnce(async () => ({
@@ -2427,39 +2430,33 @@ describe("workflow internal helpers", () => {
         },
       }));
 
-    try {
-      const context = await loadWorkflowPoolAccountContext(
-        sampleSnapshot({
+    const context = await loadWorkflowPoolAccountContext(
+      sampleSnapshot({
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+      }),
+      undefined,
+      true,
+    );
+
+    await expect(
+      executeRelayedWithdrawalForFlow({
+        snapshot: sampleSnapshot({
           phase: "approved_ready_to_withdraw",
           aspStatus: "approved",
         }),
-        undefined,
-        true,
-      );
-
-      await expect(
-        executeRelayedWithdrawalForFlow({
-          snapshot: sampleSnapshot({
-            phase: "approved_ready_to_withdraw",
-            aspStatus: "approved",
-          }),
-          context,
-          mode: JSON_MODE,
-          isVerbose: false,
-        }),
-      ).rejects.toThrow("Relayer fee changed during proof generation");
-    } finally {
-      Date.now = originalDateNow;
-    }
+        context,
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Relayer fee changed during proof generation");
   });
 
   test("executeRelayedWithdrawalForFlow fails closed when the refreshed withdrawal data changes after proof generation", async () => {
-    const originalDateNow = Date.now;
-    Date.now = () => {
-      const next = dateNowValues.shift();
-      return next ?? 2;
-    };
-    const dateNowValues = [0, 2];
+    const nowValues = [0, 0, 20_000];
+    overrideWorkflowTimingForTests({
+      nowMs: () => nowValues.shift() ?? 20_000,
+    });
 
     requestQuoteMock
       .mockImplementationOnce(async () => ({
@@ -2469,7 +2466,7 @@ describe("workflow internal helpers", () => {
         feeBPS: "250",
         feeCommitment: {
           ...state.relayerQuote.feeCommitment,
-          expiration: 1,
+          expiration: 13_000,
         },
       }))
       .mockImplementationOnce(async () => ({
@@ -2489,30 +2486,26 @@ describe("workflow internal helpers", () => {
         },
       }));
 
-    try {
-      const context = await loadWorkflowPoolAccountContext(
-        sampleSnapshot({
+    const context = await loadWorkflowPoolAccountContext(
+      sampleSnapshot({
+        phase: "approved_ready_to_withdraw",
+        aspStatus: "approved",
+      }),
+      undefined,
+      true,
+    );
+
+    await expect(
+      executeRelayedWithdrawalForFlow({
+        snapshot: sampleSnapshot({
           phase: "approved_ready_to_withdraw",
           aspStatus: "approved",
         }),
-        undefined,
-        true,
-      );
-
-      await expect(
-        executeRelayedWithdrawalForFlow({
-          snapshot: sampleSnapshot({
-            phase: "approved_ready_to_withdraw",
-            aspStatus: "approved",
-          }),
-          context,
-          mode: JSON_MODE,
-          isVerbose: false,
-        }),
-      ).rejects.toThrow("Relayer withdrawal data changed during proof generation");
-    } finally {
-      Date.now = originalDateNow;
-    }
+        context,
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toThrow("Relayer withdrawal data changed during proof generation");
   });
 
   test("reconcilePendingDepositReceipt returns null for snapshots without a pending deposit receipt to inspect", async () => {
@@ -2592,15 +2585,17 @@ describe("workflow internal helpers", () => {
   test("reconcilePendingDepositReceipt fails closed when receipt metadata is missing", async () => {
     state.depositReceiptMode = "missing_metadata";
 
-    await expect(
-      reconcilePendingDepositReceipt({
-        snapshot: sampleSnapshot(),
-        chainConfig: CHAINS.sepolia,
-        pool: ETH_POOL,
-      }),
-    ).rejects.toThrow(
-      "Deposit confirmed, but the workflow could not recover the saved Pool Account metadata from the transaction receipt.",
-    );
+    const reconciled = await reconcilePendingDepositReceipt({
+      snapshot: sampleSnapshot(),
+      chainConfig: CHAINS.sepolia,
+      pool: ETH_POOL,
+    });
+
+    expect(reconciled?.phase).toBe("awaiting_asp");
+    expect(reconciled?.reconciliationRequired).toBe(true);
+    expect(reconciled?.localStateSynced).toBe(false);
+    expect(reconciled?.depositLabel).toBeNull();
+    expect(reconciled?.committedValue).toBeNull();
   });
 
   test("reconcilePendingDepositReceipt reattaches deposit metadata from the saved receipt", async () => {

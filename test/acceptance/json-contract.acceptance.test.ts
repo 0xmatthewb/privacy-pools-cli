@@ -333,7 +333,7 @@ defineScenarioSuite("json-contract acceptance", [
       timeoutMs: 10_000,
       env: OFFLINE_ASP_ENV,
     }),
-    assertExit(4),
+    assertExit(8),
     assertStderrEmpty(),
     assertJson<{
       schemaVersion: string;

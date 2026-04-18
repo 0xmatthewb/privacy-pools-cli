@@ -9,6 +9,7 @@ import {
   assertAccountStateFreshForNoSync,
   getStoredLegacyPoolAccounts,
   initializeAccountServiceWithState,
+  loadSyncMeta,
   syncAccountEvents,
 } from "../services/account.js";
 import {
@@ -470,6 +471,7 @@ export async function handleHistoryCommand(
     const poolByAddress = new Map(
       pools.map((p) => [p.pool, { pool: p.pool, decimals: p.decimals }]),
     );
+    const lastSyncTime = loadSyncMeta(chainConfig.id)?.lastSyncTime ?? null;
 
     renderHistory(ctx, {
       chain: chainConfig.name,
@@ -479,6 +481,8 @@ export async function handleHistoryCommand(
       explorerTxUrl,
       currentBlock,
       avgBlockTimeSec: chainConfig.avgBlockTimeSec,
+      lastSyncTime,
+      syncSkipped: opts.sync === false,
     });
   } catch (error) {
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {

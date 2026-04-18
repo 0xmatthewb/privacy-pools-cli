@@ -114,6 +114,7 @@ export function formatFlowStartReview(data: FlowStartReviewData): string {
       kind: "privacy",
       lines: [
         "This saved flow deposits publicly now, then waits for Association Set Provider (ASP) approval before requesting the relayed private withdrawal.",
+        "The ASP vetting fee is deducted from the public deposit amount, so the committed on-chain balance may be a non-round amount even when the input amount is round.",
         DEPOSIT_APPROVAL_TIMELINE_COPY,
         "The auto-withdrawal always spends the full approved Pool Account balance to the saved recipient.",
       ],
@@ -205,7 +206,7 @@ export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Recover funds publicly to your deposit address. This does not provide privacy for this saved workflow.",
+        "By exiting this pool, you are publicly withdrawing all funds to your deposit address. You will not gain any privacy.",
       ],
     },
     secondaryCallout: configuredSignerRecoverySuffix(snapshot)
@@ -509,9 +510,37 @@ function buildStoppedExternalHumanNextAction(snapshot: FlowSnapshot) {
   );
 }
 
+function buildFlowReconciliationAgentNextAction(snapshot: FlowSnapshot) {
+  return createNextAction(
+    "sync",
+    "This workflow was confirmed onchain, but local state still needs reconciliation before you rely on the saved snapshot.",
+    "flow_manual_followup",
+    {
+      args: [snapshot.asset],
+      options: { agent: true, chain: snapshot.chain },
+    },
+  );
+}
+
+function buildFlowReconciliationHumanNextAction(snapshot: FlowSnapshot) {
+  return createNextAction(
+    "sync",
+    "This workflow was confirmed onchain, but local state still needs reconciliation before you rely on the saved snapshot.",
+    "flow_manual_followup",
+    {
+      args: [snapshot.asset],
+      options: { chain: snapshot.chain },
+    },
+  );
+}
+
 function buildAgentNextActions(snapshot: FlowSnapshot) {
+  const reconciliationActions = snapshot.reconciliationRequired
+    ? [buildFlowReconciliationAgentNextAction(snapshot)]
+    : [];
   if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
     return [
+      ...reconciliationActions,
       createNextAction(
         "flow ragequit",
         "A public recovery transaction was already submitted. Re-run flow ragequit to wait for confirmation.",
@@ -526,6 +555,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
 
   if (requiresPublicRecoveryBecauseRelayerMinimum(snapshot)) {
     return [
+      ...reconciliationActions,
       createNextAction(
         "flow ragequit",
         relayerMinimumRecoveryReason(snapshot),
@@ -541,6 +571,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
   switch (snapshot.phase) {
     case "awaiting_funding":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           awaitingFundingReason(snapshot),
@@ -553,6 +584,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
       ];
     case "depositing_publicly":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
@@ -566,6 +598,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
     case "awaiting_asp":
     case "approved_ready_to_withdraw":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
@@ -578,6 +611,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
       ];
     case "approved_waiting_privacy_delay":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           privacyDelayWaitingReason(snapshot),
@@ -590,6 +624,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
       ];
     case "withdrawing":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
@@ -602,6 +637,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
       ];
     case "paused_poa_required":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           `Complete Proof of Association at ${POA_PORTAL_URL} first, then re-check this workflow to continue privately.`,
@@ -626,6 +662,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
       ];
     case "paused_declined":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow ragequit",
           ragequitDeclinedReason(
@@ -640,15 +677,22 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
         ),
       ];
     case "stopped_external":
-      return [buildStoppedExternalAgentNextAction(snapshot)];
+      return [
+        ...reconciliationActions,
+        buildStoppedExternalAgentNextAction(snapshot),
+      ];
     default:
-      return [];
+      return reconciliationActions;
   }
 }
 
 function buildHumanNextActions(snapshot: FlowSnapshot) {
+  const reconciliationActions = snapshot.reconciliationRequired
+    ? [buildFlowReconciliationHumanNextAction(snapshot)]
+    : [];
   if (snapshot.ragequitTxHash && !snapshot.ragequitBlockNumber) {
     return [
+      ...reconciliationActions,
       createNextAction(
         "flow ragequit",
         "A public recovery transaction was already submitted, so re-run flow ragequit to wait for confirmation.",
@@ -662,6 +706,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
 
   if (requiresPublicRecoveryBecauseRelayerMinimum(snapshot)) {
     return [
+      ...reconciliationActions,
       createNextAction(
         "flow ragequit",
         relayerMinimumRecoveryCallout(snapshot),
@@ -676,6 +721,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
   switch (snapshot.phase) {
     case "awaiting_funding":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           awaitingFundingReason(snapshot),
@@ -687,6 +733,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
       ];
     case "depositing_publicly":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
@@ -699,6 +746,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
     case "awaiting_asp":
     case "approved_ready_to_withdraw":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
@@ -710,6 +758,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
       ];
     case "approved_waiting_privacy_delay":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           privacyDelayWaitingReason(snapshot),
@@ -721,6 +770,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
       ];
     case "withdrawing":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
@@ -732,6 +782,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
       ];
     case "paused_poa_required":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow watch",
           `Complete Proof of Association at ${POA_PORTAL_URL}, then re-run the watcher to continue privately.`,
@@ -751,6 +802,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
       ];
     case "paused_declined":
       return [
+        ...reconciliationActions,
         createNextAction(
           "flow ragequit",
           "This workflow was declined, so run flow ragequit to recover publicly to the original deposit address.",
@@ -761,9 +813,12 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         ),
       ];
     case "stopped_external":
-      return [buildStoppedExternalHumanNextAction(snapshot)];
+      return [
+        ...reconciliationActions,
+        buildStoppedExternalHumanNextAction(snapshot),
+      ];
     default:
-      return [];
+      return reconciliationActions;
   }
 }
 
@@ -817,6 +872,11 @@ function buildFlowJsonSnapshot(
     ragequitTxHash: snapshot.ragequitTxHash ?? null,
     ragequitBlockNumber: snapshot.ragequitBlockNumber ?? null,
     ragequitExplorerUrl: snapshot.ragequitExplorerUrl ?? null,
+    relayerHost: snapshot.relayerHost ?? null,
+    quoteRefreshCount: snapshot.quoteRefreshCount ?? null,
+    reconciliationRequired: snapshot.reconciliationRequired ?? false,
+    localStateSynced: snapshot.localStateSynced ?? true,
+    warningCode: snapshot.warningCode ?? null,
     lastError: snapshot.lastError,
     privacyCostManifest: action === "ragequit"
       ? {
@@ -891,7 +951,13 @@ export function renderFlowStartDryRun(
           privacyDelayRandom,
           privacyDelayRangeSeconds: privacyDelayRange,
           vettingFee: data.vettingFee.toString(),
+          vettingFeeAmount: data.vettingFee.toString(),
+          vettingFeeBPS: data.depositAmount > 0n
+            ? ((data.vettingFee * 10000n) / data.depositAmount).toString()
+            : "0",
           estimatedCommittedValue: data.estimatedCommittedValue.toString(),
+          estimatedCommitted: data.estimatedCommittedValue.toString(),
+          feesApply: data.vettingFee > 0n,
           warnings: data.warnings && data.warnings.length > 0
             ? data.warnings
             : undefined,
@@ -960,6 +1026,11 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   if (data.snapshot.ragequitTxHash && !data.snapshot.ragequitBlockNumber) {
     info(
       `Workflow ${data.snapshot.workflowId} already submitted the public recovery transaction and is waiting for confirmation.`,
+      silent,
+    );
+  } else if (data.snapshot.reconciliationRequired) {
+    warn(
+      `Workflow ${data.snapshot.workflowId} is confirmed onchain, but local state needs reconciliation. Run privacy-pools sync --chain ${data.snapshot.chain} ${data.snapshot.asset} before relying on this saved snapshot.`,
       silent,
     );
   } else if (data.snapshot.phase === "paused_declined") {
@@ -1302,7 +1373,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         }
         phaseCalloutKind = "recovery";
         phaseCalloutLines = [
-          `This workflow was declined by the ASP. Your funds can still return safely to ${flowRecoveryDestination(data.snapshot)} with privacy-pools flow ragequit ${data.snapshot.workflowId}. Privacy will not be preserved.`,
+          `This workflow was declined by the ASP. Your funds can still return safely to ${flowRecoveryDestination(data.snapshot)} with privacy-pools flow ragequit ${data.snapshot.workflowId}. You will not gain any privacy.`,
         ];
         {
           const signerLine = configuredSignerRecoveryLine(data.snapshot);

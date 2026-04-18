@@ -132,7 +132,7 @@ describe("formatApprovalResolutionHint", () => {
 
     expect(hint).toContain("declined by the ASP");
     expect(hint).toContain("including --direct");
-    expect(hint).toContain("privacy-pools ragequit --chain sepolia --asset ETH --pool-account PA-4");
+    expect(hint).toContain("privacy-pools ragequit ETH --chain sepolia --pool-account PA-4");
   });
 
   test("explains poa_required Pool Accounts need PoA before withdraw", () => {
@@ -145,7 +145,7 @@ describe("formatApprovalResolutionHint", () => {
 
     expect(hint).toContain("Proof of Association");
     expect(hint).toContain(POA_PORTAL_URL);
-    expect(hint).toContain("privacy-pools ragequit --chain mainnet --asset ETH --pool-account PA-2");
+    expect(hint).toContain("privacy-pools ragequit ETH --chain mainnet --pool-account PA-2");
   });
 
   test("unknown unapproved state points users back to accounts for final status", () => {

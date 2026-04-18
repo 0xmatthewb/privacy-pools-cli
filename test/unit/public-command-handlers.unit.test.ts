@@ -362,7 +362,7 @@ describe("public read-only command handlers", () => {
     }
   });
 
-  test("activity resolves a single-pool feed when --asset is provided", async () => {
+  test("activity resolves a single-pool feed when the asset is provided positionally", async () => {
     const server = await startPublicMockServer([11155111]);
     try {
       process.env.PRIVACY_POOLS_HOME = createTrackedTempDir("pp-public-cmds-");

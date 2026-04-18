@@ -127,20 +127,7 @@ pub(super) fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData
 
 pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
     if mode.is_json() {
-        // Build nextActions: deposit template with chain context when single-chain.
-        let mut next_opts = Map::new();
-        next_opts.insert("agent".to_string(), Value::Bool(true));
-        if !data.all_chains {
-            next_opts.insert("chain".to_string(), Value::String(data.chain_name.clone()));
-        }
-        let next_actions = Value::Array(vec![build_next_action(
-            "deposit",
-            "Deposit into a pool.",
-            "after_pools",
-            Some(&["<amount>", "<asset>"]),
-            Some(&next_opts),
-            Some(false),
-        )]);
+        let next_actions = Value::Array(vec![build_deposit_template_next_action(&data)]);
 
         if data.all_chains {
             let mut payload = Map::new();
@@ -416,6 +403,43 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
     ));
 
     render_next_steps(&next_actions);
+}
+
+fn build_deposit_template_next_action(data: &PoolsRenderData) -> Value {
+    let mut action = Map::new();
+    action.insert("command".to_string(), Value::String("deposit".to_string()));
+    action.insert(
+        "reason".to_string(),
+        Value::String("Deposit into a pool.".to_string()),
+    );
+    action.insert(
+        "when".to_string(),
+        Value::String("after_pools".to_string()),
+    );
+    action.insert("runnable".to_string(), Value::Bool(false));
+    action.insert(
+        "parameters".to_string(),
+        Value::Array(vec![
+            json!({
+                "name": "amount",
+                "type": "token_amount",
+                "required": true,
+            }),
+            json!({
+                "name": "asset",
+                "type": "asset_symbol",
+                "required": true,
+            }),
+        ]),
+    );
+
+    if !data.all_chains {
+        let mut options = Map::new();
+        options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+        action.insert("options".to_string(), Value::Object(options));
+    }
+
+    Value::Object(action)
 }
 
 pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRenderData) {

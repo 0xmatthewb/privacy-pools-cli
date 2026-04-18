@@ -8,6 +8,7 @@ import { validateMnemonic as bip39ValidateMnemonic } from "@scure/bip39";
 import { wordlist as bip39EnglishWordlist } from "@scure/bip39/wordlists/english.js";
 import { loadMnemonicFromFile, loadSignerKey } from "./config.js";
 import { CLIError } from "../utils/errors.js";
+import { createNextAction } from "../output/common.js";
 import { withSuppressedSdkStdoutSync } from "./account.js";
 import type { Address } from "viem";
 
@@ -94,15 +95,37 @@ export function loadMnemonic(): string {
   if (!mnemonic) {
     throw new CLIError(
       "No recovery phrase found. Run 'privacy-pools init' first.",
-      "INPUT",
-      "Initialize with 'privacy-pools init'. If you're restoring from the website, use 'privacy-pools init --recovery-phrase-file <downloaded-file>' or pipe the file into '--recovery-phrase-stdin'."
+      "SETUP",
+      "Initialize with 'privacy-pools init'. If you're restoring from the website, use 'privacy-pools init --recovery-phrase-file <downloaded-file>' or pipe the file into '--recovery-phrase-stdin'.",
+      "SETUP_RECOVERY_PHRASE_MISSING",
+      false,
+      undefined,
+      undefined,
+      undefined,
+      {
+        helpTopic: "quickstart",
+        nextActions: [
+          createNextAction(
+            "init",
+            "Initialize the CLI before running wallet-dependent commands.",
+            "status_not_ready",
+            { options: { agent: true }, runnable: true },
+          ),
+        ],
+      },
     );
   }
   if (!validateMnemonic(mnemonic)) {
     throw new CLIError(
       "Stored recovery phrase is invalid or corrupted.",
-      "INPUT",
-      "Re-initialize with: privacy-pools init --recovery-phrase '<your phrase>'"
+      "SETUP",
+      "Re-initialize with a valid recovery phrase or restore from a backup file.",
+      "SETUP_INVALID_RECOVERY_PHRASE",
+      false,
+      undefined,
+      undefined,
+      undefined,
+      { helpTopic: "keys" },
     );
   }
   return mnemonic;
@@ -113,8 +136,26 @@ export function loadPrivateKey(): `0x${string}` {
   if (!key) {
     throw new CLIError(
       "No signer key found. Run 'privacy-pools init' or set PRIVACY_POOLS_PRIVATE_KEY.",
-      "INPUT",
-      "Set PRIVACY_POOLS_PRIVATE_KEY, use 'privacy-pools init --signer-only --private-key-file <path>', or rerun 'privacy-pools init --signer-only'."
+      "SETUP",
+      "Set PRIVACY_POOLS_PRIVATE_KEY, use 'privacy-pools init --signer-only --private-key-file <path>', or rerun 'privacy-pools init --signer-only'.",
+      "SETUP_SIGNER_KEY_MISSING",
+      false,
+      undefined,
+      undefined,
+      undefined,
+      {
+        helpTopic: "keys",
+        nextActions: [
+          createNextAction(
+            "init",
+            "Finish signer setup before running commands that submit transactions.",
+            "status_not_ready",
+            {
+              options: { agent: true, signerOnly: true },
+            },
+          ),
+        ],
+      },
     );
   }
 
@@ -122,8 +163,14 @@ export function loadPrivateKey(): `0x${string}` {
   if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
     throw new CLIError(
       "Invalid private key format.",
-      "INPUT",
-      "Private key must be a 64-character hex string (with or without 0x prefix)."
+      "SETUP",
+      "Private key must be a 64-character hex string (with or without 0x prefix).",
+      "SETUP_INVALID_SIGNER_KEY",
+      false,
+      undefined,
+      undefined,
+      undefined,
+      { helpTopic: "keys" },
     );
   }
 

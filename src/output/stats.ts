@@ -149,6 +149,15 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
     return;
   }
 
+  if (ctx.mode.isName) {
+    const lines =
+      data.perChain && data.perChain.length > 0
+        ? data.perChain.map((entry) => entry.chain)
+        : [data.chain];
+    process.stdout.write(`${lines.join("\n")}\n`);
+    return;
+  }
+
   const silent = isSilent(ctx);
   if (silent) return;
   const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
@@ -220,6 +229,11 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
 
   if (ctx.mode.isCsv) {
     printCsv(["Metric", "All Time", "Last 24h"], statsRows(data.allTime, data.last24h));
+    return;
+  }
+
+  if (ctx.mode.isName) {
+    process.stdout.write(`${data.chain}/${data.asset}\n`);
     return;
   }
 

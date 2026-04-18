@@ -80,6 +80,7 @@ describe("renderActivity pool-activity parity", () => {
     expect(json.page).toBe(1);
     expect(json.perPage).toBe(10);
     expect(json.total).toBe(1);
+    expect(json.totalEvents).toBe(1);
     expect(json.totalPages).toBe(1);
   });
 
@@ -115,7 +116,15 @@ describe("renderActivity pool-activity parity", () => {
     const data = { ...STUB_POOL_ACTIVITY, events: [] };
     const { stderr } = captureOutput(() => renderActivity(ctx, data));
 
-    expect(stderr).toContain("No activity found");
+    expect(stderr).toContain("No activity found for ETH on sepolia");
+  });
+
+  test("human mode: wide output preserves the table layout", () => {
+    const ctx = createOutputContext(makeMode({ isWide: true }));
+    const { stderr } = captureOutput(() => renderActivity(ctx, STUB_GLOBAL_ACTIVITY));
+
+    expect(stderr).toContain("Pool Address");
+    expect(stderr).toContain("Chain");
   });
 
   test("human mode: shows pagination footer for multi-page", () => {

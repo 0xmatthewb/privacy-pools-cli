@@ -49,7 +49,6 @@ defineScenarioSuite("withdraw quote acceptance", [
           "withdraw",
           "quote",
           "0.1",
-          "--asset",
           "ETH",
           "--to",
           DEFAULT_RECIPIENT,
@@ -72,6 +71,8 @@ defineScenarioSuite("withdraw quote acceptance", [
       netAmount: string;
       feeCommitmentPresent: boolean;
       quoteExpiresAt: string | null;
+      relayerHost?: string | null;
+      quoteRefreshCount?: number;
       extraGas?: boolean;
       nextActions?: Array<{
         command: string;
@@ -91,6 +92,9 @@ defineScenarioSuite("withdraw quote acceptance", [
       expect(json.netAmount).toBe("97500000000000000");
       expect(json.feeCommitmentPresent).toBe(true);
       expect(json.quoteExpiresAt).toBe("2100-01-01T00:00:00.000Z");
+      expect(typeof json.relayerHost).toBe("string");
+      expect(json.relayerHost).toContain("127.0.0.1");
+      expect(json.quoteRefreshCount).toBe(0);
       expect(json.extraGas).toBe(false);
       expect(json.nextActions?.[0]?.command).toBe("withdraw");
       expect(json.nextActions?.[0]?.runnable).not.toBe(false);
@@ -105,7 +109,7 @@ defineScenarioSuite("withdraw quote acceptance", [
     seedHome("sepolia"),
     (ctx) =>
       runCliStep(
-        ["--json", "--chain", "sepolia", "withdraw", "quote", "0.1", "--asset", "ETH"],
+        ["--json", "--chain", "sepolia", "withdraw", "quote", "0.1", "ETH"],
         { timeoutMs: 15_000, env: fixtureEnv() },
       )(ctx),
     assertExit(0),
@@ -135,7 +139,6 @@ defineScenarioSuite("withdraw quote acceptance", [
           "withdraw",
           "quote",
           "0.1",
-          "--asset",
           "ETH",
           "--to",
           SECONDS_EXPIRY_RECIPIENT,
@@ -159,7 +162,6 @@ defineScenarioSuite("withdraw quote acceptance", [
           "withdraw",
           "quote",
           "0.1",
-          "--asset",
           "ETH",
           "--to",
           MALFORMED_FEE_RECIPIENT,

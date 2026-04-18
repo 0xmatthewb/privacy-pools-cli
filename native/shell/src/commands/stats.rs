@@ -5,11 +5,11 @@ use crate::error::CliError;
 use crate::output::{
     build_next_action, format_command_heading, format_count_number, format_key_value_rows,
     format_section_heading, print_csv, print_json_success, print_table, render_next_steps,
-    should_render_wide_tables, start_spinner, write_notice, write_stderr_text,
+    should_render_wide_tables, start_spinner, write_stderr_text,
 };
 use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_statistics, fetch_pool_statistics};
-use crate::root_argv::{has_short_flag, read_long_option_value, ParsedRootArgv};
+use crate::root_argv::{has_short_flag, ParsedRootArgv};
 use crate::routing::{resolve_mode, NativeMode};
 use serde_json::{json, Map, Value};
 
@@ -53,17 +53,12 @@ pub fn handle_stats_native(
     let stats_subcommand = resolve_stats_subcommand(parsed);
 
     if stats_subcommand == StatsSubcommand::Pool {
-        let asset = read_long_option_value(argv, "--asset").ok_or_else(|| {
+        let asset = parsed.non_option_tokens.get(2).cloned().ok_or_else(|| {
             CliError::input(
                 "Missing asset argument.",
                 Some("Example: privacy-pools stats pool ETH".to_string()),
             )
         })?;
-        if !mode.is_json() && !mode.is_quiet {
-            write_notice(
-                "--asset is deprecated. Use: privacy-pools stats pool <asset> (e.g. privacy-pools stats pool ETH)",
-            );
-        }
         let mut loading = (!mode.is_json() && !mode.is_quiet)
             .then(|| start_spinner("Fetching pool statistics..."));
         let config = load_config()?;
@@ -115,7 +110,7 @@ pub fn handle_stats_native(
         return Err(CliError::input(
             "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
             Some(
-                "For chain-specific data use: privacy-pools stats pool --asset <symbol> --chain <chain>"
+                "For chain-specific data use: privacy-pools stats pool <symbol> --chain <chain>"
                     .to_string(),
             ),
         ));

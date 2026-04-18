@@ -18,11 +18,7 @@ import {
   getDefaultReadOnlyChains,
   MULTI_CHAIN_SCOPE_ALL_MAINNETS,
 } from "../config/chains.js";
-import { warnLegacyAssetFlag } from "../utils/deprecations.js";
-
-interface PoolStatsCommandOptions {
-  asset?: string;
-}
+interface PoolStatsCommandOptions {}
 
 /** @internal Exported for unit testing. */
 export { parseUsd, parseCount } from "../output/stats.js";
@@ -46,7 +42,7 @@ export async function handleGlobalStatsCommand(
       throw new CLIError(
         "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
         "INPUT",
-        "For chain-specific data use: privacy-pools stats pool --asset <symbol> --chain <chain>",
+        "For chain-specific data use: privacy-pools stats pool <symbol> --chain <chain>",
       );
     }
 
@@ -95,11 +91,7 @@ export async function handlePoolStatsCommand(
   const isQuiet = mode.isQuiet;
   const silent = isQuiet || isJson;
 
-  // Resolve positional vs deprecated --asset flag.
-  const asset = positionalAsset ?? opts.asset;
-  if (opts.asset !== undefined && positionalAsset === undefined) {
-    warnLegacyAssetFlag("privacy-pools stats pool <asset> (e.g. privacy-pools stats pool ETH)", silent);
-  }
+  const asset = positionalAsset;
 
   try {
     if (!asset) {

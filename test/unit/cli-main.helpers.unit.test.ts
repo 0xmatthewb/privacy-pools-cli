@@ -223,7 +223,7 @@ describe("cli main internal helpers", () => {
       );
     });
     expect(human.stdout).toBe("styled:hello");
-    expect(human.stderr).toBe("warndanger:boom");
+    expect(human.stderr).toBe("");
 
     const machineProgram = createOutputConfigTarget();
     const machineOutput = { value: "" };
@@ -332,6 +332,32 @@ describe("cli main internal helpers", () => {
 
     expect(cliMainTestInternals.mapCommanderError(new Error("boom"))).toBeNull();
     expect(cliMainTestInternals.mapCommanderError({ code: "other.error" })).toBeNull();
+  });
+
+  test("mapCommanderError adds command-specific positional hints for removed flags", () => {
+    const mapped = cliMainTestInternals.mapCommanderError(
+      {
+        code: "commander.unknownOption",
+        message: "error: unknown option '--pool'",
+      },
+      { rootCommand: "deposit" },
+    );
+
+    expect(mapped).toBeInstanceOf(CLIError);
+    expect(mapped?.code).toBe("INPUT_UNKNOWN_OPTION");
+    expect(mapped?.hint).toContain("privacy-pools deposit <amount> <asset>");
+  });
+
+  test("known help target detection only matches commands and aliases", () => {
+    expect(cliMainTestInternals.isKnownCommanderHelpTarget("withdraw")).toBe(true);
+    expect(cliMainTestInternals.isKnownCommanderHelpTarget("definitely-not-a-topic")).toBe(false);
+  });
+
+  test("buildUnknownCommandError includes did-you-mean suggestions", () => {
+    const error = cliMainTestInternals.buildUnknownCommandError("depoist");
+    expect(error).toBeInstanceOf(CLIError);
+    expect(error.message).toContain("Unknown command 'depoist'");
+    expect(error.hint).toContain("deposit");
   });
 
   test("shouldStartUpdateCheck only enables interactive welcome screens", () => {

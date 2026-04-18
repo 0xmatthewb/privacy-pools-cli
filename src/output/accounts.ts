@@ -394,7 +394,7 @@ function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
       return formatCallout(
         "read-only",
         [
-          `No ${statusLabel ?? "matching"} Pool Accounts are visible on ${scopeLabel}.`,
+          `No ${statusLabel ?? "matching"} Pool Accounts found on ${scopeLabel}.`,
           "Try re-running accounts without --status to review all current Pool Account states.",
         ],
       );
@@ -402,7 +402,7 @@ function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
       return formatCallout(
         "read-only",
         [
-          `No Pool Accounts are visible on ${scopeLabel} yet.`,
+          `No Pool Accounts found on ${scopeLabel}.`,
           "For most wallets this simply means your first deposit has not happened yet. privacy-pools flow start is the easiest path once you have chosen an amount and recipient.",
         ],
       );
@@ -790,6 +790,24 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     return;
   }
 
+  if (ctx.mode.isName) {
+    const lines = showSummary
+      ? summary.balances.map((balance) =>
+          includeChainFields && "chain" in balance && typeof balance.chain === "string"
+            ? `${balance.chain}/${balance.asset}`
+            : balance.asset,
+        )
+      : summary.accounts.map((account) =>
+          includeChainFields && account.chain
+            ? `${account.chain}/${account.poolAccountId}`
+            : account.poolAccountId,
+        );
+    if (lines.length > 0) {
+      process.stdout.write(`${lines.join("\n")}\n`);
+    }
+    return;
+  }
+
   if (ctx.mode.isJson) {
     if (showSummary) {
       printJsonSuccess(
@@ -962,7 +980,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     } else {
       info(
         includeChainFields
-          ? `No Pool Accounts found on ${allChains ? "any chain" : "mainnet chains"}.`
+          ? `No Pool Accounts found on ${allChains ? "supported chains" : "mainnet chains"}.`
           : `No Pool Accounts found on ${chain}.`,
         silent,
       );

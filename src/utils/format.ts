@@ -85,7 +85,10 @@ export function parseUsd(value: unknown): string {
   if (typeof value === "string" && value.trim() !== "") {
     const parsed = Number(value.replace(/,/g, ""));
     if (Number.isFinite(parsed)) {
-      return `$${parsed.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+      const absValue = Math.abs(parsed).toLocaleString("en-US", {
+        maximumFractionDigits: 0,
+      });
+      return parsed < 0 ? `-$${absValue}` : `$${absValue}`;
     }
   }
   return "-";
@@ -121,7 +124,10 @@ export function formatUsdValue(
   const tokens = Number(formatUnits(tokenAmount, decimals));
   const usd = tokens * price;
   if (!Number.isFinite(usd)) return "-";
-  return `$${usd.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  const absValue = Math.abs(usd).toLocaleString("en-US", {
+    maximumFractionDigits: 0,
+  });
+  return usd < 0 ? `-$${absValue}` : `$${absValue}`;
 }
 
 /**
@@ -182,7 +188,11 @@ export function printTable(
     gap.length * Math.max(0, headers.length - 1) +
     2;
 
-  if (rows.length > 0 && (widthClass === "narrow" || estimatedWidth > columns)) {
+  if (
+    rows.length > 0 &&
+    !_forceWideTables &&
+    (widthClass === "narrow" || estimatedWidth > columns)
+  ) {
     process.stderr.write(formatStackedTable(headers, rows));
     return;
   }
@@ -295,9 +305,6 @@ function createStaticSpinner(text: string, quiet: boolean): Ora {
     },
     set text(value: string) {
       currentText = value;
-      if (spinning) {
-        writeLine(currentText);
-      }
     },
     get isSpinning() {
       return spinning;
@@ -341,6 +348,7 @@ function createStaticSpinner(text: string, quiet: boolean): Ora {
 // Module-level flag: when true, spinner() returns a silent/static spinner.
 let _suppressProgress = false;
 let _suppressHeaders = false;
+let _forceWideTables = false;
 /** Called by resolveGlobalMode() when --no-progress is active. */
 export function setSuppressProgress(value: boolean): void {
   _suppressProgress = value;
@@ -353,6 +361,11 @@ export function setSuppressHeaders(value: boolean): void {
 
 export function shouldSuppressHeaders(): boolean {
   return _suppressHeaders;
+}
+
+/** Called by resolveGlobalMode() when --output wide is active. */
+export function setForceWideTables(value: boolean): void {
+  _forceWideTables = value;
 }
 
 export function spinner(text: string, quiet: boolean = false) {

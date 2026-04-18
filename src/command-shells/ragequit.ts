@@ -9,12 +9,6 @@ export function createRagequitCommand(): Command {
     .alias("exit")
     .description(metadata.description)
     .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
-    .addOption(
-      new Option(
-        "-a, --asset <symbol|address>",
-        "Deprecated: use positional argument instead",
-      ).hideHelp(),
-    )
     .option(
       "-p, --pool-account <PA-ID | numeric-index>",
       "Ragequit a specific Pool Account (examples: PA-2 or 2)",
@@ -34,7 +28,7 @@ export function createRagequitCommand(): Command {
     )
     .option("--dry-run", "Generate proof and validate without submitting")
     .option(
-      "--yes-i-understand-privacy-loss",
+      "--yes-i-prefer-ragequit",
       "Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address",
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))

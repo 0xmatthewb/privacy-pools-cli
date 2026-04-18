@@ -152,8 +152,8 @@ describe("completion query helpers", () => {
 
       expect(
         queryCompletionCandidates(
-          ["privacy-pools", "withdraw", "quote", "0.1", "--asset", ""],
-          5,
+          ["privacy-pools", "withdraw", "quote", "0.1", ""],
+          4,
         ),
       ).toEqual(expect.arrayContaining(["ETH", "USDC", "USDT"]));
 

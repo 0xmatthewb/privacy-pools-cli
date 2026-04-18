@@ -242,7 +242,7 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
 
     let stats_pool = run_native_with_env(
         &[
-            "--chain", "sepolia", "stats", "pool", "--asset", "ETH", "--agent",
+            "--chain", "sepolia", "stats", "pool", "ETH", "--agent",
         ],
         &env,
     );
@@ -265,7 +265,7 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
 
     let activity = run_native_with_env(
         &[
-            "--chain", "sepolia", "activity", "--asset", "ETH", "--agent",
+            "--chain", "sepolia", "activity", "ETH", "--agent",
         ],
         &env,
     );
@@ -510,7 +510,7 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     assert!(stdout_string(&csv_pools).contains("Asset,Total Deposits,Pool Balance"));
 
     let human_stats_pool = run_native_with_env(
-        &["--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+        &["--chain", "sepolia", "stats", "pool", "ETH"],
         &env,
     );
     assert!(human_stats_pool.status.success());
@@ -519,7 +519,7 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
 
     let csv_stats_pool = run_native_with_env(
         &[
-            "--format", "csv", "--chain", "sepolia", "stats", "pool", "--asset", "ETH",
+            "--format", "csv", "--chain", "sepolia", "stats", "pool", "ETH",
         ],
         &env,
     );
@@ -540,7 +540,7 @@ fn explicit_native_read_only_subroutes_stay_covered_in_rust() {
 
     let pool_activity = run_native_with_env(
         &[
-            "--chain", "sepolia", "activity", "--asset", "ETH", "--agent",
+            "--chain", "sepolia", "activity", "ETH", "--agent",
         ],
         &env,
     );

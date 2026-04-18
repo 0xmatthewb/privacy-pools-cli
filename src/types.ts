@@ -257,7 +257,16 @@ export interface StatusIssue {
 
 export interface CapabilityExitCodeDescriptor {
   code: number;
-  category: "SUCCESS" | "INPUT" | "RPC" | "ASP" | "RELAYER" | "PROOF" | "CONTRACT" | "UNKNOWN";
+  category:
+    | "SUCCESS"
+    | "INPUT"
+    | "SETUP"
+    | "RPC"
+    | "ASP"
+    | "RELAYER"
+    | "PROOF"
+    | "CONTRACT"
+    | "UNKNOWN";
   errorCode: string;
   description: string;
 }

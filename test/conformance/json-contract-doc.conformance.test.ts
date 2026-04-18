@@ -44,6 +44,7 @@ describe("external JSON contract doc conformance", () => {
       [String(EXIT_CODES.UNKNOWN)]: "UNKNOWN_ERROR",
       [String(EXIT_CODES.INPUT)]: "INPUT_ERROR",
       [String(EXIT_CODES.RPC)]: "RPC_ERROR",
+      [String(EXIT_CODES.SETUP)]: "SETUP_REQUIRED",
       [String(EXIT_CODES.ASP)]: "ASP_ERROR",
       [String(EXIT_CODES.RELAYER)]: "RELAYER_ERROR",
       [String(EXIT_CODES.PROOF)]: "PROOF_ERROR",
@@ -142,6 +143,7 @@ describe("external JSON contract doc conformance", () => {
 
     const activity = commands.activity as { successFields?: Record<string, string> };
     expect(activity.successFields?.chain).toContain("\"all-mainnets\"");
+    expect(activity.successFields?.totalEvents).toContain("number|null");
     expect(activity.successFields?.chainFiltered).toContain("boolean?");
     expect(activity.successFields?.note).toContain("string?");
 

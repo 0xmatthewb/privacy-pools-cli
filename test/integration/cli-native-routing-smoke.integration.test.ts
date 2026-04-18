@@ -117,7 +117,7 @@ describe("native routing smoke", () => {
   });
 
   nativeTest("stats pool stays native-owned when option values follow the command path", () => {
-    const args = ["--json", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"];
+    const args = ["--json", "--chain", "sepolia", "stats", "pool", "ETH"];
     const env = {
       PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
       PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture!.url,
@@ -168,7 +168,7 @@ describe("native routing smoke", () => {
     for (const { args, expectedText } of [
       { args: ["stats"], expectedText: "All Time" },
       { args: ["--format", "csv", "stats"], expectedText: "Metric,All Time,Last 24h" },
-      { args: ["--chain", "sepolia", "stats", "pool", "--asset", "ETH"] },
+      { args: ["--chain", "sepolia", "stats", "pool", "ETH"] },
       { args: ["activity"] },
       { args: ["--format", "csv", "activity"], expectedText: "Type,Pool,Amount" },
       { args: ["--chain", "sepolia", "pools"] },

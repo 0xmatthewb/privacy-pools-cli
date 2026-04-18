@@ -256,7 +256,7 @@ mod tests {
         serde_json::from_value(json!({
             "manifestVersion": "1",
             "runtimeVersion": "v1",
-            "cliVersion": "2.0.0",
+            "cliVersion": "2.1.0",
             "jsonSchemaVersion": "2.0.0",
             "commandPaths": [
                 "activity",
@@ -475,7 +475,7 @@ mod tests {
             Some("default")
         );
 
-        let pool_args = argv(&["--format", "csv", "stats", "pool", "--asset", "ETH"]);
+        let pool_args = argv(&["--format", "csv", "stats", "pool", "ETH"]);
         let pool_parsed = parse_root_argv(&pool_args);
         assert_eq!(
             stats_native_mode(&pool_args, &pool_parsed, &manifest),

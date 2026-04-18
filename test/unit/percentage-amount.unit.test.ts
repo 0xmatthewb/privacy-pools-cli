@@ -42,17 +42,17 @@ describe("isPercentageAmount", () => {
 
 describe("resolveAmountAndAssetInput with percentages", () => {
   test("50% is amount-like, paired with asset", () => {
-    const result = resolveAmountAndAssetInput("withdraw", "50%", "ETH", undefined);
+    const result = resolveAmountAndAssetInput("withdraw", "50%", "ETH");
     expect(result).toEqual({ amount: "50%", asset: "ETH" });
   });
 
   test("asset first, percentage second", () => {
-    const result = resolveAmountAndAssetInput("withdraw", "ETH", "50%", undefined);
+    const result = resolveAmountAndAssetInput("withdraw", "ETH", "50%");
     expect(result).toEqual({ amount: "50%", asset: "ETH" });
   });
 
-  test("percentage with --asset flag", () => {
-    const result = resolveAmountAndAssetInput("withdraw", "50%", undefined, "ETH");
-    expect(result).toEqual({ amount: "50%", asset: "ETH" });
+  test("single percentage positional keeps asset undefined", () => {
+    const result = resolveAmountAndAssetInput("withdraw", "50%", undefined);
+    expect(result).toEqual({ amount: "50%" });
   });
 });

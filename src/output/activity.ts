@@ -143,6 +143,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       page: data.page,
       perPage: data.perPage,
       total: data.total,
+      totalEvents: data.total,
       totalPages: data.totalPages,
       events: data.events.map((e) => ({
         type: e.type,
@@ -189,6 +190,16 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     return;
   }
 
+  if (ctx.mode.isName) {
+    const lines = data.events
+      .map((event) => event.txHash)
+      .filter((txHash): txHash is string => typeof txHash === "string" && txHash.length > 0);
+    if (lines.length > 0) {
+      process.stdout.write(`${lines.join("\n")}\n`);
+    }
+    return;
+  }
+
   const silent = isSilent(ctx);
   if (silent) return;
 
@@ -211,14 +222,18 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   );
 
   if (data.events.length === 0) {
-    process.stderr.write("No activity found.\n");
+    const emptyMessage = data.mode === "pool-activity"
+      ? `No activity found for ${data.asset} on ${data.chain}.`
+      : `No activity found on ${chainLabel}.`;
+    process.stderr.write(`${emptyMessage}\n`);
     if (data.page > 1) {
       process.stderr.write("You may have reached the end of the available results.\n");
     }
     return;
   }
 
-  if (getOutputWidthClass() !== "wide") {
+  const renderTableLayout = ctx.mode.isWide || getOutputWidthClass() === "wide";
+  if (!renderTableLayout) {
     for (const event of data.events) {
       process.stderr.write(
         formatSectionHeading(`${renderActivityType(event.type)} ${event.amountFormatted}`, {

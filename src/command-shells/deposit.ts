@@ -11,12 +11,6 @@ export function createDepositCommand(): Command {
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
     .addOption(
       new Option(
-        "-a, --asset <symbol|address>",
-        "Deprecated: use positional argument instead",
-      ).hideHelp(),
-    )
-    .addOption(
-      new Option(
         "--unsigned [format]",
         "Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx)",
       ).choices(["envelope", "tx"]),

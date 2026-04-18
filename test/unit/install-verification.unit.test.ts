@@ -128,7 +128,7 @@ describe("install verification env hygiene", () => {
     mkdirSync(rootPackagePath, { recursive: true });
     writeFileSync(
       join(rootPackagePath, "package.json"),
-      JSON.stringify({ name: "privacy-pools-cli", version: "2.0.0" }),
+      JSON.stringify({ name: "privacy-pools-cli", version: "2.1.0" }),
       "utf8",
     );
 
@@ -143,7 +143,7 @@ describe("install verification env hygiene", () => {
       join(hoistedNativePath, "package.json"),
       JSON.stringify({
         name: "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
-        version: "2.0.0",
+        version: "2.1.0",
       }),
       "utf8",
     );
@@ -172,14 +172,14 @@ describe("install verification env hygiene", () => {
     mkdirSync(nestedNativePath, { recursive: true });
     writeFileSync(
       join(nestedCliPath, "package.json"),
-      JSON.stringify({ name: "privacy-pools-cli", version: "2.0.0" }),
+      JSON.stringify({ name: "privacy-pools-cli", version: "2.1.0" }),
       "utf8",
     );
     writeFileSync(
       join(nestedNativePath, "package.json"),
       JSON.stringify({
         name: "@0xmatthewb/privacy-pools-cli-native-macos-arm64",
-        version: "2.0.0",
+        version: "2.1.0",
       }),
       "utf8",
     );
@@ -199,24 +199,24 @@ describe("install verification env hygiene", () => {
     mkdirSync(installRoot, { recursive: true });
     writeFileSync(
       join(installRoot, "package.json"),
-      JSON.stringify({ name: "privacy-pools-cli", version: "2.0.0" }),
+      JSON.stringify({ name: "privacy-pools-cli", version: "2.1.0" }),
       "utf8",
     );
 
     expect(
       assertInstalledPackageVersion(
         installRoot,
-        "2.0.0",
+        "2.1.0",
         "Installed registry CLI",
       ),
     ).toMatchObject({
       name: "privacy-pools-cli",
-      version: "2.0.0",
+      version: "2.1.0",
     });
   });
 
   test("install verification helpers recognize the supported node range", () => {
-    expect(isSupportedInstallNodeVersion("v22.0.0")).toBe(true);
+    expect(isSupportedInstallNodeVersion("v22.1.0")).toBe(true);
     expect(isSupportedInstallNodeVersion("23.1.0")).toBe(true);
     expect(isSupportedInstallNodeVersion("24.3.1")).toBe(true);
     expect(isSupportedInstallNodeVersion("25.0.0")).toBe(true);

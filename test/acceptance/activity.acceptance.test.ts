@@ -91,7 +91,7 @@ defineScenarioSuite("activity acceptance", [
       expect(typeof json.error.code).toBe("string");
       expect(typeof json.error.message).toBe("string");
     }),
-    runCliStep(activityArgs("--json", "--chain", "mainnet", "activity", "--asset", "ETH"), {
+    runCliStep(activityArgs("--json", "--chain", "mainnet", "activity", "ETH"), {
       timeoutMs: ACTIVITY_STEP_TIMEOUT_MS,
       env: {
         ...OFFLINE_ASP_ENV,
@@ -112,7 +112,7 @@ defineScenarioSuite("activity acceptance", [
       expect(json.errorCode).toBe("INPUT_ERROR");
       expect(json.errorMessage).toContain('No pool found for asset "ETH" on mainnet.');
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.hint).toContain("ASP may be offline");
+      expect(json.error.hint).toContain("positional asset");
     }),
   ]),
   defineScenario("activity human mode keeps stdout clean and does not require init", [

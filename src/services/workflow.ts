@@ -41,6 +41,7 @@ import {
   approveERC20,
   depositERC20,
   depositETH,
+  hasSufficientErc20Allowance,
   ragequit as submitRagequit,
 } from "./contracts.js";
 import {
@@ -238,6 +239,9 @@ export interface FlowWarning {
 
 export const FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE =
   "Privacy delay is disabled for this saved flow. Once approval is observed, flow watch will request the relayed private withdrawal immediately, which may create an off-chain timing signal.";
+const WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE =
+  "LOCAL_STATE_RECONCILIATION_REQUIRED";
+const WORKFLOW_RELAYER_PROOF_REFRESH_BUDGET_MS = 12_000;
 
 export class FlowCancelledError extends Error {
   constructor() {
@@ -301,6 +305,11 @@ export interface FlowSnapshot {
   ragequitTxHash?: string | null;
   ragequitBlockNumber?: string | null;
   ragequitExplorerUrl?: string | null;
+  relayerHost?: string | null;
+  quoteRefreshCount?: number | null;
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
   pendingSubmission?: FlowPendingSubmission | null;
   lastError?: FlowLastError;
 }
@@ -356,8 +365,11 @@ interface DepositExecutionResult {
   depositTxHash: string;
   depositBlockNumber: bigint;
   depositExplorerUrl: string | null;
-  depositLabel: bigint;
-  committedValue: bigint;
+  depositLabel: bigint | null;
+  committedValue: bigint | null;
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
 }
 
 interface ApprovalInspectionResult {
@@ -396,7 +408,7 @@ async function reconcileWorkflowAccountState(params: {
   isVerbose: boolean;
   errorLabel: string;
   allowLegacyRecoveryVisibility?: boolean;
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     await syncAccountEvents(
       params.accountService,
@@ -421,15 +433,17 @@ async function reconcileWorkflowAccountState(params: {
       },
     );
     info("Local account state reconciled from chain events.", params.silent);
+    return true;
   } catch (syncError) {
     warn(
       `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncError instanceof Error ? syncError.message : String(syncError))}`,
       params.silent,
     );
     warn(
-      `Run 'privacy-pools sync --chain ${params.chainConfig.name} --asset ${params.pool.symbol}' to refresh the local account cache.`,
+      `Run 'privacy-pools sync --chain ${params.chainConfig.name} ${params.pool.symbol}' to refresh the local account cache.`,
       params.silent,
     );
+    return false;
   }
 }
 
@@ -542,6 +556,11 @@ interface WithdrawalResultSnapshotData {
   withdrawTxHash: string;
   withdrawBlockNumber: bigint | string;
   withdrawExplorerUrl?: string | null;
+  relayerHost?: string | null;
+  quoteRefreshCount?: number | null;
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
 }
 
 interface RagequitResultSnapshotData {
@@ -550,6 +569,9 @@ interface RagequitResultSnapshotData {
   ragequitTxHash: string;
   ragequitBlockNumber: bigint | string;
   ragequitExplorerUrl?: string | null;
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
 }
 
 interface FlowFundingState {
@@ -645,6 +667,11 @@ interface RelayedWithdrawalExecutionResult {
   withdrawTxHash: string;
   withdrawBlockNumber: string;
   withdrawExplorerUrl: string | null;
+  relayerHost?: string | null;
+  quoteRefreshCount?: number | null;
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
 }
 
 interface ContinueApprovedWorkflowWithdrawalParams {
@@ -659,6 +686,9 @@ interface RagequitFlowExecutionResult {
   ragequitTxHash: string;
   ragequitBlockNumber: string;
   ragequitExplorerUrl: string | null;
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
 }
 
 interface ExecuteRagequitForFlowParams {
@@ -1109,6 +1139,11 @@ export function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot 
     ragequitTxHash: snapshot.ragequitTxHash ?? null,
     ragequitBlockNumber: snapshot.ragequitBlockNumber ?? null,
     ragequitExplorerUrl: snapshot.ragequitExplorerUrl ?? null,
+    relayerHost: snapshot.relayerHost ?? null,
+    quoteRefreshCount: snapshot.quoteRefreshCount ?? null,
+    reconciliationRequired: snapshot.reconciliationRequired ?? false,
+    localStateSynced: snapshot.localStateSynced ?? true,
+    warningCode: snapshot.warningCode ?? null,
     pendingSubmission: snapshot.pendingSubmission ?? null,
   };
 }
@@ -1386,6 +1421,15 @@ function workflowNow(): string {
   return new Date(workflowNowMs()).toISOString();
 }
 
+function workflowRelayerHostLabel(relayerUrl: string | undefined): string | null {
+  if (!relayerUrl) return null;
+  try {
+    return new URL(relayerUrl).host;
+  } catch {
+    return relayerUrl;
+  }
+}
+
 export function updateSnapshot(
   snapshot: FlowSnapshot,
   patch: Partial<FlowSnapshot>,
@@ -1394,6 +1438,21 @@ export function updateSnapshot(
     ...snapshot,
     ...patch,
     updatedAt: workflowNow(),
+  };
+}
+
+function workflowReconciliationPatch(params: {
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
+}): Pick<FlowSnapshot, "reconciliationRequired" | "localStateSynced" | "warningCode"> {
+  const localStateSynced = params.localStateSynced ?? !params.reconciliationRequired;
+  return {
+    reconciliationRequired: params.reconciliationRequired ?? false,
+    localStateSynced,
+    warningCode:
+      params.warningCode ??
+      (localStateSynced ? null : WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE),
   };
 }
 
@@ -2055,6 +2114,18 @@ async function executeDepositForFlow(
       const approvalSpin = spinner("Approving token spend...", silent);
       approvalSpin.start();
       try {
+        const allowanceStatus = await hasSufficientErc20Allowance({
+          chainConfig,
+          tokenAddress: pool.asset,
+          spenderAddress: chainConfig.entrypoint,
+          amount,
+          rpcOverride: globalOpts?.rpcUrl,
+          ownerAddress: signerAddr,
+          publicClientOverride: publicClient,
+        });
+        if (allowanceStatus.sufficient) {
+          approvalSpin.succeed("Existing token approval is already sufficient.");
+        } else {
         const approveTx = await approveERC20({
           chainConfig,
           tokenAddress: pool.asset,
@@ -2081,6 +2152,7 @@ async function executeDepositForFlow(
           );
         }
         approvalSpin.succeed("Token approved.");
+        }
       } catch (error) {
         approvalSpin.fail("Approval failed.");
         throw error;
@@ -2146,8 +2218,11 @@ async function executeDepositForFlow(
       );
     }
 
-    let label: bigint | undefined;
-    let committedValue: bigint | undefined;
+    let label: bigint | null = null;
+    let committedValue: bigint | null = null;
+    let reconciliationRequired = false;
+    let localStateSynced = true;
+    let warningCode: string | null = null;
     for (const log of receipt.logs) {
       if (log.address.toLowerCase() !== pool.pool.toLowerCase()) continue;
       try {
@@ -2163,52 +2238,74 @@ async function executeDepositForFlow(
       }
     }
 
-    if (label === undefined || committedValue === undefined) {
-      throw new CLIError(
-        "Deposit confirmed, but the workflow could not capture the new Pool Account metadata.",
-        "CONTRACT",
-        `Run 'privacy-pools sync --chain ${chainConfig.name} --asset ${pool.symbol}' to recover the deposit, then continue with the manual commands for this Pool Account.`,
+    if (label === null || committedValue === null) {
+      warn(
+        "Deposit confirmed onchain but the workflow could not capture Pool Account metadata from the receipt. Trying chain reconciliation.",
+        silent,
       );
+      const reconciled = await reconcileWorkflowAccountState({
+        accountService,
+        dataService,
+        mnemonic,
+        chainConfig,
+        pool,
+        silent,
+        isJson: mode.isJson,
+        isVerbose,
+        errorLabel: "Workflow deposit reconciliation",
+      });
+      reconciliationRequired = !reconciled;
+      localStateSynced = reconciled;
+      warningCode = reconciled ? null : WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE;
     }
 
     guardCriticalSection();
     try {
-      try {
-        withSuppressedSdkStdoutSync(() =>
-          accountService.addPoolAccount(
-            pool.scope as unknown as SDKHash,
-            committedValue!,
-            secrets.nullifier,
-            secrets.secret,
-            label as unknown as SDKHash,
-            receipt.blockNumber,
-            tx.hash as Hex,
-          ),
-        );
-        saveAccount(chainConfig.id, accountService.account);
-        saveSyncMeta(chainConfig.id);
-      } catch (saveError) {
-        warn(
-          `Deposit confirmed onchain but failed to update local account state immediately: ${saveError instanceof Error ? saveError.message : String(saveError)}`,
-          silent,
-        );
-        await reconcileWorkflowAccountState({
-          accountService,
-          dataService,
-          mnemonic,
-          chainConfig,
-          pool,
-          silent,
-          isJson: mode.isJson,
-          isVerbose,
-          errorLabel: "Workflow deposit reconciliation",
-        });
+      if (label !== null && committedValue !== null) {
+        try {
+          withSuppressedSdkStdoutSync(() =>
+            accountService.addPoolAccount(
+              pool.scope as unknown as SDKHash,
+              committedValue,
+              secrets.nullifier,
+              secrets.secret,
+              label as unknown as SDKHash,
+              receipt.blockNumber,
+              tx.hash as Hex,
+            ),
+          );
+          saveAccount(chainConfig.id, accountService.account);
+          saveSyncMeta(chainConfig.id);
+        } catch (saveError) {
+          warn(
+            `Deposit confirmed onchain but failed to update local account state immediately: ${saveError instanceof Error ? saveError.message : String(saveError)}`,
+            silent,
+          );
+          const reconciled = await reconcileWorkflowAccountState({
+            accountService,
+            dataService,
+            mnemonic,
+            chainConfig,
+            pool,
+            silent,
+            isJson: mode.isJson,
+            isVerbose,
+            errorLabel: "Workflow deposit reconciliation",
+          });
+          reconciliationRequired = !reconciled;
+          localStateSynced = reconciled;
+          warningCode = reconciled ? null : WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE;
+        }
       }
     } finally {
       releaseCriticalSection();
     }
 
-    depositSpin.succeed("Deposit confirmed.");
+    depositSpin.succeed(
+      reconciliationRequired
+        ? "Deposit confirmed onchain; local state needs reconciliation."
+        : "Deposit confirmed.",
+    );
 
     return {
       chain: chainConfig.name,
@@ -2222,6 +2319,9 @@ async function executeDepositForFlow(
       depositExplorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
       depositLabel: label,
       committedValue,
+      reconciliationRequired,
+      localStateSynced,
+      warningCode,
     };
   });
 }
@@ -2275,10 +2375,15 @@ export function attachDepositResultToSnapshot(
         depositTxHash: result.depositTxHash,
         depositBlockNumber: result.depositBlockNumber.toString(),
         depositExplorerUrl: result.depositExplorerUrl,
-        depositLabel: result.depositLabel.toString(),
-        committedValue: result.committedValue.toString(),
+        depositLabel: result.depositLabel?.toString() ?? null,
+        committedValue: result.committedValue?.toString() ?? null,
         estimatedCommittedValue: null,
         aspStatus: "pending",
+        ...workflowReconciliationPatch({
+          reconciliationRequired: result.reconciliationRequired,
+          localStateSynced: result.localStateSynced,
+          warningCode: result.warningCode,
+        }),
       }),
     ),
   );
@@ -2331,6 +2436,13 @@ export function attachWithdrawalResultToSnapshot(
         withdrawExplorerUrl:
           result.withdrawExplorerUrl ??
           explorerTxUrl(result.chainId, result.withdrawTxHash),
+        relayerHost: result.relayerHost ?? snapshot.relayerHost ?? null,
+        quoteRefreshCount: result.quoteRefreshCount ?? snapshot.quoteRefreshCount ?? null,
+        ...workflowReconciliationPatch({
+          reconciliationRequired: result.reconciliationRequired,
+          localStateSynced: result.localStateSynced,
+          warningCode: result.warningCode,
+        }),
         pendingSubmission: null,
       }),
     ),
@@ -2368,6 +2480,11 @@ export function attachRagequitResultToSnapshot(
         ragequitExplorerUrl:
           result.ragequitExplorerUrl ??
           explorerTxUrl(result.chainId, result.ragequitTxHash),
+        ...workflowReconciliationPatch({
+          reconciliationRequired: result.reconciliationRequired,
+          localStateSynced: result.localStateSynced,
+          warningCode: result.warningCode,
+        }),
         pendingSubmission: null,
       }),
     ),
@@ -2536,8 +2653,8 @@ export async function reconcilePendingDepositReceipt(
     );
   }
 
-  let depositLabel: bigint | undefined;
-  let committedValue: bigint | undefined;
+  let depositLabel: bigint | null = null;
+  let committedValue: bigint | null = null;
   for (const log of receipt.logs) {
     if (log.address.toLowerCase() !== pool.pool.toLowerCase()) continue;
     try {
@@ -2553,12 +2670,26 @@ export async function reconcilePendingDepositReceipt(
     }
   }
 
-  if (depositLabel === undefined || committedValue === undefined) {
-    throw new CLIError(
-      "Deposit confirmed, but the workflow could not recover the saved Pool Account metadata from the transaction receipt.",
-      "CONTRACT",
-      `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' to recover the deposit before resuming the workflow.`,
-    );
+  if (depositLabel === null || committedValue === null) {
+    return attachDepositResultToSnapshot(snapshot, {
+      chain: snapshot.chain,
+      asset: snapshot.asset,
+      amount: BigInt(snapshot.depositAmount),
+      decimals: pool.decimals,
+      poolAccountNumber: snapshot.poolAccountNumber ?? 0,
+      poolAccountId:
+        snapshot.poolAccountId ?? `PA-${snapshot.poolAccountNumber ?? "?"}`,
+      depositTxHash: snapshot.depositTxHash,
+      depositBlockNumber: receipt.blockNumber,
+      depositExplorerUrl:
+        snapshot.depositExplorerUrl ??
+        explorerTxUrl(chainConfig.id, snapshot.depositTxHash),
+      depositLabel: null,
+      committedValue: null,
+      reconciliationRequired: true,
+      localStateSynced: false,
+      warningCode: WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE,
+    });
   }
 
   return attachDepositResultToSnapshot(snapshot, {
@@ -2585,7 +2716,7 @@ export function buildSavedWorkflowRecoveryCommand(snapshot: FlowSnapshot): strin
 
 export async function refreshWorkflowAccountStateFromChain(
   params: RefreshWorkflowAccountStateFromChainParams,
-): Promise<void> {
+): Promise<boolean> {
   const { snapshot, chainConfig, pool, globalOpts, silent, isVerbose } = params;
 
   try {
@@ -2611,13 +2742,14 @@ export async function refreshWorkflowAccountStateFromChain(
       silent,
       true,
     );
+    return true;
   } catch (error) {
     warn(
       `Workflow transaction confirmed onchain but local account reconciliation needs a manual refresh: ${sanitizeDiagnosticText(error instanceof Error ? error.message : String(error))}`,
       silent,
     );
     warn(
-      `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' to refresh the local account cache.`,
+      `Run 'privacy-pools sync --chain ${snapshot.chain} ${snapshot.asset}' to refresh the local account cache.`,
       silent,
     );
     verbose(
@@ -2625,6 +2757,7 @@ export async function refreshWorkflowAccountStateFromChain(
       isVerbose,
       silent,
     );
+    return false;
   }
 }
 
@@ -2665,7 +2798,7 @@ export async function reconcilePendingWithdrawalReceipt(
     );
   }
 
-  await refreshWorkflowAccountStateFromChain({
+  const localStateSynced = await refreshWorkflowAccountStateFromChain({
     snapshot,
     chainConfig,
     pool,
@@ -2681,6 +2814,13 @@ export async function reconcilePendingWithdrawalReceipt(
     withdrawExplorerUrl:
       snapshot.withdrawExplorerUrl ??
       explorerTxUrl(chainConfig.id, snapshot.withdrawTxHash),
+    relayerHost: snapshot.relayerHost ?? null,
+    quoteRefreshCount: snapshot.quoteRefreshCount ?? null,
+    reconciliationRequired: !localStateSynced,
+    localStateSynced,
+    warningCode: localStateSynced
+      ? null
+      : WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE,
   });
 }
 
@@ -2745,7 +2885,7 @@ export async function reconcilePendingRagequitReceipt(
   }
 
   const pool = await resolvePool(chainConfig, snapshot.asset, globalOpts?.rpcUrl);
-  await refreshWorkflowAccountStateFromChain({
+  const localStateSynced = await refreshWorkflowAccountStateFromChain({
     snapshot,
     chainConfig,
     pool,
@@ -2762,6 +2902,11 @@ export async function reconcilePendingRagequitReceipt(
     ragequitExplorerUrl:
       snapshot.ragequitExplorerUrl ??
       explorerTxUrl(chainConfig.id, snapshot.ragequitTxHash),
+    reconciliationRequired: !localStateSynced,
+    localStateSynced,
+    warningCode: localStateSynced
+      ? null
+      : WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE,
   });
 }
 
@@ -2808,7 +2953,7 @@ async function awaitPendingRagequitReceipt(
     );
   }
 
-  await refreshWorkflowAccountStateFromChain({
+  const localStateSynced = await refreshWorkflowAccountStateFromChain({
     snapshot,
     chainConfig,
     pool,
@@ -2825,6 +2970,11 @@ async function awaitPendingRagequitReceipt(
     ragequitExplorerUrl:
       snapshot.ragequitExplorerUrl ??
       explorerTxUrl(chainConfig.id, snapshot.ragequitTxHash),
+    reconciliationRequired: !localStateSynced,
+    localStateSynced,
+    warningCode: localStateSynced
+      ? null
+      : WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE,
   });
 }
 
@@ -2855,7 +3005,7 @@ export async function inspectFundingAndDeposit(
         throw new CLIError(
           WORKFLOW_DEPOSIT_CHECKPOINT_AMBIGUOUS_MESSAGE,
           "INPUT",
-          `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
+          `Run 'privacy-pools sync --chain ${snapshot.chain} ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
         );
       }
     }
@@ -2941,13 +3091,13 @@ export async function inspectFundingAndDeposit(
           attachPendingDepositToSnapshot(savedDepositing, pending),
         );
       } catch {
-        throw new CLIError(
-          WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_MESSAGE,
-          "INPUT",
-          `Tx ${pending.depositTxHash} may still confirm. Run 'privacy-pools sync --chain ${currentSnapshot.chain} --asset ${currentSnapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
-          WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE,
-        );
-      }
+            throw new CLIError(
+              WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_MESSAGE,
+              "INPUT",
+              `Tx ${pending.depositTxHash} may still confirm. Run 'privacy-pools sync --chain ${currentSnapshot.chain} ${currentSnapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
+              WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE,
+            );
+          }
     },
     globalOpts,
     mode,
@@ -3160,6 +3310,7 @@ export async function executeRelayedWithdrawalForFlow(
     quote,
     pool.maxRelayFeeBPS,
   );
+  let quoteRefreshCount = 0;
 
   const fetchFreshQuote = async (reason: string): Promise<void> => {
     withdrawSpin.text = reason;
@@ -3189,6 +3340,7 @@ export async function executeRelayedWithdrawalForFlow(
     quote = refreshed.quote;
     quoteFeeBPS = refreshed.quoteFeeBPS;
     expirationMs = refreshed.expirationMs;
+    quoteRefreshCount += 1;
   };
 
   if (workflowNowMs() > expirationMs) {
@@ -3262,6 +3414,9 @@ export async function executeRelayedWithdrawalForFlow(
     silent,
     "Generating and locally verifying the withdrawal proof.",
   );
+  if (expirationMs - workflowNowMs() < WORKFLOW_RELAYER_PROOF_REFRESH_BUDGET_MS) {
+    await fetchFreshQuote("Quote is close to expiry. Refreshing before proof generation...");
+  }
   await assertLatestRootUnchanged(
     "Pool state changed while preparing the workflow proof.",
     "Re-run 'privacy-pools flow watch' to generate a fresh proof.",
@@ -3376,7 +3531,7 @@ export async function executeRelayedWithdrawalForFlow(
     throw new CLIError(
       WORKFLOW_WITHDRAW_CHECKPOINT_AMBIGUOUS_MESSAGE,
       "INPUT",
-      `Tx ${relayResult.txHash} may still confirm. Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect 'privacy-pools history --chain ${snapshot.chain}' before retrying 'privacy-pools flow watch'.`,
+      `Tx ${relayResult.txHash} may still confirm. Run 'privacy-pools sync --chain ${snapshot.chain} ${snapshot.asset}' or inspect 'privacy-pools history --chain ${snapshot.chain}' before retrying 'privacy-pools flow watch'.`,
       WORKFLOW_WITHDRAW_CHECKPOINT_ERROR_CODE,
     );
   }
@@ -3401,6 +3556,7 @@ export async function executeRelayedWithdrawalForFlow(
     );
   }
 
+  let localStateSynced = true;
   await withProcessLock(async () => {
     guardCriticalSection();
     try {
@@ -3422,7 +3578,7 @@ export async function executeRelayedWithdrawalForFlow(
           `Withdrawal confirmed onchain but failed to update local account state immediately: ${sanitizeDiagnosticText(saveError instanceof Error ? saveError.message : String(saveError))}`,
           silent,
         );
-        await reconcileWorkflowAccountState({
+        localStateSynced = await reconcileWorkflowAccountState({
           accountService,
           dataService: context.dataService,
           mnemonic: context.mnemonic,
@@ -3445,6 +3601,13 @@ export async function executeRelayedWithdrawalForFlow(
     withdrawTxHash: relayResult.txHash,
     withdrawBlockNumber: receipt.blockNumber.toString(),
     withdrawExplorerUrl: explorerTxUrl(chainConfig.id, relayResult.txHash),
+    relayerHost: workflowRelayerHostLabel(quote.relayerUrl ?? relayerUrl),
+    quoteRefreshCount,
+    reconciliationRequired: !localStateSynced,
+    localStateSynced,
+    warningCode: localStateSynced
+      ? null
+      : WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE,
   };
 }
 
@@ -3471,7 +3634,7 @@ export async function continueApprovedWorkflowWithdrawal(
     throw new CLIError(
       WORKFLOW_WITHDRAW_CHECKPOINT_AMBIGUOUS_MESSAGE,
       "INPUT",
-      `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect 'privacy-pools history --chain ${snapshot.chain}' before retrying 'privacy-pools flow watch'.`,
+      `Run 'privacy-pools sync --chain ${snapshot.chain} ${snapshot.asset}' or inspect 'privacy-pools history --chain ${snapshot.chain}' before retrying 'privacy-pools flow watch'.`,
       WORKFLOW_WITHDRAW_CHECKPOINT_ERROR_CODE,
     );
   }
@@ -3592,6 +3755,11 @@ export async function continueApprovedWorkflowWithdrawal(
       withdrawTxHash: withdrawalResult.withdrawTxHash,
       withdrawBlockNumber: withdrawalResult.withdrawBlockNumber,
       withdrawExplorerUrl: withdrawalResult.withdrawExplorerUrl,
+      relayerHost: withdrawalResult.relayerHost,
+      quoteRefreshCount: withdrawalResult.quoteRefreshCount,
+      reconciliationRequired: withdrawalResult.reconciliationRequired,
+      localStateSynced: withdrawalResult.localStateSynced,
+      warningCode: withdrawalResult.warningCode,
     }),
   );
   const savedCompleted = await saveWorkflowSnapshotIfChangedWithLock(
@@ -3735,7 +3903,7 @@ async function executeRagequitForFlow(
     throw new CLIError(
       WORKFLOW_RAGEQUIT_CHECKPOINT_AMBIGUOUS_MESSAGE,
       "INPUT",
-      `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow ragequit'.`,
+      `Tx ${tx.hash} may still confirm. Run 'privacy-pools sync --chain ${snapshot.chain} ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow ragequit'.`,
       WORKFLOW_RAGEQUIT_CHECKPOINT_ERROR_CODE,
     );
   }
@@ -3760,6 +3928,7 @@ async function executeRagequitForFlow(
     );
   }
 
+  let localStateSynced = true;
   guardCriticalSection();
   try {
     try {
@@ -3785,7 +3954,7 @@ async function executeRagequitForFlow(
         `Workflow ragequit confirmed onchain but failed to update local account state immediately: ${sanitizeDiagnosticText(saveError instanceof Error ? saveError.message : String(saveError))}`,
         silent,
       );
-      await reconcileWorkflowAccountState({
+      localStateSynced = await reconcileWorkflowAccountState({
         accountService,
         dataService: context.dataService,
         mnemonic: context.mnemonic,
@@ -3812,6 +3981,11 @@ async function executeRagequitForFlow(
     ragequitTxHash: tx.hash,
     ragequitBlockNumber: receipt.blockNumber.toString(),
     ragequitExplorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+    reconciliationRequired: !localStateSynced,
+    localStateSynced,
+    warningCode: localStateSynced
+      ? null
+      : WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE,
   };
 }
 
@@ -4450,7 +4624,7 @@ export async function startWorkflow(
             throw new CLIError(
               WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_MESSAGE,
               "INPUT",
-              `Tx ${pending.depositTxHash} may still confirm. Run 'privacy-pools sync --chain ${chainConfig.name} --asset ${pool.symbol}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
+              `Tx ${pending.depositTxHash} may still confirm. Run 'privacy-pools sync --chain ${chainConfig.name} ${pool.symbol}' or inspect the deposit wallet before retrying 'privacy-pools flow watch'.`,
               WORKFLOW_DEPOSIT_CHECKPOINT_ERROR_CODE,
             );
           }
@@ -4795,7 +4969,7 @@ export async function ragequitWorkflow(
         throw new CLIError(
           WORKFLOW_RAGEQUIT_CHECKPOINT_AMBIGUOUS_MESSAGE,
           "INPUT",
-          `Run 'privacy-pools sync --chain ${snapshot.chain} --asset ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow ragequit'.`,
+          `Run 'privacy-pools sync --chain ${snapshot.chain} ${snapshot.asset}' or inspect the deposit wallet before retrying 'privacy-pools flow ragequit'.`,
           WORKFLOW_RAGEQUIT_CHECKPOINT_ERROR_CODE,
         );
       }
@@ -4840,6 +5014,9 @@ export async function ragequitWorkflow(
           ragequitTxHash: ragequitResult.ragequitTxHash,
           ragequitBlockNumber: ragequitResult.ragequitBlockNumber,
           ragequitExplorerUrl: ragequitResult.ragequitExplorerUrl,
+          reconciliationRequired: ragequitResult.reconciliationRequired,
+          localStateSynced: ragequitResult.localStateSynced,
+          warningCode: ragequitResult.warningCode,
         }),
       );
       const savedCompleted = saveWorkflowSnapshotIfChanged(snapshot, completed);

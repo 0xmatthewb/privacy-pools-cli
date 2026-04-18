@@ -28,21 +28,18 @@ import {
 } from "./withdraw-command-handler.shared.ts";
 
 export function registerWithdrawValidationPreludeTests(): void {
-  test("rejects the deprecated --asset flag before parsing positional input", async () => {
+  test("rejects ambiguous amount/asset positional input before parsing account state", async () => {
     useIsolatedHome({ withSigner: true });
 
     await expect(
       handleWithdrawCommand(
         "0.1",
-        undefined,
-        {
-          asset: "ETH",
-          to: "0x4444444444444444444444444444444444444444",
-        },
+        "0.2",
+        { to: "0x4444444444444444444444444444444444444444" },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
     ).rejects.toThrow(
-      "--asset has been replaced by a positional argument",
+      "Could not infer amount/asset positional arguments for withdraw",
     );
     expect(initializeAccountServiceMock).not.toHaveBeenCalled();
   });

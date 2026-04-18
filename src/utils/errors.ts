@@ -16,9 +16,11 @@ import {
   wrapDisplayText,
 } from "./terminal.js";
 import { readCliPackageInfo } from "../package-info.js";
+import type { NextAction } from "../types.js";
 
 export type ErrorCategory =
   | "INPUT"
+  | "SETUP"
   | "RPC"
   | "ASP"
   | "RELAYER"
@@ -32,10 +34,11 @@ export const EXIT_CODES: Record<ErrorCategory, number> = {
   UNKNOWN: 1,
   INPUT: 2,
   RPC: 3,
-  ASP: 4,
+  SETUP: 4,
   RELAYER: 5,
   PROOF: 6,
   CONTRACT: 7,
+  ASP: 8,
 };
 
 export function exitCodeForCategory(category: ErrorCategory): number {
@@ -44,6 +47,7 @@ export function exitCodeForCategory(category: ErrorCategory): number {
 
 const DEFAULT_CODE_BY_CATEGORY: Record<ErrorCategory, string> = {
   INPUT: "INPUT_ERROR",
+  SETUP: "SETUP_REQUIRED",
   RPC: "RPC_ERROR",
   ASP: "ASP_ERROR",
   RELAYER: "RELAYER_ERROR",
@@ -267,6 +271,10 @@ export class CLIError extends Error {
     public readonly presentation: ErrorPresentation = defaultErrorPresentation(category),
     public readonly details?: Record<string, unknown>,
     public readonly docsSlug?: string,
+    public readonly extra: {
+      helpTopic?: string;
+      nextActions?: NextAction[];
+    } = {},
   ) {
     super(message);
     this.name = "CLIError";
@@ -299,12 +307,17 @@ export function mutuallyExclusive(
 function defaultErrorPresentation(category: ErrorCategory): ErrorPresentation {
   switch (category) {
     case "INPUT":
+    case "SETUP":
     case "RPC":
     case "ASP":
       return "inline";
     default:
       return "boxed";
   }
+}
+
+function formatHelpTopicReference(helpTopic: string): string {
+  return `Help: privacy-pools help ${helpTopic}`;
 }
 
 function renderBoxedError(error: CLIError): string {
@@ -328,6 +341,9 @@ function renderBoxedError(error: CLIError): string {
           notice(formatDocsReference(error.docsSlug) ?? `Docs: ${error.docsSlug}`),
           width,
         )
+      : []),
+    ...(error.extra.helpTopic
+      ? wrapDisplayText(notice(formatHelpTopicReference(error.extra.helpTopic)), width)
       : []),
   ];
   const contentWidth = Math.max(...body.map((line) => visibleWidth(line)), 24);
@@ -707,6 +723,8 @@ export function printError(error: unknown, json: boolean = false, quiet?: boolea
         retryable: classified.retryable,
         details: classified.details,
         docsSlug: classified.docsSlug,
+        helpTopic: classified.extra.helpTopic,
+        nextActions: classified.extra.nextActions,
       },
       false
     );
@@ -723,6 +741,11 @@ export function printError(error: unknown, json: boolean = false, quiet?: boolea
           notice(
             formatDocsReference(classified.docsSlug) ?? `Docs: ${classified.docsSlug}`,
           ) + "\n",
+        );
+      }
+      if (classified.extra.helpTopic) {
+        process.stderr.write(
+          notice(formatHelpTopicReference(classified.extra.helpTopic)) + "\n",
         );
       }
     }

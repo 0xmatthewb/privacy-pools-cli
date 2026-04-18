@@ -86,6 +86,10 @@ export function createFlowCommand(): Command {
     .command("ragequit")
     .description(ragequitMetadata.description)
     .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
+    .option(
+      "--yes-i-prefer-ragequit",
+      "Confirm non-interactive flow ragequit commands that intentionally choose the public recovery path",
+    )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(
       createLazyAction(

@@ -10,12 +10,6 @@ export function createActivityCommand(): Command {
     .argument("[asset]", "Asset symbol to filter (e.g. ETH, USDC)")
     .addOption(
       new Option(
-        "-a, --asset <symbol|address>",
-        "Deprecated: use positional argument instead",
-      ).hideHelp(),
-    )
-    .addOption(
-      new Option(
         "--include-testnets",
         "Include supported testnets (default: CLI-supported mainnet chains only)",
       ),

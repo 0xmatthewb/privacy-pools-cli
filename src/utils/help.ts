@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
+import { envVarsForSection } from "./env-vars.js";
 import { OUTPUT_FORMAT_DESCRIPTION } from "./mode.js";
 import { accent, accentBold, brand, dangerTone, notice, successTone } from "./theme.js";
 import { inlineSeparator } from "./terminal.js";
@@ -97,6 +98,7 @@ export const GUIDE_TOPICS = [
   { name: "agents", description: "Agent mode, discovery, and machine workflows" },
   { name: "json", description: "JSON envelope, field selection, and JMESPath filtering" },
   { name: "modes", description: "Confirmation, dry-run, unsigned, and agent modes" },
+  { name: "quiet", description: "Quiet mode and low-noise automation output" },
   { name: "troubleshooting", description: "Common issues and fixes" },
   { name: "exit-codes", description: "CLI exit codes by category" },
 ] as const;
@@ -108,11 +110,19 @@ const GUIDE_TOPIC_ALIASES: Record<string, GuideTopic> = {
   automation: "automation",
   agent: "agents",
   agents: "agents",
+  "agent-mode": "agents",
+  envelope: "json",
   env: "env-vars",
+  environment: "env-vars",
   "env-vars": "env-vars",
   envvars: "env-vars",
   "next-actions": "next-actions",
+  nextaction: "next-actions",
   nextactions: "next-actions",
+  formatting: "json",
+  unsigned: "modes",
+  "privacy-delay": "flow-states",
+  quiet: "quiet",
   profiles: "profiles",
   "pool-account": "pool-accounts",
   "pool-accounts": "pool-accounts",
@@ -131,6 +141,21 @@ export function resolveGuideTopic(topic?: string): GuideTopic | null {
 
 export function isGuideTopic(topic?: string): boolean {
   return resolveGuideTopic(topic) !== null;
+}
+
+function formatEnvVarLine(name: string, description: string): string {
+  return `  ${notice(name)}  ${description}`;
+}
+
+function formatEnvVarEntryLines(
+  section: "interaction" | "configuration" | "network" | "runtime",
+): string[] {
+  return envVarsForSection(section).map((entry) => {
+    const label = entry.aliases?.length
+      ? `${entry.name} / ${entry.aliases.join(" / ")}`
+      : entry.name;
+    return formatEnvVarLine(label, entry.description);
+  });
 }
 
 // ── Guide section builders (keyed by topic) ────────────────────────────────
@@ -256,22 +281,9 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("--profile <name>")}     Use a named profile (separate wallet identity and config)`,
     "",
     chalk.bold("Environment Variables"),
-    `  ${notice("PRIVACY_POOLS_PRIVATE_KEY")}   Signer key (takes precedence over saved signer key file)`,
-    `  ${notice("PRIVACY_POOLS_HOME / PRIVACY_POOLS_CONFIG_DIR")}  Config directory override (default: ~/.privacy-pools)`,
-    `  ${notice("XDG_CONFIG_HOME")}       Fallback config base when no override or legacy directory exists`,
-    `  ${notice("PRIVACY_POOLS_RPC_URL / PP_RPC_URL")}             Override RPC endpoint for all chains`,
-    `  ${notice("PRIVACY_POOLS_ASP_HOST / PP_ASP_HOST")}           Override ASP endpoint for all chains`,
-    `  ${notice("PRIVACY_POOLS_RELAYER_HOST / PP_RELAYER_HOST")}   Override relayer endpoint for all chains`,
-    `  ${notice("PRIVACY_POOLS_RPC_URL_<CHAIN> / PP_RPC_URL_<CHAIN>")}         Override RPC endpoint per chain`,
-    `  ${notice("PRIVACY_POOLS_ASP_HOST_<CHAIN> / PP_ASP_HOST_<CHAIN>")}       Override ASP endpoint per chain`,
-    `  ${notice("PRIVACY_POOLS_RELAYER_HOST_<CHAIN> / PP_RELAYER_HOST_<CHAIN>")} Override relayer endpoint per chain`,
-    `  ${notice("PRIVACY_POOLS_CIRCUITS_DIR")}   Override the circuit artifact directory`,
-    `  ${notice("NO_COLOR")}                     Disable colored output (same as --no-color)`,
-    `  ${notice("PP_NO_UPDATE_CHECK")}           Set to 1 to disable the update-available notification`,
-    `  ${notice("PRIVACY_POOLS_AGENT")}          Default to --agent semantics`,
-    `  ${notice("PRIVACY_POOLS_QUIET")}          Default to --quiet semantics`,
-    `  ${notice("PRIVACY_POOLS_YES")}            Default to --yes semantics`,
-    `  ${notice("PRIVACY_POOLS_NO_PROGRESS")}    Default to --no-progress semantics`,
+    ...formatEnvVarEntryLines("configuration"),
+    ...formatEnvVarEntryLines("network"),
+    ...formatEnvVarEntryLines("interaction"),
     "",
     chalk.bold("Interaction Modes"),
     "  Human mode (default): interactive prompts + readable output.",
@@ -291,24 +303,14 @@ const guideSections: Record<string, () => string[]> = {
 
   "env-vars": () => [
     chalk.bold("Environment Variable Fallbacks"),
-    `  ${notice("PRIVACY_POOLS_AGENT")}       Enable agent mode by default (${chalk.dim("--agent")})`,
-    `  ${notice("PRIVACY_POOLS_QUIET")}       Suppress human stderr by default (${chalk.dim("--quiet")})`,
-    `  ${notice("PRIVACY_POOLS_YES")}         Skip confirmations by default (${chalk.dim("--yes")})`,
-    `  ${notice("PRIVACY_POOLS_NO_PROGRESS")} Suppress spinners by default (${chalk.dim("--no-progress")})`,
-    `  ${notice("NO_COLOR")}                  Disable color (${chalk.dim("--no-color")})`,
+    ...formatEnvVarEntryLines("interaction"),
     "",
     chalk.bold("Configuration Overrides"),
-    `  ${notice("PRIVACY_POOLS_HOME / PRIVACY_POOLS_CONFIG_DIR")}  Config directory override`,
-    `  ${notice("XDG_CONFIG_HOME")}       Fallback config base when no override or legacy directory exists`,
-    `  ${notice("PRIVACY_POOLS_PRIVATE_KEY")}   Signer key (takes precedence over saved signer key file)`,
-    `  ${notice("PRIVACY_POOLS_RPC_URL / PP_RPC_URL")}             Override RPC endpoint for all chains`,
-    `  ${notice("PRIVACY_POOLS_ASP_HOST / PP_ASP_HOST")}           Override ASP endpoint for all chains`,
-    `  ${notice("PRIVACY_POOLS_RELAYER_HOST / PP_RELAYER_HOST")}   Override relayer endpoint for all chains`,
-    `  ${notice("PRIVACY_POOLS_RPC_URL_<CHAIN> / PP_RPC_URL_<CHAIN>")}         Override RPC endpoint per chain`,
-    `  ${notice("PRIVACY_POOLS_ASP_HOST_<CHAIN> / PP_ASP_HOST_<CHAIN>")}       Override ASP endpoint per chain`,
-    `  ${notice("PRIVACY_POOLS_RELAYER_HOST_<CHAIN> / PP_RELAYER_HOST_<CHAIN>")} Override relayer endpoint per chain`,
-    `  ${notice("PRIVACY_POOLS_CIRCUITS_DIR")} Override the packaged circuit artifact directory`,
-    `  ${notice("PP_NO_UPDATE_CHECK")}       Disable update notifications when set to 1`,
+    ...formatEnvVarEntryLines("configuration"),
+    ...formatEnvVarEntryLines("network"),
+    "",
+    chalk.bold("Runtime Overrides"),
+    ...formatEnvVarEntryLines("runtime"),
   ],
 
   "next-actions": () => [
@@ -396,7 +398,7 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("--json-fields <fields>")}  Select top-level fields by comma-separated name.`,
     `  ${notice("--jmes <expression>")}     Apply a JMESPath expression to the final envelope.`,
     `  ${notice("--jq <expression>")}       Compatibility alias for --jmes (not jq syntax).`,
-    `  ${notice("--template <template>")}   Interpolate the final envelope with {{path.to.value}} placeholders.`,
+    `  ${notice("--template <template>")}   Interpolate the final envelope with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration.`,
     "  Unknown --json-fields fail with INPUT_UNKNOWN_JSON_FIELD, availableFields[], and did-you-mean suggestions when available.",
     "  Invalid JMESPath expressions fail before command output is emitted.",
     "  --json-fields, --jmes/--jq, and --template are mutually exclusive.",
@@ -418,6 +420,20 @@ const guideSections: Record<string, () => string[]> = {
     "  --dry-run and --unsigned may use approximate validation because no transaction is submitted.",
     "  Fund-moving commands still surface warnings and privacy-cost manifests where relevant.",
     "  Prefer relayed withdrawals. withdraw --direct is a stronger privacy hazard than ragequit.",
+  ],
+
+  quiet: () => [
+    chalk.bold("Quiet Mode"),
+    `  ${notice("--quiet")} suppresses human-oriented stderr output while keeping machine-readable stdout intact.`,
+    "  Use it in CI or scripts when you want less narration but do not want JSON mode.",
+    "",
+    chalk.bold("Status Special Case"),
+    `  ${accent("privacy-pools status --quiet")} prints one concise stdout summary line instead of going fully silent.`,
+    "  That keeps automation-friendly logs from looking like a hung process.",
+    "",
+    chalk.bold("Related Modes"),
+    `  ${notice("--json")} keeps structured envelopes on stdout.`,
+    `  ${notice("--agent")} is shorthand for ${chalk.dim("--json --yes --quiet")}.`,
   ],
 
   troubleshooting: () => [
@@ -443,10 +459,11 @@ const guideSections: Record<string, () => string[]> = {
     `  ${dangerTone("1")}  Unknown/general error`,
     `  ${dangerTone("2")}  Input/validation error`,
     `  ${dangerTone("3")}  RPC/network error`,
-    `  ${dangerTone("4")}  ASP error`,
+    `  ${dangerTone("4")}  Setup required or incomplete local configuration`,
     `  ${dangerTone("5")}  Relayer error`,
     `  ${dangerTone("6")}  Proof generation error`,
     `  ${dangerTone("7")}  Contract revert`,
+    `  ${dangerTone("8")}  ASP error`,
   ],
 };
 

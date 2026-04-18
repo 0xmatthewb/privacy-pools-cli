@@ -1,4 +1,5 @@
 import jmespath from "jmespath";
+import type { NextAction } from "../types.js";
 import { CLIError } from "./errors.js";
 import { didYouMeanMany } from "./fuzzy.js";
 
@@ -20,6 +21,7 @@ function bigintReplacer(_key: string, value: unknown): unknown {
 let _jsonFields: string[] | null = null;
 let _jqExpression: string | null = null;
 let _template: string | null = null;
+let _structuredFormat: "json" | "yaml" = "json";
 
 /**
  * Configure global JSON output filtering.
@@ -32,6 +34,7 @@ export function configureJsonOutput(
   jsonFields: string[] | null,
   jqExpression: string | null,
   template: string | null = null,
+  structuredFormat: "json" | "yaml" = "json",
 ): void {
   if (jqExpression) {
     try {
@@ -50,12 +53,14 @@ export function configureJsonOutput(
   _jsonFields = jsonFields;
   _jqExpression = jqExpression;
   _template = template;
+  _structuredFormat = structuredFormat;
 }
 
 export function resetJsonOutputConfig(): void {
   _jsonFields = null;
   _jqExpression = null;
   _template = null;
+  _structuredFormat = "json";
 }
 
 /**
@@ -110,7 +115,7 @@ function applyFieldSelection(
 
 function templateValue(path: string, payload: unknown): unknown {
   const trimmed = path.trim();
-  if (!trimmed) return "";
+  if (!trimmed || trimmed === ".") return payload;
   return trimmed.split(".").reduce<unknown>((current, segment) => {
     if (current === null || current === undefined) return undefined;
     if (Array.isArray(current) && /^\d+$/.test(segment)) {
@@ -140,11 +145,130 @@ function stringifyTemplateValue(value: unknown): string {
   return JSON.stringify(value, bigintReplacer);
 }
 
+function renderTemplateSection(
+  template: string,
+  currentPayload: unknown,
+  rootPayload: unknown,
+): string {
+  const withSections = template.replace(
+    /\{\{#\s*([^}]+?)\s*\}\}([\s\S]*?)\{\{\/\s*\1\s*\}\}/g,
+    (_match, rawPath: string, inner: string) => {
+      const path = rawPath.trim();
+      const sectionValue =
+        templateValue(path, currentPayload) ?? templateValue(path, rootPayload);
+      if (!Array.isArray(sectionValue) || sectionValue.length === 0) {
+        return "";
+      }
+      return sectionValue
+        .map((entry) => renderTemplateSection(inner, entry, rootPayload))
+        .join("");
+    },
+  );
+
+  return withSections.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, rawPath: string) => {
+    const path = rawPath.trim();
+    const value =
+      templateValue(path, currentPayload) ?? templateValue(path, rootPayload);
+    return stringifyTemplateValue(value);
+  });
+}
+
+function yamlScalar(value: unknown): string {
+  if (value === undefined || value === null) return "null";
+  if (typeof value === "string") {
+    if (value.length === 0) return '""';
+    if (/^[A-Za-z0-9._/@:+-]+$/.test(value)) {
+      return value;
+    }
+    return JSON.stringify(value);
+  }
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value, bigintReplacer);
+}
+
+function indentMultiline(value: string, indent: number): string {
+  const prefix = " ".repeat(indent);
+  return value
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
+}
+
+function serializeYaml(value: unknown, indent: number = 0): string {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return yamlScalar(value);
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "[]";
+    return value
+      .map((item) => {
+        if (
+          item === null ||
+          item === undefined ||
+          typeof item === "string" ||
+          typeof item === "number" ||
+          typeof item === "boolean" ||
+          typeof item === "bigint"
+        ) {
+          return `${" ".repeat(indent)}- ${yamlScalar(item)}`;
+        }
+        return `${" ".repeat(indent)}-\n${indentMultiline(
+          serializeYaml(item, indent + 2),
+          indent + 2,
+        )}`;
+      })
+      .join("\n");
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) return "{}";
+  return entries
+    .map(([key, entryValue]) => {
+      if (
+        entryValue === null ||
+        entryValue === undefined ||
+        typeof entryValue === "string" ||
+        typeof entryValue === "number" ||
+        typeof entryValue === "boolean" ||
+        typeof entryValue === "bigint"
+      ) {
+        return `${" ".repeat(indent)}${key}: ${yamlScalar(entryValue)}`;
+      }
+      return `${" ".repeat(indent)}${key}:\n${indentMultiline(
+        serializeYaml(entryValue, indent + 2),
+        indent + 2,
+      )}`;
+    })
+    .join("\n");
+}
+
+function writeStructuredValue(
+  value: unknown,
+  pretty: boolean,
+): void {
+  if (_structuredFormat === "yaml") {
+    process.stdout.write(`${serializeYaml(value)}\n`);
+    return;
+  }
+  process.stdout.write(
+    `${JSON.stringify(value, bigintReplacer, pretty ? 2 : 0)}\n`,
+  );
+}
+
 function maybeWriteTemplateOutput(payload: Record<string, unknown>): boolean {
   if (!_template) return false;
-  const rendered = _template.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_match, path: string) =>
-    stringifyTemplateValue(templateValue(path, payload)),
-  );
+  const rendered = renderTemplateSection(_template, payload, payload);
   process.stdout.write(`${rendered}\n`);
   return true;
 }
@@ -187,11 +311,11 @@ export function printJsonSuccess(
         "Provide a valid --jmes expression, for example: pools[0].asset or nextActions.",
       );
     }
-    process.stdout.write(`${JSON.stringify(result, bigintReplacer, pretty ? 2 : 0)}\n`);
+    writeStructuredValue(result ?? null, pretty);
     return;
   }
 
-  process.stdout.write(`${JSON.stringify(output, bigintReplacer, pretty ? 2 : 0)}\n`);
+  writeStructuredValue(output, pretty);
 }
 
 export function printJsonError(
@@ -202,15 +326,17 @@ export function printJsonError(
     hint?: string;
     retryable?: boolean;
     docsSlug?: string;
+    helpTopic?: string;
+    nextActions?: NextAction[];
     details?: Record<string, unknown>;
   },
   pretty: boolean = false,
 ): void {
-  const { details, ...errorPayload } = payload;
+  const { details, helpTopic, nextActions, ...errorPayload } = payload;
   const code = payload.code ?? "UNKNOWN_ERROR";
   const errorObject = details
-    ? { ...errorPayload, code, details, ...details }
-    : { ...errorPayload, code };
+    ? { ...errorPayload, code, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}), details, ...details }
+    : { ...errorPayload, code, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}) };
   // `error.code` and `error.message` are canonical. `errorCode` and
   // `errorMessage` remain v2 compatibility aliases and must match.
   const output: Record<string, unknown> = {
@@ -218,6 +344,8 @@ export function printJsonError(
     success: false,
     errorCode: code,
     errorMessage: payload.message,
+    ...(helpTopic ? { helpTopic } : {}),
+    ...(nextActions ? { nextActions } : {}),
     ...(details ?? {}),
     error: errorObject,
   };
@@ -231,10 +359,10 @@ export function printJsonError(
   if (_jqExpression) {
     const result = jmespath.search(output, _jqExpression);
     if (result !== undefined) {
-      process.stdout.write(`${JSON.stringify(result, bigintReplacer, pretty ? 2 : 0)}\n`);
+      writeStructuredValue(result, pretty);
       return;
     }
   }
 
-  process.stdout.write(`${JSON.stringify(output, bigintReplacer, pretty ? 2 : 0)}\n`);
+  writeStructuredValue(output, pretty);
 }

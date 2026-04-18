@@ -108,6 +108,23 @@ describe("utility command handlers", () => {
     expect(stderr).toBe("");
   });
 
+  test("describe history documents stale-cache metadata for --no-sync", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleDescribeCommand(
+        ["history"],
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.command).toBe("history");
+    expect(json.jsonFields).toContain("lastSyncTime");
+    expect(json.jsonVariants).toContain(
+      "--no-sync: same fields, plus lastSyncTime? when cached local history was used.",
+    );
+    expect(stderr).toBe("");
+  });
+
   test("describe returns JSON contract fragments for envelope paths", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       handleDescribeCommand(

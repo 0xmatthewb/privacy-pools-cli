@@ -87,6 +87,7 @@ fn js_like_rpc_network_error() -> CliError {
         ),
         Some("RPC_NETWORK_ERROR"),
     )
+    .with_docs_slug("guide/troubleshooting")
 }
 
 fn classify_network_error(error: ureq::Error, url: &str, category: ErrorCategory) -> CliError {
@@ -128,7 +129,8 @@ fn classify_network_error(error: ureq::Error, url: &str, category: ErrorCategory
                         .to_string(),
                 ),
                 Some("RPC_NETWORK_ERROR"),
-            ),
+            )
+            .with_docs_slug("guide/troubleshooting"),
             _ => CliError::unknown(
                 "Unexpected network failure.",
                 Some("Retry the command once; if it persists, report the issue.".to_string()),

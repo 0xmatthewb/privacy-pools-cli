@@ -8,7 +8,14 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printCsv, printTable, info, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
-import { formatAddress, formatAmount, formatTxHash, displayDecimals, formatApproxBlockTimeAgo } from "../utils/format.js";
+import {
+  formatAddress,
+  formatAmount,
+  formatTxHash,
+  displayDecimals,
+  formatApproxBlockTimeAgo,
+  formatTimeAgo,
+} from "../utils/format.js";
 import {
   accentBold,
 } from "../utils/theme.js";
@@ -31,6 +38,8 @@ export interface HistoryRenderData {
   currentBlock: bigint | null;
   /** Average seconds per block for the target chain (default 12 for Ethereum L1). */
   avgBlockTimeSec?: number;
+  lastSyncTime?: number | null;
+  syncSkipped?: boolean;
 }
 
 function renderHistoryType(type: HistoryEvent["type"]): string {
@@ -60,14 +69,24 @@ export function renderHistoryNoPools(ctx: OutputContext, chain: string): void {
     printCsv(["Type", "PA", "Amount", "Tx", "Block"], []);
     return;
   }
-  info(`No history events are available on ${chain} yet.`, isSilent(ctx));
+  info(`No history events found on ${chain}.`, isSilent(ctx));
 }
 
 /**
  * Render history event listing.
  */
 export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void {
-  const { chain, chainId, events, poolByAddress, explorerTxUrl, currentBlock, avgBlockTimeSec } = data;
+  const {
+    chain,
+    chainId,
+    events,
+    poolByAddress,
+    explorerTxUrl,
+    currentBlock,
+    avgBlockTimeSec,
+    lastSyncTime,
+    syncSkipped,
+  } = data;
   const nextActions = [
     createNextAction("accounts", "View current Pool Account balances and statuses.", "after_history", { options: { chain } }),
     createNextAction("pools", "Browse available pools before making a first deposit.", "after_history", {
@@ -94,6 +113,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
     );
     printJsonSuccess(appendNextActions({
       chain,
+      ...(lastSyncTime != null ? { lastSyncTime: new Date(lastSyncTime).toISOString() } : {}),
       events: events.map((e) => ({
         type: e.type,
         asset: e.asset,
@@ -126,11 +146,22 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
     return;
   }
 
+  if (ctx.mode.isName) {
+    const lines = events.map((event) => event.txHash);
+    if (lines.length > 0) {
+      process.stdout.write(`${lines.join("\n")}\n`);
+    }
+    return;
+  }
+
   const silent = isSilent(ctx);
 
   if (events.length === 0) {
     if (!silent) process.stderr.write("\n");
-    info(`No events found on ${chain}.`, silent);
+    info(`No history events found on ${chain}.`, silent);
+    if (!silent && syncSkipped && lastSyncTime != null) {
+      process.stderr.write(`Cached ${formatTimeAgo(lastSyncTime)}. Re-run sync to refresh.\n`);
+    }
     renderNextSteps(ctx, nextActions);
     return;
   }
@@ -138,6 +169,9 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
   if (silent) return;
 
   process.stderr.write(`\n${accentBold(`History on ${chain} (last ${events.length} events):`)}\n\n`);
+  if (syncSkipped && lastSyncTime != null) {
+    process.stderr.write(`Cached ${formatTimeAgo(lastSyncTime)}. Re-run sync to refresh.\n\n`);
+  }
   const isWideFormat = ctx.mode.isWide;
   const historyHeaders = isWideFormat
     ? ["Type", "PA", "Amount", "Tx", "Time", "Block", "Pool"]

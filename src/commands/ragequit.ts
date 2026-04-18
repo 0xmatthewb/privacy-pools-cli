@@ -47,7 +47,7 @@ import {
 import { printError, CLIError, promptCancelledError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { resolveOptionalAssetInput } from "../utils/positional.js";
-import { createOutputContext } from "../output/common.js";
+import { createNextAction, createOutputContext } from "../output/common.js";
 import {
   formatRagequitReview,
   renderRagequitDryRun,
@@ -90,7 +90,6 @@ import {
   formatPoolPromptChoice,
 } from "../utils/prompts.js";
 import {
-  warnLegacyAssetFlag,
   warnLegacyPoolAccountFlag,
 } from "../utils/deprecations.js";
 import {
@@ -121,14 +120,18 @@ interface RagequitAdvisory {
 }
 
 interface RagequitCommandOptions {
-  asset?: string;
   poolAccount?: string;
   fromPa?: string;
   commitment?: string;
-  yesIUnderstandPrivacyLoss?: boolean;
+  yesIPreferRagequit?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
 }
+
+const LOCAL_STATE_RECONCILIATION_WARNING_CODE =
+  "LOCAL_STATE_RECONCILIATION_REQUIRED";
+const RAGEQUIT_PRIVACY_WARNING_COPY =
+  "By exiting this pool, you are publicly withdrawing all funds to your deposit address. You will not gain any privacy.";
 
 interface RagequitAccountLoadResult {
   accountService: AccountService;
@@ -168,7 +171,7 @@ export function getRagequitAdvisory(
     case "approved":
       return {
         level: "warn",
-        message: `${poolAccount.paId} is approved. Use 'privacy-pools withdraw --pool-account ${poolAccount.paId} ...' for a private withdrawal instead. Only continue with ragequit if you intentionally want public recovery.`,
+        message: `${poolAccount.paId} is approved. ${RAGEQUIT_PRIVACY_WARNING_COPY} Use 'privacy-pools withdraw --pool-account ${poolAccount.paId} ...' for a private withdrawal instead.`,
       };
     case "pending":
       return {
@@ -358,12 +361,6 @@ export async function handleRagequitCommand(
       normalized === "canceled"
     );
   };
-  if (opts.asset !== undefined) {
-    warnLegacyAssetFlag(
-      "privacy-pools ragequit <asset> (e.g. privacy-pools ragequit ETH)",
-      silent,
-    );
-  }
   if (opts.fromPa !== undefined) {
     warnLegacyPoolAccountFlag(opts.fromPa, silent);
   }
@@ -430,7 +427,6 @@ export async function handleRagequitCommand(
     const positionalOrFlagAsset = resolveOptionalAssetInput(
       "ragequit",
       assetArg,
-      opts.asset,
     );
 
     // Resolve pool
@@ -882,11 +878,97 @@ export async function handleRagequitCommand(
           info("Ragequit cancelled.", silent);
           return;
         }
-      } else if (!isDryRun && opts.yesIUnderstandPrivacyLoss !== true) {
+      } else if (
+        !isDryRun &&
+        selectedPoolAccount.status !== "approved" &&
+        opts.yesIPreferRagequit !== true
+      ) {
         throw new CLIError(
           "Ragequit requires explicit privacy-loss acknowledgement in non-interactive mode.",
           "INPUT",
-          "Re-run with --yes-i-understand-privacy-loss only if you fully accept that this publicly recovers funds to the original deposit address.",
+          "Re-run with --yes-i-prefer-ragequit only if you intentionally want the public recovery path.",
+          "INPUT_RAGEQUIT_CONFIRMATION_REQUIRED",
+          false,
+          undefined,
+          {
+            poolAccountId: selectedPoolAccount.paId,
+            destinationAddress: depositorAddress,
+          },
+          undefined,
+          {
+            helpTopic: "ragequit",
+            nextActions: [
+              createNextAction(
+                "ragequit",
+                "Retry only if you intentionally prefer the public recovery path.",
+                "after_dry_run",
+                {
+                  args: [pool.symbol],
+                  options: {
+                    agent: true,
+                    chain: chainConfig.name,
+                    poolAccount: selectedPoolAccount.paId,
+                    yesIPreferRagequit: true,
+                  },
+                },
+              ),
+            ],
+          },
+        );
+      }
+
+      if (
+        selectedPoolAccount.status === "approved" &&
+        skipPrompts &&
+        !isDryRun &&
+        opts.yesIPreferRagequit !== true
+      ) {
+        throw new CLIError(
+          `${selectedPoolAccount.paId} is approved for private withdrawal.`,
+          "INPUT",
+          `${RAGEQUIT_PRIVACY_WARNING_COPY} Use withdraw instead unless you intentionally prefer ragequit.`,
+          "INPUT_APPROVED_POOL_ACCOUNT_RAGEQUIT_REQUIRES_OVERRIDE",
+          false,
+          undefined,
+          {
+            poolAccountId: selectedPoolAccount.paId,
+            destinationAddress: depositorAddress,
+          },
+          undefined,
+          {
+            helpTopic: "ragequit",
+            nextActions: [
+              createNextAction(
+                "withdraw",
+                "Use the private withdrawal path first for an approved Pool Account.",
+                "after_dry_run",
+                {
+                  args: [pool.symbol],
+                  options: {
+                    agent: true,
+                    chain: chainConfig.name,
+                    poolAccount: selectedPoolAccount.paId,
+                  },
+                  runnable: false,
+                  parameters: [{ name: "to", type: "address", required: true }],
+                },
+              ),
+              createNextAction(
+                "ragequit",
+                "Retry only if you intentionally prefer the public recovery path.",
+                "after_dry_run",
+                {
+                  args: [pool.symbol],
+                  options: {
+                    agent: true,
+                    chain: chainConfig.name,
+                    poolAccount: selectedPoolAccount.paId,
+                    yesIPreferRagequit: true,
+                  },
+                },
+              ),
+            ],
+          },
         );
       }
 
@@ -1037,6 +1119,8 @@ export async function handleRagequitCommand(
       }
 
       let needsReconciliation = false;
+      let localStateSynced = true;
+      let warningCode: string | null = null;
       guardCriticalSection();
       try {
         // Mark the account as ragequit so it's excluded from getSpendableCommitments()
@@ -1064,6 +1148,7 @@ export async function handleRagequitCommand(
               silent,
             );
           needsReconciliation = true;
+          localStateSynced = false;
         }
 
         try {
@@ -1082,6 +1167,7 @@ export async function handleRagequitCommand(
               silent,
             );
           needsReconciliation = true;
+          localStateSynced = false;
         }
         if (needsReconciliation) {
           try {
@@ -1108,18 +1194,26 @@ export async function handleRagequitCommand(
               },
             );
             info("Local account state reconciled from chain events.", silent);
+            needsReconciliation = false;
+            localStateSynced = true;
           } catch (syncErr) {
             warn(
               `Automatic reconciliation failed: ${syncErr instanceof Error ? syncErr.message : String(syncErr)}`,
               silent,
             );
             warn(`Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`, silent);
+            localStateSynced = false;
+            warningCode = LOCAL_STATE_RECONCILIATION_WARNING_CODE;
           }
         }
       } finally {
         releaseCriticalSection();
       }
-      spin.succeed("Ragequit confirmed!");
+      if (needsReconciliation || !localStateSynced) {
+        spin.warn("Ragequit confirmed onchain; local state needs reconciliation.");
+      } else {
+        spin.succeed("Ragequit confirmed!");
+      }
 
       const ctx = createOutputContext(mode);
       renderRagequitSuccess(ctx, {
@@ -1136,6 +1230,9 @@ export async function handleRagequitCommand(
         explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
         destinationAddress: depositorAddress,
         advisory: advisory?.message ?? null,
+        reconciliationRequired: needsReconciliation || !localStateSynced,
+        localStateSynced,
+        warningCode,
         tokenPrice,
       });
       maybeLaunchBrowser({

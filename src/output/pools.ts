@@ -134,9 +134,13 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
     return;
   }
 
+  if (ctx.mode.isName) {
+    return;
+  }
+
   const silent = isSilent(ctx);
   if (data.allChains) {
-    info("No pools found across supported chains.", silent);
+    info("No pools found on supported chains.", silent);
   } else {
     info(`No pools found on ${data.chainName}.`, silent);
   }
@@ -264,6 +268,16 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
         return allChains ? [chain, ...baseRow] : baseRow;
       }),
     );
+    return;
+  }
+
+  if (ctx.mode.isName) {
+    const lines = filteredPools.map(({ chain, pool }) =>
+      allChains ? `${chain}/${pool.symbol}` : pool.symbol,
+    );
+    if (lines.length > 0) {
+      process.stdout.write(`${lines.join("\n")}\n`);
+    }
     return;
   }
 

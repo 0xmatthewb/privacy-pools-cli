@@ -470,7 +470,7 @@ describe("native package smoke", () => {
     });
 
     const statsPoolResult = runBuiltCli(
-      ["--agent", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      ["--agent", "--chain", "sepolia", "stats", "pool", "ETH"],
       {
         cwd: snapshotRoot,
         env,

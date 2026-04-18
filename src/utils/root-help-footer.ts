@@ -22,11 +22,6 @@ const COMMAND_GROUPS = ROOT_COMMAND_GROUPS.map(
 export function rootHelpFooterPlain(): string {
   return [
     "",
-    "Command Groups:",
-    ...COMMAND_GROUPS.map(
-      ([label, commands]) => `  ${label.padEnd(12)}${commands}`,
-    ),
-    "",
     "Common workflows:",
     ...COMMON_WORKFLOWS.map(
       ([label, command]) => `  ${label.padEnd(18)}${command}`,
@@ -41,11 +36,13 @@ export function rootHelpFooterPlain(): string {
 export async function rootHelpFooterStyled(): Promise<string> {
   const { accent } = await import("./theme.js");
   const chalk = (await import("chalk")).default;
+  const commandGroupLabelWidth = 18;
   return [
     "",
     chalk.bold("Command Groups:"),
     ...COMMAND_GROUPS.map(
-      ([label, commands]) => `  ${chalk.dim(label.padEnd(12))}${accent(commands)}`,
+      ([label, commands]) =>
+        `  ${chalk.dim(label.padEnd(commandGroupLabelWidth))}${accent(commands)}`,
     ),
     "",
     chalk.bold("Common workflows:"),

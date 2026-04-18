@@ -49,13 +49,13 @@ describe("CLI stress audit", () => {
         expectedSuccess: true,
       },
       {
-        args: ["--json", "deposit", "0.01", "--asset", "ETH", "--yes"],
+        args: ["--json", "deposit", "0.01", "ETH", "--yes"],
         label: "deposit",
         expectedCategory: "INPUT",
       },
       {
         args: [
-          "--json", "withdraw", "0.01", "--asset", "ETH",
+          "--json", "withdraw", "0.01", "ETH",
           "--to", "0x0000000000000000000000000000000000000001",
           "--yes",
         ],
@@ -63,7 +63,7 @@ describe("CLI stress audit", () => {
         expectedCategory: "INPUT",
       },
       {
-        args: ["--json", "ragequit", "--asset", "ETH", "--yes"],
+        args: ["--json", "ragequit", "ETH", "--yes"],
         label: "ragequit",
         expectedCategory: "INPUT",
       },

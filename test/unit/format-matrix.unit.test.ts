@@ -5,11 +5,14 @@ import {
   formatBPS,
   formatTxHash,
   deriveTokenPrice,
+  parseUsd,
   formatUsdValue,
   isStablecoinPrice,
   usdSuffix,
   info,
   printTable,
+  setForceWideTables,
+  spinner,
   stageHeader,
   success,
   verbose,
@@ -23,6 +26,7 @@ describe("format utils matrix", () => {
   afterEach(() => {
     console.log = originalLog;
     process.stderr.write = originalStderrWrite as typeof process.stderr.write;
+    setForceWideTables(false);
     mock.restore();
   });
 
@@ -144,6 +148,46 @@ describe("format utils matrix", () => {
     expect(output).not.toContain("┌");
   });
 
+  test("explicit wide mode keeps column tables on narrow terminals", () => {
+    const logs: string[] = [];
+    const originalColumns = process.stderr.columns;
+    Object.defineProperty(process.stderr, "columns", {
+      configurable: true,
+      get: () => 72,
+    });
+    process.stderr.write = ((chunk: unknown) => {
+      logs.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    setForceWideTables(true);
+
+    printTable(
+      ["Type", "Pool", "Amount", "Status", "Time", "Tx", "Pool Address", "Chain"],
+      [[
+        "Deposit",
+        "ETH@11155111",
+        "1 ETH",
+        "Approved",
+        "2024-01-01",
+        "0x1234...5678",
+        "0x1111111111111111111111111111111111111111",
+        "sepolia",
+      ]],
+    );
+
+    if (originalColumns !== undefined) {
+      Object.defineProperty(process.stderr, "columns", {
+        configurable: true,
+        get: () => originalColumns,
+      });
+    }
+
+    const output = logs.join("");
+    expect(output).toContain("Pool Address");
+    expect(output).toContain("Chain");
+    expect(output).not.toContain("  ───");
+  });
+
   test("success/warn/info/verbose formatting emits expected markers", () => {
     const logs: string[] = [];
     process.stderr.write = ((chunk: unknown) => {
@@ -162,6 +206,37 @@ describe("format utils matrix", () => {
     expect(logs.some((l) => /(?:●|\*) heads-up/.test(l))).toBe(true);
     expect(logs.some((l) => l.includes("quiet"))).toBe(false);
     expect(logs.some((l) => l.includes("noisy"))).toBe(true);
+  });
+
+  test("negative USD values format with a leading minus sign", () => {
+    expect(formatUsdValue(-6357n, 0, 1)).toBe("-$6,357");
+    expect(parseUsd("-6357")).toBe("-$6,357");
+  });
+
+  test("non-tty spinner emits only start and finish lines", () => {
+    const logs: string[] = [];
+    const originalIsTTY = process.stderr.isTTY;
+    Object.defineProperty(process.stderr, "isTTY", {
+      configurable: true,
+      get: () => false,
+    });
+    process.stderr.write = ((chunk: unknown) => {
+      logs.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+
+    const spin = spinner("Loading activity...");
+    spin.start();
+    spin.text = "Still loading";
+    spin.render();
+    spin.succeed("Activity loaded.");
+
+    Object.defineProperty(process.stderr, "isTTY", {
+      configurable: true,
+      get: () => originalIsTTY,
+    });
+
+    expect(logs).toEqual(["Loading activity...\n", "Activity loaded.\n"]);
   });
 
   test("stageHeader writes step banner to stderr", () => {

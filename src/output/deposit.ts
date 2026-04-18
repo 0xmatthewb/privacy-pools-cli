@@ -143,6 +143,10 @@ export interface DepositDryRunData {
   asset: string;
   amount: bigint;
   decimals: number;
+  vettingFeeBPS: bigint;
+  feeAmount: bigint;
+  estimatedCommitted: bigint;
+  feesApply: boolean;
   poolAccountNumber: number;
   poolAccountId: string;
   precommitment: bigint;
@@ -153,6 +157,10 @@ export interface DepositSuccessData {
   txHash: string;
   amount: bigint;
   committedValue: bigint | undefined;
+  vettingFeeBPS?: bigint;
+  vettingFeeAmount?: bigint;
+  estimatedCommitted?: bigint;
+  feesApply?: boolean;
   asset: string;
   chain: string;
   decimals: number;
@@ -163,6 +171,9 @@ export interface DepositSuccessData {
   label: bigint | undefined;
   blockNumber: bigint;
   explorerUrl: string | null;
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
   /** True when the user explicitly passed --chain (overriding the default). */
   chainOverridden?: boolean;
 }
@@ -206,6 +217,10 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
         chain: data.chain,
         asset: data.asset,
         amount: data.amount.toString(),
+        vettingFeeBPS: data.vettingFeeBPS.toString(),
+        vettingFeeAmount: data.feeAmount.toString(),
+        estimatedCommitted: data.estimatedCommitted.toString(),
+        feesApply: data.feesApply,
         poolAccountNumber: data.poolAccountNumber,
         poolAccountId: data.poolAccountId,
         precommitment: data.precommitment.toString(),
@@ -248,6 +263,18 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
           ),
         },
         {
+          label: "Vetting fee",
+          value: `${formatAmount(data.feeAmount, data.decimals, data.asset)} (${formatBPS(data.vettingFeeBPS)})`,
+        },
+        {
+          label: "Expected net deposited",
+          value: formatAmount(
+            data.estimatedCommitted,
+            data.decimals,
+            data.asset,
+          ),
+        },
+        {
           label: "Balance sufficient",
           value: balanceLabel,
           valueTone:
@@ -274,7 +301,18 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     ? `re-run accounts --chain ${data.chain}`
     : "re-run accounts";
   const humanConfirmCommand = `privacy-pools accounts --chain ${data.chain}`;
+  const reconciliationAction = data.reconciliationRequired
+    ? [
+        createNextAction(
+          "sync",
+          `Reconcile local state for ${data.poolAccountId} before acting on the updated Pool Account.`,
+          "after_sync",
+          { options: { agent: true, chain: data.chain } },
+        ),
+      ]
+    : [];
   const agentNextActions = [
+    ...reconciliationAction,
     createNextAction(
       "accounts",
       `Poll pending review for ${data.poolAccountId}. When it disappears, ${confirmHint} to confirm whether it was approved, declined, or needs Proof of Association.`,
@@ -292,6 +330,16 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     ),
   ];
   const humanNextActions = [
+    ...(data.reconciliationRequired
+      ? [
+          createNextAction(
+            "sync",
+            `Reconcile local state for ${data.poolAccountId} before checking balances.`,
+            "after_sync",
+            { options: { chain: data.chain } },
+          ),
+        ]
+      : []),
     createNextAction(
       "accounts",
       `Poll pending review for ${data.poolAccountId}. When it disappears, re-run ${humanConfirmCommand} to confirm whether it was approved, declined, or needs Proof of Association.`,
@@ -321,6 +369,13 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         txHash: data.txHash,
         amount: data.amount.toString(),
         committedValue: data.committedValue?.toString() ?? null,
+        vettingFeeBPS: data.vettingFeeBPS?.toString() ?? null,
+        vettingFeeAmount: data.vettingFeeAmount?.toString() ?? null,
+        estimatedCommitted:
+          data.estimatedCommitted?.toString() ??
+          data.committedValue?.toString() ??
+          null,
+        feesApply: data.feesApply ?? false,
         asset: data.asset,
         chain: data.chain,
         poolAccountNumber: data.poolAccountNumber,
@@ -330,6 +385,9 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         label: data.label?.toString() ?? null,
         blockNumber: data.blockNumber.toString(),
         explorerUrl: data.explorerUrl,
+        reconciliationRequired: data.reconciliationRequired ?? false,
+        localStateSynced: data.localStateSynced ?? true,
+        warningCode: data.warningCode ?? null,
       }, agentNextActions),
       false,
     );
@@ -343,7 +401,8 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       formatDenseOutcomeLine({
         outcome: "deposit",
         message:
-          `Deposited ${formatAmount(data.amount, data.decimals, data.asset)} ` +
+          `${data.reconciliationRequired ? "Deposit confirmed onchain; local state needs reconciliation for" : "Deposited"} ` +
+          `${formatAmount(data.amount, data.decimals, data.asset)} ` +
           `-> ${data.chain} ${data.asset} pool${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
         url: data.explorerUrl,
       }),
@@ -374,10 +433,15 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     process.stderr.write(
       formatCallout(
         "warning",
-        [
-          "Your deposit is now under Association Set Provider (ASP) review. Private withdrawal unlocks after ASP approval.",
-          `${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
-        ],
+        data.reconciliationRequired
+          ? [
+              "Deposit confirmed onchain, but local state needs reconciliation before you rely on the saved Pool Account state.",
+              `Run privacy-pools sync --chain ${data.chain} before continuing.`,
+            ]
+          : [
+              "Your deposit is now under Association Set Provider (ASP) review. Private withdrawal unlocks after ASP approval.",
+              `${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
+            ],
       ),
     );
   }

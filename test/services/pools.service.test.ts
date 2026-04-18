@@ -1206,7 +1206,7 @@ describe("pools service", () => {
       category: "INPUT",
       message: `No pool found for asset "UNKNOWN" on ${chainConfig.name}.`,
       hint:
-        "The ASP may be offline. Try using --asset with a token contract address (0x...).",
+        "The ASP may be offline. Try using the token contract address as the positional asset (0x...).",
     });
   });
 

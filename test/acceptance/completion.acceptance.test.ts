@@ -310,8 +310,6 @@ defineScenarioSuite("completion acceptance", [
         "privacy-pools",
         "withdraw",
         "quote",
-        "0.1",
-        "--asset",
         "",
       ],
       { timeoutMs: 10_000 },

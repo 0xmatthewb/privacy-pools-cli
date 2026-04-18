@@ -146,7 +146,7 @@ describe("withdraw command helpers", () => {
         status: "unknown",
       }),
     ).toContain(
-      "privacy-pools ragequit --chain sepolia --asset ETH --pool-account <PA-#>",
+      "privacy-pools ragequit ETH --chain sepolia --pool-account <PA-#>",
     );
 
     expect(
@@ -154,7 +154,7 @@ describe("withdraw command helpers", () => {
         chainName: "sepolia",
         assetSymbol: "ETH",
       }),
-    ).toContain("privacy-pools ragequit --chain sepolia --asset ETH --pool-account <PA-#>");
+    ).toContain("privacy-pools ragequit ETH --chain sepolia --pool-account <PA-#>");
   });
 
   test("renders a relayer minimum remainder advisory only when the remainder is stranded", () => {

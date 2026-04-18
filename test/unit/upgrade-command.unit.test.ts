@@ -45,18 +45,18 @@ const UPGRADE_COMMAND_RESTORES = [
 ] as const;
 
 const readCliPackageInfoMock = mock(() => ({
-  version: "2.0.0",
+  version: "2.1.0",
   packageRoot: "/tmp/privacy-pools-cli",
   packageJsonPath: "/tmp/privacy-pools-cli/package.json",
 }));
 const inspectUpgradeMock = mock(async () => ({
   mode: "upgrade" as const,
   status: "ready" as const,
-  currentVersion: "2.0.0",
-  latestVersion: "1.8.0",
+  currentVersion: "2.1.0",
+  latestVersion: "2.2.0",
   updateAvailable: true,
   performed: false,
-  command: "npm install -g privacy-pools-cli@1.8.0",
+  command: "npm install -g privacy-pools-cli@2.2.0",
   installContext: {
     kind: "global_npm" as const,
     supportedAutoRun: true,
@@ -130,11 +130,11 @@ beforeEach(async () => {
   inspectUpgradeMock.mockImplementation(async () => ({
     mode: "upgrade" as const,
     status: "ready" as const,
-    currentVersion: "2.0.0",
-    latestVersion: "1.8.0",
+    currentVersion: "2.1.0",
+    latestVersion: "2.2.0",
     updateAvailable: true,
     performed: false,
-    command: "npm install -g privacy-pools-cli@1.8.0",
+    command: "npm install -g privacy-pools-cli@2.2.0",
     installContext: {
       kind: "global_npm" as const,
       supportedAutoRun: true,
@@ -356,11 +356,11 @@ describe("upgrade command handler", () => {
     inspectUpgradeMock.mockImplementationOnce(async () => ({
       mode: "upgrade" as const,
       status: "manual" as const,
-      currentVersion: "2.0.0",
-      latestVersion: "1.8.0",
+      currentVersion: "2.1.0",
+      latestVersion: "2.2.0",
       updateAvailable: true,
       performed: false,
-      command: "npm install privacy-pools-cli@1.8.0",
+      command: "npm install privacy-pools-cli@2.2.0",
       installContext: {
         kind: "local_project" as const,
         supportedAutoRun: false,
@@ -390,8 +390,8 @@ describe("upgrade command handler", () => {
     inspectUpgradeMock.mockImplementationOnce(async () => ({
       mode: "upgrade" as const,
       status: "current" as const,
-      currentVersion: "1.8.0",
-      latestVersion: "1.8.0",
+      currentVersion: "2.1.0",
+      latestVersion: "2.1.0",
       updateAvailable: false,
       performed: false,
       command: null,
@@ -400,7 +400,7 @@ describe("upgrade command handler", () => {
         supportedAutoRun: true,
         reason: "This CLI was detected as a global npm install.",
       },
-      installedVersion: "1.8.0",
+      installedVersion: "2.1.0",
     }));
 
     await captureAsyncOutput(() =>

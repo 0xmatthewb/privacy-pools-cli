@@ -441,26 +441,29 @@ export function registerRagequitCommandHandlerHarness(): void {
 }
 
 export function registerRagequitEntrySubmitTests(): void {
-  test("accepts the deprecated --asset alias while keeping machine ragequit gated", async () => {
+  test("rejects the removed --asset alias before loading ragequit state", async () => {
     useIsolatedHome();
 
-    const { json } = await captureAsyncJsonOutput(() =>
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleRagequitCommand(
         undefined,
         {
           asset: "ETH",
           poolAccount: "PA-1",
           unsigned: true,
-          yesIUnderstandPrivacyLoss: true,
+          yesIPreferRagequit: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
     );
 
-    expect(json.success).toBe(true);
-    expect(json.operation).toBe("ragequit");
-    expect(json.poolAccountId).toBe("PA-1");
-    expect(resolvePoolMock).toHaveBeenCalledTimes(1);
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "--asset has been replaced by a positional argument",
+    );
+    expect(exitCode).toBe(2);
+    expect(resolvePoolMock).not.toHaveBeenCalled();
   });
 
   test("accepts the renamed --from-pa alias while keeping machine ragequit gated", async () => {
@@ -1623,7 +1626,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(json.error.message ?? json.errorMessage).toContain(
       "Ragequit requires explicit privacy-loss acknowledgement in non-interactive mode.",
     );
-    expect(json.error.hint).toContain("--yes-i-understand-privacy-loss");
+    expect(json.error.hint).toContain("--yes-i-prefer-ragequit");
     expect(exitCode).toBe(2);
     expect(ragequitMock).not.toHaveBeenCalled();
   });

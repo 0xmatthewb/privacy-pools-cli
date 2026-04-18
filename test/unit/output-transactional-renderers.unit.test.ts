@@ -183,6 +183,10 @@ const STUB_DEPOSIT_DRY_RUN: DepositDryRunData = {
   asset: "ETH",
   amount: 100000000000000000n,
   decimals: 18,
+  vettingFeeBPS: 50n,
+  feeAmount: 500000000000000n,
+  estimatedCommitted: 99500000000000000n,
+  feesApply: true,
   poolAccountNumber: 1,
   poolAccountId: "PA-1",
   precommitment: 12345678901234567890n,
@@ -423,7 +427,7 @@ describe("renderRagequitDryRun parity", () => {
         args: ["ETH"],
         options: { agent: true, chain: "sepolia", poolAccount: "PA-2" },
       },
-      "privacy-pools ragequit ETH --agent --chain sepolia --pool-account PA-2 --yes-i-understand-privacy-loss",
+      "privacy-pools ragequit ETH --agent --chain sepolia --pool-account PA-2 --yes-i-prefer-ragequit",
     );
     expect(stderr).toBe("");
   });
@@ -611,7 +615,11 @@ describe("renderWithdrawDryRun parity", () => {
   test("JSON mode (relayed): includes feeBPS and quoteExpiresAt", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
-      renderWithdrawDryRun(ctx, STUB_WITHDRAW_DRY_RUN_RELAYED),
+      renderWithdrawDryRun(ctx, {
+        ...STUB_WITHDRAW_DRY_RUN_RELAYED,
+        relayerHost: "https://relayer.example",
+        quoteRefreshCount: 2,
+      }),
     );
 
     const json = parseCapturedJson(stdout);
@@ -619,6 +627,8 @@ describe("renderWithdrawDryRun parity", () => {
     expect(json.dryRun).toBe(true);
     expect(json.feeBPS).toBe("50");
     expect(json.quoteExpiresAt).toBe("2025-06-01T00:00:00.000Z");
+    expect(json.relayerHost).toBe("https://relayer.example");
+    expect(json.quoteRefreshCount).toBe(2);
     expect(json.nextActions).toBeArrayOfSize(1);
     expectNextAction(
       json.nextActions[0],
@@ -770,7 +780,11 @@ describe("renderWithdrawSuccess parity", () => {
   test("JSON mode (relayed): includes feeBPS and remainingBalance, no fee=null", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
-      renderWithdrawSuccess(ctx, STUB_WITHDRAW_SUCCESS_RELAYED),
+      renderWithdrawSuccess(ctx, {
+        ...STUB_WITHDRAW_SUCCESS_RELAYED,
+        relayerHost: "https://relayer.example",
+        quoteRefreshCount: 1,
+      }),
     );
 
     const json = parseCapturedJson(stdout);
@@ -778,6 +792,8 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
     expect(json.remainingBalance).toBe("500000000000000000");
+    expect(json.relayerHost).toBe("https://relayer.example");
+    expect(json.quoteRefreshCount).toBe(1);
     expect(json.nextActions).toBeArrayOfSize(1);
     expectNextAction(
       json.nextActions[0],
@@ -969,7 +985,11 @@ describe("renderWithdrawQuote parity", () => {
   test("JSON mode: emits quote envelope to stdout", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
-      renderWithdrawQuote(ctx, STUB_WITHDRAW_QUOTE),
+      renderWithdrawQuote(ctx, {
+        ...STUB_WITHDRAW_QUOTE,
+        relayerHost: "https://relayer.example",
+        quoteRefreshCount: 3,
+      }),
     );
 
     const json = parseCapturedJson(stdout);
@@ -987,6 +1007,8 @@ describe("renderWithdrawQuote parity", () => {
     expect(json.netAmount).toBe("497500000000000000");
     expect(json.feeCommitmentPresent).toBe(true);
     expect(json.quoteExpiresAt).toBe("2025-06-01T00:00:00.000Z");
+    expect(json.relayerHost).toBe("https://relayer.example");
+    expect(json.quoteRefreshCount).toBe(3);
     expect(json.nextActions).toBeArrayOfSize(1);
     expectNextAction(
       json.nextActions[0],

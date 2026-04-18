@@ -80,6 +80,7 @@ export function isCsv(ctx: OutputContext): boolean {
 
 /** Commands that support `--format csv` output. */
 const CSV_SUPPORTED_COMMANDS = ["pools", "accounts", "activity", "stats", "history"];
+const NAME_SUPPORTED_COMMANDS = ["pools", "accounts", "activity", "stats", "history"];
 
 /**
  * Throw an INPUT error when `--format csv` is used with a command that does
@@ -87,12 +88,20 @@ const CSV_SUPPORTED_COMMANDS = ["pools", "accounts", "activity", "stats", "histo
  * support.
  */
 export function guardCsvUnsupported(ctx: OutputContext, commandName: string): void {
-  if (!ctx.mode.isCsv) return;
-  throw new CLIError(
-    `--format csv is not supported for '${commandName}'.`,
-    "INPUT",
-    `CSV output is available for: ${CSV_SUPPORTED_COMMANDS.join(", ")}.`,
-  );
+  if (ctx.mode.isCsv) {
+    throw new CLIError(
+      `--format csv is not supported for '${commandName}'.`,
+      "INPUT",
+      `CSV output is available for: ${CSV_SUPPORTED_COMMANDS.join(", ")}.`,
+    );
+  }
+  if (ctx.mode.isName) {
+    throw new CLIError(
+      `--format name is not supported for '${commandName}'.`,
+      "INPUT",
+      `Name output is available for: ${NAME_SUPPORTED_COMMANDS.join(", ")}.`,
+    );
+  }
 }
 
 export function createNextAction(

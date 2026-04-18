@@ -294,23 +294,46 @@ describe("activity command handler", () => {
     expect(stderr).toBe("");
   });
 
-  test("filters global activity to the selected chain and keeps null-chain events", async () => {
+  test("normalizes explicit single-chain global activity pagination metadata", async () => {
+    fetchGlobalEventsMock.mockImplementationOnce(async () => ({
+      page: "0",
+      perPage: "5",
+      total: "13",
+      totalPages: null,
+      events: [
+        {
+          type: "withdrawal",
+          txHash: "0x" + "cc".repeat(32),
+          reviewStatus: "approved",
+          amount: "50000000000000000",
+          timestamp: 1_700_000_200,
+          pool: {
+            tokenSymbol: "ETH",
+            denomination: 18,
+            poolAddress: "0x2222222222222222222222222222222222222222",
+            chainId: 10,
+          },
+        },
+      ],
+    }));
     const { json, stderr } = await captureAsyncJsonOutput(() =>
-      handleActivityCommand(undefined, {}, fakeCommand({ json: true, chain: "optimism" })),
+      handleActivityCommand(
+        undefined,
+        { page: "1", limit: "5" },
+        fakeCommand({ json: true, chain: "optimism" }),
+      ),
     );
 
     expect(json.success).toBe(true);
     expect(json.mode).toBe("global-activity");
     expect(json.chain).toBe("optimism");
-    expect(json.chainFiltered).toBe(true);
-    expect(json.total).toBeNull();
-    expect(json.totalPages).toBeNull();
-    expect(json.events).toHaveLength(2);
-    expect(
-      json.events.every((event: { chainId: number | null }) =>
-        event.chainId === 10 || event.chainId === null
-      ),
-    ).toBe(true);
+    expect(json.page).toBe(1);
+    expect(json.perPage).toBe(5);
+    expect(json.total).toBe(13);
+    expect(json.totalEvents).toBe(13);
+    expect(json.totalPages).toBe(3);
+    expect(json.chainFiltered).toBeUndefined();
+    expect(json.events).toHaveLength(1);
     expect(stderr).toBe("");
   });
 

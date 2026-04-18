@@ -1,5 +1,6 @@
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
+import { guideText, resolveGuideTopic } from "./utils/help.js";
 import {
   parseRootPreludeLongOption,
   parseRootPreludeShortFlagBundle,
@@ -11,6 +12,7 @@ import { resolveGlobalMode, setModeArgv } from "./utils/mode.js";
 import {
   assertSupportedOutputFormat,
   fallbackJsonModeFromArgv,
+  isQuietMode,
   staticGlobalOptsFromParsedRootArgv,
 } from "./static-discovery/guards.js";
 import {
@@ -31,6 +33,10 @@ import type {
   ParsedStaticCommand,
   ParsedStaticCompletionQuery,
 } from "./static-discovery/types.js";
+import {
+  GENERATED_COMMAND_ALIAS_MAP,
+  GENERATED_COMMAND_PATHS,
+} from "./utils/command-routing-static.js";
 
 // Keep the static facade visibly anchored to the lazy source-of-truth modules:
 // ./utils/command-discovery-static.js
@@ -43,6 +49,54 @@ export async function runStaticDiscoveryCommand(
   setModeArgv(argv);
   let parsed: ParsedStaticCommand | null = null;
   try {
+    const guideTopic =
+      parsedRootArgv?.firstCommandToken === "help"
+        ? resolveGuideTopic(parsedRootArgv.nonOptionTokens[1])
+        : resolveGuideTopic(argv[1]);
+    const helpTarget =
+      parsedRootArgv?.firstCommandToken === "help"
+        ? parsedRootArgv.nonOptionTokens[1]
+        : argv[1];
+    const isKnownHelpTarget = Boolean(
+      helpTarget &&
+        (GENERATED_COMMAND_PATHS.some(
+          (path) => path === helpTarget || path.startsWith(`${helpTarget} `),
+        ) || helpTarget in GENERATED_COMMAND_ALIAS_MAP),
+    );
+    if (guideTopic) {
+      const prelude = parseValidatedRootPrelude(argv);
+      const globalOpts = parsedRootArgv
+        ? staticGlobalOptsFromParsedRootArgv(parsedRootArgv, prelude?.globalOpts)
+        : prelude?.globalOpts ?? {};
+      const mode = resolveGlobalMode(globalOpts);
+      const help = guideText(guideTopic);
+      if (mode.isJson) {
+        printJsonSuccess({ mode: "help", topic: guideTopic, help });
+      } else if (!isQuietMode(globalOpts)) {
+        process.stdout.write(`${help}\n`);
+      }
+      return true;
+    }
+    if (
+      (parsedRootArgv?.firstCommandToken === "help" || argv[0] === "help") &&
+      helpTarget &&
+      !isKnownHelpTarget
+    ) {
+      const prelude = parseValidatedRootPrelude(argv);
+      const globalOpts = parsedRootArgv
+        ? staticGlobalOptsFromParsedRootArgv(parsedRootArgv, prelude?.globalOpts)
+        : prelude?.globalOpts ?? {};
+      const mode = resolveGlobalMode(globalOpts);
+      const help = guideText(helpTarget);
+      if (mode.isJson) {
+        printJsonSuccess({ mode: "help", topic: helpTarget, help });
+      } else if (!isQuietMode(globalOpts)) {
+        const { renderHumanGuideText } = await import("./output/discovery.js");
+        renderHumanGuideText(help);
+      }
+      return true;
+    }
+
     // When entering via the fast-path (parsedRootArgv provided), try to
     // also parse the prelude to recover --json [fields] and --jq values
     // that the simple ParsedRootArgv does not carry.

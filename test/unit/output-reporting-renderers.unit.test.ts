@@ -1289,8 +1289,8 @@ describe("renderPoolDetail parity", () => {
 describe("renderUpgradeResult nextActions", () => {
   const baseResult: UpgradeResult = {
     status: "up_to_date",
-    currentVersion: "2.0.0",
-    latestVersion: "2.0.0",
+    currentVersion: "2.1.0",
+    latestVersion: "2.1.0",
     updateAvailable: false,
     performed: false,
     command: null,
@@ -1300,7 +1300,7 @@ describe("renderUpgradeResult nextActions", () => {
 
   test("JSON mode: 'ready' status emits runnable upgrade nextAction", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const result: UpgradeResult = { ...baseResult, status: "ready", latestVersion: "1.8.0", updateAvailable: true, command: "npm i -g privacy-pools-cli@1.8.0" };
+    const result: UpgradeResult = { ...baseResult, status: "ready", latestVersion: "2.2.0", updateAvailable: true, command: "npm i -g privacy-pools-cli@2.2.0" };
     const { stdout } = captureOutput(() => renderUpgradeResult(ctx, result));
 
     const json = parseCapturedJson(stdout);
@@ -1316,9 +1316,9 @@ describe("renderUpgradeResult nextActions", () => {
     const result: UpgradeResult = {
       ...baseResult,
       status: "manual",
-      latestVersion: "1.8.0",
+      latestVersion: "2.2.0",
       updateAvailable: true,
-      command: "npm i -g privacy-pools-cli@1.8.0",
+      command: "npm i -g privacy-pools-cli@2.2.0",
       installContext: { kind: "source_checkout", supportedAutoRun: false, reason: "Source checkout." },
     };
     const { stdout } = captureOutput(() => renderUpgradeResult(ctx, result));
@@ -1342,19 +1342,19 @@ describe("renderUpgradeResult nextActions", () => {
     const result: UpgradeResult = {
       ...baseResult,
       status: "ready",
-      latestVersion: "2.1.0",
+      latestVersion: "2.2.0",
       updateAvailable: true,
-      command: "npm i -g privacy-pools-cli@2.1.0",
+      command: "npm i -g privacy-pools-cli@2.2.0",
       releaseHighlights: ["Faster native shell", "Local proof verification"],
     };
 
     const { stderr } = captureOutput(() => renderUpgradeResult(ctx, result));
 
-    expect(stderr).toContain("Update available: 2.0.0 -> 2.1.0");
+    expect(stderr).toContain("Update available: 2.1.0 -> 2.2.0");
     expect(stderr).toContain("Release highlights");
     expect(stderr).toContain("Faster native shell");
     expect(stderr).toContain("privacy-pools upgrade --yes");
-    expect(stderr).toContain("npm i -g privacy-pools-cli@2.1.0");
+    expect(stderr).toContain("npm i -g privacy-pools-cli@2.2.0");
     expect(stderr).toContain("Next steps:");
   });
 

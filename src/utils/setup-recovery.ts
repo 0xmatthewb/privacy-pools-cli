@@ -28,8 +28,8 @@ function getRootGlobalOptions(cmd: Command): GlobalOptions {
 export function isMissingWalletSetupError(error: unknown): boolean {
   const classified = classifyError(error);
   return (
-    classified.category === "INPUT" &&
-    classified.message.includes("No recovery phrase found")
+    classified.category === "SETUP" &&
+    classified.code === "SETUP_RECOVERY_PHRASE_MISSING"
   );
 }
 

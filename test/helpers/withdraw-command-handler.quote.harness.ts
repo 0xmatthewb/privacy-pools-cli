@@ -88,23 +88,19 @@ export function registerWithdrawQuoteTests(): void {
     );
   });
 
-  test("renders a human quote when --asset is passed via the quote command and warns about the deprecated flag", async () => {
+  test("renders a human quote when amount and asset are provided positionally", async () => {
     useIsolatedHome();
 
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleWithdrawQuoteCommand(
         "0.1",
-        undefined,
-        {
-          asset: "ETH",
-          to: "0x7777777777777777777777777777777777777777",
-        },
+        "ETH",
+        { to: "0x7777777777777777777777777777777777777777" },
         fakeQuoteCommand({ chain: "mainnet" }),
       ),
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("--asset is deprecated for withdraw quote");
     expect(stderr).toContain("Quote received");
     expect(stderr).toContain("0x7777");
   });

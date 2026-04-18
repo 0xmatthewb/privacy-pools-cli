@@ -350,8 +350,11 @@ export interface WithdrawDryRunData {
   feeBPS?: string;
   /** Relayed-only: ISO timestamp of quote expiration. */
   quoteExpiresAt?: string;
+  relayerHost?: string | null;
+  quoteRefreshCount?: number;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
   extraGas?: boolean;
+  rootMatchedAtProofTime?: boolean;
   /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
   anonymitySet?: { eligible: number; total: number; percentage: number };
   warnings?: Array<{ code: string; category: string; message: string }>;
@@ -438,10 +441,13 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
     if (data.withdrawMode === "relayed") {
       payload.feeBPS = data.feeBPS;
       payload.quoteExpiresAt = data.quoteExpiresAt;
+      payload.relayerHost = data.relayerHost ?? null;
+      payload.quoteRefreshCount = data.quoteRefreshCount ?? 0;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
     } else {
       payload.privacyCostManifest = buildDirectWithdrawalPrivacyCostManifest(data);
     }
+    payload.rootMatchedAtProofTime = data.rootMatchedAtProofTime ?? true;
     if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
     printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;
@@ -469,6 +475,12 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
               label: "Quote expires",
               value: formatHumanQuoteExpiry(new Date(data.quoteExpiresAt).getTime()).label,
             }]
+          : []),
+        ...(data.withdrawMode === "relayed" && data.relayerHost
+          ? [{ label: "Relayer", value: data.relayerHost }]
+          : []),
+        ...(data.withdrawMode === "relayed" && data.quoteRefreshCount !== undefined
+          ? [{ label: "Quote refreshes", value: String(data.quoteRefreshCount) }]
           : []),
         ...(data.withdrawMode === "relayed" && data.extraGas
           ? [{
@@ -518,6 +530,8 @@ export interface WithdrawSuccessData {
   explorerUrl: string | null;
   /** Relayed-only: fee in basis points. */
   feeBPS?: string;
+  relayerHost?: string | null;
+  quoteRefreshCount?: number;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
   extraGas?: boolean;
   /** Relayed-only: amount of gas token included with the withdrawal. */
@@ -530,6 +544,10 @@ export interface WithdrawSuccessData {
   tokenPrice?: number | null;
   /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
   anonymitySet?: { eligible: number; total: number; percentage: number };
+  rootMatchedAtProofTime?: boolean;
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
   warnings?: Array<{ code: string; category: string; message: string }>;
 }
 
@@ -540,6 +558,16 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   guardCsvUnsupported(ctx, "withdraw");
 
   const agentNextActions = [
+    ...(data.reconciliationRequired
+      ? [
+          createNextAction(
+            "sync",
+            `Reconcile local state for ${data.poolAccountId} before acting on the updated balance.`,
+            "after_sync",
+            { options: { agent: true, chain: data.chain } },
+          ),
+        ]
+      : []),
     createNextAction(
       "accounts",
       `Verify the updated balance for ${data.poolAccountId} after withdrawal.`,
@@ -548,6 +576,16 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     ),
   ];
   const humanNextActions = [
+    ...(data.reconciliationRequired
+      ? [
+          createNextAction(
+            "sync",
+            `Reconcile local state for ${data.poolAccountId} before checking balances.`,
+            "after_sync",
+            { options: data.chain ? { chain: data.chain } : undefined },
+          ),
+        ]
+      : []),
     createNextAction(
       "accounts",
       `Verify the updated balance for ${data.poolAccountId}.`,
@@ -572,12 +610,18 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       poolAccountNumber: data.poolAccountNumber,
       poolAccountId: data.poolAccountId,
       remainingBalance: data.remainingBalance.toString(),
+      reconciliationRequired: data.reconciliationRequired ?? false,
+      localStateSynced: data.localStateSynced ?? true,
+      warningCode: data.warningCode ?? null,
+      rootMatchedAtProofTime: data.rootMatchedAtProofTime ?? true,
     };
     if (data.withdrawMode === "direct") {
       payload.feeBPS = null;
       payload.privacyCostManifest = buildDirectWithdrawalPrivacyCostManifest(data);
     } else {
       payload.feeBPS = data.feeBPS;
+      payload.relayerHost = data.relayerHost ?? null;
+      payload.quoteRefreshCount = data.quoteRefreshCount ?? 0;
       if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
       if (data.extraGasFundAmount) {
         payload.extraGasFundAmount = data.extraGasFundAmount.toString();
@@ -609,7 +653,11 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       formatDenseOutcomeLine({
         outcome: data.withdrawMode === "direct" ? "success" : "withdraw",
         message:
-          `${data.withdrawMode === "direct" ? "Withdrew" : "Withdrew privately"} ` +
+          `${data.reconciliationRequired
+            ? "Withdrawal confirmed onchain; local state needs reconciliation for"
+            : data.withdrawMode === "direct"
+              ? "Withdrew"
+              : "Withdrew privately"} ` +
           `${formatAmount(data.amount, data.decimals, data.asset)} ` +
           `-> ${formatAddress(data.recipient)}${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
         url: data.explorerUrl,
@@ -634,6 +682,12 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
               label: "Relayer fee",
               value: `${formatBPS(data.feeBPS)} of withdrawal`,
             }]
+          : []),
+        ...(data.withdrawMode === "relayed" && data.relayerHost
+          ? [{ label: "Relayer", value: data.relayerHost }]
+          : []),
+        ...(data.withdrawMode === "relayed" && data.quoteRefreshCount !== undefined
+          ? [{ label: "Quote refreshes", value: String(data.quoteRefreshCount) }]
           : []),
         ...(netAmount !== null
           ? [{
@@ -679,8 +733,13 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     } else {
       process.stderr.write(
         formatCallout(
-          "success",
-          "The relayed withdrawal path completed. Re-check accounts if you want to confirm the remaining balance.",
+          data.reconciliationRequired ? "warning" : "success",
+          data.reconciliationRequired
+            ? [
+                "Withdrawal confirmed onchain, but local state needs reconciliation before you rely on the saved balance.",
+                `Run privacy-pools sync --chain ${data.chain} before continuing.`,
+              ]
+            : "The relayed withdrawal path completed. Re-check accounts if you want to confirm the remaining balance.",
         ),
       );
     }
@@ -701,6 +760,8 @@ export interface WithdrawQuoteData {
   quoteFeeBPS: string;
   feeCommitmentPresent: boolean;
   quoteExpiresAt: string | null;
+  relayerHost?: string | null;
+  quoteRefreshCount?: number;
   tokenPrice: number | null;
   nativeTokenPrice?: number | null;
   /** Whether extra gas tokens were requested (ERC20 withdrawals only). */
@@ -811,6 +872,8 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       netAmount: netAmount.toString(),
       feeCommitmentPresent: data.feeCommitmentPresent,
       quoteExpiresAt: data.quoteExpiresAt,
+      relayerHost: data.relayerHost ?? null,
+      quoteRefreshCount: data.quoteRefreshCount ?? 0,
       relayTxCost,
     }, agentNextActions) as Record<string, unknown>;
     if (data.extraGas !== undefined) payload.extraGas = data.extraGas;
@@ -867,6 +930,12 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
             label: "Quote expires",
             value: humanQuoteExpiry.label,
           }]
+        : []),
+      ...(data.relayerHost
+        ? [{ label: "Relayer", value: data.relayerHost }]
+        : []),
+      ...(data.quoteRefreshCount !== undefined
+        ? [{ label: "Quote refreshes", value: String(data.quoteRefreshCount) }]
         : []),
       ...(data.extraGas && !extraGasFundFormatted
         ? [{

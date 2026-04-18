@@ -5,10 +5,6 @@ import {
   rootHelpFooterPlain as rootHelpFooterPlainValue,
 } from "./root-help-footer.js";
 import {
-  OUTPUT_FORMAT_CHOICES_HELP_TEXT,
-  OUTPUT_FORMAT_DESCRIPTION,
-} from "./mode.js";
-import {
   ROOT_COMMAND_DESCRIPTIONS,
   ROOT_COMMAND_GROUPS,
   ROOT_COMMAND_HELP_LABELS,
@@ -83,8 +79,9 @@ function buildRootHelpBaseLines(): string[] {
     "  -V, --version           output the version number",
     "  -c, --chain <name>      Target chain (mainnet, arbitrum, optimism, ...)",
     "  -j, --json              Machine-readable JSON output on stdout",
-    `  -o, --output <format>   ${OUTPUT_FORMAT_DESCRIPTION}`,
-    `                          (choices: ${OUTPUT_FORMAT_CHOICES_HELP_TEXT})`,
+    "  -o, --output <format>   Output format: table (default), csv, json, yaml, wide,",
+    '                          name (choices: "table", "csv", "json", "yaml", "wide",',
+    '                          "name")',
     "  -y, --yes               Skip confirmation prompts",
     "  --web                   Open the primary explorer or portal link in your",
     "                          browser when available",
@@ -92,7 +89,9 @@ function buildRootHelpBaseLines(): string[] {
     "  --json-fields <fields>  Select specific JSON fields (comma-separated, implies",
     "                          --json)",
     "  --template <template>   Render structured output through a lightweight",
-    "                          {{path.to.value}} template",
+    "                          Mustache-style template with {{path.to.value}}",
+    "                          placeholders and {{#items}}...{{/items}} list",
+    "                          iteration",
     "  --agent                 Machine-friendly mode (alias for --json --yes --quiet)",
     "  -q, --quiet             Suppress human-oriented stderr output",
     "  -v, --verbose           Enable verbose/debug output (-v info, -vv debug, -vvv",
@@ -140,6 +139,7 @@ export function styleCommanderHelp(raw: string): string {
 
   const lines = raw.split("\n");
   let section: Section = null;
+  let isRootHelp = false;
   const result: string[] = [];
   let cmdBuffer: string[] = [];
   let optBuffer: { header: string; lines: string[] } | null = null;
@@ -164,7 +164,10 @@ export function styleCommanderHelp(raw: string): string {
       }
     }
 
-    const isRoot = entries.length > 0 && entries.every((entry) => ROOT_COMMAND_SET.has(entry.name));
+    const isRoot =
+      isRootHelp &&
+      entries.length > 0 &&
+      entries.every((entry) => ROOT_COMMAND_SET.has(entry.name));
     if (!isRoot) {
       for (const entry of entries) result.push(...entry.lines.map(styleCmdLine));
       cmdBuffer = [];
@@ -212,6 +215,7 @@ export function styleCommanderHelp(raw: string): string {
 
     if (line.startsWith("Usage:")) {
       const usage = line.slice("Usage:".length).trim();
+      isRootHelp = usage === "privacy-pools [options] [command]";
       section = null;
       result.push(`${accentBold("Usage:")} ${chalk.bold(usage)}`);
       continue;

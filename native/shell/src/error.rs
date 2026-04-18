@@ -4,6 +4,7 @@
 #[allow(dead_code)]
 pub enum ErrorCategory {
     Input,
+    Setup,
     Rpc,
     Asp,
     Relayer,
@@ -22,6 +23,7 @@ impl ErrorCategory {
     pub fn as_str(self) -> &'static str {
         match self {
             ErrorCategory::Input => "INPUT",
+            ErrorCategory::Setup => "SETUP",
             ErrorCategory::Rpc => "RPC",
             ErrorCategory::Asp => "ASP",
             ErrorCategory::Relayer => "RELAYER",
@@ -36,16 +38,18 @@ impl ErrorCategory {
             ErrorCategory::Unknown => 1,
             ErrorCategory::Input => 2,
             ErrorCategory::Rpc => 3,
-            ErrorCategory::Asp => 4,
+            ErrorCategory::Setup => 4,
             ErrorCategory::Relayer => 5,
             ErrorCategory::Proof => 6,
             ErrorCategory::Contract => 7,
+            ErrorCategory::Asp => 8,
         }
     }
 
     fn default_code(self) -> &'static str {
         match self {
             ErrorCategory::Input => "INPUT_ERROR",
+            ErrorCategory::Setup => "SETUP_REQUIRED",
             ErrorCategory::Rpc => "RPC_ERROR",
             ErrorCategory::Asp => "ASP_ERROR",
             ErrorCategory::Relayer => "RELAYER_ERROR",
@@ -63,6 +67,8 @@ pub struct CliError {
     pub message: String,
     pub hint: Option<String>,
     pub retryable: bool,
+    pub docs_slug: Option<String>,
+    pub help_topic: Option<String>,
     pub presentation: ErrorPresentation,
 }
 
@@ -81,6 +87,8 @@ impl CliError {
             message: message.into(),
             hint,
             retryable,
+            docs_slug: None,
+            help_topic: None,
             presentation: default_error_presentation(category),
         }
     }
@@ -117,11 +125,20 @@ impl CliError {
     pub fn unknown(message: impl Into<String>, hint: impl Into<Option<String>>) -> Self {
         Self::new(ErrorCategory::Unknown, message, hint.into(), None, false)
     }
+
+    pub fn with_docs_slug(mut self, docs_slug: impl Into<String>) -> Self {
+        self.docs_slug = Some(docs_slug.into());
+        self
+    }
+
 }
 
 fn default_error_presentation(category: ErrorCategory) -> ErrorPresentation {
     match category {
-        ErrorCategory::Input | ErrorCategory::Rpc | ErrorCategory::Asp => ErrorPresentation::Inline,
+        ErrorCategory::Input
+        | ErrorCategory::Setup
+        | ErrorCategory::Rpc
+        | ErrorCategory::Asp => ErrorPresentation::Inline,
         ErrorCategory::Relayer
         | ErrorCategory::Proof
         | ErrorCategory::Contract

@@ -236,7 +236,7 @@ describe("Anvil E2E", () => {
 
     parseSuccessfulAgentResult(
       deposit.home,
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+      ["--agent", "sync", "ETH", "--chain", "sepolia"],
       "sync after ragequit",
     );
 
@@ -312,7 +312,7 @@ describe("Anvil E2E", () => {
 
     parseSuccessfulAgentResult(
       deposit.home,
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+      ["--agent", "sync", "ETH", "--chain", "sepolia"],
       "sync after withdraw",
     );
 
@@ -448,7 +448,7 @@ describe("Anvil E2E", () => {
 
     parseSuccessfulNativeAgentResult(
       deposit.home,
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+      ["--agent", "sync", "ETH", "--chain", "sepolia"],
       "native sync after ragequit",
     );
 
@@ -524,7 +524,7 @@ describe("Anvil E2E", () => {
 
     parseSuccessfulNativeAgentResult(
       deposit.home,
-      ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+      ["--agent", "sync", "ETH", "--chain", "sepolia"],
       "native sync after withdraw",
     );
 

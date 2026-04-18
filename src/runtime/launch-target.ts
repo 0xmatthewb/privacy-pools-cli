@@ -14,7 +14,7 @@ import {
   ENV_PRIVATE_KEY,
 } from "./native-resolution.js";
 
-const SECRET_BEARING_FLAGS = new Set(["--recovery-phrase", "--mnemonic", "--private-key"]);
+const SECRET_BEARING_FLAGS = new Set(["--recovery-phrase", "--private-key"]);
 
 export interface LaunchTarget {
   kind: "js-worker" | "native-binary";
@@ -108,7 +108,6 @@ export function invocationContainsInlineSecrets(argv: readonly string[]): boolea
     if (SECRET_BEARING_FLAGS.has(token)) return true;
     return (
       token.startsWith("--recovery-phrase=") ||
-      token.startsWith("--mnemonic=") ||
       token.startsWith("--private-key=")
     );
   });

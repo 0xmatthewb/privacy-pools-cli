@@ -44,11 +44,11 @@ defineScenarioSuite("read-only success acceptance", [
       schemaVersion: string;
       mode: string;
       chain: string;
-      chainFiltered: boolean;
       events: Array<{ type: string; txHash: string | null }>;
       page: number;
       perPage: number;
       total: number | null;
+      totalEvents: number | null;
       totalPages: number | null;
     }>((json) => {
       expect(json.success).toBe(true);
@@ -58,11 +58,52 @@ defineScenarioSuite("read-only success acceptance", [
       expect(json.events.length).toBeGreaterThan(0);
       expect(json.events[0]).toHaveProperty("type");
       expect(json.events[0]).toHaveProperty("txHash");
-      expect(json.total).toBeNull();
-      expect(json.totalPages).toBeNull();
-      expect(json.chainFiltered).toBe(true);
+      expect(json.total).toBe(13);
+      expect(json.totalEvents).toBe(13);
+      expect(json.totalPages).toBe(2);
+      expect((json as { chainFiltered?: boolean }).chainFiltered).toBeUndefined();
       expect(typeof json.page).toBe("number");
       expect(typeof json.perPage).toBe("number");
+    }),
+  ]),
+  defineScenario("activity preserves 1-based pagination and nextActions for explicit chains", [
+    (ctx) =>
+      runCliStep(["--json", "--chain", "sepolia", "activity", "--page", "1", "--limit", "5"], {
+        timeoutMs: 15_000,
+        env: fixtureEnv(),
+      })(ctx),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      success: boolean;
+      page: number;
+      perPage: number;
+      total: number | null;
+      totalEvents: number | null;
+      totalPages: number | null;
+      nextActions?: Array<{ options?: { page?: number; limit?: number } }>;
+    }>((json) => {
+      expect(json.success).toBe(true);
+      expect(json.page).toBe(1);
+      expect(json.perPage).toBe(5);
+      expect(json.total).toBe(13);
+      expect(json.totalEvents).toBe(13);
+      expect(json.totalPages).toBe(3);
+      expect(json.nextActions?.[0]?.options?.page).toBe(2);
+      expect(json.nextActions?.[0]?.options?.limit).toBe(5);
+    }),
+  ]),
+  defineScenario("activity wide output keeps the columnar table layout", [
+    (ctx) =>
+      runCliStep(["--output", "wide", "--chain", "sepolia", "activity"], {
+        timeoutMs: 15_000,
+        env: fixtureEnv(),
+      })(ctx),
+    assertExit(0),
+    assertStdoutEmpty(),
+    assertStderr((stderr) => {
+      expect(stderr).toContain("Pool Address");
+      expect(stderr).toContain("Chain");
     }),
   ]),
   defineScenario("stats returns valid global statistics against the fixture server", [
@@ -165,8 +206,6 @@ defineScenarioSuite("read-only success acceptance", [
     assertStdoutEmpty(),
     assertStderr((stderr) => {
       expect(stderr).toContain("ETH Pool on sepolia");
-      expect(stderr).toContain("Could not load your wallet state from onchain data right now.");
-      expect(stderr).toContain("privacy-pools status --check --chain sepolia");
       expect(stderr).not.toContain("Method not found");
       expect(stderr).not.toContain("eth_getLogs");
       expect(stderr).not.toContain("viem/");

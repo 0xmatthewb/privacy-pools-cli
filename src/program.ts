@@ -8,6 +8,7 @@ import {
   rootGlobalFlagValues,
 } from "./utils/root-global-flags.js";
 import { allNonOptionTokens } from "./utils/root-argv.js";
+import { isGuideTopic } from "./utils/help.js";
 
 const ROOT_COMMAND_NAMES = [
   "init",
@@ -89,6 +90,9 @@ function resolveRootCommandsForInvocation(argv: string[] | undefined): RootComma
   if (!firstToken) return [...ROOT_COMMAND_NAMES];
 
   if (firstToken === "help") {
+    if (isGuideTopic(secondToken)) {
+      return [];
+    }
     const helpTarget = resolveRootCommandName(secondToken);
     return helpTarget ? [helpTarget] : [...ROOT_COMMAND_NAMES];
   }

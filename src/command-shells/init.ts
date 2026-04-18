@@ -27,11 +27,6 @@ export function createInitCommand(): Command {
       "--backup-file <path>",
       "Write a generated recovery phrase backup to a file",
     )
-    // Hidden aliases for backwards compatibility
-    .addOption(new Option("--mnemonic <phrase>").hideHelp())
-    .addOption(new Option("--mnemonic-file <path>").hideHelp())
-    .addOption(new Option("--mnemonic-stdin").hideHelp())
-    .addOption(new Option("--show-mnemonic").hideHelp())
     .option(
       "--private-key <key>",
       "Set the signer private key (unsafe: visible in process list)",

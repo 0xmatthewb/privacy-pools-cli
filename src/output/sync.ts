@@ -26,6 +26,17 @@ export interface SyncResult {
   previousAvailablePoolAccounts?: number;
   /** True when the user explicitly passed --chain (overriding the default). */
   chainOverridden?: boolean;
+  durationMs?: number;
+  scannedFromBlock?: bigint;
+  scannedToBlock?: bigint | null;
+  eventCounts?: {
+    deposits: number;
+    withdrawals: number;
+    ragequits: number;
+    migrations: number;
+    total: number;
+  };
+  lastSyncTime?: number | null;
 }
 
 /**
@@ -83,6 +94,22 @@ export function renderSyncComplete(
           syncedSymbols: result.syncedSymbols,
           availablePoolAccounts,
           previousAvailablePoolAccounts,
+          ...(result.durationMs !== undefined ? { durationMs: result.durationMs } : {}),
+          ...(result.scannedFromBlock !== undefined
+            ? { scannedFromBlock: result.scannedFromBlock.toString() }
+            : {}),
+          ...(result.scannedToBlock !== undefined
+            ? {
+                scannedToBlock:
+                  result.scannedToBlock === null
+                    ? null
+                    : result.scannedToBlock.toString(),
+              }
+            : {}),
+          ...(result.eventCounts ? { eventCounts: result.eventCounts } : {}),
+          ...(result.lastSyncTime != null
+            ? { lastSyncTime: new Date(result.lastSyncTime).toISOString() }
+            : {}),
         },
         agentNextActions,
       ),
@@ -107,13 +134,39 @@ export function renderSyncComplete(
         { label: "Chain", value: result.chain },
         { label: "Synced pools", value: String(result.syncedPools) },
         { label: "Available Pool Accounts", value: String(availablePoolAccounts) },
+        ...(result.durationMs !== undefined
+          ? [{ label: "Duration", value: `${(result.durationMs / 1000).toFixed(1)}s` }]
+          : []),
+        ...(result.scannedFromBlock !== undefined
+          ? [{ label: "Scanned from", value: result.scannedFromBlock.toString() }]
+          : []),
+        ...(result.scannedToBlock !== undefined
+          ? [{
+              label: "Scanned to",
+              value: result.scannedToBlock === null ? "unavailable" : result.scannedToBlock.toString(),
+            }]
+          : []),
         ...(previousAvailablePoolAccounts !== undefined
           ? [{ label: "Previous available", value: String(previousAvailablePoolAccounts) }]
           : []),
         ...(delta > 0
           ? [{ label: "New Pool Accounts", value: String(delta), valueTone: "success" as const }]
           : []),
+        ...(result.eventCounts
+          ? [
+              { label: "Deposits seen", value: String(result.eventCounts.deposits) },
+              { label: "Withdrawals seen", value: String(result.eventCounts.withdrawals) },
+              { label: "Ragequits seen", value: String(result.eventCounts.ragequits) },
+              { label: "Migrations seen", value: String(result.eventCounts.migrations) },
+            ]
+          : []),
+        ...(result.lastSyncTime != null
+          ? [{ label: "Last sync", value: new Date(result.lastSyncTime).toISOString() }]
+          : []),
       ]),
+    );
+    process.stderr.write(
+      "If sync is interrupted, re-run sync to reconcile the local cache before relying on it.\n",
     );
   }
   renderNextSteps(ctx, humanNextActions);

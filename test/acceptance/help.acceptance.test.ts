@@ -45,7 +45,7 @@ defineScenarioSuite("help acceptance", [
     assertStderrEmpty(),
     assertStdout((stdout) => {
       expect(stdout).toContain("Request relayer quote and limits");
-      expect(stdout).toContain("--asset");
+      expect(stdout).toContain("withdraw quote <amount> <asset>");
     }),
   ]),
   defineScenario("guide topic help formats unknown topics cleanly", [
@@ -57,6 +57,51 @@ defineScenarioSuite("help acceptance", [
       expect(stderr).toContain("Available topics:");
       expect(stderr).not.toContain("Available topics::");
       expect(stderr).not.toContain("topics.:");
+    }),
+  ]),
+  defineScenario("help envelope resolves to the json help topic", [
+    runCliStep(["help", "envelope"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("Privacy Pools: json");
+      expect(stdout).toContain("JSON Contract");
+    }),
+  ]),
+  defineScenario("help unknown topics reuse the guide unknown-topic output", [
+    runCliStep(["help", "definitely-not-a-topic"]),
+    assertExit(0),
+    assertStdoutEmpty(),
+    assertStderr((stderr) => {
+      expect(stderr).toContain("Unknown guide topic: definitely-not-a-topic");
+      expect(stderr).toContain("Available topics");
+    }),
+  ]),
+  defineScenario("typo plus help stays an input error instead of falling back to root help", [
+    runCliStep(["depoist", "--help"]),
+    assertExit(2),
+    assertStdoutEmpty(),
+    assertStderr((stderr) => {
+      expect(stderr).toContain("Unknown command");
+      expect(stderr).toContain("deposit");
+      expect(stderr).not.toContain("Command Groups:");
+    }),
+  ]),
+  defineScenario("migrate help keeps its own subcommand layout", [
+    runCliStep(["migrate", "--help"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("status [options]");
+      expect(stdout).not.toContain("Getting started");
+    }),
+  ]),
+  defineScenario("withdraw help keeps the [options] token in the usage line", [
+    runCliStep(["withdraw", "--help"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("Usage: privacy-pools withdraw [options] [amount] [asset]");
     }),
   ]),
   defineScenario("describe without a command path returns a targeted input error", [
@@ -122,6 +167,16 @@ defineScenarioSuite("help acceptance", [
     }),
     assertStderr((stderr) => {
       expect(stderr.toLowerCase()).toContain("unknown command");
+    }),
+  ]),
+  defineScenario("human missing-argument errors use the CLI envelope instead of raw commander text", [
+    runCliStep(["deposit"]),
+    assertExit(2),
+    assertStdoutEmpty(),
+    assertStderr((stderr) => {
+      expect(stderr).toContain("Error [INPUT]");
+      expect(stderr).toContain("missing required argument 'amount'");
+      expect(stderr).not.toContain("error: missing required argument");
     }),
   ]),
 ]);

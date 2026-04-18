@@ -97,7 +97,7 @@ describe("native machine contract parity", () => {
     });
     expectJsonParity(
       nativeBinary,
-      ["--agent", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      ["--agent", "--chain", "sepolia", "stats", "pool", "ETH"],
       {
         js: { env: singleChainEnv },
         native: { env: singleChainEnv },
@@ -124,7 +124,7 @@ describe("native machine contract parity", () => {
     });
     expectJsonParity(
       nativeBinary,
-      ["--json", "--chain", "mainnet", "stats", "pool", "--asset", "ETH"],
+      ["--json", "--chain", "mainnet", "stats", "pool", "ETH"],
       {
         js: {
           env: {
@@ -142,7 +142,7 @@ describe("native machine contract parity", () => {
     );
     expectJsonParity(
       nativeBinary,
-      ["--json", "--chain", "sepolia", "stats", "pool", "--asset", "ETH"],
+      ["--json", "--chain", "sepolia", "stats", "pool", "ETH"],
       {
         js: {
           env: {
@@ -195,7 +195,7 @@ describe("native machine contract parity", () => {
 
     const seededHome = createSeededHome("sepolia");
 
-    expectSilentStreamParity(
+    expectStreamParity(
       nativeBinary,
       ["--quiet", "--no-banner", "status", "--no-check"],
       {

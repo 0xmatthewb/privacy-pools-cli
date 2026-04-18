@@ -8,6 +8,7 @@ export function createWithdrawCommand(): Command {
   const quoteMetadata = getCommandMetadata("withdraw quote");
   const command = new Command("withdraw")
     .description(metadata.description)
+    .usage("[options] [amount] [asset]")
     .argument("[amount]", "Amount to withdraw (e.g. 0.05, 50%, 100%) or omit for interactive")
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
     .option("-t, --to <address>", "Recipient address (required unless --direct; prompted interactively)")
@@ -38,12 +39,6 @@ export function createWithdrawCommand(): Command {
       "--dry-run",
       "Generate and verify withdrawal artifacts without submitting",
     )
-    .addOption(
-      new Option(
-        "-a, --asset <symbol|address>",
-        "Deprecated: use positional argument instead",
-      ).hideHelp(),
-    )
     .option("--all", "Withdraw entire Pool Account balance (requires asset: withdraw --all ETH)")
     .option(
       "--extra-gas",
@@ -66,12 +61,6 @@ export function createWithdrawCommand(): Command {
       "Amount to withdraw (preferred first positional) or asset symbol",
     )
     .argument("[amount]", "Asset symbol (preferred second positional) or amount when the asset is first")
-    .addOption(
-      new Option(
-        "-a, --asset <symbol|address>",
-        "Deprecated: use positional argument instead",
-      ).hideHelp(),
-    )
     .option(
       "-t, --to <address>",
       "Recipient address (recommended for an accurate fee quote)",

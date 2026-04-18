@@ -29,16 +29,6 @@ pub(super) fn parse_activity_options(argv: &[String]) -> Result<ActivityCommandO
             unexpected_args += argv.len().saturating_sub(index + 1);
             break;
         }
-        if token == "--asset" || token == "-a" {
-            asset = argv.get(index + 1).cloned();
-            index += 2;
-            continue;
-        }
-        if let Some(value) = token.strip_prefix("--asset=") {
-            asset = Some(value.to_string());
-            index += 1;
-            continue;
-        }
         if token == "--page" {
             page = argv.get(index + 1).cloned();
             index += 2;
@@ -70,7 +60,11 @@ pub(super) fn parse_activity_options(argv: &[String]) -> Result<ActivityCommandO
         if token.starts_with('-') {
             return Err(commander_unknown_option_error(token));
         }
-        unexpected_args += 1;
+        if asset.is_none() {
+            asset = Some(token.to_string());
+        } else {
+            unexpected_args += 1;
+        }
         index += 1;
     }
 
@@ -122,7 +116,6 @@ mod tests {
             "privacy-pools",
             "--json",
             "activity",
-            "--asset",
             "ETH",
             "--page=2",
             "--limit",
@@ -156,6 +149,18 @@ mod tests {
         assert_eq!(parsed.asset, None);
         assert_eq!(parsed.page, 1);
         assert_eq!(parsed.per_page, 12);
+    }
+
+    #[test]
+    fn rejects_deprecated_asset_flag() {
+        let error = parse_activity_options(&argv(&[
+            "privacy-pools",
+            "activity",
+            "--asset",
+            "ETH",
+        ]))
+        .expect_err("deprecated asset flag");
+        assert!(error.message.contains("unknown option '--asset'"));
     }
 
     #[test]

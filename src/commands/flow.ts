@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { createOutputContext } from "../output/common.js";
+import { createNextAction, createOutputContext } from "../output/common.js";
 import {
   formatFlowRagequitReview,
   renderFlowPhaseChangeEvent,
@@ -63,6 +63,10 @@ interface FlowStartCommandOptions {
 interface FlowWatchCommandOptions {
   privacyDelay?: string;
   streamJson?: boolean;
+}
+
+interface FlowRagequitCommandOptions {
+  yesIPreferRagequit?: boolean;
 }
 
 export { createFlowCommand } from "../command-shells/flow.js";
@@ -632,7 +636,7 @@ export async function handleFlowStartCommand(
 
 export async function handleFlowRagequitCommand(
   workflowId: string | undefined,
-  _opts: unknown,
+  opts: FlowRagequitCommandOptions = {},
   cmd: Command,
 ): Promise<void> {
   const globalOpts = getRootGlobalOptions(cmd);
@@ -645,8 +649,9 @@ export async function handleFlowRagequitCommand(
       return;
     }
 
+    const snapshot = getWorkflowStatus({ workflowId });
+
     if (!mode.skipPrompts) {
-      const snapshot = getWorkflowStatus({ workflowId });
       process.stderr.write("\n");
       process.stderr.write(formatFlowRagequitReview(snapshot));
       if (
@@ -668,9 +673,46 @@ export async function handleFlowRagequitCommand(
       if (!ok) {
         throw new FlowCancelledError();
       }
+    } else if (snapshot.aspStatus === "approved" && opts.yesIPreferRagequit !== true) {
+      throw new CLIError(
+        `${snapshot.poolAccountId ?? "This workflow"} is approved for private withdrawal.`,
+        "INPUT",
+        "By exiting this pool, you are publicly withdrawing all funds to your deposit address. You will not gain any privacy. Use flow watch instead unless you intentionally prefer ragequit.",
+        "INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE",
+        false,
+        undefined,
+        {
+          workflowId: snapshot.workflowId,
+          poolAccountId: snapshot.poolAccountId ?? null,
+        },
+        undefined,
+        {
+          helpTopic: "ragequit",
+          nextActions: [
+            createNextAction(
+              "flow watch",
+              "Resume the saved workflow on the private path instead of choosing public recovery.",
+              "flow_resume",
+              {
+                args: [snapshot.workflowId],
+                options: { agent: true },
+              },
+            ),
+            createNextAction(
+              "flow ragequit",
+              "Retry only if you intentionally prefer the public recovery path.",
+              "after_dry_run",
+              {
+                args: [snapshot.workflowId],
+                options: { agent: true, yesIPreferRagequit: true },
+              },
+            ),
+          ],
+        },
+      );
     }
 
-    const snapshot = await ragequitWorkflow({
+    const resultSnapshot = await ragequitWorkflow({
       workflowId,
       globalOpts,
       mode,
@@ -679,9 +721,9 @@ export async function handleFlowRagequitCommand(
 
     renderFlowResult(ctx, {
       action: "ragequit",
-      snapshot,
+      snapshot: resultSnapshot,
     });
-    const browserTarget = getFlowBrowserTarget(snapshot);
+    const browserTarget = getFlowBrowserTarget(resultSnapshot);
     if (browserTarget) {
       maybeLaunchBrowser({
         globalOpts,

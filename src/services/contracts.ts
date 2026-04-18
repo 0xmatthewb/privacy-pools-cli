@@ -1,5 +1,5 @@
-import { createPublicClient, createWalletClient, http } from "viem";
-import type { Address, Hex } from "viem";
+import { createPublicClient, createWalletClient, erc20Abi, http } from "viem";
+import type { Address, Hex, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import type { ChainConfig } from "../types.js";
 import { loadPrivateKey } from "./wallet.js";
@@ -35,6 +35,8 @@ type ApproveErc20Params = {
   amount: bigint;
   rpcOverride?: string;
   privateKeyOverride?: string;
+  ownerAddress?: Address;
+  publicClientOverride?: Pick<PublicClient, "readContract">;
 };
 
 async function createWriteClients(
@@ -116,6 +118,38 @@ export async function approveERC20({
     functionName: "approve",
     args: [spenderAddress, amount],
   });
+}
+
+export async function hasSufficientErc20Allowance(params: ApproveErc20Params): Promise<{
+  ownerAddress: Address;
+  allowance: bigint;
+  sufficient: boolean;
+}> {
+  const ownerAddress =
+    params.ownerAddress ??
+    privateKeyToAccount(
+      (params.privateKeyOverride ?? loadPrivateKey()) as `0x${string}`,
+    ).address;
+  const publicClient =
+    params.publicClientOverride ??
+    (await createWriteClients(
+      params.chainConfig,
+      params.rpcOverride,
+      params.privateKeyOverride,
+    )).publicClient;
+
+  const allowance = await publicClient.readContract({
+    address: params.tokenAddress,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: [ownerAddress, params.spenderAddress],
+  });
+
+  return {
+    ownerAddress,
+    allowance,
+    sufficient: allowance >= params.amount,
+  };
 }
 
 export async function depositETH(

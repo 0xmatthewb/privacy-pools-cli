@@ -164,7 +164,7 @@ mod tests {
         serde_json::from_value(json!({
             "manifestVersion": "1",
             "runtimeVersion": "1",
-            "cliVersion": "2.0.0",
+            "cliVersion": "2.1.0",
             "jsonSchemaVersion": "2.0.0",
             "commandPaths": ["activity"],
             "aliasMap": {},

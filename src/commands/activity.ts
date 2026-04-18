@@ -23,10 +23,9 @@ import {
   normalizeActivityEvent,
   parseNumberish as parseNumberishValue,
 } from "../utils/public-activity.js";
-import { warnLegacyAllChainsFlag, warnLegacyAssetFlag } from "../utils/deprecations.js";
+import { warnLegacyAllChainsFlag } from "../utils/deprecations.js";
 
 interface ActivityCommandOptions {
-  asset?: string;
   includeTestnets?: boolean;
   allChains?: boolean;
   page?: string;
@@ -54,6 +53,28 @@ export function parsePositiveInt(
 
 export { parseNumberishValue as parseNumberish };
 
+function normalizeAspPage(
+  rawPage: number | null,
+  requestedPage: number,
+): number {
+  if (rawPage === null) return requestedPage;
+  if (requestedPage > 0 && rawPage === requestedPage - 1) {
+    return rawPage + 1;
+  }
+  return rawPage <= 0 ? requestedPage : rawPage;
+}
+
+function deriveKnownTotalPages(
+  total: number | null,
+  perPage: number,
+  reportedTotalPages: number | null,
+): number | null {
+  if (total !== null && perPage > 0) {
+    return Math.max(1, Math.ceil(total / perPage));
+  }
+  return reportedTotalPages;
+}
+
 export async function handleActivityCommand(
   positionalAsset: string | undefined,
   opts: ActivityCommandOptions,
@@ -65,11 +86,7 @@ export async function handleActivityCommand(
   const isQuiet = mode.isQuiet;
   const silent = isQuiet || isJson;
 
-  // Resolve positional vs deprecated --asset flag.
-  const resolvedAsset = positionalAsset ?? opts.asset;
-  if (opts.asset !== undefined && positionalAsset === undefined) {
-    warnLegacyAssetFlag("privacy-pools activity <asset> (e.g. privacy-pools activity ETH)", silent);
-  }
+  const resolvedAsset = positionalAsset;
   if (opts.allChains && !opts.includeTestnets) {
     warnLegacyAllChainsFlag(silent);
   }
@@ -117,14 +134,21 @@ export async function handleActivityCommand(
       const events = eventsRaw.map((e) =>
         normalizeActivityEvent(e, pool.symbol),
       );
+      const responsePerPage = parseNumberishValue(response.perPage) ?? perPage;
+      const total = parseNumberishValue(response.total) ?? null;
+      const totalPages = deriveKnownTotalPages(
+        total,
+        responsePerPage,
+        parseNumberishValue(response.totalPages) ?? null,
+      );
 
       renderActivity(ctx, {
         mode: "pool-activity",
         chain: chainConfig.name,
-        page: parseNumberishValue(response.page) ?? page,
-        perPage: parseNumberishValue(response.perPage) ?? perPage,
-        total: parseNumberishValue(response.total) ?? null,
-        totalPages: parseNumberishValue(response.totalPages) ?? null,
+        page: normalizeAspPage(parseNumberishValue(response.page), page),
+        perPage: responsePerPage,
+        total,
+        totalPages,
         events,
         asset: pool.symbol,
         pool: pool.pool,
@@ -152,15 +176,22 @@ export async function handleActivityCommand(
 
         const eventsRaw = Array.isArray(response.events) ? response.events : [];
         const events = eventsRaw.map((e) => normalizeActivityEvent(e));
+        const responsePerPage = parseNumberishValue(response.perPage) ?? perPage;
+        const total = parseNumberishValue(response.total) ?? null;
+        const totalPages = deriveKnownTotalPages(
+          total,
+          responsePerPage,
+          parseNumberishValue(response.totalPages) ?? null,
+        );
 
         renderActivity(ctx, {
           mode: "global-activity",
           chain: MULTI_CHAIN_SCOPE_ALL_MAINNETS,
           chains: chainNames,
-          page: parseNumberishValue(response.page) ?? page,
-          perPage: parseNumberishValue(response.perPage) ?? perPage,
-          total: parseNumberishValue(response.total) ?? null,
-          totalPages: parseNumberishValue(response.totalPages) ?? null,
+          page: normalizeAspPage(parseNumberishValue(response.page), page),
+          perPage: responsePerPage,
+          total,
+          totalPages,
           events,
         });
         return;
@@ -201,26 +232,30 @@ export async function handleActivityCommand(
       return;
     }
 
-    // Single chain global activity: call the global endpoint once and
-    // filter results to only events matching the selected chain.
+    // Single chain global activity: call the global endpoint once and preserve
+    // the ASP-provided pagination metadata for that chain.
     const chainConfig = resolveChain(explicitChain, config.defaultChain);
     const response = await fetchGlobalEvents(chainConfig, page, perPage);
     spin.stop();
 
     const eventsRaw = Array.isArray(response.events) ? response.events : [];
-    const events = eventsRaw
-      .map((e) => normalizeActivityEvent(e))
-      .filter((e) => e.chainId === null || e.chainId === chainConfig.id);
+    const events = eventsRaw.map((e) => normalizeActivityEvent(e));
+    const responsePerPage = parseNumberishValue(response.perPage) ?? perPage;
+    const total = parseNumberishValue(response.total) ?? null;
+    const totalPages = deriveKnownTotalPages(
+      total,
+      responsePerPage,
+      parseNumberishValue(response.totalPages) ?? null,
+    );
 
     renderActivity(ctx, {
       mode: "global-activity",
       chain: chainConfig.name,
-      page: parseNumberishValue(response.page) ?? page,
-      perPage: parseNumberishValue(response.perPage) ?? perPage,
-      total: null,
-      totalPages: null,
+      page: normalizeAspPage(parseNumberishValue(response.page), page),
+      perPage: responsePerPage,
+      total,
+      totalPages,
       events,
-      chainFiltered: true,
     });
   } catch (error) {
     printError(error, isJson);

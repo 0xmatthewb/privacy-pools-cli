@@ -93,6 +93,20 @@ describe("styleCommanderHelp", () => {
     expect(plain).toContain("quote");
   });
 
+  test("does not apply root command grouping to subcommands that share a root command name", () => {
+    const raw = [
+      "Usage: privacy-pools migrate [options] [command]",
+      "",
+      "Commands:",
+      "  status [options]  Check migration status",
+    ].join("\n");
+    const result = styleCommanderHelp(raw);
+    const plain = stripAnsi(result);
+    expect(plain).toContain("status [options]");
+    expect(plain).not.toContain("Getting started");
+    expect(plain).not.toContain("Transactions");
+  });
+
   test("styles command|alias — primary highlighted, alias dimmed", () => {
     const raw = [
       "Usage: privacy-pools [options] [command]",

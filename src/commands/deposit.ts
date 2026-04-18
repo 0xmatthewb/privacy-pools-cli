@@ -66,6 +66,7 @@ import {
   approveERC20,
   depositERC20,
   depositETH,
+  hasSufficientErc20Allowance,
 } from "../services/contracts.js";
 import { decodeDepositReceiptLog } from "../services/deposit-events.js";
 import {
@@ -82,7 +83,6 @@ import {
   formatPoolPromptChoice,
   isHighStakesUsdAmount,
 } from "../utils/prompts.js";
-import { warnLegacyAssetFlag } from "../utils/deprecations.js";
 import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
@@ -96,7 +96,6 @@ import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 import { maybeLaunchBrowser } from "../utils/web.js";
 
 interface DepositCommandOptions {
-  asset?: string;
   unsigned?: boolean | string;
   dryRun?: boolean;
   ignoreUniqueAmount?: boolean;
@@ -181,13 +180,6 @@ export async function handleDepositCommand(
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
-  if (opts.asset !== undefined) {
-    warnLegacyAssetFlag(
-      "privacy-pools deposit <amount> <asset> (e.g. privacy-pools deposit 0.1 ETH)",
-      silent,
-    );
-  }
-
   try {
     if (
       unsignedFormat &&
@@ -219,7 +211,7 @@ export async function handleDepositCommand(
     );
 
     const { amount: amountStr, asset: positionalOrFlagAsset } =
-      resolveAmountAndAssetInput("deposit", firstArg, secondArg, opts.asset);
+      resolveAmountAndAssetInput("deposit", firstArg, secondArg);
 
     // Resolve pool
     let pool;
@@ -306,13 +298,19 @@ export async function handleDepositCommand(
         suggestions.length > 0
           ? ` Consider: ${suggestions.map((s) => `${formatAmountDecimal(s, pool.decimals)} ${pool.symbol}`).join(", ")}.`
           : "";
+      const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
+      const estimatedCommitted = amount - feeAmount;
+      const message =
+        `Vetting fees reduce your deposited amount by ${Number(pool.vettingFeeBPS) / 100}% in this pool, so ` +
+        `${formatAmountDecimal(amount, pool.decimals)} ${pool.symbol} would commit approximately ` +
+        `${formatAmountDecimal(estimatedCommitted, pool.decimals)} ${pool.symbol} onchain.${suggestionStr}`;
 
       if (skipPrompts) {
         // Agent / non-interactive mode: hard error
         throw new CLIError(
-          `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy.`,
+          "This deposit would create a distinctive committed amount.",
           "INPUT",
-          `Unique amounts can be linked between deposits and withdrawals.${suggestionStr} Pass --ignore-unique-amount to proceed anyway.`,
+          `${message} Round committed balances are harder to fingerprint. Pass --ignore-unique-amount to proceed anyway.`,
           "INPUT_NONROUND_AMOUNT",
         );
       } else {
@@ -320,7 +318,7 @@ export async function handleDepositCommand(
         process.stderr.write("\n");
         process.stderr.write(
           formatUniqueAmountReview(
-            `${humanAmount} ${pool.symbol} is a non-round amount that may reduce your privacy in the anonymity set.${suggestionStr}`,
+            `${message} Round committed balances are harder to fingerprint.`,
           ),
         );
         if (await maybeRenderPreviewScenario("deposit unique amount confirm")) {
@@ -548,6 +546,10 @@ export async function handleDepositCommand(
           asset: pool.symbol,
           amount,
           decimals: pool.decimals,
+          vettingFeeBPS: pool.vettingFeeBPS,
+          feeAmount,
+          estimatedCommitted,
+          feesApply: pool.vettingFeeBPS > 0n,
           poolAccountNumber: nextPANumber,
           poolAccountId: nextPAId,
           precommitment: precommitment as unknown as bigint,
@@ -591,6 +593,16 @@ export async function handleDepositCommand(
         const spin = spinner("Approving token spend...", silent);
         spin.start();
         try {
+          const allowanceStatus = await hasSufficientErc20Allowance({
+            chainConfig,
+            tokenAddress: pool.asset,
+            spenderAddress: chainConfig.entrypoint,
+            amount,
+            rpcOverride: globalOpts?.rpcUrl,
+          });
+          if (allowanceStatus.sufficient) {
+            spin.succeed("Existing token approval is already sufficient.");
+          } else {
           const approveTx = await approveERC20({
             chainConfig,
             tokenAddress: pool.asset,
@@ -620,6 +632,7 @@ export async function handleDepositCommand(
             );
           }
           spin.succeed("Token approved.");
+          }
         } catch (error) {
           spin.fail("Approval failed.");
           throw error;
@@ -674,6 +687,8 @@ export async function handleDepositCommand(
       let label: bigint | undefined;
       let committedValue: bigint | undefined;
       let needsReconciliation = false;
+      let localStateSynced = true;
+      let warningCode: string | null = null;
       guardCriticalSection();
       try {
         for (const log of receipt.logs) {
@@ -722,6 +737,7 @@ export async function handleDepositCommand(
               silent,
             );
             needsReconciliation = true;
+            localStateSynced = false;
           }
         }
         if (needsReconciliation) {
@@ -748,6 +764,8 @@ export async function handleDepositCommand(
               },
             );
             info("Local account state reconciled from chain events.", silent);
+            needsReconciliation = false;
+            localStateSynced = true;
           } catch (syncErr) {
             warn(
               `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncErr instanceof Error ? syncErr.message : String(syncErr))}`,
@@ -757,18 +775,28 @@ export async function handleDepositCommand(
               `Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`,
               silent,
             );
+            localStateSynced = false;
+            warningCode = "LOCAL_STATE_RECONCILIATION_REQUIRED";
           }
         }
       } finally {
         releaseCriticalSection();
       }
-      spin.succeed("Deposit confirmed!");
+      if (needsReconciliation || !localStateSynced) {
+        spin.warn("Deposit confirmed onchain; local state needs reconciliation.");
+      } else {
+        spin.succeed("Deposit confirmed!");
+      }
 
       const ctx = createOutputContext(mode);
       renderDepositSuccess(ctx, {
         txHash: tx.hash,
         amount,
         committedValue,
+        vettingFeeBPS: pool.vettingFeeBPS,
+        vettingFeeAmount: feeAmount,
+        estimatedCommitted,
+        feesApply: pool.vettingFeeBPS > 0n,
         asset: pool.symbol,
         chain: chainConfig.name,
         decimals: pool.decimals,
@@ -779,6 +807,9 @@ export async function handleDepositCommand(
         label,
         blockNumber: receipt.blockNumber,
         explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+        reconciliationRequired: needsReconciliation || !localStateSynced,
+        localStateSynced,
+        warningCode,
         chainOverridden: !!globalOpts?.chain,
       });
       maybeLaunchBrowser({

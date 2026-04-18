@@ -1,12 +1,23 @@
 import type { GlobalOptions } from "../types.js";
 import { configureJsonOutput } from "./json.js";
-import { setSuppressHeaders, setSuppressProgress } from "./format.js";
+import {
+  setForceWideTables,
+  setSuppressHeaders,
+  setSuppressProgress,
+} from "./format.js";
 import { warnLegacyFormatFlag } from "./deprecations.js";
 import { getParsedVerboseLevel } from "./verbose-level.js";
 import { setActiveProfile } from "../runtime/config-paths.js";
 import { CLIError } from "./errors.js";
 
-export const OUTPUT_FORMATS = ["table", "csv", "json", "wide"] as const;
+export const OUTPUT_FORMATS = [
+  "table",
+  "csv",
+  "json",
+  "yaml",
+  "wide",
+  "name",
+] as const;
 
 export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 
@@ -21,6 +32,8 @@ export const OUTPUT_FORMAT_CHOICES_HELP_TEXT = OUTPUT_FORMATS
 export interface ResolvedGlobalMode {
   isAgent: boolean;
   isJson: boolean;
+  isYaml: boolean;
+  isName: boolean;
   isCsv: boolean;
   isWide: boolean;
   isQuiet: boolean;
@@ -132,11 +145,15 @@ export function resolveGlobalMode(
     hasTemplateFlag;
   const explicitFormat = normalizeOutputFormat(globalOpts?.output ?? globalOpts?.format);
   const isWide = explicitFormat === "wide";
+  const isYaml = explicitFormat === "yaml";
+  const isName = explicitFormat === "name";
   const format: OutputFormat =
+    explicitFormat === "yaml" ? "yaml" :
+    explicitFormat === "name" ? "name" :
     explicitFormat === "json" || hasStructuredJsonFlag ? "json" :
     explicitFormat === "csv" ? "csv" :
     "table"; // "wide" also uses table rendering
-  const isJson = format === "json";
+  const isJson = format === "json" || format === "yaml";
   const isCsv = format === "csv";
   const isQuiet =
     (globalOpts?.quiet ?? false) ||
@@ -147,7 +164,7 @@ export function resolveGlobalMode(
     globalOpts?.output === undefined &&
     !_warnedFormatAlias
   ) {
-    warnLegacyFormatFlag(isQuiet);
+    warnLegacyFormatFlag(isQuiet || hasStructuredJsonFlag);
     _warnedFormatAlias = true;
   }
   // JSON/CSV/machine mode must never block on interactive prompts.
@@ -228,13 +245,16 @@ export function resolveGlobalMode(
     globalOpts?.noHeader === true ||
     (globalOpts as Record<string, unknown> | undefined)?.header === false;
   setSuppressHeaders(noHeader);
+  setForceWideTables(isWide);
 
   // Configure the JSON output module with field selection and jq filtering.
-  configureJsonOutput(jsonFields, jqExpression, template ?? null);
+  configureJsonOutput(jsonFields, jqExpression, template ?? null, format === "yaml" ? "yaml" : "json");
 
   return {
     isAgent,
     isJson,
+    isYaml,
+    isName,
     isCsv,
     isWide,
     isQuiet,

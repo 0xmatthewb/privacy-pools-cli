@@ -54,6 +54,14 @@ describe("root help static conformance", () => {
     }
   });
 
+  test("styled root help footer pads command groups without collisions", () => {
+    const styledRootHelp = stripAnsi(styleCommanderHelp(rootHelpBaseText()));
+    expect(styledRootHelp).toContain("  Getting started");
+    expect(styledRootHelp).toContain("  Transactions");
+    expect(styledRootHelp).not.toContain("Getting startedinit");
+    expect(styledRootHelp).not.toContain("Transactionsflow");
+  });
+
   test("runtime-facing docs and help stay free of Bun install or execution examples", () => {
     const forbiddenRuntimeExamples = [
       "bun add -g privacy-pools-cli",

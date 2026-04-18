@@ -5,7 +5,7 @@ import {
   getUpdateNotice,
   shouldShowPostCommandUpdateNotice,
 } from "./utils/update-check.js";
-import { CLIError, EXIT_CODES, printError } from "./utils/errors.js";
+import { CLIError, printError } from "./utils/errors.js";
 import { createRootProgram } from "./program.js";
 import {
   allNonOptionTokens,
@@ -29,6 +29,8 @@ const {
   normalizeRepositoryUrl,
   maybeLoadConfigEnv,
   mapCommanderError,
+  buildUnknownCommandError,
+  isKnownCommanderHelpTarget,
   shouldStartUpdateCheck,
   configureCommanderOutput,
   applyMachineMode,
@@ -95,6 +97,31 @@ export async function runCli(
       process.stdout.write(`${help}\n`);
     }
     process.exitCode = 0;
+    return;
+  }
+  if (
+    firstToken === "help" &&
+    secondToken &&
+    !resolvedGuideTopic &&
+    !isKnownCommanderHelpTarget(secondToken)
+  ) {
+    const help = guideText(secondToken);
+    if (isStructuredOutputMode) {
+      printJsonSuccess({ mode: "help", topic: secondToken, help });
+    } else if (!isQuiet) {
+      const { renderHumanGuideText } = await import("./output/discovery.js");
+      renderHumanGuideText(help);
+    }
+    process.exitCode = 0;
+    return;
+  }
+  if (
+    isHelpLike &&
+    firstToken !== "help" &&
+    firstCommandToken &&
+    !isKnownCommanderHelpTarget(firstCommandToken)
+  ) {
+    printError(buildUnknownCommandError(firstCommandToken), isStructuredOutputMode);
     return;
   }
 
@@ -225,13 +252,9 @@ export async function runCli(
       return;
     }
 
-    const mapped = mapCommanderError(err);
+    const mapped = mapCommanderError(err, { rootCommand: firstCommandToken });
     if (mapped) {
-      if (isStructuredOutputMode) {
-        printError(mapped, true);
-        return;
-      }
-      process.exitCode = EXIT_CODES.INPUT;
+      printError(mapped, isStructuredOutputMode);
       return;
     }
 
@@ -261,6 +284,8 @@ export const cliMainTestInternals = {
   configHome,
   maybeLoadConfigEnv,
   mapCommanderError,
+  buildUnknownCommandError,
+  isKnownCommanderHelpTarget,
   shouldStartUpdateCheck,
   configureCommanderOutput,
   applyMachineMode,

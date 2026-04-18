@@ -10,7 +10,7 @@ use super::query_execution::{
 use super::query_resolution::list_pools_native;
 use super::render::{render_pool_detail_output, render_pools_empty_output, render_pools_output};
 use crate::bridge::capture_js_worker_stdout;
-use crate::config::{get_rpc_urls, has_custom_rpc_override, load_config, resolve_chain, CliConfig};
+use crate::config::{get_rpc_urls, load_config, resolve_chain, CliConfig};
 use crate::contract::{ChainDefinition, Manifest};
 use crate::dispatch::{commander_too_many_arguments_error, commander_unknown_option_error};
 use crate::error::{CliError, ErrorCategory};
@@ -423,12 +423,6 @@ pub(crate) fn resolve_pool_native(
     manifest: &Manifest,
     timeout_ms: u64,
 ) -> Result<NativePoolResolution, CliError> {
-    let has_custom_rpc = has_custom_rpc_override(
-        chain.id,
-        rpc_override.as_deref(),
-        config,
-        &manifest.runtime_config,
-    );
     let rpc_urls = get_rpc_urls(
         chain.id,
         rpc_override.clone(),
@@ -478,9 +472,17 @@ pub(crate) fn resolve_pool_native(
         ) {
             Ok(resolution) => return Ok(resolution),
             Err(error) => {
-                if !has_custom_rpc {
-                    return Err(error);
+                if matches!(error.category, ErrorCategory::Rpc) {
+                    return Err(CliError::rpc_retryable(
+                        format!(
+                            "Built-in pool fallback also failed for \"{asset}\" on {}.",
+                            chain.name
+                        ),
+                        Some("Check your RPC URL and network connectivity, then retry.".to_string()),
+                        Some("RPC_POOL_RESOLUTION_FAILED"),
+                    ));
                 }
+                return Err(error);
             }
         }
     }
@@ -533,12 +535,12 @@ fn pool_not_found_error(
     CliError::input(
         format!("No pool found for asset \"{asset}\" on {}.", chain.name),
         Some(if asp_lookup_failed {
-            "The ASP may be offline. Try using --asset with a token contract address (0x...)."
+            "The ASP may be offline. Try using the token contract address as the positional asset (0x...)."
                 .to_string()
         } else if let Some(hint) = available_assets_hint {
             format!("Available assets: {hint}")
         } else {
-            "No pools found. Try using --asset with a contract address.".to_string()
+            "No pools found. Try using the token contract address as the positional asset.".to_string()
         }),
     )
 }

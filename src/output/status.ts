@@ -478,6 +478,18 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     return;
   }
 
+  if (ctx.mode.isQuiet) {
+    const chainLabel = result.selectedChain ?? result.defaultChain ?? "none";
+    const rpcLabel =
+      result.rpcLive === undefined ? "unchecked" : result.rpcLive ? "healthy" : "unreachable";
+    const aspLabel =
+      result.aspLive === undefined ? "unchecked" : result.aspLive ? "healthy" : "unreachable";
+    process.stdout.write(
+      `status=${preflight.recommendedMode} chain=${chainLabel} rpc=${rpcLabel} asp=${aspLabel} deposits=${result.accountFiles.length}\n`,
+    );
+    return;
+  }
+
   const silent = isSilent(ctx);
   const renderRows = getOutputWidthClass() === "narrow"
     ? formatStackedKeyValueRows

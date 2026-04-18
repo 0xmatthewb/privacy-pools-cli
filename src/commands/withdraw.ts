@@ -5,7 +5,7 @@ import {
   calculateContext,
   type Hash as SDKHash,
 } from "@0xbow/privacy-pools-core-sdk";
-import type { Hex, Address } from "viem";
+import { formatUnits, type Hex, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   resolveChain,
@@ -99,6 +99,7 @@ import { withProofProgress } from "../utils/proof-progress.js";
 import type {
   ChainConfig,
   GlobalOptions,
+  NextAction,
   PoolStats,
   RelayerQuoteResponse,
 } from "../types.js";
@@ -107,7 +108,7 @@ import {
   maybeRenderPreviewScenario,
 } from "../preview/runtime.js";
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
-import { createOutputContext } from "../output/common.js";
+import { createNextAction, createOutputContext } from "../output/common.js";
 import {
   formatAnonymitySetValue,
   formatDirectWithdrawalReview,
@@ -124,7 +125,6 @@ import {
   isHighStakesWithdrawal,
 } from "../utils/prompts.js";
 import {
-  warnLegacyAssetFlag,
   warnLegacyPoolAccountFlag,
 } from "../utils/deprecations.js";
 import {
@@ -168,6 +168,10 @@ const entrypointLatestRootAbi = [
   },
 ] as const;
 
+const RELAYER_PROOF_REFRESH_BUDGET_SECONDS = 12;
+const LOCAL_STATE_RECONCILIATION_WARNING_CODE =
+  "LOCAL_STATE_RECONCILIATION_REQUIRED";
+
 type WithdrawReviewStatus = Exclude<AspApprovalStatus, "approved">;
 
 interface WithdrawCommandOptions {
@@ -178,13 +182,188 @@ interface WithdrawCommandOptions {
   yesIUnderstandPrivacyLoss?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
-  asset?: string;
   all?: boolean;
   extraGas?: boolean;
 }
 
+function relayerHostLabel(relayerUrl: string | undefined): string | null {
+  if (!relayerUrl) return null;
+  try {
+    return new URL(relayerUrl).host;
+  } catch {
+    return relayerUrl;
+  }
+}
+
+function buildDirectRecipientMismatchNextActions(params: {
+  amountInput: string;
+  assetInput: string | null;
+  chainName: string;
+  recipientAddress: Address;
+  signerAddress: Address;
+}): NextAction[] {
+  const actions: NextAction[] = [];
+  if (params.assetInput) {
+    actions.push(
+      createNextAction(
+        "withdraw",
+        "Use the default relayed mode to withdraw to a different recipient address.",
+        "after_dry_run",
+        {
+          args: [params.amountInput, params.assetInput],
+          options: {
+            agent: true,
+            chain: params.chainName,
+            to: params.recipientAddress,
+          },
+        },
+      ),
+    );
+    actions.push(
+      createNextAction(
+        "withdraw",
+        "Retry direct mode without --to to auto-fill the signer address.",
+        "after_dry_run",
+        {
+          args: [params.amountInput, params.assetInput],
+          options: {
+            agent: true,
+            chain: params.chainName,
+            direct: true,
+            yesIUnderstandPrivacyLoss: true,
+          },
+        },
+      ),
+    );
+    return actions;
+  }
+
+  actions.push(
+    createNextAction(
+      "withdraw",
+      "Use the default relayed mode to withdraw to a different recipient address.",
+      "after_dry_run",
+      {
+        options: {
+          agent: true,
+          chain: params.chainName,
+          to: params.recipientAddress,
+        },
+        runnable: false,
+        parameters: [{ name: "asset", type: "asset", required: true }],
+      },
+    ),
+  );
+  actions.push(
+    createNextAction(
+      "withdraw",
+      "Retry direct mode without --to to auto-fill the signer address.",
+      "after_dry_run",
+      {
+        options: {
+          agent: true,
+          chain: params.chainName,
+          direct: true,
+          yesIUnderstandPrivacyLoss: true,
+        },
+        runnable: false,
+        parameters: [{ name: "asset", type: "asset", required: true }],
+      },
+    ),
+  );
+  return actions;
+}
+
+function buildRemainderBelowMinNextActions(params: {
+  chainName: string;
+  asset: string;
+  decimals: number;
+  recipient: Address;
+  poolAccountId: string;
+  poolAccountValue: bigint;
+  minWithdrawAmount: bigint;
+  signerAddress: Address | null;
+}): NextAction[] {
+  const actions: NextAction[] = [
+    createNextAction(
+      "withdraw",
+      "Withdraw the full Pool Account balance so no stranded remainder is left behind.",
+      "after_quote",
+      {
+        args: [params.asset],
+        options: {
+          agent: true,
+          chain: params.chainName,
+          all: true,
+          to: params.recipient,
+          poolAccount: params.poolAccountId,
+        },
+      },
+    ),
+    createNextAction(
+      "ragequit",
+      "Use the public recovery path instead of leaving a remainder below the relayer minimum.",
+      "after_quote",
+      {
+        args: [params.asset],
+        options: {
+          agent: true,
+          chain: params.chainName,
+          poolAccount: params.poolAccountId,
+          yesIPreferRagequit: true,
+        },
+      },
+    ),
+  ];
+
+  const maxSafeRelayedAmount = params.poolAccountValue - params.minWithdrawAmount;
+  if (maxSafeRelayedAmount >= params.minWithdrawAmount) {
+    actions.splice(
+      1,
+      0,
+      createNextAction(
+        "withdraw",
+        "Withdraw less so the remaining balance stays privately withdrawable.",
+        "after_quote",
+        {
+          args: [formatUnits(maxSafeRelayedAmount, params.decimals), params.asset],
+          options: {
+            agent: true,
+            chain: params.chainName,
+            to: params.recipient,
+            poolAccount: params.poolAccountId,
+          },
+        },
+      ),
+    );
+  }
+
+  if (
+    params.signerAddress &&
+    params.recipient.toLowerCase() === params.signerAddress.toLowerCase()
+  ) {
+    actions.push(
+      createNextAction(
+        "withdraw",
+        "Direct mode is also valid here because the recipient already matches the signer address.",
+        "after_quote",
+        {
+          args: [formatUnits(params.poolAccountValue, params.decimals), params.asset],
+          options: {
+            agent: true,
+            chain: params.chainName,
+            direct: true,
+            yesIUnderstandPrivacyLoss: true,
+          },
+        },
+      ),
+    );
+  }
+
+  return actions;
+}
+
 interface WithdrawQuoteCommandOptions {
-  asset?: string;
   to?: string;
 }
 
@@ -396,7 +575,7 @@ export function formatApprovalResolutionHint(
 ): string {
   const { chainName, assetSymbol, poolAccountId, status } = params;
   const ragequitSelector = poolAccountId ?? "<PA-#>";
-  const ragequitCmd = `privacy-pools ragequit --chain ${chainName} --asset ${assetSymbol} --pool-account ${ragequitSelector}`;
+  const ragequitCmd = `privacy-pools ragequit ${assetSymbol} --chain ${chainName} --pool-account ${ragequitSelector}`;
 
   switch (status) {
     case "pending":
@@ -572,12 +751,6 @@ export async function handleWithdrawCommand(
   const confirmationTimeoutSeconds = Math.round(
     getConfirmationTimeoutMs() / 1000,
   );
-  if (opts.asset !== undefined) {
-    warnLegacyAssetFlag(
-      "privacy-pools withdraw <amount> <asset> --to <address> (e.g. privacy-pools withdraw 0.05 ETH --to 0x...)",
-      silent,
-    );
-  }
   if (opts.fromPa !== undefined) {
     warnLegacyPoolAccountFlag(opts.fromPa, silent);
   }
@@ -682,10 +855,10 @@ export async function handleWithdrawCommand(
           "--all already implies 100% of the selected Pool Account. Use 'privacy-pools withdraw --all <asset> --to <address>'.",
         );
       }
-      positionalOrFlagAsset = opts.asset ?? firstArg;
+      positionalOrFlagAsset = firstArg;
       if (!positionalOrFlagAsset) {
         throw new CLIError(
-          "--all requires an asset. Use 'withdraw --all ETH --to <address>' or '--all --asset <symbol>'.",
+          "--all requires an asset. Use 'withdraw --all ETH --to <address>'.",
           "INPUT",
           "Run 'privacy-pools pools' to see available assets.",
         );
@@ -701,14 +874,13 @@ export async function handleWithdrawCommand(
           );
         }
         amountStr = "";
-        positionalOrFlagAsset = opts.asset ?? secondArg;
+        positionalOrFlagAsset = secondArg;
         needsAmountPrompt = true;
       } else {
         const resolved = resolveAmountAndAssetInput(
           "withdraw",
           firstArg,
           secondArg,
-          opts.asset,
         );
         amountStr = resolved.amount;
         positionalOrFlagAsset = resolved.asset;
@@ -773,6 +945,24 @@ export async function handleWithdrawCommand(
           "Direct withdrawal --to must match your signer address.",
           "INPUT",
           `Your signer address is ${signerAddress}. Use relayed mode (default) to withdraw to a different address.`,
+          "INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH",
+          false,
+          undefined,
+          {
+            signerAddress,
+            requestedRecipient: recipientAddress,
+          },
+          undefined,
+          {
+            helpTopic: "modes",
+            nextActions: buildDirectRecipientMismatchNextActions({
+              amountInput: amountStr,
+              assetInput: positionalOrFlagAsset ?? null,
+              chainName: chainConfig.name,
+              recipientAddress,
+              signerAddress,
+            }),
+          },
         );
       }
     }
@@ -1775,6 +1965,7 @@ export async function handleWithdrawCommand(
                 ...payload,
                 poolAccountNumber: selectedPoolAccount.paNumber,
                 poolAccountId: selectedPoolAccount.paId,
+                rootMatchedAtProofTime: true,
                 warnings: [...payload.warnings, ...recipientWarnings],
               },
               false,
@@ -1798,6 +1989,7 @@ export async function handleWithdrawCommand(
             selectedCommitmentLabel: commitmentLabel,
             selectedCommitmentValue: commitment.value,
             proofPublicSignals: proof.publicSignals.length,
+            rootMatchedAtProofTime: true,
             anonymitySet,
             warnings: recipientWarnings,
           });
@@ -1850,6 +2042,8 @@ export async function handleWithdrawCommand(
         }
 
         let needsReconciliation = false;
+        let localStateSynced = true;
+        let warningCode: string | null = null;
         guardCriticalSection();
         try {
           // Record the withdrawal in account state
@@ -1872,6 +2066,7 @@ export async function handleWithdrawCommand(
               silent,
             );
             needsReconciliation = true;
+            localStateSynced = false;
           }
           if (needsReconciliation) {
             try {
@@ -1897,18 +2092,26 @@ export async function handleWithdrawCommand(
                 },
               );
               info("Local account state reconciled from chain events.", silent);
+              needsReconciliation = false;
+              localStateSynced = true;
             } catch (syncErr) {
               warn(
                 `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncErr instanceof Error ? syncErr.message : String(syncErr))}`,
                 silent,
               );
               warn(`Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`, silent);
+              localStateSynced = false;
+              warningCode = LOCAL_STATE_RECONCILIATION_WARNING_CODE;
             }
           }
         } finally {
           releaseCriticalSection();
         }
-        spin.succeed("Direct withdrawal confirmed!");
+        if (needsReconciliation || !localStateSynced) {
+          spin.warn("Withdrawal confirmed onchain; local state needs reconciliation.");
+        } else {
+          spin.succeed("Direct withdrawal confirmed!");
+        }
         rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
 
         const ctx = createOutputContext(mode);
@@ -1928,6 +2131,10 @@ export async function handleWithdrawCommand(
           explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
           remainingBalance: selectedPoolAccount.value - withdrawalAmount,
           tokenPrice,
+          rootMatchedAtProofTime: true,
+          reconciliationRequired: needsReconciliation || !localStateSynced,
+          localStateSynced,
+          warningCode,
           anonymitySet,
           warnings: recipientWarnings,
         });
@@ -2062,9 +2269,35 @@ export async function handleWithdrawCommand(
               decimals: pool.decimals,
             });
           }
-        } else if (skipPrompts && !silent && remainingBelowMinAdvisory) {
-          warn(remainingBelowMinAdvisory, silent);
-          process.stderr.write("\n");
+        } else if (skipPrompts && remainingBelowMinAdvisory) {
+          throw new CLIError(
+            "This relayed withdrawal would leave a remainder below the relayer minimum.",
+            "INPUT",
+            remainingBelowMinAdvisory,
+            "INPUT_REMAINDER_BELOW_RELAYER_MINIMUM",
+            false,
+            undefined,
+            {
+              poolAccountId: selectedPoolAccount.paId,
+              remainingBalance: (selectedPoolAccount.value - withdrawalAmount).toString(),
+              minWithdrawAmount: details.minWithdrawAmount,
+              recipient: resolvedRecipientAddress,
+            },
+            undefined,
+            {
+              helpTopic: "ragequit",
+              nextActions: buildRemainderBelowMinNextActions({
+                chainName: chainConfig.name,
+                asset: pool.symbol,
+                decimals: pool.decimals,
+                recipient: resolvedRecipientAddress,
+                poolAccountId: selectedPoolAccount.paId,
+                poolAccountValue: selectedPoolAccount.value,
+                minWithdrawAmount: BigInt(details.minWithdrawAmount),
+                signerAddress,
+              }),
+            },
+          );
         }
 
         const initialQuoteResult = await requestQuoteWithExtraGasFallback(
@@ -2078,6 +2311,7 @@ export async function handleWithdrawCommand(
           },
         );
         let quote = initialQuoteResult.quote;
+        let quoteRefreshCount = 0;
         if (initialQuoteResult.downgradedExtraGas) {
           effectiveExtraGas = initialQuoteResult.extraGas;
           warn(
@@ -2133,6 +2367,7 @@ export async function handleWithdrawCommand(
           quote = refreshed.quote;
           quoteFeeBPS = refreshed.quoteFeeBPS;
           expirationMs = refreshed.expirationMs;
+          quoteRefreshCount += 1;
           verbose(
             `Relayer quote refreshed: feeBPS=${quote.feeBPS} expiresAt=${new Date(expirationMs).toISOString()}`,
             isVerbose,
@@ -2270,14 +2505,14 @@ export async function handleWithdrawCommand(
         );
         verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
 
-        // Pre-proof quote freshness check: if less than 30 seconds remain,
-        // refresh proactively so the quote doesn't expire during proof generation.
+        // Pre-proof quote freshness check: refresh proactively when the
+        // remaining validity window is tighter than our proof-time budget.
         {
           const preProofSecondsLeft = Math.max(
             0,
             Math.floor((expirationMs - Date.now()) / 1000),
           );
-          if (preProofSecondsLeft < 30) {
+          if (preProofSecondsLeft < RELAYER_PROOF_REFRESH_BUDGET_SECONDS) {
             verbose(
               `Quote has only ${preProofSecondsLeft}s remaining before proof generation, refreshing proactively...`,
               isVerbose,
@@ -2289,7 +2524,7 @@ export async function handleWithdrawCommand(
             );
             if (Number(quote.feeBPS) !== Number(previousFeeBPS)) {
               throw new CLIError(
-                `Relayer fee changed during pre-proof refresh (${previousFeeBPS} → ${quote.feeBPS} BPS). Re-run the withdrawal.`,
+              `Relayer fee changed during pre-proof refresh (${previousFeeBPS} → ${quote.feeBPS} BPS). Re-run the withdrawal.`,
                 "RELAYER",
                 "The proof must be bound to a stable fee. Re-run the withdrawal command to start with a fresh quote.",
               );
@@ -2418,6 +2653,9 @@ export async function handleWithdrawCommand(
                 ...payload,
                 poolAccountNumber: selectedPoolAccount.paNumber,
                 poolAccountId: selectedPoolAccount.paId,
+                relayerHost: relayerHostLabel(quote.relayerUrl ?? relayerUrl),
+                quoteRefreshCount,
+                rootMatchedAtProofTime: true,
                 warnings: [...payload.warnings, ...recipientWarnings],
               },
               false,
@@ -2443,7 +2681,10 @@ export async function handleWithdrawCommand(
             proofPublicSignals: proof.publicSignals.length,
             feeBPS: quote.feeBPS,
             quoteExpiresAt: new Date(expirationMs).toISOString(),
+            relayerHost: relayerHostLabel(quote.relayerUrl ?? relayerUrl),
+            quoteRefreshCount,
             extraGas: effectiveExtraGas,
+            rootMatchedAtProofTime: true,
             anonymitySet,
             warnings: recipientWarnings,
           });
@@ -2485,6 +2726,8 @@ export async function handleWithdrawCommand(
           );
         }
         let needsReconciliation = false;
+        let localStateSynced = true;
+        let warningCode: string | null = null;
         guardCriticalSection();
         try {
           // Record the withdrawal in account state
@@ -2507,6 +2750,7 @@ export async function handleWithdrawCommand(
               silent,
             );
             needsReconciliation = true;
+            localStateSynced = false;
           }
           if (needsReconciliation) {
             try {
@@ -2532,18 +2776,26 @@ export async function handleWithdrawCommand(
                 },
               );
               info("Local account state reconciled from chain events.", silent);
+              needsReconciliation = false;
+              localStateSynced = true;
             } catch (syncErr) {
               warn(
                 `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncErr instanceof Error ? syncErr.message : String(syncErr))}`,
                 silent,
               );
               warn(`Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`, silent);
+              localStateSynced = false;
+              warningCode = LOCAL_STATE_RECONCILIATION_WARNING_CODE;
             }
           }
         } finally {
           releaseCriticalSection();
         }
-        spin.succeed("Relayed withdrawal confirmed!");
+        if (needsReconciliation || !localStateSynced) {
+          spin.warn("Withdrawal confirmed onchain; local state needs reconciliation.");
+        } else {
+          spin.succeed("Relayed withdrawal confirmed!");
+        }
         rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
 
         const ctx = createOutputContext(mode);
@@ -2562,6 +2814,8 @@ export async function handleWithdrawCommand(
           scope: pool.scope,
           explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
           feeBPS: quote.feeBPS,
+          relayerHost: relayerHostLabel(quote.relayerUrl ?? relayerUrl),
+          quoteRefreshCount,
           extraGas: effectiveExtraGas,
           extraGasFundAmount: quote.detail.extraGasFundAmount
             ? BigInt(quote.detail.extraGasFundAmount.eth)
@@ -2569,6 +2823,10 @@ export async function handleWithdrawCommand(
           nativeTokenPrice,
           remainingBalance: selectedPoolAccount.value - withdrawalAmount,
           tokenPrice,
+          rootMatchedAtProofTime: true,
+          reconciliationRequired: needsReconciliation || !localStateSynced,
+          localStateSynced,
+          warningCode,
           anonymitySet,
           warnings: recipientWarnings,
         });
@@ -2613,21 +2871,12 @@ export async function handleWithdrawQuoteCommand(
   const silent = isQuiet || isJson;
   const isVerbose = globalOpts?.verbose ?? false;
 
-  // Commander.js consumes --asset / --to at the parent `withdraw` command
-  // before the `quote` subcommand sees them.  Fall back to parent opts so
-  // that `withdraw quote 0.1 --asset ETH --to 0x...` still works.
+  // Commander.js keeps shared flags like --to / --extra-gas on the parent
+  // `withdraw` command, so read them from the parent opts for quote mode.
   const withdrawOpts = subCmd.parent?.opts() as
     | Record<string, unknown>
     | undefined;
-  const effectiveAsset = (opts.asset ?? withdrawOpts?.asset) as
-    | string
-    | undefined;
   const effectiveTo = (opts.to ?? withdrawOpts?.to) as string | undefined;
-
-  // Deprecation notice for --asset flag.
-  if (effectiveAsset !== undefined) {
-    warn("--asset is deprecated for withdraw quote. Use: privacy-pools withdraw quote <amount> <asset>", silent);
-  }
 
   try {
     if (await maybeRenderPreviewScenario("withdraw quote")) {
@@ -2647,7 +2896,6 @@ export async function handleWithdrawQuoteCommand(
         "withdraw quote",
         firstArg,
         secondArg,
-        effectiveAsset,
       );
 
     let pool;
@@ -2670,7 +2918,7 @@ export async function handleWithdrawQuoteCommand(
       silent,
     );
 
-    // Resolve --extra-gas: read from parent withdraw opts (same pattern as --asset/--to).
+    // Resolve --extra-gas from the parent withdraw command.
     // Default true for ERC20, always false for native asset (ETH).
     const quoteIsNativeAsset = isNativePoolAsset(chainConfig.id, pool.asset);
     const parentExtraGas = withdrawOpts?.extraGas as boolean | undefined;
@@ -2736,6 +2984,8 @@ export async function handleWithdrawQuoteCommand(
       quoteExpiresAt: expirationMs
         ? new Date(expirationMs).toISOString()
         : null,
+      relayerHost: relayerHostLabel(quote.relayerUrl ?? relayerUrl),
+      quoteRefreshCount: 0,
       tokenPrice: quoteTokenPrice,
       nativeTokenPrice,
       extraGas: resolvedQuoteExtraGas,

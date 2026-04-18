@@ -185,9 +185,12 @@ pub fn handle_completion(
 }
 
 pub fn commander_unknown_option_error(token: &str) -> CliError {
-    CliError::input(
+    CliError::new(
+        crate::error::ErrorCategory::Input,
         format!("unknown option '{token}'"),
         Some("Use --help to see usage and examples.".to_string()),
+        Some("INPUT_UNKNOWN_OPTION"),
+        false,
     )
 }
 
@@ -201,11 +204,14 @@ pub fn commander_too_many_arguments_error(
     } else {
         "arguments"
     };
-    CliError::input(
+    CliError::new(
+        crate::error::ErrorCategory::Input,
         format!(
             "too many arguments for '{command_name}'. Expected {expected_args} {noun} but got {received_args}."
         ),
         Some("Use --help to see usage and examples.".to_string()),
+        Some("INPUT_PARSE_ERROR"),
+        false,
     )
 }
 

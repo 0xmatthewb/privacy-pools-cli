@@ -18,27 +18,14 @@ export interface AmountAssetInput {
 
 /**
  * Supports both:
- * - command <amount> --asset <asset>
  * - command <asset> <amount>
  * - command <amount> <asset>
  */
 export function resolveAmountAndAssetInput(
   commandName: string,
   first: string,
-  second: string | undefined,
-  flaggedAsset: string | undefined
+  second: string | undefined
 ): AmountAssetInput {
-  if (flaggedAsset) {
-    if (second !== undefined) {
-      throw new CLIError(
-        `Ambiguous positional arguments for ${commandName}.`,
-        "INPUT",
-        `Use either "${commandName} <amount> --asset <symbol|address>" or "${commandName} <asset> <amount>".`
-      );
-    }
-    return { amount: first, asset: flaggedAsset };
-  }
-
   if (second === undefined) {
     return { amount: first };
   }
@@ -57,21 +44,22 @@ export function resolveAmountAndAssetInput(
   throw new CLIError(
     `Could not infer amount/asset positional arguments for ${commandName}.`,
     "INPUT",
-    `Use "${commandName} <amount> --asset <symbol|address>" or "${commandName} <asset> <amount>".`
+    `Use "${commandName} <amount> <asset>" or "${commandName} <asset> <amount>".`,
+    "INPUT_INVALID_ASSET",
   );
 }
 
 export function resolveOptionalAssetInput(
   commandName: string,
-  positionalAsset: string | undefined,
-  flaggedAsset: string | undefined
+  positionalAsset: string | undefined
 ): string | undefined {
-  if (positionalAsset && flaggedAsset) {
+  if (!commandName.trim()) {
     throw new CLIError(
-      `Ambiguous asset input for ${commandName}.`,
+      "Missing command name for asset resolution.",
       "INPUT",
-      `Use either positional asset ("${commandName} <asset>") or "--asset <symbol|address>", not both.`
+      "Use a non-empty command name when resolving positional assets.",
+      "INPUT_INVALID_ASSET",
     );
   }
-  return flaggedAsset ?? positionalAsset;
+  return positionalAsset;
 }

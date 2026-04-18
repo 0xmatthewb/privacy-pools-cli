@@ -44,11 +44,11 @@ describe("positional parser fuzz", () => {
       const amount = randomNumericString(rng);
       const asset = randomAssetLike(rng);
 
-      const amountFirst = resolveAmountAndAssetInput("deposit", amount, asset, undefined);
+      const amountFirst = resolveAmountAndAssetInput("deposit", amount, asset);
       expect(amountFirst.amount).toBe(amount);
       expect(amountFirst.asset).toBe(asset);
 
-      const assetFirst = resolveAmountAndAssetInput("deposit", asset, amount, undefined);
+      const assetFirst = resolveAmountAndAssetInput("deposit", asset, amount);
       expect(assetFirst.amount).toBe(amount);
       expect(assetFirst.asset).toBe(asset);
     }
@@ -61,11 +61,11 @@ describe("positional parser fuzz", () => {
       const amount = randomLeadingDotNumeric(rng);
       const asset = randomAssetLike(rng);
 
-      const result = resolveAmountAndAssetInput("deposit", amount, asset, undefined);
+      const result = resolveAmountAndAssetInput("deposit", amount, asset);
       expect(result.amount).toBe(amount);
       expect(result.asset).toBe(asset);
 
-      const reversed = resolveAmountAndAssetInput("deposit", asset, amount, undefined);
+      const reversed = resolveAmountAndAssetInput("deposit", asset, amount);
       expect(reversed.amount).toBe(amount);
       expect(reversed.asset).toBe(asset);
     }
@@ -77,22 +77,9 @@ describe("positional parser fuzz", () => {
     for (let i = 0; i < 100; i++) {
       const amount = randomNumericString(rng);
 
-      const result = resolveAmountAndAssetInput("deposit", amount, undefined, undefined);
+      const result = resolveAmountAndAssetInput("deposit", amount, undefined);
       expect(result.amount).toBe(amount);
       expect(result.asset).toBeUndefined();
-    }
-  });
-
-  test("flagged asset with single positional returns amount + flagged asset", () => {
-    const rng = createSeededRng(getFuzzSeed() ^ 0x88888888);
-
-    for (let i = 0; i < 100; i++) {
-      const amount = randomNumericString(rng);
-      const asset = randomAssetLike(rng);
-
-      const result = resolveAmountAndAssetInput("deposit", amount, undefined, asset);
-      expect(result.amount).toBe(amount);
-      expect(result.asset).toBe(asset);
     }
   });
 
@@ -106,45 +93,18 @@ describe("positional parser fuzz", () => {
       const assetA = randomAssetLike(rng);
       const assetB = randomAssetLike(rng);
 
-      expect(() =>
-        resolveAmountAndAssetInput("withdraw", amountA, amountB, undefined)
-      ).toThrow(CLIError);
-
-      expect(() =>
-        resolveAmountAndAssetInput("withdraw", assetA, assetB, undefined)
-      ).toThrow(CLIError);
-
-      expect(() =>
-        resolveAmountAndAssetInput("withdraw", amountA, amountB, assetA)
-      ).toThrow(CLIError);
+      expect(() => resolveAmountAndAssetInput("withdraw", amountA, amountB)).toThrow(CLIError);
+      expect(() => resolveAmountAndAssetInput("withdraw", assetA, assetB)).toThrow(CLIError);
     }
   });
 
-  test("resolveOptionalAssetInput returns flagged or positional asset", () => {
+  test("resolveOptionalAssetInput returns the positional asset", () => {
     const rng = createSeededRng(getFuzzSeed() ^ 0x99999999);
 
     for (let i = 0; i < 100; i++) {
       const asset = randomAssetLike(rng);
-
-      // Positional only
-      expect(resolveOptionalAssetInput("deposit", asset, undefined)).toBe(asset);
-      // Flagged only
-      expect(resolveOptionalAssetInput("deposit", undefined, asset)).toBe(asset);
-      // Neither
-      expect(resolveOptionalAssetInput("deposit", undefined, undefined)).toBeUndefined();
-    }
-  });
-
-  test("resolveOptionalAssetInput throws on conflicting positional + flagged asset", () => {
-    const rng = createSeededRng(getFuzzSeed() ^ 0xAAAAAAAA);
-
-    for (let i = 0; i < 100; i++) {
-      const positional = randomAssetLike(rng);
-      const flagged = randomAssetLike(rng);
-
-      expect(() =>
-        resolveOptionalAssetInput("deposit", positional, flagged)
-      ).toThrow(CLIError);
+      expect(resolveOptionalAssetInput("deposit", asset)).toBe(asset);
+      expect(resolveOptionalAssetInput("deposit", undefined)).toBeUndefined();
     }
   });
 });

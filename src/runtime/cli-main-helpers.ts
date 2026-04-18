@@ -55,6 +55,71 @@ async function maybeLoadConfigEnv(
 }
 
 function mapCommanderError(error: unknown): CLIError | null {
+  return mapCommanderErrorWithContext(error);
+}
+
+function buildUnknownCommandError(unknownCommand: string): CLIError {
+  const candidates = [
+    ...GENERATED_COMMAND_PATHS,
+    ...Object.keys(GENERATED_COMMAND_ALIAS_MAP),
+  ];
+  const suggestions = unknownCommand
+    ? didYouMeanMany(unknownCommand, candidates)
+    : [];
+  return new CLIError(
+    unknownCommand
+      ? `Unknown command '${unknownCommand}'.`
+      : "Unknown command.",
+    "INPUT",
+    suggestions.length > 0
+      ? `Did you mean ${suggestions.map((candidate) => `'${candidate}'`).join(", ")}?`
+      : "Use --help to see usage and examples.",
+    "INPUT_UNKNOWN_COMMAND",
+    false,
+    "inline",
+    { suggestions },
+  );
+}
+
+function isKnownCommanderHelpTarget(token: string | undefined): boolean {
+  if (!token) return false;
+  return GENERATED_COMMAND_PATHS.some(
+    (path) => path === token || path.startsWith(`${token} `),
+  ) || token in GENERATED_COMMAND_ALIAS_MAP;
+}
+
+function commanderUnknownOptionHint(
+  normalized: string,
+  context?: { rootCommand?: string },
+): string {
+  const unknownOptionMatch = normalized.match(/unknown option ['"]?(--[a-z0-9-]+)['"]?/i);
+  const unknownOption = unknownOptionMatch?.[1]?.toLowerCase();
+
+  if (unknownOption === "--pool" && context?.rootCommand === "deposit") {
+    return "Use positional asset syntax instead: privacy-pools deposit <amount> <asset>.";
+  }
+
+  if (unknownOption === "--asset") {
+    switch (context?.rootCommand) {
+      case "deposit":
+      case "withdraw":
+      case "ragequit":
+      case "activity":
+        return "Use the asset as a positional argument instead of --asset.";
+      case "stats":
+        return "Use the asset as the positional argument to 'stats pool <asset>' instead of --asset.";
+      default:
+        return "Use the asset as a positional argument instead of --asset.";
+    }
+  }
+
+  return "Use --help to see usage and examples.";
+}
+
+function mapCommanderErrorWithContext(
+  error: unknown,
+  context?: { rootCommand?: string },
+): CLIError | null {
   if (
     typeof error !== "object" ||
     error === null ||
@@ -74,24 +139,7 @@ function mapCommanderError(error: unknown): CLIError | null {
     const unknownCommandMatch = normalized.match(/unknown command ['"]?([^'"]+)['"]?/i);
     if (code === "commander.unknownCommand" || unknownCommandMatch) {
       const unknownCommand = unknownCommandMatch?.[1] ?? "";
-      const candidates = [
-        ...GENERATED_COMMAND_PATHS,
-        ...Object.keys(GENERATED_COMMAND_ALIAS_MAP),
-      ];
-      const suggestions = unknownCommand
-        ? didYouMeanMany(unknownCommand, candidates)
-        : [];
-      return new CLIError(
-        normalized || "Unknown command.",
-        "INPUT",
-        suggestions.length > 0
-          ? `Did you mean ${suggestions.map((candidate) => `'${candidate}'`).join(", ")}?`
-          : "Use --help to see usage and examples.",
-        "INPUT_UNKNOWN_COMMAND",
-        false,
-        "inline",
-        { suggestions },
-      );
+      return buildUnknownCommandError(unknownCommand);
     }
     const errorCode =
       code === "commander.missingArgument" ||
@@ -107,7 +155,9 @@ function mapCommanderError(error: unknown): CLIError | null {
     return new CLIError(
       normalized || "Invalid command input.",
       "INPUT",
-      "Use --help to see usage and examples.",
+      errorCode === "INPUT_UNKNOWN_OPTION"
+        ? commanderUnknownOptionHint(normalized, context)
+        : "Use --help to see usage and examples.",
       errorCode,
     );
   }
@@ -152,9 +202,7 @@ function configureCommanderOutput(
   const {
     captureMachineOutput,
     isWelcome,
-    isMachineMode,
     styleCommanderHelp,
-    dangerTone,
     machineOutput,
   } = options;
 
@@ -168,16 +216,15 @@ function configureCommanderOutput(
       const styled = styleCommanderHelp ? styleCommanderHelp(str) : str;
       process.stdout.write(styled);
     },
-    writeErr: (str: string) => {
-      if (isWelcome) return;
-      if (!isMachineMode) process.stderr.write(str);
-    },
-    outputError: (str, write) => {
-      if (!isMachineMode && dangerTone) {
-        write(dangerTone(str));
-      }
-    },
+    writeErr: () => {},
+    // Commander parse errors are rendered through the CLIError envelope in the
+    // outer catch path, so suppress the stock error text here to avoid dupes.
+    outputError: () => {},
   });
+
+  for (const sub of program.commands) {
+    configureCommanderOutput(sub as Command, options);
+  }
 }
 
 function applyMachineMode(
@@ -307,7 +354,9 @@ function emitCommanderSignalPayload(
 export const cliMainHelperInternals = {
   normalizeRepositoryUrl,
   maybeLoadConfigEnv,
-  mapCommanderError,
+  mapCommanderError: mapCommanderErrorWithContext,
+  buildUnknownCommandError,
+  isKnownCommanderHelpTarget,
   shouldStartUpdateCheck,
   configureCommanderOutput,
   applyMachineMode,

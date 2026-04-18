@@ -6,7 +6,6 @@ import {
 import { readCliPackageInfo } from "../package-info.js";
 import type {
   CapabilitiesPayload,
-  CapabilityEnvVarDescriptor,
   CapabilityExitCodeDescriptor,
   CommandExecutionDescriptor,
   CommandSideEffectClass,
@@ -19,6 +18,8 @@ import { EXIT_CODES, defaultErrorCode } from "./errors.js";
 import { jsonContractDocRelativePath } from "./json.js";
 import { ROOT_GLOBAL_FLAG_METADATA } from "./root-global-flags.js";
 import { rootCommandGroupIdFor } from "./root-command-groups.js";
+import { CAPABILITY_ENV_VARS } from "./env-vars.js";
+export { CAPABILITY_ENV_VARS } from "./env-vars.js";
 import {
   COMMAND_CATALOG,
   COMMAND_PATHS,
@@ -157,6 +158,12 @@ export const CAPABILITY_EXIT_CODES: CapabilityExitCodeDescriptor[] = [
     description: "Invalid input, prompt cancellation in machine mode, or validation failure.",
   },
   {
+    code: EXIT_CODES.SETUP,
+    category: "SETUP",
+    errorCode: defaultErrorCode("SETUP"),
+    description: "Local setup is incomplete or a signer/recovery phrase is required before the command can continue.",
+  },
+  {
     code: EXIT_CODES.RPC,
     category: "RPC",
     errorCode: defaultErrorCode("RPC"),
@@ -185,92 +192,6 @@ export const CAPABILITY_EXIT_CODES: CapabilityExitCodeDescriptor[] = [
     category: "CONTRACT",
     errorCode: defaultErrorCode("CONTRACT"),
     description: "Onchain simulation or contract revert failure.",
-  },
-];
-
-export const CAPABILITY_ENV_VARS: CapabilityEnvVarDescriptor[] = [
-  {
-    name: "PRIVACY_POOLS_HOME",
-    aliases: ["PRIVACY_POOLS_CONFIG_DIR"],
-    description: "Override the CLI config directory.",
-  },
-  {
-    name: "XDG_CONFIG_HOME",
-    description: "Fallback config base. Used as $XDG_CONFIG_HOME/privacy-pools when no Privacy Pools override is set and no legacy ~/.privacy-pools directory exists.",
-  },
-  {
-    name: "PRIVACY_POOLS_PRIVATE_KEY",
-    description: "Signer private key; takes precedence over the saved .signer file.",
-  },
-  {
-    name: "PRIVACY_POOLS_RPC_URL",
-    aliases: ["PP_RPC_URL"],
-    description: "Override the RPC endpoint for all chains.",
-  },
-  {
-    name: "PRIVACY_POOLS_ASP_HOST",
-    aliases: ["PP_ASP_HOST"],
-    description: "Override the ASP endpoint for all chains.",
-  },
-  {
-    name: "PRIVACY_POOLS_RELAYER_HOST",
-    aliases: ["PP_RELAYER_HOST"],
-    description: "Override the relayer endpoint for all chains.",
-  },
-  {
-    name: "PRIVACY_POOLS_CIRCUITS_DIR",
-    description: "Override the circuit artifact directory with a trusted pre-provisioned path.",
-  },
-  {
-    name: "PRIVACY_POOLS_RPC_URL_<CHAIN>",
-    aliases: ["PP_RPC_URL_<CHAIN>"],
-    description: "Override the RPC endpoint for one chain, for example ARBITRUM or SEPOLIA.",
-  },
-  {
-    name: "PRIVACY_POOLS_ASP_HOST_<CHAIN>",
-    aliases: ["PP_ASP_HOST_<CHAIN>"],
-    description: "Override the ASP endpoint for one chain.",
-  },
-  {
-    name: "PRIVACY_POOLS_RELAYER_HOST_<CHAIN>",
-    aliases: ["PP_RELAYER_HOST_<CHAIN>"],
-    description: "Override the relayer endpoint for one chain.",
-  },
-  {
-    name: "PRIVACY_POOLS_CLI_DISABLE_NATIVE",
-    description: "Set to 1 to force the pure JS runtime path.",
-  },
-  {
-    name: "PRIVACY_POOLS_CLI_BINARY",
-    description: "Advanced maintainer override for the launcher target native-shell binary path.",
-  },
-  {
-    name: "PRIVACY_POOLS_CLI_JS_WORKER",
-    description: "Advanced maintainer override for the packaged JS worker entrypoint.",
-  },
-  {
-    name: "PRIVACY_POOLS_AGENT",
-    description: "Enable agent mode by default (equivalent to --agent).",
-  },
-  {
-    name: "PRIVACY_POOLS_QUIET",
-    description: "Suppress human-oriented stderr output by default, matching --quiet.",
-  },
-  {
-    name: "PRIVACY_POOLS_YES",
-    description: "Skip confirmation prompts by default, matching --yes.",
-  },
-  {
-    name: "PRIVACY_POOLS_NO_PROGRESS",
-    description: "Suppress spinners/progress indicators by default, matching --no-progress.",
-  },
-  {
-    name: "NO_COLOR",
-    description: "Disable colored output, matching --no-color.",
-  },
-  {
-    name: "PP_NO_UPDATE_CHECK",
-    description: "Set to 1 to disable the update-available notification.",
   },
 ];
 
@@ -617,7 +538,7 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       .filter((path) => COMMAND_CATALOG[path].safeReadOnly)
       .map((path) => path),
     jsonOutputContract:
-      "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docsSlug? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+      "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docsSlug?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
     documentation: {
       reference: "docs/reference.md",
       agentGuide: "AGENTS.md",

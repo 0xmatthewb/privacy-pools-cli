@@ -45,6 +45,9 @@ export interface RagequitReviewData {
   tokenPrice?: number | null;
 }
 
+const RAGEQUIT_PRIVACY_WARNING_COPY =
+  "By exiting this pool, you are publicly withdrawing all funds to your deposit address. You will not gain any privacy.";
+
 export function buildRagequitPrivacyCostManifest(data: {
   poolAccountId: string;
   amount: bigint;
@@ -101,7 +104,7 @@ export function formatRagequitReview(data: RagequitReviewData): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Recover funds publicly to your deposit address. This does not provide privacy for this Pool Account.",
+        RAGEQUIT_PRIVACY_WARNING_COPY,
       ],
     },
     secondaryCallout: data.advisory
@@ -125,6 +128,7 @@ export interface RagequitDryRunData {
   selectedCommitmentValue: bigint;
   proofPublicSignals: number;
   advisory?: string | null;
+  approvedAlternative?: boolean;
   tokenPrice?: number | null;
 }
 
@@ -142,6 +146,9 @@ export interface RagequitSuccessData {
   explorerUrl: string | null;
   destinationAddress: string | null;
   advisory?: string | null;
+  reconciliationRequired?: boolean;
+  localStateSynced?: boolean;
+  warningCode?: string | null;
   tokenPrice?: number | null;
 }
 
@@ -164,7 +171,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
           agent: true,
           chain: data.chain,
           poolAccount: data.poolAccountId,
-          yesIUnderstandPrivacyLoss: true,
+          yesIPreferRagequit: true,
         },
       },
     ),
@@ -179,7 +186,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         options: {
           chain: data.chain,
           poolAccount: data.poolAccountId,
-          yesIUnderstandPrivacyLoss: true,
+          yesIPreferRagequit: true,
         },
       },
     ),
@@ -209,6 +216,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
           },
         ],
         ...(data.advisory ? { advisory: data.advisory } : {}),
+        approvedAlternative: data.approvedAlternative ?? false,
       }, agentNextActions),
       false,
     );
@@ -253,7 +261,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
     process.stderr.write(
       formatCallout(
         "recovery",
-        "Recover funds publicly to your deposit address. This does not provide privacy for this Pool Account.",
+        RAGEQUIT_PRIVACY_WARNING_COPY,
       ),
     );
     process.stderr.write(
@@ -273,6 +281,16 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   guardCsvUnsupported(ctx, "ragequit");
 
   const agentNextActions = [
+    ...(data.reconciliationRequired
+      ? [
+          createNextAction(
+            "sync",
+            `Reconcile local state for ${data.poolAccountId} before acting on the updated account status.`,
+            "after_sync",
+            { options: { agent: true, chain: data.chain } },
+          ),
+        ]
+      : []),
     createNextAction(
       "accounts",
       `Verify the account status for ${data.poolAccountId} after ragequit.`,
@@ -281,6 +299,16 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
     ),
   ];
   const humanNextActions = [
+    ...(data.reconciliationRequired
+      ? [
+          createNextAction(
+            "sync",
+            `Reconcile local state for ${data.poolAccountId} before checking balances.`,
+            "after_sync",
+            { options: data.chain ? { chain: data.chain } : undefined },
+          ),
+        ]
+      : []),
     createNextAction(
       "accounts",
       `Verify the account status for ${data.poolAccountId}.`,
@@ -305,6 +333,9 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         explorerUrl: data.explorerUrl,
         destinationAddress: data.destinationAddress,
         remainingBalance: "0",
+        reconciliationRequired: data.reconciliationRequired ?? false,
+        localStateSynced: data.localStateSynced ?? true,
+        warningCode: data.warningCode ?? null,
         privacyCostManifest: buildRagequitPrivacyCostManifest(data),
         ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),
@@ -323,7 +354,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
       formatDenseOutcomeLine({
         outcome: "recovery",
         message:
-          `Ragequit ${formatAmount(data.amount, data.decimals, data.asset)} ` +
+          `${data.reconciliationRequired ? "Ragequit confirmed onchain; local state needs reconciliation for" : "Ragequit"} ${formatAmount(data.amount, data.decimals, data.asset)} ` +
           `-> ${destinationLabel}${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
         url: data.explorerUrl,
       }),
@@ -364,8 +395,13 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
     );
     process.stderr.write(
       formatCallout(
-        "recovery",
-        "Recover funds publicly to your deposit address. This does not provide privacy for this Pool Account.",
+        data.reconciliationRequired ? "warning" : "recovery",
+        data.reconciliationRequired
+          ? [
+              "Ragequit confirmed onchain, but local state needs reconciliation before you rely on the saved account status.",
+              `Run privacy-pools sync --chain ${data.chain} before continuing.`,
+            ]
+          : RAGEQUIT_PRIVACY_WARNING_COPY,
       ),
     );
   }

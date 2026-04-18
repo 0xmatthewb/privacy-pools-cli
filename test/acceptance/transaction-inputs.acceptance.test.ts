@@ -142,7 +142,7 @@ defineScenarioSuite("transaction inputs acceptance", [
       error: { category: string; message: string };
     }>((json) => {
       expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.errorCode).toBe("INPUT_INVALID_AMOUNT");
       expect(json.error.category).toBe("INPUT");
       expect(json.error.message).toContain(
         "Deposit amount must be greater than zero",
@@ -210,11 +210,28 @@ defineScenarioSuite("transaction inputs acceptance", [
     assertStderrEmpty(),
     assertJson<{
       success: boolean;
-      error: { category: string; message: string };
+      error: { category: string; message: string; hint?: string };
     }>((json) => {
       expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.message).toContain("--asset has been replaced");
+      expect(json.error.message).toContain("unknown option '--asset'");
+      expect(json.error.hint).toContain("positional");
+    }),
+    runCliStep(["--json", "deposit", "0.1", "--pool", "ETH", "--yes"], {
+      timeoutMs: 10_000,
+    }),
+    assertExit(2),
+    assertStderrEmpty(),
+    assertJson<{
+      success: boolean;
+      error: { category: string; message: string; hint?: string };
+    }>((json) => {
+      expect(json.success).toBe(false);
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.message).toContain("unknown option '--pool'");
+      expect(json.error.hint).toContain(
+        "privacy-pools deposit <amount> <asset>",
+      );
     }),
   ]),
   defineScenario("pre-network transaction guards reject malformed selectors before RPC work", [
@@ -263,11 +280,20 @@ defineScenarioSuite("transaction inputs acceptance", [
     assertStderrEmpty(),
     assertJson<{
       success: boolean;
-      error: { category: string; message: string };
+      error: {
+        category: string;
+        message: string;
+        nextActions?: Array<{ command?: string; options?: { direct?: boolean; to?: string } }>;
+      };
     }>((json) => {
       expect(json.success).toBe(false);
       expect(json.error.category).toBe("INPUT");
       expect(json.error.message).toContain("must match your signer address");
+      expect(json.error.nextActions?.[0]?.command).toBe("withdraw");
+      expect(json.error.nextActions?.[0]?.options?.direct).toBeUndefined();
+      expect(json.error.nextActions?.[1]?.command).toBe("withdraw");
+      expect(json.error.nextActions?.[1]?.options?.direct).toBe(true);
+      expect(json.error.nextActions?.[1]?.options?.to).toBeUndefined();
     }),
     runCliStep(
       [

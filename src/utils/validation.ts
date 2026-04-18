@@ -32,7 +32,8 @@ export function resolveChain(
     throw new CLIError(
       `Unknown chain: ${name}`,
       "INPUT",
-      hint
+      hint,
+      "INPUT_UNKNOWN_CHAIN",
     );
   }
 
@@ -48,7 +49,8 @@ export function validateAddress(
       throw new CLIError(
         `${label} is not a valid Ethereum address: ${value}`,
         "INPUT",
-        "Provide a 0x-prefixed, 42-character hex address (e.g. 0xAbC...123)."
+        "Provide a 0x-prefixed, 42-character hex address (e.g. 0xAbC...123).",
+        "INPUT_BAD_ADDRESS",
       );
     }
     throw new CLIError(
@@ -64,6 +66,7 @@ export function validateAddress(
       `${label} cannot be the zero address.`,
       "INPUT",
       "Provide a non-zero destination address. Using 0x000...000 would burn funds.",
+      "INPUT_BAD_ADDRESS",
     );
   }
 
@@ -82,7 +85,8 @@ export function parseAmount(
     throw new CLIError(
       `Invalid amount: ${value}`,
       "INPUT",
-      "Amount must be a valid non-negative number (e.g., 0.1, 10, 1000.50)"
+      "Amount must be a valid non-negative number (e.g., 0.1, 10, 1000.50)",
+      "INPUT_INVALID_AMOUNT",
     );
   }
 
@@ -93,7 +97,8 @@ export function parseAmount(
     throw new CLIError(
       `Invalid amount precision: ${value}`,
       "INPUT",
-      `Amount supports up to ${decimals} decimal places for this asset.`
+      `Amount supports up to ${decimals} decimal places for this asset.`,
+      "INPUT_INVALID_AMOUNT",
     );
   }
 
@@ -104,7 +109,8 @@ export function parseAmount(
     throw new CLIError(
       `Invalid amount: ${value}`,
       "INPUT",
-      "Amount must be a valid non-negative number (e.g., 0.1, 10, 1000.50)"
+      "Amount must be a valid non-negative number (e.g., 0.1, 10, 1000.50)",
+      "INPUT_INVALID_AMOUNT",
     );
   }
 }
@@ -158,6 +164,7 @@ export async function resolveAddressOrEns(
       `Could not resolve ENS name "${input}".`,
       "INPUT",
       "Verify the name exists and try again. ENS resolution requires mainnet connectivity.",
+      "INPUT_BAD_ADDRESS",
     );
   }
 
@@ -170,7 +177,8 @@ export function validatePositive(value: bigint, label: string = "Amount"): void 
     throw new CLIError(
       `${label} must be greater than zero.`,
       "INPUT",
-      "Enter a positive number (e.g. 0.1, 10)."
+      "Enter a positive number (e.g. 0.1, 10).",
+      "INPUT_INVALID_AMOUNT",
     );
   }
 }

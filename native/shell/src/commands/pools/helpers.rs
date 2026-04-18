@@ -146,26 +146,8 @@ pub(super) fn sort_pools(entries: &mut [PoolListingEntry], sort_mode: &str) {
         let ordering = match sort_mode {
             "asset-asc" => left.asset.cmp(&right.asset),
             "asset-desc" => right.asset.cmp(&left.asset),
-            "tvl-desc" => compare_optional_biguint(
-                left.total_in_pool_value
-                    .as_deref()
-                    .or(left.accepted_deposits_value.as_deref()),
-                right
-                    .total_in_pool_value
-                    .as_deref()
-                    .or(right.accepted_deposits_value.as_deref()),
-                true,
-            ),
-            "tvl-asc" => compare_optional_biguint(
-                left.total_in_pool_value
-                    .as_deref()
-                    .or(left.accepted_deposits_value.as_deref()),
-                right
-                    .total_in_pool_value
-                    .as_deref()
-                    .or(right.accepted_deposits_value.as_deref()),
-                false,
-            ),
+            "tvl-desc" => compare_pool_value_metric(right, left),
+            "tvl-asc" => compare_pool_value_metric(left, right),
             "deposits-desc" => right.total_deposits_count.cmp(&left.total_deposits_count),
             "deposits-asc" => left.total_deposits_count.cmp(&right.total_deposits_count),
             "chain-asset" => left
@@ -186,6 +168,43 @@ pub(super) fn sort_pools(entries: &mut [PoolListingEntry], sort_mode: &str) {
     });
 }
 
+fn compare_pool_value_metric(
+    left: &PoolListingEntry,
+    right: &PoolListingEntry,
+) -> std::cmp::Ordering {
+    let left_usd = left
+        .total_in_pool_value_usd
+        .as_deref()
+        .or(left.accepted_deposits_value_usd.as_deref())
+        .and_then(parse_usd_metric);
+    let right_usd = right
+        .total_in_pool_value_usd
+        .as_deref()
+        .or(right.accepted_deposits_value_usd.as_deref())
+        .and_then(parse_usd_metric);
+    if left_usd.is_some() || right_usd.is_some() {
+        return match (left_usd, right_usd) {
+            (Some(left_value), Some(right_value)) => left_value.cmp(&right_value),
+            (Some(_), None) => std::cmp::Ordering::Greater,
+            (None, Some(_)) => std::cmp::Ordering::Less,
+            (None, None) => std::cmp::Ordering::Equal,
+        };
+    }
+
+    compare_normalized_biguint(
+        left.total_in_pool_value
+            .as_deref()
+            .or(left.accepted_deposits_value.as_deref()),
+        left.decimals,
+        right
+            .total_in_pool_value
+            .as_deref()
+            .or(right.accepted_deposits_value.as_deref()),
+        right.decimals,
+    )
+}
+
+#[cfg(test)]
 pub(super) fn compare_optional_biguint(
     left: Option<&str>,
     right: Option<&str>,
@@ -250,6 +269,38 @@ fn parse_biguint(value: &str) -> Option<BigUint> {
     } else {
         BigUint::parse_bytes(value.as_bytes(), 10)
     }
+}
+
+fn compare_normalized_biguint(
+    left: Option<&str>,
+    left_decimals: u32,
+    right: Option<&str>,
+    right_decimals: u32,
+) -> std::cmp::Ordering {
+    normalize_token_metric(left, left_decimals).cmp(&normalize_token_metric(right, right_decimals))
+}
+
+fn normalize_token_metric(value: Option<&str>, decimals: u32) -> BigUint {
+    let raw = value.and_then(parse_biguint).unwrap_or_else(BigUint::zero);
+    let target_decimals = 18u32;
+    if decimals == target_decimals {
+        raw
+    } else if decimals < target_decimals {
+        raw * BigUint::from(10u32).pow(target_decimals - decimals)
+    } else {
+        raw / BigUint::from(10u32).pow(decimals - target_decimals)
+    }
+}
+
+fn parse_usd_metric(value: &str) -> Option<i128> {
+    let normalized = value.trim().replace(',', "");
+    if normalized.is_empty() {
+        return None;
+    }
+    let sign = if normalized.starts_with('-') { -1 } else { 1 };
+    let unsigned = normalized.trim_start_matches('-');
+    let whole = unsigned.split('.').next().unwrap_or(unsigned);
+    whole.parse::<i128>().ok().map(|parsed| parsed * sign)
 }
 
 #[cfg(test)]
