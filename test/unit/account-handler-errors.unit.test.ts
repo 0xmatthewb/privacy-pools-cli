@@ -5,6 +5,7 @@ import {
   installModuleMocks,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
+import { captureAsyncOutput } from "../helpers/output.ts";
 
 const realErrors = captureModuleExports(
   await import("../../src/utils/errors.ts"),
@@ -149,6 +150,9 @@ async function loadAccountErrorHandlers(): Promise<void> {
       getDataService: async () => ({}),
       getPublicClient: () => ({
         getTransactionReceipt: async () => null,
+      }),
+      getReadOnlyRpcSession: async () => ({
+        getLatestBlockNumber: async () => 123n,
       }),
     })],
     ["../../src/services/pools.ts", () => ({
@@ -381,5 +385,59 @@ describe("account command error boundaries", () => {
     );
     expect(syncAccountEventsMock).toHaveBeenCalledTimes(1);
     expect(renderSyncCompleteMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("sync --stream-json emits NDJSON progress and heartbeat events", async () => {
+    const originalSetInterval = globalThis.setInterval;
+    const originalClearInterval = globalThis.clearInterval;
+    globalThis.setInterval = ((callback: TimerHandler) => {
+      if (typeof callback === "function") {
+        callback();
+      }
+      return 1 as unknown as NodeJS.Timeout;
+    }) as typeof globalThis.setInterval;
+    globalThis.clearInterval = ((_timer?: Timer | number) => undefined) as typeof globalThis.clearInterval;
+
+    try {
+      const { stdout, stderr } = await captureAsyncOutput(() =>
+        handleSyncCommand(
+          undefined,
+          { streamJson: true },
+          fakeCommand({ chain: "sepolia" }),
+        )
+      );
+
+      expect(stderr).toBe("");
+      const events = stdout.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+      expect(events[0]).toMatchObject({
+        success: true,
+        mode: "sync-progress",
+        event: "stage",
+        stage: "resolving_pools",
+        chain: "sepolia",
+      });
+      expect(events).toContainEqual(expect.objectContaining({
+        success: true,
+        mode: "sync-progress",
+        event: "heartbeat",
+        stage: "resolving_pools",
+      }));
+      expect(events).toContainEqual(expect.objectContaining({
+        success: true,
+        mode: "sync-progress",
+        event: "stage",
+        stage: "syncing_events",
+      }));
+      expect(events).toContainEqual(expect.objectContaining({
+        success: true,
+        mode: "sync-progress",
+        event: "stage",
+        stage: "finalizing",
+      }));
+      expect(renderSyncCompleteMock).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.setInterval = originalSetInterval;
+      globalThis.clearInterval = originalClearInterval;
+    }
   });
 });

@@ -86,6 +86,28 @@ describe("root argv parsing", () => {
     expect(prelude?.globalOpts.json).toBe(true);
   });
 
+  test("--json <fields> after the command name selects structured fields", () => {
+    const argv = ["describe", "withdraw", "--json", "structuredExamples"];
+    const parsed = parseRootArgv(argv);
+    const prelude = parseValidatedRootPrelude(argv);
+
+    expect(parsed.isStructuredOutputMode).toBe(true);
+    expect(parsed.isMachineMode).toBe(true);
+    expect(prelude?.globalOpts.jsonFields).toBe("structuredExamples");
+    expect(prelude?.globalOpts.json).toBe(true);
+  });
+
+  test("--json=<fields> after the command name selects structured fields", () => {
+    const argv = ["describe", "withdraw", "--json=structuredExamples"];
+    const parsed = parseRootArgv(argv);
+    const prelude = parseValidatedRootPrelude(argv);
+
+    expect(parsed.isStructuredOutputMode).toBe(true);
+    expect(parsed.isMachineMode).toBe(true);
+    expect(prelude?.globalOpts.jsonFields).toBe("structuredExamples");
+    expect(prelude?.globalOpts.json).toBe(true);
+  });
+
   test("--jmes implies structured JSON output and is parsed into globals", () => {
     const argv = ["--jmes", "nextActions", "status"];
     const parsed = parseRootArgv(argv);

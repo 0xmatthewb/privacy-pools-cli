@@ -177,7 +177,7 @@ export async function createRootProgram(
     new Option(
       "--json-fields <fields>",
       rootGlobalFlagDescription("--json-fields <fields>"),
-    ),
+    ).hideHelp(),
   );
   program.addOption(
     new Option(

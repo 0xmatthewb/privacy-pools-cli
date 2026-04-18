@@ -16,7 +16,7 @@ import type {
 import { NEXT_ACTION_WHEN_VALUES } from "../types.js";
 import { EXIT_CODES, defaultErrorCode } from "./errors.js";
 import { jsonContractDocRelativePath } from "./json.js";
-import { ROOT_GLOBAL_FLAG_METADATA } from "./root-global-flags.js";
+import { visibleRootGlobalFlagMetadata } from "./root-global-flags.js";
 import { rootCommandGroupIdFor } from "./root-command-groups.js";
 import { CAPABILITY_ENV_VARS } from "./env-vars.js";
 export { CAPABILITY_ENV_VARS } from "./env-vars.js";
@@ -133,7 +133,7 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
 ];
 
 export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] =
-  ROOT_GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({
+  visibleRootGlobalFlagMetadata().map(({ flag, description }) => ({
     flag,
     description,
   }));
@@ -290,9 +290,9 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   },
   statusIssues: {
     blockingIssueShape:
-      "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
+      "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[], reasonCode?: string }",
     warningShape:
-      "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
+      "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[], reasonCode?: string }",
     description:
       "Structured preflight issues returned by status --agent. blockingIssues describe setup blockers that should stop execution. warnings describe degraded or follow-up-worthy states that may still allow safe read-only usage.",
   },

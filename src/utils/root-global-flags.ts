@@ -3,7 +3,16 @@ import {
   OUTPUT_FORMATS,
 } from "./mode.js";
 
-export const ROOT_GLOBAL_FLAG_METADATA = [
+interface RootGlobalFlagEntry {
+  flag: string;
+  description: string;
+  takesValue: boolean;
+  welcomeBoolean: boolean;
+  values?: readonly string[];
+  hidden?: boolean;
+}
+
+export const ROOT_GLOBAL_FLAG_METADATA: readonly RootGlobalFlagEntry[] = [
   {
     flag: "-c, --chain <name>",
     description: "Target chain (mainnet, arbitrum, optimism, ...)",
@@ -12,7 +21,8 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
   },
   {
     flag: "-j, --json",
-    description: "Machine-readable JSON output on stdout",
+    description:
+      "Machine-readable JSON output on stdout. After the command name, pass --json <fields> or --json=<fields> to select top-level fields.",
     takesValue: false,
     welcomeBoolean: false,
   },
@@ -21,6 +31,7 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
     description: "Select specific JSON fields (comma-separated, implies --json)",
     takesValue: true,
     welcomeBoolean: false,
+    hidden: true,
   },
   {
     flag: "--template <template>",
@@ -128,7 +139,7 @@ export const ROOT_GLOBAL_FLAG_METADATA = [
   },
 ] as const;
 
-export type RootGlobalFlagMetadata = (typeof ROOT_GLOBAL_FLAG_METADATA)[number];
+export type RootGlobalFlagMetadata = RootGlobalFlagEntry;
 export type RootGlobalFlag = RootGlobalFlagMetadata["flag"] | string;
 
 function splitFlagNames(flag: string): string[] {
@@ -146,7 +157,7 @@ const ROOT_GLOBAL_FLAG_DESCRIPTIONS = new Map<string, string>(
 const ROOT_GLOBAL_FLAG_VALUES = new Map<string, readonly string[]>(
   ROOT_GLOBAL_FLAG_METADATA.map((entry) => [
     entry.flag,
-    "values" in entry ? entry.values : [],
+    entry.values ?? [],
   ]),
 );
 
@@ -166,6 +177,10 @@ export const ROOT_WELCOME_BOOLEAN_FLAGS = new Set(
   ),
 );
 
+export function visibleRootGlobalFlagMetadata(): RootGlobalFlagMetadata[] {
+  return ROOT_GLOBAL_FLAG_METADATA.filter((entry) => entry.hidden !== true);
+}
+
 function resolveRootFlagMetadata(flag: string): RootGlobalFlagMetadata | undefined {
   return ROOT_GLOBAL_FLAG_METADATA.find(
     (entry) => entry.flag === flag || splitFlagNames(entry.flag).includes(flag.split(/\s+/)[0] ?? flag),
@@ -175,7 +190,7 @@ function resolveRootFlagMetadata(flag: string): RootGlobalFlagMetadata | undefin
 function rootFlagValues(
   metadata: RootGlobalFlagMetadata | undefined,
 ): readonly string[] {
-  return metadata && "values" in metadata ? metadata.values : [];
+  return metadata?.values ?? [];
 }
 
 export function rootGlobalFlagDescription(flag: RootGlobalFlag): string {

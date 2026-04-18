@@ -376,7 +376,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
   };
   if (data.withdrawMode === "direct") {
     actionOptions.direct = true;
-    actionOptions.yesIUnderstandPrivacyLoss = true;
+    actionOptions.confirmDirectWithdraw = true;
   } else if (data.extraGas !== undefined) {
     actionOptions.extraGas = data.extraGas;
   }
@@ -399,7 +399,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
   };
   if (data.withdrawMode === "direct") {
     humanActionOptions.direct = true;
-    humanActionOptions.yesIUnderstandPrivacyLoss = true;
+    humanActionOptions.confirmDirectWithdraw = true;
   } else if (data.extraGas !== undefined) {
     humanActionOptions.extraGas = data.extraGas;
   }

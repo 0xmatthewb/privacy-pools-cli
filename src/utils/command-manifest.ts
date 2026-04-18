@@ -563,9 +563,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "group": "transaction",
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
-        "[workflowId|latest]"
+        "[workflowId|latest]",
+        "--confirm-ragequit"
       ],
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--confirm-ragequit]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -669,7 +670,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--yes-i-understand-privacy-loss",
+        "--confirm-direct-withdraw",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -752,9 +753,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "group": "monitoring",
       "usage": "sync",
       "flags": [
-        "[asset]"
+        "[asset]",
+        "--stream-json"
       ],
-      "agentFlags": "--agent [asset]",
+      "agentFlags": "--agent [asset] [--stream-json]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -781,7 +783,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--yes-i-prefer-ragequit",
+        "--confirm-ragequit",
         "--unsigned [envelope|tx]",
         "--dry-run"
       ],
@@ -855,7 +857,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -973,7 +974,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1072,7 +1072,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1145,7 +1144,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1210,7 +1208,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1286,7 +1283,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1362,7 +1358,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1425,7 +1420,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1493,7 +1487,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1556,7 +1549,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1619,7 +1611,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1682,7 +1673,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1750,7 +1740,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1862,7 +1851,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -1942,7 +1930,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.",
         "If --to is omitted in interactive mode, the CLI prompts for the recipient. When prompts are skipped, --to remains required.",
         "In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.",
-        "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
+        "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
         "Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.",
         "flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.",
         "--export-new-wallet is only valid with --new-wallet.",
@@ -1993,7 +1981,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2067,7 +2054,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
         "If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.",
         "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.",
-        "Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
+        "Passing --privacy-delay on flow watch updates the saved workflow policy. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
         "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
       ],
@@ -2105,7 +2092,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2180,12 +2166,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
-        "[workflowId|latest]"
+        "[workflowId|latest]",
+        "--confirm-ragequit"
       ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2275,7 +2261,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2384,7 +2369,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2473,7 +2457,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "globalFlags": [
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2543,7 +2526,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [],
       "globalFlags": [
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2611,7 +2593,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2677,7 +2658,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2763,7 +2743,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2829,7 +2808,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2903,7 +2881,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -2980,7 +2957,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -3060,7 +3036,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ operation, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
-        "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
+        "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }"
       ],
@@ -3094,7 +3070,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--yes-i-understand-privacy-loss",
+        "--confirm-direct-withdraw",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -3103,7 +3079,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -3197,7 +3172,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [
         "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-        "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
+        "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }"
       ],
@@ -3205,8 +3180,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
-        "When prompts are skipped, --direct requires --yes-i-understand-privacy-loss.",
-        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds.",
+        "When prompts are skipped, --direct requires --confirm-direct-withdraw.",
+        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. It is unnecessary for ETH withdrawals.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
       ],
       "supportsUnsigned": true,
@@ -3237,7 +3212,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -3310,14 +3284,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--yes-i-prefer-ragequit",
+        "--confirm-ragequit",
         "--unsigned [envelope|tx]",
         "--dry-run"
       ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -3381,7 +3354,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
-        "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
+        "--unsigned: { mode, operation, chain, asset, amount, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }"
       ],
@@ -3423,7 +3396,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -3535,7 +3507,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -3607,7 +3578,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -3686,7 +3656,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -3768,12 +3737,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "sync",
       "flags": [
-        "[asset]"
+        "[asset]",
+        "--stream-json"
       ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -3826,7 +3795,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
-        "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions."
+        "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
+        "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs."
       ]
     },
     "completion": {
@@ -3850,7 +3820,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
-        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "--format <format>",
@@ -4164,11 +4133,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "flag": "-j, --json",
-      "description": "Machine-readable JSON output on stdout"
-    },
-    {
-      "flag": "--json-fields <fields>",
-      "description": "Select specific JSON fields (comma-separated, implies --json)"
+      "description": "Machine-readable JSON output on stdout. After the command name, pass --json <fields> or --json=<fields> to select top-level fields."
     },
     {
       "flag": "--template <template>",
@@ -4524,8 +4489,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only means status detected degraded RPC or ASP health, so public discovery is the default safe path until connectivity is restored. When only the ASP is degraded but RPC remains healthy, public recovery may still be available if the affected account or workflow is already known."
     },
     "statusIssues": {
-      "blockingIssueShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
-      "warningShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[] }",
+      "blockingIssueShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[], reasonCode?: string }",
+      "warningShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[], reasonCode?: string }",
       "description": "Structured preflight issues returned by status --agent. blockingIssues describe setup blockers that should stop execution. warnings describe degraded or follow-up-worthy states that may still allow safe read-only usage."
     }
   },

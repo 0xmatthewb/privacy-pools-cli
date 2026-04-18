@@ -171,7 +171,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
           agent: true,
           chain: data.chain,
           poolAccount: data.poolAccountId,
-          yesIPreferRagequit: true,
+          confirmRagequit: true,
         },
       },
     ),
@@ -186,7 +186,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         options: {
           chain: data.chain,
           poolAccount: data.poolAccountId,
-          yesIPreferRagequit: true,
+          confirmRagequit: true,
         },
       },
     ),

@@ -90,7 +90,36 @@ describe("completion query helpers", () => {
     ).toEqual(["aggressive", "balanced", "off"]);
   });
 
-  test("suggests command JSON fields for --json-fields values", () => {
+  test("suggests command JSON fields for preferred --json field selection syntax", () => {
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "withdraw", "quote", "--json", "quote"],
+        4,
+      ),
+    ).toEqual(expect.arrayContaining(["quoteExpiresAt", "quoteFeeBPS"]));
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "withdraw", "quote", "--json=quote"],
+        3,
+      ),
+    ).toEqual(expect.arrayContaining([
+      "--json=quoteExpiresAt",
+      "--json=quoteFeeBPS",
+    ]));
+
+    expect(
+      queryCompletionCandidates(
+        ["privacy-pools", "withdraw", "quote", "--json=amount,quote"],
+        3,
+      ),
+    ).toEqual(expect.arrayContaining([
+      "--json=amount,quoteExpiresAt",
+      "--json=amount,quoteFeeBPS",
+    ]));
+  });
+
+  test("keeps the hidden --json-fields compatibility alias working for completion", () => {
     expect(
       queryCompletionCandidates(
         ["privacy-pools", "withdraw", "quote", "--json-fields", "quote"],

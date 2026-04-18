@@ -466,6 +466,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient.",
+        "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or exit publicly via ragequit.",
         "With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve.",
         "The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.",
       ],
@@ -492,7 +493,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.",
         "If --to is omitted in interactive mode, the CLI prompts for the recipient. When prompts are skipped, --to remains required.",
         "In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.",
-        "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
+        "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
         "Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.",
         "flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.",
         "--export-new-wallet is only valid with --new-wallet.",
@@ -563,7 +564,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
         "If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.",
         "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.",
-        "Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.",
+        "Passing --privacy-delay on flow watch updates the saved workflow policy. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
         "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.",
         SIGNING_SOURCE_NOTE,
       ],
@@ -617,6 +618,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Uses the saved workflow context to perform the public recovery path without changing any manual commands.",
+        "Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval.",
         "Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path.",
         "If a saved full-balance workflow can no longer satisfy the relayer minimum, flow ragequit becomes the required recovery path because the saved flow only supports relayed private withdrawal.",
         "For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.",
@@ -638,8 +640,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "flow ragequit [workflowId|latest]",
-      flags: ["[workflowId|latest]"],
-      agentFlags: "--agent",
+      flags: ["[workflowId|latest]", "--confirm-ragequit"],
+      agentFlags: "--agent [--confirm-ragequit]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -793,8 +795,9 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: ROOT_COMMAND_DESCRIPTIONS.status,
     help: {
       overview: [
+        "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or exit publicly via ragequit.",
         "Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only.",
-        "When a chain is selected, status runs both RPC and ASP health checks by default. Use --check all to force both, --check rpc / --check asp to run one check, or --check none / --no-check to disable them.",
+        "When a chain is selected, status runs both RPC and ASP health checks by default. RPC checks blockchain node reachability. ASP checks 0xBow Association Set Provider connectivity. Use --check all to force both, --check rpc / --check asp to run one check, or --check none / --no-check to disable them.",
         "When status falls back to recommendedMode = read-only because RPC health is degraded, nextActions stays on public discovery and avoids account-state guidance until connectivity is restored.",
         "When only the ASP is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow.",
       ],
@@ -898,8 +901,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local Pool Account precomputation path, so there is no runtime download step when proofs are needed.",
+        "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or exit publicly via ragequit.",
         "Most proof-generation steps complete within a few seconds on typical hardware, although cold starts and slower machines can take longer.",
         "In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off.",
+        "Each deposit includes a one-time vetting fee reviewed by the Privacy Pools Approval Service (ASP). The exact amount is shown before you confirm.",
         "The ASP vetting fee is deducted from the public deposit amount, so a round input can still become a non-round committed balance.",
       ],
       examples: [
@@ -920,7 +925,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       jsonFields:
         "{ operation, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
-        "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }",
+        "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }",
       ],
@@ -957,6 +962,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off.",
+        "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or exit publicly via ragequit.",
         `Pool Accounts marked poa_required cannot withdraw privately until Proof of Association is completed at ${POA_PORTAL_URL}.`,
         "Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off.",
         "In interactive mode, omitting the amount prompts for it after the pool is selected. Relayer quotes are refreshed automatically before proof generation when they are close to expiry.",
@@ -983,8 +989,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
-        "When prompts are skipped, --direct requires --yes-i-understand-privacy-loss.",
-        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds.",
+        "When prompts are skipped, --direct requires --confirm-direct-withdraw.",
+        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. It is unnecessary for ETH withdrawals.",
         SIGNING_SOURCE_NOTE,
       ],
       jsonFields:
@@ -992,7 +998,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       jsonVariants: [
         "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-        "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... }",
+        "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
       ],
@@ -1011,7 +1017,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--yes-i-understand-privacy-loss",
+        "--confirm-direct-withdraw",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -1058,8 +1064,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved.",
+        "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or exit publicly via ragequit.",
         "Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.",
-        "In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped, pass --yes-i-prefer-ragequit.",
+        "Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval.",
+        "In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped, pass --confirm-ragequit.",
       ],
       examples: [
         { category: "Basic", commands: [
@@ -1081,7 +1089,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       jsonFields:
         "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
-        "--unsigned: { mode, operation, chain, asset, amount, transactions[] }",
+        "--unsigned: { mode, operation, chain, asset, amount, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       ],
@@ -1096,7 +1104,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       usage: "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       flags: [
         "--pool-account <PA-ID | numeric-index>",
-        "--yes-i-prefer-ragequit",
+        "--confirm-ragequit",
         "--unsigned [envelope|tx]",
         "--dry-run",
       ],
@@ -1256,6 +1264,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       overview: [
         "Most wallet-aware commands already auto-sync with a 2-minute freshness window, so explicit sync is mainly a crash-recovery or reconciliation tool rather than a command you should need on every workflow step.",
         "Bare `privacy-pools sync` re-syncs every discovered pool on the selected chain. Pass an asset symbol to limit the rebuild to one pool.",
+        "Use --stream-json for line-delimited progress heartbeats in machine mode. The final line remains the normal sync result envelope.",
       ],
       examples: [
         "privacy-pools sync",
@@ -1267,12 +1276,13 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       agentWorkflowNotes: [
         "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
+        "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs.",
       ],
       seeAlso: ["accounts","status"],
     },
     capabilities: {
-      flags: ["[asset]"],
-      agentFlags: "--agent [asset]",
+      flags: ["[asset]", "--stream-json"],
+      agentFlags: "--agent [asset] [--stream-json]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },

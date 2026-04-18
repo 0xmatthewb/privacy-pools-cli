@@ -53,7 +53,7 @@ printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-ph
 | `--rpc-url <url>` | Set RPC URL for the default chain |
 | `--force` | Overwrite existing configuration without prompting |
 | `--dry-run` | Preview the init changes without writing files or generating a live recovery phrase |
-| `--staged` | Emit staged JSONL onboarding envelopes in --json/--agent mode |
+| `--staged` | Emit onboarding progress as JSONL envelopes in --json/--agent mode (preflight, recovery, backup, signer, chain, write, discovery, complete) |
 
 **Safety:** The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.
 **Safety:** Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.

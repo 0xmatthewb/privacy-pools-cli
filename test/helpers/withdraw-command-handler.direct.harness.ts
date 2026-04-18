@@ -31,7 +31,7 @@ export function registerWithdrawDirectPreludeTests(): void {
         {
           direct: true,
           unsigned: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
           to: "0x5555555555555555555555555555555555555555",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -63,7 +63,7 @@ export function registerWithdrawDirectPreludeTests(): void {
         {
           direct: true,
           unsigned: "tx",
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
           to: "0x5555555555555555555555555555555555555555",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -93,7 +93,7 @@ export function registerWithdrawDirectPreludeTests(): void {
         {
           direct: true,
           unsigned: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -142,7 +142,7 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
           to: "0x6666666666666666666666666666666666666666",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
@@ -150,7 +150,7 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH");
     expect(json.error.message ?? json.errorMessage).toContain(
       "Direct withdrawal --to must match your signer address",
     );
@@ -194,7 +194,7 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -222,7 +222,7 @@ export function registerWithdrawDirectCompletionTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ chain: "mainnet" }),
       ),
@@ -279,7 +279,7 @@ export function registerWithdrawDirectCompletionTests(): void {
 
   test("continues with a human direct withdrawal after the privacy confirmation", async () => {
     useIsolatedHome({ withSigner: true });
-    inputPromptMock.mockImplementationOnce(async () => "WITHDRAW");
+    inputPromptMock.mockImplementationOnce(async () => "DIRECT");
 
     const { stderr } = await captureAsyncOutput(() =>
       handleWithdrawCommand(
@@ -287,7 +287,7 @@ export function registerWithdrawDirectCompletionTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ chain: "mainnet" }),
       ),
@@ -314,7 +314,7 @@ export function registerWithdrawDirectCompletionTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -344,7 +344,7 @@ export function registerWithdrawDirectCompletionTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -375,7 +375,7 @@ export function registerWithdrawDirectCompletionTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -385,7 +385,7 @@ export function registerWithdrawDirectCompletionTests(): void {
     expect(json.error.message ?? json.errorMessage).toContain(
       "out of sync with the chain",
     );
-    expect(exitCode).toBe(4);
+    expect(exitCode).toBe(8);
   });
 
   test("fails closed when the pool root changes after direct proof generation", async () => {
@@ -411,7 +411,7 @@ export function registerWithdrawDirectCompletionTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -421,7 +421,7 @@ export function registerWithdrawDirectCompletionTests(): void {
     expect(json.error.message ?? json.errorMessage).toContain(
       "Pool state changed after proof generation",
     );
-    expect(exitCode).toBe(4);
+    expect(exitCode).toBe(8);
   });
 
   test("fails closed when the pool root changes before direct submission", async () => {
@@ -447,7 +447,7 @@ export function registerWithdrawDirectCompletionTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -457,7 +457,7 @@ export function registerWithdrawDirectCompletionTests(): void {
     expect(json.error.message ?? json.errorMessage).toContain(
       "Pool state changed before submission",
     );
-    expect(exitCode).toBe(4);
+    expect(exitCode).toBe(8);
   });
 
 }
@@ -474,7 +474,7 @@ export function registerWithdrawDirectPostSaveTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ yes: true, chain: "mainnet" }),
       ),
@@ -482,6 +482,25 @@ export function registerWithdrawDirectPostSaveTests(): void {
 
     expect(stderr).toContain("Withdrawal confirmed onchain but failed to save locally");
     expect(stderr).toContain("privacy-pools sync");
+  });
+
+  test("accepts the hidden legacy direct-withdraw acknowledgement alias", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          yesIUnderstandPrivacyLoss: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("direct");
   });
 
 }

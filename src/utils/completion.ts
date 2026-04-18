@@ -22,7 +22,6 @@ export {
 const INTERNAL_COMPLETION_OPTION_NAMES = new Set([
   "--query",
   "--cword",
-  "--from-pa",
 ]);
 
 function uniqueSorted(values: string[]): string[] {

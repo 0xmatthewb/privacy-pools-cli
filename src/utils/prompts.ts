@@ -18,7 +18,7 @@ export const HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD = 1000;
 export const CONFIRMATION_TOKENS = {
   deposit: "DEPOSIT",
   withdraw: "WITHDRAW",
-  directWithdrawal: "DIRECT-WITHDRAWAL",
+  directWithdrawal: "DIRECT",
   recipient: "RECIPIENT",
   ragequit: "RAGEQUIT",
   flow: "FLOW",

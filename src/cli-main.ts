@@ -13,6 +13,7 @@ import {
   hasShortFlag,
   isWelcomeFlagOnlyInvocation,
   isWelcomeShortFlagBundle,
+  normalizeJsonFieldSelectionArgv,
   parseRootArgv,
   readLongOptionValue,
 } from "./utils/root-argv.js";
@@ -44,16 +45,17 @@ export async function runCli(
   pkg: CliPackageInfo,
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
+  const normalizedArgv = normalizeJsonFieldSelectionArgv(argv);
   installOutputAnsiGuards();
-  setModeArgv(argv);
+  setModeArgv(normalizedArgv);
 
   // Activate --profile before any config loading.
-  const profileValue = readLongOptionValue(argv, "--profile");
+  const profileValue = readLongOptionValue(normalizedArgv, "--profile");
   if (profileValue) {
     setActiveProfile(profileValue);
   }
 
-  const parsedArgv = parseRootArgv(argv);
+  const parsedArgv = parseRootArgv(normalizedArgv);
   const {
     firstCommandToken,
     isCsvMode,
@@ -84,7 +86,7 @@ export async function runCli(
     isWelcome,
   );
 
-  const [firstToken, secondToken] = allNonOptionTokens(argv);
+  const [firstToken, secondToken] = allNonOptionTokens(normalizedArgv);
   const resolvedGuideTopic =
     firstToken === "help" && secondToken
       ? resolveGuideTopic(secondToken)
@@ -126,7 +128,7 @@ export async function runCli(
   }
 
   const program = await createRootProgram(pkg.version, {
-    argv,
+    argv: normalizedArgv,
     loadAllCommands: false,
     styledHelp: shouldStyleHelp,
   });
@@ -170,7 +172,7 @@ export async function runCli(
   );
 
   try {
-    await program.parseAsync(argv, { from: "user" });
+    await program.parseAsync(normalizedArgv, { from: "user" });
     if (shouldCheckUpdates) {
       checkForUpdateInBackground();
     }

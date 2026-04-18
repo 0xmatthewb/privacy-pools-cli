@@ -7,7 +7,10 @@ export function createStatusCommand(): Command {
   const metadata = getCommandMetadata("status");
   return new Command("status")
     .description(metadata.description)
-    .option("--check [scope]", "Run health checks: all (default), rpc, asp, or none")
+    .option(
+      "--check [scope]",
+      "Run health checks: all (default), rpc for blockchain node reachability, asp for 0xBow Association Set Provider connectivity, or none",
+    )
     .option("--no-check", "Disable the default RPC and ASP health checks")
     .addOption(
       new Option("--check-rpc", "Run only the RPC health check").hideHelp(),

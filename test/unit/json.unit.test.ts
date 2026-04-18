@@ -98,6 +98,16 @@ describe("JSON output helpers", () => {
 
       expect(output).toBe("true withdraw transaction\n");
     });
+
+    test("decodes common escape sequences in --template strings before rendering", () => {
+      configureJsonOutput(null, null, "{{command}}\\n{{group}}\\t\\\\done");
+
+      const output = captureStdout(() => {
+        printJsonSuccess({ command: "withdraw", group: "transaction" });
+      });
+
+      expect(output).toBe("withdraw\ntransaction\t\\done\n");
+    });
   });
 
   describe("printJsonError", () => {

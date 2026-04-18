@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
+import { detectAgentEnvironment } from "./detect-agent.js";
 import { envVarsForSection } from "./env-vars.js";
 import { OUTPUT_FORMAT_DESCRIPTION } from "./mode.js";
 import { accent, accentBold, brand, dangerTone, notice, successTone } from "./theme.js";
@@ -395,13 +396,14 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice('{ "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "error": { ... } }')}`,
     "",
     chalk.bold("Filtering"),
-    `  ${notice("--json-fields <fields>")}  Select top-level fields by comma-separated name.`,
+    `  ${notice("--json <fields>")}       Select top-level fields by comma-separated name.`,
+    `  ${notice("--json=<fields>")}       Inline form for compact scripts and automation.`,
     `  ${notice("--jmes <expression>")}     Apply a JMESPath expression to the final envelope.`,
     `  ${notice("--jq <expression>")}       Compatibility alias for --jmes (not jq syntax).`,
     `  ${notice("--template <template>")}   Interpolate the final envelope with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration.`,
-    "  Unknown --json-fields fail with INPUT_UNKNOWN_JSON_FIELD, availableFields[], and did-you-mean suggestions when available.",
+    "  Unknown selected fields fail with INPUT_UNKNOWN_JSON_FIELD, availableFields[], and did-you-mean suggestions when available.",
     "  Invalid JMESPath expressions fail before command output is emitted.",
-    "  --json-fields, --jmes/--jq, and --template are mutually exclusive.",
+    "  --json <fields>, --jmes/--jq, and --template are mutually exclusive.",
     "",
     chalk.bold("Discovery"),
     `  ${accent("privacy-pools capabilities --agent")}      Full command and schema manifest.`,
@@ -559,6 +561,7 @@ export const helpTestInternals = {
 
 export function commandHelpText(config: CommandHelpConfig): string {
   const lines: string[] = [];
+  const showAgentAppendix = detectAgentEnvironment();
 
   if (config.overview && config.overview.length > 0) {
     lines.push("", ...config.overview);
@@ -598,12 +601,29 @@ export function commandHelpText(config: CommandHelpConfig): string {
   }
 
   if (config.jsonFields || (config.jsonVariants && config.jsonVariants.length > 0)) {
+    lines.push("", "Structured output:");
+    lines.push("  Use --json for the full envelope.");
+    lines.push("  Use --json <fields> or --json=<fields> to keep only selected top-level fields.");
+    lines.push("  Use --jq/--jmes for JMESPath filtering or --template for custom text rendering.");
+    lines.push("  --json <fields>, --jq/--jmes, and --template are mutually exclusive.");
     lines.push("", "JSON output (--json):");
     if (config.jsonFields) {
       lines.push(`  ${config.jsonFields}`);
     }
     for (const variant of config.jsonVariants ?? []) {
       lines.push(`  ${variant}`);
+    }
+  }
+
+  if (
+    showAgentAppendix
+    && config.agentWorkflowNotes
+    && config.agentWorkflowNotes.length > 0
+  ) {
+    lines.push("", "Agent guidance:");
+    lines.push("  Use --agent for --json --yes --quiet when you need a runnable machine contract.");
+    for (const note of config.agentWorkflowNotes) {
+      lines.push(`  ${note}`);
     }
   }
 

@@ -154,6 +154,14 @@ describe("resolveGlobalMode", () => {
     expect(result.jsonFields).toEqual(["structuredExamples"]);
   });
 
+  test("active argv makes command-local --json <fields> imply JSON when commander omits the option", () => {
+    setModeArgv(["describe", "withdraw", "--json", "structuredExamples"]);
+    const result = resolveGlobalMode({});
+    expect(result.isJson).toBe(true);
+    expect(result.format).toBe("json");
+    expect(result.jsonFields).toEqual(["structuredExamples"]);
+  });
+
   test("--jmes implies JSON and becomes the canonical filter expression", () => {
     const result = resolveGlobalMode({ jmes: "nextActions" });
     expect(result.isJson).toBe(true);
@@ -206,7 +214,7 @@ describe("resolveGlobalMode", () => {
         template: "{{command}}",
         jsonFields: "command",
       }),
-    ).toThrow("Choose only one structured output filter: --json-fields, --template.");
+    ).toThrow("Choose only one structured output filter: --json, --template.");
   });
 
   test("--template is mutually exclusive with --jmes", () => {

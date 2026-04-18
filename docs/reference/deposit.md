@@ -10,7 +10,7 @@ Deposit ETH or ERC-20 tokens into a pool
 
 **Usage:** `privacy-pools deposit <amount> [asset] [options]`
 
-Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local Pool Account precomputation path, so there is no runtime download step when proofs are needed. Most proof-generation steps complete within a few seconds on typical hardware, although cold starts and slower machines can take longer. In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off. The ASP vetting fee is deducted from the public deposit amount, so a round input can still become a non-round committed balance.
+Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local Pool Account precomputation path, so there is no runtime download step when proofs are needed. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or exit publicly via ragequit. Most proof-generation steps complete within a few seconds on typical hardware, although cold starts and slower machines can take longer. In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off. Each deposit includes a one-time vetting fee reviewed by the Privacy Pools Approval Service (ASP). The exact amount is shown before you confirm. The ASP vetting fee is deducted from the public deposit amount, so a round input can still become a non-round committed balance.
 
 **Basic:**
 
@@ -36,7 +36,7 @@ privacy-pools deposit 0.1 ETH --unsigned
 
 | Flag | Description |
 |------|-------------|
-| `--unsigned [format]` | Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx) |
+| `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
 | `--dry-run` | Validate and preview the transaction without submitting |
 | `--ignore-unique-amount` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
 
@@ -48,6 +48,6 @@ privacy-pools deposit 0.1 ETH --unsigned
 **JSON output:** `{ operation, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
-- `--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] }`
+- `--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)`
 - `--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]`
 - `--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }`

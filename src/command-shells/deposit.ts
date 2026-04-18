@@ -12,7 +12,7 @@ export function createDepositCommand(): Command {
     .addOption(
       new Option(
         "--unsigned [format]",
-        "Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx)",
+        "Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data)",
       ).choices(["envelope", "tx"]),
     )
     .option(

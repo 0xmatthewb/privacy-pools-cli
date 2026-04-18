@@ -34,6 +34,7 @@ import {
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
+import { accountHasDeposits } from "../services/account-storage.js";
 import { resolvePool, listPools } from "../services/pools.js";
 import {
   loadKnownRecipientHistory,
@@ -125,9 +126,6 @@ import {
   isHighStakesWithdrawal,
 } from "../utils/prompts.js";
 import {
-  warnLegacyPoolAccountFlag,
-} from "../utils/deprecations.js";
-import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
   PROMPT_CANCELLATION_MESSAGE,
@@ -177,8 +175,8 @@ type WithdrawReviewStatus = Exclude<AspApprovalStatus, "approved">;
 interface WithdrawCommandOptions {
   to?: string;
   poolAccount?: string;
-  fromPa?: string;
   direct?: boolean;
+  confirmDirectWithdraw?: boolean;
   yesIUnderstandPrivacyLoss?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
@@ -230,7 +228,7 @@ function buildDirectRecipientMismatchNextActions(params: {
             agent: true,
             chain: params.chainName,
             direct: true,
-            yesIUnderstandPrivacyLoss: true,
+            confirmDirectWithdraw: true,
           },
         },
       ),
@@ -264,7 +262,7 @@ function buildDirectRecipientMismatchNextActions(params: {
           agent: true,
           chain: params.chainName,
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         runnable: false,
         parameters: [{ name: "asset", type: "asset", required: true }],
@@ -310,7 +308,7 @@ function buildRemainderBelowMinNextActions(params: {
           agent: true,
           chain: params.chainName,
           poolAccount: params.poolAccountId,
-          yesIPreferRagequit: true,
+          confirmRagequit: true,
         },
       },
     ),
@@ -353,7 +351,7 @@ function buildRemainderBelowMinNextActions(params: {
             agent: true,
             chain: params.chainName,
             direct: true,
-            yesIUnderstandPrivacyLoss: true,
+            confirmDirectWithdraw: true,
           },
         },
       ),
@@ -751,10 +749,7 @@ export async function handleWithdrawCommand(
   const confirmationTimeoutSeconds = Math.round(
     getConfirmationTimeoutMs() / 1000,
   );
-  if (opts.fromPa !== undefined) {
-    warnLegacyPoolAccountFlag(opts.fromPa, silent);
-  }
-  const fromPaRaw = (opts.poolAccount ?? opts.fromPa) as string | undefined;
+  const fromPaRaw = opts.poolAccount;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
   const writeWithdrawProgress = (activeIndex: number, note?: string) => {
@@ -1015,12 +1010,13 @@ export async function handleWithdrawCommand(
       isDirect &&
       !isDryRun &&
       (mode.skipPrompts || isUnsigned) &&
+      opts.confirmDirectWithdraw !== true &&
       opts.yesIUnderstandPrivacyLoss !== true
     ) {
       throw new CLIError(
         "Direct withdrawal requires explicit privacy-loss acknowledgement in non-interactive mode.",
         "INPUT",
-        "Re-run with --yes-i-understand-privacy-loss only if you fully accept that this will publicly link your deposit and withdrawal addresses onchain.",
+        "Re-run with --confirm-direct-withdraw only if you fully accept that this will publicly link your deposit and withdrawal addresses onchain.",
       );
     }
     verbose(
@@ -1097,6 +1093,55 @@ export async function handleWithdrawCommand(
       // The real withdrawal amount is resolved after PA selection.
       withdrawalAmount = 1n;
       withdrawalUsd = "";
+    }
+
+    if (isDryRun && !accountHasDeposits(chainConfig.id)) {
+      const nextActionAmount = isDeferredAmount
+        ? formatUnits(pool.minimumDepositAmount, pool.decimals)
+        : amountStr;
+      throw new CLIError(
+        "No Pool Accounts are available for withdrawal yet.",
+        "INPUT",
+        `Deposit into ${pool.symbol} first, then run 'privacy-pools accounts --chain ${chainConfig.name}' after ASP review completes.`,
+        "ACCOUNT_NOT_FOUND",
+        false,
+        undefined,
+        {
+          chain: chainConfig.name,
+          asset: pool.symbol,
+        },
+        undefined,
+        {
+          nextActions: [
+            createNextAction(
+              "flow start",
+              "Start with a guided deposit and saved private withdrawal.",
+              "after_dry_run",
+              {
+                args: [nextActionAmount, pool.symbol],
+                options: {
+                  agent: true,
+                  chain: chainConfig.name,
+                },
+                runnable: false,
+                parameters: [{ name: "to", type: "address", required: true }],
+              },
+            ),
+            createNextAction(
+              "deposit",
+              "Deposit into this pool first.",
+              "after_dry_run",
+              {
+                args: [nextActionAmount, pool.symbol],
+                options: {
+                  agent: true,
+                  chain: chainConfig.name,
+                },
+              },
+            ),
+          ],
+        },
+      );
     }
 
     if (

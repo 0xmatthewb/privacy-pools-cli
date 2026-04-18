@@ -90,9 +90,6 @@ import {
   formatPoolPromptChoice,
 } from "../utils/prompts.js";
 import {
-  warnLegacyPoolAccountFlag,
-} from "../utils/deprecations.js";
-import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
   PROMPT_CANCELLATION_MESSAGE,
@@ -121,8 +118,8 @@ interface RagequitAdvisory {
 
 interface RagequitCommandOptions {
   poolAccount?: string;
-  fromPa?: string;
   commitment?: string;
+  confirmRagequit?: boolean;
   yesIPreferRagequit?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
@@ -361,10 +358,7 @@ export async function handleRagequitCommand(
       normalized === "canceled"
     );
   };
-  if (opts.fromPa !== undefined) {
-    warnLegacyPoolAccountFlag(opts.fromPa, silent);
-  }
-  const fromPaRaw = (opts.poolAccount ?? opts.fromPa) as string | undefined;
+  const fromPaRaw = opts.poolAccount;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
   const writeRagequitProgress = (activeIndex: number, note?: string) => {
@@ -379,6 +373,15 @@ export async function handleRagequitCommand(
   };
 
   try {
+    const legacyAssetFlag = (opts as { asset?: unknown }).asset;
+    if (typeof legacyAssetFlag === "string" && legacyAssetFlag.length > 0) {
+      throw new CLIError(
+        "--asset has been replaced by a positional argument.",
+        "INPUT",
+        "Use 'privacy-pools ragequit <asset> --pool-account <PA-#>' instead.",
+      );
+    }
+
     if (fromPaRaw !== undefined && fromPaNumber === null) {
       throw new CLIError(
         `Invalid --pool-account value: ${fromPaRaw}.`,
@@ -859,6 +862,14 @@ export async function handleRagequitCommand(
       }
 
       if (!skipPrompts) {
+        if (!process.stdin.isTTY || !process.stderr.isTTY) {
+          throw new CLIError(
+            "Ragequit requires an interactive terminal.",
+            "INPUT",
+            "Re-run with --confirm-ragequit or --agent to confirm non-interactively.",
+            "INPUT_RAGEQUIT_CONFIRMATION_REQUIRED",
+          );
+        }
         if (
           await maybeRenderPreviewScenario("ragequit confirm", {
             timing: "after-prompts",
@@ -881,12 +892,13 @@ export async function handleRagequitCommand(
       } else if (
         !isDryRun &&
         selectedPoolAccount.status !== "approved" &&
+        opts.confirmRagequit !== true &&
         opts.yesIPreferRagequit !== true
       ) {
         throw new CLIError(
           "Ragequit requires explicit privacy-loss acknowledgement in non-interactive mode.",
           "INPUT",
-          "Re-run with --yes-i-prefer-ragequit only if you intentionally want the public recovery path.",
+          "Re-run with --confirm-ragequit only if you intentionally want the public recovery path.",
           "INPUT_RAGEQUIT_CONFIRMATION_REQUIRED",
           false,
           undefined,
@@ -908,7 +920,7 @@ export async function handleRagequitCommand(
                     agent: true,
                     chain: chainConfig.name,
                     poolAccount: selectedPoolAccount.paId,
-                    yesIPreferRagequit: true,
+                    confirmRagequit: true,
                   },
                 },
               ),
@@ -921,6 +933,7 @@ export async function handleRagequitCommand(
         selectedPoolAccount.status === "approved" &&
         skipPrompts &&
         !isDryRun &&
+        opts.confirmRagequit !== true &&
         opts.yesIPreferRagequit !== true
       ) {
         throw new CLIError(
@@ -963,7 +976,7 @@ export async function handleRagequitCommand(
                     agent: true,
                     chain: chainConfig.name,
                     poolAccount: selectedPoolAccount.paId,
-                    yesIPreferRagequit: true,
+                    confirmRagequit: true,
                   },
                 },
               ),

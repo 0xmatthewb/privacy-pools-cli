@@ -76,8 +76,9 @@ function makeStatusIssue(
   code: string,
   message: string,
   affects: StatusIssueAffect[],
+  reasonCode?: string,
 ): StatusIssue {
-  return { code, message, affects };
+  return reasonCode ? { code, message, affects, reasonCode } : { code, message, affects };
 }
 
 export function deriveStatusPreflightGuidance(
@@ -161,6 +162,7 @@ export function deriveStatusPreflightGuidance(
         "restore_discovery_recommended",
         "If you loaded this recovery phrase before automatic discovery was added, rerun 'privacy-pools init' and choose 'Load an existing Privacy Pools account' to discover supported deposits.",
         ["discovery"],
+        "no_local_deposits_yet",
       ),
     );
   }

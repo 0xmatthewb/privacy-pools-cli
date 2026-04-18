@@ -3,6 +3,7 @@ import {
   APPROVED_POOL_ACCOUNT,
   DEFAULT_RELAYER_FEE_RECEIVER,
   PENDING_POOL_ACCOUNT,
+  accountHasDepositsMock,
   buildAllPoolAccountRefsMock,
   buildLoadedAspDepositReviewStateMock,
   buildPoolAccountRefsMock,
@@ -31,35 +32,59 @@ export function registerWithdrawValidationPreludeTests(): void {
   test("rejects ambiguous amount/asset positional input before parsing account state", async () => {
     useIsolatedHome({ withSigner: true });
 
-    await expect(
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleWithdrawCommand(
         "0.1",
         "0.2",
         { to: "0x4444444444444444444444444444444444444444" },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
-    ).rejects.toThrow(
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_INVALID_ASSET");
+    expect(json.error.message ?? json.errorMessage).toContain(
       "Could not infer amount/asset positional arguments for withdraw",
     );
+    expect(exitCode).toBe(2);
     expect(initializeAccountServiceMock).not.toHaveBeenCalled();
   });
 
-  test("rejects the renamed --from-pa flag before loading account state", async () => {
+  test("short-circuits withdraw --dry-run when no Pool Accounts exist yet", async () => {
     useIsolatedHome({ withSigner: true });
+    accountHasDepositsMock.mockImplementationOnce(() => false);
 
-    await expect(
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleWithdrawCommand(
         "0.1",
         "ETH",
         {
-          fromPa: "PA-7",
+          dryRun: true,
           to: "0x4444444444444444444444444444444444444444",
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
-    ).rejects.toThrow(
-      "--from-pa has been renamed to --pool-account",
     );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("ACCOUNT_NOT_FOUND");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "No Pool Accounts are available for withdrawal yet.",
+    );
+    expect(json.error.nextActions).toEqual([
+      expect.objectContaining({
+        command: "flow start",
+        when: "after_dry_run",
+        args: ["0.1", "ETH"],
+        parameters: [{ name: "to", type: "address", required: true }],
+      }),
+      expect.objectContaining({
+        command: "deposit",
+        when: "after_dry_run",
+        args: ["0.1", "ETH"],
+      }),
+    ]);
+    expect(exitCode).toBe(2);
     expect(initializeAccountServiceMock).not.toHaveBeenCalled();
   });
 
@@ -144,7 +169,7 @@ export function registerWithdrawValidationPreludeTests(): void {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
-      "Cannot specify an amount with --all",
+      "Remove the amount when using --all",
     );
     expect(exitCode).toBe(2);
   });
@@ -878,7 +903,9 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
 
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain("Cannot specify an amount with --all");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Remove the amount when using --all",
+    );
     expect(exitCode).toBe(2);
   });
 
@@ -941,7 +968,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH");
     expect(json.error.message ?? json.errorMessage).toContain("must match your signer address");
     expect(exitCode).toBe(2);
   });
@@ -1055,7 +1082,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("ACCOUNT_NOT_APPROVED");
     expect(json.error.hint).toContain("accounts --chain mainnet");
-    expect(exitCode).toBe(4);
+    expect(exitCode).toBe(2);
   });
 
   test("surfaces ACCOUNT_NOT_APPROVED when a requested Pool Account is active but not approved", async () => {
@@ -1098,7 +1125,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
       "PA-2 is not currently approved for withdrawal",
     );
     expect(json.error.hint).toContain("accounts --chain mainnet");
-    expect(exitCode).toBe(4);
+    expect(exitCode).toBe(2);
   });
 
   test("surfaces unavailable historical Pool Accounts through --pool-account", async () => {
@@ -1265,7 +1292,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("ASP_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain("still updating");
-    expect(exitCode).toBe(4);
+    expect(exitCode).toBe(8);
   });
 
   test("fails closed when ASP root parity drifts from the onchain latest root", async () => {
@@ -1299,7 +1326,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     expect(json.error.message ?? json.errorMessage).toContain(
       "out of sync with the chain",
     );
-    expect(exitCode).toBe(4);
+    expect(exitCode).toBe(8);
   });
 
 }

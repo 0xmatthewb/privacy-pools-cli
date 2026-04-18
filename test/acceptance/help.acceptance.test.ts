@@ -30,6 +30,7 @@ defineScenarioSuite("help acceptance", [
       expect(stdout).toContain("status");
       expect(stdout).toContain("pools");
       expect(stdout).toContain("withdraw");
+      expect(stdout).toContain("ragequit|exit");
       expect(stdout).toContain("completion");
     }),
   ]),
@@ -102,6 +103,17 @@ defineScenarioSuite("help acceptance", [
     assertStderrEmpty(),
     assertStdout((stdout) => {
       expect(stdout).toContain("Usage: privacy-pools withdraw [options] [amount] [asset]");
+    }),
+  ]),
+  defineScenario("ragequit help exposes the updated crisis guidance and structured output help", [
+    runCliStep(["ragequit", "--help"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("Use ragequit when the ASP declined your deposit");
+      expect(stdout).toContain("publicly recover funds without waiting for approval");
+      expect(stdout).toContain("Structured output:");
+      expect(stdout).toContain("--json <fields>");
     }),
   ]),
   defineScenario("describe without a command path returns a targeted input error", [

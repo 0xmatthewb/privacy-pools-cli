@@ -12,6 +12,7 @@ import {
 } from "../services/account.js";
 import { listPools, resolvePool } from "../services/pools.js";
 import { printError } from "../utils/errors.js";
+import { JSON_SCHEMA_VERSION } from "../utils/json.js";
 import { spinner, verbose } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions } from "../types.js";
@@ -71,18 +72,27 @@ function summarizeSyncedEventCounts(account: unknown): {
 
 export { createSyncCommand } from "../command-shells/sync.js";
 
+interface SyncCommandOptions {
+  streamJson?: boolean;
+}
+
 export async function handleSyncCommand(
   positionalAsset: string | undefined,
-  _opts: Record<string, never>,
+  opts: SyncCommandOptions,
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
-  const mode = resolveGlobalMode(globalOpts);
+  const streamJson = opts.streamJson === true;
+  const mode = resolveGlobalMode({
+    ...globalOpts,
+    ...(streamJson ? { json: true } : {}),
+  });
   const isVerbose = globalOpts?.verbose ?? false;
   const ctx = createOutputContext(mode, isVerbose);
   const silent = isSilent(ctx);
 
   const asset = positionalAsset;
+  let heartbeat: NodeJS.Timeout | null = null;
 
   try {
     if (await maybeRenderPreviewScenario("sync")) {
@@ -92,9 +102,36 @@ export async function handleSyncCommand(
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
     const startedAt = Date.now();
+    let currentStage = "resolving_pools";
+
+    const emitSyncEvent = (event: Record<string, unknown>): void => {
+      if (!streamJson) {
+        return;
+      }
+
+      process.stdout.write(
+        `${JSON.stringify({
+          schemaVersion: JSON_SCHEMA_VERSION,
+          success: true,
+          mode: "sync-progress",
+          chain: chainConfig.name,
+          ...event,
+        })}\n`,
+      );
+    };
 
     const spin = spinner("Resolving pools for sync...", silent);
     spin.start();
+    emitSyncEvent({ event: "stage", stage: currentStage });
+    if (streamJson) {
+      heartbeat = setInterval(() => {
+        emitSyncEvent({
+          event: "heartbeat",
+          stage: currentStage,
+          elapsedMs: Date.now() - startedAt,
+        });
+      }, 5_000);
+    }
 
     const pools = asset
       ? [await resolvePool(chainConfig, asset, globalOpts?.rpcUrl)]
@@ -113,6 +150,16 @@ export async function handleSyncCommand(
       isVerbose,
       silent,
     );
+    if (!silent) {
+      spin.text = `Resolved ${pools.length} pool(s). Loading account state...`;
+    }
+    currentStage = "loading_account_state";
+    emitSyncEvent({
+      event: "stage",
+      stage: currentStage,
+      syncedPools: pools.length,
+      syncedSymbols: pools.map((p) => p.symbol),
+    });
 
     const poolInfos = pools.map((p) => ({
       chainId: chainConfig.id,
@@ -154,6 +201,12 @@ export async function handleSyncCommand(
       (acc, list) => acc + list.length,
       0,
     );
+    currentStage = "syncing_events";
+    emitSyncEvent({
+      event: "stage",
+      stage: currentStage,
+      previousAvailablePoolAccounts: previousSpendableCount,
+    });
 
     await withSpinnerProgress(
       spin,
@@ -190,6 +243,13 @@ export async function handleSyncCommand(
     }
     const syncMeta = loadSyncMeta(chainConfig.id);
     const eventCounts = summarizeSyncedEventCounts(preSyncService.account);
+    currentStage = "finalizing";
+    emitSyncEvent({
+      event: "stage",
+      stage: currentStage,
+      availablePoolAccounts: spendableCount,
+      elapsedMs: Date.now() - startedAt,
+    });
 
     spin.succeed("Sync complete.");
 
@@ -211,5 +271,9 @@ export async function handleSyncCommand(
       return;
     }
     printError(error, mode.isJson);
+  } finally {
+    if (heartbeat) {
+      clearInterval(heartbeat);
+    }
   }
 }

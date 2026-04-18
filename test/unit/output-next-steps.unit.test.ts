@@ -21,6 +21,7 @@ import { renderPools, type PoolsRenderData, renderPoolDetail, type PoolDetailRen
 import { renderGlobalStats, renderPoolStats, type GlobalStatsRenderData, type PoolStatsRenderData } from "../../src/output/stats.ts";
 import { renderSyncComplete, type SyncResult } from "../../src/output/sync.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
+import { configureNextActionGlobals } from "../../src/utils/next-action-globals.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
 // ── formatNextActionCommand ─────────────────────────────────────────────────
@@ -118,6 +119,31 @@ describe("formatNextActionCommand", () => {
       options: { agent: true, chain: "sepolia", to: "0xabc" },
     });
     expect(result).toBe("privacy-pools withdraw 0.05 WETH --agent --chain sepolia --to 0xabc");
+  });
+
+  test("createNextAction preserves active global flags in executable machine commands", () => {
+    configureNextActionGlobals({
+      agent: true,
+      chain: "sepolia",
+      rpcUrl: "http://127.0.0.1:8545",
+      profile: "team",
+      quiet: true,
+    });
+
+    try {
+      const action = createNextAction("accounts", "Check balances.", "after_sync", {
+        options: {
+          agent: true,
+          pendingOnly: true,
+        },
+      });
+
+      expect(action.cliCommand).toBe(
+        "privacy-pools accounts --agent --chain sepolia --rpc-url http://127.0.0.1:8545 --profile team --pending-only",
+      );
+    } finally {
+      configureNextActionGlobals(undefined);
+    }
   });
 });
 

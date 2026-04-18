@@ -13,7 +13,6 @@ export function createRagequitCommand(): Command {
       "-p, --pool-account <PA-ID | numeric-index>",
       "Ragequit a specific Pool Account (examples: PA-2 or 2)",
     )
-    .addOption(new Option("--from-pa <PA-#|#>", "Deprecated: use --pool-account").hideHelp())
     .addOption(
       new Option(
         "-i, --commitment <index>",
@@ -23,13 +22,19 @@ export function createRagequitCommand(): Command {
     .addOption(
       new Option(
         "--unsigned [format]",
-        "Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx)",
+        "Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data)",
       ).choices(["envelope", "tx"]),
     )
     .option("--dry-run", "Generate proof and validate without submitting")
     .option(
-      "--yes-i-prefer-ragequit",
+      "--confirm-ragequit",
       "Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address",
+    )
+    .addOption(
+      new Option(
+        "--yes-i-prefer-ragequit",
+        "Deprecated hidden alias for --confirm-ragequit",
+      ).hideHelp(),
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(

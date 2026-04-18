@@ -16,7 +16,6 @@ export function createWithdrawCommand(): Command {
       "-p, --pool-account <PA-ID | numeric-index>",
       "Withdraw from a specific Pool Account (examples: PA-2 or 2)",
     )
-    .addOption(new Option("--from-pa <PA-#|#>", "Deprecated: use --pool-account").hideHelp())
     .addOption(
       new Option(
         "--direct",
@@ -25,14 +24,20 @@ export function createWithdrawCommand(): Command {
     )
     .addOption(
       new Option(
-        "--yes-i-understand-privacy-loss",
-        "Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses (required with --direct when prompts are skipped)",
+        "--confirm-direct-withdraw",
+        "Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses.",
       ),
     )
     .addOption(
       new Option(
+        "--yes-i-understand-privacy-loss",
+        "Deprecated hidden alias for --confirm-direct-withdraw",
+      ).hideHelp(),
+    )
+    .addOption(
+      new Option(
         "--unsigned [format]",
-        "Build unsigned transaction without submitting (default format: envelope; or specify: --unsigned tx)",
+        "Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data)",
       ).choices(["envelope", "tx"]),
     )
     .option(
@@ -42,7 +47,7 @@ export function createWithdrawCommand(): Command {
     .option("--all", "Withdraw entire Pool Account balance (requires asset: withdraw --all ETH)")
     .option(
       "--extra-gas",
-      "Request native gas tokens alongside an ERC20 withdrawal (default: true for ERC20)",
+      "For ERC20 withdrawals only: also receive native gas tokens (default on for ERC20 withdrawals, unnecessary for ETH withdrawals)",
     )
     .option("--no-extra-gas", "Disable extra gas request")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))

@@ -424,15 +424,40 @@ describe("static discovery runtime", () => {
     expect(stderr).toContain("JSON fields:");
   });
 
+  test("static describe resolves envelope schema paths in both JSON and human modes", async () => {
+    const human = await captureAsyncOutput(async () => {
+      const handled = await runStaticDiscoveryCommand([
+        "describe",
+        "envelope.shared.nextAction",
+      ]);
+      expect(handled).toBe(true);
+    });
+    expect(human.stdout).toBe("");
+    expect(human.stderr).toContain("Schema: envelope.shared.nextAction");
+    expect(human.stderr).toContain("cliCommand");
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      runStaticDiscoveryCommand([
+        "--json",
+        "describe",
+        "envelope.shared.nextAction",
+      ]),
+    );
+    expect(json.success).toBe(true);
+    expect(json.path).toBe("envelope.shared.nextAction");
+    expect(json.schema.cliCommand).toContain("omitted when runnable = false");
+    expect(stderr).toBe("");
+  });
+
   test("renders aliased describe output with modes and supports JSON/quiet", async () => {
     const human = await captureAsyncOutput(async () => {
       const handled = await runStaticDiscoveryCommand(["describe", "ragequit"]);
       expect(handled).toBe(true);
     });
-    expect(human.stdout).toBe("");
-    expect(human.stderr).toContain("Command: ragequit");
-    expect(human.stderr).toContain("Aliases:");
-    expect(human.stderr).toContain("Modes:");
+    expect(human.stdout).toContain("Privacy Pools: ragequit");
+    expect(human.stdout).toContain("Ragequit / Public Recovery");
+    expect(human.stdout).toContain("privacy-pools ragequit ETH --pool-account PA-1");
+    expect(human.stderr).toBe("");
 
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       runStaticDiscoveryCommand(["--json", "describe", "withdraw"]),
@@ -523,19 +548,19 @@ describe("static discovery runtime", () => {
 
   test("invalid output formats fail cleanly for static discovery and completion", async () => {
     const discovery = await captureAsyncJsonOutputAllowExit(() =>
-      runStaticDiscoveryCommand(["--json", "--format", "yaml", "guide"]),
+      runStaticDiscoveryCommand(["--json", "--format", "toml", "guide"]),
     );
     expect(discovery.exitCode).toBe(2);
     expect(discovery.stderr).toBe("");
     expect(discovery.json.success).toBe(false);
     expect(discovery.json.errorCode).toBe("INPUT_ERROR");
-    expect(discovery.json.errorMessage).toContain("argument 'yaml' is invalid");
+    expect(discovery.json.errorMessage).toContain("argument 'toml' is invalid");
 
     const completion = await captureAsyncJsonOutputAllowExit(() =>
       runStaticCompletionQuery([
         "--json",
         "--format",
-        "yaml",
+        "toml",
         "completion",
         "--query",
         "--shell",
@@ -548,7 +573,7 @@ describe("static discovery runtime", () => {
     expect(completion.stderr).toBe("");
     expect(completion.json.success).toBe(false);
     expect(completion.json.errorCode).toBe("INPUT_ERROR");
-    expect(completion.json.errorMessage).toContain("argument 'yaml' is invalid");
+    expect(completion.json.errorMessage).toContain("argument 'toml' is invalid");
   });
 
   test("returns false for malformed static discovery invocations", async () => {

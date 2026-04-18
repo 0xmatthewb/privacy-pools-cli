@@ -253,6 +253,7 @@ export interface StatusIssue {
   code: string;
   message: string;
   affects: StatusIssueAffect[];
+  reasonCode?: string;
 }
 
 export interface CapabilityExitCodeDescriptor {

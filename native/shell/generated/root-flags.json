@@ -7,7 +7,7 @@
   },
   {
     "flag": "-j, --json",
-    "description": "Machine-readable JSON output on stdout",
+    "description": "Machine-readable JSON output on stdout. After the command name, pass --json <fields> or --json=<fields> to select top-level fields.",
     "takesValue": false,
     "welcomeBoolean": false
   },
@@ -15,7 +15,8 @@
     "flag": "--json-fields <fields>",
     "description": "Select specific JSON fields (comma-separated, implies --json)",
     "takesValue": true,
-    "welcomeBoolean": false
+    "welcomeBoolean": false,
+    "hidden": true
   },
   {
     "flag": "--template <template>",

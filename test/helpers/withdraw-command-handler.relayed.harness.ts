@@ -268,7 +268,7 @@ export function registerWithdrawRelayedUnsignedAndSubmitTests(): void {
         {
           direct: true,
           unsigned: "tx",
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
           to: "0x5555555555555555555555555555555555555555",
         },
         fakeCommand({ chain: "mainnet" }),
@@ -581,7 +581,7 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     const initialNow = 1_700_000_000_000;
     requestQuoteMock
       .mockImplementationOnce(async () =>
-        buildRelayerQuote({ expiration: initialNow + 20_000 }),
+        buildRelayerQuote({ expiration: initialNow + 11_000 }),
       )
       .mockImplementationOnce(async () =>
         buildRelayerQuote({
@@ -618,10 +618,12 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
   test("auto-refreshes an expired relayer quote after proof generation when the fee is unchanged", async () => {
     useIsolatedHome({ withSigner: true });
     const originalNow = Date.now;
-    let nowCalls = 0;
     const initialNow = 1_700_000_000_000;
-    const expiredNow = 1_700_000_003_000;
+    const quoteExpiresAt = initialNow + 31_000;
+    const expiredNow = quoteExpiresAt + 1_000;
+    let afterProof = false;
     proveWithdrawalMock.mockImplementationOnce(async () => {
+      afterProof = true;
       return {
         proof: {
           pi_a: ["0", "0", "1"],
@@ -637,12 +639,12 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     });
     requestQuoteMock
       .mockImplementationOnce(async () =>
-        buildRelayerQuote({ expiration: initialNow + 1_000 }),
+        buildRelayerQuote({ expiration: quoteExpiresAt }),
       )
       .mockImplementationOnce(async () =>
-        buildRelayerQuote({ expiration: initialNow + 10_000 }),
+        buildRelayerQuote({ expiration: initialNow + 100_000 }),
       );
-    Date.now = () => (++nowCalls <= 2 ? initialNow : expiredNow);
+    Date.now = () => (afterProof ? expiredNow : initialNow);
 
     try {
       const { json } = await captureAsyncJsonOutput(() =>
@@ -666,10 +668,25 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
   test("logs verbose relayer quote refresh details when the fee stays unchanged after proof generation", async () => {
     useIsolatedHome({ withSigner: true });
     const originalNow = Date.now;
-    let nowCalls = 0;
     const initialNow = 1_700_000_000_000;
     const quoteExpiresAt = initialNow + 31_000;
     const expiredNow = quoteExpiresAt + 1_000;
+    let afterProof = false;
+    proveWithdrawalMock.mockImplementationOnce(async () => {
+      afterProof = true;
+      return {
+        proof: {
+          pi_a: ["0", "0", "1"],
+          pi_b: [
+            ["0", "0"],
+            ["0", "0"],
+            ["1", "0"],
+          ],
+          pi_c: ["0", "0", "1"],
+        },
+        publicSignals: [1n, 2n, 3n],
+      };
+    });
     requestQuoteMock
       .mockImplementationOnce(async () =>
         buildRelayerQuote({ expiration: quoteExpiresAt }),
@@ -677,7 +694,7 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
       .mockImplementationOnce(async () =>
         buildRelayerQuote({ expiration: initialNow + 100_000 }),
       );
-    Date.now = () => (++nowCalls <= 4 ? initialNow : expiredNow);
+    Date.now = () => (afterProof ? expiredNow : initialNow);
 
     try {
       const { stderr } = await captureAsyncOutput(() =>
@@ -691,7 +708,9 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
         ),
       );
 
-      expect(stderr).toContain("Quote refreshed with same fee (250 BPS)");
+      expect(stderr).toContain(
+        `Relayer quote refreshed: feeBPS=250 expiresAt=${new Date(initialNow + 100_000).toISOString()}`,
+      );
     } finally {
       Date.now = originalNow;
     }
@@ -703,7 +722,7 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     const initialNow = 1_700_000_000_000;
     requestQuoteMock
       .mockImplementationOnce(async () =>
-        buildRelayerQuote({ expiration: initialNow + 20_000 }),
+        buildRelayerQuote({ expiration: initialNow - 1_000 }),
       )
       .mockImplementationOnce(async () =>
         buildRelayerQuote({ expiration: initialNow - 1_000 }),
@@ -769,7 +788,7 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     expect(json.error.message ?? json.errorMessage).toContain(
       "Pool state changed while preparing your proof",
     );
-    expect(exitCode).toBe(4);
+    expect(exitCode).toBe(8);
   });
 
   test("fails closed when the pool root changes before relayed submission", async () => {
@@ -804,7 +823,7 @@ export function registerWithdrawRelayedQuoteRefreshTests(): void {
     expect(json.error.message ?? json.errorMessage).toContain(
       "Pool state changed before submission",
     );
-    expect(exitCode).toBe(4);
+    expect(exitCode).toBe(8);
   });
 
   test("fails closed when the relayer fee changes after proof generation", async () => {

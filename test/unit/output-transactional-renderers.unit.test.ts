@@ -427,7 +427,7 @@ describe("renderRagequitDryRun parity", () => {
         args: ["ETH"],
         options: { agent: true, chain: "sepolia", poolAccount: "PA-2" },
       },
-      "privacy-pools ragequit ETH --agent --chain sepolia --pool-account PA-2 --yes-i-prefer-ragequit",
+      "privacy-pools ragequit ETH --agent --chain sepolia --pool-account PA-2 --confirm-ragequit",
     );
     expect(stderr).toBe("");
   });
@@ -604,10 +604,10 @@ describe("renderWithdrawDryRun parity", () => {
           to: "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
           poolAccount: "PA-1",
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
       },
-      "privacy-pools withdraw 0.5 ETH --agent --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --pool-account PA-1 --direct --yes-i-understand-privacy-loss",
+      "privacy-pools withdraw 0.5 ETH --agent --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --pool-account PA-1 --direct --confirm-direct-withdraw",
     );
     expect(stderr).toBe("");
   });
@@ -683,7 +683,7 @@ describe("renderWithdrawDryRun parity", () => {
     expect(stderr).toMatch(/Pool Account:\s+PA-1/);
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain(
-      "privacy-pools withdraw 0.5 ETH --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --pool-account PA-1 --direct --yes-i-understand-privacy-loss",
+      "privacy-pools withdraw 0.5 ETH --chain sepolia --to 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --pool-account PA-1 --direct --confirm-direct-withdraw",
     );
   });
 

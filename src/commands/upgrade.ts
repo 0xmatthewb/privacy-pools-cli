@@ -15,8 +15,9 @@ import {
   performUpgrade,
 } from "../services/upgrade.js";
 import type { GlobalOptions } from "../types.js";
+import { printJsonSuccess } from "../utils/json.js";
 import { printError, promptCancelledError } from "../utils/errors.js";
-import { info } from "../utils/format.js";
+import { info, warn } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
   ensurePromptInteractionAvailable,
@@ -33,6 +34,53 @@ import type { UpgradeResult } from "../services/upgrade.js";
 interface UpgradeCommandOptions {
   check?: boolean;
   changelog?: boolean;
+}
+
+function handleUpgradeInspectFailure(params: {
+  mode: ReturnType<typeof resolveGlobalMode>;
+  packageVersion: string;
+  error: Error;
+}): void {
+  const message =
+    params.error instanceof Error ? params.error.message : "Upgrade check failed.";
+  const hint =
+    params.error instanceof Error && "hint" in params.error &&
+      typeof (params.error as { hint?: unknown }).hint === "string"
+      ? (params.error as { hint: string }).hint
+      : "Retry later or check npm connectivity, then rerun privacy-pools upgrade --check.";
+  const retryable =
+    params.error instanceof Error && "retryable" in params.error &&
+      typeof (params.error as { retryable?: unknown }).retryable === "boolean"
+      ? (params.error as { retryable: boolean }).retryable
+      : true;
+  const warning = {
+    code: "UPGRADE_CHECK_FAILED",
+    message,
+    hint,
+    retryable,
+  };
+
+  if (params.mode.isJson) {
+    printJsonSuccess({
+      mode: "upgrade",
+      status: "manual",
+      currentVersion: params.packageVersion,
+      latestVersion: null,
+      updateAvailable: null,
+      performed: false,
+      command: null,
+      installContext: {
+        kind: "unknown",
+        supportedAutoRun: false,
+        reason: "npm release checks are temporarily unavailable.",
+      },
+      installedVersion: null,
+      warnings: [warning],
+    });
+    return;
+  }
+
+  warn(hint, params.mode.isQuiet);
 }
 
 function withBundledReleaseHighlights(
@@ -123,23 +171,33 @@ export async function handleUpgradeCommand(
         previewResult ?? await inspectUpgrade(pkg),
         pkg.packageRoot,
       );
-    let result = shouldShowProgress
-      ? await (async () => {
-          const [{ spinner }, { withSpinnerProgress }] = await Promise.all([
-            import("../utils/format.js"),
-            import("../utils/proof-progress.js"),
-          ]);
-          const spin = spinner("Checking for upgrades...", false);
-          spin.start();
-          try {
-            return await withSpinnerProgress(spin, "Checking for upgrades", () =>
-              inspectUpgradeWithPreview()
-            );
-          } finally {
-            spin.stop();
-          }
-        })()
-      : await inspectUpgradeWithPreview();
+    let result: UpgradeResult;
+    try {
+      result = shouldShowProgress
+        ? await (async () => {
+            const [{ spinner }, { withSpinnerProgress }] = await Promise.all([
+              import("../utils/format.js"),
+              import("../utils/proof-progress.js"),
+            ]);
+            const spin = spinner("Checking for upgrades...", false);
+            spin.start();
+            try {
+              return await withSpinnerProgress(spin, "Checking for upgrades", () =>
+                inspectUpgradeWithPreview()
+              );
+            } finally {
+              spin.stop();
+            }
+          })()
+        : await inspectUpgradeWithPreview();
+    } catch (error) {
+      handleUpgradeInspectFailure({
+        mode,
+        packageVersion: pkg.version,
+        error: error instanceof Error ? error : new Error(String(error)),
+      });
+      return;
+    }
 
     const performUpgradeWithProgress = async () => {
       if (!shouldShowProgress) {

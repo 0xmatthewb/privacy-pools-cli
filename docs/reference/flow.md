@@ -31,7 +31,7 @@ Deposit now and save a later private withdrawal workflow
 
 **Usage:** `privacy-pools flow start <amount> <asset> [options]`
 
-This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient. With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve. The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.
+This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or exit publicly via ragequit. With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve. The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.
 
 **Basic:**
 
@@ -57,7 +57,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 | Flag | Description |
 |------|-------------|
 | `-t, --to <address>` | Recipient address for private withdrawal (prompted interactively; required whenever prompts are skipped) |
-| `--privacy-delay <profile>` | Privacy delay profile: off = no added hold, balanced = randomized 15 to 90 minutes (default), aggressive = randomized 2 to 12 hours |
+| `--privacy-delay <profile>` | Privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance. |
 | `--new-wallet` | Create and use a dedicated wallet for this workflow |
 | `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
 | `--dry-run` | Validate the flow start inputs without saving a workflow or submitting a deposit |
@@ -66,7 +66,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 **Safety:** Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.
 **Safety:** If --to is omitted in interactive mode, the CLI prompts for the recipient. When prompts are skipped, --to remains required.
 **Safety:** In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.
-**Safety:** New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
+**Safety:** New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.
 **Safety:** Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.
 **Safety:** flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.
 **Safety:** --export-new-wallet is only valid with --new-wallet.
@@ -109,13 +109,13 @@ privacy-pools flow watch latest --stream-json
 
 | Flag | Description |
 |------|-------------|
-| `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off = no added hold, balanced = randomized 15 to 90 minutes (default), aggressive = randomized 2 to 12 hours |
+| `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance. |
 | `--stream-json` | Emit line-delimited JSON phase_change events plus the final snapshot |
 
 **Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.
 **Safety:** If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.
 **Safety:** Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.
-**Safety:** Passing --privacy-delay on flow watch updates the saved workflow policy. off = no added hold, balanced = randomized 15 to 90 minutes, aggressive = randomized 2 to 12 hours.
+**Safety:** Passing --privacy-delay on flow watch updates the saved workflow policy. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.
 **Safety:** Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
@@ -146,7 +146,7 @@ Recover a saved workflow publicly via ragequit
 
 **Usage:** `privacy-pools flow ragequit [workflowId|latest] [options]`
 
-Uses the saved workflow context to perform the public recovery path without changing any manual commands. Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path. If a saved full-balance workflow can no longer satisfy the relayer minimum, flow ragequit becomes the required recovery path because the saved flow only supports relayed private withdrawal. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
+Uses the saved workflow context to perform the public recovery path without changing any manual commands. Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval. Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path. If a saved full-balance workflow can no longer satisfy the relayer minimum, flow ragequit becomes the required recovery path because the saved flow only supports relayed private withdrawal. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
 
 ```bash
 privacy-pools flow ragequit
@@ -156,7 +156,7 @@ privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 
 | Flag | Description |
 |------|-------------|
-| `--yes-i-prefer-ragequit` | Confirm non-interactive flow ragequit commands that intentionally choose the public recovery path |
+| `--confirm-ragequit` | Confirm non-interactive flow ragequit commands that intentionally choose the public recovery path |
 
 **Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.
 **Safety:** Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.

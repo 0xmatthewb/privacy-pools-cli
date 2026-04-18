@@ -51,6 +51,9 @@ const realSdk = captureModuleExports(await import("../../src/services/sdk.ts"));
 const realPreflight = captureModuleExports(
   await import("../../src/utils/preflight.ts"),
 );
+const realAccountStorage = captureModuleExports(
+  await import("../../src/services/account-storage.ts"),
+);
 const realLock = captureModuleExports(await import("../../src/utils/lock.ts"));
 const realCriticalSection = captureModuleExports(
   await import("../../src/utils/critical-section.ts"),
@@ -85,6 +88,7 @@ const WITHDRAW_HANDLER_MODULE_RESTORES = [
   ["../../src/services/contracts.ts", realContracts],
   ["../../src/utils/pool-accounts.ts", realPoolAccounts],
   ["../../src/utils/preflight.ts", realPreflight],
+  ["../../src/services/account-storage.ts", realAccountStorage],
   ["../../src/utils/lock.ts", realLock],
   ["../../src/utils/critical-section.ts", realCriticalSection],
   ["../../src/utils/unsigned.ts", realUnsigned],
@@ -345,6 +349,7 @@ const listSavedWorkflowIdsMock = mock(() => [] as string[]);
 const getWorkflowStatusMock = mock(() => {
   throw new Error("workflow not found");
 });
+const accountHasDepositsMock = mock(() => true);
 const confirmPromptMock = mock(async () => true);
 const inputPromptMock = mock(async () =>
   "0x4444444444444444444444444444444444444444"
@@ -354,6 +359,7 @@ const selectPromptMock = mock(async () => 1);
 let handleWithdrawCommand: typeof import("../../src/commands/withdraw.ts").handleWithdrawCommand;
 let handleWithdrawQuoteCommand: typeof import("../../src/commands/withdraw.ts").handleWithdrawQuoteCommand;
 let world: TestWorld;
+let withdrawImportCounter = 0;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -443,6 +449,11 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
   mock.module("../../src/utils/preflight.ts", () => ({
     checkHasGas: checkHasGasMock,
   }));
+  mock.module("../../src/services/account-storage.ts", () => ({
+    ...realAccountStorage,
+    accountHasDeposits: accountHasDepositsMock,
+    saveAccount: saveAccountMock,
+  }));
   mock.module("../../src/utils/lock.ts", () => ({
     acquireProcessLock: acquireProcessLockMock,
   }));
@@ -487,7 +498,7 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
   }));
 
   ({ handleWithdrawCommand, handleWithdrawQuoteCommand } = await import(
-    "../../src/commands/withdraw.ts"
+    `../../src/commands/withdraw.ts?bust=${withdrawImportCounter++}`
   ));
 }
 
@@ -542,6 +553,7 @@ export function registerWithdrawCommandHandlerHarness(): void {
     rememberKnownRecipientMock.mockClear();
     listSavedWorkflowIdsMock.mockClear();
     getWorkflowStatusMock.mockClear();
+    accountHasDepositsMock.mockClear();
     confirmPromptMock.mockClear();
     inputPromptMock.mockClear();
     selectPromptMock.mockClear();
@@ -702,6 +714,7 @@ export function registerWithdrawCommandHandlerHarness(): void {
     getWorkflowStatusMock.mockImplementation(() => {
       throw new Error("workflow not found");
     });
+    accountHasDepositsMock.mockImplementation(() => true);
   });
 
   afterEach(async () => {
@@ -724,6 +737,7 @@ export {
   PENDING_POOL_ACCOUNT,
   USDC_POOL,
   acquireProcessLockMock,
+  accountHasDepositsMock,
   buildAllPoolAccountRefsMock,
   buildLoadedAspDepositReviewStateMock,
   buildPoolAccountRefsMock,

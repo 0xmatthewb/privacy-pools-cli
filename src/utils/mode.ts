@@ -6,6 +6,7 @@ import {
   setSuppressProgress,
 } from "./format.js";
 import { warnLegacyFormatFlag } from "./deprecations.js";
+import { configureNextActionGlobals } from "./next-action-globals.js";
 import { getParsedVerboseLevel } from "./verbose-level.js";
 import { setActiveProfile } from "../runtime/config-paths.js";
 import { CLIError } from "./errors.js";
@@ -82,13 +83,28 @@ export function isSupportedOutputFormat(
 function readJsonFieldsFromArgv(argv: readonly string[]): string | null {
   const boundary = argv.indexOf("--");
   const args = boundary === -1 ? argv : argv.slice(0, boundary);
+  let seenCommandToken = false;
   for (let i = 0; i < args.length; i++) {
     const token = args[i];
+    if (typeof token === "string" && token.startsWith("--json=")) {
+      return token.slice("--json=".length);
+    }
+    if (
+      token === "--json"
+      && seenCommandToken
+      && i + 1 < args.length
+      && !(args[i + 1] ?? "").startsWith("-")
+    ) {
+      return args[i + 1] ?? null;
+    }
     if (token === "--json-fields") {
       return i + 1 < args.length ? (args[i + 1] ?? null) : null;
     }
     if (typeof token === "string" && token.startsWith("--json-fields=")) {
       return token.slice("--json-fields=".length);
+    }
+    if (typeof token === "string" && !token.startsWith("-")) {
+      seenCommandToken = true;
     }
   }
   return null;
@@ -116,6 +132,8 @@ export function invalidOutputFormatMessage(value: string): string {
 export function resolveGlobalMode(
   globalOpts?: GlobalOptions
 ): ResolvedGlobalMode {
+  configureNextActionGlobals(globalOpts);
+
   // Activate profile before any config loading happens.
   if (globalOpts?.profile !== undefined) {
     setActiveProfile(globalOpts.profile);
@@ -201,7 +219,7 @@ export function resolveGlobalMode(
       : null;
 
   const structuredFilters = [
-    hasJsonFieldsFlag ? "--json-fields" : null,
+    hasJsonFieldsFlag ? "--json" : null,
     jqExpression ? "--jmes/--jq" : null,
     hasTemplateFlag ? "--template" : null,
   ].filter((value): value is string => value !== null);
@@ -209,7 +227,7 @@ export function resolveGlobalMode(
     throw new CLIError(
       `Choose only one structured output filter: ${structuredFilters.join(", ")}.`,
       "INPUT",
-      "Use one of --json-fields, --template, or --jmes/--jq at a time.",
+      "Use one of --json <fields>, --template, or --jmes/--jq at a time.",
       "INPUT_MUTUALLY_EXCLUSIVE",
     );
   }

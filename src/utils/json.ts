@@ -23,6 +23,23 @@ let _jqExpression: string | null = null;
 let _template: string | null = null;
 let _structuredFormat: "json" | "yaml" = "json";
 
+function decodeTemplateEscapes(template: string): string {
+  return template.replace(/\\([ntr\\])/g, (_match, code: string) => {
+    switch (code) {
+      case "n":
+        return "\n";
+      case "t":
+        return "\t";
+      case "r":
+        return "\r";
+      case "\\":
+        return "\\";
+      default:
+        return `\\${code}`;
+    }
+  });
+}
+
 /**
  * Configure global JSON output filtering.
  *
@@ -52,7 +69,7 @@ export function configureJsonOutput(
 
   _jsonFields = jsonFields;
   _jqExpression = jqExpression;
-  _template = template;
+  _template = typeof template === "string" ? decodeTemplateEscapes(template) : null;
   _structuredFormat = structuredFormat;
 }
 

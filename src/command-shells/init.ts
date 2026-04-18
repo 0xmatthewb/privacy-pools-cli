@@ -49,7 +49,7 @@ export function createInitCommand(): Command {
     )
     .option(
       "--staged",
-      "Emit staged JSONL onboarding envelopes in --json/--agent mode",
+      "Emit onboarding progress as JSONL envelopes in --json/--agent mode (preflight, recovery, backup, signer, chain, write, discovery, complete)",
     )
     .addOption(
       new Option(

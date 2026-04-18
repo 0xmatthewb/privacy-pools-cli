@@ -534,6 +534,7 @@ describe("renderStatus parity", () => {
         message:
           "If you loaded this recovery phrase before automatic discovery was added, rerun 'privacy-pools init' and choose 'Load an existing Privacy Pools account' to discover supported deposits.",
         affects: ["discovery"],
+        reasonCode: "no_local_deposits_yet",
       },
     ]);
     expect(json.nextActions).toBeArrayOfSize(2);

@@ -33,7 +33,7 @@ export function createFlowCommand(): Command {
     .addOption(
       new Option(
         "--privacy-delay <profile>",
-        "Privacy delay profile: off = no added hold, balanced = randomized 15 to 90 minutes (default), aggressive = randomized 2 to 12 hours",
+        "Privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
       ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .option("--new-wallet", "Create and use a dedicated wallet for this workflow")
@@ -55,7 +55,7 @@ export function createFlowCommand(): Command {
     .addOption(
       new Option(
         "--privacy-delay <profile>",
-        "Persist or override the saved privacy delay profile: off = no added hold, balanced = randomized 15 to 90 minutes (default), aggressive = randomized 2 to 12 hours",
+        "Persist or override the saved privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
       ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .option(
@@ -87,8 +87,14 @@ export function createFlowCommand(): Command {
     .description(ragequitMetadata.description)
     .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
     .option(
-      "--yes-i-prefer-ragequit",
+      "--confirm-ragequit",
       "Confirm non-interactive flow ragequit commands that intentionally choose the public recovery path",
+    )
+    .addOption(
+      new Option(
+        "--yes-i-prefer-ragequit",
+        "Deprecated hidden alias for --confirm-ragequit",
+      ).hideHelp(),
     )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(

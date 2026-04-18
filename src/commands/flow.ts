@@ -66,6 +66,7 @@ interface FlowWatchCommandOptions {
 }
 
 interface FlowRagequitCommandOptions {
+  confirmRagequit?: boolean;
   yesIPreferRagequit?: boolean;
 }
 
@@ -673,7 +674,11 @@ export async function handleFlowRagequitCommand(
       if (!ok) {
         throw new FlowCancelledError();
       }
-    } else if (snapshot.aspStatus === "approved" && opts.yesIPreferRagequit !== true) {
+    } else if (
+      snapshot.aspStatus === "approved"
+      && opts.confirmRagequit !== true
+      && opts.yesIPreferRagequit !== true
+    ) {
       throw new CLIError(
         `${snapshot.poolAccountId ?? "This workflow"} is approved for private withdrawal.`,
         "INPUT",
@@ -704,7 +709,7 @@ export async function handleFlowRagequitCommand(
               "after_dry_run",
               {
                 args: [snapshot.workflowId],
-                options: { agent: true, yesIPreferRagequit: true },
+                options: { agent: true, confirmRagequit: true },
               },
             ),
           ],

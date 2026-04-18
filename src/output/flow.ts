@@ -114,7 +114,7 @@ export function formatFlowStartReview(data: FlowStartReviewData): string {
       kind: "privacy",
       lines: [
         "This saved flow deposits publicly now, then waits for Association Set Provider (ASP) approval before requesting the relayed private withdrawal.",
-        "The ASP vetting fee is deducted from the public deposit amount, so the committed on-chain balance may be a non-round amount even when the input amount is round.",
+        "The ASP vetting fee is deducted from the public deposit amount, so the committed onchain balance may be a non-round amount even when the input amount is round.",
         DEPOSIT_APPROVAL_TIMELINE_COPY,
         "The auto-withdrawal always spends the full approved Pool Account balance to the saved recipient.",
       ],

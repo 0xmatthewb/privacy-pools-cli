@@ -168,10 +168,7 @@ Usage: \fBprivacy\-pools capabilities [options]\fR
 Target chain (mainnet, arbitrum, optimism, ...)
 .TP
 .B \-j, \-\-json
-Machine\-readable JSON output on stdout
-.TP
-.B \-\-json\-fields <fields>
-Select specific JSON fields (comma\-separated, implies \-\-json)
+Machine\-readable JSON output on stdout. After the command name, pass \-\-json <fields> or \-\-json=<fields> to select top\-level fields.
 .TP
 .B \-\-template <template>
 Render structured output through a lightweight Mustache\-style template with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration

@@ -251,6 +251,9 @@ async function loadReadonlyHandlers(): Promise<void> {
       ...realSdk,
       getDataService: getDataServiceMock,
       getPublicClient: getPublicClientMock,
+      getReadOnlyRpcSession: async () => ({
+        getLatestBlockNumber: async () => 12_345n,
+      }),
     })],
     ["../../src/services/pools.ts", () => ({
       ...realPools,

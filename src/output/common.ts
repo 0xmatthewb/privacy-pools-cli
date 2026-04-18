@@ -16,6 +16,7 @@ import type {
   NextActionOptionValue,
   NextActionWhen,
 } from "../types.js";
+import { getNextActionGlobals } from "../utils/next-action-globals.js";
 import {
   info,
   success,
@@ -176,16 +177,36 @@ function camelToKebab(key: string): string {
 
 function buildNextActionCommand(
   action: NextAction,
-  options: { includeAgent: boolean },
+  options: { includeAgent: boolean; preserveGlobalFlags?: boolean },
 ): string {
   const parts = ["privacy-pools", action.command];
+  const activeGlobals = options.preserveGlobalFlags ? getNextActionGlobals() : {};
+  const explicitOptions = action.options ?? {};
+  const wantsAgent = options.includeAgent || activeGlobals.agent === true;
 
   if (action.args) {
     parts.push(...action.args);
   }
 
-  if (options.includeAgent) {
+  if (wantsAgent) {
     parts.push("--agent");
+  } else {
+    if (activeGlobals.yes === true) {
+      parts.push("--yes");
+    }
+    if (activeGlobals.quiet === true) {
+      parts.push("--quiet");
+    }
+  }
+
+  if (activeGlobals.chain && explicitOptions.chain === undefined) {
+    parts.push("--chain", String(activeGlobals.chain));
+  }
+  if (activeGlobals.rpcUrl && explicitOptions.rpcUrl === undefined) {
+    parts.push("--rpc-url", String(activeGlobals.rpcUrl));
+  }
+  if (activeGlobals.profile && explicitOptions.profile === undefined) {
+    parts.push("--profile", String(activeGlobals.profile));
   }
 
   if (action.options) {
@@ -205,11 +226,17 @@ function buildNextActionCommand(
 }
 
 export function formatNextActionCommand(action: NextAction): string {
-  return buildNextActionCommand(action, { includeAgent: false });
+  return buildNextActionCommand(action, {
+    includeAgent: false,
+    preserveGlobalFlags: false,
+  });
 }
 
 export function formatExecutableNextActionCommand(action: NextAction): string {
-  return buildNextActionCommand(action, { includeAgent: true });
+  return buildNextActionCommand(action, {
+    includeAgent: true,
+    preserveGlobalFlags: true,
+  });
 }
 
 function withCliCommand(action: NextAction, includeAgent: boolean = false): NextAction {
@@ -239,6 +266,7 @@ function withCliCommand(action: NextAction, includeAgent: boolean = false): Next
         ...normalizedAction,
         cliCommand: buildNextActionCommand(normalizedAction, {
           includeAgent: includeAgent || actionRequestsAgent,
+          preserveGlobalFlags: true,
         }),
       };
 }

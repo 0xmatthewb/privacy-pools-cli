@@ -83,17 +83,41 @@ defineScenarioSuite("output-mode acceptance", [
       );
     }),
   ]),
+  defineScenario("describe envelope paths stay machine-readable on the static route", [
+    runCliStep(["--agent", "describe", "envelope.shared.nextAction"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{ success: boolean; path: string; schema: { cliCommand: string } }>((json) => {
+      expect(json.success).toBe(true);
+      expect(json.path).toBe("envelope.shared.nextAction");
+      expect(json.schema.cliCommand).toContain("omitted when runnable = false");
+    }),
+  ]),
   defineScenario("describe stays fully silent in quiet mode", [
     runCliStep(["--quiet", "describe", "withdraw", "quote"]),
     assertExit(0),
     assertStdoutEmpty(),
     assertStderrEmpty(),
   ]),
-  defineScenario("status stays fully silent in quiet mode", [
+  defineScenario("command-local --json <fields> trims the JSON envelope", [
+    runCliStep(["describe", "withdraw", "--json", "command,usage"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{ success: boolean; command: string; usage: string }>((json) => {
+      expect(json.command).toBe("withdraw");
+      expect(json.usage).toBe("withdraw [amount] [asset] --to <address>");
+      expect((json as Record<string, unknown>).description).toBeUndefined();
+    }),
+  ]),
+  defineScenario("status quiet mode prints the documented one-line stdout summary", [
     seedHome("sepolia"),
     runCliStep(["--quiet", "--no-banner", "status", "--no-check"]),
     assertExit(0),
-    assertStdoutEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout.trim()).toBe(
+        "status=ready chain=sepolia rpc=unchecked asp=unchecked deposits=0",
+      );
+    }),
     assertStderrEmpty(),
   ]),
   defineScenario("status without init writes readiness warnings to stderr", [
@@ -243,5 +267,20 @@ defineScenarioSuite("output-mode acceptance", [
         expect(json.mode).toBe("completion-script");
       },
     ),
+  ]),
+  defineScenario("agent-aware help injection appears only in agent environments", [
+    runCliStep(["withdraw", "--help"], {
+      env: {
+        CODEX_AGENT: "1",
+      },
+    }),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("Agent guidance:");
+      expect(stdout).toContain(
+        "Use --agent for --json --yes --quiet when you need a runnable machine contract.",
+      );
+    }),
   ]),
 ]);

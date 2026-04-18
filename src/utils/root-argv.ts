@@ -63,9 +63,137 @@ interface ParsedRootPreludeTokenResult {
   versionLike: boolean;
 }
 
-export function rootArgvSlice(args: string[]): string[] {
+function rootArgvSliceRaw(args: string[]): string[] {
   const boundary = args.indexOf("--");
   return boundary === -1 ? args : args.slice(0, boundary);
+}
+
+function applyStructuredOutputFlagsFromTrailingArgs(
+  args: readonly string[],
+  startIndex: number,
+  globalOpts: GlobalOptions,
+): void {
+  for (let index = startIndex; index < args.length; index++) {
+    const token = args[index] ?? "";
+
+    if (token === "--json-fields") {
+      const nextToken = args[index + 1];
+      if (typeof nextToken === "string" && !nextToken.startsWith("-")) {
+        globalOpts.jsonFields = nextToken;
+        globalOpts.json = true;
+        index++;
+      }
+      continue;
+    }
+
+    if (typeof token === "string" && token.startsWith("--json-fields=")) {
+      globalOpts.jsonFields = token.slice("--json-fields=".length);
+      globalOpts.json = true;
+      continue;
+    }
+
+    if (typeof token === "string" && token.startsWith("--json=")) {
+      globalOpts.jsonFields = token.slice("--json=".length);
+      globalOpts.json = true;
+      continue;
+    }
+
+    if (token === "--json") {
+      globalOpts.json = true;
+      const nextToken = args[index + 1];
+      if (typeof nextToken === "string" && !nextToken.startsWith("-")) {
+        globalOpts.jsonFields = nextToken;
+        index++;
+      }
+      continue;
+    }
+
+    if (token === "--template") {
+      const nextToken = args[index + 1];
+      if (typeof nextToken === "string") {
+        globalOpts.template = nextToken;
+        globalOpts.json = true;
+        index++;
+      }
+      continue;
+    }
+
+    if (typeof token === "string" && token.startsWith("--template=")) {
+      globalOpts.template = token.slice("--template=".length);
+      globalOpts.json = true;
+      continue;
+    }
+
+    if (token === "--jmes" || token === "--jq") {
+      const nextToken = args[index + 1];
+      if (typeof nextToken === "string") {
+        if (token === "--jmes") {
+          globalOpts.jmes = nextToken;
+        } else {
+          globalOpts.jq = nextToken;
+        }
+        index++;
+      }
+      continue;
+    }
+
+    if (typeof token === "string" && token.startsWith("--jmes=")) {
+      globalOpts.jmes = token.slice("--jmes=".length);
+      continue;
+    }
+
+    if (typeof token === "string" && token.startsWith("--jq=")) {
+      globalOpts.jq = token.slice("--jq=".length);
+      continue;
+    }
+  }
+}
+
+export function normalizeJsonFieldSelectionArgv(args: string[]): string[] {
+  const boundary = args.indexOf("--");
+  const head = boundary === -1 ? args : args.slice(0, boundary);
+  const tail = boundary === -1 ? [] : args.slice(boundary);
+  const normalized: string[] = [];
+  let seenCommandToken = false;
+
+  for (let index = 0; index < head.length; index++) {
+    const token = head[index] ?? "";
+
+    if (token.startsWith("--json=")) {
+      normalized.push(`--json-fields=${token.slice("--json=".length)}`);
+      continue;
+    }
+
+    if (
+      token === "--json"
+      && seenCommandToken
+      && index + 1 < head.length
+      && !(head[index + 1] ?? "").startsWith("-")
+    ) {
+      normalized.push("--json-fields", head[index + 1] ?? "");
+      index++;
+      continue;
+    }
+
+    normalized.push(token);
+    if (!token.startsWith("-")) {
+      seenCommandToken = true;
+      continue;
+    }
+    if (ROOT_OPTIONS_WITH_VALUE.has(token)) {
+      const next = head[index + 1];
+      if (next !== undefined) {
+        normalized.push(next);
+        index++;
+      }
+    }
+  }
+
+  return tail.length > 0 ? [...normalized, ...tail] : normalized;
+}
+
+export function rootArgvSlice(args: string[]): string[] {
+  return rootArgvSliceRaw(normalizeJsonFieldSelectionArgv(args));
 }
 
 export function hasShortFlag(args: string[], flag: string): boolean {
@@ -361,7 +489,8 @@ export function parseRootPreludeShortFlagBundle(
 export function parseValidatedRootPrelude(
   argv: string[],
 ): ParsedRootPrelude | null {
-  const rootArgs = rootArgvSlice(argv);
+  const normalizedArgv = normalizeJsonFieldSelectionArgv(argv);
+  const rootArgs = rootArgvSliceRaw(normalizedArgv);
   const globalOpts: GlobalOptions = {};
   applyEnvFallbackRootOptions(globalOpts);
   let commandIndex: number | null = null;
@@ -405,8 +534,16 @@ export function parseValidatedRootPrelude(
     }
   }
 
+  if (commandIndex !== null) {
+    applyStructuredOutputFlagsFromTrailingArgs(
+      rootArgs,
+      commandIndex + 1,
+      globalOpts,
+    );
+  }
+
   return {
-    parsed: parseRootArgv(argv),
+    parsed: parseRootArgv(normalizedArgv),
     globalOpts,
     commandIndex,
   };
@@ -441,25 +578,26 @@ export function getParsedVerboseLevel(): number {
 }
 
 export function parseRootArgv(argv: string[]): ParsedRootArgv {
-  const rootArgs = rootArgvSlice(argv);
-  const firstCommandToken = firstNonOptionToken(argv);
-  const nonOptionTokens = allNonOptionTokens(argv);
+  const normalizedArgv = normalizeJsonFieldSelectionArgv(argv);
+  const rootArgs = rootArgvSliceRaw(normalizedArgv);
+  const firstCommandToken = firstNonOptionToken(normalizedArgv);
+  const nonOptionTokens = allNonOptionTokens(normalizedArgv);
   const formatFlagValue =
     (
-      readLongOptionValue(argv, "--output") ??
-      readLongOptionValue(argv, "--format") ??
-      readShortOptionValue(argv, "-o")
+      readLongOptionValue(normalizedArgv, "--output") ??
+      readLongOptionValue(normalizedArgv, "--format") ??
+      readShortOptionValue(normalizedArgv, "-o")
     )?.toLowerCase() ?? null;
   const envAgent = readBooleanEnv("PRIVACY_POOLS_AGENT");
   const envQuiet = readBooleanEnv("PRIVACY_POOLS_QUIET");
-  const isAgent = hasLongFlag(argv, "--agent") || envAgent;
-  const hasJq = hasLongFlag(argv, "--jq");
-  const hasJmes = hasLongFlag(argv, "--jmes");
-  const hasJsonFields = hasLongFlag(argv, "--json-fields");
-  const hasTemplate = hasLongFlag(argv, "--template");
+  const isAgent = hasLongFlag(normalizedArgv, "--agent") || envAgent;
+  const hasJq = hasLongFlag(normalizedArgv, "--jq");
+  const hasJmes = hasLongFlag(normalizedArgv, "--jmes");
+  const hasJsonFields = hasLongFlag(normalizedArgv, "--json-fields");
+  const hasTemplate = hasLongFlag(normalizedArgv, "--template");
   const isJson =
-    hasLongFlag(argv, "--json") ||
-    hasShortFlag(argv, "j") ||
+    hasLongFlag(normalizedArgv, "--json") ||
+    hasShortFlag(normalizedArgv, "j") ||
     formatFlagValue === "json" ||
     isAgent ||
     hasJq ||
@@ -467,15 +605,15 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
     hasJsonFields ||
     hasTemplate;
   const isCsvMode = formatFlagValue === "csv" && !isJson;
-  const isUnsigned = hasLongFlag(argv, "--unsigned");
+  const isUnsigned = hasLongFlag(normalizedArgv, "--unsigned");
   const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;
   const isStructuredOutputMode = isJson || isUnsigned || isAgent;
   const isHelpLike =
     rootArgs.includes("--help") ||
-    hasShortFlag(argv, "h") ||
+    hasShortFlag(normalizedArgv, "h") ||
     firstCommandToken === "help";
   const isVersionLike =
-    rootArgs.includes("--version") || hasShortFlag(argv, "V");
+    rootArgs.includes("--version") || hasShortFlag(normalizedArgv, "V");
   const isRootHelpInvocation =
     isHelpLike &&
     (nonOptionTokens.length === 0 ||
@@ -483,15 +621,15 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
   const suppressBanner = rootArgs.includes("--no-banner");
   const isQuiet =
     rootArgs.includes("--quiet") ||
-    hasShortFlag(argv, "q") ||
+    hasShortFlag(normalizedArgv, "q") ||
     isAgent ||
     envQuiet;
-  const isWelcome = isWelcomeFlagOnlyInvocation(argv) && !isMachineMode;
+  const isWelcome = isWelcomeFlagOnlyInvocation(normalizedArgv) && !isMachineMode;
 
-  setParsedVerboseLevel(countVerboseFlags(argv));
+  setParsedVerboseLevel(countVerboseFlags(normalizedArgv));
 
   return {
-    argv,
+    argv: normalizedArgv,
     firstCommandToken,
     nonOptionTokens,
     formatFlagValue,

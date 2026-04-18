@@ -8,6 +8,10 @@ export function createSyncCommand(): Command {
   return new Command("sync")
     .description(metadata.description)
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
+    .option(
+      "--stream-json",
+      "Emit line-delimited JSON progress events and finish with the final sync envelope",
+    )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

@@ -87,7 +87,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
     options: [
       completionOption("-c, --chain <name>", CHAIN_NAMES),
       completionOption("-j, --json"),
-      completionOption("--json-fields <fields>"),
       completionOption(
         "-o, --output <format>",
         rootGlobalFlagValues("-o, --output <format>"),
@@ -170,10 +169,13 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionCommand("watch", {
             options: [
               completionOption("--privacy-delay <profile>", FLOW_PRIVACY_DELAY_PROFILES),
+              completionOption("--stream-json"),
             ],
           }),
           completionCommand("status"),
-          completionCommand("ragequit"),
+          completionCommand("ragequit", {
+            options: [completionOption("--confirm-ragequit")],
+          }),
         ],
       }),
       completionCommand("pools", {
@@ -215,7 +217,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-t, --to <address>"),
           completionOption("-p, --pool-account <PA-#|#>"),
           completionOption("--direct"),
-          completionOption("--yes-i-understand-privacy-loss"),
+          completionOption("--confirm-direct-withdraw"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
           completionOption("--all"),
@@ -237,7 +239,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-i, --commitment <index>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
-          completionOption("--yes-i-prefer-ragequit"),
+          completionOption("--confirm-ragequit"),
         ],
       }),
       completionCommand("history", {
@@ -247,7 +249,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         ],
       }),
       completionCommand("sync", {
-        options: [],
+        options: [completionOption("--stream-json")],
       }),
       completionCommand("status", {
         options: [
@@ -335,6 +337,14 @@ function findOption(
   current: CompletionCommandNode,
   root: CompletionCommandNode,
 ): CompletionOptionSpec | undefined {
+  if (token === "--json-fields") {
+    return {
+      names: ["--json-fields"],
+      takesValue: true,
+      values: [],
+    };
+  }
+
   return mergedOptions(current, root).find((option) =>
     option.names.includes(token),
   );
@@ -409,7 +419,14 @@ function resolveContext(
           consumedOptionNames.add(name);
         }
       }
-      if (option && option.takesValue && equalsIndex < 0) {
+      if (
+        option
+        && equalsIndex < 0
+        && (
+          option.takesValue ||
+          (isJsonFieldsOption(option) && commandPath.length > 0)
+        )
+      ) {
         expectingValueFor = option;
       }
       continue;
@@ -450,7 +467,7 @@ function isProfileOption(option: CompletionOptionSpec): boolean {
 }
 
 function isJsonFieldsOption(option: CompletionOptionSpec): boolean {
-  return option.names.some((n) => n === "--json-fields");
+  return option.names.some((n) => n === "--json-fields" || n === "--json" || n === "-j");
 }
 
 function jsonFieldCandidates(commandPath: string[]): string[] {

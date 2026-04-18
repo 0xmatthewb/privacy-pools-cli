@@ -2,6 +2,7 @@ import type { GlobalOptions } from "../types.js";
 import { CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { resolveEnvelopeSchemaPath } from "../utils/describe-schema.js";
 import { guardStaticCsvUnsupported, isQuietMode } from "./guards.js";
 
 export async function renderStaticCapabilities(
@@ -68,12 +69,33 @@ export async function renderStaticDescribe(
       `Valid command paths: ${listStaticCommandPaths().join(", ")}`,
     );
   }
+  const rawPath = commandTokens.join(" ").trim();
+  const envelopeSchema = resolveEnvelopeSchemaPath(rawPath);
+  if (envelopeSchema !== undefined) {
+    const descriptor = { path: rawPath, schema: envelopeSchema };
+    if (mode.isJson) {
+      printJsonSuccess(descriptor);
+      return;
+    }
+
+    if (isQuietMode(globalOpts)) {
+      return;
+    }
+
+    const { renderSchemaDescription } = await import("../output/describe.js");
+    renderSchemaDescription(
+      { mode, isVerbose: false, verboseLevel: mode.verboseLevel },
+      descriptor,
+    );
+    return;
+  }
+
   const commandPath = resolveStaticCommandPath(commandTokens);
   if (!commandPath) {
     throw new CLIError(
       `Unknown command path: ${commandTokens.join(" ")}`,
       "INPUT",
-      `Valid command paths: ${listStaticCommandPaths().join(", ")}`,
+      `Valid command paths: ${listStaticCommandPaths().join(", ")}, envelope.<path>`,
     );
   }
 
