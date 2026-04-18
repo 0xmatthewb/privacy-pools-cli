@@ -696,7 +696,7 @@ describe("renderWithdrawDryRun parity", () => {
       }),
     );
 
-    expect(stderr).toContain("Anonymity set:");
+    expect(stderr).toContain("Privacy note:");
     expect(stderr).toContain("42 of 128 deposits (32.8%; larger is more private)");
     expect(stderr).not.toContain("eligible");
   });
@@ -868,7 +868,7 @@ describe("renderWithdrawSuccess parity", () => {
       }),
     );
 
-    expect(stderr).toContain("Anonymity set:");
+    expect(stderr).toContain("Privacy note:");
     expect(stderr).toContain("42 of 128 deposits (32.8%; larger is more private)");
     expect(stderr).not.toContain("eligible");
   });
@@ -1138,7 +1138,7 @@ describe("renderWithdrawQuote parity", () => {
   });
 });
 
-// ── CSV guard: transactional renderers throw on --format csv ────────────────
+// ── CSV guard: transactional renderers throw on --output csv ────────────────
 
 describe("CSV guard: transactional renderers", () => {
   const csvCtx = createOutputContext(makeMode({ isCsv: true }));

@@ -36,6 +36,23 @@ import {
 } from "./layout.js";
 import { formatReviewSurface } from "./review.js";
 
+export interface WithdrawAnonymitySet {
+  eligible: number;
+  total: number;
+  percentage: number;
+}
+
+export interface WithdrawUiWarning {
+  code: string;
+  category: string;
+  message: string;
+}
+
+export interface RelayedWithdrawalRemainderGuidance {
+  summary: string;
+  choices: string[];
+}
+
 export interface RelayedWithdrawalReviewData {
   poolAccountId: string;
   poolAccountBalance: bigint;
@@ -55,9 +72,9 @@ export interface RelayedWithdrawalReviewData {
   extraGasTxCost?: { gas: string; eth: string } | null;
   tokenPrice?: number | null;
   nativeTokenPrice?: number | null;
-  remainingBelowMinAdvisory?: string | null;
+  remainingBelowMinGuidance?: RelayedWithdrawalRemainderGuidance | null;
   nowMs?: number;
-  anonymitySet?: { eligible: number; total: number; percentage: number };
+  anonymitySet?: WithdrawAnonymitySet;
 }
 
 export interface DirectWithdrawalReviewData {
@@ -92,19 +109,51 @@ export function buildDirectWithdrawalPrivacyCostManifest(data: {
   };
 }
 
-export function formatAnonymitySetValue(anonymitySet: {
-  eligible: number;
-  total: number;
-  percentage: number;
-}): string {
+export function formatAnonymitySetValue(anonymitySet: WithdrawAnonymitySet): string {
   return `${anonymitySet.eligible} of ${anonymitySet.total} deposits (${anonymitySet.percentage.toFixed(1)}%; larger is more private)`;
 }
 
 function formatAnonymitySetNote(
-  anonymitySet?: { eligible: number; total: number; percentage: number },
+  anonymitySet?: WithdrawAnonymitySet,
 ): string | null {
   if (!anonymitySet) return null;
-  return `Anonymity set: ${formatAnonymitySetValue(anonymitySet)}.`;
+  return `Estimated anonymity set at this amount: ${formatAnonymitySetValue(anonymitySet)}.`;
+}
+
+export function formatAnonymitySetCallout(
+  anonymitySet?: WithdrawAnonymitySet,
+): string {
+  const note = formatAnonymitySetNote(anonymitySet);
+  return note ? formatCallout("privacy", note) : "";
+}
+
+function getFriendlyTestnetMinWithdrawFloor(decimals: number): bigint {
+  return decimals >= 6 ? 10n ** BigInt(decimals - 6) : 1n;
+}
+
+function hasWarning(
+  warnings: WithdrawUiWarning[] | undefined,
+  code: string,
+): boolean {
+  return (warnings ?? []).some((warning) => warning.code === code);
+}
+
+function formatMinWithdrawDisplay(data: {
+  minWithdrawAmount: string;
+  decimals: number;
+  asset: string;
+  isTestnet?: boolean;
+  warnings?: WithdrawUiWarning[];
+}): string {
+  const minWithdrawAmount = BigInt(data.minWithdrawAmount);
+  if (
+    data.isTestnet &&
+    hasWarning(data.warnings, "TESTNET_MIN_WITHDRAW_AMOUNT_UNUSUALLY_LOW") &&
+    minWithdrawAmount < getFriendlyTestnetMinWithdrawFloor(data.decimals)
+  ) {
+    return `< ${formatAmount(getFriendlyTestnetMinWithdrawFloor(data.decimals), data.decimals, data.asset)}`;
+  }
+  return formatAmount(minWithdrawAmount, data.decimals, data.asset);
 }
 
 function pad2(value: number): string {
@@ -174,7 +223,14 @@ export function formatRelayedWithdrawalReview(
     ? formatAmount(BigInt(data.extraGasTxCost.eth), 18, "ETH")
     : null;
   const secondaryLines = [
-    ...(data.remainingBelowMinAdvisory ? [data.remainingBelowMinAdvisory] : []),
+    ...(data.remainingBelowMinGuidance
+      ? [
+          data.remainingBelowMinGuidance.summary,
+          ...data.remainingBelowMinGuidance.choices.map(
+            (choice) => `• ${choice}`,
+          ),
+        ]
+      : []),
     ...(secondsLeft <= 30
       ? [
           "This quote is close to expiry. The CLI will refresh before proof generation when it can; if the fee changes, you will need to re-run the withdrawal.",
@@ -264,7 +320,7 @@ export function formatRelayedWithdrawalReview(
             ? `${data.poolAccountId} fully withdrawn`
             : `${formatAmount(data.remainingBalance, data.decimals, data.asset)}${usd(data.remainingBalance)}`,
         valueTone:
-          data.remainingBalance > 0n && data.remainingBelowMinAdvisory
+          data.remainingBalance > 0n && data.remainingBelowMinGuidance
             ? "danger"
             : "default",
       },
@@ -283,7 +339,7 @@ export function formatRelayedWithdrawalReview(
     secondaryCallout: secondaryLines.length > 0
       ? {
           kind:
-            data.remainingBelowMinAdvisory || secondsLeft <= 30
+            data.remainingBelowMinGuidance || secondsLeft <= 30
               ? "warning"
               : "privacy",
           lines: secondaryLines,
@@ -360,8 +416,8 @@ export interface WithdrawDryRunData {
   extraGas?: boolean;
   rootMatchedAtProofTime?: boolean;
   /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
-  anonymitySet?: { eligible: number; total: number; percentage: number };
-  warnings?: Array<{ code: string; category: string; message: string }>;
+  anonymitySet?: WithdrawAnonymitySet;
+  warnings?: WithdrawUiWarning[];
 }
 
 /**
@@ -506,9 +562,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
         ),
       );
     } else if (data.anonymitySet) {
-      process.stderr.write(
-        formatCallout("privacy", formatAnonymitySetNote(data.anonymitySet)!),
-      );
+      process.stderr.write(formatAnonymitySetCallout(data.anonymitySet));
     }
   }
   renderNextSteps(ctx, humanNextActions);
@@ -545,12 +599,12 @@ export interface WithdrawSuccessData {
   /** Token price in USD, if available. */
   tokenPrice?: number | null;
   /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
-  anonymitySet?: { eligible: number; total: number; percentage: number };
+  anonymitySet?: WithdrawAnonymitySet;
   rootMatchedAtProofTime?: boolean;
   reconciliationRequired?: boolean;
   localStateSynced?: boolean;
   warningCode?: string | null;
-  warnings?: Array<{ code: string; category: string; message: string }>;
+  warnings?: WithdrawUiWarning[];
 }
 
 /**
@@ -739,9 +793,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
         ),
       );
       if (data.anonymitySet) {
-        process.stderr.write(
-          formatCallout("privacy", formatAnonymitySetNote(data.anonymitySet)!),
-        );
+        process.stderr.write(formatAnonymitySetCallout(data.anonymitySet));
       }
     }
   }
@@ -772,6 +824,9 @@ export interface WithdrawQuoteData {
   extraGasTxCost?: { gas: string; eth: string };
   /** True when the user explicitly passed --chain (overriding the default). */
   chainOverridden?: boolean;
+  isTestnet: boolean;
+  anonymitySet?: WithdrawAnonymitySet;
+  warnings?: WithdrawUiWarning[];
 }
 
 /**
@@ -780,11 +835,7 @@ export interface WithdrawQuoteData {
 export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData): void {
   guardCsvUnsupported(ctx, "withdraw quote");
 
-  const minWithdrawFormatted = formatAmount(
-    BigInt(data.minWithdrawAmount),
-    data.decimals,
-    data.asset,
-  );
+  const minWithdrawFormatted = formatMinWithdrawDisplay(data);
 
   const feeBPS = BigInt(data.quoteFeeBPS);
   const feeAmount = (data.amount * feeBPS) / 10000n;
@@ -867,6 +918,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       recipient: data.recipient ?? null,
       minWithdrawAmount: data.minWithdrawAmount,
       minWithdrawAmountFormatted: minWithdrawFormatted,
+      isTestnet: data.isTestnet,
       baseFeeBPS,
       quoteFeeBPS: data.quoteFeeBPS,
       feeAmount: feeAmount.toString(),
@@ -883,6 +935,12 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     }
     if (data.extraGasTxCost) {
       payload.extraGasTxCost = data.extraGasTxCost;
+    }
+    if (data.anonymitySet) {
+      payload.anonymitySet = data.anonymitySet;
+    }
+    if (data.warnings && data.warnings.length > 0) {
+      payload.warnings = data.warnings;
     }
     printJsonSuccess(
       payload,
@@ -952,6 +1010,17 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       }),
     );
     process.stderr.write(formatKeyValueRows(quoteRows));
+    if (data.warnings && data.warnings.length > 0) {
+      process.stderr.write(
+        formatCallout(
+          "warning",
+          data.warnings.map((warning) => warning.message),
+        ),
+      );
+    }
+    if (data.anonymitySet) {
+      process.stderr.write(formatAnonymitySetCallout(data.anonymitySet));
+    }
     if (!hasRecipient) {
       process.stderr.write(
         formatCallout(

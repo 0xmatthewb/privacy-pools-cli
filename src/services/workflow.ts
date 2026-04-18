@@ -3311,15 +3311,15 @@ export async function executeRelayedWithdrawalForFlow(
     );
   }
 
-  const remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory({
+  const remainingBelowMinGuidance = getRelayedWithdrawalRemainderAdvisory({
     remainingBalance: 0n,
     minWithdrawAmount: BigInt(details.minWithdrawAmount),
     poolAccountId: snapshot.poolAccountId ?? `PA-${snapshot.poolAccountNumber ?? "?"}`,
     assetSymbol: pool.symbol,
     decimals: pool.decimals,
   });
-  if (remainingBelowMinAdvisory) {
-    verbose(remainingBelowMinAdvisory, isVerbose, silent);
+  if (remainingBelowMinGuidance) {
+    verbose(remainingBelowMinGuidance.summary, isVerbose, silent);
   }
 
   const initialQuoteResult = await requestQuoteWithExtraGasFallback(

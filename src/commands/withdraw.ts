@@ -111,12 +111,15 @@ import {
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { createNextAction, createOutputContext } from "../output/common.js";
 import {
-  formatAnonymitySetValue,
+  formatAnonymitySetCallout,
   formatDirectWithdrawalReview,
   formatRelayedWithdrawalReview,
+  type RelayedWithdrawalRemainderGuidance,
   renderWithdrawDryRun,
   renderWithdrawSuccess,
   renderWithdrawQuote,
+  type WithdrawAnonymitySet,
+  type WithdrawUiWarning,
 } from "../output/withdraw.js";
 import {
   CONFIRMATION_TOKENS,
@@ -177,7 +180,6 @@ interface WithdrawCommandOptions {
   poolAccount?: string;
   direct?: boolean;
   confirmDirectWithdraw?: boolean;
-  yesIUnderstandPrivacyLoss?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
   all?: boolean;
@@ -191,6 +193,67 @@ function relayerHostLabel(relayerUrl: string | undefined): string | null {
   } catch {
     return relayerUrl;
   }
+}
+
+export function getSuspiciousTestnetMinWithdrawFloor(decimals: number): bigint {
+  return decimals >= 6 ? 10n ** BigInt(decimals - 6) : 1n;
+}
+
+export function buildWithdrawQuoteWarnings(params: {
+  chainIsTestnet: boolean;
+  assetSymbol: string;
+  minWithdrawAmount: bigint;
+  decimals: number;
+}): WithdrawUiWarning[] {
+  if (!params.chainIsTestnet) {
+    return [];
+  }
+
+  const friendlyFloor = getSuspiciousTestnetMinWithdrawFloor(params.decimals);
+  if (params.minWithdrawAmount >= friendlyFloor) {
+    return [];
+  }
+
+  return [
+    {
+      code: "TESTNET_MIN_WITHDRAW_AMOUNT_UNUSUALLY_LOW",
+      category: "testnet",
+      message:
+        `This is a testnet quote. The relayer minimum is below ${formatAmount(friendlyFloor, params.decimals, params.assetSymbol)}, ` +
+        "so treat it as a testnet convenience rather than a production-like floor.",
+    },
+  ];
+}
+
+async function fetchWithdrawalAnonymitySet(
+  chainConfig: ChainConfig,
+  pool: PoolStats,
+  amount: bigint,
+): Promise<WithdrawAnonymitySet | undefined> {
+  try {
+    const anonSet = await fetchDepositsLargerThan(
+      chainConfig,
+      pool.scope,
+      amount,
+    );
+    return {
+      eligible: anonSet.eligibleDeposits,
+      total: anonSet.totalDeposits,
+      percentage: Number(anonSet.percentage.toFixed(1)),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function writeWithdrawalAnonymitySetHint(
+  anonymitySet: WithdrawAnonymitySet | undefined,
+  silent: boolean,
+): void {
+  if (silent || !anonymitySet) {
+    return;
+  }
+  process.stderr.write(formatAnonymitySetCallout(anonymitySet));
 }
 
 function buildDirectRecipientMismatchNextActions(params: {
@@ -378,6 +441,9 @@ interface RelayedWithdrawalRemainderAdvisoryParams {
   poolAccountId: string;
   assetSymbol: string;
   decimals: number;
+  poolAccountValue?: bigint;
+  chainName?: string;
+  recipient?: Address;
 }
 
 interface ValidatedRelayerQuoteForWithdrawal {
@@ -589,25 +655,77 @@ export function formatApprovalResolutionHint(
 
 export function getRelayedWithdrawalRemainderAdvisory(
   params: RelayedWithdrawalRemainderAdvisoryParams,
-): string | null {
+): RelayedWithdrawalRemainderGuidance | null {
   const {
     remainingBalance,
     minWithdrawAmount,
     poolAccountId,
     assetSymbol,
     decimals,
+    poolAccountValue,
+    chainName,
+    recipient,
   } = params;
   if (remainingBalance <= 0n || remainingBalance >= minWithdrawAmount) {
     return null;
   }
 
-  return (
-    `${poolAccountId} would keep ${formatAmount(remainingBalance, decimals, assetSymbol)}, ` +
-    `which is below the relayer minimum (${formatAmount(minWithdrawAmount, decimals, assetSymbol)}). ` +
-    "Options: withdraw a smaller amount to keep a privately withdrawable remainder, " +
-    "use --all/100% to withdraw the entire balance, " +
-    "or proceed and ragequit the remainder later (compromises privacy for the remainder)."
-  );
+  const chainArg = chainName ? ` --chain ${chainName}` : "";
+  const recipientArg = recipient ? ` --to ${recipient}` : " --to <address>";
+  const choices: string[] = [];
+  const maxSafeRelayedAmount = poolAccountValue !== undefined
+    ? poolAccountValue - minWithdrawAmount
+    : null;
+
+  if (
+    recipient &&
+    chainName &&
+    maxSafeRelayedAmount !== null &&
+    maxSafeRelayedAmount >= minWithdrawAmount
+  ) {
+    choices.push(
+      `Withdraw less: privacy-pools withdraw ${formatUnits(maxSafeRelayedAmount, decimals)} ${assetSymbol}${chainArg}${recipientArg} --pool-account ${poolAccountId}`,
+    );
+  } else if (
+    maxSafeRelayedAmount !== null &&
+    maxSafeRelayedAmount >= minWithdrawAmount
+  ) {
+    choices.push(
+      `Withdraw less and leave at least ${formatAmount(minWithdrawAmount, decimals, assetSymbol)} in ${poolAccountId}.`,
+    );
+  }
+
+  if (chainName && recipient) {
+    choices.push(
+      `Use max: privacy-pools withdraw --all ${assetSymbol}${chainArg}${recipientArg} --pool-account ${poolAccountId}`,
+    );
+    choices.push(
+      `Continue now, then recover the leftover publicly later: privacy-pools ragequit ${assetSymbol}${chainArg} --pool-account ${poolAccountId} --confirm-ragequit`,
+    );
+  } else {
+    choices.push(
+      `Use max / --all to empty ${poolAccountId} in one relayed withdrawal.`,
+    );
+    choices.push(
+      `Continue now and ragequit the leftover later if you intentionally accept public recovery for the remainder.`,
+    );
+  }
+
+  return {
+    summary:
+      `${poolAccountId} would keep ${formatAmount(remainingBalance, decimals, assetSymbol)}, ` +
+      `which is below the relayer minimum (${formatAmount(minWithdrawAmount, decimals, assetSymbol)}).`,
+    choices,
+  };
+}
+
+function formatRelayedWithdrawalRemainderHint(
+  guidance: RelayedWithdrawalRemainderGuidance,
+): string {
+  return [
+    guidance.summary,
+    ...guidance.choices.map((choice) => `- ${choice}`),
+  ].join("\n");
 }
 
 export function normalizeRelayerQuoteExpirationMs(expiration: number): number {
@@ -1010,8 +1128,7 @@ export async function handleWithdrawCommand(
       isDirect &&
       !isDryRun &&
       (mode.skipPrompts || isUnsigned) &&
-      opts.confirmDirectWithdraw !== true &&
-      opts.yesIUnderstandPrivacyLoss !== true
+      opts.confirmDirectWithdraw !== true
     ) {
       throw new CLIError(
         "Direct withdrawal requires explicit privacy-loss acknowledgement in non-interactive mode.",
@@ -1606,6 +1723,7 @@ export async function handleWithdrawCommand(
       // discovers a below-minimum amount before reaching the review stage.
       // The fetched details are reused later to avoid a redundant network call.
       let earlyRelayerDetails: Awaited<ReturnType<typeof getRelayerDetails>> | null = null;
+      let remainderGuidanceAcknowledged = false;
       if (!isDirect) {
         spin.text = "Checking relayer requirements...";
         let earlyMinCheckFailed = false;
@@ -1671,9 +1789,10 @@ export async function handleWithdrawCommand(
               poolAccountId: selectedPoolAccount.paId,
               assetSymbol: pool.symbol,
               decimals: pool.decimals,
+              poolAccountValue: selectedPoolAccount.value,
             });
             if (advisory) {
-              warn(advisory, silent);
+              warn(advisory.summary, silent);
               if (!skipPrompts) {
                 const maxAmountLeavingWithdrawableRemainder =
                   selectedPoolAccount.value - minWithdraw;
@@ -1697,12 +1816,13 @@ export async function handleWithdrawCommand(
                           value: "max" as const,
                         },
                         {
-                          name: "Continue and exit the remainder later if needed",
+                          name: "Continue and ragequit the remainder later if needed",
                           value: "continue" as const,
                         },
                       ],
                     }),
                 );
+                remainderGuidanceAcknowledged = true;
 
                 if (remainderChoice === "max") {
                   withdrawalAmount = selectedPoolAccount.value;
@@ -1786,6 +1906,18 @@ export async function handleWithdrawCommand(
         { silent },
       );
 
+      let anonymitySet: WithdrawAnonymitySet | undefined;
+      if (!isDirect) {
+        anonymitySet = await fetchWithdrawalAnonymitySet(
+          chainConfig,
+          pool,
+          withdrawalAmount,
+        );
+        if (!skipPrompts) {
+          writeWithdrawalAnonymitySetHint(anonymitySet, silent);
+        }
+      }
+
       if (!isDirect && !recipientAddress) {
         if (
           await maybeRenderPreviewScenario("withdraw recipient input", {
@@ -1817,31 +1949,6 @@ export async function handleWithdrawCommand(
         skipPrompts,
         silent,
       });
-
-      // Anonymity set info (non-fatal)
-      let anonymitySet:
-        | { eligible: number; total: number; percentage: number }
-        | undefined;
-      try {
-        const anonSet = await fetchDepositsLargerThan(
-          chainConfig,
-          pool.scope,
-          withdrawalAmount,
-        );
-        anonymitySet = {
-          eligible: anonSet.eligibleDeposits,
-          total: anonSet.totalDeposits,
-          percentage: Number(anonSet.percentage.toFixed(1)),
-        };
-        if (!silent) {
-          info(
-            `Anonymity set: ${formatAnonymitySetValue(anonymitySet)}`,
-            silent,
-          );
-        }
-      } catch {
-        /* non-fatal */
-      }
 
       // Build Merkle proofs
       spin.text = "Building proofs...";
@@ -2212,23 +2319,23 @@ export async function handleWithdrawCommand(
           );
         }
 
-        let remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory(
+        let remainingBelowMinGuidance = getRelayedWithdrawalRemainderAdvisory(
           {
             remainingBalance: selectedPoolAccount.value - withdrawalAmount,
             minWithdrawAmount: BigInt(details.minWithdrawAmount),
             poolAccountId: selectedPoolAccount.paId,
             assetSymbol: pool.symbol,
             decimals: pool.decimals,
+            poolAccountValue: selectedPoolAccount.value,
+            chainName: chainConfig.name,
+            recipient: resolvedRecipientAddress,
           },
         );
 
-        if (remainingBelowMinAdvisory && !skipPrompts) {
+        if (remainingBelowMinGuidance && !skipPrompts && !remainderGuidanceAcknowledged) {
           // Interactive mode: let the user choose how to handle the low remainder.
           const remainingBalance = selectedPoolAccount.value - withdrawalAmount;
-          warn(
-            `Remaining balance (${formatAmount(remainingBalance, pool.decimals, pool.symbol)}) would fall below the relayer minimum.`,
-            silent,
-          );
+          warn(remainingBelowMinGuidance.summary, silent);
           ensurePromptInteractionAvailable();
           const minWithdrawAmount = BigInt(details.minWithdrawAmount);
           const maxAmountLeavingWithdrawableRemainder =
@@ -2252,7 +2359,7 @@ export async function handleWithdrawCommand(
                     value: "full" as const,
                   },
                   {
-                    name: "Continue and exit the remainder later if needed",
+                    name: "Continue and ragequit the remainder later if needed",
                     value: "continue" as const,
                   },
                 ],
@@ -2266,13 +2373,22 @@ export async function handleWithdrawCommand(
               silent,
             );
             // Recalculate advisory (should be null now since remainder is 0)
-            remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory({
+            remainingBelowMinGuidance = getRelayedWithdrawalRemainderAdvisory({
               remainingBalance: selectedPoolAccount.value - withdrawalAmount,
               minWithdrawAmount: BigInt(details.minWithdrawAmount),
               poolAccountId: selectedPoolAccount.paId,
               assetSymbol: pool.symbol,
               decimals: pool.decimals,
+              poolAccountValue: selectedPoolAccount.value,
+              chainName: chainConfig.name,
+              recipient: resolvedRecipientAddress,
             });
+            anonymitySet = await fetchWithdrawalAnonymitySet(
+              chainConfig,
+              pool,
+              withdrawalAmount,
+            );
+            writeWithdrawalAnonymitySetHint(anonymitySet, silent);
           } else if (remainderChoice === "less") {
             const newAmountStr = await withSuspendedSpinner(
               spin,
@@ -2306,19 +2422,28 @@ export async function handleWithdrawCommand(
               `Adjusted withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
               silent,
             );
-            remainingBelowMinAdvisory = getRelayedWithdrawalRemainderAdvisory({
+            remainingBelowMinGuidance = getRelayedWithdrawalRemainderAdvisory({
               remainingBalance: selectedPoolAccount.value - withdrawalAmount,
               minWithdrawAmount,
               poolAccountId: selectedPoolAccount.paId,
               assetSymbol: pool.symbol,
               decimals: pool.decimals,
+              poolAccountValue: selectedPoolAccount.value,
+              chainName: chainConfig.name,
+              recipient: resolvedRecipientAddress,
             });
+            anonymitySet = await fetchWithdrawalAnonymitySet(
+              chainConfig,
+              pool,
+              withdrawalAmount,
+            );
+            writeWithdrawalAnonymitySetHint(anonymitySet, silent);
           }
-        } else if (skipPrompts && remainingBelowMinAdvisory) {
+        } else if (skipPrompts && remainingBelowMinGuidance) {
           throw new CLIError(
             "This relayed withdrawal would leave a remainder below the relayer minimum.",
             "INPUT",
-            remainingBelowMinAdvisory,
+            formatRelayedWithdrawalRemainderHint(remainingBelowMinGuidance),
             "INPUT_REMAINDER_BELOW_RELAYER_MINIMUM",
             false,
             undefined,
@@ -2455,7 +2580,7 @@ export async function handleWithdrawCommand(
               extraGasTxCost: quote.detail.extraGasTxCost,
               tokenPrice,
               nativeTokenPrice,
-              remainingBelowMinAdvisory,
+              remainingBelowMinGuidance,
               anonymitySet,
             }),
           );
@@ -2980,6 +3105,12 @@ export async function handleWithdrawQuoteCommand(
     });
     validatePositive(amount, "Quote amount");
 
+    const anonymitySet = await fetchWithdrawalAnonymitySet(
+      chainConfig,
+      pool,
+      amount,
+    );
+
     const recipient = effectiveTo
       ? assertSafeRecipientAddress(effectiveTo as `0x${string}`, "Recipient")
       : undefined;
@@ -3016,6 +3147,12 @@ export async function handleWithdrawQuoteCommand(
     const nativeTokenPrice = quote.detail.extraGasFundAmount
       ? await deriveNativeGasTokenPrice(chainConfig, globalOpts?.rpcUrl, pool)
       : null;
+    const warnings = buildWithdrawQuoteWarnings({
+      chainIsTestnet: chainConfig.isTestnet,
+      assetSymbol: pool.symbol,
+      minWithdrawAmount: BigInt(details.minWithdrawAmount),
+      decimals: pool.decimals,
+    });
     renderWithdrawQuote(ctx, {
       chain: chainConfig.name,
       asset: pool.symbol,
@@ -3037,6 +3174,9 @@ export async function handleWithdrawQuoteCommand(
       relayTxCost: quote.detail.relayTxCost,
       extraGasFundAmount: quote.detail.extraGasFundAmount,
       extraGasTxCost: quote.detail.extraGasTxCost,
+      isTestnet: chainConfig.isTestnet,
+      anonymitySet,
+      warnings,
       chainOverridden: !!globalOpts?.chain,
     });
   } catch (error) {

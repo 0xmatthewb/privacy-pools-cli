@@ -53,8 +53,14 @@ describe("formatRelayedWithdrawalReview", () => {
       remainingBalance: 10_000_000n,
       extraGasRequested: true,
       extraGasFundAmount: 1_500_000_000_000_000n,
-      remainingBelowMinAdvisory:
-        "The remaining balance would fall below the relayer minimum.",
+      remainingBelowMinGuidance: {
+        summary: "PA-7 would keep 10 USDC, which is below the relayer minimum (25 USDC).",
+        choices: [
+          "Withdraw less: privacy-pools withdraw 75 USDC --chain sepolia --to 0x1111111111111111111111111111111111111111 --pool-account PA-7",
+          "Use max: privacy-pools withdraw --all USDC --chain sepolia --to 0x1111111111111111111111111111111111111111 --pool-account PA-7",
+          "Continue now, then recover the leftover publicly later: privacy-pools ragequit USDC --chain sepolia --pool-account PA-7 --confirm-ragequit",
+        ],
+      },
       tokenPrice: 1,
       nativeTokenPrice: 2000,
       nowMs: Date.parse("2026-03-24T12:59:30.000Z"),
@@ -68,7 +74,9 @@ describe("formatRelayedWithdrawalReview", () => {
         "Recipient ENS",
         "alice.eth",
         "($3.00)",
-        "The remaining balance would fall below the relayer minimum.",
+        "PA-7 would keep 10 USDC, which is below the relayer minimum (25 USDC).",
+        "Use max: privacy-pools withdraw --all USDC --chain sepolia",
+        "--pool-account PA-7",
       ],
       patterns: [/pool account/i, /balance/i, /relayer fee/i, /gas token/i, /net received/i, /quote expiry/i],
     });
@@ -88,8 +96,10 @@ describe("formatRelayedWithdrawalReview", () => {
       remainingBalance: 10_000_000n,
       extraGasRequested: true,
       extraGasFundAmount: 1_500_000_000_000_000n,
-      remainingBelowMinAdvisory:
-        "The remaining balance would fall below the relayer minimum.",
+      remainingBelowMinGuidance: {
+        summary: "PA-7 would keep 10 USDC, which is below the relayer minimum (25 USDC).",
+        choices: [],
+      },
       tokenPrice: 1,
       nowMs: Date.parse("2026-03-24T12:59:30.000Z"),
     })).split("\n");
@@ -193,7 +203,7 @@ describe("shared runtime review renderers", () => {
         "0x2222222222222222222222222222222222222222",
         "Privacy outcome",
         "no privacy (public recovery)",
-        "does not provide privacy",
+        "You will not gain any",
       ],
     });
     expectSemanticText(flow, {

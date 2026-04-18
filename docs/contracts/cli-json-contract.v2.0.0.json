@@ -462,6 +462,9 @@
           "extraGas": "boolean? (ERC20 withdrawals only)",
           "extraGasFundAmount": "{ gas?: string, eth: string }|undefined",
           "extraGasTxCost": "{ gas: string, eth: string }|undefined",
+          "isTestnet": "boolean",
+          "anonymitySet": "{ eligible: number, total: number, percentage: number }|undefined",
+          "warnings": "{ code: string, category: string, message: string }[]|undefined",
           "nextActions": "NextAction[]? (structured follow-up commands for agents; check runnable for template actions)"
         }
       }
@@ -527,7 +530,7 @@
     "accounts": {
       "successFields": {
         "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
-        "allChains": "boolean? (true when --include-testnets / legacy --all-chains is used)",
+        "allChains": "boolean? (true when --include-testnets is used)",
         "chains": "string[]? (queried chains in multi-chain mode)",
         "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "accounts": "Account[]",
@@ -537,7 +540,7 @@
       },
       "summaryVariant": {
         "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
-        "allChains": "boolean? (true when --include-testnets / legacy --all-chains is used)",
+        "allChains": "boolean? (true when --include-testnets is used)",
         "chains": "string[]? (queried chains in multi-chain mode)",
         "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "pendingCount": "number",
@@ -585,7 +588,7 @@
       "successFields": {
         "mode": "\"migration-status\"",
         "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
-        "allChains": "boolean? (true when --include-testnets / legacy --all-chains is used)",
+        "allChains": "boolean? (true when --include-testnets is used)",
         "chains": "string[]? (queried chains in multi-chain mode)",
         "warnings": "MigrationWarning[]? ({ chain, category, message } for per-chain partial failures)",
         "status": "\"no_legacy\"|\"migration_required\"|\"fully_migrated\"|\"website_recovery_required\"|\"review_incomplete\"",

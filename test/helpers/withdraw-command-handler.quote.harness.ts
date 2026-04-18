@@ -138,7 +138,7 @@ export function registerWithdrawQuoteTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_INVALID_AMOUNT");
     expect(json.error.message ?? json.errorMessage).toContain("Quote amount");
     expect(requestQuoteMock).not.toHaveBeenCalled();
     expect(exitCode).toBe(2);
@@ -150,12 +150,11 @@ export function registerWithdrawQuoteTests(): void {
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleWithdrawQuoteCommand(
         "0.1",
-        undefined,
+        "ETH",
         {},
         fakeQuoteCommand(
           { json: true, chain: "mainnet" },
           {
-            asset: "ETH",
             to: "not-an-address",
           },
         ),
@@ -163,8 +162,10 @@ export function registerWithdrawQuoteTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain("Recipient");
+    expect(json.errorCode).toBe("INPUT_BAD_ADDRESS");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Invalid address or ENS name",
+    );
     expect(requestQuoteMock).not.toHaveBeenCalled();
     expect(exitCode).toBe(2);
   });
@@ -175,12 +176,11 @@ export function registerWithdrawQuoteTests(): void {
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleWithdrawQuoteCommand(
         "0.1",
-        undefined,
+        "ETH",
         {},
         fakeQuoteCommand(
           { chain: "mainnet" },
           {
-            asset: "ETH",
             to: "0x7777777777777777777777777777777777777777",
             extraGas: true,
           },
@@ -202,19 +202,18 @@ export function registerWithdrawQuoteTests(): void {
     );
   });
 
-  test("quote inherits parent asset and recipient flags for ERC20 pools", async () => {
+  test("quote inherits parent recipient and extra-gas flags for ERC20 pools", async () => {
     useIsolatedHome();
     resolvePoolMock.mockImplementationOnce(async () => USDC_POOL);
 
     const { json } = await captureAsyncJsonOutput(() =>
       handleWithdrawQuoteCommand(
         "100",
-        undefined,
+        "USDC",
         {},
         fakeQuoteCommand(
           { json: true, chain: "mainnet" },
           {
-            asset: "USDC",
             to: "0x7777777777777777777777777777777777777777",
             extraGas: true,
           },
@@ -242,12 +241,11 @@ export function registerWithdrawQuoteTests(): void {
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleWithdrawQuoteCommand(
         "0.1",
-        undefined,
+        "WETH",
         {},
         fakeQuoteCommand(
           { chain: "op-sepolia" },
           {
-            asset: "WETH",
             to: "0x7777777777777777777777777777777777777777",
             extraGas: true,
           },

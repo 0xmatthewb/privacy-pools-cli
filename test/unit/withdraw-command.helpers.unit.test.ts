@@ -186,9 +186,10 @@ describe("withdraw command helpers", () => {
       decimals: 18,
     });
 
-    expect(advisory).toContain("PA-3 would keep");
-    expect(advisory).toContain("below the relayer minimum");
-    expect(advisory).toContain("ragequit the remainder later");
+    expect(advisory).not.toBeNull();
+    expect(advisory?.summary).toContain("PA-3 would keep");
+    expect(advisory?.summary).toContain("below the relayer minimum");
+    expect(advisory?.choices.join(" ")).toContain("ragequit");
   });
 
   test("normalizes quote expiration timestamps from seconds and milliseconds", () => {

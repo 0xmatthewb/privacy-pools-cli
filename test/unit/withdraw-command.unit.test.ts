@@ -100,11 +100,12 @@ describe("getRelayedWithdrawalRemainderAdvisory", () => {
       decimals: 18,
     });
 
-    expect(advisory).toContain("PA-3");
-    expect(advisory).toContain("0.05 ETH");
-    expect(advisory).toContain("0.1 ETH");
-    expect(advisory).toContain("--all/100%");
-    expect(advisory).toContain("ragequit");
+    expect(advisory).not.toBeNull();
+    expect(advisory?.summary).toContain("PA-3");
+    expect(advisory?.summary).toContain("0.05 ETH");
+    expect(advisory?.summary).toContain("0.1 ETH");
+    expect(advisory?.choices.join(" ")).toContain("--all");
+    expect(advisory?.choices.join(" ")).toContain("ragequit");
   });
 });
 

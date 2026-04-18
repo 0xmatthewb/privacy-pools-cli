@@ -327,6 +327,16 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
           quoteFeeBPS: 50n,
           expirationMs: 9_000,
         }));
+        refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
+          quote: buildMockRelayerQuote({
+            amount: state.committedValue,
+            asset: state.pool.asset,
+            extraGas: state.pool.symbol !== "ETH",
+            recipient: "0x7777777777777777777777777777777777777777",
+          }, { expirationMs: 9_000 }),
+          quoteFeeBPS: 50n,
+          expirationMs: 9_000,
+        }));
         writeWorkflowSnapshot("wf-refresh-before-proof", {
           phase: "awaiting_asp",
           walletMode: "configured",
@@ -350,16 +360,26 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
         });
 
         expect(snapshot.phase).toBe("completed");
-        expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(1);
+        expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(2);
       });
       test("watchWorkflow refreshes an expired relayer quote after proof generation when the fee is unchanged", async () => {
-        let nowCalls = 0;
+        let nowMs = 1_000;
         overrideWorkflowTimingForTests({
-          nowMs: () => (++nowCalls === 1 ? 1_000 : 3_000),
+          nowMs: () => nowMs,
         });
         validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
           quoteFeeBPS: 50n,
           expirationMs: 2_000,
+        }));
+        refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
+          quote: buildMockRelayerQuote({
+            amount: state.committedValue,
+            asset: state.pool.asset,
+            extraGas: state.pool.symbol !== "ETH",
+            recipient: "0x7777777777777777777777777777777777777777",
+          }, { expirationMs: 2_500 }),
+          quoteFeeBPS: 50n,
+          expirationMs: 2_500,
         }));
         refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
           quote: buildMockRelayerQuote({
@@ -374,6 +394,20 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
         requestQuoteMock.mockImplementationOnce(async (_chain, args) => {
           state.requestQuoteCalls.push(args);
           return buildMockRelayerQuote(args, { expirationMs: 2_000 });
+        });
+        proveWithdrawalMock.mockImplementationOnce(async () => {
+          nowMs = 3_000;
+          return {
+            proof: {
+              pi_a: [1n, 2n],
+              pi_b: [
+                [3n, 4n],
+                [5n, 6n],
+              ],
+              pi_c: [7n, 8n],
+            },
+            publicSignals: [13n, 14n, 15n, 16n],
+          };
         });
         writeWorkflowSnapshot("wf-refresh-after-proof", {
           phase: "awaiting_asp",
@@ -398,7 +432,7 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
         });
 
         expect(snapshot.phase).toBe("completed");
-        expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(1);
+        expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(2);
       });
       test("watchWorkflow fails closed when the relayer fee changes after proof generation", async () => {
         let nowMs = 1_000;
@@ -408,6 +442,16 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
         validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
           quoteFeeBPS: 50n,
           expirationMs: 2_000,
+        }));
+        refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
+          quote: buildMockRelayerQuote({
+            amount: state.committedValue,
+            asset: state.pool.asset,
+            extraGas: state.pool.symbol !== "ETH",
+            recipient: "0x7777777777777777777777777777777777777777",
+          }, { expirationMs: 2_500 }),
+          quoteFeeBPS: 50n,
+          expirationMs: 2_500,
         }));
         refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
           quote: buildMockRelayerQuote({
@@ -461,6 +505,7 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
           }),
         ).rejects.toThrow("Relayer fee changed during proof generation");
 
+        expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(2);
         expect(getWorkflowStatus({ workflowId: "wf-fee-change-after-proof" }).lastError?.step).toBe(
           "withdraw",
         );
@@ -473,6 +518,16 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
         validateRelayerQuoteForWithdrawalMock.mockImplementationOnce(() => ({
           quoteFeeBPS: 50n,
           expirationMs: 2_000,
+        }));
+        refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
+          quote: buildMockRelayerQuote({
+            amount: state.committedValue,
+            asset: state.pool.asset,
+            extraGas: state.pool.symbol !== "ETH",
+            recipient: "0x7777777777777777777777777777777777777777",
+          }, { expirationMs: 2_500 }),
+          quoteFeeBPS: 50n,
+          expirationMs: 2_500,
         }));
         refreshExpiredRelayerQuoteForWithdrawalMock.mockImplementationOnce(async () => ({
           quote: buildMockRelayerQuote({
@@ -529,6 +584,7 @@ export function registerWorkflowMockedWatchWithdrawTests(): void {
           }),
         ).rejects.toThrow("Relayer withdrawal data changed during proof generation.");
 
+        expect(refreshExpiredRelayerQuoteForWithdrawalMock).toHaveBeenCalledTimes(2);
         expect(getWorkflowStatus({ workflowId: "wf-data-change-after-proof" }).lastError?.step).toBe(
           "withdraw",
         );

@@ -546,7 +546,7 @@ export function registerWithdrawCommandHandlerHarness(): void {
     printRawTransactionsMock.mockClear();
     maybeRenderPreviewScenarioMock.mockClear();
     maybeRenderPreviewProgressStepMock.mockClear();
-    isPromptCancellationErrorMock.mockClear();
+    isPromptCancellationErrorMock.mockReset();
     maybeRecoverMissingWalletSetupMock.mockClear();
     resolveAddressOrEnsMock.mockClear();
     loadKnownRecipientHistoryMock.mockClear();
@@ -554,9 +554,9 @@ export function registerWithdrawCommandHandlerHarness(): void {
     listSavedWorkflowIdsMock.mockClear();
     getWorkflowStatusMock.mockClear();
     accountHasDepositsMock.mockClear();
-    confirmPromptMock.mockClear();
-    inputPromptMock.mockClear();
-    selectPromptMock.mockClear();
+    confirmPromptMock.mockReset();
+    inputPromptMock.mockReset();
+    selectPromptMock.mockReset();
     confirmPromptMock.mockImplementation(async () => true);
     inputPromptMock.mockImplementation(async () =>
       "0x4444444444444444444444444444444444444444"

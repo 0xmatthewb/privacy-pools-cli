@@ -493,7 +493,7 @@ export function registerWithdrawDirectPostSaveTests(): void {
         "ETH",
         {
           direct: true,
-          yesIUnderstandPrivacyLoss: true,
+          confirmDirectWithdraw: true,
         },
         fakeCommand({ json: true, chain: "mainnet" }),
       ),

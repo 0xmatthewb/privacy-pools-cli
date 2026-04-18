@@ -247,7 +247,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
       .mockImplementationOnce(async (options?: { validate?: (value: string) => true | string }) => {
         events.push("recipient");
         expect(options?.validate?.("not-an-address")).toContain(
-          "Recipient is not a valid Ethereum address",
+          "Invalid address or ENS name",
         );
         return "0x4444444444444444444444444444444444444444";
       });
@@ -455,7 +455,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
     useIsolatedHome({ withSigner: true });
     inputPromptMock.mockImplementationOnce(async (options?: { validate?: (value: string) => true | string }) => {
       expect(options?.validate?.("not-an-address")).toContain(
-        "Recipient is not a valid Ethereum address",
+        "Invalid address or ENS name",
       );
       expect(options?.validate?.("0x4444444444444444444444444444444444444444")).toBe(true);
       return "0x4444444444444444444444444444444444444444";
@@ -720,7 +720,10 @@ export function registerWithdrawInteractiveCompletionTests(): void {
     getRelayerDetailsMock.mockImplementationOnce(async () => ({
       minWithdrawAmount: "50000000000000000",
       feeReceiverAddress: DEFAULT_RELAYER_FEE_RECEIVER,
+      relayerUrl: "https://fastrelay.xyz",
     }));
+    selectPromptMock.mockImplementationOnce(async () => "continue");
+    inputPromptMock.mockImplementationOnce(async () => "WITHDRAW");
 
     const { stderr } = await captureAsyncOutput(() =>
       handleWithdrawCommand(
@@ -729,11 +732,13 @@ export function registerWithdrawInteractiveCompletionTests(): void {
         {
           to: "0x4444444444444444444444444444444444444444",
         },
-        fakeCommand({ yes: true, chain: "mainnet" }),
+        fakeCommand({ chain: "mainnet" }),
       ),
     );
 
-    expect(stderr).toContain("below the relayer minimum");
+    expect(stderr).toContain(
+      "PA-1 would keep 0.04 ETH, which is below the relayer minimum (0.05 ETH).",
+    );
     expect(submitRelayRequestMock).toHaveBeenCalled();
   });
 
@@ -745,7 +750,7 @@ export function registerWithdrawInteractiveCompletionTests(): void {
       relayerUrl: "https://fastrelay.xyz",
     }));
     selectPromptMock.mockImplementationOnce(async () => "max");
-    inputPromptMock.mockImplementationOnce(async () => "1 ETH");
+    inputPromptMock.mockImplementationOnce(async () => "WITHDRAW");
 
     await captureAsyncOutput(() =>
       handleWithdrawCommand(
@@ -775,7 +780,7 @@ export function registerWithdrawInteractiveCompletionTests(): void {
       relayerUrl: "https://fastrelay.xyz",
     }));
     selectPromptMock.mockImplementationOnce(async () => "continue");
-    confirmPromptMock.mockImplementationOnce(async () => false);
+    inputPromptMock.mockImplementationOnce(async () => "WITHDRAW");
 
     const { stderr } = await captureAsyncOutput(() =>
       handleWithdrawCommand(
@@ -794,13 +799,15 @@ export function registerWithdrawInteractiveCompletionTests(): void {
         amount: 960000000000000000n,
       }),
     );
-    expect(stderr).toContain("Remaining balance (0.04 ETH) would fall below the relayer minimum.");
-    expect(stderr).toContain("Withdrawal cancelled.");
+    expect(stderr).toContain(
+      "PA-1 would keep 0.04 ETH, which is below the relayer minimum (0.05 ETH).",
+    );
+    expect(submitRelayRequestMock).toHaveBeenCalled();
   });
 
   test("uses the high-stakes typed confirmation path for full-balance human relayed withdrawals", async () => {
     useIsolatedHome({ withSigner: true });
-    inputPromptMock.mockImplementationOnce(async () => "1 ETH");
+    inputPromptMock.mockImplementationOnce(async () => "WITHDRAW");
 
     const { stderr } = await captureAsyncOutput(() =>
       handleWithdrawCommand(
