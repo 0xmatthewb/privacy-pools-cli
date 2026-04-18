@@ -10,15 +10,15 @@ View pool and network statistics
 
 ```bash
 privacy-pools stats global
-privacy-pools stats pool --asset ETH
-privacy-pools stats pool --asset USDC --agent --chain mainnet
+privacy-pools stats pool ETH
+privacy-pools stats pool USDC --agent --chain mainnet
 ```
 
 ## `stats global`
 
 Show global Privacy Pools statistics (all-time and last 24h)
 
-Always returns aggregate cross-chain statistics. The --chain flag is not supported; use stats pool --asset <symbol> --chain <chain> for chain-specific data.
+Always returns aggregate cross-chain statistics. The --chain flag is not supported; use stats pool <symbol> --chain <chain> for chain-specific data.
 
 ```bash
 privacy-pools stats global
@@ -34,12 +34,8 @@ Show statistics for a specific pool (all-time and last 24h)
 **Usage:** `privacy-pools stats pool [asset] [options]`
 
 ```bash
-privacy-pools stats pool --asset ETH
-privacy-pools stats pool --asset USDC --agent --chain mainnet
+privacy-pools stats pool ETH
+privacy-pools stats pool USDC --agent --chain mainnet
 ```
-
-| Flag | Description |
-|------|-------------|
-| `-a, --asset <symbol\|address>` | Deprecated: use positional argument instead |
 
 **JSON output:** `{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }`

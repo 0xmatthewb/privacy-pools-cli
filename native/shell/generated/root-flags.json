@@ -19,32 +19,36 @@
   },
   {
     "flag": "--template <template>",
-    "description": "Render structured output through a lightweight {{path.to.value}} template",
+    "description": "Render structured output through a lightweight Mustache-style template with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration",
     "takesValue": true,
     "welcomeBoolean": false
   },
   {
     "flag": "-o, --output <format>",
-    "description": "Output format: table (default), csv, json, wide",
+    "description": "Output format: table (default), csv, json, yaml, wide, name",
     "takesValue": true,
     "welcomeBoolean": false,
     "values": [
       "table",
       "csv",
       "json",
-      "wide"
+      "yaml",
+      "wide",
+      "name"
     ]
   },
   {
     "flag": "--format <format>",
-    "description": "Output format: table (default), csv, json, wide",
+    "description": "Output format: table (default), csv, json, yaml, wide, name",
     "takesValue": true,
     "welcomeBoolean": false,
     "values": [
       "table",
       "csv",
       "json",
-      "wide"
+      "yaml",
+      "wide",
+      "name"
     ]
   },
   {

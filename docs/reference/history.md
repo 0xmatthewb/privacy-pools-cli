@@ -8,6 +8,8 @@ Detailed reference for the `privacy-pools history` command family. Back to the [
 
 View your deposit and withdrawal history
 
+Use --no-sync to read cached local history faster. When cached data is returned, the JSON payload includes lastSyncTime so agents can judge staleness.
+
 **Basic:**
 
 ```bash
@@ -28,4 +30,7 @@ privacy-pools history --no-sync --chain mainnet
 | `--no-sync` | Use cached data (faster, but may be stale) |
 | `-n, --limit <n>` | Show last N events |
 
-**JSON output:** `{ chain, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }`
+**JSON output:** `{ chain, lastSyncTime?, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }`
+
+**JSON variants:**
+- `--no-sync: same fields, plus lastSyncTime? when cached local history was used.`

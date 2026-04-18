@@ -174,13 +174,13 @@ Machine\-readable JSON output on stdout
 Select specific JSON fields (comma\-separated, implies \-\-json)
 .TP
 .B \-\-template <template>
-Render structured output through a lightweight {{path.to.value}} template
+Render structured output through a lightweight Mustache\-style template with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration
 .TP
 .B \-o, \-\-output <format>
-Output format: table (default), csv, json, wide
+Output format: table (default), csv, json, yaml, wide, name
 .TP
 .B \-\-format <format>
-Output format: table (default), csv, json, wide
+Output format: table (default), csv, json, yaml, wide, name
 .TP
 .B \-y, \-\-yes
 Skip confirmation prompts

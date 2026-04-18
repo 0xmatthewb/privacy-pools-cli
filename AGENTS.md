@@ -80,7 +80,7 @@ without omitting optional dependencies.
 
 Parse `success` first. On failure, read `error.code` for programmatic handling and `error.hint` for remediation. `errorCode` and `errorMessage` remain v2 compatibility aliases and match `error.code` and `error.message`. Check `error.retryable` before deciding to retry.
 
-Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand, args?, options?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
+Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
 The complete JSON output contract is defined in [`docs/contracts/cli-json-contract.v2.0.0.json`](docs/contracts/cli-json-contract.v2.0.0.json). For a stable bundled machine-contract path inside the installed package, prefer `docs/contracts/cli-json-contract.current.json`. Installed packages include that stable path plus the active schema snapshot for the packaged CLI version. The repository may retain older versioned snapshots for historical reference, and runtime discovery metadata may still point at the exact versioned snapshot for the active schema.
 
@@ -485,20 +485,20 @@ Public onchain activity feed. When no `--chain` is specified, defaults to queryi
 
 ```bash
 privacy-pools activity --agent
-privacy-pools activity --agent --asset ETH --limit 20
+privacy-pools activity ETH --agent --limit 20
 ```
 
 JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 When querying all CLI-supported mainnet chains (no `--chain`), `chain` is `"all-mainnets"` and `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
 
-When filtering by `--chain` without `--asset`, events are filtered client-side. In this case `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
+When filtering by `--chain` without a positional asset, events are filtered client-side. In this case `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
 
-With `--asset`, mode is `"pool-activity"` and adds `asset`, `pool`, and `scope` fields. Pagination totals are accurate (server-side filtering).
+With a positional asset (`activity ETH`), mode is `"pool-activity"` and adds `asset`, `pool`, and `scope` fields. Pagination totals are accurate (server-side filtering).
 
 #### `stats global`
 
-Protocol-wide statistics. This is the default subcommand for `stats`. Always shows aggregate cross-chain data. The `--chain` flag is **not** supported for `stats global`; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
+Protocol-wide statistics. This is the default subcommand for `stats`. Always shows aggregate cross-chain data. The `--chain` flag is **not** supported for `stats global`; use `stats pool <symbol> --chain <chain>` for chain-specific data.
 
 ```bash
 privacy-pools stats global --agent
@@ -516,7 +516,7 @@ JSON payload: `{ mode: "global-stats", chain: "all-mainnets", chains, cacheTimes
 Per-pool statistics.
 
 ```bash
-privacy-pools stats pool --asset ETH --agent
+privacy-pools stats pool ETH --agent
 ```
 
 JSON payload: `{ mode: "pool-stats", chain, asset, pool, scope, cacheTimestamp, allTime, last24h }`
@@ -653,7 +653,7 @@ The saved workflow spends the full remaining Pool Account balance. The recipient
 
 JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "ragequit", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, warnings?: [{ code, category: "privacy"|"recipient", message }], withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
-`flow start --dry-run` validates amount, pool metadata, recipient safety, wallet mode, and privacy-delay policy without saving a workflow, generating workflow secrets, writing export files, approving tokens, or submitting a deposit. In non-interactive mode, `--new-wallet --dry-run` also requires `--export-new-wallet <path>` so the equivalent real command's backup path is validated, but the dry-run does not write that file. Dry-run JSON is `{ mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, estimatedCommittedValue, warnings?, nextActions? }`.
+`flow start --dry-run` validates amount, pool metadata, recipient safety, wallet mode, and privacy-delay policy without saving a workflow, generating workflow secrets, writing export files, approving tokens, or submitting a deposit. In non-interactive mode, `--new-wallet --dry-run` also requires `--export-new-wallet <path>` so the equivalent real command's backup path is validated, but the dry-run does not write that file. Dry-run JSON is `{ mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }`.
 
 Paused workflow states are successful command results, not CLI errors. `Ctrl-C` during `flow watch` detaches cleanly without deleting the saved workflow. For ERC20 relayed withdrawals inside `flow`, the CLI requests extra gas by default, matching `withdraw`. `warnings` are advisory only and currently cover amount-linkability guidance for full non-round auto-withdrawals, explicit `--privacy-delay off`, and non-interactive recipients not previously seen in the local profile; they appear on `flow start`, `flow watch`, and `flow status`, while `flow ragequit` omits them. `privacyDelayConfigured = false` means a legacy workflow was normalized to `off` without an explicitly saved policy.
 
@@ -856,10 +856,10 @@ Force-sync local account state from onchain events. Most commands auto-sync with
 
 ```bash
 privacy-pools sync --agent
-privacy-pools sync --agent --asset ETH
+privacy-pools sync ETH --agent
 ```
 
-JSON payload: `{ chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `{ chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts?, durationMs?, scannedBlockRange?, eventCounts?, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 ## Auto-Sync Behavior
 

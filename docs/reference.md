@@ -44,9 +44,9 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 | `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-j, --json` | Machine-readable JSON output on stdout |
 | `--json-fields <fields>` | Select specific JSON fields (comma-separated, implies --json) |
-| `--template <template>` | Render structured output through a lightweight {{path.to.value}} template |
-| `-o, --output <format>` | Output format: table (default), csv, json, wide |
-| `--format <format>` | Output format: table (default), csv, json, wide |
+| `--template <template>` | Render structured output through a lightweight Mustache-style template with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration |
+| `-o, --output <format>` | Output format: table (default), csv, json, yaml, wide, name |
+| `--format <format>` | Output format: table (default), csv, json, yaml, wide, name |
 | `-y, --yes` | Skip confirmation prompts |
 | `--web` | Open the primary explorer or portal link in your browser when available |
 | `-r, --rpc-url <url>` | Override RPC URL |
@@ -69,8 +69,9 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 | 0 | SUCCESS | `SUCCESS` | Successful command completion. |
 | 1 | UNKNOWN | `UNKNOWN_ERROR` | Unknown or general runtime failure. |
 | 2 | INPUT | `INPUT_ERROR` | Invalid input, prompt cancellation in machine mode, or validation failure. |
+| 4 | SETUP | `SETUP_REQUIRED` | Local setup is incomplete or a signer/recovery phrase is required before the command can continue. |
 | 3 | RPC | `RPC_ERROR` | RPC, transport, or network connectivity failure. |
-| 4 | ASP | `ASP_ERROR` | ASP service failure or approval-state fetch issue. |
+| 8 | ASP | `ASP_ERROR` | ASP service failure or approval-state fetch issue. |
 | 5 | RELAYER | `RELAYER_ERROR` | Relayer quote or submission failure. |
 | 6 | PROOF | `PROOF_ERROR` | ZK proof generation or proof-input failure. |
 | 7 | CONTRACT | `CONTRACT_ERROR` | Onchain simulation or contract revert failure. |

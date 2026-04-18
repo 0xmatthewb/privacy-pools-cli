@@ -18,13 +18,13 @@ Shows the public onchain event feed across Privacy Pools, including deposits and
 privacy-pools activity
 privacy-pools activity --page 2 --limit 20
 privacy-pools activity --include-testnets
-privacy-pools activity --asset ETH
+privacy-pools activity ETH
 ```
 
 **Agent / CI:**
 
 ```bash
-privacy-pools activity --asset USDC --agent --chain mainnet
+privacy-pools activity USDC --agent --chain mainnet
 ```
 
 
@@ -34,4 +34,4 @@ privacy-pools activity --asset USDC --agent --chain mainnet
 | `--page <n>` | Page number |
 | `-n, --limit <n>` | Items per page |
 
-**JSON output:** `{ mode, chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ mode, chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

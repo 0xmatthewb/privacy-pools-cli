@@ -17,13 +17,17 @@
       "unknownFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
       "error": {
         "code": "string",
-        "category": "INPUT|RPC|ASP|RELAYER|PROOF|CONTRACT|UNKNOWN",
+        "category": "INPUT|RPC|SETUP|ASP|RELAYER|PROOF|CONTRACT|UNKNOWN",
         "message": "string",
         "hint": "string?",
         "retryable": "boolean?",
         "availableFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
-        "unknownFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)"
-      }
+        "unknownFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
+        "helpTopic": "string? (suggested privacy-pools help topic)",
+        "nextActions": "NextAction[]? (structured recovery follow-ups for agents and automation)"
+      },
+      "helpTopic": "string? (suggested privacy-pools help topic)",
+      "nextActions": "NextAction[]? (structured recovery follow-ups for agents and automation)"
     }
   },
   "exitCodes": {
@@ -31,10 +35,11 @@
     "1": "UNKNOWN_ERROR",
     "2": "INPUT_ERROR",
     "3": "RPC_ERROR",
-    "4": "ASP_ERROR",
+    "4": "SETUP_REQUIRED",
     "5": "RELAYER_ERROR",
     "6": "PROOF_ERROR",
-    "7": "CONTRACT_ERROR"
+    "7": "CONTRACT_ERROR",
+    "8": "ASP_ERROR"
   },
   "shared": {
     "nextAction": {
@@ -174,7 +179,12 @@
         "ragequitExplorerUrl": "string|null",
         "privacyCostManifest": "PrivacyCostManifest? (present for action=\"ragequit\")",
         "lastError": "FlowLastError|undefined (see shared.flowLastError)",
-        "nextActions": "NextAction[]? (present when a canonical saved-workflow follow-up is available)"
+        "nextActions": "NextAction[]? (present when a canonical saved-workflow follow-up is available)",
+        "relayerHost": "string|null",
+        "quoteRefreshCount": "number|null",
+        "reconciliationRequired": "boolean (true when onchain confirmation succeeded but local workflow state still needs sync)",
+        "localStateSynced": "boolean",
+        "warningCode": "string|null"
       },
       "dryRunFields": {
         "mode": "\"flow\"",
@@ -192,7 +202,11 @@
         "vettingFee": "decimal-string-wei",
         "estimatedCommittedValue": "decimal-string-wei",
         "warnings": "FlowWarning[]?",
-        "nextActions": "NextAction[]? (flow start template for the real submission)"
+        "nextActions": "NextAction[]? (flow start template for the real submission)",
+        "vettingFeeBPS": "decimal-string-bps",
+        "vettingFeeAmount": "decimal-string-wei",
+        "estimatedCommitted": "decimal-string-wei",
+        "feesApply": "boolean"
       }
     },
     "status": {
@@ -303,7 +317,14 @@
         "label": "decimal-string|null",
         "blockNumber": "decimal-string",
         "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poa_required before choosing withdraw or ragequit)"
+        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poa_required before choosing withdraw or ragequit)",
+        "estimatedCommitted": "decimal-string-wei",
+        "vettingFeeBPS": "decimal-string-bps",
+        "vettingFeeAmount": "decimal-string-wei",
+        "feesApply": "boolean",
+        "reconciliationRequired": "boolean? (true when onchain confirmation succeeded but local wallet state still needs sync)",
+        "localStateSynced": "boolean? (false when local reconciliation is still required)",
+        "warningCode": "string|null"
       },
       "variants": {
         "dryRun": {
@@ -354,7 +375,13 @@
         "remainingBalance": "decimal-string-wei",
         "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
         "privacyCostManifest": "PrivacyCostManifest? (present in direct mode)",
-        "nextActions": "NextAction[]? (suggests accounts to verify updated balance)"
+        "nextActions": "NextAction[]? (suggests accounts to verify updated balance)",
+        "relayerHost": "string|null",
+        "quoteRefreshCount": "number|null",
+        "rootMatchedAtProofTime": "boolean?",
+        "reconciliationRequired": "boolean? (true when onchain confirmation succeeded but local wallet state still needs sync)",
+        "localStateSynced": "boolean? (false when local reconciliation is still required)",
+        "warningCode": "string|null"
       },
       "variants": {
         "dryRun": {
@@ -457,7 +484,10 @@
         "explorerUrl": "string|null",
         "destinationAddress": "0x-prefixed-address|null",
         "privacyCostManifest": "PrivacyCostManifest",
-        "nextActions": "NextAction[]? (suggests accounts to verify status after ragequit)"
+        "nextActions": "NextAction[]? (suggests accounts to verify status after ragequit)",
+        "reconciliationRequired": "boolean? (true when onchain confirmation succeeded but local wallet state still needs sync)",
+        "localStateSynced": "boolean? (false when local reconciliation is still required)",
+        "warningCode": "string|null"
       },
       "variants": {
         "dryRun": {
@@ -615,6 +645,7 @@
         "page": "number",
         "perPage": "number",
         "total": "number|null",
+        "totalEvents": "number|null",
         "totalPages": "number|null",
         "chainFiltered": "boolean? (true when chain filtering happens client-side)",
         "note": "string? (explains pagination limitations when chainFiltered is true)",
@@ -683,7 +714,7 @@
         "executionRoutes": "Record<string, { owner, nativeModes }>",
         "globalFlags": "Flag[]",
         "exitCodes": "CapabilityExitCode[] ({ code, name, category, errorCode?, description })",
-        "envVars": "CapabilityEnvVar[] ({ name, aliases, category, description })",
+        "envVars": "CapabilityEnvVar[] ({ name, aliases, category, description, defaultValue?, sensitive? })",
         "agentWorkflow": "string[]",
         "protocol": "ProtocolProfile",
         "runtime": "RuntimeCompatibilityDescriptor",
