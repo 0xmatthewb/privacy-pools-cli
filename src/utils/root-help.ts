@@ -87,6 +87,8 @@ function buildRootHelpBaseLines(): string[] {
     "  -y, --yes               Skip confirmation prompts",
     "  --web                   Open the primary explorer or portal link in your",
     "                          browser when available",
+    "  --help-brief            Show condensed command help without the extended",
+    "                          guide appendix",
     "  -r, --rpc-url <url>     Override RPC URL",
     "  --template <template>   Render structured output through a lightweight",
     "                          Mustache-style template with {{path.to.value}}",

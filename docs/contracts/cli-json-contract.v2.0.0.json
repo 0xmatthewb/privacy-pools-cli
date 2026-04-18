@@ -241,11 +241,10 @@
     },
     "pools": {
       "successFields": {
-        "chain": "string (single-chain mode)",
-        "allChains": "boolean? (true when no --chain specified)",
+        "chain": "string (single-chain name, \"all-mainnets\", or \"all-chains\")",
         "search": "string|null",
         "sort": "string",
-        "chains": "ChainSummary[]? (multi-chain mode: { chain, pools, error })",
+        "chainSummaries": "ChainSummary[]? (multi-chain mode: { chain, pools, error })",
         "pools": "Pool[]",
         "warnings": "PoolWarning[]? (multi-chain mode)",
         "nextActions": "NextAction[]? (suggests deposit as a template action)"
@@ -750,10 +749,14 @@
         "supportsUnsigned": "boolean",
         "supportsDryRun": "boolean",
         "agentWorkflowNotes": "string[]",
-        "sideEffectClass": "\"read_only\"|\"local_state_write\"|\"network_write\"|\"fund_movement\"",
+        "sideEffectClass": "\"read_only\"|\"local_cache_write\"|\"local_state_write\"|\"network_write\"|\"fund_movement\"",
         "touchesFunds": "boolean",
         "requiresHumanReview": "boolean",
         "preferredSafeVariant": "{ command: string, reason: string }|undefined"
+      },
+      "indexVariant": {
+        "mode": "\"describe-index\"",
+        "commands": "{ command: string, description: string, group: \"getting-started\"|\"transaction\"|\"monitoring\"|\"advanced\" }[]"
       },
       "schemaVariant": {
         "path": "string (contract path passed to describe envelope.<path>)",
@@ -767,13 +770,20 @@
         "syncedSymbols": "string[]? (present on successful sync)",
         "availablePoolAccounts": "number",
         "previousAvailablePoolAccounts": "number? (count before sync)",
+        "durationMs": "number|undefined",
+        "scannedFromBlock": "decimal-string|undefined",
+        "scannedToBlock": "decimal-string|undefined",
+        "eventCounts": "{ deposits?: number, withdrawals?: number, ragequits?: number, total?: number }|undefined",
+        "lastSyncTime": "iso8601-string|undefined",
         "nextActions": "NextAction[]? (suggests accounts to review synced Pool Accounts)"
       }
     },
     "guide": {
-      "note": "Outputs formatted help text to stderr in interactive mode. In JSON mode, returns the guide as a string.",
+      "note": "Outputs formatted help text to stderr in interactive mode. In JSON mode, returns the guide text plus structured topics.",
       "successFields": {
         "mode": "\"help\"",
+        "topic": "string|undefined (resolved guide topic when provided)",
+        "topics": "{ name: string, description: string }[]",
         "help": "string (formatted guide text)"
       }
     },

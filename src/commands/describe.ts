@@ -1,5 +1,9 @@
 import type { Command } from "commander";
-import { renderCommandDescription, renderSchemaDescription } from "../output/describe.js";
+import {
+  renderCommandDescription,
+  renderCommandDescriptionIndex,
+  renderSchemaDescription,
+} from "../output/describe.js";
 import { createOutputContext } from "../output/common.js";
 import type { GlobalOptions } from "../types.js";
 import {
@@ -19,11 +23,18 @@ export async function handleDescribeCommand(...args: unknown[]): Promise<void> {
 
   try {
     if (commandTokens.length === 0) {
-      throw new CLIError(
-        "Missing command path for describe.",
-        "INPUT",
-        `Valid command paths: ${listStaticCommandPaths().join(", ")}, envelope.<path>`,
+      renderCommandDescriptionIndex(
+        createOutputContext(mode),
+        listStaticCommandPaths().map((commandPath) => {
+          const descriptor = STATIC_CAPABILITIES_PAYLOAD.commandDetails[commandPath];
+          return {
+            command: descriptor.command,
+            description: descriptor.description,
+            group: descriptor.group,
+          };
+        }),
       );
+      return;
     }
 
     const rawPath = commandTokens.join(" ").trim();

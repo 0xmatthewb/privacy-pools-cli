@@ -59,6 +59,12 @@ export const ROOT_GLOBAL_FLAG_METADATA: readonly RootGlobalFlagEntry[] = [
     welcomeBoolean: true,
   },
   {
+    flag: "--help-brief",
+    description: "Show condensed command help without the extended guide appendix",
+    takesValue: false,
+    welcomeBoolean: false,
+  },
+  {
     flag: "-r, --rpc-url <url>",
     description: "Override RPC URL",
     takesValue: true,

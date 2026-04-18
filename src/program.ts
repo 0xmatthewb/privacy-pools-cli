@@ -161,7 +161,11 @@ export async function createRootProgram(
       ).choices([...rootGlobalFlagValues("-o, --output <format>")]),
     )
     .option("-y, --yes", rootGlobalFlagDescription("-y, --yes"))
-    .option("--web", rootGlobalFlagDescription("--web"));
+    .option("--web", rootGlobalFlagDescription("--web"))
+    .option(
+      "--help-brief",
+      rootGlobalFlagDescription("--help-brief"),
+    );
 
   // Registration order here determines the flag order in `--help` output.
   // Keep it in sync with ROOT_HELP_BASE_LINES in src/utils/root-help.ts.

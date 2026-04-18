@@ -309,11 +309,6 @@ export function formatRelayedWithdrawalReview(
           ]
         : []),
       {
-        label: "Net received",
-        value: `${formatAmount(netAmount, data.decimals, data.asset)}${usd(netAmount)}`,
-        valueTone: "success",
-      },
-      {
         label: "Remainder",
         value:
           data.remainingBalance === 0n
@@ -345,6 +340,19 @@ export function formatRelayedWithdrawalReview(
           lines: secondaryLines,
         }
       : null,
+    footerTitle: "Totals",
+    footerRows: [
+      {
+        label: "Total withdrawn",
+        value: `${formatAmount(data.amount, data.decimals, data.asset)}${usd(data.amount)}`,
+        valueTone: "accent",
+      },
+      {
+        label: "Total received",
+        value: `${formatAmount(netAmount, data.decimals, data.asset)}${usd(netAmount)}`,
+        valueTone: "success",
+      },
+    ],
   });
 }
 

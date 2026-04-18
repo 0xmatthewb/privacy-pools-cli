@@ -22,7 +22,7 @@ import {
   cliMainHelperInternals,
 } from "./runtime/cli-main-helpers.js";
 import { installOutputAnsiGuards } from "./utils/terminal.js";
-import { guideText, resolveGuideTopic } from "./utils/help.js";
+import { buildGuidePayload, guideText, resolveGuideTopic } from "./utils/help.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { setModeArgv } from "./utils/mode.js";
 
@@ -94,7 +94,7 @@ export async function runCli(
   if (firstToken === "help" && secondToken && resolvedGuideTopic) {
     const help = guideText(resolvedGuideTopic);
     if (isStructuredOutputMode) {
-      printJsonSuccess({ mode: "help", topic: resolvedGuideTopic, help });
+      printJsonSuccess(buildGuidePayload(resolvedGuideTopic));
     } else if (!isQuiet) {
       process.stdout.write(`${help}\n`);
     }
@@ -109,7 +109,7 @@ export async function runCli(
   ) {
     const help = guideText(secondToken);
     if (isStructuredOutputMode) {
-      printJsonSuccess({ mode: "help", topic: secondToken, help });
+      printJsonSuccess(buildGuidePayload(secondToken));
     } else if (!isQuiet) {
       const { renderHumanGuideText } = await import("./output/discovery.js");
       renderHumanGuideText(help);

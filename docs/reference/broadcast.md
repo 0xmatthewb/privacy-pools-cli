@@ -23,7 +23,7 @@ privacy-pools broadcast ./relayed-withdraw-envelope.json --agent
 **Safety:** Relayed withdrawals require a non-expired quote and a relayerRequest that exactly matches the preview calldata.
 **Safety:** broadcast never signs and never mutates local account state.
 
-**JSON output:** `{ mode: "broadcast", broadcastMode: "onchain"|"relayed", sourceOperation: "deposit"|"withdraw"|"ragequit", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false }`
+**JSON output:** `{ mode: "broadcast", broadcastMode: "onchain"|"relayed", sourceOperation: "deposit"|"withdraw"|"ragequit", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly.`

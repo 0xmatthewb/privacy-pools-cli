@@ -1,5 +1,5 @@
 import { Command, Option } from "commander";
-import { commandHelpText } from "../utils/help.js";
+import { commandHelpText, groupedFlagGuideText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { FLOW_PRIVACY_DELAY_PROFILES } from "../utils/flow-privacy-delay.js";
 import { createLazyAction } from "../utils/lazy-command.js";
@@ -40,6 +40,42 @@ export function createFlowCommand(): Command {
     .option("--export-new-wallet <path>", "Export the generated workflow wallet backup before continuing (requires --new-wallet)")
     .option("--dry-run", "Validate the flow start inputs without saving a workflow or submitting a deposit")
     .option("--watch", "Keep watching this workflow until it finishes or pauses")
+    .addHelpText(
+      "after",
+      groupedFlagGuideText([
+        {
+          heading: "Setup mode",
+          flags: [
+            "--dry-run",
+            "--watch",
+          ],
+        },
+        {
+          heading: "Secret sources",
+          flags: [
+            "--new-wallet",
+            "--export-new-wallet <path>",
+          ],
+        },
+        {
+          heading: "Network",
+          flags: [
+            "--chain <name>",
+            "--rpc-url <url>",
+          ],
+        },
+        {
+          heading: "Safety",
+          flags: [
+            "--to <address>",
+            "--privacy-delay <profile>",
+            "--yes",
+            "--agent",
+            "--help-brief",
+          ],
+        },
+      ]),
+    )
     .addHelpText("after", commandHelpText(startMetadata.help ?? {}))
     .action(
       createLazyAction(

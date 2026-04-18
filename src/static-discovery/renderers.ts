@@ -3,6 +3,7 @@ import { CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { resolveEnvelopeSchemaPath } from "../utils/describe-schema.js";
+import type { DetailedCommandDescriptor } from "../types.js";
 import { guardStaticCsvUnsupported, isQuietMode } from "./guards.js";
 
 export async function renderStaticCapabilities(
@@ -33,13 +34,10 @@ export async function renderStaticGuide(
 ): Promise<void> {
   guardStaticCsvUnsupported(globalOpts, "guide");
   const mode = resolveGlobalMode(globalOpts);
-  const { guideText } = await import("../utils/help.js");
+  const { buildGuidePayload, guideText } = await import("../utils/help.js");
 
   if (mode.isJson) {
-    printJsonSuccess({
-      mode: "help",
-      help: guideText(),
-    });
+    printJsonSuccess(buildGuidePayload());
     return;
   }
 
@@ -63,11 +61,32 @@ export async function renderStaticDescribe(
     STATIC_CAPABILITIES_PAYLOAD,
   } = await import("../utils/command-discovery-static.js");
   if (commandTokens.length === 0) {
-    throw new CLIError(
-      "Missing command path for describe.",
-      "INPUT",
-      `Valid command paths: ${listStaticCommandPaths().join(", ")}`,
+    const commands = listStaticCommandPaths().map((commandPath) => {
+      const descriptor = STATIC_CAPABILITIES_PAYLOAD.commandDetails[commandPath];
+      return {
+        command: descriptor.command,
+        description: descriptor.description,
+        group: descriptor.group,
+      };
+    });
+    if (mode.isJson) {
+      printJsonSuccess({
+        mode: "describe-index",
+        commands,
+      });
+      return;
+    }
+
+    if (isQuietMode(globalOpts)) {
+      return;
+    }
+
+    const { renderCommandDescriptionIndex } = await import("../output/describe.js");
+    renderCommandDescriptionIndex(
+      { mode, isVerbose: false, verboseLevel: mode.verboseLevel },
+      commands as Array<Pick<DetailedCommandDescriptor, "command" | "description" | "group">>,
     );
+    return;
   }
   const rawPath = commandTokens.join(" ").trim();
   const envelopeSchema = resolveEnvelopeSchemaPath(rawPath);

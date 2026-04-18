@@ -48,7 +48,10 @@ import {
 } from "../preview/runtime.js";
 import { confirmActionWithSeverity } from "../utils/prompts.js";
 import { CONFIRMATION_TOKENS } from "../utils/prompts.js";
-import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import {
+  maybeRecoverMissingWalletSetup,
+  normalizeInitRequiredInputError,
+} from "../utils/setup-recovery.js";
 import { maybeLaunchBrowser } from "../utils/web.js";
 
 interface FlowStartCommandOptions {
@@ -363,7 +366,7 @@ async function handleFlowCommandError(
     return;
   }
 
-  printError(error, options.json);
+  printError(normalizeInitRequiredInputError(error), options.json);
 }
 
 export async function handleFlowRootCommand(

@@ -1,6 +1,6 @@
 import { CLIError, printError } from "./utils/errors.js";
 import { printJsonSuccess } from "./utils/json.js";
-import { guideText, resolveGuideTopic } from "./utils/help.js";
+import { buildGuidePayload, guideText, resolveGuideTopic } from "./utils/help.js";
 import {
   parseRootPreludeLongOption,
   parseRootPreludeShortFlagBundle,
@@ -71,7 +71,7 @@ export async function runStaticDiscoveryCommand(
       const mode = resolveGlobalMode(globalOpts);
       const help = guideText(guideTopic);
       if (mode.isJson) {
-        printJsonSuccess({ mode: "help", topic: guideTopic, help });
+        printJsonSuccess(buildGuidePayload(guideTopic));
       } else if (!isQuietMode(globalOpts)) {
         process.stdout.write(`${help}\n`);
       }
@@ -89,7 +89,7 @@ export async function runStaticDiscoveryCommand(
       const mode = resolveGlobalMode(globalOpts);
       const help = guideText(helpTarget);
       if (mode.isJson) {
-        printJsonSuccess({ mode: "help", topic: helpTarget, help });
+        printJsonSuccess(buildGuidePayload(helpTarget));
       } else if (!isQuietMode(globalOpts)) {
         const { renderHumanGuideText } = await import("./output/discovery.js");
         renderHumanGuideText(help);

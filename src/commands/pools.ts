@@ -562,11 +562,22 @@ export async function handlePoolsCommand(
     const renderData: PoolsRenderData = {
       allChains: isMultiChain,
       chainName: chainsToQuery[0].name,
+      multiChainLabel: chainResults.some((result) => result.chainConfig.isTestnet)
+        ? "all-chains"
+        : "all-mainnets",
       search: searchQuery ?? null,
       sort: sortMode,
       filteredPools: [],
       warnings,
     };
+
+    if (isMultiChain) {
+      renderData.chainSummaries = chainResults.map((result) => ({
+        chain: result.chainConfig.name,
+        pools: result.pools.length,
+        error: result.error ? classifyError(result.error).message : null,
+      }));
+    }
 
     if (rawPools.length === 0) {
       const firstFailure = chainResults.find(
@@ -584,14 +595,6 @@ export async function handlePoolsCommand(
       applySearch(rawPools, searchQuery),
       sortMode,
     );
-
-    if (isMultiChain) {
-      renderData.chainSummaries = chainResults.map((result) => ({
-        chain: result.chainConfig.name,
-        pools: result.pools.length,
-        error: result.error ? classifyError(result.error).message : null,
-      }));
-    }
 
     renderPools(ctx, renderData);
   } catch (error) {

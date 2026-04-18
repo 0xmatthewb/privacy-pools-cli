@@ -973,6 +973,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1058,7 +1059,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.",
         "Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.",
-        "Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them."
+        "Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -1089,6 +1091,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1152,7 +1155,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.",
         "Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
-        "A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes."
+        "A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -1186,6 +1190,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1232,7 +1237,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": null,
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -1257,6 +1264,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1293,7 +1301,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -1320,6 +1330,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1366,7 +1377,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": null,
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -1394,6 +1407,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1442,7 +1456,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "Sensitive keys are never accepted as positional arguments to prevent shell history leakage.",
-        "The sensitive keys are recovery-phrase and signer-key. In non-interactive mode, use --file or --stdin for them."
+        "The sensitive keys are recovery-phrase and signer-key. In non-interactive mode, use --file or --stdin for them.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -1468,6 +1483,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1504,7 +1520,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ configDir }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -1529,6 +1547,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1570,7 +1589,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": null,
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -1595,6 +1616,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1631,7 +1653,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ profiles, active }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -1656,6 +1680,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1692,7 +1717,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ profile, created, profileDir }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -1717,6 +1744,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1753,7 +1781,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ profile, configDir }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -1778,6 +1808,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1814,7 +1845,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ profile, active, configDir }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -1844,6 +1877,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1909,7 +1943,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [
         "flow start --dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }"
       ],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
@@ -1951,6 +1987,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1992,11 +2029,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools simulate ragequit ETH --pool-account PA-1"
         }
       ],
-      "jsonFields": "simulate itself has no standalone JSON payload; each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.",
+      "jsonFields": "{ mode: \"help\", command: \"simulate\", subcommands: [\"deposit\", \"withdraw\", \"ragequit\"], help } when no subcommand is provided; otherwise each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.",
       "jsonVariants": [],
       "safetyNotes": [
         "simulate never signs or submits a transaction.",
-        "simulate is intentionally read-only and rejects --unsigned to keep preview and signing workflows distinct."
+        "simulate is intentionally read-only and rejects --unsigned to keep preview and signing workflows distinct.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -2031,6 +2069,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2115,7 +2154,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.",
         "The saved flow spends the entire remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",
         "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.",
-        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": true,
@@ -2160,6 +2200,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2230,7 +2271,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.",
         "Passing --privacy-delay on flow watch updates the saved workflow policy. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
         "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.",
-        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -2270,6 +2312,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2313,7 +2356,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [],
@@ -2349,6 +2394,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2399,7 +2445,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
         "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
-        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -2437,6 +2484,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2503,12 +2551,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
         "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
         "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }"
       ],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
@@ -2544,6 +2594,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2600,7 +2651,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ mode, chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -2631,6 +2684,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2672,7 +2726,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": null,
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -2699,6 +2755,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2735,7 +2792,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ mode, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -2765,6 +2824,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2801,7 +2861,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -2829,6 +2891,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2887,7 +2950,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -2913,6 +2978,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2949,7 +3015,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ commands[{ group, ... }], commandDetails{ ...group... }, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -2977,6 +3045,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3021,9 +3090,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools describe envelope.shared.nextAction --agent"
         }
       ],
-      "jsonFields": "{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes } or { path, schema } for describe envelope.<path>",
+      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes } for describe <command...>; or { path, schema } for describe envelope.<path>",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -3049,6 +3120,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3093,9 +3165,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools guide --agent"
         }
       ],
-      "jsonFields": "{ mode: \"help\", help }",
+      "jsonFields": "{ mode: \"help\", topic?, topics: [{ name, description }], help }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -3124,6 +3198,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3206,7 +3281,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
         "An ASP vetting fee is deducted from the deposit amount.",
         "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at https://tornado.0xbow.io before they can withdraw privately.",
-        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -3245,6 +3321,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3343,7 +3420,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
         "When prompts are skipped, --direct requires --confirm-direct-withdraw.",
         "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. It is unnecessary for ETH withdrawals.",
-        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -3377,6 +3455,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3420,7 +3499,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
@@ -3455,6 +3536,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3518,7 +3600,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.",
         "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.",
-        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it."
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
@@ -3551,6 +3634,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3591,7 +3675,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "simulate deposit never signs or submits a transaction.",
-        "Use 'deposit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview."
+        "Use 'deposit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -3630,6 +3715,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3670,7 +3756,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "simulate withdraw never signs or submits a transaction.",
-        "Use 'withdraw --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview."
+        "Use 'withdraw --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -3707,6 +3794,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3747,7 +3835,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [],
       "safetyNotes": [
         "simulate ragequit never signs or submits a transaction.",
-        "Use 'ragequit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview."
+        "Use 'ragequit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -3781,6 +3870,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3820,7 +3910,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent"
         }
       ],
-      "jsonFields": "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false }",
+      "jsonFields": "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
         "Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly."
       ],
@@ -3828,7 +3918,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "broadcast validates each signed transaction against the original preview envelope before the first submission.",
         "Onchain bundles are submitted sequentially and confirmed one-by-one so ERC20 approval + deposit ordering remains safe.",
         "Relayed withdrawals require a non-expired quote and a relayerRequest that exactly matches the preview calldata.",
-        "broadcast never signs and never mutates local account state."
+        "broadcast never signs and never mutates local account state.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -3865,6 +3956,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3880,8 +3972,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
-      "safeReadOnly": false,
-      "sideEffectClass": "local_state_write",
+      "safeReadOnly": true,
+      "sideEffectClass": "local_cache_write",
       "touchesFunds": false,
       "requiresHumanReview": false,
       "prerequisites": [
@@ -3944,7 +4036,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
         "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }"
       ],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
@@ -3975,6 +4069,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4018,7 +4113,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": null,
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -4045,6 +4142,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4091,7 +4189,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "This command is read-only. It never submits migration transactions and does not persist rebuilt account state.",
         "When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.",
-        "This check is limited to chains currently supported by the CLI. Review beta or other website-only migration surfaces in the Privacy Pools website."
+        "This check is limited to chains currently supported by the CLI. Review beta or other website-only migration surfaces in the Privacy Pools website.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
@@ -4122,6 +4221,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4137,8 +4237,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "requiresInit": true,
       "expectedLatencyClass": "slow",
-      "safeReadOnly": false,
-      "sideEffectClass": "local_state_write",
+      "safeReadOnly": true,
+      "sideEffectClass": "local_cache_write",
       "touchesFunds": false,
       "requiresHumanReview": false,
       "prerequisites": [
@@ -4180,7 +4280,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [
         "--no-sync: same fields, plus lastSyncTime? when cached local history was used."
       ],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -4208,6 +4310,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4249,9 +4352,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools sync --chain mainnet"
         }
       ],
-      "jsonFields": "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": [
@@ -4284,6 +4389,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-o, --output <format>",
         "-y, --yes",
         "--web",
+        "--help-brief",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4340,7 +4446,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, bootstrapProfilePath?, bootstrapProfileCreated?, bootstrapProfileUpdated?, reloadHint? }",
       "jsonVariants": [],
-      "safetyNotes": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
       "agentWorkflowNotes": []
@@ -4639,6 +4747,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "flag": "--web",
       "description": "Open the primary explorer or portal link in your browser when available"
+    },
+    {
+      "flag": "--help-brief",
+      "description": "Show condensed command help without the extended guide appendix"
     },
     {
       "flag": "-r, --rpc-url <url>",
@@ -4958,11 +5070,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "sideEffectClass": {
       "values": [
         "read_only",
+        "local_cache_write",
         "local_state_write",
         "network_write",
         "fund_movement"
       ],
-      "description": "Machine-readable risk classification for a command path. read_only never mutates local or remote protocol state. local_state_write may mutate local CLI state or secrets. network_write is reserved for remote mutations that do not directly move user funds. fund_movement may submit deposits, withdrawals, or public recoveries."
+      "description": "Machine-readable risk classification for a command path. read_only never mutates local or remote protocol state. local_cache_write refreshes or stores derived local cache/state without changing wallet intent. local_state_write may mutate local CLI state or secrets. network_write is reserved for remote mutations that do not directly move user funds. fund_movement may submit deposits, withdrawals, or public recoveries."
     },
     "statusRecommendedMode": {
       "values": [
@@ -5053,8 +5166,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "simulate deposit",
     "simulate withdraw",
     "simulate ragequit",
+    "accounts",
     "migrate",
-    "migrate status"
+    "migrate status",
+    "history"
   ],
   "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docsSlug?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "documentation": {

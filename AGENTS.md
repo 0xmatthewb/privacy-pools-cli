@@ -470,13 +470,13 @@ privacy-pools pools --agent --sort tvl-desc
 privacy-pools pools ETH --agent             # detail view for a specific pool
 ```
 
-JSON payload (single chain): `{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload (single chain): `{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 Default sort is `tvl-desc` (highest pool balance first). Override with `--sort`.
 
 In pools JSON, `asset` is the symbol to use in follow-up CLI commands and `tokenAddress` is the token contract address.
 
-With `--include-testnets`, each pool includes a `chain` field and the root includes `allChains: true`, `chains: [{ chain, pools, error }]`, and optional `warnings`.
+With `--include-testnets`, each pool includes a `chain` field and the root keeps `chain: "all-chains"` plus `chainSummaries: [{ chain, pools, error }]` and optional `warnings`.
 
 **Detail view** (`pools <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON payload: `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. `recentActivityUnavailable: true` means the CLI attempted the fetch but could not load it. Supports `--json` and `--chain`. Does not support `--output csv`.
 
@@ -562,6 +562,7 @@ JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[],
 `schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata and action-discovery metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, `preferredSafeVariant?`, and `expectedNextActionWhen?`. The `sideEffectClass` values are:
 
 - `read_only` -- Command only reads data, no side effects (e.g., `pools`, `accounts`, `status`)
+- `local_cache_write` -- Command refreshes or stores derived local cache/state without changing wallet intent (e.g., `accounts`, `history`)
 - `local_state_write` -- Command writes to the local filesystem (e.g., `init`, `sync`)
 - `network_write` -- Command submits onchain transactions that do not directly move user funds
 - `fund_movement` -- Command may move funds via deposits, withdrawals, or public recoveries (e.g., `deposit`, `withdraw`, `ragequit`)
@@ -577,7 +578,7 @@ privacy-pools describe withdraw quote --agent
 privacy-pools describe stats global --agent
 ```
 
-JSON payload: `{ command, description, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }`
+JSON payload: `{ mode: "describe-index", commands: [{ command, description, group }] }` when no command path is provided; `{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }` for `describe <command...>`; or `{ path, schema }` for `describe envelope.<path>`.
 
 ### Wallet Required
 
@@ -859,7 +860,7 @@ privacy-pools sync --agent
 privacy-pools sync ETH --agent
 ```
 
-JSON payload: `{ chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts?, durationMs?, scannedBlockRange?, eventCounts?, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+JSON payload: `{ chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 ## Auto-Sync Behavior
 

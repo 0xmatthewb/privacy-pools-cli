@@ -51,6 +51,7 @@ export interface PoolWarning {
 export interface PoolsRenderData {
   allChains: boolean;
   chainName: string;
+  multiChainLabel?: "all-mainnets" | "all-chains";
   search: string | null;
   sort: string;
   filteredPools: PoolWithChain[];
@@ -122,7 +123,18 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
       createNextAction("status", "Check CLI and chain connectivity.", "no_pools_found", { options: { agent: true } }),
     ];
     if (data.allChains) {
-      printJsonSuccess(appendNextActions({ allChains: true, search: data.search, sort: data.sort, pools: [] }, emptyNextActions));
+      printJsonSuccess(
+        appendNextActions(
+          {
+            chain: data.multiChainLabel ?? "all-mainnets",
+            search: data.search,
+            sort: data.sort,
+            chainSummaries: data.chainSummaries ?? [],
+            pools: [],
+          },
+          emptyNextActions,
+        ),
+      );
     } else {
       printJsonSuccess(appendNextActions({ chain: data.chainName, search: data.search, sort: data.sort, pools: [] }, emptyNextActions));
     }
@@ -221,10 +233,10 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   if (ctx.mode.isJson) {
     if (allChains) {
       printJsonSuccess(appendNextActions({
-        allChains: true,
+        chain: data.multiChainLabel ?? "all-mainnets",
         search,
         sort,
-        chains: chainSummaries,
+        chainSummaries: chainSummaries ?? [],
         pools: filteredPools.map((entry) =>
           poolToJson(entry.pool, entry.chain, entry.myPoolAccountsCount),
         ),

@@ -6,7 +6,7 @@
 
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, isSilent, guardCsvUnsupported } from "./common.js";
-import { guideText, resolveGuideTopic } from "../utils/help.js";
+import { buildGuidePayload, guideText, resolveGuideTopic } from "../utils/help.js";
 import { renderHumanGuideText } from "./discovery.js";
 
 /**
@@ -15,11 +15,7 @@ import { renderHumanGuideText } from "./discovery.js";
 export function renderGuide(ctx: OutputContext, topic?: string): void {
   const resolvedTopic = resolveGuideTopic(topic) ?? topic;
   if (ctx.mode.isJson) {
-    printJsonSuccess({
-      mode: "help",
-      ...(resolvedTopic ? { topic: resolvedTopic } : {}),
-      help: guideText(topic),
-    });
+    printJsonSuccess(buildGuidePayload(resolvedTopic));
     return;
   }
 

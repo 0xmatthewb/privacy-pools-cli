@@ -31,7 +31,6 @@ import {
   initializeAccountService,
   saveAccount,
   saveSyncMeta,
-  syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { accountHasDeposits } from "../services/account-storage.js";
@@ -76,7 +75,6 @@ import {
   printError,
   CLIError,
   promptCancelledError,
-  sanitizeDiagnosticText,
 } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
@@ -137,17 +135,17 @@ import {
   createNarrativeSteps,
   renderNarrativeSteps,
 } from "../output/progress.js";
-import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import {
+  maybeRecoverMissingWalletSetup,
+  normalizeInitRequiredInputError,
+} from "../utils/setup-recovery.js";
 import { maybeLaunchBrowser } from "../utils/web.js";
 import {
   assertKnownPoolRoot,
   poolRootCacheScopeKey,
 } from "../services/pool-roots.js";
-import {
-  guardCriticalSection,
-  releaseCriticalSection,
-} from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
+import { persistWithReconciliation } from "../services/persist-with-reconciliation.js";
 import {
   buildAllPoolAccountRefs,
   buildPoolAccountRefs,
@@ -974,6 +972,7 @@ export async function handleWithdrawCommand(
           "--all requires an asset. Use 'withdraw --all ETH --to <address>'.",
           "INPUT",
           "Run 'privacy-pools pools' to see available assets.",
+          "INPUT_MISSING_ASSET",
         );
       }
       amountStr = "";
@@ -984,6 +983,7 @@ export async function handleWithdrawCommand(
             "Missing amount. Specify an amount or use --all.",
             "INPUT",
             "Example: privacy-pools withdraw 0.05 ETH --to 0x... or privacy-pools withdraw --all ETH --to 0x...",
+            "INPUT_MISSING_AMOUNT",
           );
         }
         amountStr = "";
@@ -1122,6 +1122,7 @@ export async function handleWithdrawCommand(
         "No asset specified.",
         "INPUT",
         "Run 'privacy-pools pools' to see available assets, then use a positional asset like 'privacy-pools withdraw 0.05 ETH --to 0x...'.",
+        "INPUT_MISSING_ASSET",
       );
     }
     if (
@@ -2193,13 +2194,24 @@ export async function handleWithdrawCommand(
           );
         }
 
-        let needsReconciliation = false;
-        let localStateSynced = true;
-        let warningCode: string | null = null;
-        guardCriticalSection();
-        try {
-          // Record the withdrawal in account state
-          try {
+        const {
+          reconciliationRequired,
+          localStateSynced,
+          warningCode,
+        } = await persistWithReconciliation({
+          accountService,
+          chainConfig,
+          dataService,
+          mnemonic,
+          pool,
+          silent,
+          isJson,
+          isVerbose,
+          errorLabel: "Withdrawal reconciliation",
+          reconcileHint: `Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`,
+          persistFailureMessage: "Withdrawal confirmed onchain but failed to save locally",
+          warningCode: LOCAL_STATE_RECONCILIATION_WARNING_CODE,
+          persist: () => {
             withSuppressedSdkStdoutSync(() =>
               accountService.addWithdrawalCommitment(
                 commitment,
@@ -2212,54 +2224,9 @@ export async function handleWithdrawCommand(
             );
             saveAccount(chainConfig.id, accountService.account);
             saveSyncMeta(chainConfig.id);
-          } catch (saveErr) {
-            warn(
-              `Withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}`,
-              silent,
-            );
-            needsReconciliation = true;
-            localStateSynced = false;
-          }
-          if (needsReconciliation) {
-            try {
-              await syncAccountEvents(
-                accountService,
-                [{
-                  chainId: chainConfig.id,
-                  address: pool.pool,
-                  scope: pool.scope,
-                  deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
-                }],
-                [{ pool: pool.pool, symbol: pool.symbol }],
-                chainConfig.id,
-                {
-                  skip: false,
-                  force: true,
-                  silent,
-                  isJson,
-                  isVerbose,
-                  errorLabel: "Withdrawal reconciliation",
-                  dataService,
-                  mnemonic,
-                },
-              );
-              info("Local account state reconciled from chain events.", silent);
-              needsReconciliation = false;
-              localStateSynced = true;
-            } catch (syncErr) {
-              warn(
-                `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncErr instanceof Error ? syncErr.message : String(syncErr))}`,
-                silent,
-              );
-              warn(`Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`, silent);
-              localStateSynced = false;
-              warningCode = LOCAL_STATE_RECONCILIATION_WARNING_CODE;
-            }
-          }
-        } finally {
-          releaseCriticalSection();
-        }
-        if (needsReconciliation || !localStateSynced) {
+          },
+        });
+        if (reconciliationRequired) {
           spin.warn("Withdrawal confirmed onchain; local state needs reconciliation.");
         } else {
           spin.succeed("Direct withdrawal confirmed!");
@@ -2284,7 +2251,7 @@ export async function handleWithdrawCommand(
           remainingBalance: selectedPoolAccount.value - withdrawalAmount,
           tokenPrice,
           rootMatchedAtProofTime: true,
-          reconciliationRequired: needsReconciliation || !localStateSynced,
+          reconciliationRequired,
           localStateSynced,
           warningCode,
           anonymitySet,
@@ -2895,13 +2862,24 @@ export async function handleWithdrawCommand(
             "Check the transaction on a block explorer for details.",
           );
         }
-        let needsReconciliation = false;
-        let localStateSynced = true;
-        let warningCode: string | null = null;
-        guardCriticalSection();
-        try {
-          // Record the withdrawal in account state
-          try {
+        const {
+          reconciliationRequired,
+          localStateSynced,
+          warningCode,
+        } = await persistWithReconciliation({
+          accountService,
+          chainConfig,
+          dataService,
+          mnemonic,
+          pool,
+          silent,
+          isJson,
+          isVerbose,
+          errorLabel: "Withdrawal reconciliation",
+          reconcileHint: `Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`,
+          persistFailureMessage: "Relayed withdrawal confirmed onchain but failed to save locally",
+          warningCode: LOCAL_STATE_RECONCILIATION_WARNING_CODE,
+          persist: () => {
             withSuppressedSdkStdoutSync(() =>
               accountService.addWithdrawalCommitment(
                 commitment,
@@ -2914,54 +2892,9 @@ export async function handleWithdrawCommand(
             );
             saveAccount(chainConfig.id, accountService.account);
             saveSyncMeta(chainConfig.id);
-          } catch (saveErr) {
-            warn(
-              `Relayed withdrawal confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}`,
-              silent,
-            );
-            needsReconciliation = true;
-            localStateSynced = false;
-          }
-          if (needsReconciliation) {
-            try {
-              await syncAccountEvents(
-                accountService,
-                [{
-                  chainId: chainConfig.id,
-                  address: pool.pool,
-                  scope: pool.scope,
-                  deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
-                }],
-                [{ pool: pool.pool, symbol: pool.symbol }],
-                chainConfig.id,
-                {
-                  skip: false,
-                  force: true,
-                  silent,
-                  isJson,
-                  isVerbose,
-                  errorLabel: "Withdrawal reconciliation",
-                  dataService,
-                  mnemonic,
-                },
-              );
-              info("Local account state reconciled from chain events.", silent);
-              needsReconciliation = false;
-              localStateSynced = true;
-            } catch (syncErr) {
-              warn(
-                `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncErr instanceof Error ? syncErr.message : String(syncErr))}`,
-                silent,
-              );
-              warn(`Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`, silent);
-              localStateSynced = false;
-              warningCode = LOCAL_STATE_RECONCILIATION_WARNING_CODE;
-            }
-          }
-        } finally {
-          releaseCriticalSection();
-        }
-        if (needsReconciliation || !localStateSynced) {
+          },
+        });
+        if (reconciliationRequired) {
           spin.warn("Withdrawal confirmed onchain; local state needs reconciliation.");
         } else {
           spin.succeed("Relayed withdrawal confirmed!");
@@ -2994,7 +2927,7 @@ export async function handleWithdrawCommand(
           remainingBalance: selectedPoolAccount.value - withdrawalAmount,
           tokenPrice,
           rootMatchedAtProofTime: true,
-          reconciliationRequired: needsReconciliation || !localStateSynced,
+          reconciliationRequired,
           localStateSynced,
           warningCode,
           anonymitySet,
@@ -3024,7 +2957,7 @@ export async function handleWithdrawCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(error, isJson || isUnsigned);
+    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
   }
 }
 
@@ -3080,6 +3013,7 @@ export async function handleWithdrawQuoteCommand(
         "No asset specified.",
         "INPUT",
         "Example: privacy-pools withdraw quote 0.1 ETH",
+        "INPUT_MISSING_ASSET",
       );
     }
     verbose(
@@ -3180,6 +3114,6 @@ export async function handleWithdrawQuoteCommand(
       chainOverridden: !!globalOpts?.chain,
     });
   } catch (error) {
-    printError(error, isJson);
+    printError(normalizeInitRequiredInputError(error), isJson);
   }
 }

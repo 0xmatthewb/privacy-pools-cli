@@ -24,6 +24,7 @@ export function assertSafeRecipientAddress(
       `${label} appears to be a burn address.`,
       "INPUT",
       "Provide a recipient you control. Obvious burn or dead-address patterns would make funds unrecoverable.",
+      "INPUT_RECIPIENT_BURN_ADDRESS",
     );
   }
   return validated;

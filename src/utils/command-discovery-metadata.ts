@@ -32,6 +32,8 @@ export type { CommandCapabilityMetadata, CommandMetadata, CommandPath } from "./
 export { COMMAND_PATHS } from "./command-catalog.js";
 
 const CLI_PACKAGE_INFO = readCliPackageInfo(import.meta.url);
+const EXIT_CODES_GUIDE_NOTE =
+  "Exit code categories are documented in 'privacy-pools guide exit-codes'.";
 
 export interface GlobalFlagMetadata {
   flag: string;
@@ -292,9 +294,15 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
       + "When runnable is false, cliCommand is omitted and parameters[] describes the missing user input before execution.",
   },
   sideEffectClass: {
-    values: ["read_only", "local_state_write", "network_write", "fund_movement"],
+    values: [
+      "read_only",
+      "local_cache_write",
+      "local_state_write",
+      "network_write",
+      "fund_movement",
+    ],
     description:
-      "Machine-readable risk classification for a command path. read_only never mutates local or remote protocol state. local_state_write may mutate local CLI state or secrets. network_write is reserved for remote mutations that do not directly move user funds. fund_movement may submit deposits, withdrawals, or public recoveries.",
+      "Machine-readable risk classification for a command path. read_only never mutates local or remote protocol state. local_cache_write refreshes or stores derived local cache/state without changing wallet intent. local_state_write may mutate local CLI state or secrets. network_write is reserved for remote mutations that do not directly move user funds. fund_movement may submit deposits, withdrawals, or public recoveries.",
   },
   statusRecommendedMode: {
     values: ["setup-required", "read-only", "unsigned-only", "ready"],
@@ -335,13 +343,16 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
   "simulate ragequit",
 ]);
 
+const LOCAL_CACHE_WRITE_COMMANDS = new Set<CommandPath>([
+  "accounts",
+  "history",
+]);
+
 const LOCAL_STATE_WRITE_COMMANDS = new Set<CommandPath>([
   "upgrade",
   "init",
   "completion",
   "config set",
-  "accounts",
-  "history",
   "sync",
 ]);
 
@@ -381,6 +392,9 @@ const PREFERRED_SAFE_VARIANTS: Partial<Record<CommandPath, PreferredSafeVariant>
 function sideEffectClassFor(path: CommandPath): CommandSideEffectClass {
   if (FUND_MOVEMENT_COMMANDS.has(path)) {
     return "fund_movement";
+  }
+  if (LOCAL_CACHE_WRITE_COMMANDS.has(path)) {
+    return "local_cache_write";
   }
   if (LOCAL_STATE_WRITE_COMMANDS.has(path)) {
     return "local_state_write";
@@ -424,7 +438,10 @@ function descriptorSeed(path: CommandPath) {
     structuredExamples: structuredExamplesFromHelpExamples(metadata.help?.examples ?? []),
     jsonFields: metadata.help?.jsonFields ?? null,
     jsonVariants: metadata.help?.jsonVariants ?? [],
-    safetyNotes: metadata.help?.safetyNotes ?? [],
+    safetyNotes: [
+      ...(metadata.help?.safetyNotes ?? []),
+      EXIT_CODES_GUIDE_NOTE,
+    ],
     supportsUnsigned: metadata.help?.supportsUnsigned ?? false,
     supportsDryRun: metadata.help?.supportsDryRun ?? false,
     agentWorkflowNotes: metadata.help?.agentWorkflowNotes ?? [],

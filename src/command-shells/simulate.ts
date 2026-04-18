@@ -28,7 +28,12 @@ export function createSimulateCommand(): Command {
   const command = new Command("simulate")
     .description(metadata.description)
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
-    .action((_opts, cmd) => cmd.help());
+    .action(
+      createLazyAction(
+        () => import("../commands/simulate.js"),
+        "handleSimulateRootCommand",
+      ),
+    );
 
   command
     .command("deposit")

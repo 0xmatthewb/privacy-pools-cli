@@ -23,6 +23,8 @@ export interface ReviewSurfaceData {
   sections?: ReviewSection[];
   primaryCallout?: ReviewCallout | null;
   secondaryCallout?: ReviewCallout | null;
+  footerTitle?: string;
+  footerRows?: KeyValueRow[];
 }
 
 function formatEmbeddedReviewCallout(callout: ReviewCallout): string {
@@ -57,6 +59,14 @@ export function formatReviewSurface(data: ReviewSurfaceData): string {
   }
   if (data.secondaryCallout) {
     blocks.push(formatEmbeddedReviewCallout(data.secondaryCallout));
+  }
+  if (data.footerRows && data.footerRows.length > 0) {
+    const footerLines: string[] = [];
+    if (data.footerTitle) {
+      footerLines.push(`${data.footerTitle}:`);
+    }
+    footerLines.push(formatKeyValueRows(data.footerRows).trimEnd());
+    blocks.push(footerLines.join("\n"));
   }
 
   return formatBox(blocks.join("\n"), {

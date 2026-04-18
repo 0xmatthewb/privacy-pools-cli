@@ -5,6 +5,7 @@ import { handleWithdrawCommand } from "./withdraw.js";
 import { CLIError, printError } from "../utils/errors.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { printJsonSuccess } from "../utils/json.js";
 
 interface SimulateSharedOptions {
   unsigned?: boolean | string;
@@ -67,6 +68,26 @@ export async function handleSimulateDepositCommand(
       delegatedRootCommand(cmd),
     );
   });
+}
+
+export async function handleSimulateRootCommand(
+  _opts: Record<string, unknown>,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = (cmd.parent?.opts?.() ?? {}) as GlobalOptions;
+  const mode = resolveGlobalMode(globalOpts);
+
+  if (mode.isJson) {
+    printJsonSuccess({
+      mode: "help",
+      command: "simulate",
+      subcommands: ["deposit", "withdraw", "ragequit"],
+      help: cmd.helpInformation().trimEnd(),
+    });
+    return;
+  }
+
+  cmd.help();
 }
 
 export async function handleSimulateWithdrawCommand(

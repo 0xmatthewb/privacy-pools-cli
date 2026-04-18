@@ -19,7 +19,6 @@ import {
   initializeAccountService,
   saveAccount,
   saveSyncMeta,
-  syncAccountEvents,
   withSuppressedSdkStdout,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
@@ -59,10 +58,6 @@ import { checkHasGas } from "../utils/preflight.js";
 import { withProofProgress } from "../utils/proof-progress.js";
 import type { GlobalOptions, PoolStats } from "../types.js";
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
-import {
-  guardCriticalSection,
-  releaseCriticalSection,
-} from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
   buildAllPoolAccountRefs,
@@ -97,8 +92,12 @@ import {
   createNarrativeSteps,
   renderNarrativeSteps,
 } from "../output/progress.js";
-import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import {
+  maybeRecoverMissingWalletSetup,
+  normalizeInitRequiredInputError,
+} from "../utils/setup-recovery.js";
 import { maybeLaunchBrowser } from "../utils/web.js";
+import { persistWithReconciliation } from "../services/persist-with-reconciliation.js";
 
 const poolDepositorAbi = [
   {
@@ -463,6 +462,7 @@ export async function handleRagequitCommand(
         "No asset specified.",
         "INPUT",
         "Run 'privacy-pools pools' to see available assets, then use a positional asset like 'privacy-pools ragequit ETH'.",
+        "INPUT_MISSING_ASSET",
       );
     }
     verbose(
@@ -1082,98 +1082,66 @@ export async function handleRagequitCommand(
         );
       }
 
-      let needsReconciliation = false;
-      let localStateSynced = true;
-      let warningCode: string | null = null;
-      guardCriticalSection();
-      try {
-        // Mark the account as ragequit so it's excluded from getSpendableCommitments()
-        try {
-          if (!selectedPoolAccountUsesLegacyRecovery) {
-            const ragequitEvent: RagequitEvent = {
-              ragequitter: signerAddress!,
-              commitment: commitment.hash,
-              label: commitment.label,
-              value: commitment.value,
-              blockNumber: receipt.blockNumber,
-              transactionHash: tx.hash as Hex,
-            };
-            withSuppressedSdkStdoutSync(() =>
-              accountService.addRagequitToAccount(
-                commitment.label as unknown as SDKHash,
-                ragequitEvent,
-              ),
-            );
-          }
-        } catch (err) {
-          // Non-fatal: next sync will discover the ragequit event onchain
-          warn(
-              `Failed to record ragequit locally: ${err instanceof Error ? err.message : String(err)}. Next sync will pick it up.`,
-              silent,
-            );
-          needsReconciliation = true;
-          localStateSynced = false;
-        }
-
-        try {
-          if (selectedPoolAccountUsesLegacyRecovery) {
-            warn(
-              "Ragequit confirmed onchain. Legacy recovery state will refresh from chain events the next time the CLI syncs this account.",
-              silent,
-            );
-          } else {
-            saveAccount(chainConfig.id, accountService.account);
-            saveSyncMeta(chainConfig.id);
-          }
-        } catch (err) {
-          warn(
-              `Ragequit confirmed onchain but failed to save local state: ${err instanceof Error ? err.message : String(err)}`,
-              silent,
-            );
-          needsReconciliation = true;
-          localStateSynced = false;
-        }
-        if (needsReconciliation) {
-          try {
-            await syncAccountEvents(
-              accountService,
-              [{
-                chainId: chainConfig.id,
-                address: pool.pool,
-                scope: pool.scope as unknown as SDKHash,
-                deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
-              }],
-              [{ pool: pool.pool, symbol: pool.symbol }],
-              chainConfig.id,
-              {
-                skip: false,
-                force: true,
-                silent,
-                isJson,
-                isVerbose,
-                errorLabel: "Ragequit reconciliation",
-                dataService,
-                mnemonic,
-                allowLegacyRecoveryVisibility: true,
-              },
-            );
-            info("Local account state reconciled from chain events.", silent);
-            needsReconciliation = false;
-            localStateSynced = true;
-          } catch (syncErr) {
-            warn(
-              `Automatic reconciliation failed: ${syncErr instanceof Error ? syncErr.message : String(syncErr)}`,
-              silent,
-            );
-            warn(`Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`, silent);
-            localStateSynced = false;
-            warningCode = LOCAL_STATE_RECONCILIATION_WARNING_CODE;
-          }
-        }
-      } finally {
-        releaseCriticalSection();
+      if (selectedPoolAccountUsesLegacyRecovery) {
+        warn(
+          "Ragequit confirmed onchain. Legacy recovery state will refresh from chain events the next time the CLI syncs this account.",
+          silent,
+        );
       }
-      if (needsReconciliation || !localStateSynced) {
+
+      let forceReconciliation = false;
+      if (!selectedPoolAccountUsesLegacyRecovery) {
+        try {
+          const ragequitEvent: RagequitEvent = {
+            ragequitter: signerAddress!,
+            commitment: commitment.hash,
+            label: commitment.label,
+            value: commitment.value,
+            blockNumber: receipt.blockNumber,
+            transactionHash: tx.hash as Hex,
+          };
+          withSuppressedSdkStdoutSync(() =>
+            accountService.addRagequitToAccount(
+              commitment.label as unknown as SDKHash,
+              ragequitEvent,
+            ),
+          );
+        } catch (error) {
+          warn(
+            `Failed to record ragequit locally: ${error instanceof Error ? error.message : String(error)}. Next sync will pick it up.`,
+            silent,
+          );
+          forceReconciliation = true;
+        }
+      }
+
+      const {
+        reconciliationRequired,
+        localStateSynced,
+        warningCode,
+      } = await persistWithReconciliation({
+        accountService,
+        chainConfig,
+        dataService,
+        mnemonic,
+        pool,
+        silent,
+        isJson,
+        isVerbose,
+        errorLabel: "Ragequit reconciliation",
+        reconcileHint: `Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`,
+        persistFailureMessage: "Ragequit confirmed onchain but failed to save local state",
+        forceReconciliation,
+        allowLegacyRecoveryVisibility: true,
+        warningCode: LOCAL_STATE_RECONCILIATION_WARNING_CODE,
+        persist: selectedPoolAccountUsesLegacyRecovery
+          ? undefined
+          : () => {
+              saveAccount(chainConfig.id, accountService.account);
+              saveSyncMeta(chainConfig.id);
+            },
+      });
+      if (reconciliationRequired) {
         spin.warn("Ragequit confirmed onchain; local state needs reconciliation.");
       } else {
         spin.succeed("Ragequit confirmed!");
@@ -1194,7 +1162,7 @@ export async function handleRagequitCommand(
         explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
         destinationAddress: depositorAddress,
         advisory: advisory?.message ?? null,
-        reconciliationRequired: needsReconciliation || !localStateSynced,
+        reconciliationRequired,
         localStateSynced,
         warningCode,
         tokenPrice,
@@ -1222,6 +1190,6 @@ export async function handleRagequitCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(error, isJson || isUnsigned);
+    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
   }
 }

@@ -105,6 +105,10 @@ export const GUIDE_TOPICS = [
 ] as const;
 
 export type GuideTopic = (typeof GUIDE_TOPICS)[number]["name"];
+export interface GuideTopicSummary {
+  name: GuideTopic;
+  description: string;
+}
 
 const GUIDE_TOPIC_NAMES = GUIDE_TOPICS.map((t) => t.name);
 const GUIDE_TOPIC_ALIASES: Record<string, GuideTopic> = {
@@ -142,6 +146,27 @@ export function resolveGuideTopic(topic?: string): GuideTopic | null {
 
 export function isGuideTopic(topic?: string): boolean {
   return resolveGuideTopic(topic) !== null;
+}
+
+export function isBriefHelpRequested(
+  argv: readonly string[] = process.argv.slice(2),
+): boolean {
+  return argv.includes("--help-brief");
+}
+
+export function buildGuidePayload(topic?: string): {
+  mode: "help";
+  topic?: string;
+  topics: GuideTopicSummary[];
+  help: string;
+} {
+  const resolvedTopic = resolveGuideTopic(topic) ?? topic;
+  return {
+    mode: "help",
+    ...(resolvedTopic ? { topic: resolvedTopic } : {}),
+    topics: GUIDE_TOPICS.map(({ name, description }) => ({ name, description })),
+    help: guideText(topic),
+  };
 }
 
 function formatEnvVarLine(name: string, description: string): string {
@@ -540,6 +565,10 @@ export function guideText(topic?: string): string {
 }
 
 export type HelpExample = string | { category: string; commands: string[] };
+export interface HelpFlagGroup {
+  heading: string;
+  flags: string[];
+}
 
 export interface CommandHelpConfig {
   overview?: string[];
@@ -552,6 +581,7 @@ export interface CommandHelpConfig {
   safetyNotes?: string[];
   agentWorkflowNotes?: string[];
   seeAlso?: string[];
+  flagGroups?: HelpFlagGroup[];
 }
 
 export const helpTestInternals = {
@@ -560,6 +590,10 @@ export const helpTestInternals = {
 };
 
 export function commandHelpText(config: CommandHelpConfig): string {
+  if (isBriefHelpRequested()) {
+    return "";
+  }
+
   const lines: string[] = [];
   const showAgentAppendix = detectAgentEnvironment();
 
@@ -646,5 +680,19 @@ export function commandHelpText(config: CommandHelpConfig): string {
     }
   }
 
+  return lines.join("\n");
+}
+
+export function groupedFlagGuideText(groups: HelpFlagGroup[]): string {
+  if (groups.length === 0) return "";
+
+  const lines = ["", "Flag guide:"];
+  for (const group of groups) {
+    if (group.flags.length === 0) continue;
+    lines.push(`  ${group.heading}:`);
+    for (const flag of group.flags) {
+      lines.push(`    ${flag}`);
+    }
+  }
   return lines.join("\n");
 }

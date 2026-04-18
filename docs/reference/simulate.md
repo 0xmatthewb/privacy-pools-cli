@@ -19,7 +19,7 @@ privacy-pools simulate ragequit ETH --pool-account PA-1
 **Safety:** simulate never signs or submits a transaction.
 **Safety:** simulate is intentionally read-only and rejects --unsigned to keep preview and signing workflows distinct.
 
-**JSON output:** `simulate itself has no standalone JSON payload; each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.`
+**JSON output:** `{ mode: "help", command: "simulate", subcommands: ["deposit", "withdraw", "ragequit"], help } when no subcommand is provided; otherwise each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.`
 
 ## `simulate deposit`
 

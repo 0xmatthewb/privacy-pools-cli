@@ -1,9 +1,12 @@
 import type { OutputContext } from "./common.js";
 import {
+  appendNextActions,
+  createNextAction,
   guardCsvUnsupported,
   info,
   isSilent,
   printJsonSuccess,
+  renderNextSteps,
   success,
 } from "./common.js";
 import { formatTxHash } from "../utils/format.js";
@@ -26,14 +29,62 @@ export interface BroadcastRenderData {
   localStateUpdated: false;
 }
 
+function broadcastNextActions(
+  data: BroadcastRenderData,
+  agent: boolean,
+) {
+  switch (data.sourceOperation) {
+    case "deposit":
+      return [
+        createNextAction(
+          "accounts",
+          "Monitor ASP review for the newly deposited Pool Account.",
+          "after_deposit",
+          {
+            options: agent
+              ? { agent: true, chain: data.chain, pendingOnly: true }
+              : { chain: data.chain, pendingOnly: true },
+          },
+        ),
+      ];
+    case "withdraw":
+      return [
+        createNextAction(
+          "accounts",
+          "Refresh Pool Account balances after the withdrawal confirmed.",
+          "after_withdraw",
+          {
+            options: agent
+              ? { agent: true, chain: data.chain }
+              : { chain: data.chain },
+          },
+        ),
+      ];
+    case "ragequit":
+      return [
+        createNextAction(
+          "accounts",
+          "Refresh Pool Account status after the public recovery confirmed.",
+          "after_ragequit",
+          {
+            options: agent
+              ? { agent: true, chain: data.chain }
+              : { chain: data.chain },
+          },
+        ),
+      ];
+  }
+}
+
 export function renderBroadcast(
   ctx: OutputContext,
   data: BroadcastRenderData,
 ): void {
   guardCsvUnsupported(ctx, "broadcast");
+  const nextActions = broadcastNextActions(data, ctx.mode.isJson);
 
   if (ctx.mode.isJson) {
-    printJsonSuccess(data, false);
+    printJsonSuccess(appendNextActions({ ...data }, nextActions), false);
     return;
   }
 
@@ -62,4 +113,6 @@ export function renderBroadcast(
       silent,
     );
   }
+
+  renderNextSteps(ctx, nextActions);
 }

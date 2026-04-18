@@ -15,7 +15,6 @@ import {
   initializeAccountService,
   saveAccount,
   saveSyncMeta,
-  syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import { explorerTxUrl, isNativePoolAsset } from "../config/chains.js";
@@ -31,7 +30,6 @@ import {
   printError,
   CLIError,
   promptCancelledError,
-  sanitizeDiagnosticText,
 } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import type { GlobalOptions } from "../types.js";
@@ -57,10 +55,6 @@ import {
 import { printRawTransactions } from "../utils/unsigned.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
-import {
-  guardCriticalSection,
-  releaseCriticalSection,
-} from "../utils/critical-section.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import {
   approveERC20,
@@ -92,8 +86,12 @@ import {
   createNarrativeSteps,
   renderNarrativeSteps,
 } from "../output/progress.js";
-import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
+import {
+  maybeRecoverMissingWalletSetup,
+  normalizeInitRequiredInputError,
+} from "../utils/setup-recovery.js";
 import { maybeLaunchBrowser } from "../utils/web.js";
+import { persistWithReconciliation } from "../services/persist-with-reconciliation.js";
 
 interface DepositCommandOptions {
   unsigned?: boolean | string;
@@ -260,6 +258,7 @@ export async function handleDepositCommand(
         "No asset specified.",
         "INPUT",
         "Run 'privacy-pools pools' to see available assets, then use a positional asset like 'privacy-pools deposit 0.1 ETH'.",
+        "INPUT_MISSING_ASSET",
       );
     }
     verbose(
@@ -280,6 +279,7 @@ export async function handleDepositCommand(
         `Deposit amount is below the minimum of ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)} for this pool.`,
         "INPUT",
         `Increase the amount to at least ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)}.`,
+        "INPUT_BELOW_MINIMUM_DEPOSIT",
       );
     }
 
@@ -686,103 +686,70 @@ export async function handleDepositCommand(
       }
       let label: bigint | undefined;
       let committedValue: bigint | undefined;
-      let needsReconciliation = false;
-      let localStateSynced = true;
-      let warningCode: string | null = null;
-      guardCriticalSection();
-      try {
-        for (const log of receipt.logs) {
-          if (log.address.toLowerCase() !== pool.pool.toLowerCase()) {
-            continue;
-          }
-          try {
-            const decoded = decodeDepositReceiptLog({
-              data: log.data,
-              topics: log.topics,
-            });
-            label = decoded.label;
-            committedValue = decoded.value;
-            break;
-          } catch {
-            // Not this event
-          }
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== pool.pool.toLowerCase()) {
+          continue;
         }
-
-        if (label === undefined || committedValue === undefined) {
-          spin.warn(
-            "Deposit confirmed onchain. Attempting automatic local reconciliation...",
-          );
-          needsReconciliation = true;
-        } else {
-          // Persist the new commitment (7 individual args)
-          try {
-            const persistedValue = committedValue;
-            const persistedLabel = label as unknown as SDKHash;
-            withSuppressedSdkStdoutSync(() =>
-              accountService.addPoolAccount(
-                pool.scope as unknown as SDKHash,
-                persistedValue,
-                secrets.nullifier,
-                secrets.secret,
-                persistedLabel,
-                receipt.blockNumber,
-                tx.hash as Hex,
-              ),
-            );
-            saveAccount(chainConfig.id, accountService.account);
-            saveSyncMeta(chainConfig.id);
-          } catch (saveErr) {
-            warn(
-              `Deposit confirmed onchain but failed to save locally: ${sanitizeDiagnosticText(saveErr instanceof Error ? saveErr.message : String(saveErr))}`,
-              silent,
-            );
-            needsReconciliation = true;
-            localStateSynced = false;
-          }
+        try {
+          const decoded = decodeDepositReceiptLog({
+            data: log.data,
+            topics: log.topics,
+          });
+          label = decoded.label;
+          committedValue = decoded.value;
+          break;
+        } catch {
+          // Not this event
         }
-        if (needsReconciliation) {
-          try {
-            await syncAccountEvents(
-              accountService,
-              [{
-                chainId: chainConfig.id,
-                address: pool.pool,
-                scope: pool.scope,
-                deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
-              }],
-              [{ pool: pool.pool, symbol: pool.symbol }],
-              chainConfig.id,
-              {
-                skip: false,
-                force: true,
-                silent,
-                isJson,
-                isVerbose,
-                errorLabel: "Deposit reconciliation",
-                dataService,
-                mnemonic,
-              },
-            );
-            info("Local account state reconciled from chain events.", silent);
-            needsReconciliation = false;
-            localStateSynced = true;
-          } catch (syncErr) {
-            warn(
-              `Automatic reconciliation failed: ${sanitizeDiagnosticText(syncErr instanceof Error ? syncErr.message : String(syncErr))}`,
-              silent,
-            );
-            warn(
-              `Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`,
-              silent,
-            );
-            localStateSynced = false;
-            warningCode = "LOCAL_STATE_RECONCILIATION_REQUIRED";
-          }
-        }
-      } finally {
-        releaseCriticalSection();
       }
-      if (needsReconciliation || !localStateSynced) {
+
+      const missingReceiptCommitment =
+        label === undefined || committedValue === undefined;
+      if (missingReceiptCommitment) {
+        spin.warn(
+          "Deposit confirmed onchain. Attempting automatic local reconciliation...",
+        );
+      }
+
+      const persistedValue = committedValue;
+      const persistedLabel = label as unknown as SDKHash;
+      const {
+        reconciliationRequired,
+        localStateSynced,
+        warningCode,
+      } = await persistWithReconciliation({
+        accountService,
+        chainConfig,
+        dataService,
+        mnemonic,
+        pool,
+        silent,
+        isJson,
+        isVerbose,
+        errorLabel: "Deposit reconciliation",
+        reconcileHint: `Run 'privacy-pools sync --chain ${chainConfig.name}' to update your local account state.`,
+        persistFailureMessage: "Deposit confirmed onchain but failed to save locally",
+        forceReconciliation: missingReceiptCommitment,
+        persist: missingReceiptCommitment
+          ? undefined
+          : () => {
+              withSuppressedSdkStdoutSync(() =>
+                accountService.addPoolAccount(
+                  pool.scope as unknown as SDKHash,
+                  persistedValue!,
+                  secrets.nullifier,
+                  secrets.secret,
+                  persistedLabel!,
+                  receipt.blockNumber,
+                  tx.hash as Hex,
+                ),
+              );
+              saveAccount(chainConfig.id, accountService.account);
+              saveSyncMeta(chainConfig.id);
+            },
+      });
+
+      if (reconciliationRequired) {
         spin.warn("Deposit confirmed onchain; local state needs reconciliation.");
       } else {
         spin.succeed("Deposit confirmed!");
@@ -807,7 +774,7 @@ export async function handleDepositCommand(
         label,
         blockNumber: receipt.blockNumber,
         explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
-        reconciliationRequired: needsReconciliation || !localStateSynced,
+        reconciliationRequired,
         localStateSynced,
         warningCode,
         chainOverridden: !!globalOpts?.chain,
@@ -835,6 +802,6 @@ export async function handleDepositCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(error, isJson || isUnsigned);
+    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
   }
 }

@@ -2,7 +2,8 @@ import type { Command } from "commander";
 import { loadConfig } from "../services/config.js";
 import { handleInitCommand } from "../commands/init.js";
 import type { GlobalOptions } from "../types.js";
-import { classifyError } from "./errors.js";
+import { CLIError, classifyError } from "./errors.js";
+import { createNextAction } from "../output/common.js";
 import { info } from "./format.js";
 import { resolveGlobalMode } from "./mode.js";
 import {
@@ -29,7 +30,39 @@ export function isMissingWalletSetupError(error: unknown): boolean {
   const classified = classifyError(error);
   return (
     classified.category === "SETUP" &&
-    classified.code === "SETUP_RECOVERY_PHRASE_MISSING"
+    (
+      classified.code === "SETUP_RECOVERY_PHRASE_MISSING" ||
+      classified.code === "SETUP_SIGNER_KEY_MISSING"
+    )
+  );
+}
+
+export function normalizeInitRequiredInputError(error: unknown): unknown {
+  const classified = classifyError(error);
+  if (!isMissingWalletSetupError(classified)) {
+    return error;
+  }
+
+  return new CLIError(
+    "CLI wallet setup is incomplete. Run 'privacy-pools init' before using this command.",
+    "SETUP",
+    "Run 'privacy-pools init' to load or create your account, or use 'privacy-pools init --signer-only' if only the signer key is missing.",
+    "INPUT_INIT_REQUIRED",
+    false,
+    classified.presentation,
+    classified.details,
+    classified.docsSlug,
+    {
+      helpTopic: classified.extra.helpTopic ?? "quickstart",
+      nextActions: classified.extra.nextActions ?? [
+        createNextAction(
+          "init",
+          "Complete CLI wallet setup before running wallet-dependent commands.",
+          "status_not_ready",
+          { options: { agent: true } },
+        ),
+      ],
+    },
   );
 }
 

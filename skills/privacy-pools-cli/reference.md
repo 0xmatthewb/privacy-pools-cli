@@ -235,10 +235,10 @@ Defaults to all CLI-supported mainnet chains when no `--chain` is specified. Def
 
 ```json
 {
-  "allChains": true,
+  "chain": "all-chains",
   "search": null,
   "sort": "tvl-desc",
-  "chains": [{ "chain": "mainnet", "pools": 2, "error": null }],
+  "chainSummaries": [{ "chain": "mainnet", "pools": 2, "error": null }],
   "pools": [ ... ],
   "warnings": [{ "chain": "sepolia", "category": "ASP", "message": "..." }]
 }
@@ -416,7 +416,7 @@ Representative payload (abridged):
     {
       "name": "deposit",
       "description": "Deposit funds into a Privacy Pool",
-      "flags": ["--asset <symbol|address>", "--unsigned [envelope|tx]", "--dry-run"],
+      "flags": ["--unsigned [envelope|tx]", "--dry-run"],
       "agentFlags": "--agent",
       "requiresInit": true
     }
@@ -425,7 +425,7 @@ Representative payload (abridged):
     "accounts": {
       "command": "accounts",
       "flags": ["--no-sync", "--include-testnets", "--details", "--summary", "--pending-only"],
-      "sideEffectClass": "local_state_write",
+      "sideEffectClass": "local_cache_write",
       "touchesFunds": false,
       "requiresHumanReview": false
     }
@@ -491,7 +491,7 @@ Representative payload (abridged):
     "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1"
   },
-  "safeReadOnlyCommands": ["flow", "flow status", "pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "migrate", "migrate status", "completion"],
+  "safeReadOnlyCommands": ["flow", "flow status", "pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "accounts", "history", "migrate", "migrate status", "completion"],
   "supportedChains": [
     { "name": "mainnet", "chainId": 1, "testnet": false },
     { "name": "arbitrum", "chainId": 42161, "testnet": false },
@@ -525,7 +525,7 @@ privacy-pools describe stats global --agent
   "description": "Request relayer quote and limits without generating a proof",
   "aliases": [],
   "usage": "withdraw quote <amount> <asset>",
-  "flags": ["--asset <symbol|address> (deprecated alias)", "--to <address>"],
+  "flags": ["--to <address>"],
   "globalFlags": ["--agent", "-j, --json", "-y, --yes"],
   "requiresInit": true,
   "expectedLatencyClass": "medium",

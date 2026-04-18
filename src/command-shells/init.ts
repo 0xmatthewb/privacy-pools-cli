@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { commandHelpText } from "../utils/help.js";
+import { commandHelpText, groupedFlagGuideText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
 
@@ -54,6 +54,48 @@ export function createInitCommand(): Command {
     .addHelpText(
       "after",
       "\nUse only one secret stdin source per run: either --recovery-phrase-stdin or --private-key-stdin.\n",
+    )
+    .addHelpText(
+      "after",
+      groupedFlagGuideText([
+        {
+          heading: "Setup mode",
+          flags: [
+            "--signer-only",
+            "--force",
+            "--dry-run",
+            "--staged",
+          ],
+        },
+        {
+          heading: "Secret sources",
+          flags: [
+            "--recovery-phrase <phrase>",
+            "--recovery-phrase-file <path>",
+            "--recovery-phrase-stdin",
+            "--backup-file <path>",
+            "--show-recovery-phrase",
+            "--private-key <key>",
+            "--private-key-file <path>",
+            "--private-key-stdin",
+          ],
+        },
+        {
+          heading: "Network",
+          flags: [
+            "--default-chain <chain>",
+            "--rpc-url <url>",
+          ],
+        },
+        {
+          heading: "Safety",
+          flags: [
+            "--yes",
+            "--agent",
+            "--help-brief",
+          ],
+        },
+      ]),
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(

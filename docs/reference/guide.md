@@ -17,4 +17,4 @@ privacy-pools help modes
 privacy-pools guide --agent
 ```
 
-**JSON output:** `{ mode: "help", help }`
+**JSON output:** `{ mode: "help", topic?, topics: [{ name, description }], help }`

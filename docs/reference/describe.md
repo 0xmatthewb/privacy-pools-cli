@@ -19,4 +19,4 @@ privacy-pools describe stats global --agent
 privacy-pools describe envelope.shared.nextAction --agent
 ```
 
-**JSON output:** `{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes } or { path, schema } for describe envelope.<path>`
+**JSON output:** `{ mode: "describe-index", commands: [{ command, description, group }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes } for describe <command...>; or { path, schema } for describe envelope.<path>`

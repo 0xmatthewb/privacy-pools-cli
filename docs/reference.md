@@ -49,6 +49,7 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 | `-o, --output <format>` | Output format: table (default), csv, json, yaml, wide, name |
 | `-y, --yes` | Skip confirmation prompts |
 | `--web` | Open the primary explorer or portal link in your browser when available |
+| `--help-brief` | Show condensed command help without the extended guide appendix |
 | `-r, --rpc-url <url>` | Override RPC URL |
 | `--agent` | Machine-friendly mode (alias for --json --yes --quiet) |
 | `-q, --quiet` | Suppress human-oriented stderr output |

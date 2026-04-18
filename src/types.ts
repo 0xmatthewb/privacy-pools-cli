@@ -34,6 +34,7 @@ export interface GlobalOptions {
   agent?: boolean;
   quiet?: boolean;
   yes?: boolean;
+  helpBrief?: boolean;
   verbose?: boolean;
   noProgress?: boolean;
   noHeader?: boolean;
@@ -152,6 +153,7 @@ export type CommandGroup =
   | "advanced";
 export type CommandSideEffectClass =
   | "read_only"
+  | "local_cache_write"
   | "local_state_write"
   | "network_write"
   | "fund_movement";

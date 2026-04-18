@@ -73,7 +73,7 @@ export interface CommandMetadata {
 }
 
 const POOLS_LIST_JSON_FIELDS =
-  "{ chain?, allChains?, chains?, search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }";
+  "{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }";
 
 const FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN: NextActionWhen[] = [
   "flow_resume",
@@ -481,7 +481,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init for deposit, withdraw, and ragequit previews",
       jsonFields:
-        "simulate itself has no standalone JSON payload; each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.",
+        "{ mode: \"help\", command: \"simulate\", subcommands: [\"deposit\", \"withdraw\", \"ragequit\"], help } when no subcommand is provided; otherwise each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.",
       safetyNotes: [
         "simulate never signs or submits a transaction.",
         "simulate is intentionally read-only and rejects --unsigned to keep preview and signing workflows distinct.",
@@ -905,7 +905,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools describe envelope.shared.nextAction --agent",
       ],
       jsonFields:
-        "{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes } or { path, schema } for describe envelope.<path>",
+        "{ mode: \"describe-index\", commands: [{ command, description, group }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes } for describe <command...>; or { path, schema } for describe envelope.<path>",
       seeAlso: ["capabilities","guide"],
     },
     capabilities: {
@@ -928,7 +928,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools help modes",
         "privacy-pools guide --agent",
       ],
-      jsonFields: "{ mode: \"help\", help }",
+      jsonFields: "{ mode: \"help\", topic?, topics: [{ name, description }], help }",
       seeAlso: ["init","status"],
     },
     capabilities: {
@@ -1285,7 +1285,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent",
       ],
       jsonFields:
-        "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false }",
+        "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly.",
       ],
@@ -1356,6 +1356,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
+    safeReadOnly: true,
 
     agentsDocMarker: "#### `accounts`",
   },
@@ -1449,6 +1450,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
+    safeReadOnly: true,
 
     agentsDocMarker: "#### `history`",
   },
@@ -1467,7 +1469,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       agentWorkflowNotes: [
         "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
         "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs.",

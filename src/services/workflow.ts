@@ -4487,6 +4487,7 @@ export async function startWorkflow(
       `Deposit amount is below the minimum of ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)} for this pool.`,
       "INPUT",
       `Increase the amount to at least ${formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol)}.`,
+      "INPUT_BELOW_MINIMUM_DEPOSIT",
     );
   }
 
