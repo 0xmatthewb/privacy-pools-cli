@@ -68,6 +68,26 @@ Recover a saved workflow publicly via ragequit
 .br
 Usage: \fBprivacy\-pools flow ragequit [workflowId|latest] [options]\fR
 .TP
+.B simulate
+Preview deposit, withdraw, and ragequit without submitting
+.br
+Usage: \fBprivacy\-pools simulate [options]\fR
+.TP
+.B simulate deposit
+Preview deposit validation without signing or submitting
+.br
+Usage: \fBprivacy\-pools simulate deposit <amount> [asset] [options]\fR
+.TP
+.B simulate withdraw
+Preview withdrawal validation without signing or submitting
+.br
+Usage: \fBprivacy\-pools simulate withdraw [amount] [asset] [options]\fR
+.TP
+.B simulate ragequit
+Preview ragequit validation without signing or submitting
+.br
+Usage: \fBprivacy\-pools simulate ragequit [asset] [options]\fR
+.TP
 .B pools
 Browse available pools
 .br
@@ -112,6 +132,11 @@ Usage: \fBprivacy\-pools withdraw [amount] [asset] [options]\fR
 Request relayer quote and limits without generating a proof
 .br
 Usage: \fBprivacy\-pools withdraw quote <amountOrAsset> [amount] [options]\fR
+.TP
+.B broadcast
+Broadcast a signed envelope or relayer request built elsewhere
+.br
+Usage: \fBprivacy\-pools broadcast <input> [options]\fR
 .TP
 .B accounts
 View balances, approval status, and pool accounts

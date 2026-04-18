@@ -15,9 +15,11 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 ### Transactions
 
 - [`flow`](reference/flow.md) - Deposit and privately withdraw in one guided workflow
+- [`simulate`](reference/simulate.md) - Preview deposit, withdraw, and ragequit without submitting
 - [`deposit`](reference/deposit.md) - Deposit ETH or ERC-20 tokens into a pool
 - [`withdraw`](reference/withdraw.md) - Withdraw privately from a pool
 - [`ragequit`](reference/ragequit.md) - Recover funds publicly to your deposit address
+- [`broadcast`](reference/broadcast.md) - Broadcast a signed envelope or relayer request built elsewhere
 
 ### Monitoring
 

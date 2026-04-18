@@ -23,6 +23,7 @@ export const GENERATED_COMMAND_PATHS = [
   "config profile active",
   "config profile use",
   "flow",
+  "simulate",
   "flow start",
   "flow watch",
   "flow status",
@@ -40,6 +41,10 @@ export const GENERATED_COMMAND_PATHS = [
   "withdraw",
   "withdraw quote",
   "ragequit",
+  "simulate deposit",
+  "simulate withdraw",
+  "simulate ragequit",
+  "broadcast",
   "accounts",
   "migrate",
   "migrate status",
@@ -70,6 +75,11 @@ export const GENERATED_ROOT_COMMANDS = [
     "name": "flow",
     "aliases": [],
     "description": "Deposit and privately withdraw in one guided workflow"
+  },
+  {
+    "name": "simulate",
+    "aliases": [],
+    "description": "Preview deposit, withdraw, and ragequit without submitting"
   },
   {
     "name": "pools",
@@ -122,6 +132,11 @@ export const GENERATED_ROOT_COMMANDS = [
       "exit"
     ],
     "description": "Recover funds publicly to your deposit address"
+  },
+  {
+    "name": "broadcast",
+    "aliases": [],
+    "description": "Broadcast a signed envelope or relayer request built elsewhere"
   },
   {
     "name": "accounts",
@@ -235,6 +250,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "flow": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "simulate": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -357,6 +378,30 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "ragequit": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "simulate deposit": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "simulate withdraw": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "simulate ragequit": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "broadcast": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -571,6 +616,63 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "expectedLatencyClass": "slow"
     },
     {
+      "name": "simulate",
+      "description": "Preview deposit, withdraw, and ragequit without submitting",
+      "group": "transaction",
+      "usage": "simulate",
+      "flags": [
+        "deposit <amount> [asset]",
+        "withdraw [amount] [asset] --to <address>",
+        "ragequit [asset] --pool-account <PA-ID | numeric-index>"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "simulate deposit",
+      "description": "Preview deposit validation without signing or submitting",
+      "group": "transaction",
+      "usage": "simulate deposit <amount> [asset]",
+      "flags": [
+        "--ignore-unique-amount"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
+      "name": "simulate withdraw",
+      "description": "Preview withdrawal validation without signing or submitting",
+      "group": "transaction",
+      "usage": "simulate withdraw [amount] [asset] --to <address>",
+      "flags": [
+        "--to <address>",
+        "--pool-account <PA-ID | numeric-index>",
+        "--all",
+        "--direct",
+        "--confirm-direct-withdraw",
+        "--extra-gas",
+        "--no-extra-gas"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
+      "name": "simulate ragequit",
+      "description": "Preview ragequit validation without signing or submitting",
+      "group": "transaction",
+      "usage": "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>",
+      "flags": [
+        "--pool-account <PA-ID | numeric-index>",
+        "--confirm-ragequit"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
       "name": "pools",
       "description": "Browse available pools",
       "group": "monitoring",
@@ -691,6 +793,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlags": "--agent",
       "requiresInit": true,
       "expectedLatencyClass": "medium"
+    },
+    {
+      "name": "broadcast",
+      "description": "Broadcast a signed envelope or relayer request built elsewhere",
+      "group": "transaction",
+      "usage": "broadcast <input>",
+      "flags": [],
+      "agentFlags": "--agent <input>",
+      "requiresInit": false,
+      "expectedLatencyClass": "slow"
     },
     {
       "name": "accounts",
@@ -1826,6 +1938,84 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "flow_public_recovery_pending",
         "flow_public_recovery_optional",
         "flow_manual_followup"
+      ]
+    },
+    "simulate": {
+      "command": "simulate",
+      "description": "Preview deposit, withdraw, and ragequit without submitting",
+      "group": "transaction",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "simulate",
+      "flags": [
+        "deposit <amount> [asset]",
+        "withdraw [amount] [asset] --to <address>",
+        "ragequit [asset] --pool-account <PA-ID | numeric-index>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "--format <format>",
+        "-y, --yes",
+        "--web",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [
+        "init for deposit, withdraw, and ragequit previews"
+      ],
+      "examples": [
+        "privacy-pools simulate deposit 0.1 ETH",
+        "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient...",
+        "privacy-pools simulate ragequit ETH --pool-account PA-1"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools simulate deposit 0.1 ETH"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1"
+        }
+      ],
+      "jsonFields": "simulate itself has no standalone JSON payload; each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "simulate never signs or submits a transaction.",
+        "simulate is intentionally read-only and rejects --unsigned to keep preview and signing workflows distinct."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "Treat simulate as a convenience alias for --dry-run, not as a new machine contract. Existing after_dry_run nextActions remain unchanged."
       ]
     },
     "flow start": {
@@ -3372,6 +3562,318 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account"
       ]
     },
+    "simulate deposit": {
+      "command": "simulate deposit",
+      "description": "Preview deposit validation without signing or submitting",
+      "group": "transaction",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "simulate deposit <amount> [asset]",
+      "flags": [
+        "--ignore-unique-amount"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "--format <format>",
+        "-y, --yes",
+        "--web",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools simulate deposit 0.1 ETH",
+        "privacy-pools simulate deposit 100 USDC --agent --chain mainnet"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools simulate deposit 0.1 ETH"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools simulate deposit 100 USDC --agent --chain mainnet"
+        }
+      ],
+      "jsonFields": "{ dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "simulate deposit never signs or submits a transaction.",
+        "Use 'deposit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "This is a pure alias for deposit --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged."
+      ],
+      "expectedNextActionWhen": [
+        "after_dry_run"
+      ]
+    },
+    "simulate withdraw": {
+      "command": "simulate withdraw",
+      "description": "Preview withdrawal validation without signing or submitting",
+      "group": "transaction",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "simulate withdraw [amount] [asset] --to <address>",
+      "flags": [
+        "--to <address>",
+        "--pool-account <PA-ID | numeric-index>",
+        "--all",
+        "--direct",
+        "--confirm-direct-withdraw",
+        "--extra-gas",
+        "--no-extra-gas"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "--format <format>",
+        "-y, --yes",
+        "--web",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient...",
+        "privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain mainnet"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain mainnet"
+        }
+      ],
+      "jsonFields": "{ operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "simulate withdraw never signs or submits a transaction.",
+        "Use 'withdraw --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "This is a pure alias for withdraw --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged."
+      ],
+      "expectedNextActionWhen": [
+        "after_dry_run"
+      ],
+      "agentRequiredFlags": [
+        "--to"
+      ]
+    },
+    "simulate ragequit": {
+      "command": "simulate ragequit",
+      "description": "Preview ragequit validation without signing or submitting",
+      "group": "transaction",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>",
+      "flags": [
+        "--pool-account <PA-ID | numeric-index>",
+        "--confirm-ragequit"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "--format <format>",
+        "-y, --yes",
+        "--web",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools simulate ragequit ETH --pool-account PA-1",
+        "privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet"
+        }
+      ],
+      "jsonFields": "{ dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "simulate ragequit never signs or submits a transaction.",
+        "Use 'ragequit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "This is a pure alias for ragequit --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged."
+      ],
+      "expectedNextActionWhen": [
+        "after_dry_run"
+      ],
+      "agentRequiredFlags": [
+        "--pool-account"
+      ]
+    },
+    "broadcast": {
+      "command": "broadcast",
+      "description": "Broadcast a signed envelope or relayer request built elsewhere",
+      "group": "transaction",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "broadcast <input>",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "--format <format>",
+        "-y, --yes",
+        "--web",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": false,
+      "sideEffectClass": "fund_movement",
+      "touchesFunds": true,
+      "requiresHumanReview": true,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools broadcast ./signed-deposit-envelope.json",
+        "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent",
+        "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools broadcast ./signed-deposit-envelope.json"
+        },
+        {
+          "name": "Example 2",
+          "value": "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent"
+        }
+      ],
+      "jsonFields": "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false }",
+      "jsonVariants": [
+        "Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly."
+      ],
+      "safetyNotes": [
+        "broadcast validates each signed transaction against the original preview envelope before the first submission.",
+        "Onchain bundles are submitted sequentially and confirmed one-by-one so ERC20 approval + deposit ordering remains safe.",
+        "Relayed withdrawals require a non-expired quote and a relayerRequest that exactly matches the preview calldata.",
+        "broadcast never signs and never mutates local account state."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "Keep using your existing Bankr or custom signer path if you already have one. broadcast is optional and does not change the current --unsigned contract.",
+        "For first-party envelope workflows, the canonical sequence is: build with --unsigned, sign outside the CLI, then return with broadcast."
+      ]
+    },
     "accounts": {
       "command": "accounts",
       "description": "View balances, approval status, and pool accounts",
@@ -3966,6 +4468,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
+    "simulate": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
     "flow start": {
       "owner": "js-runtime",
       "nativeModes": [
@@ -4083,6 +4591,30 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ]
     },
     "ragequit": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "simulate deposit": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "simulate withdraw": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "simulate ragequit": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "broadcast": {
       "owner": "js-runtime",
       "nativeModes": [
         "help"
@@ -4374,7 +4906,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poa_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at https://tornado.0xbow.io first if poa_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). Follow nextActions from the deposit response for the canonical polling command.",
     "withdrawQuote": "Use 'withdraw quote <amount> <asset> --agent' to check relayer fees before committing to a withdrawal.",
     "firstRun": "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
-    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
+    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one. 'broadcast' is an optional first-party inverse for full-envelope workflows; Bankr and custom signers can keep using their own submission logic unchanged.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
     "statusCheck": "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC or ASP health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known."
   },
@@ -4554,6 +5086,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "config profile list",
     "config profile active",
     "flow",
+    "simulate",
     "flow status",
     "pools",
     "activity",
@@ -4564,6 +5097,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "capabilities",
     "describe",
     "guide",
+    "simulate deposit",
+    "simulate withdraw",
+    "simulate ragequit",
     "migrate",
     "migrate status"
   ],

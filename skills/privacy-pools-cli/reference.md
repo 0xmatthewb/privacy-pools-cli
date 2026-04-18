@@ -165,6 +165,19 @@ The envelope format includes additional context fields depending on the operatio
 - `operation`: `"ragequit"`
 - `selectedCommitmentLabel`, `selectedCommitmentValue`: commitment details as decimal strings
 
+### Optional first-party broadcast step
+
+If you already have your own submission stack, keep using it. `broadcast` is additive and does not change the current `--unsigned` contract.
+
+For full-envelope workflows, you can return to the CLI after signing:
+
+```bash
+privacy-pools broadcast ./signed-envelope.json --agent
+cat ./signed-envelope.json | privacy-pools broadcast - --agent
+```
+
+`broadcast` only accepts the full unsigned envelope JSON. It intentionally rejects the bare raw transaction array from `--unsigned tx` so the CLI can validate the signed transactions against the original preview before submission.
+
 ---
 
 ## JSON output shapes by command
@@ -675,6 +688,16 @@ privacy-pools deposit 0.1 --asset ETH --agent
 ```
 
 `balanceSufficient` is `true`, `false`, or `"unknown"` (when no signer key is configured).
+
+`simulate` is a thin alias layer for the same dry-run payloads:
+
+```bash
+privacy-pools simulate deposit 0.1 ETH --agent
+privacy-pools simulate withdraw 0.05 ETH --to 0x... --agent
+privacy-pools simulate ragequit ETH --pool-account PA-1 --agent
+```
+
+The output contract is intentionally identical to the matching `--dry-run` command, and `simulate` rejects `--unsigned` so preview and signing workflows stay distinct.
 
 ### `withdraw`
 

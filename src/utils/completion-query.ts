@@ -178,6 +178,30 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           }),
         ],
       }),
+      completionCommand("simulate", {
+        subcommands: [
+          completionCommand("deposit", {
+            options: [completionOption("--ignore-unique-amount")],
+          }),
+          completionCommand("withdraw", {
+            options: [
+              completionOption("-t, --to <address>"),
+              completionOption("--pool-account <PA-ID | numeric-index>"),
+              completionOption("--direct"),
+              completionOption("--confirm-direct-withdraw"),
+              completionOption("--all"),
+              completionOption("--extra-gas"),
+              completionOption("--no-extra-gas"),
+            ],
+          }),
+          completionCommand("ragequit", {
+            options: [
+              completionOption("--pool-account <PA-ID | numeric-index>"),
+              completionOption("--confirm-ragequit"),
+            ],
+          }),
+        ],
+      }),
       completionCommand("pools", {
         options: [
           completionOption("--all-chains"),
@@ -242,6 +266,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--confirm-ragequit"),
         ],
       }),
+      completionCommand("broadcast"),
       completionCommand("history", {
         options: [
           completionOption("--no-sync"),

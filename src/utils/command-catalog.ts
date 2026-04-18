@@ -27,6 +27,10 @@ export type CommandPath =
   | "flow watch"
   | "flow status"
   | "flow ragequit"
+  | "simulate"
+  | "simulate deposit"
+  | "simulate withdraw"
+  | "simulate ragequit"
   | "pools"
   | "activity"
   | "stats"
@@ -40,6 +44,7 @@ export type CommandPath =
   | "withdraw"
   | "withdraw quote"
   | "ragequit"
+  | "broadcast"
   | "accounts"
   | "migrate"
   | "migrate status"
@@ -460,6 +465,44 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     safeReadOnly: true,
     expectedNextActionWhen: [...FLOW_START_EXPECTED_NEXT_ACTION_WHEN],
+  },
+  simulate: {
+    description: ROOT_COMMAND_DESCRIPTIONS.simulate,
+    help: {
+      overview: [
+        "Preview-only namespace for deposit, withdraw, and ragequit. Each simulate subcommand is a thin alias for the matching command with --dry-run forced on.",
+        "simulate does not introduce a new output contract. It intentionally preserves the exact dry-run JSON and human output from the underlying command so existing agent dry-run behavior stays stable.",
+        "Unlike the fund-moving commands, simulate never accepts --unsigned. Use the original command with --unsigned when you need a signer-facing envelope instead of a dry-run preview.",
+      ],
+      examples: [
+        "privacy-pools simulate deposit 0.1 ETH",
+        "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient...",
+        "privacy-pools simulate ragequit ETH --pool-account PA-1",
+      ],
+      prerequisites: "init for deposit, withdraw, and ragequit previews",
+      jsonFields:
+        "simulate itself has no standalone JSON payload; each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.",
+      safetyNotes: [
+        "simulate never signs or submits a transaction.",
+        "simulate is intentionally read-only and rejects --unsigned to keep preview and signing workflows distinct.",
+      ],
+      agentWorkflowNotes: [
+        "Treat simulate as a convenience alias for --dry-run, not as a new machine contract. Existing after_dry_run nextActions remain unchanged.",
+      ],
+      seeAlso: ["simulate deposit", "simulate withdraw", "simulate ragequit"],
+    },
+    capabilities: {
+      usage: "simulate",
+      flags: [
+        "deposit <amount> [asset]",
+        "withdraw [amount] [asset] --to <address>",
+        "ragequit [asset] --pool-account <PA-ID | numeric-index>",
+      ],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
   },
   "flow start": {
     description: "Deposit now and save a later private withdrawal workflow",
@@ -1115,6 +1158,158 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
 
     agentsDocMarker: "#### `ragequit`",
+  },
+  "simulate deposit": {
+    description: "Preview deposit validation without signing or submitting",
+    help: {
+      overview: [
+        "Equivalent to 'deposit --dry-run' with the same validation, JSON payload, and after_dry_run nextActions.",
+        "Use it when you want a dedicated preview verb without changing any existing dry-run automation.",
+      ],
+      examples: [
+        "privacy-pools simulate deposit 0.1 ETH",
+        "privacy-pools simulate deposit 100 USDC --agent --chain mainnet",
+      ],
+      prerequisites: "init",
+      jsonFields:
+        "{ dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      safetyNotes: [
+        "simulate deposit never signs or submits a transaction.",
+        "Use 'deposit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.",
+      ],
+      agentWorkflowNotes: [
+        "This is a pure alias for deposit --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged.",
+      ],
+      seeAlso: ["deposit", "simulate withdraw"],
+    },
+    capabilities: {
+      usage: "simulate deposit <amount> [asset]",
+      flags: ["--ignore-unique-amount"],
+      agentFlags: "--agent",
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
+    safeReadOnly: true,
+    expectedNextActionWhen: ["after_dry_run"],
+  },
+  "simulate withdraw": {
+    description: "Preview withdrawal validation without signing or submitting",
+    help: {
+      overview: [
+        "Equivalent to 'withdraw --dry-run' with the same validation, JSON payload, and after_dry_run nextActions.",
+        "All existing dry-run safety checks remain intact, including relayer quote validation and direct-withdraw privacy warnings.",
+      ],
+      examples: [
+        "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient...",
+        "privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain mainnet",
+      ],
+      prerequisites: "init",
+      jsonFields:
+        "{ operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      safetyNotes: [
+        "simulate withdraw never signs or submits a transaction.",
+        "Use 'withdraw --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.",
+      ],
+      agentWorkflowNotes: [
+        "This is a pure alias for withdraw --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged.",
+      ],
+      seeAlso: ["withdraw", "withdraw quote", "simulate ragequit"],
+    },
+    capabilities: {
+      usage: "simulate withdraw [amount] [asset] --to <address>",
+      flags: [
+        "--to <address>",
+        "--pool-account <PA-ID | numeric-index>",
+        "--all",
+        "--direct",
+        "--confirm-direct-withdraw",
+        "--extra-gas",
+        "--no-extra-gas",
+      ],
+      agentFlags: "--agent",
+      agentRequiredFlags: ["--to"],
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
+    safeReadOnly: true,
+    expectedNextActionWhen: ["after_dry_run"],
+  },
+  "simulate ragequit": {
+    description: "Preview ragequit validation without signing or submitting",
+    help: {
+      overview: [
+        "Equivalent to 'ragequit --dry-run' with the same validation, JSON payload, and after_dry_run nextActions.",
+        "Use it to preview the public recovery path without creating a second dry-run contract.",
+      ],
+      examples: [
+        "privacy-pools simulate ragequit ETH --pool-account PA-1",
+        "privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet",
+      ],
+      prerequisites: "init",
+      jsonFields:
+        "{ dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      safetyNotes: [
+        "simulate ragequit never signs or submits a transaction.",
+        "Use 'ragequit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.",
+      ],
+      agentWorkflowNotes: [
+        "This is a pure alias for ragequit --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged.",
+      ],
+      seeAlso: ["ragequit", "simulate withdraw"],
+    },
+    capabilities: {
+      usage: "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>",
+      flags: [
+        "--pool-account <PA-ID | numeric-index>",
+        "--confirm-ragequit",
+      ],
+      agentFlags: "--agent",
+      agentRequiredFlags: ["--pool-account"],
+      requiresInit: true,
+      expectedLatencyClass: "slow",
+    },
+    safeReadOnly: true,
+    expectedNextActionWhen: ["after_dry_run"],
+  },
+  broadcast: {
+    description: ROOT_COMMAND_DESCRIPTIONS.broadcast,
+    help: {
+      overview: [
+        "Submits a full unsigned envelope after signing has happened elsewhere, or re-submits a relayed withdrawal envelope back through the relayer.",
+        "broadcast is intentionally additive: Bankr, custom signers, and other agents can keep using their own submission stack unchanged. This command is an optional first-party inverse for full-envelope workflows.",
+        "v1 only accepts the full envelope JSON. Raw transaction arrays from --unsigned tx are rejected so the CLI can validate signed transactions against the original preview before submission.",
+        "broadcast never signs, never requires init, and never updates local account files.",
+      ],
+      examples: [
+        "privacy-pools broadcast ./signed-deposit-envelope.json",
+        "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent",
+        "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent",
+      ],
+      jsonFields:
+        "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false }",
+      jsonVariants: [
+        "Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly.",
+      ],
+      safetyNotes: [
+        "broadcast validates each signed transaction against the original preview envelope before the first submission.",
+        "Onchain bundles are submitted sequentially and confirmed one-by-one so ERC20 approval + deposit ordering remains safe.",
+        "Relayed withdrawals require a non-expired quote and a relayerRequest that exactly matches the preview calldata.",
+        "broadcast never signs and never mutates local account state.",
+      ],
+      agentWorkflowNotes: [
+        "Keep using your existing Bankr or custom signer path if you already have one. broadcast is optional and does not change the current --unsigned contract.",
+        "For first-party envelope workflows, the canonical sequence is: build with --unsigned, sign outside the CLI, then return with broadcast.",
+      ],
+      seeAlso: ["deposit", "withdraw", "ragequit"],
+    },
+    capabilities: {
+      usage: "broadcast <input>",
+      flags: [],
+      agentFlags: "--agent <input>",
+      requiresInit: false,
+      expectedLatencyClass: "slow",
+    },
+    safeReadOnly: false,
   },
   accounts: {
     description: ROOT_COMMAND_DESCRIPTIONS.accounts,

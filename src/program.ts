@@ -15,12 +15,14 @@ const ROOT_COMMAND_NAMES = [
   "upgrade",
   "config",
   "flow",
+  "simulate",
   "pools",
   "deposit",
   "accounts",
   "migrate",
   "withdraw",
   "ragequit",
+  "broadcast",
   "history",
   "sync",
   "status",
@@ -45,6 +47,8 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
   config: async () =>
     (await import("./command-shells/config.js")).createConfigCommand(),
   flow: async () => (await import("./command-shells/flow.js")).createFlowCommand(),
+  simulate: async () =>
+    (await import("./command-shells/simulate.js")).createSimulateCommand(),
   pools: async () => (await import("./command-shells/pools.js")).createPoolsCommand(),
   deposit: async () =>
     (await import("./command-shells/deposit.js")).createDepositCommand(),
@@ -56,6 +60,8 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
     (await import("./command-shells/withdraw.js")).createWithdrawCommand(),
   ragequit: async () =>
     (await import("./command-shells/ragequit.js")).createRagequitCommand(),
+  broadcast: async () =>
+    (await import("./command-shells/broadcast.js")).createBroadcastCommand(),
   history: async () =>
     (await import("./command-shells/history.js")).createHistoryCommand(),
   sync: async () => (await import("./command-shells/sync.js")).createSyncCommand(),

@@ -53,6 +53,7 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined flow, a relayer-minimum-blocked flow, a PoA-paused flow, or any saved flow where the operator intentionally stops waiting |
 | Deposit ETH | `privacy-pools deposit 0.1 ETH --agent` | Requires init |
 | Deposit (unsigned) | `privacy-pools deposit 0.1 ETH --unsigned --agent` | No signer key needed |
+| Simulate deposit | `privacy-pools simulate deposit 0.1 ETH --agent` | Same JSON as `deposit --dry-run` |
 | Check accounts | `privacy-pools accounts --agent` | Dashboard view across all CLI-supported mainnet chains by default |
 | Compact account poll | `privacy-pools accounts --agent --summary` | Counts + balances only |
 | Pending-only poll | `privacy-pools accounts --agent --chain <chain> --pending-only` | Pending approvals only; preserve --chain |
@@ -62,6 +63,7 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Withdrawal quote | `privacy-pools withdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
 | Pool detail | `privacy-pools pools ETH --agent` | Combined stats + my funds |
 | Ragequit (exit alias) | `privacy-pools ragequit ETH --pool-account PA-1 --agent` | Emergency public recovery |
+| Broadcast signed envelope | `privacy-pools broadcast ./signed-envelope.json --agent` | Optional inverse for full-envelope workflows |
 | Dry-run | `privacy-pools deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
 | Event history | `privacy-pools history --agent` | Requires init |
 | Force sync | `privacy-pools sync --agent` | Rarely needed (auto-sync with 2min TTL) |
@@ -199,6 +201,19 @@ The CLI builds transaction payloads but does **not** sign or submit in `--unsign
 3. **Multisig / MPC**: submit each transaction object as a proposal
 4. **Hardware wallet**: display the transaction for user approval
 
+If you already have your own submission stack, keep using it. `broadcast` is additive and does not change the current `--unsigned` contract.
+
+### Optional first-party broadcast step
+
+For full-envelope workflows, you can return to the CLI after signing:
+
+```bash
+privacy-pools broadcast ./signed-envelope.json --agent
+cat ./signed-envelope.json | privacy-pools broadcast - --agent
+```
+
+`broadcast` only accepts the full unsigned envelope JSON. It intentionally rejects the bare raw transaction array from `--unsigned tx` so the CLI can validate the signed transactions against the original preview before submission.
+
 After submission, verify the deposit landed:
 
 ```bash
@@ -218,6 +233,16 @@ privacy-pools ragequit ETH --pool-account PA-1 --dry-run --agent
 ```
 
 Responses include `"dryRun": true` and all validation results. Supported on: `deposit`, `withdraw`, `ragequit` (alias: `exit`).
+
+`simulate` is a thin alias layer for these same previews:
+
+```bash
+privacy-pools simulate deposit 0.1 ETH --agent
+privacy-pools simulate withdraw 0.05 ETH --to 0x... --agent
+privacy-pools simulate ragequit ETH --pool-account PA-1 --agent
+```
+
+The output contract is intentionally identical to the matching `--dry-run` command, and `simulate` rejects `--unsigned` so preview and signing workflows stay distinct.
 
 ---
 

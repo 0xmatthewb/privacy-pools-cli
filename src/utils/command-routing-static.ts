@@ -21,6 +21,7 @@ export const GENERATED_COMMAND_PATHS = [
   "config profile active",
   "config profile use",
   "flow",
+  "simulate",
   "flow start",
   "flow watch",
   "flow status",
@@ -38,6 +39,10 @@ export const GENERATED_COMMAND_PATHS = [
   "withdraw",
   "withdraw quote",
   "ragequit",
+  "simulate deposit",
+  "simulate withdraw",
+  "simulate ragequit",
+  "broadcast",
   "accounts",
   "migrate",
   "migrate status",
@@ -138,6 +143,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "flow": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "simulate": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -260,6 +271,30 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "ragequit": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "simulate deposit": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "simulate withdraw": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "simulate ragequit": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "broadcast": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -422,6 +457,27 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     ]
   },
   {
+    "route": "simulate deposit",
+    "tokens": [
+      "simulate",
+      "deposit"
+    ]
+  },
+  {
+    "route": "simulate withdraw",
+    "tokens": [
+      "simulate",
+      "withdraw"
+    ]
+  },
+  {
+    "route": "simulate ragequit",
+    "tokens": [
+      "simulate",
+      "ragequit"
+    ]
+  },
+  {
     "route": "migrate status",
     "tokens": [
       "migrate",
@@ -450,6 +506,12 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "route": "flow",
     "tokens": [
       "flow"
+    ]
+  },
+  {
+    "route": "simulate",
+    "tokens": [
+      "simulate"
     ]
   },
   {
@@ -510,6 +572,12 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "route": "ragequit",
     "tokens": [
       "ragequit"
+    ]
+  },
+  {
+    "route": "broadcast",
+    "tokens": [
+      "broadcast"
     ]
   },
   {

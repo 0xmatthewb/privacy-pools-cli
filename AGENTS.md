@@ -34,11 +34,13 @@ privacy-pools flow watch latest --agent
 privacy-pools flow ragequit latest --agent    # saved-workflow public recovery if declined, relayer-blocked, or you intentionally choose the public path
 
 # Manual workflow
+privacy-pools simulate deposit 0.1 ETH --agent                  # same JSON as deposit --dry-run; preview-only
 privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
 privacy-pools accounts --agent --chain mainnet                  # once pending disappears, confirm approved vs declined vs poa_required
 privacy-pools migrate status --agent --all-chains               # read-only legacy migration or recovery check on CLI-supported chains
 privacy-pools withdraw --all ETH --to 0xRecipient --agent
+privacy-pools broadcast ./signed-envelope.json --agent          # optional inverse for full-envelope offline signing flows
 ```
 
 ## Distribution
@@ -807,16 +809,16 @@ privacy-pools accounts --agent --details
 
 When no `--chain` is specified, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--all-chains` to include testnets.
 
-JSON payload: `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 Supports `--status <status>` for approved/pending/poa_required/declined/unknown/spent/exited filters. `--watch` is human-only and only valid with pending results.
 
 In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId` before using it in follow-up commands.
 
 `balances` contains per-pool totals for Pool Accounts with remaining balance. `balance` is the total amount in wei (string). `usdValue` is a formatted USD string (or null if price data is unavailable).
 
-`--summary` JSON payload: `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+`--summary` JSON payload: `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
-`--pending-only` JSON payload: `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+`--pending-only` JSON payload: `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **Poll pending approvals**: After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Because this mode only returns pending accounts, reviewed entries disappear from the response instead of changing in place. Once it disappears, re-run `accounts --agent --chain <chain>` to confirm whether it became `"approved"`, `"declined"`, or `"poa_required"`. Withdraw only after approval; if declined, use `ragequit`; if `poa_required`, complete Proof of Association first. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
 
@@ -969,9 +971,22 @@ privacy-pools deposit 0.1 ETH --unsigned tx --agent
 1. Agent calls: privacy-pools deposit 0.1 ETH --unsigned --agent
 2. Agent receives transactions[] array
 3. Agent signs each transaction with its own key
-4. Agent submits signed transactions to the network
+4. Agent either submits signed transactions directly, or adds signedTransactions[] back to the original envelope and calls: privacy-pools broadcast <file|-> --agent
 5. Agent calls: privacy-pools accounts --agent --chain <chain> --pending-only  (to verify the deposit landed; preserve chain scope)
 ```
+
+If you already have your own submission stack, keep using it. `broadcast` is additive and does not change the current `--unsigned` contract.
+
+### Optional first-party broadcast step
+
+For full-envelope workflows, you can return to the CLI after signing:
+
+```bash
+privacy-pools broadcast ./signed-envelope.json --agent
+cat ./signed-envelope.json | privacy-pools broadcast - --agent
+```
+
+`broadcast` only accepts the full unsigned envelope JSON. It intentionally rejects the bare raw transaction array from `--unsigned tx` so the CLI can validate the signed transactions against the original preview before submission.
 
 ## Dry-Run Mode
 
@@ -984,6 +999,16 @@ privacy-pools ragequit ETH --pool-account PA-1 --dry-run --agent
 ```
 
 Dry-run responses include `"dryRun": true` and all validation results.
+
+`simulate` is a thin alias layer for these same previews:
+
+```bash
+privacy-pools simulate deposit 0.1 ETH --agent
+privacy-pools simulate withdraw 0.05 ETH --to 0x... --agent
+privacy-pools simulate ragequit ETH --pool-account PA-1 --agent
+```
+
+The output contract is intentionally identical to the matching `--dry-run` command, and `simulate` rejects `--unsigned` so preview and signing workflows stay distinct.
 
 ## Error Handling
 

@@ -111,6 +111,10 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "flow watch",
   "flow status",
   "flow ragequit",
+  "simulate",
+  "simulate deposit",
+  "simulate withdraw",
+  "simulate ragequit",
   "pools",
   "activity",
   "stats",
@@ -120,6 +124,7 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "deposit",
   "withdraw",
   "withdraw quote",
+  "broadcast",
   "accounts",
   "migrate",
   "migrate status",
@@ -234,7 +239,7 @@ const AGENT_NOTES: Record<string, string> = {
   firstRun:
     "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
   unsignedMode:
-    "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
+    "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one. 'broadcast' is an optional first-party inverse for full-envelope workflows; Bankr and custom signers can keep using their own submission logic unchanged.",
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
@@ -316,6 +321,10 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
   "migrate",
   "migrate status",
   "withdraw quote",
+  "simulate",
+  "simulate deposit",
+  "simulate withdraw",
+  "simulate ragequit",
 ]);
 
 const LOCAL_STATE_WRITE_COMMANDS = new Set<CommandPath>([
@@ -335,6 +344,7 @@ const FUND_MOVEMENT_COMMANDS = new Set<CommandPath>([
   "deposit",
   "withdraw",
   "ragequit",
+  "broadcast",
 ]);
 
 const PREFERRED_SAFE_VARIANTS: Partial<Record<CommandPath, PreferredSafeVariant>> = {
