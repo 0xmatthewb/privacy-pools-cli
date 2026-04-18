@@ -491,8 +491,8 @@ describe("static discovery runtime", () => {
     expect(stderr).toBe("");
   });
 
-  test("returns a structured error for describe without a command path", async () => {
-    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(
+  test("returns a describe index for describe without a command path", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(
       async () => {
         const handled = await runStaticDiscoveryCommand([
           "--json",
@@ -502,11 +502,12 @@ describe("static discovery runtime", () => {
       },
     );
 
-    expect(exitCode).toBe(2);
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message).toContain("Missing command path for describe");
-    expect(json.error.hint).toContain("Valid command paths:");
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("describe-index");
+    expect(json.commands).toEqual(expect.any(Array));
+    expect(
+      json.commands.some((entry: { command: string }) => entry.command === "status"),
+    ).toBe(true);
     expect(stderr).toBe("");
   });
 

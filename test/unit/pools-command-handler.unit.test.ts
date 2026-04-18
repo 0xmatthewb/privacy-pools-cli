@@ -289,7 +289,14 @@ describe("pools command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.allChains).toBe(true);
+    expect(json.chain).toBe("all-mainnets");
+    expect(json.chainSummaries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          chain: "optimism",
+        }),
+      ]),
+    );
     expect(json.warnings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

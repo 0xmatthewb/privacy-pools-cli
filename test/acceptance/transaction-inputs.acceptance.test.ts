@@ -51,19 +51,19 @@ function assertRpcPoolResolutionFailure(assetOrPool: string) {
   ] as const;
 }
 
-function assertInputErrorEnvelope() {
+function assertInputErrorEnvelope(errorCode: string) {
   return [
     assertExit(2),
     assertStderrEmpty(),
     assertJsonEnvelopeStep({
       success: false,
-      errorCode: "INPUT_ERROR",
+      errorCode,
     }),
     assertJson<{
       error: { category: string; code: string };
     }>((json) => {
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.code).toBe("INPUT_ERROR");
+      expect(json.error.code).toBe(errorCode);
     }),
   ] as const;
 }
@@ -78,12 +78,12 @@ defineScenarioSuite("transaction inputs acceptance", [
     runCliStep(["--json", "exit", "--yes"], { timeoutMs: 10_000 }),
     ...assertInputJsonFailure("No asset specified"),
   ]),
-  defineScenario("unsigned transaction commands keep the INPUT_ERROR contract", [
+  defineScenario("unsigned transaction commands keep specific input error codes", [
     seedHome("sepolia"),
     runCliStep(["deposit", "0.1", "--unsigned"], { timeoutMs: 10_000 }),
-    ...assertInputErrorEnvelope(),
+    ...assertInputErrorEnvelope("INPUT_MISSING_ASSET"),
     runCliStep(["withdraw", "0.1", "--unsigned"], { timeoutMs: 10_000 }),
-    ...assertInputErrorEnvelope(),
+    ...assertInputErrorEnvelope("INPUT_ERROR"),
   ]),
   defineScenario("machine mode fails fast without prompting for a missing asset", [
     seedHome("sepolia"),

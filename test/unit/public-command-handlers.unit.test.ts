@@ -307,8 +307,8 @@ describe("public read-only command handlers", () => {
       );
 
       expect(json.success).toBe(true);
-      expect(json.allChains).toBe(true);
-      expect(json.chains).toHaveLength(3);
+      expect(json.chain).toBe("all-mainnets");
+      expect(json.chainSummaries).toHaveLength(3);
       expect(json.pools.every((entry: { asset: string }) => entry.asset === "ETHX")).toBe(true);
     } finally {
       await server.close();

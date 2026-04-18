@@ -483,15 +483,16 @@ describe("bootstrap runtime coverage", () => {
     }
   });
 
-  test("runCli normalizes real subcommand parse failures to INPUT exit code in human mode", async () => {
+  test("runCli renders the describe index in human mode when no command path is provided", async () => {
     const { runCli } = await import("../../src/cli-main.ts?real-human-missing-arg-runtime");
     const { stdout, stderr, exitCode } = await captureAsyncOutputAllowExit(() =>
       runCli({ version: "1.2.3" }, ["describe"]),
     );
 
-    expect(exitCode).toBe(2);
+    expect(exitCode).toBe(0);
     expect(stdout).toBe("");
-    expect(stderr).toContain("Missing command path for describe");
+    expect(stderr).toContain("Describe: commands");
+    expect(stderr).toContain("Available command paths");
   });
 
   test("runCli quiet welcome exits cleanly without banner or welcome output", async () => {

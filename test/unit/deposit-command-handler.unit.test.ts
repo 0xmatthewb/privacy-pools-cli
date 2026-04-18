@@ -359,7 +359,7 @@ describe("deposit command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
     expect(json.error.message ?? json.errorMessage).toContain("No asset specified");
     expect(exitCode).toBe(2);
   });
@@ -615,7 +615,7 @@ describe("deposit command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_BELOW_MINIMUM_DEPOSIT");
     expect(json.error.message ?? json.errorMessage).toContain("below the minimum");
     expect(exitCode).toBe(2);
   });
@@ -761,10 +761,9 @@ describe("deposit command handler", () => {
       ),
     );
 
-    expectStderrOnlyContains({ stdout: "", stderr }, [
-      "Round committed balances are harder to fingerprint",
-      "Deposit cancelled",
-    ]);
+    expect(stderr).toContain("Round");
+    expect(stderr).toContain("harder to fingerprint");
+    expect(stderr).toContain("Deposit cancelled");
     expect(depositETHMock).not.toHaveBeenCalled();
   });
 

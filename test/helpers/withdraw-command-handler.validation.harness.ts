@@ -125,7 +125,7 @@ export function registerWithdrawValidationPreludeTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_AMOUNT");
     expect(json.error.message ?? json.errorMessage).toContain("Missing amount");
     expect(exitCode).toBe(2);
   });
@@ -146,7 +146,7 @@ export function registerWithdrawValidationPreludeTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
     expect(json.error.message ?? json.errorMessage).toContain("--all requires an asset");
     expect(exitCode).toBe(2);
   });
@@ -924,7 +924,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
     expect(json.error.message ?? json.errorMessage).toContain(
       "No asset specified",
     );
@@ -1391,7 +1391,7 @@ export function registerWithdrawValidationPostQuoteTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
     expect(json.error.message ?? json.errorMessage).toContain("--all requires an asset");
     expect(exitCode).toBe(2);
   });

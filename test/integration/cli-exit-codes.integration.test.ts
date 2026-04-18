@@ -74,22 +74,26 @@ describe("exit-code matrix", () => {
     expect(result.status).toBe(2);
   });
 
-  test("exit code 2 for missing subcommand arguments in human mode", () => {
+  test("describe index stays a successful human-mode command without arguments", () => {
     const home = createTempHome();
     const result = runCli(["describe"], { home });
-    expect(result.status).toBe(EXIT_CODE_MAP.INPUT);
-    expect(result.stderr).toContain("Missing command path for describe.");
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain("Describe: commands");
+    expect(result.stderr).toContain("Available command paths");
   });
 
-  test("exit code 2 for missing subcommand arguments in structured mode", () => {
+  test("describe index stays a successful structured-mode command without arguments", () => {
     const home = createTempHome();
     const result = runCli(["--json", "describe"], { home });
-    expect(result.status).toBe(EXIT_CODE_MAP.INPUT);
-    const json = parseJsonOutput<{ error?: { category?: string; message?: string } }>(
+    expect(result.status).toBe(0);
+    const json = parseJsonOutput<{
+      mode?: string;
+      commands?: Array<{ command?: string }>;
+    }>(
       result.stdout,
     );
-    expect(json.error?.category).toBe("INPUT");
-    expect(json.error?.message).toContain("Missing command path for describe.");
+    expect(json.mode).toBe("describe-index");
+    expect(json.commands?.some((entry) => entry.command === "withdraw")).toBe(true);
   });
 
   test("exit code 2 for invalid --limit value (history)", () => {

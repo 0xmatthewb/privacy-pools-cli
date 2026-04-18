@@ -33,7 +33,7 @@ defineScenarioSuite("stream-boundary acceptance", [
     assertStdoutOnlyStep(),
     assertJson<{ success: boolean; errorCode: string }>((json) => {
       expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
     }),
   ]),
   defineScenario("human deposit input errors stay on stderr only", [

@@ -84,21 +84,23 @@ describe("renderPoolsEmpty parity", () => {
     expect(stderr).toBe("");
   });
 
-  test("JSON mode: uses allChains key for multi-chain", () => {
+  test("JSON mode: uses chain and chainSummaries for multi-chain", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: PoolsRenderData = {
       allChains: true,
       chainName: "mainnet",
+      multiChainLabel: "all-mainnets",
       search: null,
       sort: "default",
       filteredPools: [],
       warnings: [],
+      chainSummaries: [{ chain: "mainnet", pools: 0, error: null }],
     };
     const { stdout } = captureOutput(() => renderPoolsEmpty(ctx, data));
 
     const json = parseCapturedJson(stdout);
-    expect(json.allChains).toBe(true);
-    expect(json.chain).toBeUndefined();
+    expect(json.chain).toBe("all-mainnets");
+    expect(json.chainSummaries).toEqual(data.chainSummaries);
   });
 
   test("human mode: emits no-pools message to stderr", () => {
@@ -195,6 +197,7 @@ describe("renderPools parity", () => {
       ...STUB_POOLS_DATA,
       allChains: true,
       chainName: "mainnet",
+      multiChainLabel: "all-mainnets",
       chainSummaries: [{ chain: "mainnet", pools: 1, error: null }],
     };
     const { stdout } = captureOutput(() => renderPools(ctx, data));
@@ -217,6 +220,7 @@ describe("renderPools parity", () => {
       ...STUB_POOLS_DATA,
       allChains: true,
       chainName: "mainnet",
+      multiChainLabel: "all-mainnets",
       chainSummaries: [
         { chain: "mainnet", pools: 1, error: null },
         { chain: "arbitrum", pools: 0, error: "rpc unavailable" },
@@ -241,7 +245,8 @@ describe("renderPools parity", () => {
     const { stdout } = captureOutput(() => renderPools(ctx, data));
     const json = parseCapturedJson(stdout);
 
-    expect(json.chains).toEqual(data.chainSummaries);
+    expect(json.chain).toBe("all-mainnets");
+    expect(json.chainSummaries).toEqual(data.chainSummaries);
     expect(json.warnings).toEqual(data.warnings);
     expect(json.pools[0].chain).toBe("mainnet");
     expect(json.pools[0].myPoolAccountsCount).toBe(2);
@@ -1182,11 +1187,11 @@ describe("renderPoolDetail parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("ETH Pool on sepolia");
-    expect(stderr).toContain("Pool Balance:");
-    expect(stderr).toContain("Pending Funds:");
-    expect(stderr).toContain("All-Time Deposits:");
-    expect(stderr).toContain("Vetting Fee:");
-    expect(stderr).toContain("Min Deposit:");
+    expect(stderr).toContain("Pool Balance");
+    expect(stderr).toContain("Pending Funds");
+    expect(stderr).toContain("All-Time Deposits");
+    expect(stderr).toContain("Vetting Fee");
+    expect(stderr).toContain("Min Deposit");
     expect(stderr).toContain("Your funds:");
     expect(stderr).toContain("PA-1");
     expect(stderr).toContain("Approved");

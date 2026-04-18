@@ -466,7 +466,7 @@ defineScenarioSuite("agent improvements acceptance", [
       }>((json) => {
         expect(json.success).toBe(false);
         expect(json.error.category).toBe("SETUP");
-        expect(json.error.message).toContain("No signer key found");
+        expect(json.error.message).toContain("CLI wallet setup is incomplete");
         expect(json.error.message).not.toContain("Non-round amount");
         expect(json.error.hint).toContain("privacy-pools init");
       }),

@@ -116,15 +116,16 @@ defineScenarioSuite("help acceptance", [
       expect(stdout).toContain("--json <fields>");
     }),
   ]),
-  defineScenario("describe without a command path returns a targeted input error", [
+  defineScenario("describe without a command path shows the command index", [
     runCliStep(["describe"]),
-    assertExit(2),
+    assertExit(0),
     assertStdout((stdout) => {
       expect(stdout.trim()).toBe("");
     }),
     assertStderr((stderr) => {
-      expect(stderr).toContain("Missing command path for describe");
-      expect(stderr).toContain("Valid command paths:");
+      expect(stderr).toContain("Describe: commands");
+      expect(stderr).toContain("Available command paths:");
+      expect(stderr).toContain("withdraw");
     }),
   ]),
   defineScenario("json help stays machine-readable", [

@@ -140,9 +140,8 @@ describe("command metadata conformance", () => {
     expect(pendingOnlyVariant).toContain("nextActions");
     expect(pendingOnlyVariant).toContain("cliCommand");
 
-    expect(poolsJsonFields).toContain("chain?");
-    expect(poolsJsonFields).toContain("allChains?");
-    expect(poolsJsonFields).toContain("chains?");
+    expect(poolsJsonFields).toContain("{ chain");
+    expect(poolsJsonFields).toContain("chainSummaries?");
     expect(poolsJsonFields).toContain("decimals");
     expect(poolsJsonFields).toContain("minimumDeposit");
     expect(poolsJsonFields).toContain("vettingFeeBPS");

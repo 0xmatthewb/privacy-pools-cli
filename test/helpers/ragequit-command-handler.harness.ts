@@ -560,7 +560,7 @@ export function registerRagequitEntrySubmitTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
     expect(json.error.message ?? json.errorMessage).toContain(
       "No asset specified",
     );
@@ -1425,7 +1425,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
     expect(json.error.message ?? json.errorMessage).toContain("No asset specified");
     expect(exitCode).toBe(2);
   });

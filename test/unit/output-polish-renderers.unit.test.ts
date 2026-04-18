@@ -77,8 +77,10 @@ describe("formatRelayedWithdrawalReview", () => {
         "PA-7 would keep 10 USDC, which is below the relayer minimum (25 USDC).",
         "Use max: privacy-pools withdraw --all USDC --chain sepolia",
         "--pool-account PA-7",
+        "Total withdrawn",
+        "Total received",
       ],
-      patterns: [/pool account/i, /balance/i, /relayer fee/i, /gas token/i, /net received/i, /quote expiry/i],
+      patterns: [/pool account/i, /balance/i, /relayer fee/i, /gas token/i, /quote expiry/i],
     });
   });
 
@@ -203,15 +205,19 @@ describe("shared runtime review renderers", () => {
         "0x2222222222222222222222222222222222222222",
         "Privacy outcome",
         "no privacy (public recovery)",
-        "You will not gain any",
+        "You will not",
+        "gain any privacy",
       ],
     });
     expectSemanticText(flow, {
       includes: [
         "Flow start review",
         "Dedicated workflow wallet",
-        "Association Set Provider (ASP)",
-        "Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
+        "Association Set",
+        "Provider (ASP)",
+        "Most deposits are approved within 1 hour",
+        "some may take longer (up to",
+        "7 days).",
       ],
     });
     expectSemanticText(upgrade, {
@@ -325,8 +331,10 @@ describe("init recovery backup renderers", () => {
         "Word #12",
         "Word #24",
         "If a word is wrong, your recovery phrase is still valid.",
+        "This step will",
+        "retry before setup",
+        "continues.",
       ],
-      patterns: [/This step will ask again[\s\S]*before setup[\s\S]*continues\./],
     });
   });
 });

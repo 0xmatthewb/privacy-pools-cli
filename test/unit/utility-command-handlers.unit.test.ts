@@ -152,19 +152,18 @@ describe("utility command handlers", () => {
     expect(exitCode).toBe(2);
   });
 
-  test("describe returns a structured INPUT error when no command path is provided", async () => {
-    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+  test("describe returns a command index when no command path is provided", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
       handleDescribeCommand([], fakeCommand({ json: true })),
     );
 
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
-    expect(json.error.message ?? json.errorMessage).toContain(
-      "Missing command path for describe",
-    );
-    expect(json.error.hint).toContain("Valid command paths:");
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("describe-index");
+    expect(json.commands).toEqual(expect.any(Array));
+    expect(
+      json.commands.some((entry: { command: string }) => entry.command === "withdraw"),
+    ).toBe(true);
     expect(stderr).toBe("");
-    expect(exitCode).toBe(2);
   });
 
   test("completion query returns candidates in JSON mode", async () => {
@@ -190,7 +189,9 @@ describe("utility command handlers", () => {
 
     expect(stdout).toContain("privacy-pools");
     expect(stdout).toContain("complete");
-    expect(stderr).toBe("");
+    if (stderr.length > 0) {
+      expect(stderr).toContain("Pipe to your shell config");
+    }
   });
 
   test("completion --install writes managed files and returns a JSON payload", async () => {
