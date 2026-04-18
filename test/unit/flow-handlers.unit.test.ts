@@ -85,7 +85,17 @@ const ragequitSnapshot = {
   workflowId: "wf-ragequit",
   phase: "completed_public_recovery",
 };
-class MockFlowCancelledError extends Error {}
+class MockFlowCancelledError extends Error {
+  reason: "cancelled" | "detached";
+
+  constructor(
+    message: string = "Flow cancelled.",
+    reason: "cancelled" | "detached" = "cancelled",
+  ) {
+    super(message);
+    this.reason = reason;
+  }
+}
 
 const createOutputContextMock = mock(() => ctx);
 const renderFlowResultMock = mock(() => undefined);
@@ -978,6 +988,21 @@ describe("flow command handlers", () => {
     expect(renderFlowResultMock).not.toHaveBeenCalled();
     expect(printErrorMock).not.toHaveBeenCalled();
     expect(infoMock).toHaveBeenCalledWith("Flow cancelled.", false);
+  });
+
+  test("watch reports detach without printing an error in human mode", async () => {
+    watchWorkflowMock.mockImplementationOnce(async () => {
+      throw new MockFlowCancelledError("Flow watch detached.", "detached");
+    });
+
+    await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({}));
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(printErrorMock).not.toHaveBeenCalled();
+    expect(infoMock).toHaveBeenCalledWith(
+      "Detached from flow watch. The saved workflow is unchanged. Re-run 'privacy-pools flow watch' to resume.",
+      false,
+    );
   });
 
   test("watch forwards non-cancellation failures to printError", async () => {

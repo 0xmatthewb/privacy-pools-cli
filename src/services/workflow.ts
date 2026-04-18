@@ -244,9 +244,12 @@ const WORKFLOW_LOCAL_STATE_RECONCILIATION_WARNING_CODE =
 const WORKFLOW_RELAYER_PROOF_REFRESH_BUDGET_MS = 12_000;
 
 export class FlowCancelledError extends Error {
-  constructor() {
-    super("Flow cancelled.");
+  readonly reason: "cancelled" | "detached";
+
+  constructor(reason: "cancelled" | "detached" = "cancelled") {
+    super(reason === "detached" ? "Flow watch detached." : "Flow cancelled.");
     this.name = "FlowCancelledError";
+    this.reason = reason;
   }
 }
 
@@ -334,6 +337,7 @@ interface WatchFlowParams {
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
   onPhaseChange?: (event: FlowPhaseChangeEvent) => void | Promise<void>;
+  abortSignal?: AbortSignal;
 }
 
 export interface FlowPhaseChangeEvent {
@@ -1506,8 +1510,39 @@ export function humanPollDelayLabel(ms: number): string {
   return `${Math.round(ms / 1000)} seconds`;
 }
 
-function sleep(ms: number): Promise<void> {
-  return workflowSleepFn(ms);
+function throwIfWatchAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new FlowCancelledError("detached");
+  }
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) {
+    return workflowSleepFn(ms);
+  }
+  if (signal.aborted) {
+    return Promise.reject(new FlowCancelledError("detached"));
+  }
+
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      cleanup();
+      reject(new FlowCancelledError("detached"));
+    };
+    const cleanup = () => signal.removeEventListener("abort", onAbort);
+
+    signal.addEventListener("abort", onAbort, { once: true });
+    workflowSleepFn(ms).then(
+      () => {
+        cleanup();
+        resolve();
+      },
+      (error) => {
+        cleanup();
+        reject(error);
+      },
+    );
+  });
 }
 
 export function flowPrivacyDelayProfileSummary(
@@ -4737,6 +4772,7 @@ export async function watchWorkflow(
     let phaseEnteredAt: number = performance.now();
 
     while (true) {
+      throwIfWatchAborted(params.abortSignal);
       let snapshot = loadWorkflowSnapshot(workflowId);
       let privacyDelayUpdateMessage: string | null = null;
       if (
@@ -4786,6 +4822,7 @@ export async function watchWorkflow(
 
       let sleepMs = delayMs;
       try {
+        throwIfWatchAborted(params.abortSignal);
         const result = await withProcessLock(async () =>
           inspectAndAdvanceFlow({
             snapshot,
@@ -4871,6 +4908,9 @@ export async function watchWorkflow(
           );
         }
       } catch (error) {
+        if (error instanceof FlowCancelledError) {
+          throw error;
+        }
         const latestSnapshot = loadWorkflowSnapshot(workflowId);
         const step =
           latestSnapshot.phase === "awaiting_funding"
@@ -4909,7 +4949,7 @@ export async function watchWorkflow(
             silent,
           );
           if (retrySleepMs > 0) {
-            await sleep(retrySleepMs);
+            await sleep(retrySleepMs, params.abortSignal);
           }
           delayMs = retrySleepMs;
           continue;
@@ -4918,7 +4958,7 @@ export async function watchWorkflow(
       }
 
       if (sleepMs > 0) {
-        await sleep(sleepMs);
+        await sleep(sleepMs, params.abortSignal);
       }
       delayMs = nextPollDelayMs(delayMs, loadWorkflowSnapshot(workflowId).phase);
     }

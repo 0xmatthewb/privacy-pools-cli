@@ -657,7 +657,7 @@ export function classifyError(error: unknown): CLIError {
     rawMessage.includes("exceeds the balance")
   ) {
     return new CLIError(
-      "Insufficient funds for transaction.",
+      "Insufficient balance.",
       "CONTRACT",
       "Your wallet does not have enough ETH to cover the deposit amount plus gas fees. Check your signer wallet balance in a block explorer or wallet app, then fund it before retrying.",
       "CONTRACT_INSUFFICIENT_FUNDS",

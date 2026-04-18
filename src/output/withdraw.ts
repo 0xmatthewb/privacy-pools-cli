@@ -100,6 +100,13 @@ export function formatAnonymitySetValue(anonymitySet: {
   return `${anonymitySet.eligible} of ${anonymitySet.total} deposits (${anonymitySet.percentage.toFixed(1)}%; larger is more private)`;
 }
 
+function formatAnonymitySetNote(
+  anonymitySet?: { eligible: number; total: number; percentage: number },
+): string | null {
+  if (!anonymitySet) return null;
+  return `Anonymity set: ${formatAnonymitySetValue(anonymitySet)}.`;
+}
+
 function pad2(value: number): string {
   return value.toString().padStart(2, "0");
 }
@@ -172,6 +179,9 @@ export function formatRelayedWithdrawalReview(
       ? [
           "This quote is close to expiry. The CLI will refresh before proof generation when it can; if the fee changes, you will need to re-run the withdrawal.",
         ]
+      : []),
+    ...(formatAnonymitySetNote(data.anonymitySet)
+      ? [formatAnonymitySetNote(data.anonymitySet)!]
       : []),
   ];
   return formatReviewSurface({
@@ -263,15 +273,6 @@ export function formatRelayedWithdrawalReview(
         value: quoteExpiry,
         valueTone: secondsLeft <= 20 ? "warning" : "muted",
       },
-      ...(data.anonymitySet
-        ? [
-            {
-              label: "Anonymity set",
-              value: formatAnonymitySetValue(data.anonymitySet),
-              valueTone: "accent" as const,
-            },
-          ]
-        : []),
     ],
     primaryCallout: {
       kind: "privacy",
@@ -281,7 +282,10 @@ export function formatRelayedWithdrawalReview(
     },
     secondaryCallout: secondaryLines.length > 0
       ? {
-          kind: "warning",
+          kind:
+            data.remainingBelowMinAdvisory || secondsLeft <= 30
+              ? "warning"
+              : "privacy",
           lines: secondaryLines,
         }
       : null,
@@ -488,12 +492,6 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
               value: "enabled (receive ETH for gas)",
             }]
           : []),
-        ...(data.anonymitySet
-          ? [{
-              label: "Anonymity set",
-              value: formatAnonymitySetValue(data.anonymitySet),
-            }]
-          : []),
         {
           label: "Pool Account balance",
           value: formatAmount(data.selectedCommitmentValue, data.decimals, data.asset),
@@ -506,6 +504,10 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
           "privacy",
           "Direct withdrawals publicly link your deposit and withdrawal addresses onchain. Use relayed mode for private withdrawals.",
         ),
+      );
+    } else if (data.anonymitySet) {
+      process.stderr.write(
+        formatCallout("privacy", formatAnonymitySetNote(data.anonymitySet)!),
       );
     }
   }
@@ -706,12 +708,6 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
                 : "ETH included with withdrawal",
             }]
           : []),
-        ...(data.anonymitySet
-          ? [{
-              label: "Anonymity set",
-              value: formatAnonymitySetValue(data.anonymitySet),
-            }]
-          : []),
         ...(data.remainingBalance === 0n
           ? [{ label: "Remaining", value: `${data.poolAccountId} fully withdrawn`, valueTone: "success" as const }]
           : [{
@@ -742,6 +738,11 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
             : "The relayed withdrawal path completed. Re-check accounts if you want to confirm the remaining balance.",
         ),
       );
+      if (data.anonymitySet) {
+        process.stderr.write(
+          formatCallout("privacy", formatAnonymitySetNote(data.anonymitySet)!),
+        );
+      }
     }
   }
   renderNextSteps(ctx, humanNextActions);

@@ -122,6 +122,14 @@ function flowCancelledCliError(): CLIError {
   );
 }
 
+function flowDetachedCliError(): CLIError {
+  return new CLIError(
+    "Flow watch detached.",
+    "INPUT",
+    "Re-run 'privacy-pools flow watch' to resume the saved workflow.",
+  );
+}
+
 function collectKnownFlowRecipients(): string[] {
   const recipients: string[] = [...loadKnownRecipientHistory()];
   try {
@@ -335,10 +343,16 @@ async function handleFlowCommandError(
   }
 
   if (error instanceof FlowCancelledError) {
+    const detached = error.reason === "detached";
     if (options.json) {
-      printError(flowCancelledCliError(), true);
+      printError(detached ? flowDetachedCliError() : flowCancelledCliError(), true);
     } else {
-      info("Flow cancelled.", options.silent);
+      info(
+        detached
+          ? "Detached from flow watch. The saved workflow is unchanged. Re-run 'privacy-pools flow watch' to resume."
+          : "Flow cancelled.",
+        options.silent,
+      );
     }
     return;
   }
@@ -759,10 +773,18 @@ export async function handleFlowWatchCommand(
   });
   const isVerbose = globalOpts?.verbose ?? false;
   const ctx = createOutputContext(mode, isVerbose);
+  const detachController = !mode.isJson ? new AbortController() : null;
+  const onSigInt = () => {
+    detachController?.abort();
+  };
 
   try {
     if (await maybeRenderPreviewScenario("flow watch")) {
       return;
+    }
+
+    if (detachController) {
+      process.once("SIGINT", onSigInt);
     }
 
     const snapshot = await watchWorkflow({
@@ -771,6 +793,7 @@ export async function handleFlowWatchCommand(
       globalOpts,
       mode,
       isVerbose,
+      abortSignal: detachController?.signal,
       onPhaseChange: mode.isJson
         ? (event) => {
             renderFlowPhaseChangeEvent(event);
@@ -824,6 +847,10 @@ export async function handleFlowWatchCommand(
       json: mode.isJson,
       silent: mode.isQuiet,
     });
+  } finally {
+    if (detachController) {
+      process.off("SIGINT", onSigInt);
+    }
   }
 }
 

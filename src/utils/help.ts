@@ -350,8 +350,8 @@ const guideSections: Record<string, () => string[]> = {
 
   "pool-accounts": () => [
     chalk.bold("Pool Accounts"),
-    "  A Pool Account (PA) is one deposit and its remaining balance lineage.",
-    "  Approval and withdrawal happen per Pool Account, not per wallet.",
+    "  A Pool Account (e.g. PA-1) is your onchain deposit.",
+    "  Approval, withdrawal, and ragequit happen per Pool Account, not per wallet.",
     "",
     chalk.bold("Statuses"),
     `  ${successTone("approved")}       Ready for private withdrawal`,
@@ -484,7 +484,7 @@ function guideAppendixSections(): string[] {
     chalk.bold("Terminology"),
     `  ${notice("Recovery phrase")}          24-word mnemonic by default in the CLI; imports may be 12/24 words.`,
     `  ${notice("Signer key")}               Private key that pays gas and sends transactions.`,
-    `  ${notice("Pool Account (PA)")}        A single deposit and its balance, tracked for withdrawal or exit.`,
+    `  ${notice("Pool Account")}             Your onchain deposit, tracked for withdrawal or exit.`,
     `  ${notice("0xBow ASP status")}  ${successTone("approved")} (withdraw ready), ${notice("pending")} (waiting),`,
     `                                   ${notice("poa_required")} (Proof of Association needed),`,
     `                                   ${dangerTone("declined")} (ragequit available), ${chalk.dim("unknown")} (unresolved).`,
