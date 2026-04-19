@@ -38,6 +38,10 @@ import {
   formatKeyValueRows,
   formatSectionHeading,
 } from "./layout.js";
+import {
+  mergeStructuredWarnings,
+  warningFromCode,
+} from "./warnings.js";
 import { formatReviewSurface } from "./review.js";
 import {
   renderFlowRail,
@@ -827,13 +831,20 @@ function buildFlowJsonSnapshot(
   snapshot: FlowSnapshot,
   extraWarnings: readonly FlowJsonWarning[] = [],
 ) {
-  const warnings =
+  const baseWarnings =
     action === "ragequit"
       ? []
       : buildFlowWarnings(snapshot, {
           forceConfiguredPrivacyDelayWarning:
             action === "start" || action === "watch",
         });
+  const warnings = mergeStructuredWarnings(
+    [...baseWarnings, ...extraWarnings],
+    warningFromCode(snapshot.warningCode ?? null, {
+      chain: snapshot.chain,
+      subject: "workflow snapshot",
+    }),
+  );
   const privacyDelayProfile = snapshot.privacyDelayProfile ?? "off";
   const exposedPoolAccount = shouldExposeConfirmedPoolAccount(snapshot);
   return {
@@ -893,10 +904,7 @@ function buildFlowJsonSnapshot(
           recommendation: "Prefer flow watch for a relayed private withdrawal when the workflow can continue privately.",
         }
       : undefined,
-    warnings:
-      warnings.length > 0 || extraWarnings.length > 0
-        ? [...warnings, ...extraWarnings]
-        : undefined,
+    warnings,
   };
 }
 

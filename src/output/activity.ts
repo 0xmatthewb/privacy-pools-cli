@@ -179,7 +179,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     printCsv(
       ["Type", "Pool", "Amount", "Status", "Time", "Tx"],
       data.events.map((e) => [
-        e.type,
+        renderActivityType(e.type),
         eventPoolLabel(e),
         e.amountFormatted,
         formatActivityStatusPlain(e.type, e.reviewStatus),

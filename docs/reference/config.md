@@ -8,12 +8,13 @@ Detailed reference for the `privacy-pools config` command family. Back to the [i
 
 View and manage CLI configuration
 
-Inspect or modify the local CLI configuration without re-running init. Subcommands: list (show all settings), get <key> (read one key), set <key> [value] (write one key), path (print config directory), profile use <name> (persist the active profile).
+Inspect or modify the local CLI configuration without re-running init. Subcommands: list (show all settings), get <key> (read one key), set <key> [value] (write one key), unset <key> (clear one key), path (print config directory), profile use <name> (persist the active profile).
 
 ```bash
 privacy-pools config list
 privacy-pools config get default-chain
 privacy-pools config set default-chain arbitrum
+privacy-pools config unset rpc-override.mainnet
 privacy-pools config path
 ```
 
@@ -55,13 +56,13 @@ Write a single configuration key
 
 **Usage:** `privacy-pools config set <key> [value] [options]`
 
-Non-sensitive keys (default-chain, rpc-override.<chain>) accept the value as a positional argument. Sensitive keys (recovery-phrase, signer-key) require --file <path>, --stdin, or interactive masked input.
+Non-sensitive keys (default-chain, rpc-override.<chain>) accept the value as a positional argument. The recovery phrase can be updated with --file <path>, --stdin, or interactive masked input. Signer keys are intentionally excluded from config set. Use 'privacy-pools init --signer-only' to add or replace the signer key safely.
 
 ```bash
 privacy-pools config set default-chain arbitrum
 privacy-pools config set rpc-override.mainnet https://my-rpc.example.com
 privacy-pools config set recovery-phrase --file ./phrase.txt
-cat key.txt | privacy-pools config set signer-key --stdin
+privacy-pools init --signer-only --private-key-file ./signer-key.txt
 ```
 
 | Flag | Description |
@@ -69,8 +70,8 @@ cat key.txt | privacy-pools config set signer-key --stdin
 | `--file <path>` | Read value from file (for sensitive keys) |
 | `--stdin` | Read value from stdin (for sensitive keys) |
 
-**Safety:** Sensitive keys are never accepted as positional arguments to prevent shell history leakage.
-**Safety:** The sensitive keys are recovery-phrase and signer-key. In non-interactive mode, use --file or --stdin for them.
+**Safety:** Recovery phrases are never accepted as positional arguments to prevent shell history leakage.
+**Safety:** Signer keys cannot be changed through config set. Use init --signer-only instead so the CLI keeps that flow safety-checked and explicit.
 
 ## `config path`
 

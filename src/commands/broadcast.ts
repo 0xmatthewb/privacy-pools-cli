@@ -64,7 +64,7 @@ function readBroadcastInput(inputRef: string): string {
 
 export async function handleBroadcastCommand(
   inputRef: string,
-  _opts: Record<string, unknown>,
+  opts: { validateOnly?: boolean },
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
@@ -87,6 +87,7 @@ export async function handleBroadcastCommand(
     const result = await broadcastEnvelope(parsed, {
       rpcOverride: globalOpts?.rpcUrl,
       expectedChain: globalOpts?.chain,
+      validateOnly: opts.validateOnly === true,
     });
     renderBroadcast(createOutputContext(mode, globalOpts?.verbose ?? false), result);
   } catch (error) {

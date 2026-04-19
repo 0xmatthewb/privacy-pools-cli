@@ -16,6 +16,7 @@ export type CommandPath =
   | "config list"
   | "config get"
   | "config set"
+  | "config unset"
   | "config path"
   | "config profile"
   | "config profile list"
@@ -210,19 +211,20 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Inspect or modify the local CLI configuration without re-running init.",
-        "Subcommands: list (show all settings), get <key> (read one key), set <key> [value] (write one key), path (print config directory), profile use <name> (persist the active profile).",
+        "Subcommands: list (show all settings), get <key> (read one key), set <key> [value] (write one key), unset <key> (clear one key), path (print config directory), profile use <name> (persist the active profile).",
       ],
       examples: [
         "privacy-pools config list",
         "privacy-pools config get default-chain",
         "privacy-pools config set default-chain arbitrum",
+        "privacy-pools config unset rpc-override.mainnet",
         "privacy-pools config path",
       ],
-      seeAlso: ["config list", "config get", "config set", "config path", "status", "init"],
+      seeAlso: ["config list", "config get", "config set", "config unset", "config path", "status", "init"],
     },
     capabilities: {
       usage: "config",
-      flags: ["list", "get <key>", "set <key> [value]", "path"],
+      flags: ["list", "get <key>", "set <key> [value]", "unset <key>", "path"],
       agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "fast",
@@ -280,24 +282,52 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Non-sensitive keys (default-chain, rpc-override.<chain>) accept the value as a positional argument.",
-        "Sensitive keys (recovery-phrase, signer-key) require --file <path>, --stdin, or interactive masked input.",
+        "The recovery phrase can be updated with --file <path>, --stdin, or interactive masked input.",
+        "Signer keys are intentionally excluded from config set. Use 'privacy-pools init --signer-only' to add or replace the signer key safely.",
       ],
       examples: [
         "privacy-pools config set default-chain arbitrum",
         "privacy-pools config set rpc-override.mainnet https://my-rpc.example.com",
         "privacy-pools config set recovery-phrase --file ./phrase.txt",
-        "cat key.txt | privacy-pools config set signer-key --stdin",
+        "privacy-pools init --signer-only --private-key-file ./signer-key.txt",
       ],
       safetyNotes: [
-        "Sensitive keys are never accepted as positional arguments to prevent shell history leakage.",
-        "The sensitive keys are recovery-phrase and signer-key. In non-interactive mode, use --file or --stdin for them.",
+        "Recovery phrases are never accepted as positional arguments to prevent shell history leakage.",
+        "Signer keys cannot be changed through config set. Use init --signer-only instead so the CLI keeps that flow safety-checked and explicit.",
       ],
-      seeAlso: ["config get", "config list", "init"],
+      seeAlso: ["config get", "config list", "config unset", "init"],
     },
     capabilities: {
       usage: "config set <key> [value]",
       flags: ["--file <path>", "--stdin"],
       agentFlags: "--agent --file <path> | --stdin",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+  },
+  "config unset": {
+    description: "Clear a single configuration key",
+    aliases: ["remove"],
+    help: {
+      overview: [
+        "Clears a stored configuration key without editing config.json by hand.",
+        "default-chain resets to the implicit mainnet default. rpc-override.<chain> removes that chain override. recovery-phrase and signer-key remove the local secret files.",
+      ],
+      examples: [
+        "privacy-pools config unset rpc-override.mainnet",
+        "privacy-pools config unset default-chain",
+        "privacy-pools config unset recovery-phrase",
+        "privacy-pools config remove signer-key",
+      ],
+      safetyNotes: [
+        "config unset signer-key only removes the local fallback file. If PRIVACY_POOLS_PRIVATE_KEY is set in the environment, unset it there too.",
+      ],
+      seeAlso: ["config get", "config set", "config list", "init"],
+    },
+    capabilities: {
+      usage: "config unset <key>",
+      flags: ["<key>"],
+      agentFlags: "--agent <key>",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -444,7 +474,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init for start/watch/ragequit; saved workflow for status",
       jsonFields:
-        "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"ragequit\", workflowId, phase, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [...] }",
+        "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"ragequit\", workflowId, phase, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [...] }",
       jsonVariants: [
         "flow start --dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }",
       ],
@@ -673,7 +703,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       safetyNotes: [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
         "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
@@ -966,7 +996,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ operation, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ operation, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
@@ -1037,7 +1067,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         SIGNING_SOURCE_NOTE,
       ],
       jsonFields:
-        "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -1129,7 +1159,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         SIGNING_SOURCE_NOTE,
       ],
       jsonFields:
-        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
@@ -1283,11 +1313,13 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools broadcast ./signed-deposit-envelope.json",
         "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent",
         "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent",
+        "privacy-pools broadcast ./signed-envelope.json --validate-only --agent",
       ],
       jsonFields:
-        "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, validatedOnly?: boolean, submittedBy?, transactions: [{ index, description, txHash: string|null, blockNumber: string|null, explorerUrl: string|null, status: \"confirmed\"|\"validated\" }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly.",
+        "--validate-only: same envelope, but validatedOnly: true, transaction status = \"validated\", txHash/blockNumber/explorerUrl = null, and no nextActions because nothing was submitted.",
       ],
       safetyNotes: [
         "broadcast validates each signed transaction against the original preview envelope before the first submission.",
@@ -1303,8 +1335,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "broadcast <input>",
-      flags: [],
-      agentFlags: "--agent <input>",
+      flags: ["--validate-only"],
+      agentFlags: "--agent [--validate-only] <input>",
       requiresInit: false,
       expectedLatencyClass: "slow",
     },
@@ -1338,10 +1370,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
-        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-        "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "--summary: { chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "--pending-only: { chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       ],
       agentWorkflowNotes: [
         "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --include-testnets to include supported testnets.",
@@ -1434,13 +1466,13 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         ]},
       ],
       overview: [
-        "Use --no-sync to read cached local history faster. When cached data is returned, the JSON payload includes lastSyncTime so agents can judge staleness.",
+        "Use --no-sync to read cached local history faster. When cached data is returned, the JSON payload includes lastSyncTime and syncSkipped so agents can judge staleness explicitly.",
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, lastSyncTime?, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }",
+        "{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }",
       jsonVariants: [
-        "--no-sync: same fields, plus lastSyncTime? when cached local history was used.",
+        "--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true.",
       ],
       seeAlso: ["accounts","activity"],
     },

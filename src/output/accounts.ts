@@ -70,6 +70,7 @@ export interface AccountsRenderData {
   statusFilter?: string;
   /** Epoch ms of the oldest sync across queried chains. Null if unknown. */
   lastSyncTime?: number | null;
+  syncSkipped?: boolean;
 }
 
 export interface AccountsEmptyRenderData {
@@ -87,6 +88,8 @@ export interface AccountsEmptyRenderData {
     | "status_filtered_empty";
   otherChains?: string[];
   statusFilter?: string;
+  lastSyncTime?: number | null;
+  syncSkipped?: boolean;
 }
 
 interface JsonAccountRow {
@@ -403,7 +406,7 @@ function renderEmptyAccountsGuidance(data: AccountsEmptyRenderData): string {
         "read-only",
         [
           `No Pool Accounts found on ${scopeLabel}.`,
-          "For most wallets this simply means your first deposit has not happened yet. privacy-pools flow start is the easiest path once you have chosen an amount and recipient.",
+          "Browse pools to make your first deposit. privacy-pools flow start is the easiest path once you have chosen an amount and recipient.",
         ],
       );
   }
@@ -676,6 +679,10 @@ export function renderAccountsNoPools(
               spentCount: 0,
               exitedCount: 0,
               balances: [],
+              ...(data.lastSyncTime != null
+                ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
+                : {}),
+              syncSkipped: data.syncSkipped ?? false,
             },
             meta,
           ),
@@ -686,13 +693,37 @@ export function renderAccountsNoPools(
     }
     if (data.pendingOnly) {
       printJsonSuccess(
-        appendNextActions(withRootMeta({ accounts: [], pendingCount: 0 }, meta), agentNextActions),
+        appendNextActions(
+          withRootMeta(
+            {
+              accounts: [],
+              pendingCount: 0,
+              ...(data.lastSyncTime != null
+                ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
+                : {}),
+              syncSkipped: data.syncSkipped ?? false,
+            },
+            meta,
+          ),
+          agentNextActions,
+        ),
       );
       return;
     }
     printJsonSuccess(
       appendNextActions(
-        withRootMeta({ accounts: [], balances: [], pendingCount: 0 }, meta),
+        withRootMeta(
+          {
+            accounts: [],
+            balances: [],
+            pendingCount: 0,
+            ...(data.lastSyncTime != null
+              ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
+              : {}),
+            syncSkipped: data.syncSkipped ?? false,
+          },
+          meta,
+        ),
         agentNextActions,
       ),
     );
@@ -736,6 +767,11 @@ export function renderAccountsNoPools(
         ? `Pool Accounts across ${data.allChains ? "all chains" : "mainnet chains"}:`
         : `Pool Accounts on ${data.chain}:`;
     process.stderr.write(`\n${accentBold(title)}\n`);
+    if (data.syncSkipped && data.lastSyncTime != null) {
+      process.stderr.write(chalk.dim(`  Cached ${formatTimeAgo(data.lastSyncTime)}\n`));
+    } else if (data.lastSyncTime != null) {
+      process.stderr.write(chalk.dim(`  Updated ${formatTimeAgo(data.lastSyncTime)}\n`));
+    }
     process.stderr.write(renderEmptyAccountsGuidance(data));
   }
   renderNextSteps(ctx, humanNextActions);
@@ -754,6 +790,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     showDetails,
     showSummary,
     showPendingOnly,
+    syncSkipped,
   } = data;
 
   const meta: AccountsRootMeta = { chain, allChains, chains, warnings };
@@ -822,6 +859,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
               spentCount: summary.spentCount,
               exitedCount: summary.exitedCount,
               balances: summary.balances,
+              ...(data.lastSyncTime != null
+                ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
+                : {}),
+              syncSkipped: syncSkipped ?? false,
             },
             meta,
           ),
@@ -838,6 +879,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             {
               accounts: summary.accounts,
               pendingCount: summary.pendingCount,
+              ...(data.lastSyncTime != null
+                ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
+                : {}),
+              syncSkipped: syncSkipped ?? false,
             },
             meta,
           ),
@@ -855,6 +900,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             balances: summary.balances,
             pendingCount: summary.pendingCount,
             ...(data.lastSyncTime != null ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() } : {}),
+            syncSkipped: syncSkipped ?? false,
           },
           meta,
         ),
@@ -886,7 +932,9 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (!silent) {
     process.stderr.write(`\n${accentBold(title)}\n`);
-    if (data.lastSyncTime != null) {
+    if (syncSkipped && data.lastSyncTime != null) {
+      process.stderr.write(chalk.dim(`  Cached ${formatTimeAgo(data.lastSyncTime)}\n`));
+    } else if (data.lastSyncTime != null) {
       process.stderr.write(chalk.dim(`  Updated ${formatTimeAgo(data.lastSyncTime)}\n`));
     }
     process.stderr.write("\n");

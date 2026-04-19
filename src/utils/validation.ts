@@ -120,6 +120,35 @@ export interface ResolvedAddress {
   ensName?: string;
 }
 
+async function createMainnetEnsClient() {
+  const { createPublicClient, http } = await import("viem");
+  const { mainnet } = await import("viem/chains");
+
+  return createPublicClient({
+    chain: mainnet,
+    transport: http(),
+  });
+}
+
+export async function lookupEnsNameForAddress(
+  address: `0x${string}`,
+): Promise<string | undefined> {
+  const client = await createMainnetEnsClient();
+
+  try {
+    const name = await client.getEnsName({ address });
+    if (!name) return undefined;
+
+    const { normalize } = await import("viem/ens");
+    const resolved = await client.getEnsAddress({
+      name: normalize(name),
+    });
+    return resolved?.toLowerCase() === address.toLowerCase() ? name : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Resolve an input string to an Ethereum address.
  *
@@ -140,14 +169,8 @@ export async function resolveAddressOrEns(
 
   // Try ENS resolution for names containing a dot (e.g. name.eth, name.xyz).
   if (input.includes(".")) {
-    const { createPublicClient, http } = await import("viem");
-    const { mainnet } = await import("viem/chains");
     const { normalize } = await import("viem/ens");
-
-    const client = createPublicClient({
-      chain: mainnet,
-      transport: http(),
-    });
+    const client = await createMainnetEnsClient();
 
     try {
       const resolved = await client.getEnsAddress({

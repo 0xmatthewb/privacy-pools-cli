@@ -323,7 +323,8 @@
         "feesApply": "boolean",
         "reconciliationRequired": "boolean? (true when onchain confirmation succeeded but local wallet state still needs sync)",
         "localStateSynced": "boolean? (false when local reconciliation is still required)",
-        "warningCode": "string|null"
+        "warningCode": "string|null",
+        "warnings": "{ code: string, category: string, message: string }[]|undefined"
       },
       "variants": {
         "dryRun": {
@@ -380,7 +381,8 @@
         "rootMatchedAtProofTime": "boolean?",
         "reconciliationRequired": "boolean? (true when onchain confirmation succeeded but local wallet state still needs sync)",
         "localStateSynced": "boolean? (false when local reconciliation is still required)",
-        "warningCode": "string|null"
+        "warningCode": "string|null",
+        "warnings": "{ code: string, category: string, message: string }[]|undefined"
       },
       "variants": {
         "dryRun": {
@@ -489,7 +491,8 @@
         "nextActions": "NextAction[]? (suggests accounts to verify status after ragequit)",
         "reconciliationRequired": "boolean? (true when onchain confirmation succeeded but local wallet state still needs sync)",
         "localStateSynced": "boolean? (false when local reconciliation is still required)",
-        "warningCode": "string|null"
+        "warningCode": "string|null",
+        "warnings": "{ code: string, category: string, message: string }[]|undefined"
       },
       "variants": {
         "dryRun": {
@@ -532,6 +535,8 @@
         "allChains": "boolean? (true when --include-testnets is used)",
         "chains": "string[]? (queried chains in multi-chain mode)",
         "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
+        "lastSyncTime": "iso8601-string|null|undefined (oldest cached sync across queried chains)",
+        "syncSkipped": "boolean",
         "accounts": "Account[]",
         "balances": "Balance[]",
         "pendingCount": "number",
@@ -542,6 +547,8 @@
         "allChains": "boolean? (true when --include-testnets is used)",
         "chains": "string[]? (queried chains in multi-chain mode)",
         "warnings": "AccountWarning[]? ({ chain, category, message } for per-chain partial failures)",
+        "lastSyncTime": "iso8601-string|null|undefined (oldest cached sync across queried chains)",
+        "syncSkipped": "boolean",
         "pendingCount": "number",
         "approvedCount": "number",
         "poaRequiredCount": "number",
@@ -554,6 +561,8 @@
       },
       "pendingOnlyVariant": {
         "chain": "string",
+        "lastSyncTime": "iso8601-string|null|undefined (oldest cached sync across queried chains)",
+        "syncSkipped": "boolean",
         "accounts": "Account[] (filtered to aspStatus = \"pending\")",
         "pendingCount": "number",
         "nextActions": "NextAction[]? (poll-oriented only; no withdraw suggestions)"
@@ -625,6 +634,8 @@
     "history": {
       "successFields": {
         "chain": "string",
+        "lastSyncTime": "iso8601-string|null|undefined",
+        "syncSkipped": "boolean",
         "events": "HistoryEvent[]"
       },
       "eventFields": {

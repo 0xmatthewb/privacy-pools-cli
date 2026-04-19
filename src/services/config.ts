@@ -250,6 +250,15 @@ export function saveMnemonicToFile(mnemonic: string): void {
   writePrivateFileAtomic(getMnemonicFilePath(), mnemonic);
 }
 
+export function clearMnemonicFile(): boolean {
+  const mnemonicFile = getMnemonicFilePath();
+  if (!existsSync(mnemonicFile)) {
+    return false;
+  }
+  unlinkSync(mnemonicFile);
+  return true;
+}
+
 export function loadSignerKey(): string | null {
   // Env var takes precedence
   const envKey = process.env.PRIVACY_POOLS_PRIVATE_KEY;
@@ -263,6 +272,15 @@ export function loadSignerKey(): string | null {
 export function saveSignerKey(key: string): void {
   ensureConfigDir();
   writePrivateFileAtomic(getSignerFilePath(), key);
+}
+
+export function clearSignerKeyFile(): boolean {
+  const signerFile = getSignerFilePath();
+  if (!existsSync(signerFile)) {
+    return false;
+  }
+  unlinkSync(signerFile);
+  return true;
 }
 
 // Env var suffix for a given chain ID, matching the PP_*_<CHAIN> convention.

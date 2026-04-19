@@ -225,6 +225,7 @@ Every JSON response wraps command-specific data in a standard envelope:
   "label": "456... | null",
   "blockNumber": "12345678",
   "explorerUrl": "https://etherscan.io/tx/0x...",
+  "warnings": "[{ code, category, message }] | absent",
   "nextActions": [...]
 }
 ```
@@ -252,6 +253,7 @@ Every JSON response wraps command-specific data in a standard envelope:
   "extraGas": "boolean | absent",
   "remainingBalance": "0",
   "anonymitySet": "{ eligible, total, percentage } | absent",
+  "warnings": "[{ code, category, message }] | absent",
   "nextActions": [...]
 }
 ```
@@ -275,6 +277,7 @@ Every JSON response wraps command-specific data in a standard envelope:
   "explorerUrl": "https://etherscan.io/tx/0x...",
   "destinationAddress": "0x... | absent",
   "remainingBalance": "0",
+  "warnings": "[{ code, category, message }] | absent",
   "nextActions": [...]
 }
 ```
@@ -286,6 +289,8 @@ Every JSON response wraps command-specific data in a standard envelope:
   "schemaVersion": "2.0.0",
   "success": true,
   "chain": "mainnet",
+  "lastSyncTime": "2026-04-18T12:00:00.000Z | absent",
+  "syncSkipped": false,
   "accounts": [
     {
       "poolAccountNumber": 1,
@@ -657,7 +662,7 @@ JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "ragequit"
 
 `flow start --dry-run` validates amount, pool metadata, recipient safety, wallet mode, and privacy-delay policy without saving a workflow, generating workflow secrets, writing export files, approving tokens, or submitting a deposit. In non-interactive mode, `--new-wallet --dry-run` also requires `--export-new-wallet <path>` so the equivalent real command's backup path is validated, but the dry-run does not write that file. Dry-run JSON is `{ mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }`.
 
-Paused workflow states are successful command results, not CLI errors. `Ctrl-C` during `flow watch` detaches cleanly without deleting the saved workflow. For ERC20 relayed withdrawals inside `flow`, the CLI requests extra gas by default, matching `withdraw`. `warnings` are advisory only and currently cover amount-linkability guidance for full non-round auto-withdrawals, explicit `--privacy-delay off`, and non-interactive recipients not previously seen in the local profile; they appear on `flow start`, `flow watch`, and `flow status`, while `flow ragequit` omits them. `privacyDelayConfigured = false` means a legacy workflow was normalized to `off` without an explicitly saved policy.
+Paused workflow states are successful command results, not CLI errors. `Ctrl-C` during `flow watch` detaches cleanly without deleting the saved workflow. For ERC20 relayed withdrawals inside `flow`, the CLI requests extra gas by default, matching `withdraw`. `warnings` are advisory only and currently cover amount-linkability guidance for full non-round auto-withdrawals, explicit `--privacy-delay off`, and non-interactive recipients not previously seen in the local profile. They are most common on `flow start`, `flow watch`, and `flow status`, but the shared flow envelope can also surface them on `flow ragequit` when the saved snapshot carries a warning or reconciliation advisory. `privacyDelayConfigured = false` means a legacy workflow was normalized to `off` without an explicitly saved policy.
 
 **Flow state machine:**
 
@@ -808,16 +813,16 @@ privacy-pools accounts --agent --details
 
 When no `--chain` is specified, `accounts` aggregates all CLI-supported mainnet chains by default. Use `--include-testnets` to include testnets.
 
-JSON payload: `{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+JSON payload: `{ chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 Supports `--status <status>` for approved/pending/poa_required/declined/unknown/spent/exited filters. `--watch` is human-only and only valid with pending results.
 
 In multi-chain responses, `poolAccountId` remains chain-local, so pair it with `chain` or `chainId` before using it in follow-up commands.
 
 `balances` contains per-pool totals for Pool Accounts with remaining balance. `balance` is the total amount in wei (string). `usdValue` is a formatted USD string (or null if price data is unavailable).
 
-`--summary` JSON payload: `{ chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+`--summary` JSON payload: `{ chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
-`--pending-only` JSON payload: `{ chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+`--pending-only` JSON payload: `{ chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **Poll pending approvals**: After depositing, poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending. Because this mode only returns pending accounts, reviewed entries disappear from the response instead of changing in place. Once it disappears, re-run `accounts --agent --chain <chain>` to confirm whether it became `"approved"`, `"declined"`, or `"poa_required"`. Withdraw only after approval; if declined, use `ragequit`; if `poa_required`, complete Proof of Association first. Always preserve the same `--chain` for both polling and confirmation. Bare `accounts` only covers the mainnet chains. `nextActions` on `accounts` are poll-oriented only and appear when pending approvals still exist.
 
@@ -847,7 +852,7 @@ Chronological event history.
 privacy-pools history --agent --limit 50
 ```
 
-JSON payload: `{ chain, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }`
+JSON payload: `{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }`
 
 `type` is `"deposit"`, `"migration"`, `"withdrawal"`, or `"ragequit"`.
 
@@ -983,9 +988,12 @@ For full-envelope workflows, you can return to the CLI after signing:
 ```bash
 privacy-pools broadcast ./signed-envelope.json --agent
 cat ./signed-envelope.json | privacy-pools broadcast - --agent
+privacy-pools broadcast ./signed-envelope.json --validate-only --agent
 ```
 
 `broadcast` only accepts the full unsigned envelope JSON. It intentionally rejects the bare raw transaction array from `--unsigned tx` so the CLI can validate the signed transactions against the original preview before submission.
+
+With `--validate-only`, `broadcast` verifies the envelope and signature parity without submitting anything. The success envelope includes `validatedOnly: true`, transaction rows use `status: "validated"`, and `txHash` / `blockNumber` / `explorerUrl` stay `null`.
 
 ## Dry-Run Mode
 

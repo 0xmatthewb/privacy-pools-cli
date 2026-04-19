@@ -17,14 +17,15 @@ export interface BroadcastRenderData {
   broadcastMode: "onchain" | "relayed";
   sourceOperation: "deposit" | "withdraw" | "ragequit";
   chain: string;
+  validatedOnly?: boolean;
   submittedBy?: string;
   transactions: Array<{
     index: number;
     description: string;
-    txHash: string;
-    blockNumber: string;
+    txHash: string | null;
+    blockNumber: string | null;
     explorerUrl: string | null;
-    status: "confirmed";
+    status: "confirmed" | "validated";
   }>;
   localStateUpdated: false;
 }
@@ -81,7 +82,9 @@ export function renderBroadcast(
   data: BroadcastRenderData,
 ): void {
   guardCsvUnsupported(ctx, "broadcast");
-  const nextActions = broadcastNextActions(data, ctx.mode.isJson);
+  const nextActions = data.validatedOnly
+    ? undefined
+    : broadcastNextActions(data, ctx.mode.isJson);
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({ ...data }, nextActions), false);
@@ -92,7 +95,9 @@ export function renderBroadcast(
   const transactionLabel =
     data.transactions.length === 1 ? "transaction" : "transactions";
   success(
-    `Broadcast complete: ${data.transactions.length} ${transactionLabel} confirmed on ${data.chain}.`,
+    data.validatedOnly
+      ? `Broadcast validation complete: ${data.transactions.length} ${transactionLabel} checked for ${data.chain}. No transaction was submitted.`
+      : `Broadcast complete: ${data.transactions.length} ${transactionLabel} confirmed on ${data.chain}.`,
     silent,
   );
 
@@ -101,15 +106,28 @@ export function renderBroadcast(
     silent,
   );
   if (data.submittedBy) {
-    info(`Submitted by: ${data.submittedBy}`, silent);
+    info(
+      data.validatedOnly
+        ? `Validated signer: ${data.submittedBy}`
+        : `Submitted by: ${data.submittedBy}`,
+      silent,
+    );
   }
 
   for (const transaction of data.transactions) {
+    if (data.validatedOnly) {
+      info(
+        `${transaction.index + 1}. ${transaction.description}${inlineSeparator}validated only`,
+        silent,
+      );
+      continue;
+    }
+
     const suffix = transaction.explorerUrl
       ? `${inlineSeparator}${transaction.explorerUrl}`
       : "";
     info(
-      `${transaction.index + 1}. ${transaction.description}${inlineSeparator}${formatTxHash(transaction.txHash)}${inlineSeparator}block ${transaction.blockNumber}${suffix}`,
+      `${transaction.index + 1}. ${transaction.description}${inlineSeparator}${formatTxHash(transaction.txHash!)}${inlineSeparator}block ${transaction.blockNumber ?? "-"}${suffix}`,
       silent,
     );
   }

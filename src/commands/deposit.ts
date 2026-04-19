@@ -345,6 +345,9 @@ export async function handleDepositCommand(
       pool.asset,
       globalOpts?.rpcUrl,
     );
+    const reviewSignerAddress = !skipPrompts
+      ? privateKeyToAccount(loadPrivateKey()).address
+      : null;
     if (!skipPrompts) {
       const isErc20 = !isNativePoolAsset(chainConfig.id, pool.asset);
       process.stderr.write("\n");
@@ -357,6 +360,7 @@ export async function handleDepositCommand(
           asset: pool.symbol,
           chain: chainConfig.name,
           decimals: pool.decimals,
+          depositorAddress: reviewSignerAddress ?? undefined,
           tokenPrice,
           isErc20,
           estimatedGasCost: estimatedGas?.amount,

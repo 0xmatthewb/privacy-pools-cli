@@ -16,6 +16,7 @@ export const GENERATED_COMMAND_PATHS = [
   "config list",
   "config get",
   "config set",
+  "config unset",
   "config path",
   "config profile",
   "config profile list",
@@ -173,6 +174,7 @@ export const GENERATED_STATIC_LOCAL_COMMANDS = [
 ] as const;
 
 export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = {
+  "remove": "config unset",
   "exit": "ragequit"
 };
 
@@ -208,6 +210,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "config set": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config unset": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -493,6 +501,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "list",
         "get <key>",
         "set <key> [value]",
+        "unset <key>",
         "path"
       ],
       "agentFlags": "--agent",
@@ -799,8 +808,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Broadcast a signed envelope or relayer request built elsewhere",
       "group": "transaction",
       "usage": "broadcast <input>",
-      "flags": [],
-      "agentFlags": "--agent <input>",
+      "flags": [
+        "--validate-only"
+      ],
+      "agentFlags": "--agent [--validate-only] <input>",
       "requiresInit": false,
       "expectedLatencyClass": "slow"
     },
@@ -1181,6 +1192,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "list",
         "get <key>",
         "set <key> [value]",
+        "unset <key>",
         "path"
       ],
       "globalFlags": [
@@ -1215,6 +1227,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools config list",
         "privacy-pools config get default-chain",
         "privacy-pools config set default-chain arbitrum",
+        "privacy-pools config unset rpc-override.mainnet",
         "privacy-pools config path"
       ],
       "structuredExamples": [
@@ -1232,6 +1245,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "name": "Example 4",
+          "value": "privacy-pools config unset rpc-override.mainnet"
+        },
+        {
+          "name": "Example 5",
           "value": "privacy-pools config path"
         }
       ],
@@ -1432,7 +1449,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools config set default-chain arbitrum",
         "privacy-pools config set rpc-override.mainnet https://my-rpc.example.com",
         "privacy-pools config set recovery-phrase --file ./phrase.txt",
-        "cat key.txt | privacy-pools config set signer-key --stdin"
+        "privacy-pools init --signer-only --private-key-file ./signer-key.txt"
       ],
       "structuredExamples": [
         {
@@ -1449,14 +1466,93 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "name": "Example 4",
-          "value": "cat key.txt | privacy-pools config set signer-key --stdin"
+          "value": "privacy-pools init --signer-only --private-key-file ./signer-key.txt"
         }
       ],
       "jsonFields": null,
       "jsonVariants": [],
       "safetyNotes": [
-        "Sensitive keys are never accepted as positional arguments to prevent shell history leakage.",
-        "The sensitive keys are recovery-phrase and signer-key. In non-interactive mode, use --file or --stdin for them.",
+        "Recovery phrases are never accepted as positional arguments to prevent shell history leakage.",
+        "Signer keys cannot be changed through config set. Use init --signer-only instead so the CLI keeps that flow safety-checked and explicit.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "config unset": {
+      "command": "config unset",
+      "description": "Clear a single configuration key",
+      "group": "advanced",
+      "aliases": [
+        "remove"
+      ],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "config unset <key>",
+      "flags": [
+        "<key>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools config unset rpc-override.mainnet",
+        "privacy-pools config unset default-chain",
+        "privacy-pools config unset recovery-phrase",
+        "privacy-pools config remove signer-key"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config unset rpc-override.mainnet"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config unset default-chain"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools config unset recovery-phrase"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools config remove signer-key"
+        }
+      ],
+      "jsonFields": null,
+      "jsonVariants": [],
+      "safetyNotes": [
+        "config unset signer-key only removes the local fallback file. If PRIVACY_POOLS_PRIVATE_KEY is set in the environment, unset it there too.",
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
@@ -1939,7 +2035,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools flow ragequit latest"
         }
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"ragequit\", workflowId, phase, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [...] }",
+      "jsonFields": "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"ragequit\", workflowId, phase, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [...] }",
       "jsonVariants": [
         "flow start --dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }"
       ],
@@ -2440,7 +2536,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
         }
       ],
-      "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
@@ -3271,7 +3367,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ operation, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ operation, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
@@ -3406,7 +3502,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
         "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -3591,7 +3687,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
@@ -3862,7 +3958,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         ]
       },
       "usage": "broadcast <input>",
-      "flags": [],
+      "flags": [
+        "--validate-only"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -3894,7 +3992,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "examples": [
         "privacy-pools broadcast ./signed-deposit-envelope.json",
         "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent",
-        "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent"
+        "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent",
+        "privacy-pools broadcast ./signed-envelope.json --validate-only --agent"
       ],
       "structuredExamples": [
         {
@@ -3908,11 +4007,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         {
           "name": "Example 3",
           "value": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools broadcast ./signed-envelope.json --validate-only --agent"
         }
       ],
-      "jsonFields": "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, submittedBy?, transactions: [{ index, description, txHash, blockNumber, explorerUrl, status }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, validatedOnly?: boolean, submittedBy?, transactions: [{ index, description, txHash: string|null, blockNumber: string|null, explorerUrl: string|null, status: \"confirmed\"|\"validated\" }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
-        "Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly."
+        "Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly.",
+        "--validate-only: same envelope, but validatedOnly: true, transaction status = \"validated\", txHash/blockNumber/explorerUrl = null, and no nextActions because nothing was submitted."
       ],
       "safetyNotes": [
         "broadcast validates each signed transaction against the original preview envelope before the first submission.",
@@ -4031,10 +4135,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ chain, allChains?, chains?, warnings?, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
-        "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-        "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }"
+        "--summary: { chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "--pending-only: { chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }"
       ],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -4276,9 +4380,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ chain, lastSyncTime?, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }",
+      "jsonFields": "{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }",
       "jsonVariants": [
-        "--no-sync: same fields, plus lastSyncTime? when cached local history was used."
+        "--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true."
       ],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -4486,6 +4590,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ]
     },
     "config set": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "config unset": {
       "owner": "js-runtime",
       "nativeModes": [
         "help"

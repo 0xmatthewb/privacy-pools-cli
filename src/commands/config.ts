@@ -2,6 +2,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
 import {
+  clearMnemonicFile,
+  clearSignerKeyFile,
   configExists,
   getConfigDir,
   getMnemonicFilePath,
@@ -287,6 +289,85 @@ export async function handleConfigSetCommand(
     const result: ConfigSetResult = {
       key,
       newValueSummary: summary,
+    };
+
+    renderConfigSet(ctx, result);
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
+}
+
+// ── config unset ────────────────────────────────────────────────────────────
+
+export async function handleConfigUnsetCommand(
+  key: string,
+  _opts: Record<string, unknown>,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = cmd.parent?.parent?.opts() as GlobalOptions;
+  const mode = resolveGlobalMode(globalOpts);
+  const ctx = createOutputContext(mode);
+
+  try {
+    if (!isValidConfigKey(key)) {
+      throw new CLIError(
+        `Unknown config key: ${key}`,
+        "INPUT",
+        "Valid keys: default-chain, rpc-override.<chain>, recovery-phrase, signer-key",
+      );
+    }
+
+    let summary = "already unset";
+    let changed = false;
+
+    if (key === "default-chain") {
+      if (configExists()) {
+        const config = loadConfig();
+        if (config.defaultChain !== "mainnet") {
+          config.defaultChain = "mainnet";
+          saveConfig(config);
+          invalidateConfigCache();
+          changed = true;
+        }
+      }
+      summary = changed
+        ? "reset to implicit mainnet default"
+        : "already using the implicit mainnet default";
+    } else if (key === "recovery-phrase") {
+      changed = clearMnemonicFile();
+      summary = changed ? "removed" : "already unset";
+    } else if (key === "signer-key") {
+      if (process.env.PRIVACY_POOLS_PRIVATE_KEY?.trim()) {
+        throw new CLIError(
+          "Signer key is currently provided by PRIVACY_POOLS_PRIVATE_KEY.",
+          "INPUT",
+          "Unset PRIVACY_POOLS_PRIVATE_KEY in your shell or agent environment first, then rerun config unset signer-key if you also want to remove the local fallback file.",
+        );
+      }
+      changed = clearSignerKeyFile();
+      summary = changed ? "removed" : "already unset";
+    } else {
+      const rpcKey = parseRpcOverrideKey(key);
+      if (!rpcKey) {
+        throw new CLIError(`Unknown config key: ${key}`, "INPUT");
+      }
+      if (configExists()) {
+        const config = loadConfig();
+        if (config.rpcOverrides[rpcKey.chainId]) {
+          delete config.rpcOverrides[rpcKey.chainId];
+          saveConfig(config);
+          invalidateConfigCache();
+          changed = true;
+        }
+      }
+      summary = changed ? "removed" : "already unset";
+    }
+
+    const result: ConfigSetResult = {
+      key,
+      newValueSummary: summary,
+      action: "unset",
+      changed,
     };
 
     renderConfigSet(ctx, result);

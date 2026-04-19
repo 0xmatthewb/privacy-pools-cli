@@ -35,6 +35,10 @@ import {
   formatSectionHeading,
 } from "./layout.js";
 import { formatReviewSurface } from "./review.js";
+import {
+  mergeStructuredWarnings,
+  warningFromCode,
+} from "./warnings.js";
 
 export interface WithdrawAnonymitySet {
   eligible: number;
@@ -84,6 +88,7 @@ export interface DirectWithdrawalReviewData {
   chain: string;
   decimals: number;
   recipient: string;
+  signerAddress?: string | null;
   recipientEnsName?: string;
   tokenPrice?: number | null;
 }
@@ -125,6 +130,15 @@ export function formatAnonymitySetCallout(
 ): string {
   const note = formatAnonymitySetNote(anonymitySet);
   return note ? formatCallout("privacy", note) : "";
+}
+
+function formatRelayedWithdrawalRemainderHint(
+  guidance: RelayedWithdrawalRemainderGuidance,
+): string {
+  return formatCallout(
+    "warning",
+    [guidance.summary, ...guidance.choices.map((choice) => `- ${choice}`)].join("\n"),
+  );
 }
 
 function getFriendlyTestnetMinWithdrawFloor(decimals: number): bigint {
@@ -374,6 +388,9 @@ export function formatDirectWithdrawalReview(
           `${formatAmount(data.amount, data.decimals, data.asset)}` +
           (amountUsd === "-" ? "" : ` (${amountUsd})`),
       },
+      ...(data.signerAddress
+        ? [{ label: "Signer", value: data.signerAddress }]
+        : []),
       { label: "Recipient", value: data.recipient },
       ...(data.recipientEnsName
         ? [{ label: "Recipient ENS", value: data.recipientEnsName }]
@@ -425,6 +442,7 @@ export interface WithdrawDryRunData {
   rootMatchedAtProofTime?: boolean;
   /** Anonymity set info (non-fatal, may be absent if ASP unreachable). */
   anonymitySet?: WithdrawAnonymitySet;
+  remainingBelowMinGuidance?: RelayedWithdrawalRemainderGuidance | null;
   warnings?: WithdrawUiWarning[];
 }
 
@@ -550,6 +568,16 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
         ...(data.withdrawMode === "relayed" && data.quoteRefreshCount !== undefined
           ? [{ label: "Quote refreshes", value: String(data.quoteRefreshCount) }]
           : []),
+        ...(data.withdrawMode === "relayed" && data.remainingBelowMinGuidance
+          ? [{
+              label: "Remainder",
+              value: formatAmount(
+                data.selectedCommitmentValue - data.amount,
+                data.decimals,
+                data.asset,
+              ),
+            }]
+          : []),
         ...(data.withdrawMode === "relayed" && data.extraGas
           ? [{
               label: "Gas token received",
@@ -571,6 +599,11 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
       );
     } else if (data.anonymitySet) {
       process.stderr.write(formatAnonymitySetCallout(data.anonymitySet));
+    }
+    if (data.withdrawMode === "relayed" && data.remainingBelowMinGuidance) {
+      process.stderr.write(
+        formatRelayedWithdrawalRemainderHint(data.remainingBelowMinGuidance),
+      );
     }
   }
   renderNextSteps(ctx, humanNextActions);
@@ -659,6 +692,13 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
   ];
 
   if (ctx.mode.isJson) {
+    const warnings = mergeStructuredWarnings(
+      data.warnings,
+      warningFromCode(data.warningCode, {
+        chain: data.chain,
+        subject: "withdrawal balance",
+      }),
+    );
     const payload: Record<string, unknown> = {
       operation: "withdraw",
       mode: data.withdrawMode,
@@ -695,8 +735,8 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       }
     }
     if (data.anonymitySet) payload.anonymitySet = data.anonymitySet;
-    if (data.warnings && data.warnings.length > 0) {
-      payload.warnings = data.warnings;
+    if (warnings) {
+      payload.warnings = warnings;
     }
     printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;

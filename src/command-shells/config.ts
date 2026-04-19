@@ -8,6 +8,7 @@ export function createConfigCommand(): Command {
   const listMetadata = getCommandMetadata("config list");
   const getMetadata = getCommandMetadata("config get");
   const setMetadata = getCommandMetadata("config set");
+  const unsetMetadata = getCommandMetadata("config unset");
   const pathMetadata = getCommandMetadata("config path");
   const profileMetadata = getCommandMetadata("config profile");
 
@@ -51,6 +52,19 @@ export function createConfigCommand(): Command {
       createLazyAction(
         () => import("../commands/config.js"),
         "handleConfigSetCommand",
+      ),
+    );
+
+  command
+    .command("unset")
+    .alias("remove")
+    .description(unsetMetadata.description)
+    .argument("<key>", "Configuration key to unset")
+    .addHelpText("after", commandHelpText(unsetMetadata.help ?? {}))
+    .action(
+      createLazyAction(
+        () => import("../commands/config.js"),
+        "handleConfigUnsetCommand",
       ),
     );
 

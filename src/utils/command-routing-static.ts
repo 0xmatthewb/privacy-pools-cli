@@ -14,6 +14,7 @@ export const GENERATED_COMMAND_PATHS = [
   "config list",
   "config get",
   "config set",
+  "config unset",
   "config path",
   "config profile",
   "config profile list",
@@ -66,6 +67,7 @@ export const GENERATED_STATIC_LOCAL_COMMANDS = [
 ] as const;
 
 export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = {
+  "remove": "config unset",
   "exit": "ragequit"
 };
 
@@ -101,6 +103,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "config set": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "config unset": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -391,6 +399,13 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "tokens": [
       "config",
       "set"
+    ]
+  },
+  {
+    "route": "config unset",
+    "tokens": [
+      "config",
+      "unset"
     ]
   },
   {

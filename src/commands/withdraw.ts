@@ -9,6 +9,7 @@ import { formatUnits, type Hex, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   resolveChain,
+  lookupEnsNameForAddress,
   parseAmount,
   validatePositive,
 } from "../utils/validation.js";
@@ -499,10 +500,18 @@ async function promptRecipientAddressOrEns(
         prompted,
         "Recipient",
       );
-      if (resolved.ensName) {
-        info(`Resolved ${resolved.ensName} -> ${resolved.address}`, silent);
+      let ensName = resolved.ensName;
+      if (!ensName) {
+        ensName = await lookupEnsNameForAddress(resolved.address);
       }
-      return { address: resolved.address, ensName: resolved.ensName };
+      if (ensName) {
+        if (resolved.ensName) {
+          info(`Resolved ${ensName} -> ${resolved.address}`, silent);
+        } else {
+          info(`Recognized ENS ${ensName} for ${resolved.address}`, silent);
+        }
+      }
+      return { address: resolved.address, ensName };
     } catch (error) {
       warn(error instanceof Error ? error.message : "Invalid address or ENS name.", silent);
     }
@@ -858,7 +867,8 @@ export async function handleWithdrawCommand(
     typeof unsignedRaw === "string" ? unsignedRaw.toLowerCase() : undefined;
   const wantsTxFormat = unsignedFormat === "tx";
   const isDryRun = opts.dryRun ?? false;
-  const silent = isQuiet || isJson || isUnsigned;
+  const silent = isQuiet || isJson || isUnsigned || isDryRun;
+  const advisorySilent = isQuiet || isJson || isUnsigned;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
   const isDirect = opts.direct ?? false;
@@ -1034,7 +1044,7 @@ export async function handleWithdrawCommand(
       recipientAddress = resolved.address;
       recipientEnsName = resolved.ensName;
       if (recipientEnsName) {
-        info(`Resolved ${recipientEnsName} -> ${recipientAddress}`, silent);
+        info(`Resolved ${recipientEnsName} -> ${recipientAddress}`, advisorySilent);
       }
     } else if (isDirect && !signerAddress) {
       throw new CLIError(
@@ -1180,7 +1190,7 @@ export async function handleWithdrawCommand(
     if (isNativeAsset && opts.extraGas === true) {
       info(
         "Extra gas is not applicable for native-asset withdrawals because the chain native token already covers gas.",
-        silent,
+        advisorySilent,
       );
     }
     if (!isDirect && !isNativeAsset && effectiveExtraGas) {
@@ -2024,6 +2034,7 @@ export async function handleWithdrawCommand(
               chain: chainConfig.name,
               decimals: pool.decimals,
               recipient: directAddress,
+              signerAddress,
               recipientEnsName,
               tokenPrice,
             }),
@@ -2491,14 +2502,17 @@ export async function handleWithdrawCommand(
                 effectiveExtraGas = quoteResult.extraGas;
                 warn(
                   "Extra gas is not available for this relayer on the selected chain. Continuing without it.",
-                  silent,
+                  advisorySilent,
                 );
               }
               return quoteResult.quote;
             },
             maxRelayFeeBPS: pool.maxRelayFeeBPS,
             onRetry: (attempt, max) => {
-              warn(`Quote expired, refreshing... (attempt ${attempt}/${max})`, silent);
+              warn(
+                `Quote expired, refreshing... (attempt ${attempt}/${max})`,
+                advisorySilent,
+              );
             },
           });
           quote = refreshed.quote;
@@ -2823,6 +2837,7 @@ export async function handleWithdrawCommand(
             extraGas: effectiveExtraGas,
             rootMatchedAtProofTime: true,
             anonymitySet,
+            remainingBelowMinGuidance,
             warnings: recipientWarnings,
           });
           return;

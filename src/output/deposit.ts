@@ -37,6 +37,10 @@ import {
 } from "./layout.js";
 import { formatReviewSurface } from "./review.js";
 import { formatUsdValue } from "../utils/format.js";
+import {
+  mergeStructuredWarnings,
+  warningFromCode,
+} from "./warnings.js";
 
 export interface DepositReviewData {
   amount: bigint;
@@ -46,6 +50,7 @@ export interface DepositReviewData {
   asset: string;
   chain: string;
   decimals: number;
+  depositorAddress?: string;
   tokenPrice?: number | null;
   isErc20?: boolean;
   estimatedGasCost?: bigint | null;
@@ -79,6 +84,9 @@ export function formatDepositReview(data: DepositReviewData): string {
           `${formatAmount(data.amount, data.decimals, data.asset)}` +
           depositUsdSuffix(data.amount, data.decimals, data.tokenPrice),
       },
+      ...(data.depositorAddress
+        ? [{ label: "Depositor", value: data.depositorAddress }]
+        : []),
       { label: "Chain", value: data.chain },
       {
         label: `Vetting fee (${formatBPS(data.vettingFeeBPS)})`,
@@ -174,6 +182,7 @@ export interface DepositSuccessData {
   reconciliationRequired?: boolean;
   localStateSynced?: boolean;
   warningCode?: string | null;
+  warnings?: Array<{ code: string; category: string; message: string }>;
   /** True when the user explicitly passed --chain (overriding the default). */
   chainOverridden?: boolean;
 }
@@ -363,6 +372,13 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
   ];
 
   if (ctx.mode.isJson) {
+    const warnings = mergeStructuredWarnings(
+      data.warnings,
+      warningFromCode(data.warningCode, {
+        chain: data.chain,
+        subject: "deposit state",
+      }),
+    );
     printJsonSuccess(
       appendNextActions({
         operation: "deposit",
@@ -388,6 +404,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         reconciliationRequired: data.reconciliationRequired ?? false,
         localStateSynced: data.localStateSynced ?? true,
         warningCode: data.warningCode ?? null,
+        ...(warnings ? { warnings } : {}),
       }, agentNextActions),
       false,
     );

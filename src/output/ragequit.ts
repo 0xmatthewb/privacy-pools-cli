@@ -32,6 +32,10 @@ import {
   formatSectionHeading,
 } from "./layout.js";
 import { formatReviewSurface } from "./review.js";
+import {
+  mergeStructuredWarnings,
+  warningFromCode,
+} from "./warnings.js";
 
 export interface RagequitReviewData {
   poolAccountId: string;
@@ -149,6 +153,7 @@ export interface RagequitSuccessData {
   reconciliationRequired?: boolean;
   localStateSynced?: boolean;
   warningCode?: string | null;
+  warnings?: Array<{ code: string; category: string; message: string }>;
   tokenPrice?: number | null;
 }
 
@@ -318,6 +323,13 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
   ];
 
   if (ctx.mode.isJson) {
+    const warnings = mergeStructuredWarnings(
+      data.warnings,
+      warningFromCode(data.warningCode, {
+        chain: data.chain,
+        subject: "ragequit status",
+      }),
+    );
     printJsonSuccess(
       appendNextActions({
         operation: "ragequit",
@@ -336,6 +348,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         reconciliationRequired: data.reconciliationRequired ?? false,
         localStateSynced: data.localStateSynced ?? true,
         warningCode: data.warningCode ?? null,
+        ...(warnings ? { warnings } : {}),
         privacyCostManifest: buildRagequitPrivacyCostManifest(data),
         ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),

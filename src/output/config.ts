@@ -116,6 +116,8 @@ export interface ConfigSetResult {
   key: string;
   previousValue?: string | null;
   newValueSummary: string;
+  action?: "set" | "unset";
+  changed?: boolean;
 }
 
 export function renderConfigSet(ctx: OutputContext, result: ConfigSetResult): void {
@@ -124,7 +126,9 @@ export function renderConfigSet(ctx: OutputContext, result: ConfigSetResult): vo
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
       key: result.key,
-      updated: true,
+      updated: result.changed ?? true,
+      changed: result.changed ?? true,
+      removed: result.action === "unset",
       summary: result.newValueSummary,
     }, [
       createNextAction("status", "Verify updated configuration.", "after_config_set", { options: { agent: true } }),
@@ -134,10 +138,19 @@ export function renderConfigSet(ctx: OutputContext, result: ConfigSetResult): vo
 
   if (isSilent(ctx)) return;
 
-  success(`Configuration updated: ${result.key} = ${result.newValueSummary}`, false);
+  success(
+    result.action === "unset"
+      ? `Configuration cleared: ${result.key} (${result.newValueSummary})`
+      : `Configuration updated: ${result.key} = ${result.newValueSummary}`,
+    false,
+  );
   process.stderr.write(
     formatKeyValueRows([
-      { label: result.key, value: result.newValueSummary, valueTone: "success" as const },
+      {
+        label: result.key,
+        value: result.newValueSummary,
+        valueTone: result.changed === false ? "muted" as const : "success" as const,
+      },
     ]),
   );
 }

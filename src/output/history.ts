@@ -60,16 +60,30 @@ function renderHistoryType(type: HistoryEvent["type"]): string {
 /**
  * Render "no pools found" for history.
  */
-export function renderHistoryNoPools(ctx: OutputContext, chain: string): void {
+export function renderHistoryNoPools(
+  ctx: OutputContext,
+  data: {
+    chain: string;
+    lastSyncTime?: number | null;
+    syncSkipped?: boolean;
+  },
+): void {
   if (ctx.mode.isJson) {
-    printJsonSuccess({ chain, events: [] });
+    printJsonSuccess({
+      chain: data.chain,
+      ...(data.lastSyncTime != null
+        ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
+        : {}),
+      syncSkipped: data.syncSkipped ?? false,
+      events: [],
+    });
     return;
   }
   if (ctx.mode.isCsv) {
-    printCsv(["Type", "PA", "Amount", "Tx", "Block"], []);
+    printCsv(["Type", "PA", "Amount", "Tx", "Time", "Block"], []);
     return;
   }
-  info(`No history events found on ${chain}.`, isSilent(ctx));
+  info(`No history events found on ${data.chain}.`, isSilent(ctx));
 }
 
 /**
@@ -89,7 +103,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
   } = data;
   const nextActions = [
     createNextAction("accounts", "View current Pool Account balances and statuses.", "after_history", { options: { chain } }),
-    createNextAction("pools", "Browse available pools before making a first deposit.", "after_history", {
+    createNextAction("pools", "Browse pools to make your first deposit.", "after_history", {
       options: { chain },
     }),
     createNextAction("deposit", "Deposit into a pool once you choose an amount and asset.", "after_history", {
@@ -114,6 +128,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
     printJsonSuccess(appendNextActions({
       chain,
       ...(lastSyncTime != null ? { lastSyncTime: new Date(lastSyncTime).toISOString() } : {}),
+      syncSkipped: syncSkipped ?? false,
       events: events.map((e) => ({
         type: e.type,
         asset: e.asset,
@@ -131,7 +146,7 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
 
   if (ctx.mode.isCsv) {
     printCsv(
-      ["Type", "PA", "Amount", "Tx", "Block"],
+      ["Type", "PA", "Amount", "Tx", "Time", "Block"],
       events.map((e) => {
         const pool = poolByAddress.get(e.poolAddress);
         return [
@@ -139,6 +154,9 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
           e.paId,
           formatAmount(e.value, pool?.decimals ?? 18, e.asset, displayDecimals(pool?.decimals ?? 18)),
           e.txHash,
+          currentBlock != null
+            ? formatApproxBlockTimeAgo(currentBlock, e.blockNumber, avgBlockTimeSec)
+            : "-",
           e.blockNumber.toString(),
         ];
       }),

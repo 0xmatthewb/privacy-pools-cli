@@ -384,7 +384,11 @@ export async function handleHistoryCommand(
 
     if (pools.length === 0) {
       spin.stop();
-      renderHistoryNoPools(ctx, chainConfig.name);
+      renderHistoryNoPools(ctx, {
+        chain: chainConfig.name,
+        lastSyncTime: loadSyncMeta(chainConfig.id)?.lastSyncTime ?? null,
+        syncSkipped: opts.sync === false,
+      });
       return;
     }
 

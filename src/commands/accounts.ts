@@ -662,6 +662,8 @@ export async function handleAccountsCommand(
           summary: !!opts.summary,
           pendingOnly: effectiveStatus === "pending",
           statusFilter: effectiveStatus,
+          lastSyncTime,
+          syncSkipped: opts.sync === false,
           ...emptyState,
         });
         return 0;
@@ -678,6 +680,7 @@ export async function handleAccountsCommand(
         showPendingOnly: effectiveStatus === "pending",
         statusFilter: effectiveStatus,
         lastSyncTime,
+        syncSkipped: opts.sync === false,
       });
       if (groups.some((group) => group.poolAccounts.some((poolAccount) => poolAccount.status === "poa_required"))) {
         maybeLaunchBrowser({
