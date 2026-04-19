@@ -150,7 +150,7 @@ export function formatFlowStartReview(data: FlowStartReviewData): string {
 }
 
 export interface FlowRenderData {
-  action: "start" | "watch" | "status" | "ragequit";
+  action: "start" | "watch" | "status" | "step" | "ragequit";
   snapshot: FlowSnapshot;
   extraWarnings?: FlowJsonWarning[];
 }
@@ -258,6 +258,37 @@ function formatFlowNativeFunding(rawAmount: string | null | undefined): string |
   } catch {
     return rawAmount;
   }
+}
+
+function deriveFlowNextPollAfter(snapshot: FlowSnapshot): string | null {
+  if (
+    snapshot.phase === "completed" ||
+    snapshot.phase === "completed_public_recovery" ||
+    snapshot.phase === "stopped_external" ||
+    snapshot.phase === "paused_declined" ||
+    snapshot.phase === "paused_poa_required"
+  ) {
+    return null;
+  }
+
+  const now = Date.now();
+  if (
+    snapshot.phase === "approved_waiting_privacy_delay" &&
+    snapshot.privacyDelayUntil
+  ) {
+    const delayUntilMs = Date.parse(snapshot.privacyDelayUntil);
+    if (Number.isFinite(delayUntilMs) && delayUntilMs > now) {
+      return snapshot.privacyDelayUntil;
+    }
+  }
+
+  const delayMs =
+    snapshot.phase === "awaiting_funding" || snapshot.phase === "depositing_publicly"
+      ? 10_000
+      : snapshot.phase === "approved_ready_to_withdraw"
+        ? 5_000
+        : 60_000;
+  return new Date(now + delayMs).toISOString();
 }
 
 function phaseLabel(phase: FlowPhase): string {
@@ -538,6 +569,36 @@ function buildFlowReconciliationHumanNextAction(snapshot: FlowSnapshot) {
   );
 }
 
+function buildAgentFlowStatusNextAction(
+  snapshot: FlowSnapshot,
+  reason: string,
+): ReturnType<typeof createNextAction> {
+  return createNextAction(
+    "flow status",
+    reason,
+    "flow_resume",
+    {
+      args: [snapshot.workflowId],
+      options: { agent: true },
+    },
+  );
+}
+
+function buildAgentFlowStepNextAction(
+  snapshot: FlowSnapshot,
+  reason: string,
+): ReturnType<typeof createNextAction> {
+  return createNextAction(
+    "flow step",
+    reason,
+    "flow_resume",
+    {
+      args: [snapshot.workflowId],
+      options: { agent: true },
+    },
+  );
+}
+
 function buildAgentNextActions(snapshot: FlowSnapshot) {
   const reconciliationActions = snapshot.reconciliationRequired
     ? [buildFlowReconciliationAgentNextAction(snapshot)]
@@ -576,80 +637,80 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
     case "awaiting_funding":
       return [
         ...reconciliationActions,
-        createNextAction(
-          "flow watch",
-          awaitingFundingReason(snapshot),
-          "flow_resume",
-          {
-            args: [snapshot.workflowId],
-            options: { agent: true },
-          },
+        buildAgentFlowStatusNextAction(snapshot, awaitingFundingReason(snapshot)),
+        buildAgentFlowStepNextAction(
+          snapshot,
+          "Attempt the next saved-workflow step after funding reaches the dedicated wallet.",
         ),
       ];
     case "depositing_publicly":
       return [
         ...reconciliationActions,
-        createNextAction(
-          "flow watch",
-          "Resume this saved workflow and continue toward the private withdrawal.",
-          "flow_resume",
-          {
-            args: [snapshot.workflowId],
-            options: { agent: true },
-          },
+        buildAgentFlowStatusNextAction(
+          snapshot,
+          "Poll the saved workflow until the public deposit confirms and account state is ready.",
+        ),
+        buildAgentFlowStepNextAction(
+          snapshot,
+          "Advance the saved workflow one unit of work without running an internal watch loop.",
         ),
       ];
     case "awaiting_asp":
-    case "approved_ready_to_withdraw":
       return [
         ...reconciliationActions,
-        createNextAction(
-          "flow watch",
-          "Resume this saved workflow and continue toward the private withdrawal.",
-          "flow_resume",
-          {
-            args: [snapshot.workflowId],
-            options: { agent: true },
-          },
+        buildAgentFlowStatusNextAction(
+          snapshot,
+          snapshot.workflowKind === "deposit_review"
+            ? "Poll the deposit-review workflow until ASP review resolves."
+            : "Poll the saved workflow until ASP review resolves.",
         ),
       ];
     case "approved_waiting_privacy_delay":
       return [
         ...reconciliationActions,
-        createNextAction(
-          "flow watch",
-          privacyDelayWaitingReason(snapshot),
-          "flow_resume",
-          {
-            args: [snapshot.workflowId],
-            options: { agent: true },
-          },
+        buildAgentFlowStatusNextAction(snapshot, privacyDelayWaitingReason(snapshot)),
+      ];
+    case "approved_ready_to_withdraw":
+      if (snapshot.workflowKind === "deposit_review") {
+        return [
+          ...reconciliationActions,
+          createNextAction(
+            "accounts",
+            `This deposit review is approved. Inspect ${snapshot.poolAccountId ?? "the Pool Account"} before choosing a private withdrawal or public recovery.`,
+            "after_deposit",
+            { options: { agent: true, chain: snapshot.chain } },
+          ),
+        ];
+      }
+      return [
+        ...reconciliationActions,
+        buildAgentFlowStatusNextAction(
+          snapshot,
+          "Poll the saved workflow state before advancing the private withdrawal.",
+        ),
+        buildAgentFlowStepNextAction(
+          snapshot,
+          "Advance the saved workflow into the private withdrawal when it is ready.",
         ),
       ];
     case "withdrawing":
       return [
         ...reconciliationActions,
-        createNextAction(
-          "flow watch",
-          "Resume this saved workflow and continue toward the private withdrawal.",
-          "flow_resume",
-          {
-            args: [snapshot.workflowId],
-            options: { agent: true },
-          },
+        buildAgentFlowStatusNextAction(
+          snapshot,
+          "Poll the saved workflow while the private withdrawal is still confirming.",
+        ),
+        buildAgentFlowStepNextAction(
+          snapshot,
+          "Advance the saved workflow one unit of work without running an internal watch loop.",
         ),
       ];
     case "paused_poa_required":
       return [
         ...reconciliationActions,
-        createNextAction(
-          "flow watch",
-          `Complete Proof of Association at ${POA_PORTAL_URL} first, then re-check this workflow to continue privately.`,
-          "flow_resume",
-          {
-            args: [snapshot.workflowId],
-            options: { agent: true },
-          },
+        buildAgentFlowStatusNextAction(
+          snapshot,
+          `Complete Proof of Association at ${POA_PORTAL_URL} first, then re-check this workflow.`,
         ),
         createNextAction(
           "flow ragequit",
@@ -836,7 +897,7 @@ function buildFlowJsonSnapshot(
       ? []
       : buildFlowWarnings(snapshot, {
           forceConfiguredPrivacyDelayWarning:
-            action === "start" || action === "watch",
+            action === "start" || action === "watch" || action === "step",
         });
   const warnings = mergeStructuredWarnings(
     [...baseWarnings, ...extraWarnings],
@@ -851,6 +912,7 @@ function buildFlowJsonSnapshot(
     mode: "flow",
     action,
     workflowId: snapshot.workflowId,
+    workflowKind: snapshot.workflowKind ?? "saved_flow",
     phase: snapshot.phase,
     walletMode: snapshot.walletMode ?? "configured",
     walletAddress: snapshot.walletAddress ?? null,
@@ -889,6 +951,7 @@ function buildFlowJsonSnapshot(
     localStateSynced: snapshot.localStateSynced ?? true,
     warningCode: snapshot.warningCode ?? null,
     lastError: snapshot.lastError,
+    nextPollAfter: deriveFlowNextPollAfter(snapshot),
     privacyCostManifest: action === "ragequit"
       ? {
           action: "flow ragequit",
@@ -1024,7 +1087,7 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
       ? []
       : buildFlowWarnings(data.snapshot, {
           forceConfiguredPrivacyDelayWarning:
-            data.action === "start" || data.action === "watch",
+            data.action === "start" || data.action === "watch" || data.action === "step",
         });
   const usesPublicRecoveryPath =
     data.action === "ragequit" ||

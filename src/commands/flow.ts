@@ -12,17 +12,26 @@ import { resolvePool } from "../services/pools.js";
 import { loadKnownRecipientHistory } from "../services/recipient-history.js";
 import { getSignerAddress, loadPrivateKey } from "../services/wallet.js";
 import {
+  applyFlowPrivacyDelayPolicy,
   buildAmountPatternLinkabilityWarning,
+  computeFlowWatchDelayMs,
   FlowCancelledError,
   FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE,
   type FlowSnapshot,
+  formatWorkflowFundingSummary,
   getWorkflowStatus,
+  humanPollDelayLabel,
+  initialPollDelayMs,
+  isTerminalFlowPhase,
   listSavedWorkflowIds,
+  nextPollDelayMs,
   ragequitWorkflow,
   resolveFlowPrivacyDelayProfile,
+  resolveOptionalFlowPrivacyDelayProfile,
+  saveWorkflowSnapshotIfChangedWithLock,
+  stepWorkflow,
   startWorkflow,
   validateWorkflowWalletBackupPath,
-  watchWorkflow,
 } from "../services/workflow.js";
 import type { GlobalOptions } from "../types.js";
 import { formatAmountDecimal, isRoundAmount, suggestRoundAmounts } from "../utils/amount-privacy.js";
@@ -128,8 +137,182 @@ function flowDetachedCliError(): CLIError {
   return new CLIError(
     "Flow watch detached.",
     "INPUT",
-    "Re-run 'privacy-pools flow watch' to resume the saved workflow.",
+    "Re-run 'privacy-pools flow watch' to resume the saved workflow, or use flow status and flow step in agent mode.",
   );
+}
+
+function isPausedFlowPhase(snapshot: FlowSnapshot): boolean {
+  return (
+    snapshot.phase === "paused_declined" ||
+    snapshot.phase === "paused_poa_required"
+  );
+}
+
+function isWatchTerminalSnapshot(snapshot: FlowSnapshot): boolean {
+  return isTerminalFlowPhase(snapshot.phase) || isPausedFlowPhase(snapshot);
+}
+
+function throwIfWatchAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new FlowCancelledError("detached");
+  }
+}
+
+async function sleepWithAbort(
+  ms: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (ms <= 0) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, ms);
+
+    const onAbort = () => {
+      cleanup();
+      reject(new FlowCancelledError("detached"));
+    };
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+    };
+
+    if (signal?.aborted) {
+      cleanup();
+      reject(new FlowCancelledError("detached"));
+      return;
+    }
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function maybeApplyFlowWatchPrivacyDelayOverride(params: {
+  workflowId?: string;
+  privacyDelayProfile?: string;
+  silent: boolean;
+}): Promise<FlowSnapshot> {
+  const override = resolveOptionalFlowPrivacyDelayProfile(
+    params.privacyDelayProfile,
+  );
+  const currentSnapshot = getWorkflowStatus({ workflowId: params.workflowId });
+  if (!override) {
+    return currentSnapshot;
+  }
+
+  if (
+    currentSnapshot.privacyDelayProfile === override &&
+    currentSnapshot.privacyDelayConfigured === true
+  ) {
+    return currentSnapshot;
+  }
+
+  const updatedSnapshot = await saveWorkflowSnapshotIfChangedWithLock(
+    currentSnapshot,
+    applyFlowPrivacyDelayPolicy(currentSnapshot, override, {
+      configured: true,
+      rescheduleApproved: true,
+    }),
+  );
+  info(
+    `Saved privacy-delay policy updated to ${override}.`,
+    params.silent,
+  );
+  return updatedSnapshot;
+}
+
+async function watchFlowWithStatusAndStep(params: {
+  workflowId?: string;
+  privacyDelayProfile?: string;
+  globalOpts?: GlobalOptions;
+  mode: ReturnType<typeof resolveGlobalMode>;
+  isVerbose: boolean;
+  onPhaseChange?: (event: {
+    workflowId: string;
+    previousPhase: FlowSnapshot["phase"];
+    phase: FlowSnapshot["phase"];
+    ts: string;
+    snapshot: FlowSnapshot;
+  }) => void | Promise<void>;
+  abortSignal?: AbortSignal;
+}): Promise<FlowSnapshot> {
+  const silent = params.mode.isQuiet || params.mode.isJson;
+  let snapshot = await maybeApplyFlowWatchPrivacyDelayOverride({
+    workflowId: params.workflowId,
+    privacyDelayProfile: params.privacyDelayProfile,
+    silent,
+  });
+  let delayMs = initialPollDelayMs(snapshot.phase);
+
+  while (true) {
+    throwIfWatchAborted(params.abortSignal);
+    if (isWatchTerminalSnapshot(snapshot)) {
+      return snapshot;
+    }
+
+    const previousPhase = snapshot.phase;
+    snapshot = await stepWorkflow({
+      workflowId: snapshot.workflowId,
+      globalOpts: params.globalOpts,
+      mode: params.mode,
+      isVerbose: params.isVerbose,
+    });
+
+    if (snapshot.phase !== previousPhase) {
+      await params.onPhaseChange?.({
+        workflowId: snapshot.workflowId,
+        previousPhase,
+        phase: snapshot.phase,
+        ts: new Date().toISOString(),
+        snapshot,
+      });
+      delayMs = initialPollDelayMs(snapshot.phase);
+    } else {
+      delayMs = nextPollDelayMs(delayMs, snapshot.phase);
+    }
+
+    if (isWatchTerminalSnapshot(snapshot)) {
+      return snapshot;
+    }
+
+    const sleepMs = computeFlowWatchDelayMs(snapshot, delayMs);
+    if (snapshot.phase === "awaiting_funding" && snapshot.walletAddress) {
+      const fundingSummary = formatWorkflowFundingSummary(snapshot);
+      info(
+        fundingSummary
+          ? `Still waiting for funding at ${snapshot.walletAddress}. Need ${fundingSummary}. Checking again in ${humanPollDelayLabel(sleepMs)}.`
+          : `Still waiting for funding at ${snapshot.walletAddress}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+        silent,
+      );
+    } else if (snapshot.phase === "depositing_publicly") {
+      info(
+        `Still reconciling the public deposit step. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+        silent,
+      );
+    } else if (snapshot.phase === "approved_waiting_privacy_delay") {
+      info(
+        `Still waiting for the saved privacy delay before the private withdrawal. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+        silent,
+      );
+    } else if (snapshot.phase === "withdrawing") {
+      info(
+        `Still waiting for the private withdrawal to settle. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+        silent,
+      );
+    } else {
+      info(
+        `Still waiting for saved workflow progress on ${snapshot.chain}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+        silent,
+      );
+    }
+
+    await sleepWithAbort(sleepMs, params.abortSignal);
+  }
 }
 
 function collectKnownFlowRecipients(): string[] {
@@ -379,9 +562,9 @@ export async function handleFlowRootCommand(
   try {
     if (mode.isJson || !process.stdin.isTTY || !process.stderr.isTTY) {
       throw new CLIError(
-        "Use a flow subcommand in non-interactive mode: start, watch, status, or ragequit.",
+        "Use a flow subcommand in non-interactive mode: start, watch, status, step, or ragequit.",
         "INPUT",
-        "Run 'privacy-pools flow start', 'privacy-pools flow watch', 'privacy-pools flow status', or 'privacy-pools flow ragequit'.",
+        "Run 'privacy-pools flow start', 'privacy-pools flow watch', 'privacy-pools flow status', 'privacy-pools flow step', or 'privacy-pools flow ragequit'.",
         "INPUT_MISSING_FLOW_SUBCOMMAND",
       );
     }
@@ -538,6 +721,47 @@ export async function handleFlowStartCommand(
       return;
     }
 
+    if (mode.isAgent && opts.watch) {
+      throw new CLIError(
+        "flow start --watch is not available in --agent mode.",
+        "INPUT",
+        "Run 'privacy-pools flow start ... --agent' without --watch, then use 'privacy-pools flow status <workflowId> --agent' and 'privacy-pools flow step <workflowId> --agent' externally.",
+        "INPUT_AGENT_FLOW_WATCH_UNSUPPORTED",
+        false,
+        undefined,
+        undefined,
+        undefined,
+        {
+          nextActions: [
+            createNextAction(
+              "flow status",
+              "Poll the saved workflow state without running an internal watch loop.",
+              "flow_resume",
+              {
+                options: { agent: true },
+                parameters: [
+                  { name: "workflowId", type: "workflow_id", required: true },
+                ],
+                runnable: false,
+              },
+            ),
+            createNextAction(
+              "flow step",
+              "Advance the saved workflow with one unit of work at a time.",
+              "flow_resume",
+              {
+                options: { agent: true },
+                parameters: [
+                  { name: "workflowId", type: "workflow_id", required: true },
+                ],
+                runnable: false,
+              },
+            ),
+          ],
+        },
+      );
+    }
+
     let recipient = opts.to?.trim();
     if (!recipient && !mode.skipPrompts) {
       const { input } = await import("@inquirer/prompts");
@@ -614,7 +838,8 @@ export async function handleFlowStartCommand(
       return;
     }
 
-    const snapshot = await startWorkflow({
+    const watchRequested = opts.watch ?? false;
+    let snapshot = await startWorkflow({
       amountInput: amount,
       assetInput: asset,
       recipient,
@@ -624,11 +849,21 @@ export async function handleFlowStartCommand(
       globalOpts,
       mode,
       isVerbose,
-      watch: opts.watch ?? false,
+      watch: false,
     });
 
+    if (watchRequested) {
+      snapshot = await watchFlowWithStatusAndStep({
+        workflowId: snapshot.workflowId,
+        privacyDelayProfile: opts.privacyDelay,
+        globalOpts,
+        mode,
+        isVerbose,
+      });
+    }
+
     renderFlowResult(ctx, {
-      action: "start",
+      action: watchRequested ? "watch" : "start",
       snapshot,
       extraWarnings: recipientWarnings,
     });
@@ -697,7 +932,7 @@ export async function handleFlowRagequitCommand(
       throw new CLIError(
         `${snapshot.poolAccountId ?? "This workflow"} is approved for private withdrawal.`,
         "INPUT",
-        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy. Use flow watch instead unless you intentionally prefer ragequit.",
+        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy. Use flow status and flow step unless you intentionally prefer ragequit.",
         "INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE",
         false,
         undefined,
@@ -710,8 +945,17 @@ export async function handleFlowRagequitCommand(
           helpTopic: "ragequit",
           nextActions: [
             createNextAction(
-              "flow watch",
-              "Resume the saved workflow on the private path instead of choosing public recovery.",
+              "flow status",
+              "Inspect the saved workflow on the private path before choosing public recovery.",
+              "flow_resume",
+              {
+                args: [snapshot.workflowId],
+                options: { agent: true },
+              },
+            ),
+            createNextAction(
+              "flow step",
+              "Advance the saved workflow on the private path instead of choosing public recovery.",
               "flow_resume",
               {
                 args: [snapshot.workflowId],
@@ -784,11 +1028,52 @@ export async function handleFlowWatchCommand(
       return;
     }
 
+    if (mode.isAgent) {
+      throw new CLIError(
+        "flow watch is not available in --agent mode.",
+        "INPUT",
+        "Use 'privacy-pools flow status <workflowId> --agent' to poll and 'privacy-pools flow step <workflowId> --agent' to advance the workflow one step at a time.",
+        "INPUT_AGENT_FLOW_WATCH_UNSUPPORTED",
+        false,
+        undefined,
+        undefined,
+        undefined,
+        {
+          nextActions: [
+            createNextAction(
+              "flow status",
+              "Poll the saved workflow state without running an internal watch loop.",
+              "flow_resume",
+              {
+                options: { agent: true },
+                parameters: [
+                  { name: "workflowId", type: "workflow_id", required: true },
+                ],
+                runnable: false,
+              },
+            ),
+            createNextAction(
+              "flow step",
+              "Advance the saved workflow with one unit of work at a time.",
+              "flow_resume",
+              {
+                options: { agent: true },
+                parameters: [
+                  { name: "workflowId", type: "workflow_id", required: true },
+                ],
+                runnable: false,
+              },
+            ),
+          ],
+        },
+      );
+    }
+
     if (detachController) {
       process.once("SIGINT", onSigInt);
     }
 
-    const snapshot = await watchWorkflow({
+    const snapshot = await watchFlowWithStatusAndStep({
       workflowId,
       privacyDelayProfile: opts.privacyDelay,
       globalOpts,
@@ -873,6 +1158,51 @@ export async function handleFlowStatusCommand(
     const snapshot = getWorkflowStatus({ workflowId });
     renderFlowResult(ctx, {
       action: "status",
+      snapshot,
+    });
+    const browserTarget = getFlowBrowserTarget(snapshot);
+    if (browserTarget) {
+      maybeLaunchBrowser({
+        globalOpts,
+        mode,
+        url: browserTarget.url,
+        label: browserTarget.label,
+        silent: mode.isQuiet,
+      });
+    }
+  } catch (error) {
+    await handleFlowCommandError(error, {
+      cmd,
+      json: mode.isJson,
+      silent: mode.isQuiet,
+      allowSetupRecovery: false,
+    });
+  }
+}
+
+export async function handleFlowStepCommand(
+  workflowId: string | undefined,
+  _opts: unknown,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = getRootGlobalOptions(cmd);
+  const mode = resolveGlobalMode(globalOpts);
+  const isVerbose = globalOpts?.verbose ?? false;
+  const ctx = createOutputContext(mode, isVerbose);
+
+  try {
+    if (await maybeRenderPreviewScenario("flow step")) {
+      return;
+    }
+
+    const snapshot = await stepWorkflow({
+      workflowId,
+      globalOpts,
+      mode,
+      isVerbose,
+    });
+    renderFlowResult(ctx, {
+      action: "step",
       snapshot,
     });
     const browserTarget = getFlowBrowserTarget(snapshot);

@@ -92,10 +92,16 @@ import {
 } from "../utils/setup-recovery.js";
 import { maybeLaunchBrowser } from "../utils/web.js";
 import { persistWithReconciliation } from "../services/persist-with-reconciliation.js";
+import {
+  createInitialSnapshot,
+  saveWorkflowSnapshot,
+} from "../services/workflow.js";
+import { createSubmissionRecord } from "../services/submissions.js";
 
 interface DepositCommandOptions {
   unsigned?: boolean | string;
   dryRun?: boolean;
+  noWait?: boolean;
   ignoreUniqueAmount?: boolean;
 }
 
@@ -188,6 +194,20 @@ export async function handleDepositCommand(
         `Unsupported unsigned format: "${unsignedFormat}".`,
         "INPUT",
         "Use --unsigned envelope or --unsigned tx.",
+      );
+    }
+    if (opts.noWait && isDryRun) {
+      throw new CLIError(
+        "--no-wait cannot be combined with --dry-run.",
+        "INPUT",
+        "Use either --dry-run to preview or --no-wait to submit without waiting for confirmation.",
+      );
+    }
+    if (opts.noWait && isUnsigned) {
+      throw new CLIError(
+        "--no-wait cannot be combined with --unsigned.",
+        "INPUT",
+        "Use --unsigned to build a signer-facing envelope, or --no-wait to submit immediately and return a submission id.",
       );
     }
     if (!isQuiet && !isJson) {
@@ -590,6 +610,7 @@ export async function handleDepositCommand(
       }
 
       const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+      let approvalTxHash: Hex | null = null;
 
       // ERC20 approval
       if (!isNative) {
@@ -614,6 +635,10 @@ export async function handleDepositCommand(
             amount,
             rpcOverride: globalOpts?.rpcUrl,
           });
+          approvalTxHash = approveTx.hash as Hex;
+          if (opts.noWait) {
+            spin.succeed("Token approval submitted.");
+          } else {
           let approvalReceipt;
           try {
             const confirmationTimeoutMs = getConfirmationTimeoutMs();
@@ -636,6 +661,7 @@ export async function handleDepositCommand(
             );
           }
           spin.succeed("Token approved.");
+          }
           }
         } catch (error) {
           spin.fail("Approval failed.");
@@ -664,6 +690,77 @@ export async function handleDepositCommand(
           precommitment as unknown as bigint,
           globalOpts?.rpcUrl,
         );
+      }
+
+      const depositExplorer = explorerTxUrl(chainConfig.id, tx.hash);
+      if (opts.noWait) {
+        spin.succeed("Deposit submitted.");
+        const workflowSnapshot = saveWorkflowSnapshot(createInitialSnapshot({
+          workflowKind: "deposit_review",
+          phase: "depositing_publicly",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          assetDecimals: pool.decimals,
+          depositAmount: amount,
+          estimatedCommittedValue: estimatedCommitted,
+          privacyDelayProfile: "off",
+          privacyDelayConfigured: false,
+          recipient: "",
+          poolAccountNumber: nextPANumber,
+          poolAccountId: nextPAId,
+          depositTxHash: tx.hash,
+          depositExplorerUrl: depositExplorer,
+        }));
+        const submission = createSubmissionRecord({
+          operation: "deposit",
+          sourceCommand: "deposit",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          poolAccountId: nextPAId,
+          poolAccountNumber: nextPANumber,
+          workflowId: workflowSnapshot.workflowId,
+          transactions: [
+            ...(approvalTxHash
+              ? [{ description: "Approve token spend", txHash: approvalTxHash }]
+              : []),
+            { description: "Deposit into pool", txHash: tx.hash as Hex },
+          ],
+        });
+        const ctx = createOutputContext(mode);
+        renderDepositSuccess(ctx, {
+          status: "submitted",
+          submissionId: submission.submissionId,
+          workflowId: workflowSnapshot.workflowId,
+          txHash: tx.hash,
+          amount,
+          committedValue: undefined,
+          vettingFeeBPS: pool.vettingFeeBPS,
+          vettingFeeAmount: feeAmount,
+          estimatedCommitted,
+          feesApply: pool.vettingFeeBPS > 0n,
+          asset: pool.symbol,
+          chain: chainConfig.name,
+          decimals: pool.decimals,
+          poolAccountNumber: nextPANumber,
+          poolAccountId: nextPAId,
+          poolAddress: pool.pool,
+          scope: pool.scope,
+          label: undefined,
+          blockNumber: null,
+          explorerUrl: depositExplorer,
+          reconciliationRequired: false,
+          localStateSynced: false,
+          warningCode: null,
+          chainOverridden: !!globalOpts?.chain,
+        });
+        maybeLaunchBrowser({
+          globalOpts,
+          mode,
+          url: depositExplorer,
+          label: "deposit transaction",
+          silent,
+        });
+        return;
       }
 
       spin.text = "Waiting for confirmation...";
@@ -759,8 +856,30 @@ export async function handleDepositCommand(
         spin.succeed("Deposit confirmed!");
       }
 
+      const workflowSnapshot = saveWorkflowSnapshot(createInitialSnapshot({
+        workflowKind: "deposit_review",
+        phase: "awaiting_asp",
+        chain: chainConfig.name,
+        asset: pool.symbol,
+        assetDecimals: pool.decimals,
+        depositAmount: amount,
+        estimatedCommittedValue: estimatedCommitted,
+        privacyDelayProfile: "off",
+        privacyDelayConfigured: false,
+        recipient: "",
+        poolAccountNumber: nextPANumber,
+        poolAccountId: nextPAId,
+        depositTxHash: tx.hash,
+        depositBlockNumber: receipt.blockNumber,
+        depositExplorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+        depositLabel: label,
+        committedValue,
+      }));
+
       const ctx = createOutputContext(mode);
       renderDepositSuccess(ctx, {
+        status: "confirmed",
+        workflowId: workflowSnapshot.workflowId,
         txHash: tx.hash,
         amount,
         committedValue,
@@ -777,7 +896,7 @@ export async function handleDepositCommand(
         scope: pool.scope,
         label,
         blockNumber: receipt.blockNumber,
-        explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+        explorerUrl: depositExplorer,
         reconciliationRequired,
         localStateSynced,
         warningCode,

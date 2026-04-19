@@ -124,16 +124,30 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     ...(data.mode === "pool-activity" && data.asset ? { asset: data.asset } : {}),
     ...(data.chain !== "all-mainnets" ? { chain: data.chain } : {}),
   };
+  const fallbackAgentNextActions = data.mode === "pool-activity" && data.asset
+    ? [createNextAction("pools", "Return to pool discovery after reviewing this activity page.", "after_activity", {
+        options: { agent: true, chain: data.chain },
+      })]
+    : [createNextAction("accounts", "Inspect current Pool Account balances after reviewing public activity.", "after_activity", {
+        options: { agent: true, ...(data.chain !== "all-mainnets" ? { chain: data.chain } : {}) },
+      })];
+  const fallbackHumanNextActions = data.mode === "pool-activity" && data.asset
+    ? [createNextAction("pools", "Return to pool discovery after reviewing this activity page.", "after_activity", {
+        options: { chain: data.chain },
+      })]
+    : [createNextAction("accounts", "Inspect current Pool Account balances after reviewing public activity.", "after_activity", {
+        options: data.chain !== "all-mainnets" ? { chain: data.chain } : undefined,
+      })];
   const agentNextActions = hasNextPage
     ? [createNextAction("activity", "View the next page.", "after_activity", {
         options: { agent: true, ...paginationOptions },
       })]
-    : undefined;
+    : fallbackAgentNextActions;
   const humanNextActions = hasNextPage
     ? [createNextAction("activity", "View the next page.", "after_activity", {
         options: paginationOptions,
       })]
-    : undefined;
+    : fallbackHumanNextActions;
 
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
@@ -229,6 +243,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     if (data.page > 1) {
       process.stderr.write("You may have reached the end of the available results.\n");
     }
+    renderNextSteps(ctx, humanNextActions);
     return;
   }
 

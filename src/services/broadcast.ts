@@ -28,7 +28,7 @@ import { getPublicClient } from "./sdk.js";
 
 export type BroadcastSourceOperation = "deposit" | "withdraw" | "ragequit";
 export type BroadcastMode = "onchain" | "relayed";
-export type BroadcastTransactionStatus = "confirmed" | "validated";
+export type BroadcastTransactionStatus = "submitted" | "confirmed" | "validated";
 
 export interface BroadcastTransactionResult {
   index: number;
@@ -660,6 +660,7 @@ async function broadcastSignedEnvelope(
   envelope: BroadcastableSignedEnvelope,
   rpcOverride?: string,
   validateOnly: boolean = false,
+  noWait: boolean = false,
 ): Promise<BroadcastResult> {
   const signedTransactions = parseSignedTransactions(envelope);
   const { signer } = await validateSignedBundle(
@@ -722,6 +723,10 @@ async function broadcastSignedEnvelope(
       status: "submitted",
     });
 
+    if (noWait) {
+      continue;
+    }
+
     let receipt;
     try {
       receipt = await publicClient.waitForTransactionReceipt({
@@ -764,6 +769,25 @@ async function broadcastSignedEnvelope(
       explorerUrl: explorerTxUrl(chainConfig.id, txHash),
       status: "confirmed",
     });
+  }
+
+  if (noWait) {
+    return {
+      mode: "broadcast",
+      broadcastMode: "onchain",
+      sourceOperation: envelope.operation,
+      chain: chainConfig.name,
+      submittedBy: signer,
+      transactions: submittedTransactions.map((transaction) => ({
+        index: transaction.index,
+        description: transaction.description,
+        txHash: transaction.txHash,
+        blockNumber: null,
+        explorerUrl: transaction.explorerUrl,
+        status: "submitted",
+      })),
+      localStateUpdated: false,
+    };
   }
 
   return {
@@ -883,6 +907,7 @@ async function broadcastRelayedEnvelope(
   envelope: Extract<BroadcastEnvelope, { operation: "withdraw"; withdrawMode: "relayed" }>,
   rpcOverride?: string,
   validateOnly: boolean = false,
+  noWait: boolean = false,
 ): Promise<BroadcastResult> {
   normalizePreviewTransactionChain(chainConfig, envelope.transactions);
   if (envelope.transactions.length !== 1) {
@@ -1026,6 +1051,26 @@ async function broadcastRelayedEnvelope(
     );
   }
 
+  if (noWait) {
+    return {
+      mode: "broadcast",
+      broadcastMode: "relayed",
+      sourceOperation: "withdraw",
+      chain: chainConfig.name,
+      transactions: [
+        {
+          index: 0,
+          description: preview.description,
+          txHash: relayResponse.txHash,
+          blockNumber: null,
+          explorerUrl: explorerTxUrl(chainConfig.id, relayResponse.txHash),
+          status: "submitted",
+        },
+      ],
+      localStateUpdated: false,
+    };
+  }
+
   const publicClient = getPublicClient(chainConfig, rpcOverride);
   let receipt;
   try {
@@ -1105,6 +1150,7 @@ export async function broadcastEnvelope(
     rpcOverride?: string;
     expectedChain?: string;
     validateOnly?: boolean;
+    noWait?: boolean;
   } = {},
 ): Promise<BroadcastResult> {
   const envelope = parseEnvelope(input);
@@ -1128,6 +1174,7 @@ export async function broadcastEnvelope(
       envelope,
       options.rpcOverride,
       options.validateOnly === true,
+      options.noWait === true,
     );
   }
 
@@ -1136,5 +1183,6 @@ export async function broadcastEnvelope(
     envelope as BroadcastableSignedEnvelope,
     options.rpcOverride,
     options.validateOnly === true,
+    options.noWait === true,
   );
 }

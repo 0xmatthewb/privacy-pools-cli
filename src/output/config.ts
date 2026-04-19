@@ -90,12 +90,14 @@ export function renderConfigGet(ctx: OutputContext, result: ConfigGetResult): vo
   guardCsvUnsupported(ctx, "config get");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       key: result.key,
       value: result.redacted ? undefined : result.value,
       set: result.value !== null,
       ...(result.redacted ? { redacted: true } : {}),
-    });
+    }, [
+      createNextAction("config list", "Review the broader local configuration state.", "after_config_list", { options: { agent: true } }),
+    ]));
     return;
   }
 
@@ -161,7 +163,9 @@ export function renderConfigPath(ctx: OutputContext, configDir: string): void {
   guardCsvUnsupported(ctx, "config path");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({ configDir });
+    printJsonSuccess(appendNextActions({ configDir }, [
+      createNextAction("config list", "Inspect the active configuration that lives in this directory.", "after_config_list", { options: { agent: true } }),
+    ]));
     return;
   }
 
@@ -183,10 +187,16 @@ export function renderConfigProfileList(
   guardCsvUnsupported(ctx, "config profile list");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       profiles: ["default", ...profiles],
       active,
-    });
+    }, [
+      createNextAction("config profile use", "Switch profiles after reviewing the available options.", "after_config_list", {
+        options: { agent: true },
+        parameters: [{ name: "profile", type: "profile_name", required: true }],
+        runnable: false,
+      }),
+    ]));
     return;
   }
 
@@ -215,11 +225,15 @@ export function renderConfigProfileCreate(
   guardCsvUnsupported(ctx, "config profile create");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       profile: name,
       created: true,
       profileDir,
-    });
+    }, [
+      createNextAction("config profile use", "Switch into the newly created profile.", "after_config_set", {
+        options: { agent: true, profile: name },
+      }),
+    ]));
     return;
   }
 
@@ -244,10 +258,12 @@ export function renderConfigProfileActive(
   guardCsvUnsupported(ctx, "config profile active");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       profile: active,
       configDir,
-    });
+    }, [
+      createNextAction("config list", "Inspect the active profile configuration.", "after_config_list", { options: { agent: true } }),
+    ]));
     return;
   }
 
@@ -271,11 +287,13 @@ export function renderConfigProfileUse(
   guardCsvUnsupported(ctx, "config profile use");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       profile: active,
       active: true,
       configDir,
-    });
+    }, [
+      createNextAction("status", "Verify CLI health after switching profiles.", "after_config_set", { options: { agent: true } }),
+    ]));
     return;
   }
 

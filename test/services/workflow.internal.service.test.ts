@@ -1774,7 +1774,7 @@ describe("workflow internal helpers", () => {
     expect(watched.privacyDelayUntil).toBe("2026-03-24T12:30:00.000Z");
   });
 
-  test("watchWorkflow persists retryable errors and retries until the saved workflow becomes terminal", async () => {
+  test("watchWorkflow persists retryable errors and fails closed without hidden retries", async () => {
     saveWorkflowSnapshot(
       sampleSnapshot({
         workflowId: "wf-watch-retry",
@@ -1792,23 +1792,16 @@ describe("workflow internal helpers", () => {
         true,
       );
     });
-    overrideWorkflowTimingForTests({
-      sleep: async () => {
-        const current = getWorkflowStatus({ workflowId: "wf-watch-retry" });
-        saveWorkflowSnapshot({
-          ...current,
-          phase: "stopped_external",
-        });
-      },
-    });
 
-    const watched = await watchWorkflow({
-      workflowId: "wf-watch-retry",
-      mode: JSON_MODE,
-      isVerbose: false,
+    await expect(
+      watchWorkflow({
+        workflowId: "wf-watch-retry",
+        mode: JSON_MODE,
+        isVerbose: false,
+      }),
+    ).rejects.toMatchObject({
+      code: "RELAYER_TEMPORARY",
     });
-
-    expect(watched.phase).toBe("stopped_external");
     expect(getWorkflowStatus({ workflowId: "wf-watch-retry" }).lastError).toMatchObject({
       step: "withdraw",
       errorCode: "RELAYER_TEMPORARY",

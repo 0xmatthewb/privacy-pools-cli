@@ -17,6 +17,7 @@ export interface BroadcastRenderData {
   broadcastMode: "onchain" | "relayed";
   sourceOperation: "deposit" | "withdraw" | "ragequit";
   chain: string;
+  submissionId?: string | null;
   validatedOnly?: boolean;
   submittedBy?: string;
   transactions: Array<{
@@ -25,7 +26,7 @@ export interface BroadcastRenderData {
     txHash: string | null;
     blockNumber: string | null;
     explorerUrl: string | null;
-    status: "confirmed" | "validated";
+    status: "submitted" | "confirmed" | "validated";
   }>;
   localStateUpdated: false;
 }
@@ -38,14 +39,31 @@ function broadcastNextActions(
     case "deposit":
       return [
         createNextAction(
-          "accounts",
-          "Monitor ASP review for the newly deposited Pool Account.",
-          "after_deposit",
-          {
-            options: agent
-              ? { agent: true, chain: data.chain, pendingOnly: true }
-              : { chain: data.chain, pendingOnly: true },
-          },
+          data.transactions.some((transaction) => transaction.status === "submitted")
+            ? "tx-status"
+            : "accounts",
+          data.transactions.some((transaction) => transaction.status === "submitted")
+            ? "Poll the submitted broadcast bundle until it confirms."
+            : "Monitor ASP review for the newly deposited Pool Account.",
+          data.transactions.some((transaction) => transaction.status === "submitted")
+            ? "after_submit"
+            : "after_deposit",
+          data.transactions.some((transaction) => transaction.status === "submitted")
+            ? {
+                ...(data.submissionId ? { args: [data.submissionId] } : {}),
+                ...(agent ? { options: { agent: true } } : {}),
+                ...(data.submissionId ? {} : {
+                  parameters: [
+                    { name: "submissionId", type: "submission_id", required: true },
+                  ],
+                  runnable: false,
+                }),
+              }
+            : {
+                options: agent
+                  ? { agent: true, chain: data.chain, pendingOnly: true }
+                  : { chain: data.chain, pendingOnly: true },
+              },
         ),
       ];
     case "withdraw":
@@ -97,6 +115,8 @@ export function renderBroadcast(
   success(
     data.validatedOnly
       ? `Broadcast validation complete: ${data.transactions.length} ${transactionLabel} checked for ${data.chain}. No transaction was submitted.`
+      : data.transactions.some((transaction) => transaction.status === "submitted")
+      ? `Broadcast submission complete: ${data.transactions.length} ${transactionLabel} accepted on ${data.chain}.`
       : `Broadcast complete: ${data.transactions.length} ${transactionLabel} confirmed on ${data.chain}.`,
     silent,
   );
@@ -127,7 +147,7 @@ export function renderBroadcast(
       ? `${inlineSeparator}${transaction.explorerUrl}`
       : "";
     info(
-      `${transaction.index + 1}. ${transaction.description}${inlineSeparator}${formatTxHash(transaction.txHash!)}${inlineSeparator}block ${transaction.blockNumber ?? "-"}${suffix}`,
+      `${transaction.index + 1}. ${transaction.description}${inlineSeparator}${formatTxHash(transaction.txHash!)}${inlineSeparator}${transaction.blockNumber ? `block ${transaction.blockNumber}` : transaction.status}${suffix}`,
       silent,
     );
   }

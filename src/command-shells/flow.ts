@@ -9,6 +9,7 @@ export function createFlowCommand(): Command {
   const startMetadata = getCommandMetadata("flow start");
   const watchMetadata = getCommandMetadata("flow watch");
   const statusMetadata = getCommandMetadata("flow status");
+  const stepMetadata = getCommandMetadata("flow step");
   const ragequitMetadata = getCommandMetadata("flow ragequit");
 
   const command = new Command("flow")
@@ -115,6 +116,18 @@ export function createFlowCommand(): Command {
       createLazyAction(
         () => import("../commands/flow.js"),
         "handleFlowStatusCommand",
+      ),
+    );
+
+  command
+    .command("step")
+    .description(stepMetadata.description)
+    .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
+    .addHelpText("after", commandHelpText(stepMetadata.help ?? {}))
+    .action(
+      createLazyAction(
+        () => import("../commands/flow.js"),
+        "handleFlowStepCommand",
       ),
     );
 

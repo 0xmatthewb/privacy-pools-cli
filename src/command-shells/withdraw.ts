@@ -38,6 +38,10 @@ export function createWithdrawCommand(): Command {
       "--dry-run",
       "Generate and verify withdrawal artifacts without submitting",
     )
+    .option(
+      "--no-wait",
+      "Return after submission instead of waiting for confirmation",
+    )
     .option("--all", "Withdraw entire Pool Account balance (requires asset: withdraw --all ETH)")
     .option(
       "--extra-gas",

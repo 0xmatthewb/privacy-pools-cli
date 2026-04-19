@@ -3,6 +3,7 @@ import type { Command } from "commander";
 import { renderBroadcast } from "../output/broadcast.js";
 import { createOutputContext } from "../output/common.js";
 import { broadcastEnvelope } from "../services/broadcast.js";
+import { createSubmissionRecord } from "../services/submissions.js";
 import type { GlobalOptions } from "../types.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -64,7 +65,7 @@ function readBroadcastInput(inputRef: string): string {
 
 export async function handleBroadcastCommand(
   inputRef: string,
-  opts: { validateOnly?: boolean },
+  opts: { validateOnly?: boolean; noWait?: boolean },
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
@@ -88,8 +89,28 @@ export async function handleBroadcastCommand(
       rpcOverride: globalOpts?.rpcUrl,
       expectedChain: globalOpts?.chain,
       validateOnly: opts.validateOnly === true,
+      noWait: opts.noWait === true,
     });
-    renderBroadcast(createOutputContext(mode, globalOpts?.verbose ?? false), result);
+    const submission = opts.noWait === true && !result.validatedOnly
+      ? createSubmissionRecord({
+          operation: "broadcast",
+          sourceCommand: "broadcast",
+          chain: result.chain,
+          asset: null,
+          broadcastMode: result.broadcastMode,
+          broadcastSourceOperation: result.sourceOperation,
+          transactions: result.transactions
+            .filter((transaction) => transaction.txHash)
+            .map((transaction) => ({
+              description: transaction.description,
+              txHash: transaction.txHash!,
+            })),
+        })
+      : null;
+    renderBroadcast(createOutputContext(mode, globalOpts?.verbose ?? false), {
+      ...result,
+      submissionId: submission?.submissionId ?? null,
+    });
   } catch (error) {
     printError(error, mode.isJson);
   }

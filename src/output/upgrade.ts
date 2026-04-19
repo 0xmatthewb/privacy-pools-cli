@@ -111,12 +111,45 @@ export function renderUpgradeResult(
       }),
     ];
   }
+  if (result.status === "up_to_date" || result.status === "upgraded") {
+    agentNextActions = [
+      createNextAction("status", "Run the standard health check on the active CLI install.", "after_upgrade", {
+        options: { agent: true },
+      }),
+    ];
+    humanNextActions = [
+      createNextAction("status", "Run the standard health check on the active CLI install.", "after_upgrade"),
+    ];
+  }
+  if (result.status === "cancelled") {
+    agentNextActions = [
+      createNextAction("upgrade", "Retry the upgrade when you are ready to install the newer release.", "after_upgrade", {
+        options: { agent: true, yes: true },
+      }),
+    ];
+    humanNextActions = [
+      createNextAction("upgrade", "Retry the upgrade when you are ready to install the newer release.", "after_upgrade", {
+        options: { yes: true },
+      }),
+    ];
+  }
   // No nextAction for "manual" status — the remediation is an external
   // install command (in result.command), not a CLI command. Emitting
   // "upgrade" as a nextAction would cause agents to loop.
 
   if (ctx.mode.isJson) {
-    printJsonSuccess(appendNextActions({ ...result }, agentNextActions));
+    printJsonSuccess(appendNextActions({
+      ...result,
+      ...(result.status === "manual"
+        ? {
+            externalGuidance: {
+              kind: "manual_install",
+              message: result.installContext.reason,
+              command: result.command,
+            },
+          }
+        : {}),
+    }, agentNextActions));
     return;
   }
 
@@ -140,6 +173,7 @@ export function renderUpgradeResult(
       ]),
     );
     process.stderr.write("\n");
+    renderNextSteps(ctx, humanNextActions);
     return;
   }
 
@@ -178,6 +212,7 @@ export function renderUpgradeResult(
         process.stderr.write(`  - ${highlight}\n`);
       }
     }
+    renderNextSteps(ctx, humanNextActions);
     process.stderr.write("\n");
     return;
   }
@@ -257,6 +292,7 @@ export function renderUpgradeResult(
       process.stderr.write(formatSectionHeading("Install later", { divider: true }));
       process.stderr.write(`  ${accent(result.command)}\n`);
     }
+    renderNextSteps(ctx, humanNextActions);
     process.stderr.write("\n");
     return;
   }

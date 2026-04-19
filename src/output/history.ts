@@ -68,15 +68,26 @@ export function renderHistoryNoPools(
     syncSkipped?: boolean;
   },
 ): void {
+  const agentNextActions = [
+    createNextAction("pools", "Browse pools before making your first deposit.", "after_history", {
+      options: { agent: true, chain: data.chain },
+    }),
+  ];
+  const humanNextActions = [
+    createNextAction("pools", "Browse pools before making your first deposit.", "after_history", {
+      options: { chain: data.chain },
+    }),
+  ];
+
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       chain: data.chain,
       ...(data.lastSyncTime != null
         ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
         : {}),
       syncSkipped: data.syncSkipped ?? false,
       events: [],
-    });
+    }, agentNextActions));
     return;
   }
   if (ctx.mode.isCsv) {
@@ -84,6 +95,7 @@ export function renderHistoryNoPools(
     return;
   }
   info(`No history events found on ${data.chain}.`, isSilent(ctx));
+  renderNextSteps(ctx, humanNextActions);
 }
 
 /**

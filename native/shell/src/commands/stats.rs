@@ -45,109 +45,152 @@ pub fn handle_stats_native(
     parsed: &ParsedRootArgv,
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
-    if has_short_flag(argv, 't') {
-        return Err(crate::dispatch::commander_unknown_option_error("-t"));
-    }
+    let attach_retry_action = |error: CliError| -> CliError {
+        if !error.retryable || !error.next_actions.is_empty() {
+            return error;
+        }
 
-    let mode = resolve_mode(parsed);
-    let stats_subcommand = resolve_stats_subcommand(parsed);
+        let stats_subcommand = resolve_stats_subcommand(parsed);
+        let mut options = Map::new();
+        options.insert("agent".to_string(), Value::Bool(true));
+        if let Some(chain) = parsed.global_chain() {
+            options.insert("chain".to_string(), Value::String(chain));
+        }
 
-    if stats_subcommand == StatsSubcommand::Pool {
-        let asset = parsed.non_option_tokens.get(2).cloned().ok_or_else(|| {
-            CliError::input(
-                "Missing asset argument.",
-                Some("Example: privacy-pools stats pool ETH".to_string()),
+        let (command, args_vec) = if stats_subcommand == StatsSubcommand::Pool {
+            (
+                "stats pool",
+                parsed
+                    .non_option_tokens
+                    .get(2)
+                    .map(|asset| vec![asset.as_str()])
+                    .unwrap_or_default(),
+            )
+        } else {
+            ("stats global", Vec::new())
+        };
+        let args = if args_vec.is_empty() {
+            None
+        } else {
+            Some(args_vec.as_slice())
+        };
+        let action = build_next_action(
+            command,
+            "Retry the same statistics query after the transient RPC issue clears.",
+            "after_stats",
+            args,
+            Some(&options),
+            None,
+        );
+        error.with_next_actions(vec![action])
+    };
+
+    (|| {
+        if has_short_flag(argv, 't') {
+            return Err(crate::dispatch::commander_unknown_option_error("-t"));
+        }
+
+        let mode = resolve_mode(parsed);
+        let stats_subcommand = resolve_stats_subcommand(parsed);
+
+        if stats_subcommand == StatsSubcommand::Pool {
+            let asset = parsed.non_option_tokens.get(2).cloned().ok_or_else(|| {
+                CliError::input(
+                    "Missing asset argument.",
+                    Some("Example: privacy-pools stats pool ETH".to_string()),
+                )
+            })?;
+            let mut loading = (!mode.is_json() && !mode.is_quiet)
+                .then(|| start_spinner("Fetching pool statistics..."));
+            let config = load_config()?;
+            let explicit_chain = parsed
+                .global_chain()
+                .unwrap_or_else(|| config.default_chain.clone());
+            let chain = resolve_chain(&explicit_chain, manifest)?;
+            let timeout_ms = parse_timeout_ms(argv);
+            let pool = resolve_pool_native(
+                &chain,
+                &asset,
+                parsed.global_rpc_url(),
+                &config,
+                manifest,
+                timeout_ms,
+            )?;
+            let response = fetch_pool_statistics(&chain, &pool.scope, timeout_ms)?;
+            let pool_stats = response.get("pool").and_then(Value::as_object);
+
+            if let Some(spinner) = loading.as_mut() {
+                spinner.stop();
+            }
+            render_pool_stats_output(
+                &mode,
+                PoolStatsRenderData {
+                    chain: chain.name,
+                    asset: pool.symbol,
+                    pool: pool.pool_address,
+                    scope: pool.scope,
+                    cache_timestamp: response
+                        .get("cacheTimestamp")
+                        .cloned()
+                        .unwrap_or(Value::Null),
+                    all_time: pool_stats
+                        .and_then(|stats| stats.get("allTime"))
+                        .cloned()
+                        .unwrap_or(Value::Null),
+                    last_24h: pool_stats
+                        .and_then(|stats| stats.get("last24h"))
+                        .cloned()
+                        .unwrap_or(Value::Null),
+                },
+            );
+
+            return Ok(0);
+        }
+
+        if parsed.global_chain().is_some() {
+            return Err(CliError::input(
+                "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
+                Some(
+                    "For chain-specific data use: privacy-pools stats pool <symbol> --chain <chain>"
+                        .to_string(),
+                ),
+            ));
+        }
+
+        let chains = default_read_only_chains(manifest);
+        let representative_chain = chains.first().ok_or_else(|| {
+            CliError::unknown(
+                "No default read-only chains configured.",
+                Some("Regenerate the native command manifest.".to_string()),
             )
         })?;
-        let mut loading = (!mode.is_json() && !mode.is_quiet)
-            .then(|| start_spinner("Fetching pool statistics..."));
-        let config = load_config()?;
-        let explicit_chain = parsed
-            .global_chain()
-            .unwrap_or_else(|| config.default_chain.clone());
-        let chain = resolve_chain(&explicit_chain, manifest)?;
-        let timeout_ms = parse_timeout_ms(argv);
-        let pool = resolve_pool_native(
-            &chain,
-            &asset,
-            parsed.global_rpc_url(),
-            &config,
-            manifest,
-            timeout_ms,
-        )?;
-        let response = fetch_pool_statistics(&chain, &pool.scope, timeout_ms)?;
-        let pool_stats = response.get("pool").and_then(Value::as_object);
+        let mut loading =
+            (!mode.is_json() && !mode.is_quiet).then(|| start_spinner("Fetching global statistics..."));
+        let response = fetch_global_statistics(representative_chain, parse_timeout_ms(argv))?;
 
         if let Some(spinner) = loading.as_mut() {
             spinner.stop();
         }
-        render_pool_stats_output(
+        render_global_stats_output(
             &mode,
-            PoolStatsRenderData {
-                chain: chain.name,
-                asset: pool.symbol,
-                pool: pool.pool_address,
-                scope: pool.scope,
+            GlobalStatsRenderData {
+                chain: "all-mainnets".to_string(),
+                chains: chains
+                    .iter()
+                    .map(|chain| chain.name.clone())
+                    .collect::<Vec<_>>(),
                 cache_timestamp: response
                     .get("cacheTimestamp")
                     .cloned()
                     .unwrap_or(Value::Null),
-                all_time: pool_stats
-                    .and_then(|stats| stats.get("allTime"))
-                    .cloned()
-                    .unwrap_or(Value::Null),
-                last_24h: pool_stats
-                    .and_then(|stats| stats.get("last24h"))
-                    .cloned()
-                    .unwrap_or(Value::Null),
+                all_time: response.get("allTime").cloned().unwrap_or(Value::Null),
+                last_24h: response.get("last24h").cloned().unwrap_or(Value::Null),
             },
         );
 
-        return Ok(0);
-    }
-
-    if parsed.global_chain().is_some() {
-        return Err(CliError::input(
-            "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
-            Some(
-                "For chain-specific data use: privacy-pools stats pool <symbol> --chain <chain>"
-                    .to_string(),
-            ),
-        ));
-    }
-
-    let chains = default_read_only_chains(manifest);
-    let representative_chain = chains.first().ok_or_else(|| {
-        CliError::unknown(
-            "No default read-only chains configured.",
-            Some("Regenerate the native command manifest.".to_string()),
-        )
-    })?;
-    let mut loading =
-        (!mode.is_json() && !mode.is_quiet).then(|| start_spinner("Fetching global statistics..."));
-    let response = fetch_global_statistics(representative_chain, parse_timeout_ms(argv))?;
-
-    if let Some(spinner) = loading.as_mut() {
-        spinner.stop();
-    }
-    render_global_stats_output(
-        &mode,
-        GlobalStatsRenderData {
-            chain: "all-mainnets".to_string(),
-            chains: chains
-                .iter()
-                .map(|chain| chain.name.clone())
-                .collect::<Vec<_>>(),
-            cache_timestamp: response
-                .get("cacheTimestamp")
-                .cloned()
-                .unwrap_or(Value::Null),
-            all_time: response.get("allTime").cloned().unwrap_or(Value::Null),
-            last_24h: response.get("last24h").cloned().unwrap_or(Value::Null),
-        },
-    );
-
-    Ok(0)
+        Ok(0)
+    })()
+    .map_err(attach_retry_action)
 }
 
 fn resolve_stats_subcommand(parsed: &ParsedRootArgv) -> StatsSubcommand {

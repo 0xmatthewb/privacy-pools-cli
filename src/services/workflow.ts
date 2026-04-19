@@ -229,6 +229,7 @@ export type FlowPhase =
 
 export type FlowWalletMode = "configured" | "new_wallet";
 export type FlowPendingSubmission = "withdraw" | "ragequit";
+export type FlowWorkflowKind = "saved_flow" | "deposit_review";
 export type { FlowPrivacyDelayProfile } from "../utils/flow-privacy-delay.js";
 
 export interface FlowWarning {
@@ -251,6 +252,10 @@ export class FlowCancelledError extends Error {
     this.name = "FlowCancelledError";
     this.reason = reason;
   }
+}
+
+function isPausedFlowPhase(phase: FlowPhase): boolean {
+  return phase === "paused_declined" || phase === "paused_poa_required";
 }
 
 function writeWorkflowNarrativeProgress(
@@ -276,6 +281,7 @@ export interface FlowLastError {
 export interface FlowSnapshot {
   schemaVersion: string;
   workflowId: string;
+  workflowKind?: FlowWorkflowKind;
   createdAt: string;
   updatedAt: string;
   phase: FlowPhase;
@@ -350,6 +356,13 @@ export interface FlowPhaseChangeEvent {
 
 interface StatusFlowParams {
   workflowId?: string;
+}
+
+interface StepFlowParams {
+  workflowId?: string;
+  globalOpts?: GlobalOptions;
+  mode: ResolvedGlobalMode;
+  isVerbose: boolean;
 }
 
 interface RagequitFlowParams {
@@ -532,6 +545,7 @@ interface ExecuteDepositForFlowParams {
 
 interface CreateInitialSnapshotParams {
   workflowId?: string;
+  workflowKind?: FlowWorkflowKind;
   walletMode?: FlowWalletMode;
   walletAddress?: Address | null;
   assetDecimals?: number | null;
@@ -545,7 +559,7 @@ interface CreateInitialSnapshotParams {
   chain: string;
   asset: string;
   depositAmount: bigint;
-  recipient: Address;
+  recipient: string;
   poolAccountNumber?: number | null;
   poolAccountId?: string | null;
   depositTxHash?: string | null;
@@ -1119,6 +1133,7 @@ export function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot 
   return {
     ...snapshot,
     schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+    workflowKind: snapshot.workflowKind ?? "saved_flow",
     walletMode: snapshot.walletMode ?? "configured",
     walletAddress: snapshot.walletAddress ?? null,
     assetDecimals: snapshot.assetDecimals ?? null,
@@ -1230,7 +1245,7 @@ const activeWorkflowOperations = new Set<string>();
 
 export async function withWorkflowOperationLock<T>(
   workflowId: string,
-  action: "watch" | "ragequit",
+  action: "watch" | "step" | "ragequit",
   fn: () => Promise<T>,
 ): Promise<T> {
   if (activeWorkflowOperations.has(workflowId)) {
@@ -2368,6 +2383,7 @@ export function createInitialSnapshot(
   return normalizeWorkflowSnapshot({
     schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
     workflowId: params.workflowId ?? randomUUID(),
+    workflowKind: params.workflowKind ?? "saved_flow",
     createdAt: now,
     updatedAt: now,
     phase: params.phase ?? "awaiting_asp",
@@ -4764,6 +4780,52 @@ export async function watchWorkflow(
     });
   };
 
+  const advanceWorkflowOnce = async (): Promise<ApprovalInspectionResult> => {
+    const snapshot = loadWorkflowSnapshot(workflowId);
+    if (isTerminalFlowPhase(snapshot.phase) || isPausedFlowPhase(snapshot.phase)) {
+      return {
+        snapshot,
+        continueWatching: false,
+      };
+    }
+
+    try {
+      return await withProcessLock(async () =>
+        inspectAndAdvanceFlow({
+          snapshot,
+          globalOpts,
+          mode,
+          isVerbose,
+        }),
+      );
+    } catch (error) {
+      if (error instanceof FlowCancelledError) {
+        throw error;
+      }
+      const latestSnapshot = loadWorkflowSnapshot(workflowId);
+      const step =
+        latestSnapshot.phase === "awaiting_funding"
+          ? "funding"
+          : latestSnapshot.phase === "depositing_publicly"
+            ? "deposit"
+            : latestSnapshot.phase === "withdrawing" ||
+                latestSnapshot.phase === "approved_ready_to_withdraw"
+              ? "withdraw"
+              : "inspect_approval";
+      const flowLastError = buildFlowLastError(step, error);
+      const errored = updateSnapshot(latestSnapshot, {
+        lastError: flowLastError,
+      });
+      try {
+        await saveWorkflowSnapshotIfChangedWithLock(latestSnapshot, errored);
+      } catch {
+        // Best effort only. Preserve the original workflow error when the
+        // workflow directory itself is the thing that is failing.
+      }
+      throw error;
+    }
+  };
+
   return withWorkflowOperationLock(workflowId, "watch", async () => {
     let delayMs = initialPollDelayMs(loadWorkflowSnapshot(workflowId).phase);
 
@@ -4817,40 +4879,15 @@ export async function watchWorkflow(
         info(privacyDelayUpdateMessage, silent);
       }
 
-      if (isTerminalFlowPhase(snapshot.phase)) {
+      if (isTerminalFlowPhase(snapshot.phase) || isPausedFlowPhase(snapshot.phase)) {
         return snapshot;
       }
 
-      let sleepMs = delayMs;
-      try {
-        throwIfWatchAborted(params.abortSignal);
-        const result = await withProcessLock(async () =>
-          inspectAndAdvanceFlow({
-            snapshot,
-            globalOpts,
-            mode,
-            isVerbose,
-          }),
-        );
+      throwIfWatchAborted(params.abortSignal);
+      const result = await advanceWorkflowOnce();
 
-        if (!result.continueWatching) {
-          await emitPhaseChange(snapshot.phase, result.snapshot);
-          // Log elapsed time for the final phase transition
-          if (previousPhase !== null && previousPhase !== result.snapshot.phase) {
-            const phaseElapsed = performance.now() - phaseEnteredAt;
-            if (phaseElapsed >= 1000 && !silent) {
-              process.stderr.write(
-                `${chalk.dim(`  ${previousPhase} completed in ${formatElapsed(Math.round(phaseElapsed))}`)}\n`,
-              );
-            }
-          }
-          return result.snapshot;
-        }
-
-        // D8: Show elapsed time when transitioning between phases.
-        if (snapshot.phase !== result.snapshot.phase) {
-          await emitPhaseChange(snapshot.phase, result.snapshot);
-        }
+      if (!result.continueWatching) {
+        await emitPhaseChange(snapshot.phase, result.snapshot);
         if (previousPhase !== null && previousPhase !== result.snapshot.phase) {
           const phaseElapsed = performance.now() - phaseEnteredAt;
           if (phaseElapsed >= 1000 && !silent) {
@@ -4858,110 +4895,127 @@ export async function watchWorkflow(
               `${chalk.dim(`  ${previousPhase} completed in ${formatElapsed(Math.round(phaseElapsed))}`)}\n`,
             );
           }
-          phaseEnteredAt = performance.now();
         }
-        previousPhase = result.snapshot.phase;
+        return result.snapshot;
+      }
 
-        if (result.snapshot.phase === "approved_ready_to_withdraw") {
-          info("ASP approval confirmed. Preparing the private withdrawal now.", silent);
-          delayMs = initialPollDelayMs(result.snapshot.phase);
-          continue;
+      if (snapshot.phase !== result.snapshot.phase) {
+        await emitPhaseChange(snapshot.phase, result.snapshot);
+      }
+      if (previousPhase !== null && previousPhase !== result.snapshot.phase) {
+        const phaseElapsed = performance.now() - phaseEnteredAt;
+        if (phaseElapsed >= 1000 && !silent) {
+          process.stderr.write(
+            `${chalk.dim(`  ${previousPhase} completed in ${formatElapsed(Math.round(phaseElapsed))}`)}\n`,
+          );
         }
+        phaseEnteredAt = performance.now();
+      }
+      previousPhase = result.snapshot.phase;
 
-        sleepMs = computeFlowWatchDelayMs(result.snapshot, delayMs);
+      const phaseChanged = result.snapshot.phase !== snapshot.phase;
+      delayMs = phaseChanged
+        ? initialPollDelayMs(result.snapshot.phase)
+        : nextPollDelayMs(delayMs, result.snapshot.phase);
 
-        if (result.snapshot.phase === "awaiting_funding" && result.snapshot.walletAddress) {
-          const fundingSummary = formatWorkflowFundingSummary(result.snapshot);
-          info(
-            fundingSummary
-              ? `Still waiting for funding at ${result.snapshot.walletAddress}. Need ${fundingSummary}. Checking again in ${humanPollDelayLabel(sleepMs)}.`
-              : `Still waiting for funding at ${result.snapshot.walletAddress}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
-            silent,
-          );
-        } else if (result.snapshot.phase === "depositing_publicly") {
-          info(
-            "Still reconciling the public deposit step. Checking again shortly.",
-            silent,
-          );
-        } else if (
-          result.snapshot.phase === "approved_waiting_privacy_delay" &&
-          result.snapshot.privacyDelayUntil
-        ) {
-          const delaySummary =
-            describeFlowPrivacyDelayDeadline(result.snapshot.privacyDelayUntil) ??
-            result.snapshot.privacyDelayUntil;
-          // D8: Show a compact countdown for the privacy delay.
-          const privDelayMs = Date.parse(result.snapshot.privacyDelayUntil);
-          const countdownLabel = Number.isFinite(privDelayMs)
-            ? formatRemainingTime(privDelayMs)
-            : null;
-          const countdownSuffix = countdownLabel && countdownLabel !== "expired"
-            ? ` Privacy delay: ${countdownLabel} remaining.`
-            : "";
-          info(
-            `ASP approval is confirmed, and this workflow is waiting until ${delaySummary} before requesting the private withdrawal.${countdownSuffix} Checking again in ${humanPollDelayLabel(sleepMs)}.`,
-            silent,
-          );
-        } else {
-          info(
-            `Still waiting for ASP approval for ${result.snapshot.poolAccountId} on ${result.snapshot.chain}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
-            silent,
-          );
-        }
-      } catch (error) {
-        if (error instanceof FlowCancelledError) {
-          throw error;
-        }
-        const latestSnapshot = loadWorkflowSnapshot(workflowId);
-        const step =
-          latestSnapshot.phase === "awaiting_funding"
-            ? "funding"
-            : latestSnapshot.phase === "depositing_publicly"
-              ? "deposit"
-              :
-          latestSnapshot.phase === "withdrawing" ||
-          latestSnapshot.phase === "approved_ready_to_withdraw"
-            ? "withdraw"
-            : "inspect_approval";
-        const flowLastError = buildFlowLastError(step, error);
-        const errored = updateSnapshot(latestSnapshot, {
-          lastError: flowLastError,
-        });
-        try {
-          await saveWorkflowSnapshotIfChangedWithLock(latestSnapshot, errored);
-        } catch {
-          // Best effort only. Preserve the original workflow error when the
-          // workflow directory itself is the thing that is failing.
-        }
-        if (flowLastError.retryable) {
-          let retrySnapshot = latestSnapshot;
-          try {
-            retrySnapshot = loadWorkflowSnapshot(workflowId);
-          } catch {
-            // Fall back to the in-memory snapshot when the saved workflow cannot
-            // be reloaded yet.
-          }
-          const retrySleepMs = computeFlowWatchDelayMs(
-            retrySnapshot,
-            nextPollDelayMs(delayMs, retrySnapshot.phase),
-          );
-          warn(
-            `Temporary issue while resuming this workflow: ${flowLastError.errorMessage} Retrying in ${humanPollDelayLabel(retrySleepMs)}.`,
-            silent,
-          );
-          if (retrySleepMs > 0) {
-            await sleep(retrySleepMs, params.abortSignal);
-          }
-          delayMs = retrySleepMs;
-          continue;
-        }
-        throw error;
+      if (result.snapshot.phase === "approved_ready_to_withdraw") {
+        info("ASP approval confirmed. Preparing the private withdrawal now.", silent);
+        continue;
+      }
+
+      const sleepMs = computeFlowWatchDelayMs(result.snapshot, delayMs);
+
+      if (result.snapshot.phase === "awaiting_funding" && result.snapshot.walletAddress) {
+        const fundingSummary = formatWorkflowFundingSummary(result.snapshot);
+        info(
+          fundingSummary
+            ? `Still waiting for funding at ${result.snapshot.walletAddress}. Need ${fundingSummary}. Checking again in ${humanPollDelayLabel(sleepMs)}.`
+            : `Still waiting for funding at ${result.snapshot.walletAddress}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+          silent,
+        );
+      } else if (result.snapshot.phase === "depositing_publicly") {
+        info(
+          "Still reconciling the public deposit step. Checking again shortly.",
+          silent,
+        );
+      } else if (
+        result.snapshot.phase === "approved_waiting_privacy_delay" &&
+        result.snapshot.privacyDelayUntil
+      ) {
+        const delaySummary =
+          describeFlowPrivacyDelayDeadline(result.snapshot.privacyDelayUntil) ??
+          result.snapshot.privacyDelayUntil;
+        const privDelayMs = Date.parse(result.snapshot.privacyDelayUntil);
+        const countdownLabel = Number.isFinite(privDelayMs)
+          ? formatRemainingTime(privDelayMs)
+          : null;
+        const countdownSuffix = countdownLabel && countdownLabel !== "expired"
+          ? ` Privacy delay: ${countdownLabel} remaining.`
+          : "";
+        info(
+          `ASP approval is confirmed, and this workflow is waiting until ${delaySummary} before requesting the private withdrawal.${countdownSuffix} Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+          silent,
+        );
+      } else {
+        info(
+          `Still waiting for ASP approval for ${result.snapshot.poolAccountId} on ${result.snapshot.chain}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+          silent,
+        );
       }
 
       if (sleepMs > 0) {
         await sleep(sleepMs, params.abortSignal);
       }
-      delayMs = nextPollDelayMs(delayMs, loadWorkflowSnapshot(workflowId).phase);
+    }
+  });
+}
+
+export async function stepWorkflow(
+  params: StepFlowParams,
+): Promise<FlowSnapshot> {
+  const workflowId = resolveWorkflowId(params.workflowId);
+  return withWorkflowOperationLock(workflowId, "step", async () => {
+    const snapshot = loadWorkflowSnapshot(workflowId);
+    if (isTerminalFlowPhase(snapshot.phase) || isPausedFlowPhase(snapshot.phase)) {
+      return snapshot;
+    }
+
+    try {
+      const result = await withProcessLock(async () =>
+        inspectAndAdvanceFlow({
+          snapshot,
+          globalOpts: params.globalOpts,
+          mode: params.mode,
+          isVerbose: params.isVerbose,
+        }),
+      );
+
+      return result.snapshot;
+    } catch (error) {
+      if (error instanceof FlowCancelledError) {
+        throw error;
+      }
+      const latestSnapshot = loadWorkflowSnapshot(workflowId);
+      const step =
+        latestSnapshot.phase === "awaiting_funding"
+          ? "funding"
+          : latestSnapshot.phase === "depositing_publicly"
+            ? "deposit"
+            : latestSnapshot.phase === "withdrawing" ||
+                latestSnapshot.phase === "approved_ready_to_withdraw"
+              ? "withdraw"
+              : "inspect_approval";
+      const flowLastError = buildFlowLastError(step, error);
+      const errored = updateSnapshot(latestSnapshot, {
+        lastError: flowLastError,
+      });
+      try {
+        await saveWorkflowSnapshotIfChangedWithLock(latestSnapshot, errored);
+      } catch {
+        // Best effort only. Preserve the original workflow error when the
+        // workflow directory itself is the thing that is failing.
+      }
+      throw error;
     }
   });
 }

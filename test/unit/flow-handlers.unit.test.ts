@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
+import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import {
   captureModuleExports,
   installModuleMocks,
@@ -85,6 +86,12 @@ const ragequitSnapshot = {
   workflowId: "wf-ragequit",
   phase: "completed_public_recovery",
 };
+const watchLoopStartSnapshot = {
+  workflowId: "wf-watch",
+  phase: "awaiting_asp",
+  chain: "sepolia",
+  asset: "ETH",
+};
 class MockFlowCancelledError extends Error {
   reason: "cancelled" | "detached";
 
@@ -107,9 +114,13 @@ const renderFlowPhaseChangeEventMock = mock(
 );
 const startWorkflowMock = mock(async () => startSnapshot);
 const watchWorkflowMock = mock(async () => watchSnapshot);
+const stepWorkflowMock = mock(async () => watchSnapshot);
 const getWorkflowStatusMock = mock(() => statusSnapshot);
 const ragequitWorkflowMock = mock(async () => ragequitSnapshot);
 const listSavedWorkflowIdsMock = mock(() => ["wf-latest"]);
+const saveWorkflowSnapshotIfChangedWithLockMock = mock(
+  async (_current: unknown, next: unknown) => next,
+);
 const validateWorkflowWalletBackupPathMock = mock((filePath: string) => filePath);
 const loadConfigMock = mock(() => ({ defaultChain: "sepolia", rpcOverrides: {} }));
 const resolvePoolMock = mock(async () => ({
@@ -152,6 +163,7 @@ let handleFlowRootCommand: typeof import("../../src/commands/flow.ts").handleFlo
 let handleFlowStartCommand: typeof import("../../src/commands/flow.ts").handleFlowStartCommand;
 let handleFlowWatchCommand: typeof import("../../src/commands/flow.ts").handleFlowWatchCommand;
 let handleFlowStatusCommand: typeof import("../../src/commands/flow.ts").handleFlowStatusCommand;
+let handleFlowStepCommand: typeof import("../../src/commands/flow.ts").handleFlowStepCommand;
 let handleFlowRagequitCommand: typeof import("../../src/commands/flow.ts").handleFlowRagequitCommand;
 
 async function loadFlowHandlers(): Promise<void> {
@@ -177,6 +189,8 @@ async function loadFlowHandlers(): Promise<void> {
       getWorkflowStatus: getWorkflowStatusMock,
       listSavedWorkflowIds: listSavedWorkflowIdsMock,
       ragequitWorkflow: ragequitWorkflowMock,
+      saveWorkflowSnapshotIfChangedWithLock: saveWorkflowSnapshotIfChangedWithLockMock,
+      stepWorkflow: stepWorkflowMock,
       startWorkflow: startWorkflowMock,
       validateWorkflowWalletBackupPath: validateWorkflowWalletBackupPathMock,
       watchWorkflow: watchWorkflowMock,
@@ -238,6 +252,7 @@ async function loadFlowHandlers(): Promise<void> {
     handleFlowStartCommand,
     handleFlowWatchCommand,
     handleFlowStatusCommand,
+    handleFlowStepCommand,
     handleFlowRagequitCommand,
   } = flowModule);
 }
@@ -270,6 +285,7 @@ async function captureStdoutAsync(run: () => Promise<void>): Promise<string> {
 }
 
 function clearMockCalls(fn: {
+  mockReset?: () => unknown;
   mock?: {
     calls?: unknown[];
     results?: unknown[];
@@ -277,6 +293,10 @@ function clearMockCalls(fn: {
     instances?: unknown[];
   };
 }): void {
+  if (typeof fn.mockReset === "function") {
+    fn.mockReset();
+    return;
+  }
   fn.mock?.calls?.splice(0);
   fn.mock?.results?.splice(0);
   fn.mock?.contexts?.splice(0);
@@ -299,9 +319,11 @@ describe("flow command handlers", () => {
     clearMockCalls(renderFlowPhaseChangeEventMock);
     clearMockCalls(startWorkflowMock);
     clearMockCalls(watchWorkflowMock);
+    clearMockCalls(stepWorkflowMock);
     clearMockCalls(getWorkflowStatusMock);
     clearMockCalls(ragequitWorkflowMock);
     clearMockCalls(listSavedWorkflowIdsMock);
+    clearMockCalls(saveWorkflowSnapshotIfChangedWithLockMock);
     clearMockCalls(validateWorkflowWalletBackupPathMock);
     clearMockCalls(loadConfigMock);
     clearMockCalls(resolvePoolMock);
@@ -320,12 +342,20 @@ describe("flow command handlers", () => {
     clearMockCalls(ensurePromptInteractionAvailableMock);
 
     formatFlowRagequitReviewMock.mockImplementation(() => "review");
+    createOutputContextMock.mockImplementation(() => ctx);
     renderFlowStartDryRunMock.mockImplementation(() => undefined);
+    renderFlowResultMock.mockImplementation(() => undefined);
+    renderFlowPhaseChangeEventMock.mockImplementation(
+      (event: Parameters<typeof realFlowOutput.renderFlowPhaseChangeEvent>[0]) =>
+        realFlowOutput.renderFlowPhaseChangeEvent(event),
+    );
     startWorkflowMock.mockImplementation(async () => startSnapshot);
     watchWorkflowMock.mockImplementation(async () => watchSnapshot);
+    stepWorkflowMock.mockImplementation(async () => watchSnapshot);
     getWorkflowStatusMock.mockImplementation(() => statusSnapshot);
     ragequitWorkflowMock.mockImplementation(async () => ragequitSnapshot);
     listSavedWorkflowIdsMock.mockImplementation(() => ["wf-latest"]);
+    saveWorkflowSnapshotIfChangedWithLockMock.mockImplementation(async (_current, next) => next);
     validateWorkflowWalletBackupPathMock.mockImplementation((filePath: string) => filePath);
     loadConfigMock.mockImplementation(() => ({ defaultChain: "sepolia", rpcOverrides: {} }));
     resolvePoolMock.mockImplementation(async () => ({
@@ -348,6 +378,17 @@ describe("flow command handlers", () => {
     resolveSafeRecipientAddressOrEnsMock.mockImplementation(
       realRecipientSafety.resolveSafeRecipientAddressOrEns,
     );
+    resolveGlobalModeMock.mockImplementation((globalOpts: Record<string, unknown> = {}) => ({
+      isAgent: Boolean(globalOpts.agent),
+      isJson: Boolean(globalOpts.json || globalOpts.agent),
+      isCsv: false,
+      isWide: false,
+      isQuiet: Boolean(globalOpts.quiet || globalOpts.agent),
+      format: globalOpts.json || globalOpts.agent ? "json" : "table",
+      skipPrompts: Boolean(globalOpts.json || globalOpts.agent || globalOpts.yes),
+    }));
+    printErrorMock.mockImplementation(() => undefined);
+    infoMock.mockImplementation(() => undefined);
     maybeRenderPreviewScenarioMock.mockImplementation(async () => false);
     maybeRecoverMissingWalletSetupMock.mockImplementation(async () => false);
     confirmActionWithSeverityMock.mockImplementation(async () => true);
@@ -372,7 +413,7 @@ describe("flow command handlers", () => {
       "INPUT_MISSING_FLOW_SUBCOMMAND",
     );
     expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
-      "Use a flow subcommand in non-interactive mode: start, watch, status, or ragequit.",
+      "Use a flow subcommand in non-interactive mode: start, watch, status, step, or ragequit.",
     );
     expect(isJson).toBe(true);
     expect(selectPromptMock).not.toHaveBeenCalled();
@@ -408,15 +449,27 @@ describe("flow command handlers", () => {
       .mockImplementationOnce(async () => "watch")
       .mockImplementationOnce(async () => "status")
       .mockImplementationOnce(async () => "ragequit");
+    getWorkflowStatusMock
+      .mockImplementationOnce(() => ({
+        ...watchLoopStartSnapshot,
+        workflowId: "wf-latest",
+      }))
+      .mockImplementationOnce(() => statusSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => ({
+      ...watchSnapshot,
+      workflowId: "wf-latest",
+    }));
 
     await handleFlowRootCommand({}, fakeCommand({}));
     await handleFlowRootCommand({}, fakeCommand({}));
     await handleFlowRootCommand({}, fakeCommand({}));
 
-    expect(watchWorkflowMock).toHaveBeenCalledWith(
+    expect(getWorkflowStatusMock).toHaveBeenCalledWith(
       expect.objectContaining({ workflowId: "latest" }),
     );
-    expect(getWorkflowStatusMock).toHaveBeenCalledWith({ workflowId: "latest" });
+    expect(stepWorkflowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ workflowId: "wf-latest" }),
+    );
     expect(ragequitWorkflowMock).toHaveBeenCalledWith(
       expect.objectContaining({ workflowId: "latest" }),
     );
@@ -440,6 +493,16 @@ describe("flow command handlers", () => {
 
   test("start forwards workflow options and renders the result", async () => {
     const cmd = fakeCommand({ chain: "sepolia", json: true, verbose: true });
+    const watchedSnapshot = { workflowId: "wf-start", phase: "completed" };
+    getWorkflowStatusMock
+      .mockImplementationOnce(() => statusSnapshot)
+      .mockImplementationOnce(() => ({
+        ...watchLoopStartSnapshot,
+        workflowId: "wf-start",
+        privacyDelayProfile: "aggressive",
+        privacyDelayConfigured: true,
+      }));
+    stepWorkflowMock.mockImplementationOnce(async () => watchedSnapshot);
 
     await handleFlowStartCommand(
       "0.1",
@@ -464,12 +527,12 @@ describe("flow command handlers", () => {
         exportNewWallet: "/tmp/flow-wallet.txt",
         globalOpts: expect.objectContaining({ chain: "sepolia", json: true }),
         isVerbose: true,
-        watch: true,
+        watch: false,
       }),
     );
     expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
-      action: "start",
-      snapshot: startSnapshot,
+      action: "watch",
+      snapshot: watchedSnapshot,
       extraWarnings: [
         expect.objectContaining({
           code: "recipient_new_to_profile",
@@ -756,6 +819,32 @@ describe("flow command handlers", () => {
     );
   });
 
+  test("start rejects --watch in agent mode with structured nextActions", async () => {
+    const cmd = fakeCommand({ agent: true });
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      {
+        to: "0x4444444444444444444444444444444444444444",
+        watch: true,
+      },
+      cmd,
+    );
+
+    expect(startWorkflowMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).code).toBe(
+      "INPUT_AGENT_FLOW_WATCH_UNSUPPORTED",
+    );
+    expect(
+      (error as InstanceType<typeof realErrors.CLIError>).extra?.nextActions,
+    ).toHaveLength(2);
+    expect(isJson).toBe(true);
+  });
+
   test("JSON mode converts flow cancellation into a structured INPUT error", async () => {
     startWorkflowMock.mockImplementationOnce(async () => {
       throw new MockFlowCancelledError("Flow cancelled.");
@@ -841,20 +930,49 @@ describe("flow command handlers", () => {
 
   test("watch delegates to the workflow service and renders the snapshot", async () => {
     const cmd = fakeCommand({ chain: "sepolia" });
+    const initialSnapshot = {
+      ...watchLoopStartSnapshot,
+      privacyDelayProfile: "off",
+      privacyDelayConfigured: true,
+    };
+    const finalSnapshot = { ...watchSnapshot, chain: "sepolia", asset: "ETH" };
+    getWorkflowStatusMock.mockImplementationOnce(() => initialSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => finalSnapshot);
 
     await handleFlowWatchCommand("wf-watch", { privacyDelay: "off" }, cmd);
 
-    expect(watchWorkflowMock).toHaveBeenCalledWith(
+    expect(getWorkflowStatusMock).toHaveBeenCalledWith(
       expect.objectContaining({
         workflowId: "wf-watch",
-        privacyDelayProfile: "off",
+      }),
+    );
+    expect(stepWorkflowMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowId: "wf-watch",
         globalOpts: expect.objectContaining({ chain: "sepolia" }),
       }),
     );
     expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
       action: "watch",
-      snapshot: watchSnapshot,
+      snapshot: finalSnapshot,
     });
+  });
+
+  test("watch rejects agent mode with status and step guidance", async () => {
+    await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ agent: true }));
+
+    expect(getWorkflowStatusMock).not.toHaveBeenCalled();
+    expect(stepWorkflowMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).code).toBe(
+      "INPUT_AGENT_FLOW_WATCH_UNSUPPORTED",
+    );
+    expect(
+      (error as InstanceType<typeof realErrors.CLIError>).extra?.nextActions,
+    ).toHaveLength(2);
+    expect(isJson).toBe(true);
   });
 
   test("watch emits JSONL phase events before the final success envelope in JSON mode", async () => {
@@ -877,22 +995,15 @@ describe("flow command handlers", () => {
       withdrawBlockNumber: "12345",
       withdrawExplorerUrl: "https://example.test/withdraw",
     } as const;
-    watchWorkflowMock.mockImplementationOnce(async (params: {
-      onPhaseChange?: (event: {
-        workflowId: string;
-        previousPhase: string;
-        phase: string;
-        ts: string;
-      }) => void | Promise<void>;
-    }) => {
-      await params.onPhaseChange?.({
-        workflowId: "wf-watch",
-        previousPhase: "awaiting_asp",
-        phase: "completed",
-        ts: "2026-04-15T12:00:00.000Z",
-      });
-      return jsonWatchSnapshot;
-    });
+    getWorkflowStatusMock.mockImplementationOnce(() => ({
+      ...jsonWatchSnapshot,
+      phase: "awaiting_asp",
+      updatedAt: "2026-04-15T11:30:00.000Z",
+      withdrawTxHash: undefined,
+      withdrawBlockNumber: undefined,
+      withdrawExplorerUrl: undefined,
+    }));
+    stepWorkflowMock.mockImplementationOnce(async () => jsonWatchSnapshot);
     renderFlowResultMock.mockImplementationOnce((_ctx, data) =>
       realFlowOutput.renderFlowResult(
         {
@@ -922,6 +1033,7 @@ describe("flow command handlers", () => {
     const lines = stdout.trim().split("\n");
     expect(lines).toHaveLength(2);
     expect(JSON.parse(lines[0]!)).toMatchObject({
+      schemaVersion: JSON_SCHEMA_VERSION,
       success: true,
       mode: "flow",
       action: "watch",
@@ -929,8 +1041,8 @@ describe("flow command handlers", () => {
       workflowId: "wf-watch",
       previousPhase: "awaiting_asp",
       phase: "completed",
-      ts: "2026-04-15T12:00:00.000Z",
     });
+    expect(typeof JSON.parse(lines[0]!).ts).toBe("string");
     expect(JSON.parse(lines[1]!)).toMatchObject({
       success: true,
       mode: "flow",
@@ -947,7 +1059,8 @@ describe("flow command handlers", () => {
 
   test("watch suppresses errors after wallet setup recovery succeeds", async () => {
     const boom = new Error("missing wallet");
-    watchWorkflowMock.mockImplementationOnce(async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => watchLoopStartSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => {
       throw boom;
     });
     maybeRecoverMissingWalletSetupMock.mockImplementationOnce(async () => true);
@@ -962,7 +1075,8 @@ describe("flow command handlers", () => {
   });
 
   test("watch converts flow cancellation into a structured INPUT error in JSON mode", async () => {
-    watchWorkflowMock.mockImplementationOnce(async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => watchLoopStartSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => {
       throw new MockFlowCancelledError("Flow cancelled.");
     });
 
@@ -979,7 +1093,8 @@ describe("flow command handlers", () => {
   });
 
   test("watch reports flow cancellation without printing an error in human mode", async () => {
-    watchWorkflowMock.mockImplementationOnce(async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => watchLoopStartSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => {
       throw new MockFlowCancelledError("Flow cancelled.");
     });
 
@@ -991,7 +1106,8 @@ describe("flow command handlers", () => {
   });
 
   test("watch reports detach without printing an error in human mode", async () => {
-    watchWorkflowMock.mockImplementationOnce(async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => watchLoopStartSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => {
       throw new MockFlowCancelledError("Flow watch detached.", "detached");
     });
 
@@ -1007,7 +1123,8 @@ describe("flow command handlers", () => {
 
   test("watch forwards non-cancellation failures to printError", async () => {
     const boom = new Error("watch exploded");
-    watchWorkflowMock.mockImplementationOnce(async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => watchLoopStartSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => {
       throw boom;
     });
 
@@ -1024,19 +1141,23 @@ describe("flow command handlers", () => {
       "Re-run 'privacy-pools flow watch' to generate a fresh proof.",
       "PROOF_VERIFICATION_FAILED",
     );
-    watchWorkflowMock.mockImplementationOnce(async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => watchLoopStartSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => {
       throw proofError;
     });
 
     await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true }));
 
     expect(renderFlowResultMock).not.toHaveBeenCalled();
-    expect(getWorkflowStatusMock).not.toHaveBeenCalled();
+    expect(getWorkflowStatusMock).toHaveBeenCalledTimes(1);
     expect(printErrorMock).toHaveBeenCalledWith(proofError, true);
   });
 
   test("watch re-renders the saved snapshot when the relayer minimum blocks the private path", async () => {
-    watchWorkflowMock.mockImplementationOnce(async () => {
+    getWorkflowStatusMock
+      .mockImplementationOnce(() => watchLoopStartSnapshot)
+      .mockImplementationOnce(() => statusSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => {
       throw new realErrors.CLIError(
         "Workflow amount is below the relayer minimum of 0.01 ETH.",
         "RELAYER",
@@ -1047,7 +1168,7 @@ describe("flow command handlers", () => {
 
     await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true }));
 
-    expect(getWorkflowStatusMock).toHaveBeenCalledWith({ workflowId: "wf-watch" });
+    expect(getWorkflowStatusMock).toHaveBeenCalledTimes(2);
     expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
       action: "watch",
       snapshot: statusSnapshot,
@@ -1062,7 +1183,8 @@ describe("flow command handlers", () => {
       "Use flow ragequit.",
       "FLOW_RELAYER_MINIMUM_BLOCKED",
     );
-    watchWorkflowMock.mockImplementationOnce(async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => watchLoopStartSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => {
       throw blocked;
     });
     getWorkflowStatusMock.mockImplementationOnce(() => {
@@ -1093,6 +1215,38 @@ describe("flow command handlers", () => {
     });
 
     await handleFlowStatusCommand("wf-status", undefined, fakeCommand({ json: true }));
+
+    expect(renderFlowResultMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledWith(boom, true);
+    expect(maybeRecoverMissingWalletSetupMock).not.toHaveBeenCalled();
+  });
+
+  test("step delegates to the workflow service and renders the step action", async () => {
+    const cmd = fakeCommand({ chain: "sepolia", json: true });
+    const steppedSnapshot = { workflowId: "wf-step", phase: "awaiting_asp" };
+    stepWorkflowMock.mockImplementationOnce(async () => steppedSnapshot);
+
+    await handleFlowStepCommand("wf-step", undefined, cmd);
+
+    expect(stepWorkflowMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowId: "wf-step",
+        globalOpts: expect.objectContaining({ chain: "sepolia", json: true }),
+      }),
+    );
+    expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
+      action: "step",
+      snapshot: steppedSnapshot,
+    });
+  });
+
+  test("step forwards failures through printError", async () => {
+    const boom = new Error("step exploded");
+    stepWorkflowMock.mockImplementationOnce(async () => {
+      throw boom;
+    });
+
+    await handleFlowStepCommand("wf-step", undefined, fakeCommand({ json: true }));
 
     expect(renderFlowResultMock).not.toHaveBeenCalled();
     expect(printErrorMock).toHaveBeenCalledWith(boom, true);

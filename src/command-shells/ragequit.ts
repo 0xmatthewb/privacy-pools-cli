@@ -24,6 +24,10 @@ export function createRagequitCommand(): Command {
     )
     .option("--dry-run", "Generate proof and validate without submitting")
     .option(
+      "--no-wait",
+      "Return after submission instead of waiting for confirmation",
+    )
+    .option(
       "--confirm-ragequit",
       "Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address",
     )

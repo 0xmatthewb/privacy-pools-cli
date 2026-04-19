@@ -26,6 +26,7 @@ export const GENERATED_COMMAND_PATHS = [
   "flow start",
   "flow watch",
   "flow status",
+  "flow step",
   "flow ragequit",
   "pools",
   "activity",
@@ -33,6 +34,7 @@ export const GENERATED_COMMAND_PATHS = [
   "stats global",
   "stats pool",
   "status",
+  "tx-status",
   "capabilities",
   "describe",
   "guide",
@@ -180,6 +182,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
       "help"
     ]
   },
+  "flow step": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
   "flow ragequit": {
     "owner": "js-runtime",
     "nativeModes": [
@@ -234,6 +242,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "status": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "tx-status": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -444,6 +458,13 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     ]
   },
   {
+    "route": "flow step",
+    "tokens": [
+      "flow",
+      "step"
+    ]
+  },
+  {
     "route": "flow ragequit",
     "tokens": [
       "flow",
@@ -551,6 +572,12 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "route": "status",
     "tokens": [
       "status"
+    ]
+  },
+  {
+    "route": "tx-status",
+    "tokens": [
+      "tx-status"
     ]
   },
   {

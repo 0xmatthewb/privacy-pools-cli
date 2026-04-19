@@ -44,17 +44,28 @@ export interface SyncResult {
  */
 export function renderSyncEmpty(ctx: OutputContext, chain: string): void {
   guardCsvUnsupported(ctx, "sync");
+  const agentNextActions = [
+    createNextAction("pools", "Browse pools before making your first deposit.", "after_sync", {
+      options: { agent: true, chain },
+    }),
+  ];
+  const humanNextActions = [
+    createNextAction("pools", "Browse pools before making your first deposit.", "after_sync", {
+      options: { chain },
+    }),
+  ];
 
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       chain,
       syncedPools: 0,
       availablePoolAccounts: 0,
-    });
+    }, agentNextActions));
     return;
   }
 
   info(`No synced Pool Accounts are available on ${chain} yet.`, isSilent(ctx));
+  renderNextSteps(ctx, humanNextActions);
 }
 
 /**

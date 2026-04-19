@@ -1,3 +1,5 @@
+use serde_json::Value;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 // Keep the full CLI error taxonomy mirrored here even though the current
 // native shell only constructs a subset of these categories today.
@@ -67,6 +69,7 @@ pub struct CliError {
     pub message: String,
     pub hint: Option<String>,
     pub retryable: bool,
+    pub next_actions: Vec<Value>,
     pub docs_slug: Option<String>,
     pub help_topic: Option<String>,
     pub presentation: ErrorPresentation,
@@ -87,6 +90,7 @@ impl CliError {
             message: message.into(),
             hint,
             retryable,
+            next_actions: Vec::new(),
             docs_slug: None,
             help_topic: None,
             presentation: default_error_presentation(category),
@@ -128,6 +132,11 @@ impl CliError {
 
     pub fn with_docs_slug(mut self, docs_slug: impl Into<String>) -> Self {
         self.docs_slug = Some(docs_slug.into());
+        self
+    }
+
+    pub fn with_next_actions(mut self, next_actions: Vec<Value>) -> Self {
+        self.next_actions = next_actions;
         self
     }
 }

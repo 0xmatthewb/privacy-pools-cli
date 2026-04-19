@@ -6,7 +6,14 @@
 
 import chalk from "chalk";
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, isSilent, guardCsvUnsupported } from "./common.js";
+import {
+  appendNextActions,
+  createNextAction,
+  guardCsvUnsupported,
+  isSilent,
+  printJsonSuccess,
+  renderNextSteps,
+} from "./common.js";
 import { formatReviewSurface } from "./review.js";
 import type {
   CompletionInstallPlan,
@@ -26,11 +33,18 @@ export function renderCompletionScript(
   script: string,
 ): void {
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       mode: "completion-script",
       shell,
       completionScript: script,
-    });
+    }, [
+      createNextAction(
+        "completion",
+        "Use the managed installer instead of wiring the script by hand if you want the CLI to update shell config automatically.",
+        "after_completion",
+        { options: { agent: true, install: true } },
+      ),
+    ]));
     return;
   }
 
@@ -41,6 +55,14 @@ export function renderCompletionScript(
       chalk.dim("# Pipe to your shell config or eval to enable completions.\n"),
     );
   }
+  renderNextSteps(ctx, [
+    createNextAction(
+      "completion",
+      "Use the managed installer instead if you want the CLI to update shell config automatically.",
+      "after_completion",
+      { options: { install: true } },
+    ),
+  ]);
 }
 
 /**
@@ -53,12 +75,19 @@ export function renderCompletionQuery(
   candidates: string[],
 ): void {
   if (ctx.mode.isJson) {
-    printJsonSuccess({
+    printJsonSuccess(appendNextActions({
       mode: "completion-query",
       shell,
       cword,
       candidates,
-    });
+    }, [
+      createNextAction(
+        "completion",
+        "Install managed shell completion after validating the generated candidates.",
+        "after_completion",
+        { options: { agent: true, install: true } },
+      ),
+    ]));
     return;
   }
 
@@ -131,7 +160,14 @@ export function renderCompletionInstallResult(
   result: CompletionInstallResult,
 ): void {
   if (ctx.mode.isJson) {
-    printJsonSuccess(result);
+    printJsonSuccess(appendNextActions({ ...result }, [
+      createNextAction(
+        "guide",
+        "Review the quickstart guide after enabling shell completion.",
+        "after_completion",
+        { args: ["quickstart"], options: { agent: true } },
+      ),
+    ]));
     return;
   }
 
@@ -190,4 +226,12 @@ export function renderCompletionInstallResult(
       },
     }) + "\n",
   );
+  renderNextSteps(ctx, [
+    createNextAction(
+      "guide",
+      "Review the quickstart guide after enabling shell completion.",
+      "after_completion",
+      { args: ["quickstart"] },
+    ),
+  ]);
 }

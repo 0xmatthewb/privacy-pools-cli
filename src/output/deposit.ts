@@ -162,6 +162,9 @@ export interface DepositDryRunData {
 }
 
 export interface DepositSuccessData {
+  status: "submitted" | "confirmed";
+  submissionId?: string;
+  workflowId?: string | null;
   txHash: string;
   amount: bigint;
   committedValue: bigint | undefined;
@@ -177,7 +180,7 @@ export interface DepositSuccessData {
   poolAddress: string;
   scope: bigint;
   label: bigint | undefined;
-  blockNumber: bigint;
+  blockNumber: bigint | null;
   explorerUrl: string | null;
   reconciliationRequired?: boolean;
   localStateSynced?: boolean;
@@ -310,6 +313,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     ? `re-run accounts --chain ${data.chain}`
     : "re-run accounts";
   const humanConfirmCommand = `privacy-pools accounts --chain ${data.chain}`;
+  const isSubmitted = data.status === "submitted";
   const reconciliationAction = data.reconciliationRequired
     ? [
         createNextAction(
@@ -321,7 +325,31 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       ]
     : [];
   const agentNextActions = [
+    ...(isSubmitted && data.submissionId
+      ? [
+          createNextAction(
+            "tx-status",
+            "Poll the submitted deposit until the onchain transaction confirms.",
+            "after_submit",
+            { args: [data.submissionId], options: { agent: true } },
+          ),
+        ]
+      : []),
     ...reconciliationAction,
+    ...(data.workflowId
+      ? [
+          createNextAction(
+            "flow status",
+            isSubmitted
+              ? "Track the saved deposit-review workflow after the transaction confirms."
+              : "Track ASP review through the saved deposit-review workflow.",
+            isSubmitted ? "after_submit" : "after_deposit",
+            { args: [data.workflowId], options: { agent: true } },
+          ),
+        ]
+      : []),
+    ...(!isSubmitted
+      ? [
     createNextAction(
       "accounts",
       `Poll pending review for ${data.poolAccountId}. When it disappears, ${confirmHint} to confirm whether it was approved, declined, or needs Proof of Association.`,
@@ -337,8 +365,20 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         options: { agent: true, chain: data.chain, poolAccount: data.poolAccountId },
       },
     ),
+        ]
+      : []),
   ];
   const humanNextActions = [
+    ...(isSubmitted && data.submissionId
+      ? [
+          createNextAction(
+            "tx-status",
+            "Check whether the submitted deposit has confirmed yet.",
+            "after_submit",
+            { args: [data.submissionId] },
+          ),
+        ]
+      : []),
     ...(data.reconciliationRequired
       ? [
           createNextAction(
@@ -349,6 +389,20 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
           ),
         ]
       : []),
+    ...(data.workflowId
+      ? [
+          createNextAction(
+            "flow status",
+            isSubmitted
+              ? "Track the saved deposit-review workflow after the transaction confirms."
+              : "Track ASP review through the saved deposit-review workflow.",
+            isSubmitted ? "after_submit" : "after_deposit",
+            { args: [data.workflowId] },
+          ),
+        ]
+      : []),
+    ...(!isSubmitted
+      ? [
     createNextAction(
       "accounts",
       `Poll pending review for ${data.poolAccountId}. When it disappears, re-run ${humanConfirmCommand} to confirm whether it was approved, declined, or needs Proof of Association.`,
@@ -369,6 +423,8 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         },
       },
     ),
+        ]
+      : []),
   ];
 
   if (ctx.mode.isJson) {
@@ -382,6 +438,9 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     printJsonSuccess(
       appendNextActions({
         operation: "deposit",
+        status: data.status,
+        submissionId: data.submissionId ?? null,
+        workflowId: data.workflowId ?? null,
         txHash: data.txHash,
         amount: data.amount.toString(),
         committedValue: data.committedValue?.toString() ?? null,
@@ -399,7 +458,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         poolAddress: data.poolAddress,
         scope: data.scope.toString(),
         label: data.label?.toString() ?? null,
-        blockNumber: data.blockNumber.toString(),
+        blockNumber: data.blockNumber?.toString() ?? null,
         explorerUrl: data.explorerUrl,
         reconciliationRequired: data.reconciliationRequired ?? false,
         localStateSynced: data.localStateSynced ?? true,
@@ -418,9 +477,16 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
       formatDenseOutcomeLine({
         outcome: "deposit",
         message:
-          `${data.reconciliationRequired ? "Deposit confirmed onchain; local state needs reconciliation for" : "Deposited"} ` +
+          `${isSubmitted
+            ? "Deposit submitted for"
+            : data.reconciliationRequired
+              ? "Deposit confirmed onchain; local state needs reconciliation for"
+              : "Deposited"} ` +
           `${formatAmount(data.amount, data.decimals, data.asset)} ` +
-          `-> ${data.chain} ${data.asset} pool${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
+          `-> ${data.chain} ${data.asset} pool${inlineSeparator()}${data.poolAccountId}` +
+          (data.blockNumber !== null
+            ? `${inlineSeparator()}Block ${data.blockNumber.toString()}`
+            : ""),
         url: data.explorerUrl,
       }),
     );
@@ -440,6 +506,12 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
             value: `${formatAmount(data.committedValue, data.decimals, data.asset)} (after ASP vetting fee)`,
           }]
         : []),
+      ...(data.workflowId
+        ? [{ label: "Workflow", value: data.workflowId }]
+        : []),
+      ...(data.submissionId
+        ? [{ label: "Submission", value: data.submissionId }]
+        : []),
       { label: "Tx", value: formatTxHash(data.txHash) },
       ...(data.explorerUrl
         ? [{ label: "Explorer", value: data.explorerUrl }]
@@ -455,6 +527,11 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
               "Deposit confirmed onchain, but local state needs reconciliation before you rely on the saved Pool Account state.",
               `Run privacy-pools sync --chain ${data.chain} before continuing.`,
             ]
+          : isSubmitted
+            ? [
+                "The deposit transaction was submitted and may still be pending onchain.",
+                "Use tx-status with the returned submission id to poll for confirmation without resubmitting.",
+              ]
           : [
               "Your deposit is now under Association Set Provider (ASP) review. Private withdrawal unlocks after ASP approval.",
               `${DEPOSIT_APPROVAL_TIMELINE_COPY}`,

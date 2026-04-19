@@ -25,6 +25,7 @@ const ROOT_COMMAND_NAMES = [
   "broadcast",
   "history",
   "sync",
+  "tx-status",
   "status",
   "activity",
   "stats",
@@ -65,6 +66,8 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
   history: async () =>
     (await import("./command-shells/history.js")).createHistoryCommand(),
   sync: async () => (await import("./command-shells/sync.js")).createSyncCommand(),
+  "tx-status": async () =>
+    (await import("./command-shells/tx-status.js")).createTxStatusCommand(),
   status: async () =>
     (await import("./command-shells/status.js")).createStatusCommand(),
   activity: async () =>

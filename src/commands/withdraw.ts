@@ -147,6 +147,7 @@ import {
 } from "../services/pool-roots.js";
 import { acquireProcessLock } from "../utils/lock.js";
 import { persistWithReconciliation } from "../services/persist-with-reconciliation.js";
+import { createSubmissionRecord } from "../services/submissions.js";
 import {
   buildAllPoolAccountRefs,
   buildPoolAccountRefs,
@@ -181,6 +182,7 @@ interface WithdrawCommandOptions {
   confirmDirectWithdraw?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
+  noWait?: boolean;
   all?: boolean;
   extraGas?: boolean;
 }
@@ -915,6 +917,20 @@ export async function handleWithdrawCommand(
         `Unsupported unsigned format: "${unsignedFormat}".`,
         "INPUT",
         "Use --unsigned envelope or --unsigned tx.",
+      );
+    }
+    if (opts.noWait && isDryRun) {
+      throw new CLIError(
+        "--no-wait cannot be combined with --dry-run.",
+        "INPUT",
+        "Use --dry-run to preview only, or remove --dry-run to submit without waiting for confirmation.",
+      );
+    }
+    if (opts.noWait && isUnsigned) {
+      throw new CLIError(
+        "--no-wait cannot be combined with --unsigned.",
+        "INPUT",
+        "Use --unsigned to build an offline envelope, or remove --unsigned to submit and return immediately.",
       );
     }
     if (!isQuiet && !isJson) {
@@ -2183,6 +2199,62 @@ export async function handleWithdrawCommand(
           },
         );
 
+        const directExplorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
+        if (opts.noWait) {
+          spin.succeed("Direct withdrawal submitted.");
+          const submission = createSubmissionRecord({
+            operation: "withdraw",
+            sourceCommand: "withdraw",
+            chain: chainConfig.name,
+            asset: pool.symbol,
+            poolAccountId: selectedPoolAccount.paId,
+            poolAccountNumber: selectedPoolAccount.paNumber,
+            recipient: resolvedRecipientAddress,
+            transactions: [
+              {
+                description: "Direct withdrawal",
+                txHash: tx.hash as Hex,
+              },
+            ],
+          });
+          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
+
+          const ctx = createOutputContext(mode);
+          renderWithdrawSuccess(ctx, {
+            status: "submitted",
+            submissionId: submission.submissionId,
+            withdrawMode: "direct",
+            txHash: tx.hash,
+            blockNumber: null,
+            amount: withdrawalAmount,
+            recipient: resolvedRecipientAddress,
+            asset: pool.symbol,
+            chain: chainConfig.name,
+            decimals: pool.decimals,
+            poolAccountNumber: selectedPoolAccount.paNumber,
+            poolAccountId: selectedPoolAccount.paId,
+            poolAddress: pool.pool,
+            scope: pool.scope,
+            explorerUrl: directExplorerUrl,
+            remainingBalance: selectedPoolAccount.value - withdrawalAmount,
+            tokenPrice,
+            rootMatchedAtProofTime: true,
+            reconciliationRequired: false,
+            localStateSynced: false,
+            warningCode: null,
+            anonymitySet,
+            warnings: recipientWarnings,
+          });
+          maybeLaunchBrowser({
+            globalOpts,
+            mode,
+            url: directExplorerUrl,
+            label: "withdrawal transaction",
+            silent,
+          });
+          return;
+        }
+
         spin.text = "Waiting for confirmation...";
         let receipt;
         try {
@@ -2258,7 +2330,7 @@ export async function handleWithdrawCommand(
           poolAccountId: selectedPoolAccount.paId,
           poolAddress: pool.pool,
           scope: pool.scope,
-          explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+          explorerUrl: directExplorerUrl,
           remainingBalance: selectedPoolAccount.value - withdrawalAmount,
           tokenPrice,
           rootMatchedAtProofTime: true,
@@ -2271,7 +2343,7 @@ export async function handleWithdrawCommand(
         maybeLaunchBrowser({
           globalOpts,
           mode,
-          url: explorerTxUrl(chainConfig.id, tx.hash),
+          url: directExplorerUrl,
           label: "withdrawal transaction",
           silent,
         });
@@ -2854,6 +2926,70 @@ export async function handleWithdrawCommand(
           relayerUrl: quote.relayerUrl,
         });
 
+        const relayExplorerUrl = explorerTxUrl(chainConfig.id, result.txHash);
+        if (opts.noWait) {
+          spin.succeed("Relayed withdrawal submitted.");
+          const submission = createSubmissionRecord({
+            operation: "withdraw",
+            sourceCommand: "withdraw",
+            chain: chainConfig.name,
+            asset: pool.symbol,
+            poolAccountId: selectedPoolAccount.paId,
+            poolAccountNumber: selectedPoolAccount.paNumber,
+            recipient: resolvedRecipientAddress,
+            transactions: [
+              {
+                description: "Relayed withdrawal",
+                txHash: result.txHash as Hex,
+              },
+            ],
+          });
+          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
+
+          const ctx = createOutputContext(mode);
+          renderWithdrawSuccess(ctx, {
+            status: "submitted",
+            submissionId: submission.submissionId,
+            withdrawMode: "relayed",
+            txHash: result.txHash,
+            blockNumber: null,
+            amount: withdrawalAmount,
+            recipient: resolvedRecipientAddress,
+            asset: pool.symbol,
+            chain: chainConfig.name,
+            decimals: pool.decimals,
+            poolAccountNumber: selectedPoolAccount.paNumber,
+            poolAccountId: selectedPoolAccount.paId,
+            poolAddress: pool.pool,
+            scope: pool.scope,
+            explorerUrl: relayExplorerUrl,
+            feeBPS: quote.feeBPS,
+            relayerHost: relayerHostLabel(quote.relayerUrl ?? relayerUrl),
+            quoteRefreshCount,
+            extraGas: effectiveExtraGas,
+            extraGasFundAmount: quote.detail.extraGasFundAmount
+              ? BigInt(quote.detail.extraGasFundAmount.eth)
+              : null,
+            nativeTokenPrice,
+            remainingBalance: selectedPoolAccount.value - withdrawalAmount,
+            tokenPrice,
+            rootMatchedAtProofTime: true,
+            reconciliationRequired: false,
+            localStateSynced: false,
+            warningCode: null,
+            anonymitySet,
+            warnings: recipientWarnings,
+          });
+          maybeLaunchBrowser({
+            globalOpts,
+            mode,
+            url: relayExplorerUrl,
+            label: "withdrawal transaction",
+            silent,
+          });
+          return;
+        }
+
         // Wait for onchain confirmation before updating state
         spin.text = "Waiting for relay transaction confirmation...";
         let receipt;
@@ -2930,7 +3066,7 @@ export async function handleWithdrawCommand(
           poolAccountId: selectedPoolAccount.paId,
           poolAddress: pool.pool,
           scope: pool.scope,
-          explorerUrl: explorerTxUrl(chainConfig.id, result.txHash),
+          explorerUrl: relayExplorerUrl,
           feeBPS: quote.feeBPS,
           relayerHost: relayerHostLabel(quote.relayerUrl ?? relayerUrl),
           quoteRefreshCount,
@@ -2951,7 +3087,7 @@ export async function handleWithdrawCommand(
         maybeLaunchBrowser({
           globalOpts,
           mode,
-          url: explorerTxUrl(chainConfig.id, result.txHash),
+          url: relayExplorerUrl,
           label: "withdrawal transaction",
           silent,
         });

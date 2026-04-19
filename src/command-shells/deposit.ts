@@ -20,6 +20,10 @@ export function createDepositCommand(): Command {
       "Validate and preview the transaction without submitting",
     )
     .option(
+      "--no-wait",
+      "Return after submission instead of waiting for confirmation",
+    )
+    .option(
       "--ignore-unique-amount",
       "Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint)",
     )

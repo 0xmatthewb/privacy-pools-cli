@@ -137,6 +137,8 @@ export interface RagequitDryRunData {
 }
 
 export interface RagequitSuccessData {
+  status?: "submitted" | "confirmed";
+  submissionId?: string;
   txHash: string;
   amount: bigint;
   asset: string;
@@ -146,7 +148,7 @@ export interface RagequitSuccessData {
   poolAccountId: string;
   poolAddress: string;
   scope: bigint;
-  blockNumber: bigint;
+  blockNumber: bigint | null;
   explorerUrl: string | null;
   destinationAddress: string | null;
   advisory?: string | null;
@@ -284,8 +286,19 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
  */
 export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessData): void {
   guardCsvUnsupported(ctx, "ragequit");
+  const isSubmitted = data.status === "submitted";
 
   const agentNextActions = [
+    ...(isSubmitted && data.submissionId
+      ? [
+          createNextAction(
+            "tx-status",
+            "Poll the submitted public recovery until the onchain transaction confirms.",
+            "after_submit",
+            { args: [data.submissionId], options: { agent: true } },
+          ),
+        ]
+      : []),
     ...(data.reconciliationRequired
       ? [
           createNextAction(
@@ -296,14 +309,28 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
           ),
         ]
       : []),
-    createNextAction(
-      "accounts",
-      `Verify the account status for ${data.poolAccountId} after ragequit.`,
-      "after_ragequit",
-      { options: { agent: true, chain: data.chain } },
-    ),
+    ...(!isSubmitted
+      ? [
+          createNextAction(
+            "accounts",
+            `Verify the account status for ${data.poolAccountId} after ragequit.`,
+            "after_ragequit",
+            { options: { agent: true, chain: data.chain } },
+          ),
+        ]
+      : []),
   ];
   const humanNextActions = [
+    ...(isSubmitted && data.submissionId
+      ? [
+          createNextAction(
+            "tx-status",
+            "Check whether the submitted public recovery has confirmed yet.",
+            "after_submit",
+            { args: [data.submissionId] },
+          ),
+        ]
+      : []),
     ...(data.reconciliationRequired
       ? [
           createNextAction(
@@ -314,12 +341,16 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
           ),
         ]
       : []),
-    createNextAction(
-      "accounts",
-      `Verify the account status for ${data.poolAccountId}.`,
-      "after_ragequit",
-      { options: data.chain ? { chain: data.chain } : undefined },
-    ),
+    ...(!isSubmitted
+      ? [
+          createNextAction(
+            "accounts",
+            `Verify the account status for ${data.poolAccountId}.`,
+            "after_ragequit",
+            { options: data.chain ? { chain: data.chain } : undefined },
+          ),
+        ]
+      : []),
   ];
 
   if (ctx.mode.isJson) {
@@ -333,6 +364,8 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
     printJsonSuccess(
       appendNextActions({
         operation: "ragequit",
+        status: data.status ?? "confirmed",
+        submissionId: data.submissionId ?? null,
         txHash: data.txHash,
         amount: data.amount.toString(),
         asset: data.asset,
@@ -341,7 +374,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         poolAccountId: data.poolAccountId,
         poolAddress: data.poolAddress,
         scope: data.scope.toString(),
-        blockNumber: data.blockNumber.toString(),
+        blockNumber: data.blockNumber?.toString() ?? null,
         explorerUrl: data.explorerUrl,
         destinationAddress: data.destinationAddress,
         remainingBalance: "0",
@@ -367,8 +400,15 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
       formatDenseOutcomeLine({
         outcome: "recovery",
         message:
-          `${data.reconciliationRequired ? "Ragequit confirmed onchain; local state needs reconciliation for" : "Ragequit"} ${formatAmount(data.amount, data.decimals, data.asset)} ` +
-          `-> ${destinationLabel}${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
+          `${isSubmitted
+            ? "Ragequit submitted for"
+            : data.reconciliationRequired
+              ? "Ragequit confirmed onchain; local state needs reconciliation for"
+              : "Ragequit"} ${formatAmount(data.amount, data.decimals, data.asset)} ` +
+          `-> ${destinationLabel}${inlineSeparator()}${data.poolAccountId}` +
+          (data.blockNumber !== null
+            ? `${inlineSeparator()}Block ${data.blockNumber.toString()}`
+            : ""),
         url: data.explorerUrl,
       }),
     );
@@ -394,6 +434,9 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
               return amountUsd === "-" ? "" : ` (${amountUsd})`;
             })(),
         },
+        ...(data.submissionId
+          ? [{ label: "Submission", value: data.submissionId }]
+          : []),
         { label: "Tx", value: formatTxHash(data.txHash) },
         ...(data.explorerUrl
           ? [{ label: "Explorer", value: data.explorerUrl }]
@@ -408,8 +451,15 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
     );
     process.stderr.write(
       formatCallout(
-        data.reconciliationRequired ? "warning" : "recovery",
-        data.reconciliationRequired
+        isSubmitted
+          ? "warning"
+          : data.reconciliationRequired ? "warning" : "recovery",
+        isSubmitted
+          ? [
+              "The public recovery transaction was submitted and may still be pending onchain.",
+              "Use tx-status with the returned submission id to poll for confirmation without resubmitting.",
+            ]
+          : data.reconciliationRequired
           ? [
               "Ragequit confirmed onchain, but local state needs reconciliation before you rely on the saved account status.",
               `Run privacy-pools sync --chain ${data.chain} before continuing.`,

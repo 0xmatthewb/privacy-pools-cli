@@ -152,6 +152,24 @@ export function renderMigrationStatus(
       websiteRecoveryChainIds: result.websiteRecoveryChainIds,
       unresolvedChainIds: result.unresolvedChainIds,
       chainReadiness: result.chainReadiness,
+      ...(result.status === "migration_required"
+        ? {
+            externalGuidance: {
+              kind: "website_migration",
+              message: "Legacy deposits must be migrated in the Privacy Pools website before the CLI can use them.",
+              url: "https://privacypools.com",
+            },
+          }
+        : {}),
+      ...(result.status === "website_recovery_required"
+        ? {
+            externalGuidance: {
+              kind: "website_recovery",
+              message: "Legacy declined deposits require website-based public recovery.",
+              url: "https://privacypools.com",
+            },
+          }
+        : {}),
       nextActions,
     });
     return;

@@ -122,8 +122,13 @@ describe("flow command", () => {
       phase: "awaiting_funding",
       expectedNextActions: [
         {
-          command: "flow watch",
+          command: "flow status",
           reasonContains: "Fund the dedicated workflow wallet",
+          when: "flow_resume",
+        },
+        {
+          command: "flow step",
+          reasonContains: "Attempt the next saved-workflow step",
           when: "flow_resume",
         },
       ],
@@ -137,8 +142,13 @@ describe("flow command", () => {
       phase: "depositing_publicly",
       expectedNextActions: [
         {
-          command: "flow watch",
-          reasonContains: "continue toward the private withdrawal",
+          command: "flow status",
+          reasonContains: "public deposit confirms",
+          when: "flow_resume",
+        },
+        {
+          command: "flow step",
+          reasonContains: "Advance the saved workflow one unit of work",
           when: "flow_resume",
         },
       ],
@@ -152,8 +162,8 @@ describe("flow command", () => {
       phase: "awaiting_asp",
       expectedNextActions: [
         {
-          command: "flow watch",
-          reasonContains: "continue toward the private withdrawal",
+          command: "flow status",
+          reasonContains: "ASP review resolves",
           when: "flow_resume",
         },
       ],
@@ -167,7 +177,7 @@ describe("flow command", () => {
       phase: "approved_waiting_privacy_delay",
       expectedNextActions: [
         {
-          command: "flow watch",
+          command: "flow status",
           reasonContains: "holding until",
           when: "flow_resume",
         },
@@ -184,8 +194,13 @@ describe("flow command", () => {
       phase: "approved_ready_to_withdraw",
       expectedNextActions: [
         {
-          command: "flow watch",
-          reasonContains: "continue toward the private withdrawal",
+          command: "flow status",
+          reasonContains: "before advancing the private withdrawal",
+          when: "flow_resume",
+        },
+        {
+          command: "flow step",
+          reasonContains: "Advance the saved workflow into the private withdrawal",
           when: "flow_resume",
         },
       ],
@@ -199,8 +214,13 @@ describe("flow command", () => {
       phase: "withdrawing",
       expectedNextActions: [
         {
-          command: "flow watch",
-          reasonContains: "continue toward the private withdrawal",
+          command: "flow status",
+          reasonContains: "while the private withdrawal is still confirming",
+          when: "flow_resume",
+        },
+        {
+          command: "flow step",
+          reasonContains: "Advance the saved workflow one unit of work",
           when: "flow_resume",
         },
       ],
@@ -253,7 +273,7 @@ describe("flow command", () => {
       phase: "paused_poa_required",
       expectedNextActions: [
         {
-          command: "flow watch",
+          command: "flow status",
           reasonContains: "Complete Proof of Association",
           when: "flow_resume",
         },

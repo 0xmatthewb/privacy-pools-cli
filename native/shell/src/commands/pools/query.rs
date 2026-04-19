@@ -14,191 +14,234 @@ use crate::config::{get_rpc_urls, load_config, resolve_chain, CliConfig};
 use crate::contract::{ChainDefinition, Manifest};
 use crate::dispatch::{commander_too_many_arguments_error, commander_unknown_option_error};
 use crate::error::{CliError, ErrorCategory};
-use crate::output::start_spinner;
+use crate::output::{build_next_action, start_spinner};
 use crate::parse_timeout_ms;
 use crate::root_argv::{
     is_command_global_boolean_option, is_command_global_inline_value_option,
     is_command_global_value_option, ParsedRootArgv,
 };
 use crate::routing::resolve_mode;
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 pub(crate) fn handle_pools_native(
     argv: &[String],
     parsed: &ParsedRootArgv,
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
-    let mode = resolve_mode(parsed);
-    if !mode.is_json() && !mode.is_csv() {
-        if let Some(asset) = detail_asset_from_argv(argv) {
-            return handle_pools_detail_native(argv, &mode, &asset);
+    let attach_retry_action = |error: CliError| -> CliError {
+        if !error.retryable || !error.next_actions.is_empty() {
+            return error;
         }
-    }
-    let opts = parse_pools_options(argv)?;
-    let config = load_config()?;
-    let timeout_ms = parse_timeout_ms(argv);
-    let explicit_chain = parsed.global_chain();
-    let rpc_override = parsed.global_rpc_url();
-    let is_multi_chain = opts.all_chains || explicit_chain.is_none();
 
-    if is_multi_chain && rpc_override.is_some() {
-        return Err(CliError::input(
-            "--rpc-url cannot be combined with multi-chain queries.",
-            Some("Use --chain <name> to target a single chain with --rpc-url.".to_string()),
-        ));
-    }
-
-    let chains_to_query = if opts.all_chains {
-        all_chains_with_overrides(manifest)
-    } else if let Some(chain_name) = explicit_chain {
-        vec![resolve_chain(&chain_name, manifest)?]
-    } else {
-        default_read_only_chains(manifest)
-    };
-    let loading_message = if !mode.is_json() && !mode.is_quiet && !mode.is_csv() {
-        Some(if is_multi_chain {
-            "Fetching pools across chains...".to_string()
-        } else {
-            format!("Fetching pools for {}...", chains_to_query[0].name)
-        })
-    } else {
-        None
-    };
-    let mut loading = loading_message.as_deref().map(start_spinner);
-
-    let mut entries = Vec::<PoolListingEntry>::new();
-    let mut warnings = Vec::<super::model::PoolWarning>::new();
-    let mut chain_summaries = Vec::<ChainSummary>::new();
-    let mut first_error: Option<CliError> = None;
-
-    if is_multi_chain && chains_to_query.len() > 1 {
-        let runtime_config = manifest.runtime_config.clone();
-        let handles = chains_to_query
-            .iter()
-            .map(|chain| {
-                let chain = chain.clone();
-                let rpc_override = rpc_override.clone();
-                let config = config.clone();
-                let runtime_config = runtime_config.clone();
-                std::thread::spawn(move || {
-                    query_pools_for_chain(chain, rpc_override, config, runtime_config, timeout_ms)
-                })
-            })
-            .collect::<Vec<_>>();
-
-        for (index, handle) in handles.into_iter().enumerate() {
-            let result = match handle.join() {
-                Ok(result) => result,
-                Err(_) => pools_worker_join_failure(&chains_to_query[index].name),
-            };
-            apply_pools_chain_query_result(
-                result,
-                &mut entries,
-                &mut warnings,
-                &mut chain_summaries,
-                &mut first_error,
-            );
-            if let Some(spinner) = loading.as_mut() {
-                spinner.set_text(&format!(
-                    "Fetching pools... ({}/{} chains done)",
-                    index + 1,
-                    chains_to_query.len()
-                ));
+        let mut options = Map::new();
+        options.insert("agent".to_string(), Value::Bool(true));
+        if let Some(chain) = parsed.global_chain() {
+            options.insert("chain".to_string(), Value::String(chain));
+        }
+        if let Ok(opts) = parse_pools_options(argv) {
+            if opts.all_chains {
+                options.insert("includeTestnets".to_string(), Value::Bool(true));
+            }
+            if let Some(search) = opts.search {
+                options.insert("search".to_string(), Value::String(search));
+            }
+            if opts.sort != "tvl-desc" {
+                options.insert("sort".to_string(), Value::String(opts.sort));
             }
         }
-    } else {
-        for chain in &chains_to_query {
-            apply_pools_chain_query_result(
-                query_pools_for_chain(
-                    chain.clone(),
-                    rpc_override.clone(),
-                    config.clone(),
-                    manifest.runtime_config.clone(),
-                    timeout_ms,
-                ),
-                &mut entries,
-                &mut warnings,
-                &mut chain_summaries,
-                &mut first_error,
-            );
-            if is_multi_chain && chains_to_query.len() > 1 {
-                let completed = chain_summaries.len();
+        let detail_asset = detail_asset_from_argv(argv);
+        let args = detail_asset.as_deref().map(|asset| vec![asset]);
+        let action = build_next_action(
+            "pools",
+            "Retry the same pool discovery query after the transient RPC issue clears.",
+            "after_pools",
+            args.as_deref(),
+            Some(&options),
+            None,
+        );
+        error.with_next_actions(vec![action])
+    };
+
+    (|| {
+        let mode = resolve_mode(parsed);
+        if !mode.is_json() && !mode.is_csv() {
+            if let Some(asset) = detail_asset_from_argv(argv) {
+                return handle_pools_detail_native(argv, &mode, &asset);
+            }
+        }
+        let opts = parse_pools_options(argv)?;
+        let config = load_config()?;
+        let timeout_ms = parse_timeout_ms(argv);
+        let explicit_chain = parsed.global_chain();
+        let rpc_override = parsed.global_rpc_url();
+        let is_multi_chain = opts.all_chains || explicit_chain.is_none();
+
+        if is_multi_chain && rpc_override.is_some() {
+            return Err(CliError::input(
+                "--rpc-url cannot be combined with multi-chain queries.",
+                Some("Use --chain <name> to target a single chain with --rpc-url.".to_string()),
+            ));
+        }
+
+        let chains_to_query = if opts.all_chains {
+            all_chains_with_overrides(manifest)
+        } else if let Some(chain_name) = explicit_chain {
+            vec![resolve_chain(&chain_name, manifest)?]
+        } else {
+            default_read_only_chains(manifest)
+        };
+        let loading_message = if !mode.is_json() && !mode.is_quiet && !mode.is_csv() {
+            Some(if is_multi_chain {
+                "Fetching pools across chains...".to_string()
+            } else {
+                format!("Fetching pools for {}...", chains_to_query[0].name)
+            })
+        } else {
+            None
+        };
+        let mut loading = loading_message.as_deref().map(start_spinner);
+
+        let mut entries = Vec::<PoolListingEntry>::new();
+        let mut warnings = Vec::<super::model::PoolWarning>::new();
+        let mut chain_summaries = Vec::<ChainSummary>::new();
+        let mut first_error: Option<CliError> = None;
+
+        if is_multi_chain && chains_to_query.len() > 1 {
+            let runtime_config = manifest.runtime_config.clone();
+            let handles = chains_to_query
+                .iter()
+                .map(|chain| {
+                    let chain = chain.clone();
+                    let rpc_override = rpc_override.clone();
+                    let config = config.clone();
+                    let runtime_config = runtime_config.clone();
+                    std::thread::spawn(move || {
+                        query_pools_for_chain(
+                            chain,
+                            rpc_override,
+                            config,
+                            runtime_config,
+                            timeout_ms,
+                        )
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            for (index, handle) in handles.into_iter().enumerate() {
+                let result = match handle.join() {
+                    Ok(result) => result,
+                    Err(_) => pools_worker_join_failure(&chains_to_query[index].name),
+                };
+                apply_pools_chain_query_result(
+                    result,
+                    &mut entries,
+                    &mut warnings,
+                    &mut chain_summaries,
+                    &mut first_error,
+                );
                 if let Some(spinner) = loading.as_mut() {
                     spinner.set_text(&format!(
-                        "Fetching pools... ({completed}/{total} chains done)",
-                        total = chains_to_query.len()
+                        "Fetching pools... ({}/{} chains done)",
+                        index + 1,
+                        chains_to_query.len()
                     ));
                 }
             }
+        } else {
+            for chain in &chains_to_query {
+                apply_pools_chain_query_result(
+                    query_pools_for_chain(
+                        chain.clone(),
+                        rpc_override.clone(),
+                        config.clone(),
+                        manifest.runtime_config.clone(),
+                        timeout_ms,
+                    ),
+                    &mut entries,
+                    &mut warnings,
+                    &mut chain_summaries,
+                    &mut first_error,
+                );
+                if is_multi_chain && chains_to_query.len() > 1 {
+                    let completed = chain_summaries.len();
+                    if let Some(spinner) = loading.as_mut() {
+                        spinner.set_text(&format!(
+                            "Fetching pools... ({completed}/{total} chains done)",
+                            total = chains_to_query.len()
+                        ));
+                    }
+                }
+            }
         }
-    }
 
-    if entries.is_empty() {
-        if let Some(error) = first_error {
-            return Err(error);
+        if entries.is_empty() {
+            if let Some(error) = first_error {
+                return Err(error);
+            }
+
+            if let Some(spinner) = loading.as_mut() {
+                spinner.stop();
+            }
+            if is_multi_chain {
+                render_pools_empty_output(
+                    &mode,
+                    super::model::PoolsRenderData {
+                        all_chains: true,
+                        chain_name: String::new(),
+                        search: opts.search.clone(),
+                        sort: opts.sort.clone(),
+                        filtered_pools: vec![],
+                        chain_summaries: Some(chain_summaries),
+                        warnings,
+                    },
+                );
+            } else {
+                render_pools_empty_output(
+                    &mode,
+                    super::model::PoolsRenderData {
+                        all_chains: false,
+                        chain_name: chains_to_query[0].name.clone(),
+                        search: opts.search.clone(),
+                        sort: opts.sort.clone(),
+                        filtered_pools: vec![],
+                        chain_summaries: None,
+                        warnings,
+                    },
+                );
+            }
+            return Ok(0);
         }
+
+        let mut filtered = apply_pool_search(entries, opts.search.as_deref());
+        sort_pools(&mut filtered, &opts.sort);
 
         if let Some(spinner) = loading.as_mut() {
             spinner.stop();
         }
-        if is_multi_chain {
-            render_pools_empty_output(
-                &mode,
-                super::model::PoolsRenderData {
-                    all_chains: true,
-                    chain_name: String::new(),
-                    search: opts.search.clone(),
-                    sort: opts.sort.clone(),
-                    filtered_pools: vec![],
-                    chain_summaries: Some(chain_summaries),
-                    warnings,
+        render_pools_output(
+            &mode,
+            super::model::PoolsRenderData {
+                all_chains: is_multi_chain,
+                chain_name: if is_multi_chain {
+                    String::new()
+                } else {
+                    chains_to_query[0].name.clone()
                 },
-            );
-        } else {
-            render_pools_empty_output(
-                &mode,
-                super::model::PoolsRenderData {
-                    all_chains: false,
-                    chain_name: chains_to_query[0].name.clone(),
-                    search: opts.search.clone(),
-                    sort: opts.sort.clone(),
-                    filtered_pools: vec![],
-                    chain_summaries: None,
-                    warnings,
+                search: opts.search,
+                sort: opts.sort,
+                filtered_pools: filtered,
+                chain_summaries: if is_multi_chain {
+                    Some(chain_summaries)
+                } else {
+                    None
                 },
-            );
-        }
-        return Ok(0);
-    }
-
-    let mut filtered = apply_pool_search(entries, opts.search.as_deref());
-    sort_pools(&mut filtered, &opts.sort);
-
-    if let Some(spinner) = loading.as_mut() {
-        spinner.stop();
-    }
-    render_pools_output(
-        &mode,
-        super::model::PoolsRenderData {
-            all_chains: is_multi_chain,
-            chain_name: if is_multi_chain {
-                String::new()
-            } else {
-                chains_to_query[0].name.clone()
+                warnings,
             },
-            search: opts.search,
-            sort: opts.sort,
-            filtered_pools: filtered,
-            chain_summaries: if is_multi_chain {
-                Some(chain_summaries)
-            } else {
-                None
-            },
-            warnings,
-        },
-    );
+        );
 
-    Ok(0)
+        Ok(0)
+    })()
+    .map_err(attach_retry_action)
 }
 
 fn handle_pools_detail_native(

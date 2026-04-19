@@ -27,6 +27,7 @@ export type CommandPath =
   | "flow start"
   | "flow watch"
   | "flow status"
+  | "flow step"
   | "flow ragequit"
   | "simulate"
   | "simulate deposit"
@@ -38,6 +39,7 @@ export type CommandPath =
   | "stats global"
   | "stats pool"
   | "status"
+  | "tx-status"
   | "capabilities"
   | "describe"
   | "guide"
@@ -185,7 +187,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         ]},
       ],
       jsonFields:
-        "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, releaseHighlights?: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, releaseHighlights?: string[], externalGuidance?: { kind, message, command? }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       safetyNotes: [
         "Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.",
         "Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
@@ -220,6 +222,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config unset rpc-override.mainnet",
         "privacy-pools config path",
       ],
+      jsonFields:
+        "{ mode: \"help\", command: \"config\", subcommands: [\"list\", \"get\", \"set\", \"unset\", \"path\", \"profile\"], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no subcommand is provided; otherwise each config subcommand returns its own structured payload.",
       seeAlso: ["config list", "config get", "config set", "config unset", "config path", "status", "init"],
     },
     capabilities: {
@@ -230,6 +234,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
+    agentsDocMarker: "#### `config`",
   },
   "config list": {
     description: "List all configuration keys and their current values",
@@ -242,7 +247,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config list --agent",
       ],
       jsonFields:
-        "{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir }",
+        "{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["config get", "config set", "status"],
     },
     capabilities: {
@@ -266,6 +271,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config get recovery-phrase --reveal",
         "privacy-pools config get signer-key --reveal",
       ],
+      jsonFields:
+        "{ key, value?, set, redacted?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["config set", "config list"],
     },
     capabilities: {
@@ -291,6 +298,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config set recovery-phrase --file ./phrase.txt",
         "privacy-pools init --signer-only --private-key-file ./signer-key.txt",
       ],
+      jsonFields:
+        "{ key, updated, changed, removed, summary, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       safetyNotes: [
         "Recovery phrases are never accepted as positional arguments to prevent shell history leakage.",
         "Signer keys cannot be changed through config set. Use init --signer-only instead so the CLI keeps that flow safety-checked and explicit.",
@@ -342,7 +351,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config path",
         "privacy-pools config path --agent",
       ],
-      jsonFields: "{ configDir }",
+      jsonFields:
+        "{ configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["config list", "status"],
     },
     capabilities: {
@@ -382,7 +392,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config profile list",
         "privacy-pools config profile list --agent",
       ],
-      jsonFields: "{ profiles, active }",
+      jsonFields:
+        "{ profiles, active, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["config profile create", "config profile active", "config list"],
     },
     capabilities: {
@@ -404,7 +415,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config profile create trading",
         "privacy-pools config profile create ops --agent",
       ],
-      jsonFields: "{ profile, created, profileDir }",
+      jsonFields:
+        "{ profile, created, profileDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["config profile list", "init"],
     },
     capabilities: {
@@ -422,7 +434,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config profile active",
         "privacy-pools config profile active --agent",
       ],
-      jsonFields: "{ profile, configDir }",
+      jsonFields:
+        "{ profile, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["config profile list", "config profile create"],
     },
     capabilities: {
@@ -444,7 +457,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config profile use trading",
         "privacy-pools config profile use default",
       ],
-      jsonFields: "{ profile, active, configDir }",
+      jsonFields:
+        "{ profile, active, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["config profile list", "config profile active", "init"],
     },
     capabilities: {
@@ -470,26 +484,27 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
         "privacy-pools flow watch",
         "privacy-pools flow status latest",
+        "privacy-pools flow step latest",
         "privacy-pools flow ragequit latest",
       ],
       prerequisites: "init for start/watch/ragequit; saved workflow for status",
       jsonFields:
-        "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"ragequit\", workflowId, phase, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [...] }",
+        "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"step\"|\"ragequit\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [...] }",
       jsonVariants: [
         "flow start --dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }",
       ],
       agentWorkflowNotes: [
-        "Start with flow start <amount> <asset> --to <address> --agent, then resume with flow watch <workflowId|latest> --agent until the workflow completes or pauses.",
-        "If flow watch returns flow_declined or flow_public_recovery_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
-        "If flow watch returns flow_public_recovery_optional, prefer completing the private path unless the operator explicitly chooses public recovery.",
+        "Start with flow start <amount> <asset> --to <address> --agent, then poll with flow status <workflowId|latest> --agent and advance with flow step <workflowId|latest> --agent until the workflow completes or pauses.",
+        "If flow status or flow step returns flow_declined or flow_public_recovery_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
+        "If flow status or flow step returns flow_public_recovery_optional, prefer completing the private path unless the operator explicitly chooses public recovery.",
       ],
-      seeAlso: ["flow start","flow watch","flow ragequit"],
+      seeAlso: ["flow start","flow status","flow step","flow ragequit"],
     },
     capabilities: {
       usage: "flow",
-      flags: ["start <amount> <asset> --to <address>", "watch [workflowId|latest]", "status [workflowId|latest]", "ragequit [workflowId|latest]"],
+      flags: ["start <amount> <asset> --to <address>", "watch [workflowId|latest]", "status [workflowId|latest]", "step [workflowId|latest]", "ragequit [workflowId|latest]"],
       agentFlags:
-        "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent (or: watch [workflowId|latest] [--privacy-delay <profile>] --agent; status/ragequit --agent)",
+        "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent, then use status/step/ragequit --agent",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -553,12 +568,14 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
           "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
         ]},
         { category: "Agent / CI", commands: [
-          "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent",
+          "privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent",
+          "privacy-pools flow status latest --agent",
+          "privacy-pools flow step latest --agent",
         ]},
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"flow\", action: \"start\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ mode: \"flow\", action: \"start\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }",
       ],
@@ -580,10 +597,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       agentWorkflowNotes: [
         "With --new-wallet, the flow stays attached automatically and waits for funding, deposit, approval, and withdrawal unless you detach with Ctrl-C.",
-        "Use --watch to stay attached on configured-wallet workflows; otherwise the workflow is persisted locally and flow watch <workflowId> is the canonical resume path.",
+        "In --agent mode, --watch is rejected. Start the flow, then use flow status and flow step as separate one-shot primitives.",
       ],
       supportsDryRun: true,
-      seeAlso: ["flow watch","flow ragequit","pools"],
+      seeAlso: ["flow status","flow step","flow ragequit","pools"],
     },
     capabilities: {
       usage: "flow start <amount> <asset> --to <address>",
@@ -596,7 +613,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--export-new-wallet <path>",
       ],
       agentFlags:
-        "--agent [--privacy-delay <profile>] [--dry-run] [--watch] [--new-wallet] [--export-new-wallet <path>]",
+        "--agent [--privacy-delay <profile>] [--dry-run] [--new-wallet] [--export-new-wallet <path>]",
       agentRequiredFlags: ["--to"],
       requiresInit: true,
       expectedLatencyClass: "slow",
@@ -608,12 +625,13 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
     help: {
       overview: [
-        "Re-checks a saved workflow using the same protocol realities as the frontend. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation.",
+        "Human-only convenience wrapper that loops flow status plus flow step until the saved workflow changes or settles.",
+        "It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation using the same saved-workflow state as the one-shot primitives.",
         "Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external.",
         "The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus.",
         "When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires.",
         "Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.",
-        "flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout.",
+        "flow watch is intentionally unbounded and is rejected in --agent mode. Agents should use flow status and flow step externally instead.",
         "With --stream-json, flow watch emits line-delimited JSON phase_change events as the workflow advances, followed by the final snapshot as the last JSON line.",
       ],
       examples: [
@@ -623,13 +641,12 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         ]},
         { category: "With options", commands: [
           "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
-          "privacy-pools flow watch latest --agent",
           "privacy-pools flow watch latest --stream-json",
         ]},
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"flow\", action: \"watch\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ mode: \"flow\", action: \"watch\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "--stream-json: { mode: \"flow\", action: \"watch\", event: \"phase_change\", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot",
       ],
@@ -642,16 +659,15 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         SIGNING_SOURCE_NOTE,
       ],
       agentWorkflowNotes: [
-        "New-wallet workflows wait for funding automatically. ERC20 workflows require both the token amount and a native ETH gas reserve in the generated wallet before the public deposit can proceed.",
-        "When the saved Pool Account is approved, flow watch performs the relayed private withdrawal automatically using the saved recipient and the full remaining balance of that same Pool Account after any configured privacy delay hold expires.",
-        "flow watch keeps polling until the saved workflow changes or finishes. If your automation should stop after a fixed duration, wrap the CLI call in your own external timeout.",
+        "flow watch is not available in --agent mode.",
+        "Use flow status to poll and flow step to advance the same saved workflow externally.",
       ],
-      seeAlso: ["flow status","flow ragequit"],
+      seeAlso: ["flow status","flow step","flow ragequit"],
     },
     capabilities: {
       usage: "flow watch [workflowId|latest]",
       flags: ["[workflowId|latest]", "--privacy-delay <profile>", "--stream-json"],
-      agentFlags: "--agent [--privacy-delay <profile>] [--stream-json]",
+      agentFlags: "not supported in --agent mode",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -661,8 +677,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: "Show the saved easy-path workflow state",
     help: {
       overview: [
-        "Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action.",
-        "This is a saved local snapshot only. Run flow watch to re-check live state and advance the workflow.",
+        "Reads the persisted workflow snapshot and returns the current saved phase plus the canonical next action.",
+        "flow status is read-only. Pair it with flow step when you want external orchestration instead of the human-only flow watch wrapper.",
         "When using latest, the CLI fails closed if unreadable saved workflow files could be newer than the latest readable workflow.",
         "This is read-only and does not require init if the saved workflow already exists locally.",
       ],
@@ -673,8 +689,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "saved workflow (usually created after init)",
       jsonFields:
-        "{ mode: \"flow\", action: \"status\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      seeAlso: ["flow watch","flow ragequit"],
+        "{ mode: \"flow\", action: \"status\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      seeAlso: ["flow step","flow watch","flow ragequit"],
     },
     capabilities: {
       usage: "flow status [workflowId|latest]",
@@ -685,6 +701,34 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     safeReadOnly: true,
     expectedNextActionWhen: [...FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN],
+  },
+  "flow step": {
+    description: "Advance a saved workflow by at most one unit of work",
+    help: {
+      overview: [
+        "Runs one saved-workflow advancement attempt without keeping an internal watch loop alive.",
+        "Use flow step together with flow status in --agent mode: status polls, step advances.",
+        "When no action is currently available, flow step returns the current snapshot unchanged instead of waiting.",
+      ],
+      examples: [
+        "privacy-pools flow step latest",
+        "privacy-pools flow step latest --agent",
+        "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000",
+      ],
+      prerequisites: "saved workflow (usually created after init)",
+      jsonFields:
+        "{ mode: \"flow\", action: \"step\", workflowId, workflowKind, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, nextPollAfter|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      seeAlso: ["flow status", "flow watch", "flow ragequit"],
+    },
+    capabilities: {
+      usage: "flow step [workflowId|latest]",
+      flags: ["[workflowId|latest]"],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    expectedNextActionWhen: [...FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN],
+    agentsDocMarker: "#### `flow step`",
   },
   "flow ragequit": {
     description: "Recover a saved workflow publicly via ragequit",
@@ -703,7 +747,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"flow\", action: \"ragequit\", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ mode: \"flow\", action: \"ragequit\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       safetyNotes: [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
         "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
@@ -900,6 +944,33 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
 
     agentsDocMarker: "#### `status`",
   },
+  "tx-status": {
+    description: ROOT_COMMAND_DESCRIPTIONS["tx-status"],
+    help: {
+      overview: [
+        "Read-only polling surface for commands that previously ran with --no-wait.",
+        "Use the returned submissionId from deposit, withdraw, ragequit, or broadcast to check confirmation without resubmitting the transaction bundle.",
+        "tx-status refreshes onchain receipts for each submitted transaction and returns the latest aggregate status plus follow-up nextActions.",
+      ],
+      examples: [
+        "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000",
+        "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent",
+      ],
+      jsonFields:
+        "{ operation: \"tx-status\", submissionId, sourceOperation, sourceCommand, chain, asset?, poolAccountId?, poolAccountNumber?, workflowId?, recipient?, broadcastMode?, broadcastSourceOperation?, createdAt, updatedAt, status: \"submitted\"|\"confirmed\"|\"reverted\", reconciliationRequired, localStateSynced, warningCode?, lastError?, transactions: [{ index, description, txHash, explorerUrl, blockNumber, status }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      seeAlso: ["deposit", "withdraw", "ragequit", "broadcast", "flow status"],
+    },
+    capabilities: {
+      flags: [],
+      agentFlags: "--agent",
+      usage: "tx-status <submissionId>",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+    expectedNextActionWhen: ["after_submit"],
+    agentsDocMarker: "#### `tx-status`",
+  },
   capabilities: {
     description: ROOT_COMMAND_DESCRIPTIONS.capabilities,
     help: {
@@ -908,7 +979,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools capabilities --agent",
       ],
       jsonFields:
-        "{ commands[{ group, ... }], commandDetails{ ...group... }, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }",
+        "{ commands[{ group, ... }], commandDetails{ ...group... }, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["describe", "guide"],
     },
     capabilities: {
@@ -935,7 +1006,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools describe envelope.shared.nextAction --agent",
       ],
       jsonFields:
-        "{ mode: \"describe-index\", commands: [{ command, description, group }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes } for describe <command...>; or { path, schema } for describe envelope.<path>",
+        "{ mode: \"describe-index\", commands: [{ command, description, group }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
       seeAlso: ["capabilities","guide"],
     },
     capabilities: {
@@ -958,7 +1029,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools help modes",
         "privacy-pools guide --agent",
       ],
-      jsonFields: "{ mode: \"help\", topic?, topics: [{ name, description }], help }",
+      jsonFields:
+        "{ mode: \"help\", topic?, topics: [{ name, description }], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["init","status"],
     },
     capabilities: {
@@ -968,6 +1040,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: true,
+    agentsDocMarker: "#### `guide`",
   },
   deposit: {
     description: ROOT_COMMAND_DESCRIPTIONS.deposit,
@@ -996,7 +1069,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ operation, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, workflowId, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
@@ -1011,6 +1084,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
+        "With --no-wait, poll tx-status <submissionId> until the deposit transaction confirms, then use flow status <workflowId> or accounts --chain <chain> to follow ASP review.",
         `Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at ${POA_PORTAL_URL} first if needed. Always preserve the same --chain scope for both polling and confirmation.`,
         "If the deposit transaction was submitted but confirmation timed out or the CLI was interrupted afterward, run sync --chain <chain> before retrying so local state can detect the onchain deposit.",
       ],
@@ -1021,6 +1095,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       flags: [
         "--unsigned [envelope|tx]",
         "--dry-run",
+        "--no-wait",
         "--ignore-unique-amount",
       ],
       agentFlags: "--agent",
@@ -1067,7 +1142,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         SIGNING_SOURCE_NOTE,
       ],
       jsonFields:
-        "{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, mode, txHash, blockNumber|null, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -1078,6 +1153,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
+        "With --no-wait, poll tx-status <submissionId> until the withdrawal confirms instead of resubmitting.",
         "If the CLI is interrupted after proof generation but before submission completes, re-run withdraw to generate a fresh proof and re-evaluate the current account state.",
         "If a direct or relayed withdrawal transaction was submitted but confirmation timed out, run sync --chain <chain> before retrying so local state can detect the onchain result.",
       ],
@@ -1095,6 +1171,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
         "--dry-run",
+        "--no-wait",
       ],
       agentFlags: "--agent",
       agentRequiredFlags: ["--to"],
@@ -1159,7 +1236,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         SIGNING_SOURCE_NOTE,
       ],
       jsonFields:
-        "{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber|null, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
@@ -1168,6 +1245,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       supportsUnsigned: true,
       supportsDryRun: true,
       agentWorkflowNotes: [
+        "With --no-wait, poll tx-status <submissionId> until the public recovery confirms instead of resubmitting.",
         "If the public recovery transaction was submitted but confirmation timed out, re-run ragequit or sync --chain <chain> before retrying so the CLI can detect the onchain result.",
       ],
       seeAlso: ["withdraw","accounts","flow ragequit"],
@@ -1179,6 +1257,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--confirm-ragequit",
         "--unsigned [envelope|tx]",
         "--dry-run",
+        "--no-wait",
       ],
       agentFlags: "--agent",
       agentRequiredFlags: ["--pool-account"],
@@ -1316,10 +1395,11 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools broadcast ./signed-envelope.json --validate-only --agent",
       ],
       jsonFields:
-        "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, validatedOnly?: boolean, submittedBy?, transactions: [{ index, description, txHash: string|null, blockNumber: string|null, explorerUrl: string|null, status: \"confirmed\"|\"validated\" }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, validatedOnly?: boolean, submissionId?, submittedBy?, transactions: [{ index, description, txHash: string|null, blockNumber: string|null, explorerUrl: string|null, status: \"submitted\"|\"confirmed\"|\"validated\" }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly.",
         "--validate-only: same envelope, but validatedOnly: true, transaction status = \"validated\", txHash/blockNumber/explorerUrl = null, and no nextActions because nothing was submitted.",
+        "--no-wait: submitted transactions return immediately with submissionId so tx-status can poll confirmation later.",
       ],
       safetyNotes: [
         "broadcast validates each signed transaction against the original preview envelope before the first submission.",
@@ -1330,13 +1410,14 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       agentWorkflowNotes: [
         "Keep using your existing Bankr or custom signer path if you already have one. broadcast is optional and does not change the current --unsigned contract.",
         "For first-party envelope workflows, the canonical sequence is: build with --unsigned, sign outside the CLI, then return with broadcast.",
+        "With --no-wait, use tx-status <submissionId> to poll confirmation without re-broadcasting.",
       ],
       seeAlso: ["deposit", "withdraw", "ragequit"],
     },
     capabilities: {
       usage: "broadcast <input>",
-      flags: ["--validate-only"],
-      agentFlags: "--agent [--validate-only] <input>",
+      flags: ["--validate-only", "--no-wait"],
+      agentFlags: "--agent [--validate-only] [--no-wait] <input>",
       requiresInit: false,
       expectedLatencyClass: "slow",
     },
@@ -1430,7 +1511,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }], nextActions: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }",
+        "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }], externalGuidance?: { kind, message, url }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       safetyNotes: [
         "This command is read-only. It never submits migration transactions and does not persist rebuilt account state.",
         "When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.",
@@ -1470,7 +1551,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       prerequisites: "init",
       jsonFields:
-        "{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }",
+        "{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true.",
       ],
@@ -1533,7 +1614,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools completion powershell >> $PROFILE",
       ],
       jsonFields:
-        "{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, bootstrapProfilePath?, bootstrapProfileCreated?, bootstrapProfileUpdated?, reloadHint? }",
+        "{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, bootstrapProfilePath?, bootstrapProfileCreated?, bootstrapProfileUpdated?, reloadHint?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       seeAlso: ["init","guide"],
     },
     capabilities: {
@@ -1543,6 +1624,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "fast",
     },
     safeReadOnly: false,
+    agentsDocMarker: "#### `completion`",
   },
 };
 

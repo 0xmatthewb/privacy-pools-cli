@@ -612,9 +612,11 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
 // ── Success ──────────────────────────────────────────────────────────────────
 
 export interface WithdrawSuccessData {
+  status?: "submitted" | "confirmed";
+  submissionId?: string;
   withdrawMode: "direct" | "relayed";
   txHash: string;
-  blockNumber: bigint;
+  blockNumber: bigint | null;
   amount: bigint;
   recipient: string;
   asset: string;
@@ -653,8 +655,19 @@ export interface WithdrawSuccessData {
  */
 export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessData): void {
   guardCsvUnsupported(ctx, "withdraw");
+  const isSubmitted = data.status === "submitted";
 
   const agentNextActions = [
+    ...(isSubmitted && data.submissionId
+      ? [
+          createNextAction(
+            "tx-status",
+            "Poll the submitted withdrawal until the onchain transaction confirms.",
+            "after_submit",
+            { args: [data.submissionId], options: { agent: true } },
+          ),
+        ]
+      : []),
     ...(data.reconciliationRequired
       ? [
           createNextAction(
@@ -665,14 +678,28 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
           ),
         ]
       : []),
-    createNextAction(
-      "accounts",
-      `Verify the updated balance for ${data.poolAccountId} after withdrawal.`,
-      "after_withdraw",
-      { options: { agent: true, chain: data.chain } },
-    ),
+    ...(!isSubmitted
+      ? [
+          createNextAction(
+            "accounts",
+            `Verify the updated balance for ${data.poolAccountId} after withdrawal.`,
+            "after_withdraw",
+            { options: { agent: true, chain: data.chain } },
+          ),
+        ]
+      : []),
   ];
   const humanNextActions = [
+    ...(isSubmitted && data.submissionId
+      ? [
+          createNextAction(
+            "tx-status",
+            "Check whether the submitted withdrawal has confirmed yet.",
+            "after_submit",
+            { args: [data.submissionId] },
+          ),
+        ]
+      : []),
     ...(data.reconciliationRequired
       ? [
           createNextAction(
@@ -683,12 +710,16 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
           ),
         ]
       : []),
-    createNextAction(
-      "accounts",
-      `Verify the updated balance for ${data.poolAccountId}.`,
-      "after_withdraw",
-      { options: data.chain ? { chain: data.chain } : undefined },
-    ),
+    ...(!isSubmitted
+      ? [
+          createNextAction(
+            "accounts",
+            `Verify the updated balance for ${data.poolAccountId}.`,
+            "after_withdraw",
+            { options: data.chain ? { chain: data.chain } : undefined },
+          ),
+        ]
+      : []),
   ];
 
   if (ctx.mode.isJson) {
@@ -701,9 +732,11 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     );
     const payload: Record<string, unknown> = {
       operation: "withdraw",
+      status: data.status ?? "confirmed",
+      submissionId: data.submissionId ?? null,
       mode: data.withdrawMode,
       txHash: data.txHash,
-      blockNumber: data.blockNumber.toString(),
+      blockNumber: data.blockNumber?.toString() ?? null,
       amount: data.amount.toString(),
       recipient: data.recipient,
       explorerUrl: data.explorerUrl,
@@ -757,13 +790,18 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
       formatDenseOutcomeLine({
         outcome: data.withdrawMode === "direct" ? "success" : "withdraw",
         message:
-          `${data.reconciliationRequired
-            ? "Withdrawal confirmed onchain; local state needs reconciliation for"
-            : data.withdrawMode === "direct"
-              ? "Withdrew"
-              : "Withdrew privately"} ` +
+          `${isSubmitted
+            ? "Withdrawal submitted for"
+            : data.reconciliationRequired
+              ? "Withdrawal confirmed onchain; local state needs reconciliation for"
+              : data.withdrawMode === "direct"
+                ? "Withdrew"
+                : "Withdrew privately"} ` +
           `${formatAmount(data.amount, data.decimals, data.asset)} ` +
-          `-> ${formatAddress(data.recipient)}${inlineSeparator()}${data.poolAccountId}${inlineSeparator()}Block ${data.blockNumber.toString()}`,
+          `-> ${formatAddress(data.recipient)}${inlineSeparator()}${data.poolAccountId}` +
+          (data.blockNumber !== null
+            ? `${inlineSeparator()}Block ${data.blockNumber.toString()}`
+            : ""),
         url: data.explorerUrl,
       }),
     );
@@ -777,6 +815,9 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
           label: "Amount",
           value: formatAmount(data.amount, data.decimals, data.asset),
         },
+        ...(data.submissionId
+          ? [{ label: "Submission", value: data.submissionId }]
+          : []),
         { label: "Tx", value: formatTxHash(data.txHash) },
         ...(data.explorerUrl
           ? [{ label: "Explorer", value: data.explorerUrl }]
@@ -831,8 +872,15 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     } else {
       process.stderr.write(
         formatCallout(
-          data.reconciliationRequired ? "warning" : "success",
-          data.reconciliationRequired
+          isSubmitted
+            ? "warning"
+            : data.reconciliationRequired ? "warning" : "success",
+          isSubmitted
+            ? [
+                "The withdrawal transaction was submitted and may still be pending onchain.",
+                "Use tx-status with the returned submission id to poll for confirmation without resubmitting.",
+              ]
+            : data.reconciliationRequired
             ? [
                 "Withdrawal confirmed onchain, but local state needs reconciliation before you rely on the saved balance.",
                 `Run privacy-pools sync --chain ${data.chain} before continuing.`,

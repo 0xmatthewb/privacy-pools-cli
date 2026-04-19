@@ -98,6 +98,7 @@ import {
 } from "../utils/setup-recovery.js";
 import { maybeLaunchBrowser } from "../utils/web.js";
 import { persistWithReconciliation } from "../services/persist-with-reconciliation.js";
+import { createSubmissionRecord } from "../services/submissions.js";
 
 const poolDepositorAbi = [
   {
@@ -119,6 +120,7 @@ interface RagequitCommandOptions {
   confirmRagequit?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean;
+  noWait?: boolean;
 }
 
 const LOCAL_STATE_RECONCILIATION_WARNING_CODE =
@@ -395,6 +397,20 @@ export async function handleRagequitCommand(
         `Unsupported unsigned format: "${unsignedFormat}".`,
         "INPUT",
         "Use --unsigned envelope or --unsigned tx.",
+      );
+    }
+    if (opts.noWait && isDryRun) {
+      throw new CLIError(
+        "--no-wait cannot be combined with --dry-run.",
+        "INPUT",
+        "Use --dry-run to preview only, or remove --dry-run to submit without waiting for confirmation.",
+      );
+    }
+    if (opts.noWait && isUnsigned) {
+      throw new CLIError(
+        "--no-wait cannot be combined with --unsigned.",
+        "INPUT",
+        "Use --unsigned to build an offline envelope, or remove --unsigned to submit and return immediately.",
       );
     }
     if (!isQuiet && !isJson) {
@@ -1060,6 +1076,56 @@ export async function handleRagequitCommand(
         },
       );
 
+      const ragequitExplorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
+      if (opts.noWait) {
+        spin.succeed("Ragequit submitted.");
+        const submission = createSubmissionRecord({
+          operation: "ragequit",
+          sourceCommand: "ragequit",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          poolAccountId: selectedPoolAccount.paId,
+          poolAccountNumber: selectedPoolAccount.paNumber,
+          transactions: [
+            {
+              description: "Public recovery",
+              txHash: tx.hash as Hex,
+            },
+          ],
+        });
+
+        const ctx = createOutputContext(mode);
+        renderRagequitSuccess(ctx, {
+          status: "submitted",
+          submissionId: submission.submissionId,
+          txHash: tx.hash,
+          amount: commitment.value,
+          asset: pool.symbol,
+          chain: chainConfig.name,
+          decimals: pool.decimals,
+          poolAccountNumber: selectedPoolAccount.paNumber,
+          poolAccountId: selectedPoolAccount.paId,
+          poolAddress: pool.pool,
+          scope: pool.scope,
+          blockNumber: null,
+          explorerUrl: ragequitExplorerUrl,
+          destinationAddress: depositorAddress,
+          advisory: advisory?.message ?? null,
+          reconciliationRequired: false,
+          localStateSynced: false,
+          warningCode: null,
+          tokenPrice,
+        });
+        maybeLaunchBrowser({
+          globalOpts,
+          mode,
+          url: ragequitExplorerUrl,
+          label: "ragequit transaction",
+          silent,
+        });
+        return;
+      }
+
       spin.text = "Waiting for confirmation...";
       let receipt;
       try {
@@ -1159,7 +1225,7 @@ export async function handleRagequitCommand(
         poolAddress: pool.pool,
         scope: pool.scope,
         blockNumber: receipt.blockNumber,
-        explorerUrl: explorerTxUrl(chainConfig.id, tx.hash),
+        explorerUrl: ragequitExplorerUrl,
         destinationAddress: depositorAddress,
         advisory: advisory?.message ?? null,
         reconciliationRequired,
@@ -1170,7 +1236,7 @@ export async function handleRagequitCommand(
       maybeLaunchBrowser({
         globalOpts,
         mode,
-        url: explorerTxUrl(chainConfig.id, tx.hash),
+        url: ragequitExplorerUrl,
         label: "ragequit transaction",
         silent,
       });

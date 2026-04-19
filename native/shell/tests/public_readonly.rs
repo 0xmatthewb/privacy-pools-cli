@@ -87,6 +87,34 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 }
 
 #[test]
+fn retryable_native_read_only_errors_include_next_actions() {
+    let output = run_native_with_env(
+        &["activity", "--agent"],
+        &[("PRIVACY_POOLS_ASP_HOST", "http://127.0.0.1:1")],
+    );
+
+    assert_eq!(output.status.code(), Some(3));
+    assert!(stderr_string(&output).trim().is_empty());
+
+    let payload = parse_stdout_json(&output);
+    assert_eq!(payload["success"], Value::Bool(false));
+    assert_eq!(payload["error"]["category"], Value::String("RPC".to_string()));
+    assert_eq!(payload["error"]["retryable"], Value::Bool(true));
+    assert_eq!(
+        payload["error"]["nextActions"][0]["command"],
+        Value::String("activity".to_string())
+    );
+    assert_eq!(
+        payload["error"]["nextActions"][0]["when"],
+        Value::String("after_activity".to_string())
+    );
+    assert_eq!(
+        payload["error"]["nextActions"][0]["cliCommand"],
+        Value::String("privacy-pools activity --agent --limit 12 --page 1".to_string())
+    );
+}
+
+#[test]
 fn native_wide_output_changes_human_read_only_layouts() {
     let fixture = launch_fixture_server();
     let asp_host = fixture.base_url().to_string();

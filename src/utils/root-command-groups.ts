@@ -3,6 +3,7 @@ import type { CommandGroup } from "../types.js";
 export type RootCommandName =
   | "init"
   | "status"
+  | "tx-status"
   | "guide"
   | "flow"
   | "simulate"
@@ -32,6 +33,7 @@ export interface RootCommandGroup {
 export const ROOT_COMMAND_DESCRIPTIONS: Record<RootCommandName, string> = {
   init: "Create, load, or finish setting up your Privacy Pools account",
   status: "Check account setup and network status",
+  "tx-status": "Check async transaction submission status",
   guide: "Learn key concepts, workflows, and troubleshooting",
   flow: "Deposit and privately withdraw in one guided workflow",
   simulate: "Preview deposit, withdraw, and ragequit without submitting",
@@ -56,6 +58,7 @@ export const ROOT_COMMAND_DESCRIPTIONS: Record<RootCommandName, string> = {
 export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
   init: "init",
   status: "status",
+  "tx-status": "tx-status",
   guide: "guide",
   flow: "flow",
   simulate: "simulate",
@@ -91,7 +94,7 @@ export const ROOT_COMMAND_GROUPS: RootCommandGroup[] = [
   {
     id: "monitoring",
     heading: "Monitoring",
-    commands: ["accounts", "pools", "history", "activity", "stats", "sync"],
+    commands: ["accounts", "pools", "history", "activity", "stats", "sync", "tx-status"],
   },
   {
     id: "advanced",
@@ -122,6 +125,7 @@ export const ROOT_COMMAND_ORDER: RootCommandName[] = [
   "broadcast",
   "history",
   "sync",
+  "tx-status",
   "status",
   "activity",
   "stats",

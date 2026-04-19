@@ -49,11 +49,16 @@ export function getWorkflowSecretsDir(): string {
   return join(resolveConfigDir(), "workflow-secrets");
 }
 
+export function getSubmissionsDir(): string {
+  return join(resolveConfigDir(), "submissions");
+}
+
 export function ensureConfigDir(): void {
   const configDir = getConfigDir();
   const accountsDir = getAccountsDir();
   const workflowsDir = getWorkflowsDir();
   const workflowSecretsDir = getWorkflowSecretsDir();
+  const submissionsDir = getSubmissionsDir();
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true, mode: 0o700 });
   }
@@ -83,6 +88,14 @@ export function ensureConfigDir(): void {
   }
   try {
     chmodSync(workflowSecretsDir, 0o700);
+  } catch {
+    // Best effort. Some filesystems may not support chmod.
+  }
+  if (!existsSync(submissionsDir)) {
+    mkdirSync(submissionsDir, { recursive: true, mode: 0o700 });
+  }
+  try {
+    chmodSync(submissionsDir, 0o700);
   } catch {
     // Best effort. Some filesystems may not support chmod.
   }

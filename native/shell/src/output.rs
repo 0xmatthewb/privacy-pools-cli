@@ -323,6 +323,12 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
         if let Some(help_topic) = &error.help_topic {
             error_payload.insert("helpTopic".to_string(), Value::String(help_topic.clone()));
         }
+        if !error.next_actions.is_empty() {
+            error_payload.insert(
+                "nextActions".to_string(),
+                Value::Array(error.next_actions.clone()),
+            );
+        }
 
         let payload = json!({
             "schemaVersion": json_schema_version(),

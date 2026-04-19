@@ -1340,12 +1340,18 @@ describe("renderUpgradeResult nextActions", () => {
     expect(json.nextActions).toBeUndefined();
   });
 
-  test("JSON mode: 'up_to_date' status emits no nextActions", () => {
+  test("JSON mode: 'up_to_date' status emits a safe status follow-up", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() => renderUpgradeResult(ctx, baseResult));
 
     const json = parseCapturedJson(stdout);
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toBeDefined();
+    expect(json.nextActions).toHaveLength(1);
+    expect(json.nextActions[0]).toMatchObject({
+      command: "status",
+      when: "after_upgrade",
+      cliCommand: "privacy-pools status --agent",
+    });
   });
 
   test("human mode: 'ready' status renders highlights, manual fallback, and next steps", () => {

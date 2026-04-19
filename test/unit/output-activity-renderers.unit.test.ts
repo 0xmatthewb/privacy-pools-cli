@@ -178,7 +178,7 @@ describe("renderActivity pool-activity parity", () => {
     expect(action.cliCommand).toContain("--page 2");
   });
 
-  test("JSON mode: no nextAction on last page", () => {
+  test("JSON mode: last page falls back to pool discovery nextAction", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: ActivityRenderData = {
       ...STUB_POOL_ACTIVITY,
@@ -189,10 +189,15 @@ describe("renderActivity pool-activity parity", () => {
     const { stdout } = captureOutput(() => renderActivity(ctx, data));
 
     const json = JSON.parse(stdout.trim());
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toHaveLength(1);
+    expect(json.nextActions[0]).toMatchObject({
+      command: "pools",
+      when: "after_activity",
+      cliCommand: "privacy-pools pools --agent --chain sepolia",
+    });
   });
 
-  test("JSON mode: no nextAction when totalPages is null", () => {
+  test("JSON mode: unknown total pages still falls back to pool discovery nextAction", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const data: ActivityRenderData = {
       ...STUB_POOL_ACTIVITY,
@@ -201,7 +206,12 @@ describe("renderActivity pool-activity parity", () => {
     const { stdout } = captureOutput(() => renderActivity(ctx, data));
 
     const json = JSON.parse(stdout.trim());
-    expect(json.nextActions).toBeUndefined();
+    expect(json.nextActions).toHaveLength(1);
+    expect(json.nextActions[0]).toMatchObject({
+      command: "pools",
+      when: "after_activity",
+      cliCommand: "privacy-pools pools --agent --chain sepolia",
+    });
   });
 });
 

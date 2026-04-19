@@ -110,7 +110,7 @@ describe("renderFlowResult", () => {
     expect(review).not.toContain("│ │ Privacy note:");
   });
 
-  test("JSON mode emits the shared flow snapshot contract with watch nextActions", () => {
+  test("JSON mode emits the shared flow snapshot contract with agent polling nextActions", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() =>
       renderFlowResult(ctx, {
@@ -135,14 +135,13 @@ describe("renderFlowResult", () => {
     expectNextAction(
       json.nextActions[0],
       {
-        command: "flow watch",
-        reason:
-          "Resume this saved workflow and continue toward the private withdrawal.",
+        command: "flow status",
+        reason: "Poll the saved workflow until ASP review resolves.",
         when: "flow_resume",
         args: ["wf-123"],
         options: { agent: true },
       },
-      "privacy-pools flow watch wf-123 --agent",
+      "privacy-pools flow status wf-123 --agent",
     );
     expect(stderr).toBe("");
   });
@@ -247,7 +246,7 @@ describe("renderFlowResult", () => {
     );
   });
 
-  test("JSON mode keeps flow watch nextActions for depositing and withdrawing phases", () => {
+  test("JSON mode keeps status-plus-step nextActions for depositing and withdrawing phases", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
 
     for (const phase of ["depositing_publicly", "withdrawing"] as const) {
@@ -261,18 +260,31 @@ describe("renderFlowResult", () => {
       );
 
       const json = parseCapturedJson(stdout);
-      expect(json.nextActions).toBeArrayOfSize(1);
+      expect(json.nextActions).toBeArrayOfSize(2);
       expectNextAction(
         json.nextActions[0],
         {
-          command: "flow watch",
+          command: "flow status",
           reason:
-            "Resume this saved workflow and continue toward the private withdrawal.",
+            phase === "depositing_publicly"
+              ? "Poll the saved workflow until the public deposit confirms and account state is ready."
+              : "Poll the saved workflow while the private withdrawal is still confirming.",
           when: "flow_resume",
           args: ["wf-123"],
           options: { agent: true },
         },
-        "privacy-pools flow watch wf-123 --agent",
+        "privacy-pools flow status wf-123 --agent",
+      );
+      expectNextAction(
+        json.nextActions[1],
+        {
+          command: "flow step",
+          reason: "Advance the saved workflow one unit of work without running an internal watch loop.",
+          when: "flow_resume",
+          args: ["wf-123"],
+          options: { agent: true },
+        },
+        "privacy-pools flow step wf-123 --agent",
       );
     }
   });
@@ -367,7 +379,7 @@ describe("renderFlowResult", () => {
     );
   });
 
-  test("JSON mode keeps the PoA watch follow-up runnable and surfaces public recovery", () => {
+  test("JSON mode keeps the PoA status follow-up runnable and surfaces public recovery", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
       renderFlowResult(ctx, {
@@ -384,14 +396,14 @@ describe("renderFlowResult", () => {
     expectNextAction(
       json.nextActions[0],
       {
-        command: "flow watch",
+        command: "flow status",
         reason:
-          `Complete Proof of Association at ${POA_PORTAL_URL} first, then re-check this workflow to continue privately.`,
+          `Complete Proof of Association at ${POA_PORTAL_URL} first, then re-check this workflow.`,
         when: "flow_resume",
         args: ["wf-123"],
         options: { agent: true },
       },
-      "privacy-pools flow watch wf-123 --agent",
+      "privacy-pools flow status wf-123 --agent",
     );
     expectNextAction(
       json.nextActions[1],
@@ -714,7 +726,7 @@ describe("renderFlowResult", () => {
 
     const json = parseCapturedJson(stdout);
     expect(json.nextActions).toHaveLength(1);
-    expect(json.nextActions[0].command).toBe("flow watch");
+    expect(json.nextActions[0].command).toBe("flow status");
     expect(json.nextActions[0].reason).toContain("holding until");
     expect(json.nextActions[0].reason).toContain("before requesting the relayed private withdrawal");
   });
@@ -800,7 +812,7 @@ describe("renderFlowResult", () => {
     expect(stderr).toContain("https://example.test/withdraw");
   });
 
-  test("JSON mode includes funding guidance for awaiting_funding workflows", () => {
+  test("JSON mode includes funding guidance plus step follow-up for awaiting_funding workflows", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
       renderFlowResult(ctx, {
@@ -832,18 +844,30 @@ describe("renderFlowResult", () => {
     expect(json.requiredNativeFunding).toBe("123000000000000000");
     expect(json.requiredTokenFunding).toBe("456000000");
     expect(json.backupConfirmed).toBe(true);
-    expect(json.nextActions).toBeArrayOfSize(1);
+    expect(json.nextActions).toBeArrayOfSize(2);
     expectNextAction(
       json.nextActions[0],
       {
-        command: "flow watch",
+        command: "flow status",
         reason:
           "Fund the dedicated workflow wallet with 456 USDC and 0.123 ETH first, then re-run flow watch to continue.",
         when: "flow_resume",
         args: ["wf-123"],
         options: { agent: true },
       },
-      "privacy-pools flow watch wf-123 --agent",
+      "privacy-pools flow status wf-123 --agent",
+    );
+    expectNextAction(
+      json.nextActions[1],
+      {
+        command: "flow step",
+        reason:
+          "Attempt the next saved-workflow step after funding reaches the dedicated wallet.",
+        when: "flow_resume",
+        args: ["wf-123"],
+        options: { agent: true },
+      },
+      "privacy-pools flow step wf-123 --agent",
     );
   });
 
