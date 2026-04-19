@@ -1128,8 +1128,8 @@ If you already have your own submission stack, keep using it. `broadcast` is add
 For full-envelope workflows, you can return to the CLI after signing:
 
 ```bash
-privacy-pools broadcast ./signed-envelope.json --agent
-cat ./signed-envelope.json | privacy-pools broadcast - --agent
+privacy-pools broadcast ./signed-envelope.json --agent --no-wait
+cat ./signed-envelope.json | privacy-pools broadcast - --agent --no-wait
 privacy-pools broadcast ./signed-envelope.json --validate-only --agent
 ```
 

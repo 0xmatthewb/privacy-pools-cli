@@ -173,11 +173,17 @@ If you already have your own submission stack, keep using it. `broadcast` is add
 For full-envelope workflows, you can return to the CLI after signing:
 
 ```bash
-privacy-pools broadcast ./signed-envelope.json --agent
-cat ./signed-envelope.json | privacy-pools broadcast - --agent
+privacy-pools broadcast ./signed-envelope.json --agent --no-wait
+cat ./signed-envelope.json | privacy-pools broadcast - --agent --no-wait
 ```
 
 `broadcast` only accepts the full unsigned envelope JSON. It intentionally rejects the bare raw transaction array from `--unsigned tx` so the CLI can validate the signed transactions against the original preview before submission.
+
+When `broadcast` returns `submissionId`, poll it with:
+
+```bash
+privacy-pools tx-status <submissionId> --agent
+```
 
 ---
 

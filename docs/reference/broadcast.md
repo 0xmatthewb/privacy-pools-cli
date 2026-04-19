@@ -14,8 +14,8 @@ Submits a full unsigned envelope after signing has happened elsewhere, or re-sub
 
 ```bash
 privacy-pools broadcast ./signed-deposit-envelope.json
-cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent
-privacy-pools broadcast ./relayed-withdraw-envelope.json --agent
+cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent --no-wait
+privacy-pools broadcast ./relayed-withdraw-envelope.json --agent --no-wait
 privacy-pools broadcast ./signed-envelope.json --validate-only --agent
 ```
 

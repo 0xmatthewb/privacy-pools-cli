@@ -4262,8 +4262,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools broadcast ./signed-deposit-envelope.json",
-        "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent",
-        "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent",
+        "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent --no-wait",
+        "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent --no-wait",
         "privacy-pools broadcast ./signed-envelope.json --validate-only --agent"
       ],
       "structuredExamples": [
@@ -4273,11 +4273,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "name": "Example 2",
-          "value": "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent"
+          "value": "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent --no-wait"
         },
         {
           "name": "Example 3",
-          "value": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent"
+          "value": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent --no-wait"
         },
         {
           "name": "Example 4",
