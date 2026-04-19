@@ -344,6 +344,7 @@ mod tests {
             root_help: String::new(),
             structured_root_help: String::new(),
             help_text_by_path: HashMap::new(),
+            guide_structured_payload: Value::Null,
             guide_human_text: String::new(),
             capabilities_human_text: String::new(),
             describe_human_text_by_path: HashMap::new(),

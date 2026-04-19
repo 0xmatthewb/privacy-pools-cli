@@ -110,7 +110,7 @@ fn retryable_native_read_only_errors_include_next_actions() {
     );
     assert_eq!(
         payload["error"]["nextActions"][0]["cliCommand"],
-        Value::String("privacy-pools activity --agent --limit 12 --page 1".to_string())
+        Value::String("privacy-pools activity --agent --page 1 --limit 12".to_string())
     );
 }
 
@@ -344,10 +344,13 @@ fn multi_chain_pools_queries_stay_deterministic_against_the_rust_fixture() {
 
     let payload = parse_stdout_json(&pools);
     assert_eq!(payload["success"], Value::Bool(true));
-    assert_eq!(payload["allChains"], Value::Bool(true));
+    assert_eq!(
+        payload["chain"],
+        Value::String("all-mainnets".to_string())
+    );
     assert!(payload["warnings"].is_null());
 
-    let chains = payload["chains"]
+    let chains = payload["chainSummaries"]
         .as_array()
         .expect("multi-chain pools should expose chain summaries");
     assert_eq!(chains.len(), 3);
@@ -469,14 +472,17 @@ fn multi_chain_pools_queries_keep_partial_failure_warnings_stable() {
 
     let payload = parse_stdout_json(&pools);
     assert_eq!(payload["success"], Value::Bool(true));
-    assert_eq!(payload["allChains"], Value::Bool(true));
+    assert_eq!(
+        payload["chain"],
+        Value::String("all-mainnets".to_string())
+    );
     let warnings = payload["warnings"]
         .as_array()
         .expect("partial failures should produce warnings");
     assert_eq!(warnings.len(), 1);
     assert_eq!(warnings[0]["chain"], Value::String("optimism".to_string()));
 
-    let chains = payload["chains"]
+    let chains = payload["chainSummaries"]
         .as_array()
         .expect("multi-chain pools should expose chain summaries");
     assert_eq!(chains.len(), 3);

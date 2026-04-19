@@ -84,7 +84,7 @@ fn completion_contracts_hold_for_human_and_agent_modes() {
     let human = run_native(&["completion", "bash"]);
     assert!(human.status.success());
     assert!(stdout_string(&human).contains("_privacy_pools_completion"));
-    assert!(stderr_string(&human).is_empty());
+    assert!(stderr_string(&human).contains("privacy-pools completion --install"));
 
     let agent = run_native(&["--agent", "completion", "bash"]);
     assert!(agent.status.success());

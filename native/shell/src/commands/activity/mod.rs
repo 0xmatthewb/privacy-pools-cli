@@ -14,6 +14,7 @@ use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_events, fetch_pool_events};
 use crate::root_argv::ParsedRootArgv;
 use crate::routing::resolve_mode;
+use serde_json::{Map, Value};
 use model::ActivityRenderData;
 use normalize::normalize_activity_events;
 use options::parse_activity_options;
@@ -46,9 +47,9 @@ pub fn handle_activity_native(
     parsed: &ParsedRootArgv,
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
-    {
+    let opts = parse_activity_options(argv)?;
+    let result = (|| -> Result<i32, CliError> {
         let mode = resolve_mode(parsed);
-        let opts = parse_activity_options(argv)?;
         let timeout_ms = parse_timeout_ms(argv);
         let mut loading = (!mode.is_json() && !mode.is_quiet)
             .then(|| start_spinner("Fetching public activity..."));
@@ -191,5 +192,31 @@ pub fn handle_activity_native(
         );
 
         Ok(0)
-    }
+    })();
+
+    result.map_err(|mut error| {
+        if error.retryable {
+            let mut action_options = Map::new();
+            if parsed.is_structured_output_mode {
+                action_options.insert("agent".to_string(), Value::Bool(true));
+            }
+            action_options.insert("page".to_string(), Value::Number(opts.page.into()));
+            action_options.insert("limit".to_string(), Value::Number(opts.per_page.into()));
+            if let Some(explicit_chain) = parsed.global_chain() {
+                action_options.insert("chain".to_string(), Value::String(explicit_chain));
+            }
+
+            let asset_args = opts.asset.as_deref().map(|asset| [asset]);
+            error.next_actions.push(crate::output::build_next_action(
+                "activity",
+                "Retry the public activity query.",
+                "after_activity",
+                asset_args.as_ref().map(|args| args.as_slice()),
+                Some(&action_options),
+                None,
+            ));
+        }
+
+        error
+    })
 }

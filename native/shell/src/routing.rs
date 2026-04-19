@@ -277,6 +277,7 @@ mod tests {
                 "ragequit": "Usage: privacy-pools ragequit"
             },
             "guideStructuredText": "guide",
+            "guideStructuredPayload": { "mode": "help", "help": "guide", "topics": [] },
             "guideHumanText": "guide",
             "capabilitiesHumanText": "capabilities",
             "describeHumanTextByPath": {
@@ -348,7 +349,7 @@ mod tests {
         let parsed = parse_root_argv(&args);
         assert_eq!(
             stats_native_mode(&args, &parsed, &manifest),
-            Some("structured-default")
+            Some("structured")
         );
     }
 
