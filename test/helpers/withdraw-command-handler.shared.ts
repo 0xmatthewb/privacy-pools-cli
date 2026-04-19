@@ -343,6 +343,7 @@ const isPromptCancellationErrorMock = mock(
 );
 const maybeRecoverMissingWalletSetupMock = mock(async () => false);
 const resolveAddressOrEnsMock = mock(realValidation.resolveAddressOrEns);
+const lookupEnsNameForAddressMock = mock(async () => undefined);
 const loadKnownRecipientHistoryMock = mock(() => [] as string[]);
 const rememberKnownRecipientMock = mock(() => undefined);
 const listSavedWorkflowIdsMock = mock(() => [] as string[]);
@@ -481,6 +482,7 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
   }));
   mock.module("../../src/utils/validation.ts", () => ({
     ...realValidation,
+    lookupEnsNameForAddress: lookupEnsNameForAddressMock,
     resolveAddressOrEns: resolveAddressOrEnsMock,
   }));
   mock.module("../../src/services/recipient-history.ts", () => ({
@@ -549,6 +551,7 @@ export function registerWithdrawCommandHandlerHarness(): void {
     isPromptCancellationErrorMock.mockReset();
     maybeRecoverMissingWalletSetupMock.mockClear();
     resolveAddressOrEnsMock.mockClear();
+    lookupEnsNameForAddressMock.mockClear();
     loadKnownRecipientHistoryMock.mockClear();
     rememberKnownRecipientMock.mockClear();
     listSavedWorkflowIdsMock.mockClear();
@@ -706,6 +709,7 @@ export function registerWithdrawCommandHandlerHarness(): void {
     );
     maybeRecoverMissingWalletSetupMock.mockImplementation(async () => false);
     resolveAddressOrEnsMock.mockImplementation(realValidation.resolveAddressOrEns);
+    lookupEnsNameForAddressMock.mockImplementation(async () => undefined);
     loadKnownRecipientHistoryMock.mockImplementation(() => [
       DEFAULT_RELAYER_RECIPIENT,
     ]);
@@ -773,6 +777,7 @@ export {
   isPromptCancellationErrorMock,
   listPoolsMock,
   maybeRecoverMissingWalletSetupMock,
+  lookupEnsNameForAddressMock,
   maybeRenderPreviewProgressStepMock,
   maybeRenderPreviewScenarioMock,
   parsePoolAccountSelectorMock,

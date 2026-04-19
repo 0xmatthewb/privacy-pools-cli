@@ -710,6 +710,35 @@ describe("flow command handlers", () => {
     );
   });
 
+  test("start fails closed after repeated interactive recipient validation errors", async () => {
+    const cmd = fakeCommand({});
+    inputPromptMock.mockImplementation(
+      async (options?: { validate?: (value: string) => true | string }) => {
+        expect(options?.validate?.("alice.eth")).toBe(true);
+        return "alice.eth";
+      },
+    );
+    resolveSafeRecipientAddressOrEnsMock.mockImplementation(async () => {
+      throw new realErrors.CLIError(
+        "Recipient appears to be a burn address.",
+        "INPUT",
+        "Use a different recipient.",
+      );
+    });
+
+    await handleFlowStartCommand("0.1", "ETH", {}, cmd);
+
+    expect(inputPromptMock).toHaveBeenCalledTimes(5);
+    expect(startWorkflowMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+    expect(error).toBeInstanceOf(realErrors.CLIError);
+    expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
+      "Recipient appears to be a burn address.",
+    );
+    expect(isJson).toBe(false);
+  });
+
   test("start can return after prompting when preview output is rendered post-prompts", async () => {
     maybeRenderPreviewScenarioMock.mockImplementation(async (_commandKey, options) =>
       options?.timing === "after-prompts",

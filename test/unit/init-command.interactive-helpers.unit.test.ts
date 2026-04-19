@@ -304,6 +304,16 @@ describe("init command interactive helpers", () => {
     ).rejects.toThrow("Preview scenario rendered.");
   });
 
+  test("promptForLoadedRecoveryPhrase fails closed after repeated invalid attempts", async () => {
+    const initHelpers = await loadInitHelpers();
+    passwordPromptMock.mockImplementation(async () => "not a valid phrase");
+
+    await expect(
+      initHelpers.promptForLoadedRecoveryPhrase(false),
+    ).rejects.toThrow("Recovery phrase validation failed after repeated attempts.");
+    expect(passwordPromptMock).toHaveBeenCalledTimes(5);
+  });
+
   test("handleGeneratedRecoveryBackup supports explicit files, non-interactive null returns, manual confirmation, and rejected confirmations", async () => {
     const home = useIsolatedHome();
     const backupPath = join(home, "generated-backup.txt");
@@ -498,6 +508,21 @@ describe("init command interactive helpers", () => {
         true,
       ),
     ).rejects.toThrow("Preview scenario rendered.");
+  });
+
+  test("verifyGeneratedRecoveryPhrase fails closed after repeated mismatches", async () => {
+    const initHelpers = await loadInitHelpers();
+    const verificationMnemonic =
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+    inputPromptMock.mockImplementation(async () => "wrong");
+
+    await expect(
+      initHelpers.verifyGeneratedRecoveryPhrase(
+        verificationMnemonic,
+        true,
+      ),
+    ).rejects.toThrow("Recovery phrase verification failed after repeated attempts.");
+    expect(inputPromptMock).toHaveBeenCalledTimes(15);
   });
 
   test("collectSignerKey normalizes inline keys, honors env state, and handles required prompt flows", async () => {

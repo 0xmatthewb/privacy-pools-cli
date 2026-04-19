@@ -115,6 +115,38 @@ export function registerWithdrawInteractiveReviewTests(): void {
     expect(stderr).toContain("Withdrawal review");
   });
 
+  test("fails closed after repeated interactive recipient validation errors", async () => {
+    useIsolatedHome({ withSigner: true });
+    inputPromptMock.mockImplementation(
+      async (options?: { validate?: (value: string) => true | string }) => {
+        expect(options?.validate?.("alice.eth")).toBe(true);
+        return "alice.eth";
+      },
+    );
+    resolveAddressOrEnsMock.mockImplementation(async () => {
+      throw new CLIError(
+        "Recipient appears to be a burn address.",
+        "INPUT",
+        "Use a different recipient.",
+      );
+    });
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(inputPromptMock).toHaveBeenCalledTimes(5);
+    expect(requestQuoteMock).not.toHaveBeenCalled();
+    expect(confirmPromptMock).not.toHaveBeenCalled();
+    expect(stderr).toContain("Recipient appears to be a burn address.");
+  });
+
   test("returns early when preview rendering takes over recipient capture", async () => {
     useIsolatedHome({ withSigner: true });
     maybeRenderPreviewScenarioMock.mockImplementation(async (commandKey: string) =>
