@@ -1,5 +1,4 @@
 import type { Command } from "commander";
-import { confirm, input, select } from "@inquirer/prompts";
 import {
   generateMerkleProof,
   calculateContext,
@@ -122,10 +121,13 @@ import {
 } from "../output/withdraw.js";
 import {
   CONFIRMATION_TOKENS,
+  confirmPrompt,
   confirmActionWithSeverity,
   formatPoolAccountPromptChoice,
   formatPoolPromptChoice,
+  inputPrompt,
   isHighStakesWithdrawal,
+  selectPrompt,
 } from "../utils/prompts.js";
 import {
   ensurePromptInteractionAvailable,
@@ -497,7 +499,7 @@ async function promptRecipientAddressOrEns(
 ): Promise<{ address: Address; ensName?: string }> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_RECIPIENT_PROMPT_ATTEMPTS; attempt += 1) {
-    const prompted = (await input({
+    const prompted = (await inputPrompt({
       message: "Recipient address or ENS:",
       validate: validateRecipientAddressOrEnsInput,
     })).trim();
@@ -579,7 +581,7 @@ async function confirmRecipientIfNew(params: {
     standardMessage: "Use this new recipient?",
     highStakesToken: CONFIRMATION_TOKENS.recipient,
     highStakesWarning: "Recipient review changed while waiting for confirmation.",
-    confirm,
+    confirm: confirmPrompt,
   });
   if (!ok) {
     throw promptCancelledError();
@@ -1141,7 +1143,7 @@ export async function handleWithdrawCommand(
         );
       }
       ensurePromptInteractionAvailable();
-      const selected = await select({
+      const selected = await selectPrompt<string>({
         message: "Select asset to withdraw:",
         choices: pools.map((p) => ({
           name: formatPoolPromptChoice({
@@ -1189,7 +1191,7 @@ export async function handleWithdrawCommand(
     if (needsAmountPrompt) {
       ensurePromptInteractionAvailable();
       amountStr = (
-        await input({
+        await inputPrompt({
           message: `Withdrawal amount for ${pool.symbol} (e.g. 0.05, 50%, 100%):`,
           validate: (value) => {
             const trimmed = value.trim();
@@ -1693,7 +1695,7 @@ export async function handleWithdrawCommand(
           return;
         }
         ensurePromptInteractionAvailable();
-        const selectedPA = await select({
+        const selectedPA = await selectPrompt<number>({
           message: "Select Pool Account to withdraw from:",
           choices: approvedEligiblePoolAccounts.map((pa) => ({
             name: formatPoolAccountPromptChoice({
@@ -1792,7 +1794,7 @@ export async function handleWithdrawCommand(
             );
             ensurePromptInteractionAvailable();
             const newAmountStr = await withSuspendedSpinner(spin, async () =>
-              input({
+              inputPrompt({
                 message: `Enter a new amount (minimum ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}):`,
                 validate: (val) => {
                   try {
@@ -1844,7 +1846,7 @@ export async function handleWithdrawCommand(
                 const remainderChoice = await withSuspendedSpinner(
                   spin,
                   async () =>
-                    select({
+                    selectPrompt<"less" | "max" | "continue">({
                       message: "The remainder would be below the private relayer minimum. What would you like to do?",
                       choices: [
                         {
@@ -1879,7 +1881,7 @@ export async function handleWithdrawCommand(
                   const newAmountStr = await withSuspendedSpinner(
                     spin,
                     async () =>
-                      input({
+                      inputPrompt({
                         message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
                         validate: (val) => {
                           try {
@@ -2085,7 +2087,7 @@ export async function handleWithdrawCommand(
             highStakesToken: CONFIRMATION_TOKENS.directWithdrawal,
             highStakesWarning:
               `This direct withdrawal will publicly link your deposit and withdrawal addresses onchain. Recipient: ${directAddress}. This cannot be undone.`,
-            confirm,
+            confirm: confirmPrompt,
           });
           if (!ok) {
             info("Withdrawal cancelled.", silent);
@@ -2410,7 +2412,7 @@ export async function handleWithdrawCommand(
           const remainderChoice = await withSuspendedSpinner(
             spin,
             async () =>
-              select({
+              selectPrompt<"less" | "full" | "continue">({
                 message: "How would you like to proceed?",
                 choices: [
                   {
@@ -2460,7 +2462,7 @@ export async function handleWithdrawCommand(
             const newAmountStr = await withSuspendedSpinner(
               spin,
               async () =>
-                input({
+                inputPrompt({
                   message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
                   validate: (val) => {
                     try {
@@ -2712,7 +2714,7 @@ export async function handleWithdrawCommand(
               highStakesWarning:
                 `This withdrawal moves ${withdrawalAmountLabel} to ${resolvedRecipientAddress}.` +
                 " Double-check the amount and destination before continuing.",
-              confirm,
+              confirm: confirmPrompt,
             });
             if (!ok) {
               info("Withdrawal cancelled.", silent);

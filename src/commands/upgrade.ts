@@ -24,6 +24,7 @@ import {
   isPromptCancellationError,
   PROMPT_CANCELLATION_MESSAGE,
 } from "../utils/prompt-cancellation.js";
+import { confirmPrompt } from "../utils/prompts.js";
 import {
   PREVIEW_SCENARIO_ENV,
   maybeRenderPreviewProgressStep,
@@ -255,7 +256,6 @@ export async function handleUpgradeCommand(
       return;
     }
 
-    const { confirm } = await import("@inquirer/prompts");
     process.stderr.write("\n");
     process.stderr.write(formatUpgradeInstallReview(result));
     if (
@@ -266,7 +266,7 @@ export async function handleUpgradeCommand(
       return;
     }
     ensurePromptInteractionAvailable();
-    const confirmed = await confirm({
+    const confirmed = await confirmPrompt({
       message: "Install update now?",
       default: true,
     });

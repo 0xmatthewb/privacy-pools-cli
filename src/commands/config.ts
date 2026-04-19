@@ -22,6 +22,7 @@ import { CLIError, printError } from "../utils/errors.js";
 import type { CLIConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext } from "../output/common.js";
+import { passwordPrompt } from "../utils/prompts.js";
 import {
   renderConfigList,
   renderConfigGet,
@@ -95,8 +96,7 @@ async function readSensitiveInput(
   }
 
   if (isInteractive) {
-    const { password } = await import("@inquirer/prompts");
-    const value = await password({ message: "Enter value:" });
+    const value = await passwordPrompt({ message: "Enter value:" });
     return value.trim();
   }
 

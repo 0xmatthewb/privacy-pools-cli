@@ -6,6 +6,7 @@ import { CLIError, classifyError } from "./errors.js";
 import { createNextAction } from "../output/common.js";
 import { info } from "./format.js";
 import { resolveGlobalMode } from "./mode.js";
+import { confirmPrompt } from "./prompts.js";
 import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
@@ -86,10 +87,8 @@ export async function maybeRecoverMissingWalletSetup(
     return false;
   }
 
-  const { confirm } = await import("@inquirer/prompts");
-
   try {
-    const shouldRunInit = await confirm({
+    const shouldRunInit = await confirmPrompt({
       message: "Run privacy-pools init now?",
       default: true,
     });

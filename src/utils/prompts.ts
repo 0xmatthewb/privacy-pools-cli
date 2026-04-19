@@ -1,5 +1,4 @@
 import chalk from "chalk";
-import { input } from "@inquirer/prompts";
 import { displayDecimals, formatAmount, formatUsdValue } from "./format.js";
 import { ensurePromptInteractionAvailable } from "./prompt-cancellation.js";
 import {
@@ -13,6 +12,14 @@ import {
 import { getOutputWidthClass, inlineSeparator, supportsUnicodeOutput } from "./terminal.js";
 
 export type ConfirmationSeverity = "standard" | "high_stakes";
+export type PromptModule = Pick<
+  typeof import("@inquirer/prompts"),
+  "confirm" | "input" | "password" | "select"
+>;
+export type PromptConfirm = PromptModule["confirm"];
+export type PromptInput = PromptModule["input"];
+export type PromptPassword = PromptModule["password"];
+export type PromptSelect = PromptModule["select"];
 
 export const HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD = 1000;
 export const CONFIRMATION_TOKENS = {
@@ -27,6 +34,44 @@ export const CONFIRMATION_TOKENS = {
 
 export function confirmationTokenMismatchMessage(token: string): string {
   return `Confirmation token did not match. Expected '${token}' (exact case).`;
+}
+
+export async function getPromptModule(): Promise<PromptModule> {
+  ensurePromptInteractionAvailable();
+  const { confirm, input, password, select } = await import("@inquirer/prompts");
+  return { confirm, input, password, select };
+}
+
+export async function confirmPrompt(
+  options: Parameters<PromptConfirm>[0],
+  context?: Parameters<PromptConfirm>[1],
+): ReturnType<PromptConfirm> {
+  const { confirm } = await getPromptModule();
+  return confirm(options, context);
+}
+
+export async function inputPrompt(
+  options: Parameters<PromptInput>[0],
+  context?: Parameters<PromptInput>[1],
+): ReturnType<PromptInput> {
+  const { input } = await getPromptModule();
+  return input(options, context);
+}
+
+export async function passwordPrompt(
+  options: Parameters<PromptPassword>[0],
+  context?: Parameters<PromptPassword>[1],
+): ReturnType<PromptPassword> {
+  const { password } = await getPromptModule();
+  return password(options, context);
+}
+
+export async function selectPrompt<Value>(
+  options: Parameters<PromptSelect>[0],
+  context?: Parameters<PromptSelect>[1],
+): Promise<Value> {
+  const { select } = await getPromptModule();
+  return select<Value>(options as never, context);
 }
 
 function joinPromptFacts(facts: string[]): string {
@@ -196,8 +241,6 @@ export async function confirmActionWithSeverity(params: {
   highStakesWarning: string;
   confirm: (options: { message: string; default?: boolean }) => Promise<boolean>;
 }): Promise<boolean> {
-  ensurePromptInteractionAvailable();
-
   if (params.severity === "standard") {
     return params.confirm({
       message: params.standardMessage,
@@ -206,7 +249,7 @@ export async function confirmActionWithSeverity(params: {
   }
 
   process.stderr.write(`${statusFailed(params.highStakesWarning)}\n`);
-  const typed = await input({
+  const typed = await inputPrompt({
     message: `Type "${params.highStakesToken}" to confirm:`,
   });
   const matches = typed.trim() === params.highStakesToken;

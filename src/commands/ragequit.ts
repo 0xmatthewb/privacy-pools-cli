@@ -1,5 +1,4 @@
 import type { Command } from "commander";
-import { confirm, select } from "@inquirer/prompts";
 import type { Address, Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
@@ -79,9 +78,11 @@ import {
 } from "../preview/runtime.js";
 import {
   CONFIRMATION_TOKENS,
+  confirmPrompt,
   confirmActionWithSeverity,
   formatPoolAccountPromptChoice,
   formatPoolPromptChoice,
+  selectPrompt,
 } from "../utils/prompts.js";
 import {
   ensurePromptInteractionAvailable,
@@ -454,7 +455,7 @@ export async function handleRagequitCommand(
         );
       }
       ensurePromptInteractionAvailable();
-      const selected = await select({
+      const selected = await selectPrompt<string>({
         message: "Select asset pool to ragequit:",
         choices: pools.map((p) => ({
           name: formatPoolPromptChoice({
@@ -728,7 +729,7 @@ export async function handleRagequitCommand(
       } else if (!skipPrompts) {
         const tokenPrice = deriveTokenPrice(pool);
         ensurePromptInteractionAvailable();
-        const selected = await select({
+        const selected = await selectPrompt<number>({
           message: "Select Pool Account to ragequit:",
           choices: poolAccounts.map((pa) => ({
             name: formatPoolAccountPromptChoice({
@@ -813,7 +814,7 @@ export async function handleRagequitCommand(
       // Interactive choice for approved accounts: offer to switch to private withdrawal
       if (selectedPoolAccount.status === "approved" && !skipPrompts) {
         ensurePromptInteractionAvailable();
-        const choice = await select({
+        const choice = await selectPrompt<"ragequit" | "withdraw">({
           message:
             "This deposit is approved for private withdrawal. Continue with public ragequit anyway?",
           choices: [
@@ -852,7 +853,7 @@ export async function handleRagequitCommand(
           highStakesToken: CONFIRMATION_TOKENS.ragequit,
           highStakesWarning:
             "This ragequit sends funds back to the original deposit address. It does not preserve privacy.",
-          confirm,
+          confirm: confirmPrompt,
         });
         if (!ok) {
           info("Ragequit cancelled.", silent);

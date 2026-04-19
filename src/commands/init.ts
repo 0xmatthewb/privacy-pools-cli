@@ -7,7 +7,6 @@ import {
 import { dirname, join } from "path";
 import { homedir } from "os";
 import type { Command } from "commander";
-import { confirm, input, password, select } from "@inquirer/prompts";
 import chalk from "chalk";
 import { Separator } from "@inquirer/select";
 import {
@@ -56,6 +55,12 @@ import {
   renderInitSignerKeyReview,
   renderInitStage,
 } from "../output/init.js";
+import {
+  confirmPrompt,
+  inputPrompt,
+  passwordPrompt,
+  selectPrompt,
+} from "../utils/prompts.js";
 import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
@@ -510,7 +515,7 @@ export async function promptForWorkflowGoal(
       throw new PreviewScenarioRenderedError();
     }
     ensurePromptInteractionAvailable();
-    const goal = await select({
+    const goal = await selectPrompt<"create" | "restore">({
       message: withInitTestSentinel("goal", "How would you like to get started?"),
       choices: [
         {
@@ -543,7 +548,7 @@ export async function promptForWorkflowGoal(
       throw new PreviewScenarioRenderedError();
     }
     ensurePromptInteractionAvailable();
-    const configuredGoal = await select({
+    const configuredGoal = await selectPrompt<"signer_only" | "restore" | "create">({
       message: withInitTestSentinel("goal", "What would you like to do?"),
       choices: [
         {
@@ -587,7 +592,7 @@ export async function promptForWorkflowGoal(
     throw new PreviewScenarioRenderedError();
   }
   ensurePromptInteractionAvailable();
-  const goal = await select({
+  const goal = await selectPrompt<"signer_only" | "restore" | "create">({
     message: withInitTestSentinel("goal", "What would you like to do?"),
     choices: [
       {
@@ -722,7 +727,7 @@ export async function maybeConfirmReplacement(
     throw new PreviewScenarioRenderedError();
   }
   ensurePromptInteractionAvailable();
-  const confirmed = await confirm({
+  const confirmed = await confirmPrompt({
     message:
       params.plan.workflow === "restore"
         ? "Replace the current local setup by loading this account?"
@@ -745,7 +750,7 @@ export async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<st
   }
   ensurePromptInteractionAvailable();
   for (let attempt = 1; attempt <= MAX_RECOVERY_PHRASE_PROMPT_ATTEMPTS; attempt += 1) {
-    const phrase = await password({
+    const phrase = await passwordPrompt({
       message: withInitTestSentinel(
         "load-recovery",
         "Recovery phrase (12 or 24 words):",
@@ -808,7 +813,7 @@ export async function handleGeneratedRecoveryBackup(
     throw new PreviewScenarioRenderedError();
   }
   ensurePromptInteractionAvailable();
-  const backupChoice = await select({
+  const backupChoice = await selectPrompt<"file" | "manual">({
     message: "How would you like to back up your recovery phrase?",
     choices: [
       { name: "Save to file (recommended)", value: "file" },
@@ -823,7 +828,7 @@ export async function handleGeneratedRecoveryBackup(
       throw new PreviewScenarioRenderedError();
     }
     ensurePromptInteractionAvailable();
-    const filePathInput = await input({
+    const filePathInput = await inputPrompt({
       message: "Save location:",
       default: defaultPath,
     });
@@ -847,7 +852,7 @@ export async function handleGeneratedRecoveryBackup(
     throw new PreviewScenarioRenderedError();
   }
   ensurePromptInteractionAvailable();
-  const confirmed = await confirm({
+  const confirmed = await confirmPrompt({
     message: "I have securely backed up my recovery phrase.",
     default: false,
   });
@@ -887,7 +892,7 @@ export async function verifyGeneratedRecoveryPhrase(
 
     let allCorrect = true;
     for (const wordNumber of RECOVERY_VERIFICATION_WORDS) {
-      const answer = await input({
+      const answer = await inputPrompt({
         message: `Word #${wordNumber}:`,
       });
       if (normalizeSecretWord(answer) !== normalizeSecretWord(words[wordNumber - 1] ?? "")) {
@@ -949,7 +954,7 @@ export async function collectSignerKey(
       throw new PreviewScenarioRenderedError();
     }
     ensurePromptInteractionAvailable();
-    const keyInput = await password({
+    const keyInput = await passwordPrompt({
       message: params.required
         ? "Signer key (private key, 0x...):"
         : "Signer key (private key, 0x..., or press Enter to skip and finish later):",
@@ -1000,7 +1005,7 @@ export async function collectDefaultChain(
     throw new PreviewScenarioRenderedError();
   }
   ensurePromptInteractionAvailable();
-  defaultChain = await select({
+  defaultChain = await selectPrompt<string>({
     message: "Which network would you like to use by default?",
     choices: [
       ...MAINNET_CHAIN_NAMES.map((name) => ({ name, value: name })),

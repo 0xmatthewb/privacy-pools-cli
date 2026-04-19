@@ -140,7 +140,10 @@ import {
 import {
   CONFIRMATION_TOKENS,
   confirmActionWithSeverity,
+  confirmPrompt,
+  inputPrompt,
   isHighStakesUsdAmount,
+  selectPrompt,
 } from "../utils/prompts.js";
 import {
   createNarrativeSteps,
@@ -1760,7 +1763,6 @@ async function confirmHumanFlowStartReview(
   ) {
     throw new PreviewScenarioRenderedError();
   }
-  const { confirm } = await import("@inquirer/prompts");
   ensurePromptInteractionAvailable();
   const ok = await confirmActionWithSeverity({
     severity,
@@ -1769,7 +1771,7 @@ async function confirmHumanFlowStartReview(
     highStakesToken: CONFIRMATION_TOKENS.deposit,
     highStakesWarning:
       `This mainnet deposit sends ${formatAmount(amount, pool.decimals, pool.symbol)} into a public pool before ASP review.`,
-    confirm,
+    confirm: confirmPrompt,
   });
   if (!ok) {
     throw new FlowCancelledError();
@@ -4312,7 +4314,6 @@ export async function setupNewWalletWorkflow(
         );
       }
     } else {
-      const { input, select } = await import("@inquirer/prompts");
       if (!silent) {
         process.stderr.write(
           renderWorkflowWalletBackupChoiceReview({
@@ -4328,7 +4329,7 @@ export async function setupNewWalletWorkflow(
         throw new PreviewScenarioRenderedError();
       }
       ensurePromptInteractionAvailable();
-      const saveAction = await select({
+      const saveAction = await selectPrompt<"file" | "copied">({
         message: "How would you like to back up this workflow wallet?",
         choices: [
           { name: "Save to file (recommended)", value: "file" },
@@ -4352,7 +4353,7 @@ export async function setupNewWalletWorkflow(
           throw new PreviewScenarioRenderedError();
         }
         ensurePromptInteractionAvailable();
-        backupPath = await input({
+        backupPath = await inputPrompt({
           message: "Save location:",
           default: defaultWorkflowWalletBackupPath(workflowId),
         });
@@ -4397,9 +4398,8 @@ export async function setupNewWalletWorkflow(
     ) {
       throw new PreviewScenarioRenderedError();
     }
-    const { confirm } = await import("@inquirer/prompts");
     ensurePromptInteractionAvailable();
-    const confirmed = await confirm({
+    const confirmed = await confirmPrompt({
       message: "I have securely backed up this workflow wallet.",
       default: false,
     });
@@ -4550,13 +4550,12 @@ export async function startWorkflow(
       `${humanAmount} ${pool.symbol} is a non-round amount that may reduce your privacy in the anonymity set.${suggestionText}`,
       silent,
     );
-    const { confirm } = await import("@inquirer/prompts");
     const proceed = await confirmActionWithSeverity({
       severity: "standard",
       standardMessage: "Proceed with this amount anyway?",
       highStakesToken: CONFIRMATION_TOKENS.proceed,
       highStakesWarning: "Amount review changed while waiting for confirmation.",
-      confirm,
+      confirm: confirmPrompt,
     });
     if (!proceed) {
       throw new FlowCancelledError();

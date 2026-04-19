@@ -55,8 +55,14 @@ import {
   maybeRenderPreviewScenario,
   PreviewScenarioRenderedError,
 } from "../preview/runtime.js";
-import { confirmActionWithSeverity } from "../utils/prompts.js";
-import { CONFIRMATION_TOKENS } from "../utils/prompts.js";
+import {
+  CONFIRMATION_TOKENS,
+  confirmActionWithSeverity,
+  confirmPrompt,
+  inputPrompt,
+  type PromptInput,
+  selectPrompt,
+} from "../utils/prompts.js";
 import {
   maybeRecoverMissingWalletSetup,
   normalizeInitRequiredInputError,
@@ -356,12 +362,12 @@ function validateRecipientAddressOrEnsInput(value: string): true | string {
 }
 
 async function promptFlowRecipientAddressOrEns(
-  inputPrompt: typeof import("@inquirer/prompts").input,
+  promptInput: PromptInput,
   silent: boolean,
 ): Promise<string> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_FLOW_RECIPIENT_PROMPT_ATTEMPTS; attempt += 1) {
-    const prompted = (await inputPrompt({
+    const prompted = (await promptInput({
       message: "Recipient address or ENS:",
       validate: validateRecipientAddressOrEnsInput,
     })).trim();
@@ -409,14 +415,13 @@ async function confirmRecipientIfNew(params: {
   }
 
   warn(warning.message, params.silent);
-  const { confirm } = await import("@inquirer/prompts");
   ensurePromptInteractionAvailable();
   const ok = await confirmActionWithSeverity({
     severity: "standard",
     standardMessage: "Use this new recipient?",
     highStakesToken: CONFIRMATION_TOKENS.recipient,
     highStakesWarning: "Recipient review changed while waiting for confirmation.",
-    confirm,
+    confirm: confirmPrompt,
   });
   if (!ok) {
     throw new FlowCancelledError();
@@ -586,16 +591,13 @@ export async function handleFlowRootCommand(
     }
 
     ensurePromptInteractionAvailable();
-    const [{ input, select }, savedWorkflowIds] = await Promise.all([
-      import("@inquirer/prompts"),
-      Promise.resolve(listSavedWorkflowIds()),
-    ]);
+    const savedWorkflowIds = await Promise.resolve(listSavedWorkflowIds());
     const latestWorkflowId = savedWorkflowIds[0];
     const hasMultipleSavedWorkflows = savedWorkflowIds.length > 1;
     const workflowChoiceSuffix = latestWorkflowId
       ? ` (${latestWorkflowId})`
       : "";
-    const action = await select({
+    const action = await selectPrompt<"start" | "watch" | "status" | "ragequit" | "choose_saved">({
       message: "What would you like to do?",
       choices: [
         {
@@ -638,16 +640,16 @@ export async function handleFlowRootCommand(
     });
 
     if (action === "start") {
-      const amount = (await input({
+      const amount = (await inputPrompt({
         message: "Deposit amount:",
         default: "0.1",
       })).trim();
-      const asset = (await input({
+      const asset = (await inputPrompt({
         message: "Asset symbol:",
         default: "ETH",
       })).trim().toUpperCase();
       const recipient = await promptFlowRecipientAddressOrEns(
-        input,
+        inputPrompt,
         mode.isQuiet || mode.isJson,
       );
       await handleFlowStartCommand(amount, asset, { to: recipient }, cmd);
@@ -670,14 +672,14 @@ export async function handleFlowRootCommand(
     }
 
     if (action === "choose_saved") {
-      const selectedWorkflowId = await select({
+      const selectedWorkflowId = await selectPrompt<string>({
         message: "Choose a saved flow:",
         choices: savedWorkflowIds.map((workflowId) => ({
           name: workflowId,
           value: workflowId,
         })),
       });
-      const savedWorkflowAction = await select({
+      const savedWorkflowAction = await selectPrompt<"watch" | "status" | "ragequit">({
         message: `What would you like to do with ${selectedWorkflowId}?`,
         choices: [
           {
@@ -780,10 +782,9 @@ export async function handleFlowStartCommand(
 
     let recipient = opts.to?.trim();
     if (!recipient && !mode.skipPrompts) {
-      const { input } = await import("@inquirer/prompts");
       ensurePromptInteractionAvailable();
       recipient = await promptFlowRecipientAddressOrEns(
-        input,
+        inputPrompt,
         mode.isQuiet || mode.isJson,
       );
     }
@@ -929,14 +930,13 @@ export async function handleFlowRagequitCommand(
       ) {
         return;
       }
-      const { confirm } = await import("@inquirer/prompts");
       const ok = await confirmActionWithSeverity({
         severity: "high_stakes",
         standardMessage: "Confirm ragequit?",
         highStakesToken: CONFIRMATION_TOKENS.ragequit,
         highStakesWarning:
           "This saved flow will ragequit funds back to the original deposit address. It does not preserve privacy.",
-        confirm,
+        confirm: confirmPrompt,
       });
       if (!ok) {
         throw new FlowCancelledError();

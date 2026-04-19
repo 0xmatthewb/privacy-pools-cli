@@ -1,5 +1,4 @@
 import type { Command } from "commander";
-import { confirm, select } from "@inquirer/prompts";
 import { type Hash as SDKHash } from "@0xbow/privacy-pools-core-sdk";
 import type { Hex, Address } from "viem";
 import {
@@ -73,9 +72,11 @@ import {
 } from "../preview/runtime.js";
 import {
   CONFIRMATION_TOKENS,
+  confirmPrompt,
   confirmActionWithSeverity,
   formatPoolPromptChoice,
   isHighStakesUsdAmount,
+  selectPrompt,
 } from "../utils/prompts.js";
 import {
   ensurePromptInteractionAvailable,
@@ -254,7 +255,7 @@ export async function handleDepositCommand(
       const sortedPools = sortDepositPromptPools(pools);
 
       ensurePromptInteractionAvailable();
-      const selected = await select({
+      const selected = await selectPrompt<string>({
         message: "Select asset to deposit:",
         choices: sortedPools.map((p) => ({
           name: formatPoolPromptChoice({
@@ -345,7 +346,7 @@ export async function handleDepositCommand(
           return;
         }
         ensurePromptInteractionAvailable();
-        const proceed = await confirm({
+        const proceed = await confirmPrompt({
           message: "Proceed with this amount anyway?",
           default: false,
         });
@@ -403,7 +404,7 @@ export async function handleDepositCommand(
         highStakesToken: CONFIRMATION_TOKENS.deposit,
         highStakesWarning:
           `This mainnet deposit sends ${formatAmount(amount, pool.decimals, pool.symbol)} into a public pool before ASP review.`,
-        confirm,
+        confirm: confirmPrompt,
       });
       if (!ok) {
         info("Deposit cancelled.", silent);

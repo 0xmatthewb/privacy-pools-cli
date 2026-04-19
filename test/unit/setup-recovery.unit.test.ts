@@ -17,15 +17,15 @@ const realInit = captureModuleExports(
 const realFormat = captureModuleExports(
   await import("../../src/utils/format.ts"),
 );
-const realPrompts = captureModuleExports(
-  await import("@inquirer/prompts"),
+const realPromptUtils = captureModuleExports(
+  await import("../../src/utils/prompts.ts"),
 );
 
 const MODULE_RESTORES = [
   ["../../src/services/config.ts", realConfig],
   ["../../src/commands/init.ts", realInit],
   ["../../src/utils/format.ts", realFormat],
-  ["@inquirer/prompts", realPrompts],
+  ["../../src/utils/prompts.ts", realPromptUtils],
 ] as const;
 
 const loadConfigMock = mock(() => ({ defaultChain: "sepolia" }));
@@ -71,14 +71,14 @@ async function loadSetupRecoveryModule(): Promise<void> {
       ...realFormat,
       info: infoMock,
     })],
-    ["@inquirer/prompts", () => ({
-      ...realPrompts,
-      confirm: confirmMock,
+    ["../../src/utils/prompts.ts", () => ({
+      ...realPromptUtils,
+      confirmPrompt: confirmMock,
     })],
   ]);
 
   ({ maybeRecoverMissingWalletSetup } = await import(
-    "../../src/utils/setup-recovery.ts"
+    "../../src/utils/setup-recovery.ts?setup-recovery-unit-tests"
   ));
 }
 

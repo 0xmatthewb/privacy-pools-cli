@@ -21,9 +21,6 @@ const realFlowOutput = captureModuleExports(
 const realFormat = captureModuleExports(
   await import("../../src/utils/format.ts"),
 );
-const realPrompts = captureModuleExports(
-  await import("@inquirer/prompts"),
-);
 const realValidation = captureModuleExports(
   await import("../../src/utils/validation.ts"),
 );
@@ -62,7 +59,6 @@ const FLOW_MODULE_RESTORES = [
   ["../../src/output/common.ts", realOutputCommon],
   ["../../src/output/flow.ts", realFlowOutput],
   ["../../src/utils/format.ts", realFormat],
-  ["@inquirer/prompts", realPrompts],
   ["../../src/utils/validation.ts", realValidation],
   ["../../src/services/workflow.ts", realWorkflow],
   ["../../src/services/config.ts", realConfigService],
@@ -212,10 +208,6 @@ async function loadFlowHandlers(): Promise<void> {
       getSignerAddress: getSignerAddressMock,
       loadPrivateKey: loadPrivateKeyMock,
     })],
-    ["@inquirer/prompts", () => ({
-      input: inputPromptMock,
-      select: selectPromptMock,
-    })],
     ["../../src/utils/mode.ts", () => ({
       ...realMode,
       resolveGlobalMode: resolveGlobalModeMock,
@@ -235,6 +227,8 @@ async function loadFlowHandlers(): Promise<void> {
     ["../../src/utils/prompts.ts", () => ({
       ...realPromptUtils,
       confirmActionWithSeverity: confirmActionWithSeverityMock,
+      inputPrompt: inputPromptMock,
+      selectPrompt: selectPromptMock,
     })],
     ["../../src/utils/setup-recovery.ts", () => ({
       ...realSetupRecovery,
@@ -246,7 +240,7 @@ async function loadFlowHandlers(): Promise<void> {
     })],
   ]);
 
-  const flowModule = await import("../../src/commands/flow.ts");
+  const flowModule = await import("../../src/commands/flow.ts?flow-handler-unit-tests");
   ({
     handleFlowRootCommand,
     handleFlowStartCommand,

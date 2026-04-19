@@ -20,6 +20,7 @@ import {
   buildCompletionInstallPlan,
   performCompletionInstall,
 } from "../utils/completion-install.js";
+import { confirmPrompt } from "../utils/prompts.js";
 
 interface CompletionCommandOptions {
   shell?: string;
@@ -123,8 +124,7 @@ export async function handleCompletionCommand(
         process.stderr.isTTY
       ) {
         renderCompletionInstallReview(ctx, plan);
-        const { confirm } = await import("@inquirer/prompts");
-        const approved = await confirm({
+        const approved = await confirmPrompt({
           message: "Install shell completion now?",
           default: true,
         });
