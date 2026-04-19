@@ -218,7 +218,7 @@ budgets rather than strict SLAs:
 For CLI startup work, prefer command-family budgets over one global benchmark:
 
 - `static/local`: root help, version, generated discovery, completion query
-- `native public read-only`: `pools`, `activity`, `stats`
+- `native public read-only`: `pools`, `activity`, `protocol-stats`, `pool-stats`
 - `js read-only/config`: `status --json --no-check`, upgrade/config inspection
 - `transactional/proof-heavy`: deposit/withdraw/ragequit/flow, where network and proving costs dominate
 

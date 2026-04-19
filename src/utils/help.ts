@@ -209,7 +209,7 @@ const guideSections: Record<string, () => string[]> = {
     `  ${accent("privacy-pools accounts --chain mainnet")}                       ${chalk.dim("(then confirm approved vs declined vs POA Needed)")}`,
     `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient --pool-account PA-1")}`,
     chalk.dim("  Transaction commands use your default chain (set during init)."),
-    chalk.dim("  Public dashboards like pools/activity/stats default to CLI-supported mainnet chains."),
+    chalk.dim("  Public dashboards like pools/activity/protocol-stats default to CLI-supported mainnet chains."),
     chalk.dim("  Use --include-testnets to include supported testnets, or --chain to scope one network."),
     chalk.dim("  Accounts is wallet-dependent: use --chain to keep approval checks on the same network as the deposit."),
     "",
@@ -404,7 +404,7 @@ const guideSections: Record<string, () => string[]> = {
     chalk.bold("Discovery"),
     `  ${accent("privacy-pools capabilities --agent")}      Full runtime capability manifest`,
     `  ${accent("privacy-pools describe withdraw --agent")} Command-specific flags, risks, and JSON fields`,
-    `  ${accent("privacy-pools describe envelope.shared.nextAction --agent")} Deep contract schema lookup`,
+    `  ${accent("privacy-pools explain nextActions --agent")} Schema-path alias for bundled contract fields`,
     `  ${accent("privacy-pools guide next-actions --agent")} Shared nextActions contract`,
     "",
     chalk.bold("Recommended Flow"),
@@ -438,7 +438,7 @@ const guideSections: Record<string, () => string[]> = {
     chalk.bold("Discovery"),
     `  ${accent("privacy-pools capabilities --agent")}      Full command and schema manifest.`,
     `  ${accent("privacy-pools describe withdraw --agent")} Command-specific fields and examples.`,
-    `  ${accent("privacy-pools describe envelope.shared.nextAction --agent")} Deep contract schema fragments.`,
+    `  ${accent("privacy-pools explain commands.status.successFields --agent")} Deep contract schema fragments.`,
   ],
 
   modes: () => [
