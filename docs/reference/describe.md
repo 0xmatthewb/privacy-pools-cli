@@ -10,7 +10,7 @@ Describe a command's flags, args, and output schema
 
 **Usage:** `privacy-pools describe [command] [options]`
 
-Use spaced command paths such as `withdraw quote` or `protocol-stats`. The JSON output is the runtime contract for agents and includes prerequisites, flags, risk metadata, and JSON field notes. Use describe envelope.<path> to inspect a deep fragment of the bundled JSON contract, for example envelope.nextAction or envelope.commands.init.successFields.
+Machine/runtime introspection surface for agents. Use spaced command paths such as `withdraw quote` or `protocol-stats` to inspect prerequisites, flags, risk metadata, and JSON field notes. Prefer `guide` for human walkthroughs and conceptual help. Prefer `explain` when you want the schema-path alias for bundled contract fields. Use describe envelope.<path> to inspect a deep fragment of the bundled JSON contract, for example envelope.nextAction or envelope.commands.init.successFields.
 
 ```bash
 privacy-pools describe withdraw

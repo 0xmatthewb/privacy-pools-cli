@@ -527,6 +527,8 @@ privacy-pools describe withdraw quote --agent
 privacy-pools describe protocol-stats --agent
 ```
 
+Machine/runtime introspection surface for agents. Prefer `guide` for human walkthroughs and conceptual help. Prefer `explain` when you want the schema-path alias for bundled contract fields.
+
 ```json
 {
   "command": "withdraw quote",
@@ -549,6 +551,25 @@ privacy-pools describe protocol-stats --agent
   "supportsUnsigned": false,
   "supportsDryRun": false,
   "agentWorkflowNotes": ["Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable."]
+}
+```
+
+### `explain`
+
+```bash
+privacy-pools explain nextActions --agent
+privacy-pools explain commands.status.successFields --agent
+privacy-pools explain envelope.shared.nextAction
+```
+
+Human-friendly schema-path alias over `describe envelope.<path>`.
+
+```json
+{
+  "path": "envelope.shared.nextAction",
+  "schema": {
+    "command": "string"
+  }
 }
 ```
 
@@ -723,6 +744,8 @@ privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 **Extra gas (ERC20 only):** `--extra-gas` (default: true for ERC20 tokens) requests gas tokens alongside the withdrawal. Use `--no-extra-gas` to opt out. Ignored for native ETH.
 
 For relayed withdrawals, the CLI also warns if the chosen amount would leave a positive remainder below the relayer minimum. In that case, withdraw less, use `--all` / `100%`, or plan to recover the leftover balance publicly later.
+
+Unsigned relayed withdrawal envelopes include `quoteSummary { quotedAt, quoteExpiresAt, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, relayerHost, extraGas }` so later `broadcast` runs can compare the saved quote against a live relayer quote deterministically.
 
 **Success (relayed):**
 
@@ -1034,6 +1057,8 @@ privacy-pools sync --agent [asset]
   "previousAvailablePoolAccounts": 3
 }
 ```
+
+With `--stream-json`, progress heartbeats are line-delimited envelopes of the form `{ mode: "sync-progress", chain, event: "stage" | "heartbeat", stage, elapsedMs? }`. The terminal result line stays the normal sync payload and includes `isFinal: true`.
 
 `syncedSymbols` is present on successful sync (may be omitted on empty sync). `previousAvailablePoolAccounts` shows the count before sync; compare with `availablePoolAccounts` to detect newly discovered accounts.
 

@@ -10,7 +10,7 @@ Explain a bundled JSON schema path
 
 **Usage:** `privacy-pools explain <schemaPath> [options]`
 
-Human-friendly schema-path explainer for the bundled JSON contract. Use bare schema paths such as nextActions or commands.status.successFields, or pass the fully qualified envelope.<path> form.
+Human-friendly schema-path alias over `describe envelope.<path>` for the bundled JSON contract. Use bare schema paths such as nextActions or commands.status.successFields, or pass the fully qualified envelope.<path> form.
 
 ```bash
 privacy-pools explain nextActions --agent

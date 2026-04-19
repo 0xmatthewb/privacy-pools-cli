@@ -97,9 +97,11 @@ npm run start -- --help
 |---------|-------------|:---:|
 | `pools` | Browse available pools and assets | |
 | `activity` | Public activity feed | |
-| `stats` | Protocol statistics (global or per-pool) | |
+| `protocol-stats` | Aggregate cross-chain protocol statistics | |
+| `pool-stats` | Per-pool statistics for one asset | |
 | `status` | Configuration and connectivity health | |
 | `describe` | Describe one command (for agents or quick reference) | |
+| `explain` | Explain one schema path from the bundled JSON contract | |
 | `capabilities` | Describe all CLI commands, flags, and workflows | |
 | `guide` | Print the full usage guide | |
 | `upgrade` | Check npm for updates or upgrade this CLI | |
@@ -114,7 +116,7 @@ npm run start -- --help
 | `sync` | Force-sync account state from onchain | Yes |
 | `completion` | Generate shell completions (bash/zsh/fish/powershell) | |
 
-Most commands accept `--chain <name>` to override your default chain. `stats global` is the exception because it is always cross-chain. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
+Most commands accept `--chain <name>` to override your default chain. `protocol-stats` is the exception because it is always cross-chain; use `pool-stats <symbol> --chain <chain>` for chain-specific stats. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
 
 ## Agent / Machine Mode
 
@@ -123,7 +125,8 @@ Pass `--agent` (shorthand for `--json --yes --quiet`) for structured JSON on std
 ```bash
 privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent
 privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt --agent
-privacy-pools flow watch latest --agent
+privacy-pools flow status latest --agent
+privacy-pools flow step latest --agent
 privacy-pools flow ragequit latest --agent
 privacy-pools deposit 0.1 ETH --agent
 privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks

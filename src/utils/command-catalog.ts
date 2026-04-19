@@ -1003,7 +1003,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: ROOT_COMMAND_DESCRIPTIONS.describe,
     help: {
       overview: [
-        "Use spaced command paths such as `withdraw quote` or `protocol-stats`. The JSON output is the runtime contract for agents and includes prerequisites, flags, risk metadata, and JSON field notes.",
+        "Machine/runtime introspection surface for agents. Use spaced command paths such as `withdraw quote` or `protocol-stats` to inspect prerequisites, flags, risk metadata, and JSON field notes.",
+        "Prefer `guide` for human walkthroughs and conceptual help. Prefer `explain` when you want the schema-path alias for bundled contract fields.",
         "Use describe envelope.<path> to inspect a deep fragment of the bundled JSON contract, for example envelope.nextAction or envelope.commands.init.successFields.",
       ],
       examples: [
@@ -1031,7 +1032,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: ROOT_COMMAND_DESCRIPTIONS.explain,
     help: {
       overview: [
-        "Human-friendly schema-path explainer for the bundled JSON contract.",
+        "Human-friendly schema-path alias over `describe envelope.<path>` for the bundled JSON contract.",
         "Use bare schema paths such as nextActions or commands.status.successFields, or pass the fully qualified envelope.<path> form.",
       ],
       examples: [
@@ -1056,6 +1057,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   guide: {
     description: ROOT_COMMAND_DESCRIPTIONS.guide,
     help: {
+      overview: [
+        "Human-facing walkthrough surface for concepts, workflows, troubleshooting, and output modes.",
+        "Use `describe` or `explain` when you need machine/runtime contract introspection instead of narrative guidance.",
+      ],
       examples: [
         "privacy-pools guide",
         "privacy-pools guide json",
@@ -1180,7 +1185,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       jsonVariants: [
         "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-        "--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary? (relayed), ... } (envelope JSON)",
+        "--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary?: { quotedAt, quoteExpiresAt, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, relayerHost, extraGas } (relayed), ... } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
       ],
@@ -1617,6 +1622,9 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       prerequisites: "init",
       jsonFields:
         "{ isFinal: true, chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      jsonVariants: [
+        "--stream-json progress events: { mode: \"sync-progress\", chain, event: \"stage\"|\"heartbeat\", stage, elapsedMs? }",
+      ],
       agentWorkflowNotes: [
         "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
         "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs; the terminal result line includes isFinal = true.",

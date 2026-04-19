@@ -65,7 +65,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 **JSON variants:**
 - `direct: same fields but mode: "direct", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.`
 - `quote: { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
-- `--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary? (relayed), ... } (envelope JSON)`
+- `--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary?: { quotedAt, quoteExpiresAt, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, relayerHost, extraGas } (relayed), ... } (envelope JSON)`
 - `--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]`
 - `--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }`
 

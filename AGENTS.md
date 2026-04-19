@@ -564,7 +564,6 @@ Protocol-wide statistics. Always shows aggregate cross-chain data. The `--chain`
 
 ```bash
 privacy-pools protocol-stats --agent
-privacy-pools stats --agent  # compatibility alias
 ```
 
 JSON payload: `{ mode: "global-stats", command: "protocol-stats", invokedAs?, deprecationWarning?, chain: "all-mainnets", chains, cacheTimestamp, allTime, last24h, perChain? }`
@@ -634,7 +633,7 @@ JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[],
 
 #### `describe`
 
-Describe one command for runtime agent introspection.
+Describe one command for machine/runtime introspection.
 
 ```bash
 privacy-pools describe withdraw quote --agent
@@ -643,9 +642,23 @@ privacy-pools describe protocol-stats --agent
 
 JSON payload: `{ mode: "describe-index", commands: [{ command, description, group }] }` when no command path is provided; `{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }` for `describe <command...>`; or `{ path, schema }` for `describe envelope.<path>`.
 
+Prefer `guide` for human walkthroughs and conceptual help. Prefer `explain` when you want the schema-path alias for bundled contract fields.
+
+#### `explain`
+
+Human-friendly schema-path alias over `describe envelope.<path>`.
+
+```bash
+privacy-pools explain nextActions --agent
+privacy-pools explain commands.status.successFields --agent
+privacy-pools explain envelope.shared.nextAction
+```
+
+JSON payload: `{ path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
 #### `guide`
 
-Built-in guide topics for agents and humans.
+Human-facing walkthrough surface for concepts, workflows, troubleshooting, and output modes.
 
 ```bash
 privacy-pools guide --agent
@@ -654,6 +667,8 @@ privacy-pools guide agents --agent
 ```
 
 JSON payload: `{ mode: "help", topic?, topics: [{ name, description }], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+Use `describe` or `explain` when you need machine/runtime contract introspection instead of narrative guidance.
 
 #### `config`
 
@@ -934,6 +949,8 @@ JSON payload: `{ mode: "relayed-quote", chain, asset, amount, recipient, minWith
 
 Relayed withdrawals use a fee quote that expires after ~60 seconds. If proof generation takes longer, the CLI will auto-refresh the quote if the fee hasn't changed. If the fee changes, re-run the command to generate a fresh proof. `nextActions` provides the canonical `withdraw` follow-up; check `runnable` because quotes without a recipient produce a template action that still needs `--to`.
 
+Unsigned relayed withdrawal envelopes now include `quoteSummary { quotedAt, quoteExpiresAt, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, relayerHost, extraGas }` so later `broadcast` runs can compare the saved quote against a live relayer quote deterministically.
+
 #### `ragequit`
 
 Public recovery to the original deposit address. Does not preserve privacy. Use for declined deposits, PoA-blocked accounts, or when the user chooses not to wait for approval. Asset resolution still works when public pool discovery is offline because the CLI falls back to a built-in pool registry.
@@ -1015,6 +1032,8 @@ privacy-pools sync ETH --agent
 ```
 
 JSON payload: `{ isFinal: true, chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+With `--stream-json`, progress heartbeats are line-delimited envelopes of the form `{ mode: "sync-progress", chain, event: "stage" | "heartbeat", stage, elapsedMs? }`. The terminal result line stays the normal sync payload above and includes `isFinal: true`.
 
 ## Auto-Sync Behavior
 

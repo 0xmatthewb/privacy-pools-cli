@@ -23,3 +23,6 @@ privacy-pools sync --chain mainnet
 | `--stream-json` | Emit line-delimited JSON progress events and finish with the final sync envelope |
 
 **JSON output:** `{ isFinal: true, chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+**JSON variants:**
+- `--stream-json progress events: { mode: "sync-progress", chain, event: "stage"|"heartbeat", stage, elapsedMs? }`

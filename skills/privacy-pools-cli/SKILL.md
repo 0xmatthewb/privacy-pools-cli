@@ -45,6 +45,7 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Check upgrade availability | `privacy-pools upgrade --agent --check` | Read-only unless `--yes` is also present and the install is a supported global npm install |
 | Discover capabilities | `privacy-pools capabilities --agent` | No wallet needed |
 | Describe one command | `privacy-pools describe withdraw quote --agent` | No wallet needed |
+| Explain one schema path | `privacy-pools explain nextActions --agent` | Human-friendly alias for `describe envelope.<path>` |
 | Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-recovery-phrase` | One-time setup |
 | Start easy flow | `privacy-pools flow start 0.1 ETH --to 0x... --agent` | Deposit now, save later private withdrawal |
 | Start easy flow (new wallet) | `privacy-pools flow start 100 USDC --to 0x... --new-wallet --export-new-wallet ./flow-wallet.txt --agent` | Generates a dedicated workflow wallet, stores it locally for the workflow, exports a backup, and returns the funding snapshot for `flow status` / `flow step` polling |
@@ -399,4 +400,4 @@ Recommended retry strategy:
 
 For the full command reference with JSON payload shapes, see [reference.md](reference.md).
 
-For runtime discovery, call `privacy-pools capabilities --agent` to receive a machine-readable manifest, then `privacy-pools describe <command...> --agent` when you need the detailed runtime contract for one command path.
+For runtime discovery, call `privacy-pools capabilities --agent` to receive a machine-readable manifest, then `privacy-pools describe <command...> --agent` when you need the detailed runtime contract for one command path. Use `privacy-pools explain <schema-path> --agent` when you want the human-friendly schema-path alias over `describe envelope.<path>`, and keep `privacy-pools guide` for narrative walkthroughs instead of contract inspection.
