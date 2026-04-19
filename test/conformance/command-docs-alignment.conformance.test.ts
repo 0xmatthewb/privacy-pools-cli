@@ -47,6 +47,7 @@ function extractDocumentSection(
 }
 
 const AGENTS = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
+const SKILL = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
 const AGENT_MARKERS = getDocumentedAgentMarkers();
 
 describe("command docs alignment", () => {
@@ -141,5 +142,26 @@ describe("command docs alignment", () => {
     ]) {
       expect(normalizedAgents).toContain(code);
     }
+  });
+
+  test("skill doc keeps the current async agent orchestration contract", () => {
+    const normalizedSkill = normalizeWhitespace(SKILL);
+
+    for (const requiredMarker of [
+      "privacy-pools flow status [workflowId|latest] --agent",
+      "privacy-pools flow step [workflowId|latest] --agent",
+      "privacy-pools tx-status <submissionId> --agent",
+      "privacy-pools broadcast ./signed-envelope.json --agent --no-wait",
+      "privacy-pools deposit 0.1 ETH --agent --no-wait",
+      "privacy-pools withdraw --all ETH --to <addr> --agent --no-wait",
+      "Agents should orchestrate saved workflows with `flow status` plus `flow step`.",
+      "`flow status` is the canonical read-only polling surface and `flow step` is the canonical one-shot advance surface for agents.",
+    ]) {
+      expect(normalizedSkill).toContain(normalizeWhitespace(requiredMarker));
+    }
+
+    expect(normalizedSkill).not.toContain(
+      normalizeWhitespace("flow watch is the canonical happy-path resume command"),
+    );
   });
 });
