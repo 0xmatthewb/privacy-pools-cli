@@ -52,19 +52,20 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Advance easy flow | `privacy-pools flow step latest --agent` | Advance at most one saved-workflow step |
 | Check easy flow | `privacy-pools flow status latest --agent` | Inspect the saved workflow snapshot |
 | Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined flow, a relayer-minimum-blocked flow, a PoA-paused flow, or any saved flow where the operator intentionally stops waiting |
-| Deposit ETH | `privacy-pools deposit 0.1 ETH --agent` | Requires init |
+| Deposit ETH | `privacy-pools deposit 0.1 ETH --agent --no-wait` | Requires init; poll `tx-status` first, then monitor ASP review |
+| Poll submitted tx | `privacy-pools tx-status <submissionId> --agent` | Read-only confirmation poll after `--no-wait` or `broadcast` |
 | Deposit (unsigned) | `privacy-pools deposit 0.1 ETH --unsigned --agent` | No signer key needed |
 | Simulate deposit | `privacy-pools simulate deposit 0.1 ETH --agent` | Same JSON as `deposit --dry-run` |
 | Check accounts | `privacy-pools accounts --agent` | Dashboard view across all CLI-supported mainnet chains by default |
 | Compact account poll | `privacy-pools accounts --agent --summary` | Counts + balances only |
 | Pending-only poll | `privacy-pools accounts --agent --chain <chain> --pending-only` | Pending approvals only; preserve --chain |
-| Withdraw (relayed) | `privacy-pools withdraw 0.05 ETH --to 0x... --agent` | Requires init |
-| Withdraw all | `privacy-pools withdraw --all ETH --to 0x... --agent` | Full PA balance |
+| Withdraw (relayed) | `privacy-pools withdraw 0.05 ETH --to 0x... --agent --no-wait` | Requires init; poll `tx-status` instead of resubmitting |
+| Withdraw all | `privacy-pools withdraw --all ETH --to 0x... --agent --no-wait` | Full PA balance; poll `tx-status` |
 | Withdraw (unsigned) | `privacy-pools withdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
 | Withdrawal quote | `privacy-pools withdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
 | Pool detail | `privacy-pools pools ETH --agent` | Combined stats + my funds |
 | Ragequit | `privacy-pools ragequit ETH --pool-account PA-1 --agent` | Emergency public recovery |
-| Broadcast signed envelope | `privacy-pools broadcast ./signed-envelope.json --agent` | Optional inverse for full-envelope workflows |
+| Broadcast signed envelope | `privacy-pools broadcast ./signed-envelope.json --agent --no-wait` | Optional inverse for full-envelope workflows; poll `tx-status` |
 | Dry-run | `privacy-pools deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
 | Event history | `privacy-pools history --agent` | Requires init |
 | Force sync | `privacy-pools sync --agent` | Rarely needed (auto-sync with 2min TTL) |
@@ -209,16 +210,23 @@ If you already have your own submission stack, keep using it. `broadcast` is add
 For full-envelope workflows, you can return to the CLI after signing:
 
 ```bash
-privacy-pools broadcast ./signed-envelope.json --agent
-cat ./signed-envelope.json | privacy-pools broadcast - --agent
+privacy-pools broadcast ./signed-envelope.json --agent --no-wait
+cat ./signed-envelope.json | privacy-pools broadcast - --agent --no-wait
 ```
 
 `broadcast` only accepts the full unsigned envelope JSON. It intentionally rejects the bare raw transaction array from `--unsigned tx` so the CLI can validate the signed transactions against the original preview before submission.
 
-After submission, verify the deposit landed:
+After submission, poll the returned `submissionId` first so the CLI can confirm the signed bundle without re-broadcasting:
 
 ```bash
-privacy-pools accounts --agent --chain <chain> --pending-only  # check for new Pool Account; preserve --chain and follow nextActions from deposit response
+privacy-pools tx-status <submissionId> --agent
+```
+
+If the signed bundle was a deposit and `tx-status` confirms it, then verify ASP review with the same chain scope:
+
+```bash
+privacy-pools accounts --agent --chain <chain> --pending-only  # poll while the new Pool Account remains pending
+privacy-pools accounts --agent --chain <chain>                 # confirm approved vs declined vs poa_required
 ```
 
 ---
@@ -303,11 +311,12 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 7. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined, relayer-blocked, or you intentionally choose the public path
 ```
 
-The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient after approval and any configured privacy delay. New workflows default to `balanced`, which randomizes the post-approval hold between 15 and 90 minutes. `off` means no added hold, and `aggressive` randomizes the hold between 2 and 12 hours. Passing `flow watch --privacy-delay ...` persistently updates the saved workflow policy: `off` clears any saved hold immediately, while switching between `balanced` and `aggressive` resamples from the override time. `flow watch` is intentionally unbounded and may intentionally remain in `approved_waiting_privacy_delay` for that window; if your automation needs a wall-clock limit, wrap it in an external timeout.
+The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient after approval and any configured privacy delay. New workflows default to `balanced`, which randomizes the post-approval hold between 15 and 90 minutes. `off` means no added hold, and `aggressive` randomizes the hold between 2 and 12 hours. Agents should orchestrate saved workflows with `flow status` plus `flow step`. Human `flow watch` remains available as an attached wrapper, may intentionally stay in `approved_waiting_privacy_delay` for the saved hold window, and `flow watch --privacy-delay ...` can persistently update the saved privacy-delay policy: `off` clears any saved hold immediately, while switching between `balanced` and `aggressive` resamples from the override time.
 
 Flow caveats for agents:
-- `flow watch` is the canonical happy-path resume command. Once the public deposit exists, `flow ragequit` remains available as an optional manual recovery path, but it is not the default next step while the flow is still progressing normally.
-- If the saved full-balance withdrawal falls below the relayer minimum, `flow watch` switches the canonical next step to `flow ragequit` because saved flows only support relayed private withdrawals.
+- `flow status` is the canonical read-only polling surface and `flow step` is the canonical one-shot advance surface for agents. `flow watch` is human-only and intentionally unavailable in `--agent`.
+- Once the public deposit exists, `flow ragequit` remains available as an optional manual recovery path, but it is not the default next step while the flow is still progressing normally.
+- If the saved full-balance withdrawal falls below the relayer minimum, `flow status` and `flow step` switch the canonical next step to `flow ragequit` because saved flows only support relayed private withdrawals.
 - `flow start` rejects non-round amounts in machine mode. Use a round amount in agent/non-interactive runs, or switch to interactive mode if a human intentionally accepts that privacy tradeoff.
 - In interactive mode, omitting `--to` prompts for the saved recipient.
 - `flow start --new-wallet` requires `--export-new-wallet <path>` in machine mode before the flow begins.
@@ -324,10 +333,12 @@ Manual path remains available when you need custom Pool Account selection, parti
 
 ```
 1. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
-2. privacy-pools deposit 0.1 ETH --agent                                # Deposit (must be >= minimumDeposit)
-3. privacy-pools accounts --agent --chain <chain> --pending-only        # Poll while pending; reviewed entries disappear from this view
-4. privacy-pools accounts --agent --chain <chain>                       # Confirm approved vs declined vs poa_required
-5. privacy-pools withdraw --all ETH --to <addr> --agent                 # Withdraw the full approved remainder
+2. privacy-pools deposit 0.1 ETH --agent --no-wait                      # Deposit (must be >= minimumDeposit)
+3. privacy-pools tx-status <submissionId> --agent                       # Poll until the deposit transaction confirms
+4. privacy-pools accounts --agent --chain <chain> --pending-only        # Poll while pending; reviewed entries disappear from this view
+5. privacy-pools accounts --agent --chain <chain>                       # Confirm approved vs declined vs poa_required
+6. privacy-pools withdraw --all ETH --to <addr> --agent --no-wait       # Withdraw the full approved remainder
+7. privacy-pools tx-status <submissionId> --agent                       # Poll until the withdrawal confirms
 ```
 
 **Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change; always query at runtime rather than hard-coding.
