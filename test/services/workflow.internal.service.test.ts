@@ -1801,7 +1801,7 @@ describe("workflow internal helpers", () => {
     expect(watched.privacyDelayUntil).toBe("2026-03-24T12:30:00.000Z");
   });
 
-  test("watchWorkflow persists retryable errors and fails closed without hidden retries", async () => {
+  test("watchWorkflow retries retryable errors before completing", async () => {
     saveWorkflowSnapshot(
       sampleSnapshot({
         workflowId: "wf-watch-retry",
@@ -1810,30 +1810,44 @@ describe("workflow internal helpers", () => {
         committedValue: "500",
       }),
     );
-    requestQuoteMock.mockImplementationOnce(async () => {
-      throw new CLIError(
-        "temporary relayer issue",
-        "RELAYER",
-        "retry later",
-        "RELAYER_TEMPORARY",
-        true,
-      );
+    overrideWorkflowTimingForTests({
+      sleep: async () => undefined,
+    });
+    requestQuoteMock
+      .mockImplementationOnce(async () => {
+        throw new CLIError(
+          "temporary relayer issue",
+          "RELAYER",
+          "retry later",
+          "RELAYER_TEMPORARY",
+          true,
+        );
+      })
+      .mockImplementationOnce(async (_chain, args) => {
+        return {
+          baseFeeBPS: "200",
+          gasPrice: "1",
+          detail: { relayTxCost: { gas: "0", eth: "0" } },
+          ...buildWorkflowRelayerQuote({
+            ...args,
+            amount: args?.amount?.toString(),
+            relayerUrl: args?.relayerUrl,
+          }),
+        };
+      });
+
+    const watched = await watchWorkflow({
+      workflowId: "wf-watch-retry",
+      mode: JSON_MODE,
+      isVerbose: false,
     });
 
-    await expect(
-      watchWorkflow({
-        workflowId: "wf-watch-retry",
-        mode: JSON_MODE,
-        isVerbose: false,
-      }),
-    ).rejects.toMatchObject({
-      code: "RELAYER_TEMPORARY",
-    });
-    expect(getWorkflowStatus({ workflowId: "wf-watch-retry" }).lastError).toMatchObject({
-      step: "withdraw",
-      errorCode: "RELAYER_TEMPORARY",
-      retryable: true,
-    });
+    expect(requestQuoteMock).toHaveBeenCalledTimes(2);
+    expect(state.warnings).toContain(
+      "Temporary issue while resuming this workflow: temporary relayer issue. Retrying in 1 minute.",
+    );
+    expect(watched.phase).toBe("completed");
+    expect(watched.lastError).toBeUndefined();
   });
 
   test("watchWorkflow persists non-retryable errors before failing closed", async () => {
