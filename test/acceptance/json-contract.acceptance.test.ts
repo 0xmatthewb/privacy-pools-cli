@@ -396,6 +396,43 @@ defineScenarioSuite("json-contract acceptance", [
       ).toBe(true);
     }),
   ]),
+  defineScenario("accounts watch rejects agent mode with machine nextActions", [
+    runCliStep(["--agent", "accounts", "--watch", "--pending-only"], {
+      timeoutMs: 10_000,
+    }),
+    assertExit(2),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      errorCode: string;
+      error: {
+        category: string;
+        nextActions?: Array<{
+          command: string;
+          when: string;
+          runnable?: boolean;
+          options?: { pendingOnly?: boolean };
+          cliCommand?: string;
+        }>;
+      };
+    }>((json) => {
+      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("INPUT_AGENT_ACCOUNTS_WATCH_UNSUPPORTED");
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.nextActions).toHaveLength(1);
+      expect(json.error.nextActions?.[0]).toMatchObject({
+        command: "accounts",
+        when: "has_pending",
+        options: {
+          pendingOnly: true,
+        },
+        cliCommand: "privacy-pools accounts --agent --pending-only",
+      });
+      expect(json.error.nextActions?.[0]?.runnable).toBeUndefined();
+    }),
+  ]),
   defineScenario("flow start --watch rejects agent mode with machine nextActions", [
     runCliStep(
       [

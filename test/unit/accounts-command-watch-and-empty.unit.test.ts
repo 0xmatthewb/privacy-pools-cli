@@ -90,7 +90,36 @@ describe("accounts command watch and empty states", () => {
     expect(exitCode).toBe(2);
   });
 
-  test("accounts rejects --watch in machine-readable output modes", async () => {
+  test("accounts rejects --watch in agent mode with polling guidance", async () => {
+    useIsolatedHome("mainnet");
+    const { handleAccountsCommand } = getReadonlyCommandHandlers();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleAccountsCommand(
+        { watch: true, pendingOnly: true },
+        fakeCommand({ agent: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_AGENT_ACCOUNTS_WATCH_UNSUPPORTED");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "accounts --watch is not available in --agent mode.",
+    );
+    expect(json.error.nextActions).toEqual([
+      expect.objectContaining({
+        command: "accounts",
+        when: "has_pending",
+        cliCommand: "privacy-pools accounts --agent --chain mainnet --pending-only",
+        options: {
+          pendingOnly: true,
+        },
+      }),
+    ]);
+    expect(exitCode).toBe(2);
+  });
+
+  test("accounts rejects --watch in machine-readable non-agent modes", async () => {
     useIsolatedHome("mainnet");
     const { handleAccountsCommand } = getReadonlyCommandHandlers();
 

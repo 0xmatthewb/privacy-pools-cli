@@ -43,7 +43,7 @@ import {
   buildDeclinedLegacyPoolAccountRefs,
   collectActiveLabels,
 } from "../utils/pool-accounts.js";
-import { createOutputContext, isSilent } from "../output/common.js";
+import { createNextAction, createOutputContext, isSilent } from "../output/common.js";
 import { renderAccountsNoPools, renderAccounts } from "../output/accounts.js";
 import type { AccountPoolGroup, AccountWarning } from "../output/accounts.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
@@ -477,14 +477,39 @@ export async function handleAccountsCommand(
 
     const effectiveStatus = normalizedStatus ?? (opts.pendingOnly ? "pending" : undefined);
 
-    if (
-      opts.watch &&
-      (mode.isJson || mode.isCsv || mode.isAgent || !process.stderr.isTTY)
-    ) {
+    if (opts.watch && mode.isAgent) {
+      throw new CLIError(
+        "accounts --watch is not available in --agent mode.",
+        "INPUT",
+        "Use 'privacy-pools accounts --agent --pending-only' for one snapshot, then poll it externally until pending approvals clear.",
+        "INPUT_AGENT_ACCOUNTS_WATCH_UNSUPPORTED",
+        false,
+        undefined,
+        undefined,
+        undefined,
+        {
+          nextActions: [
+            createNextAction(
+              "accounts",
+              "Poll the pending-only account view externally instead of running an internal watch loop.",
+              "has_pending",
+              {
+                options: {
+                  agent: true,
+                  pendingOnly: true,
+                },
+              },
+            ),
+          ],
+        },
+      );
+    }
+
+    if (opts.watch && (mode.isJson || mode.isCsv || !process.stderr.isTTY)) {
       throw new CLIError(
         "--watch is only available in interactive TTY terminals. Use privacy-pools accounts --no-sync for a single snapshot.",
         "INPUT",
-        "Re-run without --json, --agent, or --output csv, or use accounts --no-sync for one read.",
+        "Re-run without --json or --output csv, or use accounts --no-sync for one read.",
       );
     }
 
