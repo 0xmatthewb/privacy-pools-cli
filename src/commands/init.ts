@@ -119,6 +119,9 @@ interface ExistingInitState {
   existingConfig: CLIConfig | null;
 }
 
+const MAX_RECOVERY_PHRASE_PROMPT_ATTEMPTS = 5;
+const MAX_RECOVERY_VERIFICATION_ATTEMPTS = 5;
+
 type InitWorkflow = "create" | "restore" | "signer_only";
 
 interface InitPlan {
@@ -741,7 +744,7 @@ export async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<st
     throw new PreviewScenarioRenderedError();
   }
   ensurePromptInteractionAvailable();
-  while (true) {
+  for (let attempt = 1; attempt <= MAX_RECOVERY_PHRASE_PROMPT_ATTEMPTS; attempt += 1) {
     const phrase = await password({
       message: withInitTestSentinel(
         "load-recovery",
@@ -753,11 +756,20 @@ export async function promptForLoadedRecoveryPhrase(silent: boolean): Promise<st
     if (validateMnemonic(normalized)) {
       return normalized;
     }
+    if (attempt >= MAX_RECOVERY_PHRASE_PROMPT_ATTEMPTS) {
+      break;
+    }
     warn(
       "That recovery phrase doesn't look right yet. Please check the words and try again. If your terminal keeps mangling paste, re-run with --recovery-phrase-file or --recovery-phrase-stdin.",
       silent,
     );
   }
+  throw new CLIError(
+    "Recovery phrase validation failed after repeated attempts.",
+    "INPUT",
+    "Re-run with --recovery-phrase-file or --recovery-phrase-stdin, or retry carefully in interactive mode.",
+    "INPUT_RECOVERY_PHRASE_RETRY_LIMIT",
+  );
 }
 
 export async function handleGeneratedRecoveryBackup(
@@ -864,7 +876,7 @@ export async function verifyGeneratedRecoveryPhrase(
       "INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID",
     );
   }
-  while (true) {
+  for (let attempt = 1; attempt <= MAX_RECOVERY_VERIFICATION_ATTEMPTS; attempt += 1) {
     process.stderr.write(
       renderInitRecoveryVerificationReview(RECOVERY_VERIFICATION_WORDS),
     );
@@ -889,9 +901,18 @@ export async function verifyGeneratedRecoveryPhrase(
       return;
     }
 
+    if (attempt >= MAX_RECOVERY_VERIFICATION_ATTEMPTS) {
+      break;
+    }
     warn("Some words are incorrect. Please check and try again.", silent);
     process.stderr.write("\n");
   }
+  throw new CLIError(
+    "Recovery phrase verification failed after repeated attempts.",
+    "INPUT",
+    "Re-run 'privacy-pools init' when you are ready to verify the backup again.",
+    "INPUT_RECOVERY_VERIFICATION_RETRY_LIMIT",
+  );
 }
 
 export async function collectSignerKey(

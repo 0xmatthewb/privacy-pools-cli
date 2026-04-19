@@ -81,6 +81,8 @@ interface FlowRagequitCommandOptions {
   confirmRagequit?: boolean;
 }
 
+const MAX_FLOW_RECIPIENT_PROMPT_ATTEMPTS = 5;
+
 export { createFlowCommand } from "../command-shells/flow.js";
 
 function getFlowBrowserTarget(snapshot: FlowSnapshot): {
@@ -357,7 +359,8 @@ async function promptFlowRecipientAddressOrEns(
   inputPrompt: typeof import("@inquirer/prompts").input,
   silent: boolean,
 ): Promise<string> {
-  while (true) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_FLOW_RECIPIENT_PROMPT_ATTEMPTS; attempt += 1) {
     const prompted = (await inputPrompt({
       message: "Recipient address or ENS:",
       validate: validateRecipientAddressOrEnsInput,
@@ -372,9 +375,22 @@ async function promptFlowRecipientAddressOrEns(
       }
       return resolved.address;
     } catch (error) {
+      lastError = error;
+      if (attempt >= MAX_FLOW_RECIPIENT_PROMPT_ATTEMPTS) {
+        break;
+      }
       warn(error instanceof Error ? error.message : "Invalid address or ENS name.", silent);
     }
   }
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new CLIError(
+    "Invalid address or ENS name.",
+    "INPUT",
+    "Re-run with --to <address-or-ens> to skip the interactive recipient prompt.",
+    "INPUT_FLOW_RECIPIENT_RETRY_LIMIT",
+  );
 }
 
 async function confirmRecipientIfNew(params: {

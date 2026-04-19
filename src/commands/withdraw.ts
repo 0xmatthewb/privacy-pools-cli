@@ -474,6 +474,9 @@ interface RequestedWithdrawalPoolAccountParams {
   symbol: string;
 }
 
+const MAX_RECIPIENT_PROMPT_ATTEMPTS = 5;
+const MAX_WITHDRAW_CONFIRM_REVIEW_ATTEMPTS = 5;
+
 export { createWithdrawCommand } from "../command-shells/withdraw.js";
 
 function validateRecipientAddressOrEnsInput(value: string): true | string {
@@ -492,7 +495,8 @@ function validateRecipientAddressOrEnsInput(value: string): true | string {
 async function promptRecipientAddressOrEns(
   silent: boolean,
 ): Promise<{ address: Address; ensName?: string }> {
-  while (true) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= MAX_RECIPIENT_PROMPT_ATTEMPTS; attempt += 1) {
     const prompted = (await input({
       message: "Recipient address or ENS:",
       validate: validateRecipientAddressOrEnsInput,
@@ -515,9 +519,22 @@ async function promptRecipientAddressOrEns(
       }
       return { address: resolved.address, ensName };
     } catch (error) {
+      lastError = error;
+      if (attempt >= MAX_RECIPIENT_PROMPT_ATTEMPTS) {
+        break;
+      }
       warn(error instanceof Error ? error.message : "Invalid address or ENS name.", silent);
     }
   }
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new CLIError(
+    "Invalid address or ENS name.",
+    "INPUT",
+    "Re-run with --to <address-or-ens> to skip the interactive recipient prompt.",
+    "INPUT_RECIPIENT_RETRY_LIMIT",
+  );
 }
 
 async function deriveNativeGasTokenPrice(
@@ -2640,12 +2657,25 @@ export async function handleWithdrawCommand(
         };
 
         if (!skipPrompts) {
-          while (true) {
+          let confirmedWithFreshQuote = false;
+          for (
+            let reviewAttempt = 1;
+            reviewAttempt <= MAX_WITHDRAW_CONFIRM_REVIEW_ATTEMPTS;
+            reviewAttempt += 1
+          ) {
             const secondsLeft = Math.max(
               0,
               Math.floor((expirationMs - Date.now()) / 1000),
             );
             if (secondsLeft <= 0) {
+              if (reviewAttempt >= MAX_WITHDRAW_CONFIRM_REVIEW_ATTEMPTS) {
+                throw new CLIError(
+                  "Relayer quote expired repeatedly before confirmation completed.",
+                  "RELAYER",
+                  "Re-run the withdrawal to fetch a fresh quote, then confirm promptly.",
+                  "RELAYER_CONFIRMATION_RETRY_LIMIT",
+                );
+              }
               await fetchFreshQuote(
                 "Quote expired. Refreshing relayer quote before continuing...",
               );
@@ -2691,15 +2721,32 @@ export async function handleWithdrawCommand(
 
             if (Date.now() <= expirationMs) {
               spin.start();
+              confirmedWithFreshQuote = true;
               break;
             }
 
             spin.start();
+            if (reviewAttempt >= MAX_WITHDRAW_CONFIRM_REVIEW_ATTEMPTS) {
+              throw new CLIError(
+                "Relayer quote expired repeatedly while you were confirming the withdrawal.",
+                "RELAYER",
+                "Re-run the withdrawal to fetch a fresh quote, then confirm promptly.",
+                "RELAYER_CONFIRMATION_RETRY_LIMIT",
+              );
+            }
             warn(
               "Quote expired while you were confirming. Fetching a fresh relayer quote...",
               silent,
             );
             await fetchFreshQuote("Refreshing relayer quote after confirmation delay...");
+          }
+          if (!confirmedWithFreshQuote) {
+            throw new CLIError(
+              "Unable to keep a relayer quote fresh through confirmation.",
+              "RELAYER",
+              "Re-run the withdrawal to fetch a fresh quote, then confirm promptly.",
+              "RELAYER_CONFIRMATION_RETRY_LIMIT",
+            );
           }
         } else {
           if (Date.now() > expirationMs) {
