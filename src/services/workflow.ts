@@ -4802,7 +4802,7 @@ export async function watchWorkflow(
 
   const advanceWorkflowOnce = async (): Promise<ApprovalInspectionResult> => {
     const snapshot = loadWorkflowSnapshot(workflowId);
-    if (isTerminalFlowPhase(snapshot.phase) || isPausedFlowPhase(snapshot.phase)) {
+    if (isTerminalFlowPhase(snapshot.phase)) {
       return {
         snapshot,
         continueWatching: false,
@@ -4822,7 +4822,13 @@ export async function watchWorkflow(
       if (error instanceof FlowCancelledError) {
         throw error;
       }
-      const latestSnapshot = loadWorkflowSnapshot(workflowId);
+      let latestSnapshot = snapshot;
+      try {
+        latestSnapshot = loadWorkflowSnapshot(workflowId);
+      } catch {
+        // Fall back to the in-memory snapshot if the on-disk checkpoint is
+        // temporarily unreadable while we record the workflow error.
+      }
       const step =
         latestSnapshot.phase === "awaiting_funding"
           ? "funding"
@@ -4899,12 +4905,37 @@ export async function watchWorkflow(
         info(privacyDelayUpdateMessage, silent);
       }
 
-      if (isTerminalFlowPhase(snapshot.phase) || isPausedFlowPhase(snapshot.phase)) {
+      if (isTerminalFlowPhase(snapshot.phase)) {
         return snapshot;
       }
 
       throwIfWatchAborted(params.abortSignal);
-      const result = await advanceWorkflowOnce();
+      let result: ApprovalInspectionResult;
+      try {
+        result = await advanceWorkflowOnce();
+      } catch (error) {
+        const classified = classifyError(error);
+        if (!classified.retryable) {
+          throw error;
+        }
+
+        const retrySnapshot = (() => {
+          try {
+            return loadWorkflowSnapshot(workflowId);
+          } catch {
+            return snapshot;
+          }
+        })();
+        const retryDelayMs = computeFlowWatchDelayMs(retrySnapshot, delayMs);
+        warn(
+          `Temporary issue while resuming this workflow: ${classified.message}. Retrying in ${humanPollDelayLabel(retryDelayMs)}.`,
+          silent,
+        );
+        if (retryDelayMs > 0) {
+          await sleep(retryDelayMs, params.abortSignal);
+        }
+        continue;
+      }
 
       if (!result.continueWatching) {
         await emitPhaseChange(snapshot.phase, result.snapshot);
