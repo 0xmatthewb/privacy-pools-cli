@@ -1,7 +1,7 @@
 {
   "name": "privacy-pools-cli-json-contract",
-  "version": "2.1.0",
-  "schemaVersion": "2.1.0",
+  "version": "2.0.0",
+  "schemaVersion": "2.0.0",
   "description": "Stable machine-readable output contract for privacy-pools CLI.",
   "envelope": {
     "successBase": {

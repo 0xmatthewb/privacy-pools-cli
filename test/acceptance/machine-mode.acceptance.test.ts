@@ -1,4 +1,5 @@
 import { expect } from "bun:test";
+import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import {
   assertExit,
   assertJson,
@@ -117,7 +118,7 @@ defineScenarioSuite("machine-mode acceptance", [
     (ctx) => {
       expect(ctx.lastResult).not.toBeNull();
       const stdout = ctx.lastResult?.stdout ?? "";
-      expect(stdout).toContain("schemaVersion: 2.0.0");
+      expect(stdout).toContain(`schemaVersion: ${JSON_SCHEMA_VERSION}`);
       expect(stdout).toContain("success: true");
       expect(stdout).toContain("mode: help");
       expect(stdout).toContain("Privacy Pools: Quick Guide");

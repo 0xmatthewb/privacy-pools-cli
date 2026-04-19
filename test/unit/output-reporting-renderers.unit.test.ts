@@ -1300,8 +1300,8 @@ describe("renderPoolDetail parity", () => {
 describe("renderUpgradeResult nextActions", () => {
   const baseResult: UpgradeResult = {
     status: "up_to_date",
-    currentVersion: "2.1.0",
-    latestVersion: "2.1.0",
+    currentVersion: "2.0.0",
+    latestVersion: "2.0.0",
     updateAvailable: false,
     performed: false,
     command: null,
@@ -1372,7 +1372,7 @@ describe("renderUpgradeResult nextActions", () => {
 
     const { stderr } = captureOutput(() => renderUpgradeResult(ctx, result));
 
-    expect(stderr).toContain("Update available: 2.1.0 -> 2.2.0");
+    expect(stderr).toContain("Update available: 2.0.0 -> 2.2.0");
     expect(stderr).toContain("Release highlights");
     expect(stderr).toContain("Faster native shell");
     expect(stderr).toContain("privacy-pools upgrade --yes");
@@ -1385,9 +1385,9 @@ describe("renderUpgradeResult nextActions", () => {
     const result: UpgradeResult = {
       ...baseResult,
       status: "manual",
-      latestVersion: "2.1.0",
+      latestVersion: "2.0.0",
       updateAvailable: true,
-      command: "npm i -g privacy-pools-cli@2.1.0",
+      command: "npm i -g privacy-pools-cli@2.0.0",
       installContext: {
         kind: "source_checkout",
         supportedAutoRun: false,
@@ -1401,7 +1401,7 @@ describe("renderUpgradeResult nextActions", () => {
     expect(stderr).toContain("Automatic upgrade is not available from this install context.");
     expect(stderr).toContain("Source checkout detected.");
     expect(stderr).toContain("Manual command");
-    expect(stderr).toContain("npm i -g privacy-pools-cli@2.1.0");
+    expect(stderr).toContain("npm i -g privacy-pools-cli@2.0.0");
     expect(stderr).not.toContain("Next steps:");
   });
 
@@ -1410,16 +1410,16 @@ describe("renderUpgradeResult nextActions", () => {
     const result: UpgradeResult = {
       ...baseResult,
       status: "cancelled",
-      latestVersion: "2.1.0",
+      latestVersion: "2.0.0",
       updateAvailable: true,
-      command: "npm i -g privacy-pools-cli@2.1.0",
+      command: "npm i -g privacy-pools-cli@2.0.0",
     };
 
     const { stderr } = captureOutput(() => renderUpgradeResult(ctx, result));
 
     expect(stderr).toContain("Upgrade cancelled. No changes were made.");
     expect(stderr).toContain("Install later");
-    expect(stderr).toContain("npm i -g privacy-pools-cli@2.1.0");
+    expect(stderr).toContain("npm i -g privacy-pools-cli@2.0.0");
   });
 });
 
@@ -1427,12 +1427,12 @@ describe("renderChangelog", () => {
   test("JSON mode emits changelog availability explicitly", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
-      renderChangelog(ctx, "## 2.1.0\n- Faster"),
+      renderChangelog(ctx, "## 2.0.0\n- Faster"),
     );
 
     expect(parseCapturedJson(stdout)).toMatchObject({
       available: true,
-      changelog: "## 2.1.0\n- Faster",
+      changelog: "## 2.0.0\n- Faster",
     });
   });
 
@@ -1446,14 +1446,14 @@ describe("renderChangelog", () => {
   test("human mode prints the changelog body and appends a trailing newline when needed", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout } = captureOutput(() =>
-      renderChangelog(ctx, "## 2.1.0\n- Faster"),
+      renderChangelog(ctx, "## 2.0.0\n- Faster"),
     );
 
-    expect(stdout).toBe("## 2.1.0\n- Faster\n");
+    expect(stdout).toBe("## 2.0.0\n- Faster\n");
   });
 
   test("CSV mode rejects changelog rendering", () => {
     const ctx = createOutputContext(makeMode({ isCsv: true }));
-    expect(() => renderChangelog(ctx, "## 2.1.0")).toThrow(CLIError);
+    expect(() => renderChangelog(ctx, "## 2.0.0")).toThrow(CLIError);
   });
 });

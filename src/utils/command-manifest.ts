@@ -3381,7 +3381,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
         "privacy-pools describe protocol-stats --agent",
-        "privacy-pools describe envelope.shared.nextAction --agent"
+        "privacy-pools explain nextActions --agent"
       ],
       "structuredExamples": [
         {
@@ -3398,7 +3398,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "name": "Example 4",
-          "value": "privacy-pools describe envelope.shared.nextAction --agent"
+          "value": "privacy-pools explain nextActions --agent"
         }
       ],
       "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
@@ -5556,8 +5556,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     ]
   },
   "runtime": {
-    "cliVersion": "2.1.0",
-    "jsonSchemaVersion": "2.1.0",
+    "cliVersion": "2.0.0",
+    "jsonSchemaVersion": "2.0.0",
     "accountFileVersion": 3,
     "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1",
@@ -5601,7 +5601,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v2.1.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json"
   }
 };
 

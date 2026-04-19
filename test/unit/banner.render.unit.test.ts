@@ -51,7 +51,7 @@ describe("banner render layouts", () => {
 
     let result: { includedWelcomeText: boolean } | undefined;
     const captured = await captureAsyncOutput(async () => {
-      result = await printBanner({ version: "2.1.0" });
+      result = await printBanner({ version: "2.0.0" });
     });
 
     expect(result).toEqual({ includedWelcomeText: false });
@@ -75,7 +75,7 @@ describe("banner render layouts", () => {
 
     let result: { includedWelcomeText: boolean } | undefined;
     const captured = await captureAsyncOutput(async () => {
-      result = await printBanner({ version: "2.1.0" });
+      result = await printBanner({ version: "2.0.0" });
     });
 
     expect(result).toEqual({ includedWelcomeText: true });

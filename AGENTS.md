@@ -79,15 +79,15 @@ without omitting optional dependencies.
 **JSON envelope**: Every response follows the schema:
 
 ```
-{ "schemaVersion": "2.1.0", "success": true, ...payload }
-{ "schemaVersion": "2.1.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
+{ "schemaVersion": "2.0.0", "success": true, ...payload }
+{ "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
 ```
 
 Parse `success` first. On failure, read `error.code` for programmatic handling and `error.hint` for remediation. `errorCode` and `errorMessage` remain v2 compatibility aliases and match `error.code` and `error.message`. Check `error.retryable` before deciding to retry.
 
 Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
-The complete JSON output contract is defined in [`docs/contracts/cli-json-contract.v2.1.0.json`](docs/contracts/cli-json-contract.v2.1.0.json). For a stable bundled machine-contract path inside the installed package, prefer `docs/contracts/cli-json-contract.current.json`. Installed packages include that stable path plus the active schema snapshot for the packaged CLI version. The repository may retain older versioned snapshots for historical reference, and runtime discovery metadata may still point at the exact versioned snapshot for the active schema.
+The complete JSON output contract is defined in [`docs/contracts/cli-json-contract.v2.0.0.json`](docs/contracts/cli-json-contract.v2.0.0.json). For a stable bundled machine-contract path inside the installed package, prefer `docs/contracts/cli-json-contract.current.json`. Installed packages include that stable path plus the active schema snapshot for the packaged CLI version. The repository may retain older versioned snapshots for historical reference, and runtime discovery metadata may still point at the exact versioned snapshot for the active schema.
 
 ### NextActions Specification
 
@@ -167,7 +167,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "...commandPayload": "...",
   "nextActions": [{ "command": "string", "reason": "string", "when": "string", "cliCommand": "string", "runnable": true }]
@@ -178,7 +178,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "setupMode": "create | restore | signer_only | replace",
   "readiness": "ready | read_only | discovery_required",
@@ -197,7 +197,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "operation": "init",
   "dryRun": true,
@@ -218,7 +218,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "operation": "deposit",
   "status": "submitted | confirmed",
@@ -245,7 +245,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "operation": "withdraw",
   "status": "submitted | confirmed",
@@ -275,7 +275,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "operation": "ragequit",
   "status": "submitted | confirmed",
@@ -301,7 +301,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "operation": "tx-status",
   "submissionId": "123e4567-e89b-12d3-a456-426614174000",
@@ -340,7 +340,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "chain": "mainnet",
   "lastSyncTime": "2026-04-18T12:00:00.000Z | absent",
@@ -373,7 +373,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "chain": "mainnet",
   "search": null,
@@ -404,7 +404,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "configExists": true,
   "configDir": "/home/user/.privacy-pools",
@@ -436,7 +436,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": false,
   "errorCode": "RPC_NETWORK_ERROR",
   "errorMessage": "Network error: ...",
@@ -1081,7 +1081,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",

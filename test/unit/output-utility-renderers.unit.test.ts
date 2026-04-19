@@ -155,7 +155,7 @@ const STUB_CAPABILITIES: CapabilitiesPayload = {
   ],
   agentWorkflow: ["1. do something"],
   protocol: CLI_PROTOCOL_PROFILE,
-  runtime: buildRuntimeCompatibilityDescriptor("2.1.0"),
+  runtime: buildRuntimeCompatibilityDescriptor("2.0.0"),
   jsonOutputContract: "test contract",
 };
 

@@ -25,7 +25,7 @@ Flow JSON payloads share this shape:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "mode": "flow",
   "action": "start",
@@ -86,7 +86,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: your 
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -189,7 +189,7 @@ privacy-pools tx-status <submissionId> --agent
 
 ## JSON output shapes by command
 
-All responses include `{ "schemaVersion": "2.1.0", "success": true, ... }` envelope.
+All responses include `{ "schemaVersion": "2.0.0", "success": true, ... }` envelope.
 
 Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `true` (or omitted), `cliCommand` is executable as-is. When `runnable` is `false`, `cliCommand` is omitted and `parameters[]` describes the extra user input required before execution.
 
@@ -513,7 +513,7 @@ Representative payload (abridged):
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v2.1.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json"
   }
 }
 ```
@@ -1100,7 +1100,7 @@ All errors in JSON mode:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",

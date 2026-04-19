@@ -1,6 +1,6 @@
 ---
 name: privacy-pools-cli
-version: 2.1.0
+version: 2.0.0
 description: >
   Deposit, withdraw, and manage funds in Privacy Pools v1 across the CLI's
   supported mainnet and testnet chains, including Ethereum, Arbitrum,
@@ -90,14 +90,14 @@ All commands also accept `--json`, `--yes`, and `--quiet` individually.
 Every response when `--json` or `--agent` is set:
 
 ```json
-{ "schemaVersion": "2.1.0", "success": true, ...payload }
+{ "schemaVersion": "2.0.0", "success": true, ...payload }
 ```
 
 Errors:
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",
@@ -129,7 +129,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "2.1.0",
+  "schemaVersion": "2.0.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",

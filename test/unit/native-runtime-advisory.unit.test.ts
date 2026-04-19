@@ -3,9 +3,9 @@ import type { CliPackageInfo } from "../../src/package-info.ts";
 import { detectNativeRuntimeAdvisory } from "../../src/native-runtime-advisory.ts";
 
 const PKG: CliPackageInfo = {
-  version: "2.1.0",
+  version: "2.0.0",
   optionalDependencies: {
-    "@0xmatthewb/privacy-pools-cli-native-macos-arm64": "2.1.0",
+    "@0xmatthewb/privacy-pools-cli-native-macos-arm64": "2.0.0",
   },
   packageRoot: "/tmp/privacy-pools-cli",
   packageJsonPath: "/tmp/privacy-pools-cli/package.json",

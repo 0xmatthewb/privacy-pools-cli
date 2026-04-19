@@ -115,6 +115,19 @@
         "warning": "string? (security guidance for agents)",
         "nextActions": "NextAction[]? (present when a canonical CLI follow-up is available)"
       },
+      "dryRunFields": {
+        "operation": "\"init\"",
+        "dryRun": "true",
+        "effectiveChain": "string",
+        "recoveryPhraseSource": "string",
+        "signerKeySource": "string",
+        "backupCaptureMode": "\"none\"|\"stdout\"|\"file\"",
+        "backupFilePath": "string|null|undefined",
+        "backupFileWouldWrite": "boolean",
+        "overwriteExisting": "boolean",
+        "overwritePromptRequired": "boolean",
+        "writeTargets": "string[]"
+      },
       "stagedJsonl": {
         "mode": "\"init-staged\"",
         "operation": "\"init\"",
@@ -166,7 +179,7 @@
         "depositExplorerUrl": "string|null",
         "committedValue": "decimal-string-wei|null",
         "aspStatus": "\"pending\"|\"approved\"|\"poa_required\"|\"declined\"|\"unknown\"|undefined",
-        "privacyDelayProfile": "\"off\"|\"balanced\"|\"aggressive\"",
+        "privacyDelayProfile": "\"off\"|\"balanced\"|\"strict\"",
         "privacyDelayConfigured": "boolean (true when the workflow explicitly saved a delay policy; false for legacy snapshots normalized to off)",
         "privacyDelayRandom": "boolean (true for randomized privacy-delay profiles)",
         "privacyDelayRangeSeconds": "[number, number] (inclusive randomized range in seconds; [0, 0] for off)",
@@ -198,7 +211,7 @@
         "depositAmount": "decimal-string-wei",
         "recipient": "0x-prefixed-address",
         "walletMode": "\"configured\"|\"new_wallet\"",
-        "privacyDelayProfile": "\"off\"|\"balanced\"|\"aggressive\"",
+        "privacyDelayProfile": "\"off\"|\"balanced\"|\"strict\"",
         "privacyDelayConfigured": true,
         "privacyDelayRandom": "boolean",
         "privacyDelayRangeSeconds": "[number, number]",
@@ -214,6 +227,7 @@
     },
     "status": {
       "successFields": {
+        "mode": "\"cli-status\"",
         "configExists": "boolean",
         "configDir": "string|null",
         "defaultChain": "string|null",
@@ -446,6 +460,7 @@
           "selectedCommitmentValue": "decimal-string-wei",
           "feeBPS": "string",
           "quoteExpiresAt": "iso8601-string",
+          "quoteSummary": "{ quotedAt: iso8601-string, quoteExpiresAt: iso8601-string, baseFeeBPS: string, quoteFeeBPS: string, feeAmount: decimal-string-wei, netAmount: decimal-string-wei, relayerHost: string, extraGas: boolean }",
           "warnings": "PreviewWarning[]? (approximate unsigned validation)",
           "transactions": "UnsignedTransaction[]",
           "relayerRequest": "object"
@@ -648,7 +663,12 @@
     },
     "history": {
       "successFields": {
+        "mode": "\"private-history\"",
         "chain": "string",
+        "page": "number",
+        "perPage": "number",
+        "total": "number",
+        "totalPages": "number",
         "lastSyncTime": "iso8601-string|null|undefined",
         "syncSkipped": "boolean",
         "events": "HistoryEvent[]",
@@ -702,6 +722,9 @@
     "stats": {
       "globalStats": {
         "mode": "\"global-stats\"",
+        "command": "\"protocol-stats\"",
+        "invokedAs": "\"stats\"|\"stats global\"|undefined",
+        "deprecationWarning": "{ code: \"COMMAND_ALIAS_DEPRECATED\", message: string, replacementCommand: string }|undefined",
         "chain": "string",
         "chains": "string[]? (multi-chain mode)",
         "cacheTimestamp": "iso8601-string|null",
@@ -711,6 +734,9 @@
       },
       "poolStats": {
         "mode": "\"pool-stats\"",
+        "command": "\"pool-stats\"",
+        "invokedAs": "\"stats pool\"|undefined",
+        "deprecationWarning": "{ code: \"COMMAND_ALIAS_DEPRECATED\", message: string, replacementCommand: string }|undefined",
         "chain": "string",
         "asset": "string",
         "pool": "0x-prefixed-address",
@@ -794,6 +820,7 @@
     },
     "sync": {
       "successFields": {
+        "isFinal": "true",
         "chain": "string",
         "syncedPools": "number",
         "syncedSymbols": "string[]? (present on successful sync)",
@@ -872,6 +899,7 @@
         "submittedBy": "0x-prefixed-address|undefined",
         "transactions": "BroadcastTransaction[] ({ index, description, txHash: 0x-prefixed-hash|null, blockNumber: decimal-string|null, explorerUrl: string|null, status: \"submitted\"|\"confirmed\"|\"validated\" })",
         "localStateUpdated": "false",
+        "warnings": "{ code: string, category: string, message: string }[]|undefined",
         "nextActions": "NextAction[]? (submitted bundles point to tx-status; confirmed bundles point to accounts review for the underlying source operation)"
       }
     },
@@ -892,10 +920,12 @@
         "createdAt": "iso8601-string",
         "updatedAt": "iso8601-string",
         "status": "\"submitted\"|\"confirmed\"|\"reverted\"",
+        "estimatedConfirmationSeconds": "number|undefined (present while status = \"submitted\")",
+        "pollingRecommendation": "{ initialSeconds: number, maxSeconds: number, backoffFactor: number }|undefined (present while status = \"submitted\")",
         "reconciliationRequired": "boolean",
         "localStateSynced": "boolean",
         "warningCode": "string|null",
-        "lastError": "{ code: string, message: string }|null",
+        "lastError": "{ step: string, errorCode: string, errorMessage: string, retryable: boolean }|null",
         "transactions": "SubmissionTransaction[] ({ index, description, txHash, explorerUrl, blockNumber, status })",
         "nextActions": "NextAction[]? (uses after_submit while the bundle is still pending, then routes to flow status, accounts, or sync once settled)"
       }

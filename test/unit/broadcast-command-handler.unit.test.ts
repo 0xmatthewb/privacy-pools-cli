@@ -7,6 +7,7 @@ import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
 } from "../helpers/output.ts";
+import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import {
   captureModuleExports,
   installModuleMocks,
@@ -83,7 +84,7 @@ describe("broadcast command handler", () => {
       writeFileSync(
         file,
         JSON.stringify({
-          schemaVersion: "2.0.0",
+          schemaVersion: JSON_SCHEMA_VERSION,
           success: true,
           mode: "unsigned",
           operation: "deposit",
@@ -125,6 +126,7 @@ describe("broadcast command handler", () => {
         rpcOverride: "http://rpc.local",
         expectedChain: "mainnet",
         validateOnly: false,
+        noWait: false,
       });
       expect(json.success).toBe(true);
       expect(json.mode).toBe("broadcast");
@@ -199,7 +201,7 @@ describe("broadcast command handler", () => {
       writeFileSync(
         file,
         JSON.stringify({
-          schemaVersion: "2.0.0",
+          schemaVersion: JSON_SCHEMA_VERSION,
           success: true,
           mode: "unsigned",
           operation: "deposit",
@@ -235,6 +237,7 @@ describe("broadcast command handler", () => {
         rpcOverride: undefined,
         expectedChain: undefined,
         validateOnly: true,
+        noWait: false,
       });
     } finally {
       rmSync(dir, { recursive: true, force: true });
