@@ -56,6 +56,19 @@ const submitRelayRequestMock = mock(async () => ({
   timestamp: Date.now(),
   requestId: "relay-1",
 }));
+const requestQuoteWithExtraGasFallbackMock = mock(async () => ({
+  quote: {
+    baseFeeBPS: "25",
+    feeBPS: "50",
+    gasPrice: "1",
+    relayerUrl: "https://fastrelay.xyz",
+    detail: {
+      relayTxCost: { gas: "21000", eth: "1000" },
+    },
+  },
+  extraGas: false,
+  downgradedExtraGas: false,
+}));
 
 let broadcastEnvelope: typeof import("../../src/services/broadcast.ts").broadcastEnvelope;
 
@@ -85,6 +98,81 @@ function dummyRagequitProofRaw() {
     },
     publicSignals: [9n, 10n, 11n, 12n],
   };
+}
+
+function buildRelayedWithdrawPreview(options: {
+  chainConfig?: typeof chain;
+  amount?: bigint;
+  feeBPS?: string;
+  baseFeeBPS?: string;
+  quoteExpiresAt?: string;
+  quotedAt?: string;
+  extraGas?: boolean;
+  relayerHost?: string;
+} = {}) {
+  const chainConfig = options.chainConfig ?? chain;
+  const amount = options.amount ?? 1_000_000_000_000_000_000n;
+  const feeBPS = options.feeBPS ?? "50";
+  const baseFeeBPS = options.baseFeeBPS ?? "25";
+  const quoteExpiresAt = options.quoteExpiresAt ?? new Date(Date.now() + 300_000).toISOString();
+  const quotedAt = options.quotedAt ?? new Date(Date.now() - 30_000).toISOString();
+  const extraGas = options.extraGas ?? false;
+  const relayerHost = options.relayerHost ?? "fastrelay.xyz";
+  const feeCommitmentExpiration = Date.parse(quoteExpiresAt);
+  const withdrawProofRaw = dummyWithdrawProofRaw();
+  const feeCommitment = {
+    expiration: Number.isFinite(feeCommitmentExpiration)
+      ? feeCommitmentExpiration
+      : Date.now() + 300_000,
+    withdrawalData: encodeAbiParameters(
+      parseAbiParameters(
+        "address recipient, address feeRecipient, uint256 relayFeeBPS",
+      ),
+      [recipientAddress, feeRecipientAddress, BigInt(feeBPS)],
+    ),
+    asset: tokenAddress,
+    amount: amount.toString(),
+    extraGas,
+    signedRelayerCommitment: ("0x" + "12".repeat(65)) as Hex,
+  };
+
+  const preview = buildUnsignedRelayedWithdrawOutput({
+    chainId: chainConfig.id,
+    chainName: chainConfig.name,
+    assetSymbol: "ETH",
+    amount,
+    from: signer.address,
+    entrypoint: chainConfig.entrypoint,
+    scope: 99n,
+    recipient: recipientAddress,
+    selectedCommitmentLabel: 11n,
+    selectedCommitmentValue: 12n,
+    feeBPS,
+    quoteExpiresAt,
+    quotedAt,
+    baseFeeBPS,
+    relayerHost,
+    extraGas,
+    withdrawal: {
+      processooor: processooorAddress,
+      data: feeCommitment.withdrawalData,
+    },
+    proof: toWithdrawSolidityProof(withdrawProofRaw),
+    relayerRequest: {
+      scope: "99",
+      withdrawal: {
+        processooor: processooorAddress,
+        data: feeCommitment.withdrawalData,
+      },
+      proof: withdrawProofRaw.proof,
+      publicSignals: withdrawProofRaw.publicSignals.map((value) =>
+        value.toString()
+      ),
+      feeCommitment,
+    },
+  });
+
+  return { preview, feeCommitment };
 }
 
 async function signPreviewTransaction(
@@ -123,6 +211,7 @@ beforeAll(async () => {
       "../../src/services/relayer.ts",
       () => ({
         ...realRelayer,
+        requestQuoteWithExtraGasFallback: requestQuoteWithExtraGasFallbackMock,
         submitRelayRequest: submitRelayRequestMock,
       }),
     ],
@@ -136,6 +225,7 @@ beforeEach(() => {
   publicClientWaitForReceiptMock.mockClear();
   getPublicClientMock.mockClear();
   submitRelayRequestMock.mockClear();
+  requestQuoteWithExtraGasFallbackMock.mockClear();
   publicClientRequestMock.mockImplementation(async () =>
     ("0x" + "ab".repeat(32)) as Hex
   );
@@ -148,6 +238,19 @@ beforeEach(() => {
     txHash: ("0x" + "cd".repeat(32)) as Hex,
     timestamp: Date.now(),
     requestId: "relay-1",
+  }));
+  requestQuoteWithExtraGasFallbackMock.mockImplementation(async () => ({
+    quote: {
+      baseFeeBPS: "25",
+      feeBPS: "50",
+      gasPrice: "1",
+      relayerUrl: "https://fastrelay.xyz",
+      detail: {
+        relayTxCost: { gas: "21000", eth: "1000" },
+      },
+    },
+    extraGas: false,
+    downgradedExtraGas: false,
   }));
 });
 
@@ -480,50 +583,8 @@ describe("broadcast service", () => {
   });
 
   test("rejects expired relayed withdrawal quotes", async () => {
-    const withdrawProofRaw = dummyWithdrawProofRaw();
-    const feeCommitment = {
-      expiration: Date.now() - 60_000,
-      withdrawalData: encodeAbiParameters(
-        parseAbiParameters(
-          "address recipient, address feeRecipient, uint256 relayFeeBPS",
-        ),
-        [recipientAddress, feeRecipientAddress, 50n],
-      ),
-      asset: tokenAddress,
-      amount: "1000000000000000000",
-      extraGas: false,
-      signedRelayerCommitment: ("0x" + "12".repeat(65)) as Hex,
-    };
-    const preview = buildUnsignedRelayedWithdrawOutput({
-      chainId: chain.id,
-      chainName: chain.name,
-      assetSymbol: "ETH",
-      amount: 1n,
-      from: signer.address,
-      entrypoint: chain.entrypoint,
-      scope: 99n,
-      recipient: recipientAddress,
-      selectedCommitmentLabel: 11n,
-      selectedCommitmentValue: 12n,
-      feeBPS: "50",
+    const { preview } = buildRelayedWithdrawPreview({
       quoteExpiresAt: new Date(Date.now() - 60_000).toISOString(),
-      withdrawal: {
-        processooor: processooorAddress,
-        data: feeCommitment.withdrawalData,
-      },
-      proof: toWithdrawSolidityProof(withdrawProofRaw),
-      relayerRequest: {
-        scope: "99",
-        withdrawal: {
-          processooor: processooorAddress,
-          data: feeCommitment.withdrawalData,
-        },
-        proof: withdrawProofRaw.proof,
-        publicSignals: withdrawProofRaw.publicSignals.map((value) =>
-          value.toString()
-        ),
-        feeCommitment,
-      },
     });
 
     await expect(
@@ -538,55 +599,18 @@ describe("broadcast service", () => {
   });
 
   test("rejects relayer requests that do not match the preview calldata", async () => {
-    const withdrawProofRaw = dummyWithdrawProofRaw();
-    const feeCommitment = {
-      expiration: Date.now() + 300_000,
-      withdrawalData: encodeAbiParameters(
-        parseAbiParameters(
-          "address recipient, address feeRecipient, uint256 relayFeeBPS",
-        ),
-        [recipientAddress, feeRecipientAddress, 50n],
-      ),
-      asset: tokenAddress,
-      amount: "1000000000000000000",
-      extraGas: false,
-      signedRelayerCommitment: ("0x" + "12".repeat(65)) as Hex,
-    };
-    const preview = buildUnsignedRelayedWithdrawOutput({
-      chainId: chain.id,
-      chainName: chain.name,
-      assetSymbol: "ETH",
-      amount: 1n,
-      from: signer.address,
-      entrypoint: chain.entrypoint,
-      scope: 99n,
-      recipient: recipientAddress,
-      selectedCommitmentLabel: 11n,
-      selectedCommitmentValue: 12n,
-      feeBPS: "50",
-      quoteExpiresAt: new Date(Date.now() + 300_000).toISOString(),
-      withdrawal: {
-        processooor: processooorAddress,
-        data: feeCommitment.withdrawalData,
-      },
-      proof: toWithdrawSolidityProof(withdrawProofRaw),
+    const { preview } = buildRelayedWithdrawPreview();
+    const mismatchedPreview = {
+      ...preview,
       relayerRequest: {
+        ...(preview.relayerRequest as Record<string, unknown>),
         scope: "100",
-        withdrawal: {
-          processooor: processooorAddress,
-          data: feeCommitment.withdrawalData,
-        },
-        proof: withdrawProofRaw.proof,
-        publicSignals: withdrawProofRaw.publicSignals.map((value) =>
-          value.toString()
-        ),
-        feeCommitment,
       },
-    });
+    };
 
     await expect(
       broadcastEnvelope({
-        ...preview,
+        ...mismatchedPreview,
         success: true,
         relayerHost: "fastrelay.xyz",
       }),
@@ -596,50 +620,8 @@ describe("broadcast service", () => {
   });
 
   test("rejects relayed envelopes without relayerHost when multiple relayers are configured", async () => {
-    const withdrawProofRaw = dummyWithdrawProofRaw();
-    const feeCommitment = {
-      expiration: Date.now() + 300_000,
-      withdrawalData: encodeAbiParameters(
-        parseAbiParameters(
-          "address recipient, address feeRecipient, uint256 relayFeeBPS",
-        ),
-        [recipientAddress, feeRecipientAddress, 50n],
-      ),
-      asset: tokenAddress,
-      amount: "1000000000000000000",
-      extraGas: false,
-      signedRelayerCommitment: ("0x" + "12".repeat(65)) as Hex,
-    };
-    const preview = buildUnsignedRelayedWithdrawOutput({
-      chainId: multiRelayerChain.id,
-      chainName: multiRelayerChain.name,
-      assetSymbol: "ETH",
-      amount: 1n,
-      from: signer.address,
-      entrypoint: multiRelayerChain.entrypoint,
-      scope: 99n,
-      recipient: recipientAddress,
-      selectedCommitmentLabel: 11n,
-      selectedCommitmentValue: 12n,
-      feeBPS: "50",
-      quoteExpiresAt: new Date(Date.now() + 300_000).toISOString(),
-      withdrawal: {
-        processooor: processooorAddress,
-        data: feeCommitment.withdrawalData,
-      },
-      proof: toWithdrawSolidityProof(withdrawProofRaw),
-      relayerRequest: {
-        scope: "99",
-        withdrawal: {
-          processooor: processooorAddress,
-          data: feeCommitment.withdrawalData,
-        },
-        proof: withdrawProofRaw.proof,
-        publicSignals: withdrawProofRaw.publicSignals.map((value) =>
-          value.toString()
-        ),
-        feeCommitment,
-      },
+    const { preview } = buildRelayedWithdrawPreview({
+      chainConfig: multiRelayerChain,
     });
 
     await expect(
@@ -652,52 +634,77 @@ describe("broadcast service", () => {
     });
   });
 
-  test("broadcasts relayed withdrawal envelopes without requiring local signer state", async () => {
-    const withdrawProofRaw = dummyWithdrawProofRaw();
-    const feeCommitment = {
-      expiration: Date.now() + 300_000,
-      withdrawalData: encodeAbiParameters(
-        parseAbiParameters(
-          "address recipient, address feeRecipient, uint256 relayFeeBPS",
-        ),
-        [recipientAddress, feeRecipientAddress, 50n],
-      ),
-      asset: tokenAddress,
-      amount: "1000000000000000000",
-      extraGas: false,
-      signedRelayerCommitment: ("0x" + "12".repeat(65)) as Hex,
-    };
-    const preview = buildUnsignedRelayedWithdrawOutput({
-      chainId: chain.id,
-      chainName: chain.name,
-      assetSymbol: "ETH",
-      amount: 1n,
-      from: signer.address,
-      entrypoint: chain.entrypoint,
-      scope: 99n,
-      recipient: recipientAddress,
-      selectedCommitmentLabel: 11n,
-      selectedCommitmentValue: 12n,
-      feeBPS: "50",
-      quoteExpiresAt: new Date(Date.now() + 300_000).toISOString(),
-      withdrawal: {
-        processooor: processooorAddress,
-        data: feeCommitment.withdrawalData,
-      },
-      proof: toWithdrawSolidityProof(withdrawProofRaw),
-      relayerRequest: {
-        scope: "99",
-        withdrawal: {
-          processooor: processooorAddress,
-          data: feeCommitment.withdrawalData,
+  test("validate-only relayed broadcast warns when the live quote changed", async () => {
+    const { preview } = buildRelayedWithdrawPreview();
+    requestQuoteWithExtraGasFallbackMock.mockResolvedValueOnce({
+      quote: {
+        baseFeeBPS: "30",
+        feeBPS: "75",
+        gasPrice: "1",
+        relayerUrl: "https://fastrelay.xyz",
+        detail: {
+          relayTxCost: { gas: "21000", eth: "1000" },
         },
-        proof: withdrawProofRaw.proof,
-        publicSignals: withdrawProofRaw.publicSignals.map((value) =>
-          value.toString()
-        ),
-        feeCommitment,
       },
+      extraGas: false,
+      downgradedExtraGas: false,
     });
+
+    const result = await broadcastEnvelope(
+      {
+        ...preview,
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      },
+      { validateOnly: true },
+    );
+
+    expect(result.validatedOnly).toBe(true);
+    expect(result.warnings?.map((warning) => warning.code)).toContain("QUOTE_CHANGED");
+    expect(result.warnings?.[0]?.message).toContain("Previous fee");
+    expect(requestQuoteWithExtraGasFallbackMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("validate-only relayed broadcast stays quiet when the live quote is unchanged", async () => {
+    const { preview } = buildRelayedWithdrawPreview();
+
+    const result = await broadcastEnvelope(
+      {
+        ...preview,
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      },
+      { validateOnly: true },
+    );
+
+    expect(result.validatedOnly).toBe(true);
+    expect(result.warnings).toBeUndefined();
+    expect(requestQuoteWithExtraGasFallbackMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("validate-only relayed broadcast warns when quoteSummary is missing", async () => {
+    const { preview } = buildRelayedWithdrawPreview();
+    const legacyPreview = { ...preview } as typeof preview & { quoteSummary?: unknown };
+    delete legacyPreview.quoteSummary;
+
+    const result = await broadcastEnvelope(
+      {
+        ...legacyPreview,
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      },
+      { validateOnly: true },
+    );
+
+    expect(result.validatedOnly).toBe(true);
+    expect(result.warnings?.map((warning) => warning.code)).toEqual([
+      "QUOTE_DELTA_UNAVAILABLE",
+    ]);
+    expect(requestQuoteWithExtraGasFallbackMock).not.toHaveBeenCalled();
+  });
+
+  test("broadcasts relayed withdrawal envelopes without requiring local signer state", async () => {
+    const { preview } = buildRelayedWithdrawPreview();
     publicClientWaitForReceiptMock.mockResolvedValueOnce({
       status: "success" as const,
       blockNumber: 222n,

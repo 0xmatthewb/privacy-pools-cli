@@ -4,7 +4,10 @@ import { join } from "node:path";
 import type { Command } from "commander";
 import { handleCapabilitiesCommand } from "../../src/commands/capabilities.ts";
 import { handleCompletionCommand } from "../../src/commands/completion.ts";
-import { handleDescribeCommand } from "../../src/commands/describe.ts";
+import {
+  handleDescribeCommand,
+  handleExplainCommand,
+} from "../../src/commands/describe.ts";
 import { handleGuideCommand } from "../../src/commands/guide.ts";
 import {
   COMPLETION_MANAGED_BLOCK_START,
@@ -138,6 +141,20 @@ describe("utility command handlers", () => {
     expect(json.path).toBe("envelope.shared.nextAction");
     expect(json.schema.cliCommand).toContain("omitted when runnable = false");
     expect(json.schema.parameters).toContain("required");
+    expect(stderr).toBe("");
+  });
+
+  test("explain normalizes bare schema paths to envelope paths", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleExplainCommand(
+        "shared.nextAction",
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.path).toBe("envelope.shared.nextAction");
+    expect(json.schema.cliCommand).toContain("omitted when runnable = false");
     expect(stderr).toBe("");
   });
 
