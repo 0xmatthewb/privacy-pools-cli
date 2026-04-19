@@ -301,4 +301,63 @@ describe("renderMigrationStatus", () => {
       cliCommand: "privacy-pools migrate status --agent --include-testnets",
     });
   });
+
+  test("JSON mode emits website migration guidance without fake CLI follow-ups", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: MigrationRenderData = {
+      mode: "migration-status",
+      chain: "mainnet",
+      status: "migration_required",
+      requiresMigration: true,
+      requiresWebsiteRecovery: false,
+      isFullyMigrated: false,
+      readinessResolved: true,
+      submissionSupported: false,
+      requiredChainIds: [1],
+      migratedChainIds: [],
+      missingChainIds: [1],
+      websiteRecoveryChainIds: [],
+      unresolvedChainIds: [],
+      chainReadiness: [],
+    };
+
+    const { stdout } = captureOutput(() => renderMigrationStatus(ctx, data));
+    const json = parseCapturedJson(stdout);
+    expect(json.externalGuidance).toEqual({
+      kind: "website_migration",
+      message:
+        "Legacy deposits must be migrated in the Privacy Pools website before the CLI can use them.",
+      url: "https://privacypools.com",
+    });
+    expect(json.nextActions).toEqual([]);
+  });
+
+  test("JSON mode emits website recovery guidance without fake CLI follow-ups", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const data: MigrationRenderData = {
+      mode: "migration-status",
+      chain: "mainnet",
+      status: "website_recovery_required",
+      requiresMigration: false,
+      requiresWebsiteRecovery: true,
+      isFullyMigrated: false,
+      readinessResolved: true,
+      submissionSupported: false,
+      requiredChainIds: [],
+      migratedChainIds: [],
+      missingChainIds: [],
+      websiteRecoveryChainIds: [1],
+      unresolvedChainIds: [],
+      chainReadiness: [],
+    };
+
+    const { stdout } = captureOutput(() => renderMigrationStatus(ctx, data));
+    const json = parseCapturedJson(stdout);
+    expect(json.externalGuidance).toEqual({
+      kind: "website_recovery",
+      message: "Legacy declined deposits require website-based public recovery.",
+      url: "https://privacypools.com",
+    });
+    expect(json.nextActions).toEqual([]);
+  });
 });

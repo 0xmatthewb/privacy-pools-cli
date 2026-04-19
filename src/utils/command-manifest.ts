@@ -563,12 +563,75 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "expectedLatencyClass": "fast"
     },
     {
+      "name": "config unset",
+      "description": "Clear a single configuration key",
+      "group": "advanced",
+      "aliases": [
+        "remove"
+      ],
+      "usage": "config unset <key>",
+      "flags": [
+        "<key>"
+      ],
+      "agentFlags": "--agent <key>",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
       "name": "config path",
       "description": "Print the configuration directory path",
       "group": "advanced",
       "usage": "config path",
       "flags": [],
       "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "config profile",
+      "description": "Manage named profiles",
+      "group": "advanced",
+      "usage": "config profile <command>",
+      "flags": [],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "config profile list",
+      "description": "List available profiles",
+      "group": "advanced",
+      "usage": "config profile list",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "config profile create",
+      "description": "Create a new named profile",
+      "group": "advanced",
+      "usage": "config profile create <name>",
+      "flags": [],
+      "agentFlags": "--agent <name>",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "config profile active",
+      "description": "Show the currently active profile",
+      "group": "advanced",
+      "usage": "config profile active",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "config profile use",
+      "description": "Persist the active profile",
+      "group": "advanced",
+      "usage": "config profile use <name>",
+      "flags": [],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -624,6 +687,18 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Show the saved easy-path workflow state",
       "group": "transaction",
       "usage": "flow status [workflowId|latest]",
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "flow step",
+      "description": "Advance a saved workflow by at most one unit of work",
+      "group": "transaction",
+      "usage": "flow step [workflowId|latest]",
       "flags": [
         "[workflowId|latest]"
       ],
@@ -714,6 +789,29 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlags": "--agent [--include-testnets] [--search <query>] [--sort <mode>]",
       "requiresInit": false,
       "expectedLatencyClass": "medium"
+    },
+    {
+      "name": "status",
+      "description": "Check account setup and network status",
+      "group": "getting-started",
+      "usage": "status",
+      "flags": [
+        "--check [scope]",
+        "--no-check"
+      ],
+      "agentFlags": "--agent [--check <all|rpc|asp|none>] [--no-check]",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "tx-status",
+      "description": "Check async transaction submission status",
+      "group": "monitoring",
+      "usage": "tx-status <submissionId>",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
     },
     {
       "name": "activity",
@@ -905,19 +1003,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlags": "--agent [asset] [--stream-json]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
-    },
-    {
-      "name": "status",
-      "description": "Check account setup and network status",
-      "group": "getting-started",
-      "usage": "status",
-      "flags": [
-        "--check [scope]",
-        "--no-check"
-      ],
-      "agentFlags": "--agent [--check <all|rpc|asp|none>] [--no-check]",
-      "requiresInit": false,
-      "expectedLatencyClass": "fast"
     },
     {
       "name": "ragequit",
@@ -2290,7 +2375,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": false,
       "supportsDryRun": true,
       "agentWorkflowNotes": [
-        "With --new-wallet, the flow stays attached automatically and waits for funding, deposit, approval, and withdrawal unless you detach with Ctrl-C.",
+        "With --new-wallet, --agent returns an awaiting_funding snapshot with the dedicated wallet address and required funding amounts instead of running an internal watch loop.",
         "In --agent mode, --watch is rejected. Start the flow, then use flow status and flow step as separate one-shot primitives."
       ],
       "expectedNextActionWhen": [

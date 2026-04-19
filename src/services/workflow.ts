@@ -4472,7 +4472,9 @@ export async function startWorkflow(
     privacyDelayProfile,
     "balanced",
   );
-  const effectiveWatch = newWallet ? true : watch;
+  // Agent mode must stay one-shot even for dedicated workflow wallets so the
+  // model can orchestrate funding/status polling explicitly.
+  const effectiveWatch = newWallet && !mode.isAgent ? true : watch;
 
   if (newWallet && skipPrompts && !exportNewWallet?.trim()) {
     throw new CLIError(

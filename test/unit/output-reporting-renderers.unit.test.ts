@@ -1338,6 +1338,11 @@ describe("renderUpgradeResult nextActions", () => {
     // Manual status must NOT emit nextActions — the remediation is an external
     // install command in result.command, not a CLI command.
     expect(json.nextActions).toBeUndefined();
+    expect(json.externalGuidance).toEqual({
+      kind: "manual_install",
+      message: "Source checkout.",
+      command: "npm i -g privacy-pools-cli@2.2.0",
+    });
   });
 
   test("JSON mode: 'up_to_date' status emits a safe status follow-up", () => {

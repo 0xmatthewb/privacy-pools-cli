@@ -269,6 +269,7 @@ async function reconcileConfirmedSubmission(
 
 export async function handleTxStatusCommand(
   submissionId: string,
+  _opts: unknown,
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.opts() as GlobalOptions;

@@ -127,6 +127,7 @@ describe("tx-status command handler", () => {
   test("refreshes the submission record and renders tx-status output", async () => {
     await handleTxStatusCommand(
       "sub-123",
+      {},
       fakeCommand({ json: true, rpcUrl: "https://rpc.example", verbose: true }),
     );
 
@@ -153,7 +154,7 @@ describe("tx-status command handler", () => {
       throw error;
     });
 
-    await handleTxStatusCommand("missing", fakeCommand({ json: true }));
+    await handleTxStatusCommand("missing", {}, fakeCommand({ json: true }));
 
     expect(renderTxStatusMock).not.toHaveBeenCalled();
     expect(printErrorMock).toHaveBeenCalledWith(error, true);

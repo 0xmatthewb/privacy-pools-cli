@@ -463,7 +463,7 @@ export function registerWorkflowMockedStartTests(): void {
       expect(state.addPoolAccountCalls).toBe(1);
       expect(saveAccountMock).toHaveBeenCalled();
     });
-    test("new-wallet ERC20 flow completes with extra gas enabled and no global signer", async () => {
+    test("new-wallet ERC20 flow returns a funding snapshot in agent mode without auto-watching", async () => {
       state.currentSignerPrivateKey = null;
       state.pool = {
         ...state.pool,
@@ -497,22 +497,21 @@ export function registerWorkflowMockedStartTests(): void {
           watch: false,
         });
 
-        expect(snapshot.phase).toBe("completed");
+        expect(snapshot.phase).toBe("awaiting_funding");
         expect(snapshot.walletMode).toBe("new_wallet");
         expect(snapshot.walletAddress).toBe(NEW_WALLET_ADDRESS);
         expect(snapshot.requiredTokenFunding).toBe("100000000");
         expect(state.loadPrivateKeyCalls).toBe(0);
-        expect(state.approveErc20Calls).toBe(1);
-        expect(state.depositErc20Calls).toBe(1);
-        expect(state.requestQuoteCalls.at(-1)?.extraGas).toBe(true);
-        expect(state.requestQuoteCalls.at(-1)?.relayerUrl).toBe(state.relayerUrl);
+        expect(state.approveErc20Calls).toBe(0);
+        expect(state.depositErc20Calls).toBe(0);
+        expect(state.requestQuoteCalls).toHaveLength(0);
         expect(readFileSync(backupPath, "utf8")).toContain(NEW_WALLET_PRIVATE_KEY);
         expect(statSync(backupPath).mode & 0o777).toBe(0o600);
         expect(
           existsSync(
             join(realConfig.getWorkflowSecretsDir(), `${snapshot.workflowId}.json`),
           ),
-        ).toBe(false);
+        ).toBe(true);
       } finally {
         restoreTimers();
       }

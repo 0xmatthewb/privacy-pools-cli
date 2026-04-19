@@ -35,35 +35,44 @@ function broadcastNextActions(
   data: BroadcastRenderData,
   agent: boolean,
 ) {
+  const hasSubmittedTransactions = data.transactions.some(
+    (transaction) => transaction.status === "submitted",
+  );
+
+  if (hasSubmittedTransactions) {
+    return [
+      createNextAction(
+        "tx-status",
+        "Poll the submitted broadcast bundle until it confirms.",
+        "after_submit",
+        {
+          ...(data.submissionId ? { args: [data.submissionId] } : {}),
+          ...(agent ? { options: { agent: true } } : {}),
+          ...(data.submissionId
+            ? {}
+            : {
+                parameters: [
+                  { name: "submissionId", type: "submission_id", required: true },
+                ],
+                runnable: false,
+              }),
+        },
+      ),
+    ];
+  }
+
   switch (data.sourceOperation) {
     case "deposit":
       return [
         createNextAction(
-          data.transactions.some((transaction) => transaction.status === "submitted")
-            ? "tx-status"
-            : "accounts",
-          data.transactions.some((transaction) => transaction.status === "submitted")
-            ? "Poll the submitted broadcast bundle until it confirms."
-            : "Monitor ASP review for the newly deposited Pool Account.",
-          data.transactions.some((transaction) => transaction.status === "submitted")
-            ? "after_submit"
-            : "after_deposit",
-          data.transactions.some((transaction) => transaction.status === "submitted")
-            ? {
-                ...(data.submissionId ? { args: [data.submissionId] } : {}),
-                ...(agent ? { options: { agent: true } } : {}),
-                ...(data.submissionId ? {} : {
-                  parameters: [
-                    { name: "submissionId", type: "submission_id", required: true },
-                  ],
-                  runnable: false,
-                }),
-              }
-            : {
-                options: agent
-                  ? { agent: true, chain: data.chain, pendingOnly: true }
-                  : { chain: data.chain, pendingOnly: true },
-              },
+          "accounts",
+          "Monitor ASP review for the newly deposited Pool Account.",
+          "after_deposit",
+          {
+            options: agent
+              ? { agent: true, chain: data.chain, pendingOnly: true }
+              : { chain: data.chain, pendingOnly: true },
+          },
         ),
       ];
     case "withdraw":

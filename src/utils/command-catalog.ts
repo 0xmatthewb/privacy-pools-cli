@@ -555,7 +555,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       overview: [
         "This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient.",
         "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit.",
-        "With --new-wallet, the CLI generates a dedicated workflow wallet, waits for it to be funded, then continues automatically. ETH flows wait for the full ETH target; ERC20 flows wait for the token amount plus native ETH gas reserve.",
+        "With --new-wallet, the CLI generates a dedicated workflow wallet for that one flow. In --agent mode, flow start returns an awaiting_funding snapshot so you can fund the wallet and continue with flow status / flow step. Human runs stay attached and wait automatically. ETH flows require the full ETH target; ERC20 flows require the token amount plus native ETH gas reserve.",
         "The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.",
       ],
       examples: [
@@ -596,7 +596,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         SIGNING_SOURCE_NOTE,
       ],
       agentWorkflowNotes: [
-        "With --new-wallet, the flow stays attached automatically and waits for funding, deposit, approval, and withdrawal unless you detach with Ctrl-C.",
+        "With --new-wallet, --agent returns an awaiting_funding snapshot with the dedicated wallet address and required funding amounts instead of running an internal watch loop.",
         "In --agent mode, --watch is rejected. Start the flow, then use flow status and flow step as separate one-shot primitives.",
       ],
       supportsDryRun: true,

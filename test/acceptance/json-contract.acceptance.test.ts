@@ -22,6 +22,7 @@ import {
   defineScenarioSuite,
   runCliStep,
   seedHome,
+  writeFile,
 } from "./framework.ts";
 
 const OFFLINE_ASP_ENV = {
@@ -37,6 +38,68 @@ const FLOW_STREAM_WORKFLOW_ID = "wf-json-watch-stream";
 const FLOW_STREAM_SCOPE = 12345n;
 const FLOW_STREAM_TX_HASH =
   "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const SUBMITTED_TX_STATUS_RECORD = {
+  schemaVersion: "1",
+  submissionId: "sub-json-status-submitted",
+  createdAt: "2026-04-18T12:00:00.000Z",
+  updatedAt: "2026-04-18T12:05:00.000Z",
+  operation: "broadcast",
+  sourceCommand: "broadcast",
+  chain: "sepolia",
+  asset: null,
+  poolAccountId: "PA-9",
+  poolAccountNumber: 9,
+  workflowId: null,
+  recipient: null,
+  broadcastMode: "onchain",
+  broadcastSourceOperation: "withdraw",
+  status: "submitted",
+  transactions: [
+    {
+      index: 0,
+      description: "Broadcast relayed withdrawal",
+      txHash: "0x9999999999999999999999999999999999999999999999999999999999999999",
+      explorerUrl: null,
+      blockNumber: null,
+      status: "submitted",
+    },
+  ],
+  reconciliationRequired: false,
+  localStateSynced: false,
+  warningCode: null,
+  lastError: null,
+};
+const CONFIRMED_TX_STATUS_RECORD = {
+  schemaVersion: "1",
+  submissionId: "sub-json-status-confirmed",
+  createdAt: "2026-04-18T12:00:00.000Z",
+  updatedAt: "2026-04-18T12:10:00.000Z",
+  operation: "withdraw",
+  sourceCommand: "withdraw",
+  chain: "sepolia",
+  asset: "ETH",
+  poolAccountId: "PA-3",
+  poolAccountNumber: 3,
+  workflowId: null,
+  recipient: "0x7777777777777777777777777777777777777777",
+  broadcastMode: null,
+  broadcastSourceOperation: null,
+  status: "confirmed",
+  transactions: [
+    {
+      index: 0,
+      description: "Relayed withdrawal",
+      txHash: "0x8888888888888888888888888888888888888888888888888888888888888888",
+      explorerUrl: "https://sepolia.etherscan.io/tx/0x8888",
+      blockNumber: "12345",
+      status: "confirmed",
+    },
+  ],
+  reconciliationRequired: false,
+  localStateSynced: true,
+  warningCode: null,
+  lastError: null,
+};
 let fixture: FixtureServer;
 
 beforeAll(async () => {
@@ -271,6 +334,8 @@ defineScenarioSuite("json-contract acceptance", [
       performed: boolean;
       command: string | null;
       installContext: { kind: string; supportedAutoRun: boolean };
+      externalGuidance?: { kind: string; message: string; command?: string | null };
+      nextActions?: unknown[];
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(true);
@@ -281,6 +346,193 @@ defineScenarioSuite("json-contract acceptance", [
       expect(json.command).toBe("npm install -g privacy-pools-cli@9.9.9");
       expect(json.installContext.kind).toBe("source_checkout");
       expect(json.installContext.supportedAutoRun).toBe(false);
+      expect(json.externalGuidance?.kind).toBe("manual_install");
+      expect(json.externalGuidance?.command).toBe(
+        "npm install -g privacy-pools-cli@9.9.9",
+      );
+      expect(json.externalGuidance?.message).toContain("source checkout");
+      expect(json.nextActions).toBeUndefined();
+    }),
+  ]),
+  defineScenario("flow watch rejects agent mode with machine nextActions", [
+    runCliStep(["--agent", "flow", "watch", "latest"], {
+      timeoutMs: 10_000,
+    }),
+    assertExit(2),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      errorCode: string;
+      error: {
+        category: string;
+        nextActions?: Array<{
+          command: string;
+          when: string;
+          runnable?: boolean;
+          parameters?: Array<{ name: string }>;
+        }>;
+      };
+    }>((json) => {
+      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("INPUT_AGENT_FLOW_WATCH_UNSUPPORTED");
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.nextActions?.map((action) => action.command)).toEqual([
+        "flow status",
+        "flow step",
+      ]);
+      expect(json.error.nextActions?.map((action) => action.when)).toEqual([
+        "flow_resume",
+        "flow_resume",
+      ]);
+      expect(json.error.nextActions?.every((action) => action.runnable === false)).toBe(
+        true,
+      );
+      expect(
+        json.error.nextActions?.every(
+          (action) => action.parameters?.[0]?.name === "workflowId",
+        ),
+      ).toBe(true);
+    }),
+  ]),
+  defineScenario("flow start --watch rejects agent mode with machine nextActions", [
+    runCliStep(
+      [
+        "--agent",
+        "flow",
+        "start",
+        "0.1",
+        "ETH",
+        "--to",
+        "0x4444444444444444444444444444444444444444",
+        "--watch",
+      ],
+      {
+        timeoutMs: 10_000,
+      },
+    ),
+    assertExit(2),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      errorCode: string;
+      error: {
+        category: string;
+        nextActions?: Array<{
+          command: string;
+          when: string;
+          runnable?: boolean;
+          parameters?: Array<{ name: string }>;
+        }>;
+      };
+    }>((json) => {
+      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+      expect(json.success).toBe(false);
+      expect(json.errorCode).toBe("INPUT_AGENT_FLOW_WATCH_UNSUPPORTED");
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.nextActions?.map((action) => action.command)).toEqual([
+        "flow status",
+        "flow step",
+      ]);
+      expect(json.error.nextActions?.every((action) => action.runnable === false)).toBe(
+        true,
+      );
+    }),
+  ]),
+  defineScenario("tx-status keeps the submitted polling JSON contract", [
+    writeFile(
+      ".privacy-pools/submissions/sub-json-status-submitted.json",
+      `${JSON.stringify(SUBMITTED_TX_STATUS_RECORD, null, 2)}\n`,
+    ),
+    (ctx) =>
+      runCliStep(["--agent", "tx-status", "sub-json-status-submitted"], {
+        timeoutMs: 10_000,
+        env: fixtureEnv(),
+      })(ctx),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      operation: string;
+      submissionId: string;
+      sourceOperation: string;
+      sourceCommand: string;
+      broadcastSourceOperation: string | null;
+      status: string;
+      transactions: Array<{ status: string; explorerUrl: string | null }>;
+      nextActions?: Array<{
+        command: string;
+        when: string;
+        args?: string[];
+        cliCommand?: string;
+      }>;
+    }>((json) => {
+      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+      expect(json.success).toBe(true);
+      expect(json.operation).toBe("tx-status");
+      expect(json.submissionId).toBe("sub-json-status-submitted");
+      expect(json.sourceOperation).toBe("broadcast");
+      expect(json.sourceCommand).toBe("broadcast");
+      expect(json.broadcastSourceOperation).toBe("withdraw");
+      expect(json.status).toBe("submitted");
+      expect(json.transactions[0]?.status).toBe("submitted");
+      expect(json.transactions[0]?.explorerUrl).toBe(
+        "https://sepolia.etherscan.io/tx/0x9999999999999999999999999999999999999999999999999999999999999999",
+      );
+      expect(json.nextActions).toHaveLength(1);
+      expect(json.nextActions?.[0]).toMatchObject({
+        command: "tx-status",
+        when: "after_submit",
+        args: ["sub-json-status-submitted"],
+        cliCommand:
+          "privacy-pools tx-status sub-json-status-submitted --agent",
+      });
+    }),
+  ]),
+  defineScenario("tx-status keeps the confirmed follow-up contract", [
+    writeFile(
+      ".privacy-pools/submissions/sub-json-status-confirmed.json",
+      `${JSON.stringify(CONFIRMED_TX_STATUS_RECORD, null, 2)}\n`,
+    ),
+    runCliStep(["--agent", "tx-status", "sub-json-status-confirmed"], {
+      timeoutMs: 10_000,
+    }),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertJson<{
+      schemaVersion: string;
+      success: boolean;
+      operation: string;
+      submissionId: string;
+      sourceOperation: string;
+      workflowId: string | null;
+      status: string;
+      transactions: Array<{ status: string; blockNumber: string | null }>;
+      nextActions?: Array<{
+        command: string;
+        when: string;
+        args?: string[];
+        cliCommand?: string;
+      }>;
+    }>((json) => {
+      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+      expect(json.success).toBe(true);
+      expect(json.operation).toBe("tx-status");
+      expect(json.submissionId).toBe("sub-json-status-confirmed");
+      expect(json.sourceOperation).toBe("withdraw");
+      expect(json.workflowId).toBeNull();
+      expect(json.status).toBe("confirmed");
+      expect(json.transactions[0]?.status).toBe("confirmed");
+      expect(json.transactions[0]?.blockNumber).toBe("12345");
+      expect(json.nextActions).toHaveLength(1);
+      expect(json.nextActions?.[0]).toMatchObject({
+        command: "accounts",
+        when: "after_withdraw",
+        cliCommand: "privacy-pools accounts --agent --chain sepolia",
+      });
     }),
   ]),
   defineScenario("activity offline contract stays machine-parseable", [

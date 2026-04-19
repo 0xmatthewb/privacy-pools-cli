@@ -239,26 +239,33 @@ describe("submitted transactional renderers", () => {
     );
   });
 
-  test("broadcast JSON includes submitted transaction status and tx-status follow-up", () => {
+  test("broadcast JSON routes every submitted bundle back through tx-status", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout } = captureOutput(() =>
-      renderBroadcast(ctx, SUBMITTED_BROADCAST),
-    );
 
-    const json = parseCapturedJson(stdout);
-    expect(json.mode).toBe("broadcast");
-    expect(json.submissionId).toBe("sub-broadcast-1");
-    expect(json.transactions[0]?.status).toBe("submitted");
-    expect(json.nextActions).toBeArrayOfSize(1);
-    expectNextAction(
-      json.nextActions[0],
-      {
-        command: "tx-status",
-        when: "after_submit",
-        args: ["sub-broadcast-1"],
-      },
-      "privacy-pools tx-status sub-broadcast-1 --agent",
-    );
+    for (const sourceOperation of ["deposit", "withdraw", "ragequit"] as const) {
+      const { stdout } = captureOutput(() =>
+        renderBroadcast(ctx, {
+          ...SUBMITTED_BROADCAST,
+          sourceOperation,
+        }),
+      );
+
+      const json = parseCapturedJson(stdout);
+      expect(json.mode).toBe("broadcast");
+      expect(json.sourceOperation).toBe(sourceOperation);
+      expect(json.submissionId).toBe("sub-broadcast-1");
+      expect(json.transactions[0]?.status).toBe("submitted");
+      expect(json.nextActions).toBeArrayOfSize(1);
+      expectNextAction(
+        json.nextActions[0],
+        {
+          command: "tx-status",
+          when: "after_submit",
+          args: ["sub-broadcast-1"],
+        },
+        "privacy-pools tx-status sub-broadcast-1 --agent",
+      );
+    }
   });
 });
 

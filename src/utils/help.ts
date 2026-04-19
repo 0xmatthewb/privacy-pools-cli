@@ -252,7 +252,7 @@ const guideSections: Record<string, () => string[]> = {
     `  *  ${accent("withdraw quote")} Check relayer fees before withdrawing`,
     chalk.dim("  'migrate status' is read-only. The CLI does not submit migration transactions; use the website for actual migration or website-based recovery."),
     chalk.dim("  It only checks chains currently supported by the CLI; review beta or website-only legacy migration surfaces in the website."),
-    chalk.dim("  'flow start --new-wallet' generates a dedicated workflow wallet and waits for funding automatically."),
+    chalk.dim("  Human 'flow start --new-wallet' waits for funding automatically; '--agent' returns an awaiting_funding snapshot instead."),
     chalk.dim("  In machine mode, this path requires '--export-new-wallet <path>' so the generated key is backed up first."),
     chalk.dim("  Manual commands remain available for advanced control."),
   ],
