@@ -48,6 +48,10 @@ function extractDocumentSection(
 
 const AGENTS = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
 const SKILL = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+const SKILL_REFERENCE = readFileSync(
+  `${CLI_ROOT}/skills/privacy-pools-cli/reference.md`,
+  "utf8",
+);
 const AGENT_MARKERS = getDocumentedAgentMarkers();
 
 describe("command docs alignment", () => {
@@ -128,6 +132,23 @@ describe("command docs alignment", () => {
     }
   });
 
+  test("AGENTS keeps async submission examples aligned with the shipped contract", () => {
+    const normalizedAgents = normalizeWhitespace(AGENTS);
+
+    for (const requiredMarker of [
+      "privacy-pools deposit 0.1 ETH --agent --no-wait",
+      "privacy-pools withdraw --all ETH --to 0xRecipient --agent --no-wait",
+      "privacy-pools broadcast ./signed-envelope.json --agent --no-wait",
+      "privacy-pools tx-status <submissionId> --agent",
+    ]) {
+      expect(normalizedAgents).toContain(normalizeWhitespace(requiredMarker));
+    }
+
+    expect(AGENTS).not.toContain(
+      "privacy-pools broadcast ./signed-envelope.json --agent\n",
+    );
+  });
+
   test("AGENTS keeps current migration and contract error codes for agents", () => {
     const normalizedAgents = normalizeWhitespace(AGENTS);
 
@@ -162,6 +183,23 @@ describe("command docs alignment", () => {
 
     expect(normalizedSkill).not.toContain(
       normalizeWhitespace("flow watch is the canonical happy-path resume command"),
+    );
+  });
+
+  test("skill reference keeps async submission and flow polling examples current", () => {
+    const normalizedReference = normalizeWhitespace(SKILL_REFERENCE);
+
+    for (const requiredMarker of [
+      "privacy-pools broadcast ./signed-envelope.json --agent --no-wait",
+      "cat ./signed-envelope.json | privacy-pools broadcast - --agent --no-wait",
+      "privacy-pools tx-status <submissionId> --agent",
+      "For agents, `flow status` is the read-only polling primitive and `flow step` is the one-shot advance primitive.",
+    ]) {
+      expect(normalizedReference).toContain(normalizeWhitespace(requiredMarker));
+    }
+
+    expect(SKILL_REFERENCE).not.toContain(
+      "privacy-pools broadcast ./signed-envelope.json --agent\n",
     );
   });
 });
