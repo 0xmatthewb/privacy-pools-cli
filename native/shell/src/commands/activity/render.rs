@@ -10,8 +10,10 @@ use serde_json::{json, Map, Value};
 
 pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData) {
     if mode.is_json() {
-        // Clone asset before any move for use in pagination nextAction.
         let asset_for_pagination = data.asset.clone();
+        let has_next_page = data
+            .total_pages
+            .is_some_and(|total_pages| data.page < total_pages);
 
         let mut payload = Map::new();
         payload.insert("mode".to_string(), Value::String(data.mode.to_string()));
@@ -25,6 +27,7 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
         payload.insert("page".to_string(), Value::Number(data.page.into()));
         payload.insert("perPage".to_string(), Value::Number(data.per_page.into()));
         insert_optional_u64(&mut payload, "total", data.total);
+        insert_optional_u64(&mut payload, "totalEvents", data.total);
         insert_optional_u64(&mut payload, "totalPages", data.total_pages);
         payload.insert(
             "events".to_string(),
@@ -51,34 +54,55 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
             );
         }
 
-        // Pagination nextAction when more pages exist.
-        if let Some(total_pages) = data.total_pages {
-            if data.page < total_pages {
-                let mut opts = Map::new();
-                opts.insert("agent".to_string(), Value::Bool(true));
-                opts.insert("page".to_string(), Value::Number((data.page + 1).into()));
-                opts.insert("limit".to_string(), Value::Number(data.per_page.into()));
-                if data.mode == "pool-activity" {
-                    if let Some(ref asset) = asset_for_pagination {
-                        opts.insert("asset".to_string(), Value::String(asset.clone()));
-                    }
+        let next_actions = if has_next_page {
+            let mut opts = Map::new();
+            opts.insert("agent".to_string(), Value::Bool(true));
+            opts.insert("page".to_string(), Value::Number((data.page + 1).into()));
+            opts.insert("limit".to_string(), Value::Number(data.per_page.into()));
+            if data.mode == "pool-activity" {
+                if let Some(ref asset) = asset_for_pagination {
+                    opts.insert("asset".to_string(), Value::String(asset.clone()));
                 }
-                if data.chain != "all-mainnets" {
-                    opts.insert("chain".to_string(), Value::String(data.chain.clone()));
-                }
-                payload.insert(
-                    "nextActions".to_string(),
-                    Value::Array(vec![build_next_action(
-                        "activity",
-                        "View the next page.",
-                        "after_activity",
-                        None,
-                        Some(&opts),
-                        None,
-                    )]),
-                );
             }
-        }
+            if data.chain != "all-mainnets" {
+                opts.insert("chain".to_string(), Value::String(data.chain.clone()));
+            }
+            vec![build_next_action(
+                "activity",
+                "View the next page.",
+                "after_activity",
+                None,
+                Some(&opts),
+                None,
+            )]
+        } else if data.mode == "pool-activity" {
+            let mut opts = Map::new();
+            opts.insert("agent".to_string(), Value::Bool(true));
+            opts.insert("chain".to_string(), Value::String(data.chain.clone()));
+            vec![build_next_action(
+                "pools",
+                "Return to pool discovery after reviewing this activity page.",
+                "after_activity",
+                None,
+                Some(&opts),
+                None,
+            )]
+        } else {
+            let mut opts = Map::new();
+            opts.insert("agent".to_string(), Value::Bool(true));
+            if data.chain != "all-mainnets" {
+                opts.insert("chain".to_string(), Value::String(data.chain.clone()));
+            }
+            vec![build_next_action(
+                "accounts",
+                "Inspect current Pool Account balances after reviewing public activity.",
+                "after_activity",
+                None,
+                Some(&opts),
+                None,
+            )]
+        };
+        payload.insert("nextActions".to_string(), Value::Array(next_actions));
 
         print_json_success(Value::Object(payload));
         return;

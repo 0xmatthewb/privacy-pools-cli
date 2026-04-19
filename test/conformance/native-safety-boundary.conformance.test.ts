@@ -49,15 +49,11 @@ const EXPECTED_NON_JS_ROUTES = {
     owner: "hybrid",
     nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
   },
-  stats: {
-    owner: "hybrid",
-    nativeModes: ["default", "csv", "structured-default", "structured-global", "help"],
-  },
-  "stats global": {
+  "protocol-stats": {
     owner: "hybrid",
     nativeModes: ["default", "csv", "structured", "help"],
   },
-  "stats pool": {
+  "pool-stats": {
     owner: "hybrid",
     nativeModes: ["default", "csv", "structured", "help"],
   },
@@ -125,13 +121,13 @@ describe("native safety boundary conformance", () => {
     });
   });
 
-  test("stats pool keeps native ownership limited to public render-only modes", () => {
-    expect(GENERATED_COMMAND_ROUTES["stats pool"]).toEqual({
+  test("pool-stats keeps native ownership limited to public render-only modes", () => {
+    expect(GENERATED_COMMAND_ROUTES["pool-stats"]).toEqual({
       owner: "hybrid",
       nativeModes: ["default", "csv", "structured", "help"],
     });
 
-    expect(nativeManifest.routes.commandRoutes["stats pool"]).toEqual({
+    expect(nativeManifest.routes.commandRoutes["pool-stats"]).toEqual({
       owner: "hybrid",
       nativeModes: ["default", "csv", "structured", "help"],
     });

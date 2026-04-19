@@ -135,10 +135,6 @@ impl CliError {
         self
     }
 
-    pub fn with_next_actions(mut self, next_actions: Vec<Value>) -> Self {
-        self.next_actions = next_actions;
-        self
-    }
 }
 
 fn default_error_presentation(category: ErrorCategory) -> ErrorPresentation {

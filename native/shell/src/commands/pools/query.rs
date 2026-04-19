@@ -14,55 +14,20 @@ use crate::config::{get_rpc_urls, load_config, resolve_chain, CliConfig};
 use crate::contract::{ChainDefinition, Manifest};
 use crate::dispatch::{commander_too_many_arguments_error, commander_unknown_option_error};
 use crate::error::{CliError, ErrorCategory};
-use crate::output::{build_next_action, start_spinner};
+use crate::output::start_spinner;
 use crate::parse_timeout_ms;
 use crate::root_argv::{
     is_command_global_boolean_option, is_command_global_inline_value_option,
     is_command_global_value_option, ParsedRootArgv,
 };
 use crate::routing::resolve_mode;
-use serde_json::{Map, Value};
-
+use serde_json::Value;
 pub(crate) fn handle_pools_native(
     argv: &[String],
     parsed: &ParsedRootArgv,
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
-    let attach_retry_action = |error: CliError| -> CliError {
-        if !error.retryable || !error.next_actions.is_empty() {
-            return error;
-        }
-
-        let mut options = Map::new();
-        options.insert("agent".to_string(), Value::Bool(true));
-        if let Some(chain) = parsed.global_chain() {
-            options.insert("chain".to_string(), Value::String(chain));
-        }
-        if let Ok(opts) = parse_pools_options(argv) {
-            if opts.all_chains {
-                options.insert("includeTestnets".to_string(), Value::Bool(true));
-            }
-            if let Some(search) = opts.search {
-                options.insert("search".to_string(), Value::String(search));
-            }
-            if opts.sort != "tvl-desc" {
-                options.insert("sort".to_string(), Value::String(opts.sort));
-            }
-        }
-        let detail_asset = detail_asset_from_argv(argv);
-        let args = detail_asset.as_deref().map(|asset| vec![asset]);
-        let action = build_next_action(
-            "pools",
-            "Retry the same pool discovery query after the transient RPC issue clears.",
-            "after_pools",
-            args.as_deref(),
-            Some(&options),
-            None,
-        );
-        error.with_next_actions(vec![action])
-    };
-
-    (|| {
+    {
         let mode = resolve_mode(parsed);
         if !mode.is_json() && !mode.is_csv() {
             if let Some(asset) = detail_asset_from_argv(argv) {
@@ -187,7 +152,11 @@ pub(crate) fn handle_pools_native(
                     &mode,
                     super::model::PoolsRenderData {
                         all_chains: true,
-                        chain_name: String::new(),
+                        chain_name: if opts.all_chains {
+                            "all-chains".to_string()
+                        } else {
+                            "all-mainnets".to_string()
+                        },
                         search: opts.search.clone(),
                         sort: opts.sort.clone(),
                         filtered_pools: vec![],
@@ -223,7 +192,11 @@ pub(crate) fn handle_pools_native(
             super::model::PoolsRenderData {
                 all_chains: is_multi_chain,
                 chain_name: if is_multi_chain {
-                    String::new()
+                    if opts.all_chains {
+                        "all-chains".to_string()
+                    } else {
+                        "all-mainnets".to_string()
+                    }
                 } else {
                     chains_to_query[0].name.clone()
                 },
@@ -240,8 +213,7 @@ pub(crate) fn handle_pools_native(
         );
 
         Ok(0)
-    })()
-    .map_err(attach_retry_action)
+    }
 }
 
 fn handle_pools_detail_native(

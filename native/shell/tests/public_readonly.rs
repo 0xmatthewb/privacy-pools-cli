@@ -618,7 +618,7 @@ fn invalid_native_read_only_flag_combinations_fail_cleanly() {
     assert!(stats_global_payload["error"]["hint"]
         .as_str()
         .unwrap_or_default()
-        .contains("For chain-specific data use: privacy-pools stats pool"),);
+        .contains("For chain-specific data use: privacy-pools pool-stats"),);
 
     let pools_with_rpc_url =
         run_native_with_env(&["--agent", "pools", "--rpc-url", fixture.base_url()], &[]);

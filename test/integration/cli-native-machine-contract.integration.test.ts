@@ -56,7 +56,7 @@ describe("native machine contract parity", () => {
   nativeTest("machine-readable guide, capabilities, and describe outputs stay identical", () => {
     expectJsonParity(nativeBinary, ["--agent", "guide"]);
     expectJsonParity(nativeBinary, ["--agent", "capabilities"]);
-    expectJsonParity(nativeBinary, ["--agent", "describe", "stats", "global"]);
+    expectJsonParity(nativeBinary, ["--agent", "describe", "protocol-stats"]);
   });
 
   nativeTest("completion scripts and query payloads stay identical", () => {

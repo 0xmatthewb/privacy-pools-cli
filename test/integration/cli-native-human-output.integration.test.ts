@@ -73,11 +73,11 @@ describe("native human-output smoke", () => {
 
     expectContractParity(
       nativeBinary,
-      ["describe", "stats", "global"],
+      ["describe", "protocol-stats"],
       (result) => {
         expectStderrOnly(result);
         expectSemanticText(result.stderr, {
-          includes: ["stats global", "JSON fields", "Examples:"],
+          includes: ["protocol-stats", "JSON fields", "Examples:"],
         });
       },
     );

@@ -104,30 +104,22 @@ pub(crate) fn stats_native_mode(
     let command_path = resolve_command_path_prefix(&all_non_option_tokens(argv), manifest)?;
     let mode = resolve_mode(parsed);
     match command_path.as_str() {
-        "stats" => {
-            let native_mode = match mode.format {
-                OutputFormat::Json => "structured-default",
-                OutputFormat::Csv => "csv",
-                OutputFormat::Table => "default",
-            };
-            manifest_allows_native_mode("stats", native_mode, manifest).then_some(native_mode)
-        }
-        "stats global" => {
+        "protocol-stats" => {
             let native_mode = match mode.format {
                 OutputFormat::Json => "structured",
                 OutputFormat::Csv => "csv",
                 OutputFormat::Table => "default",
             };
-            manifest_allows_native_mode("stats global", native_mode, manifest)
+            manifest_allows_native_mode("protocol-stats", native_mode, manifest)
                 .then_some(native_mode)
         }
-        "stats pool" => {
+        "pool-stats" => {
             let native_mode = match mode.format {
                 OutputFormat::Json => "structured",
                 OutputFormat::Csv => "csv",
                 OutputFormat::Table => "default",
             };
-            manifest_allows_native_mode("stats pool", native_mode, manifest).then_some(native_mode)
+            manifest_allows_native_mode("pool-stats", native_mode, manifest).then_some(native_mode)
         }
         _ => None,
     }
@@ -257,21 +249,23 @@ mod tests {
             "manifestVersion": "1",
             "runtimeVersion": "v1",
             "cliVersion": "2.1.0",
-            "jsonSchemaVersion": "2.0.0",
+            "jsonSchemaVersion": "2.1.0",
             "commandPaths": [
                 "activity",
                 "flow",
                 "pools",
                 "ragequit",
-                "stats",
-                "stats global",
-                "stats pool",
+                "protocol-stats",
+                "pool-stats",
                 "guide",
                 "capabilities",
                 "describe",
                 "completion"
             ],
             "aliasMap": {
+                "stats": "protocol-stats",
+                "stats global": "protocol-stats",
+                "stats pool": "pool-stats",
                 "exit": "ragequit"
             },
             "rootHelp": "help",
@@ -308,15 +302,14 @@ mod tests {
             "routes": {
                 "staticLocalCommands": ["guide", "capabilities", "describe", "completion"],
                 "directNativeCommands": ["guide", "capabilities", "describe", "completion"],
-                "helpCommandPaths": ["activity", "flow", "guide", "capabilities", "describe", "completion", "pools", "ragequit", "stats", "stats global", "stats pool"],
+                "helpCommandPaths": ["activity", "flow", "guide", "capabilities", "describe", "completion", "pools", "ragequit", "protocol-stats", "pool-stats"],
                 "commandRoutes": {
                     "activity": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
                     "flow": { "owner": "js-runtime", "nativeModes": ["help"] },
                     "pools": { "owner": "hybrid", "nativeModes": ["default-list", "default-detail", "csv-list", "structured-list", "help"] },
                     "ragequit": { "owner": "js-runtime", "nativeModes": ["help"] },
-                    "stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured-default", "structured-global", "help"] },
-                    "stats global": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
-                    "stats pool": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
+                    "protocol-stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
+                    "pool-stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
                     "guide": { "owner": "native-shell", "nativeModes": ["default", "help"] },
                     "capabilities": { "owner": "native-shell", "nativeModes": ["default", "help"] },
                     "describe": { "owner": "native-shell", "nativeModes": ["default", "help"] },
@@ -380,7 +373,7 @@ mod tests {
         let tokens = argv(&["stats", "pool", "ETH"]);
         assert_eq!(
             resolve_command_path_prefix(&tokens, &manifest),
-            Some("stats pool".to_string())
+            Some("pool-stats".to_string())
         );
     }
 
@@ -505,7 +498,7 @@ mod tests {
 
         assert_eq!(
             resolve_command_path(&argv(&["stats", "global"]), &manifest),
-            Some("stats global".to_string())
+            Some("protocol-stats".to_string())
         );
         assert_eq!(
             resolve_command_path(&argv(&["exit"]), &manifest),

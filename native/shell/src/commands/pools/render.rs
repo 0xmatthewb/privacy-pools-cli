@@ -28,9 +28,10 @@ fn build_pools_empty_json_payload(data: &PoolsRenderData) -> Value {
 
     if data.all_chains {
         json!({
-            "allChains": true,
+            "chain": data.chain_name,
             "search": data.search,
             "sort": data.sort,
+            "chainSummaries": data.chain_summaries.clone().unwrap_or_default().into_iter().map(chain_summary_to_json).collect::<Vec<_>>(),
             "pools": [],
             "nextActions": next_actions,
         })
@@ -131,14 +132,14 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
 
         if data.all_chains {
             let mut payload = Map::new();
-            payload.insert("allChains".to_string(), Value::Bool(true));
+            payload.insert("chain".to_string(), Value::String(data.chain_name));
             payload.insert(
                 "search".to_string(),
                 data.search.map(Value::String).unwrap_or(Value::Null),
             );
             payload.insert("sort".to_string(), Value::String(data.sort));
             payload.insert(
-                "chains".to_string(),
+                "chainSummaries".to_string(),
                 Value::Array(
                     data.chain_summaries
                         .unwrap_or_default()

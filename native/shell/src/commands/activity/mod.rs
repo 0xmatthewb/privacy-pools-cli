@@ -9,7 +9,6 @@ use crate::config::{load_config, resolve_chain};
 use crate::contract::Manifest;
 use crate::error::CliError;
 use crate::json::parse_json_u64;
-use crate::output::build_next_action;
 use crate::output::start_spinner;
 use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_events, fetch_pool_events};
@@ -19,53 +18,35 @@ use model::ActivityRenderData;
 use normalize::normalize_activity_events;
 use options::parse_activity_options;
 use render::render_activity_output;
-use serde_json::{Map, Value};
+
+fn normalize_asp_page(raw_page: Option<u64>, requested_page: u64) -> u64 {
+    match raw_page {
+        None => requested_page,
+        Some(value) if requested_page > 0 && value + 1 == requested_page => value + 1,
+        Some(0) => requested_page,
+        Some(value) => value,
+    }
+}
+
+fn derive_known_total_pages(
+    total: Option<u64>,
+    per_page: u64,
+    reported_total_pages: Option<u64>,
+) -> Option<u64> {
+    if let Some(total) = total {
+        if per_page > 0 {
+            return Some(std::cmp::max(1, total.div_ceil(per_page)));
+        }
+    }
+    reported_total_pages
+}
 
 pub fn handle_activity_native(
     argv: &[String],
     parsed: &ParsedRootArgv,
     manifest: &Manifest,
 ) -> Result<i32, CliError> {
-    let attach_retry_action = |error: CliError| -> CliError {
-        if !error.retryable || !error.next_actions.is_empty() {
-            return error;
-        }
-
-        let opts = parse_activity_options(argv).ok();
-        let mut options = Map::new();
-        options.insert("agent".to_string(), Value::Bool(true));
-        options.insert(
-            "limit".to_string(),
-            Value::Number(serde_json::Number::from(
-                opts.as_ref().map(|value| value.per_page).unwrap_or(20),
-            )),
-        );
-        options.insert(
-            "page".to_string(),
-            Value::Number(serde_json::Number::from(
-                opts.as_ref().map(|value| value.page).unwrap_or(1),
-            )),
-        );
-        if let Some(chain) = parsed.global_chain() {
-            options.insert("chain".to_string(), Value::String(chain));
-        }
-
-        let args = opts
-            .as_ref()
-            .and_then(|value| value.asset.as_deref())
-            .map(|asset| vec![asset]);
-        let action = build_next_action(
-            "activity",
-            "Retry the same public activity query after the transient RPC issue clears.",
-            "after_activity",
-            args.as_deref(),
-            Some(&options),
-            None,
-        );
-        error.with_next_actions(vec![action])
-    };
-
-    (|| {
+    {
         let mode = resolve_mode(parsed);
         let opts = parse_activity_options(argv)?;
         let timeout_ms = parse_timeout_ms(argv);
@@ -96,10 +77,11 @@ pub fn handle_activity_native(
                 Some(pool.symbol.as_str()),
                 manifest,
             )?;
-            let page = parse_json_u64(response.get("page")).unwrap_or(opts.page);
+            let page = normalize_asp_page(parse_json_u64(response.get("page")), opts.page);
             let per_page = parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page);
             let total = parse_json_u64(response.get("total"));
-            let total_pages = parse_json_u64(response.get("totalPages"));
+            let total_pages =
+                derive_known_total_pages(total, per_page, parse_json_u64(response.get("totalPages")));
             if let Some(spinner) = loading.as_mut() {
                 spinner.stop();
             }
@@ -146,7 +128,7 @@ pub fn handle_activity_native(
                     mode: "global-activity",
                     chain: chain.name,
                     chains: None,
-                    page: parse_json_u64(response.get("page")).unwrap_or(opts.page),
+                    page: normalize_asp_page(parse_json_u64(response.get("page")), opts.page),
                     per_page: parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
                     total: None,
                     total_pages: None,
@@ -192,10 +174,14 @@ pub fn handle_activity_native(
                         .map(|chain| chain.name.clone())
                         .collect::<Vec<_>>(),
                 ),
-                page: parse_json_u64(response.get("page")).unwrap_or(opts.page),
-                per_page: parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
-                total: parse_json_u64(response.get("total")),
-                total_pages: parse_json_u64(response.get("totalPages")),
+                    page: normalize_asp_page(parse_json_u64(response.get("page")), opts.page),
+                    per_page: parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
+                    total: parse_json_u64(response.get("total")),
+                    total_pages: derive_known_total_pages(
+                        parse_json_u64(response.get("total")),
+                        parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
+                        parse_json_u64(response.get("totalPages")),
+                    ),
                 events,
                 asset: None,
                 pool: None,
@@ -205,6 +191,5 @@ pub fn handle_activity_native(
         );
 
         Ok(0)
-    })()
-    .map_err(attach_retry_action)
+    }
 }

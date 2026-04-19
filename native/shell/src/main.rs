@@ -33,7 +33,15 @@ use routing::{
 use std::env;
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
-const CSV_SUPPORTED_COMMANDS: [&str; 5] = ["pools", "accounts", "activity", "stats", "history"];
+const CSV_SUPPORTED_COMMANDS: [&str; 7] = [
+    "pools",
+    "accounts",
+    "activity",
+    "protocol-stats",
+    "pool-stats",
+    "stats",
+    "history",
+];
 
 fn main() {
     let argv: Vec<String> = env::args().skip(1).collect();
@@ -169,7 +177,9 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         "activity" if activity_native_mode(argv, parsed, manifest).is_some() => {
             handle_activity_native(argv, parsed, manifest)
         }
-        "stats" if stats_native_mode(argv, parsed, manifest).is_some() => {
+        "stats" | "protocol-stats" | "pool-stats"
+            if stats_native_mode(argv, parsed, manifest).is_some() =>
+        {
             handle_stats_native(argv, parsed, manifest)
         }
         "pools" if pools_native_mode(argv, parsed, manifest).is_some() => {

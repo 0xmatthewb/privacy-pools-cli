@@ -123,6 +123,25 @@ export function normalizeParityStderr(stderr: string): string {
     .replace(/\n{3,}/g, "\n\n");
 }
 
+function normalizeParityJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeParityJsonValue(entry));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => {
+        if (key === "nextPollAfter") {
+          return [key, typeof entry === "string" ? "<next-poll-after>" : entry];
+        }
+        return [key, normalizeParityJsonValue(entry)];
+      }),
+    );
+  }
+
+  return value;
+}
+
 export function resolveParityTestTimeout(
   timeoutMs?: number,
   testTimeoutMs?: number,
@@ -186,8 +205,8 @@ export function expectJsonParity(
   assertDidNotTimeout("JS launcher result", jsResult);
   assertDidNotTimeout("Native launcher result", nativeResult);
   expect(nativeResult.status).toBe(jsResult.status);
-  expect(parseJsonOutput(nativeResult.stdout)).toEqual(
-    parseJsonOutput(jsResult.stdout),
+  expect(normalizeParityJsonValue(parseJsonOutput(nativeResult.stdout))).toEqual(
+    normalizeParityJsonValue(parseJsonOutput(jsResult.stdout)),
   );
   expect(normalizeParityStderr(nativeResult.stderr)).toBe(
     normalizeParityStderr(jsResult.stderr),
@@ -232,8 +251,8 @@ export function expectMachineSilenceParity(
   expect(nativeResult.status).toBe(jsResult.status);
   expect(jsResult.stderr.trim()).toBe("");
   expect(nativeResult.stderr.trim()).toBe("");
-  expect(parseJsonOutput(nativeResult.stdout)).toEqual(
-    parseJsonOutput(jsResult.stdout),
+  expect(normalizeParityJsonValue(parseJsonOutput(nativeResult.stdout))).toEqual(
+    normalizeParityJsonValue(parseJsonOutput(jsResult.stdout)),
   );
 }
 
@@ -251,8 +270,8 @@ export function expectDirectNativeBuiltJsonParity(
   assertDidNotTimeout("JS launcher result", jsResult);
   assertDidNotTimeout("Direct native result", nativeResult);
   expect(nativeResult.status).toBe(jsResult.status);
-  expect(parseJsonOutput(nativeResult.stdout)).toEqual(
-    parseJsonOutput(jsResult.stdout),
+  expect(normalizeParityJsonValue(parseJsonOutput(nativeResult.stdout))).toEqual(
+    normalizeParityJsonValue(parseJsonOutput(jsResult.stdout)),
   );
   expect(normalizeParityStderr(nativeResult.stderr)).toBe(
     normalizeParityStderr(jsResult.stderr),

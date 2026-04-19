@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde_json::json;
+use serde_json::{json, Map, Value};
 
 use crate::bridge::forward_to_js_worker;
 use crate::completion::{
@@ -9,7 +9,8 @@ use crate::completion::{
 use crate::contract::{CompletionCommandSpec, CompletionOptionSpec, Manifest};
 use crate::error::CliError;
 use crate::output::{
-    print_json_success, write_stderr_human_block_text, write_stderr_human_text, write_stdout_text,
+    print_json_success, render_next_steps, write_stderr_human_block_text,
+    write_stderr_human_text, write_stdout_text,
 };
 use crate::root_argv::ParsedRootArgv;
 use crate::routing::{is_static_quiet_mode, resolve_command_path};
@@ -28,10 +29,7 @@ pub fn handle_guide(parsed: &ParsedRootArgv, manifest: &Manifest) -> Result<i32,
     }
 
     if parsed.is_structured_output_mode {
-        print_json_success(json!({
-            "mode": "help",
-            "help": manifest.guide_structured_text.trim()
-        }));
+        print_json_success(manifest.guide_structured_payload.clone());
         return Ok(0);
     }
 
@@ -159,6 +157,8 @@ pub fn handle_completion(
     if spec.install {
         return forward_to_js_worker(argv);
     }
+    let mut install_options = Map::new();
+    install_options.insert("install".to_string(), Value::Bool(true));
     let shell = spec.shell.unwrap_or_else(detect_completion_shell);
     let script = manifest
         .completion_scripts
@@ -176,9 +176,27 @@ pub fn handle_completion(
             "mode": "completion-script",
             "shell": shell,
             "completionScript": script,
+            "nextActions": [crate::output::build_next_action(
+                "completion",
+                "Use the managed installer instead of wiring the script by hand if you want the CLI to update shell config automatically.",
+                "after_completion",
+                None,
+                Some(&install_options),
+                None,
+            )],
         }));
     } else {
         write_stdout_text(&script);
+        if !is_static_quiet_mode(parsed) {
+            render_next_steps(&[crate::output::build_next_action(
+                "completion",
+                "Use the managed installer instead if you want the CLI to update shell config automatically.",
+                "after_completion",
+                None,
+                Some(&install_options),
+                None,
+            )]);
+        }
     }
 
     Ok(0)
