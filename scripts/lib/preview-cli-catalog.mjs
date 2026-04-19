@@ -848,6 +848,7 @@ function createCommandHelpPreviewCase(commandPath) {
     runtime: "native",
     requiredSetup: ["native-binary"],
     covers: ["help", commandPath],
+    commandPath,
     commandLabel,
     buildInvocation: (context) =>
       buildLiveCommandInvocation(context, "native", {

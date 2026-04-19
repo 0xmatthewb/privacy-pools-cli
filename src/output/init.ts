@@ -12,6 +12,7 @@ import type {
   RestoreDiscoverySummary,
 } from "../types.js";
 import { MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
+import { INIT_STAGED_STEP_NAMES } from "../utils/init-staged-steps.js";
 import { accent } from "../utils/theme.js";
 import { getTerminalColumns } from "../utils/terminal.js";
 import type { OutputContext } from "./common.js";
@@ -60,17 +61,6 @@ export interface InitDryRunResult {
   overwritePromptRequired: boolean;
   writeTargets: string[];
 }
-
-export const INIT_STAGED_STEP_NAMES = [
-  "preflight",
-  "recovery",
-  "backup",
-  "signer",
-  "chain",
-  "write",
-  "discovery",
-  "complete",
-] as const;
 
 export function renderInitStage(
   stage: string,

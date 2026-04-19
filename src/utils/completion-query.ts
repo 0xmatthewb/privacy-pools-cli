@@ -93,7 +93,9 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       ),
       completionOption("-y, --yes"),
       completionOption("--web"),
+      completionOption("--help-brief"),
       completionOption("-r, --rpc-url <url>"),
+      completionOption("--json-fields <fields>"),
       completionOption("--template <template>"),
       completionOption("--agent"),
       completionOption("-q, --quiet"),
@@ -142,6 +144,9 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionOption("--stdin"),
             ],
           }),
+          completionCommand("unset", {
+            aliases: ["remove"],
+          }),
           completionCommand("path"),
           completionCommand("profile", {
             subcommands: [
@@ -172,6 +177,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
             ],
           }),
           completionCommand("status"),
+          completionCommand("step"),
           completionCommand("ragequit", {
             options: [completionOption("--confirm-ragequit")],
           }),
@@ -180,14 +186,20 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("simulate", {
         subcommands: [
           completionCommand("deposit", {
-            options: [completionOption("--ignore-unique-amount")],
+            options: [
+              completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
+              completionOption("--dry-run"),
+              completionOption("--ignore-unique-amount"),
+            ],
           }),
           completionCommand("withdraw", {
             options: [
               completionOption("-t, --to <address>"),
-              completionOption("--pool-account <PA-ID | numeric-index>"),
+              completionOption("-p, --pool-account <PA-#|#>"),
               completionOption("--direct"),
               completionOption("--confirm-direct-withdraw"),
+              completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
+              completionOption("--dry-run"),
               completionOption("--all"),
               completionOption("--extra-gas"),
               completionOption("--no-extra-gas"),
@@ -195,7 +207,9 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           }),
           completionCommand("ragequit", {
             options: [
-              completionOption("--pool-account <PA-ID | numeric-index>"),
+              completionOption("-p, --pool-account <PA-#|#>"),
+              completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
+              completionOption("--dry-run"),
               completionOption("--confirm-ragequit"),
             ],
           }),
@@ -212,6 +226,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
+          completionOption("--no-wait"),
           completionOption("--ignore-unique-amount"),
         ],
       }),
@@ -243,6 +258,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--confirm-direct-withdraw"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
+          completionOption("--no-wait"),
           completionOption("--all"),
           completionOption("--extra-gas"),
           completionOption("--no-extra-gas"),
@@ -261,10 +277,16 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-p, --pool-account <PA-#|#>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
+          completionOption("--no-wait"),
           completionOption("--confirm-ragequit"),
         ],
       }),
-      completionCommand("broadcast"),
+      completionCommand("broadcast", {
+        options: [
+          completionOption("--no-wait"),
+          completionOption("--validate-only"),
+        ],
+      }),
       completionCommand("history", {
         options: [
           completionOption("--page <n>"),
@@ -275,9 +297,10 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("sync", {
         options: [completionOption("--stream-json")],
       }),
+      completionCommand("tx-status"),
       completionCommand("status", {
         options: [
-          completionOption("--check"),
+          completionOption("--check [scope]"),
           completionOption("--no-check"),
           completionOption("--check-rpc"),
           completionOption("--check-asp"),

@@ -70,7 +70,7 @@ describe("completion query helpers", () => {
   test("suggests flow subcommands with prefix filtering", () => {
     const candidates = queryCompletionCandidates(["privacy-pools", "flow", "st"], 2);
 
-    expect(candidates).toEqual(["start", "status"]);
+    expect(candidates).toEqual(["start", "status", "step"]);
   });
 
   test("suggests option values after value-taking flags", () => {

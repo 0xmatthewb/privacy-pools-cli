@@ -1,8 +1,8 @@
 import { Command } from "commander";
 import { commandHelpText, groupedFlagGuideText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
+import { INIT_STAGED_STEP_NAMES } from "../utils/init-staged-steps.js";
 import { createLazyAction } from "../utils/lazy-command.js";
-import { INIT_STAGED_STEP_NAMES } from "../output/init.js";
 
 export function createInitCommand(): Command {
   const metadata = getCommandMetadata("init");

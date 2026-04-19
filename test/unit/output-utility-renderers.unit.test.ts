@@ -217,7 +217,7 @@ describe("renderCompletionScript parity", () => {
     );
 
     expect(stdout).toBe("# test script\n");
-    expect(stderr).toBe("");
+    expect(stderr).toContain("privacy-pools completion --install");
   });
 
   test("human mode: appends newline if script doesn't end with one", () => {
