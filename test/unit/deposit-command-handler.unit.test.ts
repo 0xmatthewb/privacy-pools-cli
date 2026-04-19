@@ -681,6 +681,32 @@ describe("deposit command handler", () => {
     expect(checkHasGasMock).toHaveBeenCalledTimes(1);
   });
 
+  test("returns submitted handles without waiting for confirmation in --no-wait mode", async () => {
+    useIsolatedHome({ withSigner: true });
+    getPublicClientMock.mockImplementation(() => ({
+      waitForTransactionReceipt: async () => {
+        throw new Error("waitForTransactionReceipt should not run in --no-wait mode");
+      },
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleDepositCommand(
+        "0.1",
+        "ETH",
+        { noWait: true },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.status).toBe("submitted");
+    expect(typeof json.submissionId).toBe("string");
+    expect(typeof json.workflowId).toBe("string");
+    expect(json.txHash).toBe("0x" + "34".repeat(32));
+    expect(saveAccountMock).not.toHaveBeenCalled();
+    expect(saveSyncMetaMock).not.toHaveBeenCalled();
+  });
+
   test("treats op-sepolia WETH as a native deposit path", async () => {
     useIsolatedHome({ withSigner: true });
     resolvePoolMock.mockImplementationOnce(async () => OP_SEPOLIA_WETH_POOL);

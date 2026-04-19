@@ -588,6 +588,7 @@ let inspectFundingAndDeposit: typeof import("../../src/services/workflow.ts").in
 let setupNewWalletWorkflow: typeof import("../../src/services/workflow.ts").setupNewWalletWorkflow;
 let startWorkflow: typeof import("../../src/services/workflow.ts").startWorkflow;
 let watchWorkflow: typeof import("../../src/services/workflow.ts").watchWorkflow;
+let stepWorkflow: typeof import("../../src/services/workflow.ts").stepWorkflow;
 let ragequitWorkflow: typeof import("../../src/services/workflow.ts").ragequitWorkflow;
 let reconcilePendingDepositReceipt: typeof import("../../src/services/workflow.ts").reconcilePendingDepositReceipt;
 let reconcilePendingWithdrawalReceipt: typeof import("../../src/services/workflow.ts").reconcilePendingWithdrawalReceipt;
@@ -793,6 +794,7 @@ beforeAll(async () => {
     setupNewWalletWorkflow,
     startWorkflow,
     watchWorkflow,
+    stepWorkflow,
     ragequitWorkflow,
     loadWorkflowPoolAccountContext,
     executeRelayedWithdrawalForFlow,
@@ -1736,6 +1738,31 @@ describe("workflow internal helpers", () => {
         watch: false,
       }),
     ).rejects.toBeInstanceOf(realPreviewRuntime.PreviewScenarioRenderedError);
+  });
+
+  test("stepWorkflow returns the saved snapshot unchanged for paused phases", async () => {
+    const paused = sampleSnapshot({
+      workflowId: "wf-step-paused",
+      phase: "paused_declined",
+      aspStatus: "declined",
+      ragequitTxHash: null,
+      ragequitBlockNumber: null,
+    });
+    saveWorkflowSnapshot(paused);
+    const savedBeforeStep = getWorkflowStatus({ workflowId: paused.workflowId });
+
+    const stepped = await stepWorkflow({
+      workflowId: paused.workflowId,
+      globalOpts: { chain: "sepolia" },
+      mode: JSON_MODE,
+      isVerbose: false,
+    });
+
+    expect(stepped).toEqual(savedBeforeStep);
+    expect(requestQuoteMock).not.toHaveBeenCalled();
+    expect(submitRelayRequestMock).not.toHaveBeenCalled();
+    expect(depositETHMock).not.toHaveBeenCalled();
+    expect(depositERC20Mock).not.toHaveBeenCalled();
   });
 
   test("watchWorkflow applies privacy-delay overrides before returning a later terminal snapshot", async () => {
