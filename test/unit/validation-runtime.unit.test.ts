@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { CLIError } from "../../src/utils/errors.ts";
 import {
+  lookupEnsNameForAddress,
   parseAmount,
   resolveAddressOrEns,
   validateAddress,
@@ -48,6 +49,37 @@ describe("validation runtime coverage", () => {
       address: "0x5555555555555555555555555555555555555555",
       ensName: "alice.eth",
     });
+    expect(createPublicClientMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("lookupEnsNameForAddress returns verified reverse ENS names", async () => {
+    const realViem = await import("viem");
+    const createPublicClientMock = mock(() => ({
+      getEnsName: async ({ address }: { address: string }) => {
+        expect(address).toBe("0x5555555555555555555555555555555555555555");
+        return "alice.eth";
+      },
+      getEnsAddress: async ({ name }: { name: string }) => {
+        expect(name).toBe("normalized:alice.eth");
+        return "0x5555555555555555555555555555555555555555";
+      },
+    }));
+
+    mock.module("viem", () => ({
+      ...realViem,
+      createPublicClient: createPublicClientMock,
+      http: () => "mock-transport",
+    }));
+    mock.module("viem/chains", () => ({
+      mainnet: { id: 1, name: "Ethereum" },
+    }));
+    mock.module("viem/ens", () => ({
+      normalize: (value: string) => `normalized:${value}`,
+    }));
+
+    await expect(
+      lookupEnsNameForAddress("0x5555555555555555555555555555555555555555"),
+    ).resolves.toBe("alice.eth");
     expect(createPublicClientMock).toHaveBeenCalledTimes(1);
   });
 

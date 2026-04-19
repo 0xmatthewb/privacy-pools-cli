@@ -66,6 +66,8 @@ describe("read-only output renderers", () => {
         showDetails: false,
         showSummary: false,
         showPendingOnly: false,
+        lastSyncTime: Date.parse("2026-04-18T12:00:00.000Z"),
+        syncSkipped: true,
       }),
     );
 
@@ -81,6 +83,8 @@ describe("read-only output renderers", () => {
       }),
     ]);
     expect(json.pendingCount).toBe(1);
+    expect(json.lastSyncTime).toBe("2026-04-18T12:00:00.000Z");
+    expect(json.syncSkipped).toBe(true);
     expect(json.nextActions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -103,6 +107,8 @@ describe("read-only output renderers", () => {
         showDetails: false,
         showSummary: true,
         showPendingOnly: false,
+        lastSyncTime: Date.parse("2026-04-18T12:00:00.000Z"),
+        syncSkipped: true,
       }),
     );
     const pending = captureOutput(() =>
@@ -112,6 +118,8 @@ describe("read-only output renderers", () => {
         showDetails: false,
         showSummary: false,
         showPendingOnly: true,
+        lastSyncTime: Date.parse("2026-04-18T12:00:00.000Z"),
+        syncSkipped: true,
       }),
     );
 
@@ -119,9 +127,13 @@ describe("read-only output renderers", () => {
     const pendingJson = parseCapturedJson(pending.stdout);
     expect(summaryJson.approvedCount).toBe(1);
     expect(summaryJson.pendingCount).toBe(1);
+    expect(summaryJson.lastSyncTime).toBe("2026-04-18T12:00:00.000Z");
+    expect(summaryJson.syncSkipped).toBe(true);
     expect(pendingJson.accounts).toHaveLength(1);
     expect(pendingJson.accounts[0].poolAccountId).toBe("PA-2");
     expect(pendingJson.pendingCount).toBe(1);
+    expect(pendingJson.lastSyncTime).toBe("2026-04-18T12:00:00.000Z");
+    expect(pendingJson.syncSkipped).toBe(true);
   });
 
   test("renderAccountsNoPools handles empty JSON and human states", () => {
@@ -138,6 +150,8 @@ describe("read-only output renderers", () => {
             message: "review data incomplete",
           },
         ],
+        lastSyncTime: Date.parse("2026-04-18T12:00:00.000Z"),
+        syncSkipped: true,
       }),
     );
     const humanOutput = captureOutput(() =>
@@ -152,6 +166,8 @@ describe("read-only output renderers", () => {
             message: "review data incomplete",
           },
         ],
+        lastSyncTime: Date.parse("2026-04-18T12:00:00.000Z"),
+        syncSkipped: true,
       }),
     );
 
@@ -162,6 +178,8 @@ describe("read-only output renderers", () => {
         accounts: [],
         balances: [],
         pendingCount: 0,
+        lastSyncTime: "2026-04-18T12:00:00.000Z",
+        syncSkipped: true,
         nextActions: [
           expect.objectContaining({
             command: "pools",
@@ -172,6 +190,7 @@ describe("read-only output renderers", () => {
     );
     expect(humanOutput.stderr).toContain("review data incomplete");
     expect(humanOutput.stderr).toContain("No pending Pool Accounts are left on mainnet.");
+    expect(humanOutput.stderr).toContain("Cached");
     expect(humanOutput.stderr).toContain(
       "without --pending-only to review the final outcome",
     );
@@ -189,6 +208,8 @@ describe("read-only output renderers", () => {
         chainId: 1,
         currentBlock: 200n,
         avgBlockTimeSec: 12,
+        lastSyncTime: Date.parse("2026-04-18T12:00:00.000Z"),
+        syncSkipped: true,
         explorerTxUrl: () => "https://etherscan.io/tx/demo",
         poolByAddress: new Map([
           ["0x1111111111111111111111111111111111111111", { pool: "0x1111111111111111111111111111111111111111", decimals: 18 }],
@@ -208,7 +229,11 @@ describe("read-only output renderers", () => {
       }),
     );
     const historyHuman = captureOutput(() =>
-      renderHistoryNoPools(humanCtx, "mainnet"),
+      renderHistoryNoPools(humanCtx, {
+        chain: "mainnet",
+        lastSyncTime: Date.parse("2026-04-18T12:00:00.000Z"),
+        syncSkipped: true,
+      }),
     );
 
     const json = parseCapturedJson(historyJson.stdout);
@@ -219,6 +244,8 @@ describe("read-only output renderers", () => {
         explorerUrl: "https://etherscan.io/tx/demo",
       }),
     ]);
+    expect(json.lastSyncTime).toBe("2026-04-18T12:00:00.000Z");
+    expect(json.syncSkipped).toBe(true);
     expect(historyHuman.stderr).toContain("No history events found on mainnet.");
   });
 

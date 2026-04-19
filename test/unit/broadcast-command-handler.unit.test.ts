@@ -124,6 +124,7 @@ describe("broadcast command handler", () => {
       expect(broadcastEnvelopeMock.mock.calls[0]?.[1]).toEqual({
         rpcOverride: "http://rpc.local",
         expectedChain: "mainnet",
+        validateOnly: false,
       });
       expect(json.success).toBe(true);
       expect(json.mode).toBe("broadcast");
@@ -186,6 +187,55 @@ describe("broadcast command handler", () => {
       expect(json.success).toBe(false);
       expect(json.errorCode).toBe("INPUT_BROADCAST_INPUT_UNREADABLE");
       expect(exitCode).toBe(2);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("forwards --validate-only to the broadcast service", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pp-broadcast-handler-validate-"));
+    try {
+      const file = join(dir, "envelope.json");
+      writeFileSync(
+        file,
+        JSON.stringify({
+          schemaVersion: "2.0.0",
+          success: true,
+          mode: "unsigned",
+          operation: "deposit",
+          chain: "mainnet",
+          asset: "ETH",
+          amount: "1",
+          precommitment: "42",
+          warnings: [],
+          transactions: [
+            {
+              chainId: 1,
+              from: null,
+              to: "0x1111111111111111111111111111111111111111",
+              value: "1",
+              data: "0x1234",
+              description: "Deposit ETH into Privacy Pool",
+            },
+          ],
+          signedTransactions: ["0x02"],
+        }),
+      );
+
+      await captureAsyncJsonOutput(() =>
+        handleBroadcastCommand(
+          file,
+          { validateOnly: true },
+          fakeCommand({ json: true }),
+        ),
+      );
+
+      expect(broadcastEnvelopeMock).toHaveBeenCalledTimes(1);
+      expect(broadcastEnvelopeMock.mock.calls[0]?.[1]).toEqual({
+        rpcOverride: undefined,
+        expectedChain: undefined,
+        validateOnly: true,
+      });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -330,6 +330,25 @@ describe("renderDepositSuccess parity", () => {
     expect(json.label).toBeNull();
   });
 
+  test("JSON mode: emits structured warnings alongside warningCode", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderDepositSuccess(ctx, {
+        ...STUB_DEPOSIT_SUCCESS,
+        warningCode: "LOCAL_STATE_RECONCILIATION_REQUIRED",
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.warningCode).toBe("LOCAL_STATE_RECONCILIATION_REQUIRED");
+    expect(json.warnings).toEqual([
+      expect.objectContaining({
+        code: "LOCAL_STATE_RECONCILIATION_REQUIRED",
+        category: "local_state",
+      }),
+    ]);
+  });
+
   test("human mode: emits deposit success messages to stderr", () => {
     const ctx = createOutputContext(makeMode());
     const { stdout, stderr } = captureOutput(() =>
@@ -533,6 +552,25 @@ describe("renderRagequitSuccess parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
+  });
+
+  test("JSON mode: emits structured warnings alongside warningCode for ragequit", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderRagequitSuccess(ctx, {
+        ...STUB_RAGEQUIT_SUCCESS,
+        warningCode: "LOCAL_STATE_RECONCILIATION_REQUIRED",
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.warningCode).toBe("LOCAL_STATE_RECONCILIATION_REQUIRED");
+    expect(json.warnings).toEqual([
+      expect.objectContaining({
+        code: "LOCAL_STATE_RECONCILIATION_REQUIRED",
+        category: "local_state",
+      }),
+    ]);
   });
 });
 
@@ -818,6 +856,25 @@ describe("renderWithdrawSuccess parity", () => {
 
     const json = parseCapturedJson(stdout);
     expect(json.anonymitySet).toEqual({ eligible: 42, total: 128, percentage: 32.81 });
+  });
+
+  test("JSON mode: emits structured warnings alongside warningCode for withdraw", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderWithdrawSuccess(ctx, {
+        ...STUB_WITHDRAW_SUCCESS_RELAYED,
+        warningCode: "LOCAL_STATE_RECONCILIATION_REQUIRED",
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.warningCode).toBe("LOCAL_STATE_RECONCILIATION_REQUIRED");
+    expect(json.warnings).toEqual([
+      expect.objectContaining({
+        code: "LOCAL_STATE_RECONCILIATION_REQUIRED",
+        category: "local_state",
+      }),
+    ]);
   });
 
   test("JSON mode: omits anonymitySet when not provided", () => {

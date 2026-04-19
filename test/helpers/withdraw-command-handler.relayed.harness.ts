@@ -107,12 +107,12 @@ export function registerWithdrawRelayedPreludeTests(): void {
     expect(json.anonymitySet).toBeUndefined();
   });
 
-  test("renders a human relayed dry-run and warns when the remainder falls below the relayer minimum", async () => {
+  test("renders actionable human guidance when a relayed dry-run strands a below-minimum remainder", async () => {
     useIsolatedHome();
 
     const { stdout, stderr } = await captureAsyncOutput(() =>
       handleWithdrawCommand(
-        "0.96",
+        "0.995",
         "ETH",
         {
           dryRun: true,
@@ -123,10 +123,11 @@ export function registerWithdrawRelayedPreludeTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Remainder:");
-    expect(stderr).toContain("0.04 ETH");
-    expect(stderr).toContain("Dry-run completed");
-    expect(stderr).toContain("Withdrawal review");
+    expect(stderr).toContain("0.005 ETH");
+    expect(stderr).toContain("This relayed withdrawal would leave a remainder below the relayer minimum.");
+    expect(stderr).toContain("Withdraw less:");
+    expect(stderr).toContain("Use max:");
+    expect(stderr).toContain("Continue now, then recover the leftover publicly later:");
     expect(submitRelayRequestMock).not.toHaveBeenCalled();
   });
 
@@ -166,7 +167,7 @@ export function registerWithdrawRelayedPreludeTests(): void {
       ),
     );
 
-    expect(stderr).toContain("Withdrawing 100% of PA-1");
+    expect(stderr).toContain("Pool Account:         PA-1");
     expect(stderr).toContain("1 ETH");
   });
 
@@ -185,7 +186,7 @@ export function registerWithdrawRelayedPreludeTests(): void {
       ),
     );
 
-    expect(stderr).toContain("Withdrawing 50% of PA-1");
+    expect(stderr).toContain("Pool Account:         PA-1");
     expect(stderr).toContain("0.5 ETH");
   });
 

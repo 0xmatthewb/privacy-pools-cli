@@ -760,7 +760,9 @@ describe("renderAccounts parity", () => {
 describe("renderHistoryNoPools parity", () => {
   test("JSON mode: emits empty events envelope", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
-    const { stdout, stderr } = captureOutput(() => renderHistoryNoPools(ctx, "sepolia"));
+    const { stdout, stderr } = captureOutput(() =>
+      renderHistoryNoPools(ctx, { chain: "sepolia" }),
+    );
 
     const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
@@ -770,7 +772,9 @@ describe("renderHistoryNoPools parity", () => {
 
   test("human mode: emits no-pools message", () => {
     const ctx = createOutputContext(makeMode());
-    const { stdout, stderr } = captureOutput(() => renderHistoryNoPools(ctx, "sepolia"));
+    const { stdout, stderr } = captureOutput(() =>
+      renderHistoryNoPools(ctx, { chain: "sepolia" }),
+    );
 
     expect(stdout).toBe("");
     expect(stderr).toContain("No history events found on sepolia.");
@@ -778,7 +782,9 @@ describe("renderHistoryNoPools parity", () => {
 
   test("quiet mode: emits nothing", () => {
     const ctx = createOutputContext(makeMode({ isQuiet: true }));
-    const { stdout, stderr } = captureOutput(() => renderHistoryNoPools(ctx, "sepolia"));
+    const { stdout, stderr } = captureOutput(() =>
+      renderHistoryNoPools(ctx, { chain: "sepolia" }),
+    );
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");

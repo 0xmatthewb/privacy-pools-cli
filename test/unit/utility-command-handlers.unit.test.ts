@@ -119,8 +119,9 @@ describe("utility command handlers", () => {
     expect(json.success).toBe(true);
     expect(json.command).toBe("history");
     expect(json.jsonFields).toContain("lastSyncTime");
+    expect(json.jsonFields).toContain("syncSkipped");
     expect(json.jsonVariants).toContain(
-      "--no-sync: same fields, plus lastSyncTime? when cached local history was used.",
+      "--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true.",
     );
     expect(stderr).toBe("");
   });

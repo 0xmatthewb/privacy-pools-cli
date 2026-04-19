@@ -204,7 +204,12 @@ describe("accounts CSV", () => {
 
   test("renderAccountsNoPools: CSV outputs header only", () => {
     const ctx = createOutputContext(csvMode());
-    const { stdout, stderr } = captureOutput(() => renderAccountsNoPools(ctx, "sepolia"));
+    const { stdout, stderr } = captureOutput(() =>
+      renderAccountsNoPools(ctx, {
+        chain: "sepolia",
+        emptyReason: "first_deposit",
+      }),
+    );
     const lines = stdout.trim().split("\n");
     expect(lines.length).toBe(1);
     expect(lines[0]).toContain("PA");
@@ -273,9 +278,12 @@ describe("history CSV", () => {
 
   test("renderHistoryNoPools: CSV outputs header only", () => {
     const ctx = createOutputContext(csvMode());
-    const { stdout, stderr } = captureOutput(() => renderHistoryNoPools(ctx, "sepolia"));
+    const { stdout, stderr } = captureOutput(() =>
+      renderHistoryNoPools(ctx, { chain: "sepolia" }),
+    );
     const lines = stdout.trim().split("\n");
     expect(lines.length).toBe(1);
+    expect(lines[0]).toBe("Type,PA,Amount,Tx,Time,Block");
     expect(stderr).toBe("");
   });
 
@@ -288,12 +296,14 @@ describe("history CSV", () => {
         events: STUB_EVENTS,
         poolByAddress: STUB_POOL_MAP,
         explorerTxUrl: mockExplorerUrl,
+        currentBlock: 250n,
       }),
     );
     const lines = stdout.trim().split("\n");
     expect(lines.length).toBe(2);
     expect(lines[1]).toContain("Deposit");
     expect(lines[1]).toContain("PA-1");
+    expect(lines[1].split(",")).toHaveLength(6);
     expect(stderr).toBe("");
   });
 });
@@ -330,7 +340,7 @@ describe("activity CSV", () => {
     const lines = stdout.trim().split("\n");
     expect(lines.length).toBe(2);
     expect(lines[0]).toContain("Type");
-    expect(lines[1]).toContain("deposit");
+    expect(lines[1]).toContain("Deposit");
     expect(stderr).toBe("");
   });
 });

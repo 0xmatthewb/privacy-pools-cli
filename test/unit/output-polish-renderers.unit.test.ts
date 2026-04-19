@@ -132,6 +132,7 @@ describe("shared runtime review renderers", () => {
       asset: "ETH",
       chain: "sepolia",
       decimals: 18,
+      depositorAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       tokenPrice: 3200,
       isErc20: false,
     });
@@ -140,7 +141,14 @@ describe("shared runtime review renderers", () => {
     );
 
     expectSemanticText(deposit, {
-      includes: ["Deposit review", "Vetting fee", "Net deposited", "Deposits are always public onchain."],
+      includes: [
+        "Deposit review",
+        "Depositor",
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "Vetting fee",
+        "Net deposited",
+        "Deposits are always public onchain.",
+      ],
     });
     expectSemanticText(privacy, {
       includes: ["Privacy review", "non-round amount"],
@@ -156,6 +164,7 @@ describe("shared runtime review renderers", () => {
       decimals: 18,
       recipient: "0x1111111111111111111111111111111111111111",
       recipientEnsName: "bob.eth",
+      signerAddress: "0x9999999999999999999999999999999999999999",
       tokenPrice: 3200,
     });
     const ragequit = formatRagequitReview({
@@ -195,6 +204,8 @@ describe("shared runtime review renderers", () => {
         "Direct withdrawal review",
         "public onchain withdrawal",
         "0x1111111111111111111111111111111111111111",
+        "Signer",
+        "0x9999999999999999999999999999999999999999",
         "Recipient ENS",
         "bob.eth",
       ],

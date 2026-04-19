@@ -11,6 +11,7 @@ import {
   handleConfigProfileListCommand,
   handleConfigProfileUseCommand,
   handleConfigSetCommand,
+  handleConfigUnsetCommand,
 } from "../../src/commands/config.ts";
 import {
   getConfigDir,
@@ -218,6 +219,53 @@ describe("config command handlers", () => {
     );
     expect(positionalSensitive.json.success).toBe(false);
     expect(positionalSensitive.json.errorMessage).toContain("Sensitive keys cannot be set");
+  });
+
+  test("unsets config keys and refuses to clear environment-provided signer keys", async () => {
+    useIsolatedHome();
+    saveConfig({
+      defaultChain: "sepolia",
+      rpcOverrides: { 1: "https://rpc.example.test" },
+    });
+    saveMnemonicToFile("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about");
+    saveSignerKey(`0x${"55".repeat(32)}`);
+
+    const unsetRpc = await captureAsyncJsonOutput(() =>
+      handleConfigUnsetCommand("rpc-override.mainnet", {}, fakeCommand({ json: true }, 2)),
+    );
+    expect(unsetRpc.json.success).toBe(true);
+    expect(unsetRpc.json.removed).toBe(true);
+    expect(loadConfig().rpcOverrides[1]).toBeUndefined();
+
+    const unsetDefault = await captureAsyncJsonOutput(() =>
+      handleConfigUnsetCommand("default-chain", {}, fakeCommand({ json: true }, 2)),
+    );
+    expect(unsetDefault.json.success).toBe(true);
+    expect(unsetDefault.json.removed).toBe(true);
+    expect(loadConfig().defaultChain).toBe("mainnet");
+
+    const unsetPhrase = await captureAsyncJsonOutput(() =>
+      handleConfigUnsetCommand("recovery-phrase", {}, fakeCommand({ json: true }, 2)),
+    );
+    expect(unsetPhrase.json.success).toBe(true);
+    expect(unsetPhrase.json.removed).toBe(true);
+    expect(loadMnemonicFromFile()).toBeNull();
+
+    process.env.PRIVACY_POOLS_PRIVATE_KEY = `0x${"66".repeat(32)}`;
+    const signerBlocked = await captureAsyncJsonOutputAllowExit(() =>
+      handleConfigUnsetCommand("signer-key", {}, fakeCommand({ json: true }, 2)),
+    );
+    expect(signerBlocked.json.success).toBe(false);
+    expect(signerBlocked.json.errorMessage).toContain("PRIVACY_POOLS_PRIVATE_KEY");
+    delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
+    expect(loadSignerKey()).toBe(`0x${"55".repeat(32)}`);
+
+    const unsetSigner = await captureAsyncJsonOutput(() =>
+      handleConfigUnsetCommand("signer-key", {}, fakeCommand({ json: true }, 2)),
+    );
+    expect(unsetSigner.json.success).toBe(true);
+    expect(unsetSigner.json.removed).toBe(true);
+    expect(loadSignerKey()).toBeNull();
   });
 
   test("prints the resolved config path for scripting", async () => {

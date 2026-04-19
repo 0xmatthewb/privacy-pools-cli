@@ -306,7 +306,11 @@ describe("history command handler", () => {
 
     expect(renderHistoryNoPoolsMock).toHaveBeenCalledWith(
       expect.anything(),
-      "mainnet",
+      expect.objectContaining({
+        chain: "mainnet",
+        syncSkipped: false,
+        lastSyncTime: expect.any(Number),
+      }),
     );
     expect(initializeAccountServiceWithStateMock).not.toHaveBeenCalled();
   });

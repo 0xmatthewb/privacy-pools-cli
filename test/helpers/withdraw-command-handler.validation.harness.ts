@@ -741,8 +741,8 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
       ),
     );
 
-    expect(stderr).toContain("Selected PA-4:");
-    expect(stderr).toContain("Withdrawing 100% of PA-4");
+    expect(stderr).toContain("Pool Account:         PA-4");
+    expect(stderr).toContain("Amount:               3 ETH");
   });
 
   test("human --yes percentage withdrawals announce the computed deferred amount", async () => {
@@ -761,8 +761,8 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
       ),
     );
 
-    expect(stderr).toContain("Selected PA-1:");
-    expect(stderr).toContain("Withdrawing 37.5% of PA-1");
+    expect(stderr).toContain("Pool Account:         PA-1");
+    expect(stderr).toContain("Amount:               0.375 ETH");
   });
 
   test("breaks equal-balance approved Pool Account ties by label", async () => {
@@ -823,7 +823,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
       ),
     );
 
-    expect(stderr).toContain("Selected PA-2:");
+    expect(stderr).toContain("Pool Account:         PA-2");
   });
 
   test("keeps the original order when equal-balance approved Pool Accounts also share the same label", async () => {
@@ -883,7 +883,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
       ),
     );
 
-    expect(stderr).toContain("Selected PA-2:");
+    expect(stderr).toContain("Pool Account:         PA-2");
   });
 
   test("fails closed when --all is combined with a positional amount", async () => {

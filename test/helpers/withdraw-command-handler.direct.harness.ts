@@ -273,7 +273,7 @@ export function registerWithdrawDirectCompletionTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Dry-run completed");
+    expect(stderr).toContain("Dry-run: validation succeeded");
     expect(withdrawDirectMock).not.toHaveBeenCalled();
   });
 
