@@ -140,13 +140,14 @@
         "command": "string|null",
         "installContext": "{ kind: \"global_npm\"|\"bun_global\"|\"source_checkout\"|\"local_project\"|\"npx\"|\"ci\"|\"unknown\", supportedAutoRun: boolean, reason: string }",
         "installedVersion": "string|null",
-        "nextActions": "NextAction[]? (suggests upgrade command when status is ready)"
+        "nextActions": "NextAction[]? (suggests upgrade command when status is ready)",
+        "externalGuidance": "{ kind: \"manual_install\", message: string, command?: string|null }? (present when status = \"manual\" and the remediation is intentionally external to the CLI)"
       }
     },
     "flow": {
       "successFields": {
         "mode": "\"flow\"",
-        "action": "\"start\"|\"watch\"|\"status\"|\"ragequit\"",
+        "action": "\"start\"|\"watch\"|\"status\"|\"step\"|\"ragequit\"",
         "workflowId": "uuid-string",
         "phase": "\"awaiting_funding\"|\"depositing_publicly\"|\"awaiting_asp\"|\"approved_waiting_privacy_delay\"|\"approved_ready_to_withdraw\"|\"withdrawing\"|\"completed\"|\"completed_public_recovery\"|\"paused_declined\"|\"paused_poa_required\"|\"stopped_external\"",
         "walletMode": "\"configured\"|\"new_wallet\"",
@@ -184,7 +185,9 @@
         "quoteRefreshCount": "number|null",
         "reconciliationRequired": "boolean (true when onchain confirmation succeeded but local workflow state still needs sync)",
         "localStateSynced": "boolean",
-        "warningCode": "string|null"
+        "warningCode": "string|null",
+        "workflowKind": "\"saved_flow\"|\"deposit_review\"",
+        "nextPollAfter": "iso8601-string|null"
       },
       "dryRunFields": {
         "mode": "\"flow\"",
@@ -314,9 +317,9 @@
         "poolAddress": "0x-prefixed-address",
         "scope": "decimal-string",
         "label": "decimal-string|null",
-        "blockNumber": "decimal-string",
+        "blockNumber": "decimal-string|null",
         "explorerUrl": "string|null",
-        "nextActions": "NextAction[]? (poll accounts --chain <chain> --pending-only while the Pool Account remains pending; then confirm whether it was approved, declined, or poa_required before choosing withdraw or ragequit)",
+        "nextActions": "NextAction[]? (submitted results point to tx-status and flow status; confirmed results point to flow status plus accounts review polling)",
         "estimatedCommitted": "decimal-string-wei",
         "vettingFeeBPS": "decimal-string-bps",
         "vettingFeeAmount": "decimal-string-wei",
@@ -324,7 +327,10 @@
         "reconciliationRequired": "boolean? (true when onchain confirmation succeeded but local wallet state still needs sync)",
         "localStateSynced": "boolean? (false when local reconciliation is still required)",
         "warningCode": "string|null",
-        "warnings": "{ code: string, category: string, message: string }[]|undefined"
+        "warnings": "{ code: string, category: string, message: string }[]|undefined",
+        "status": "\"submitted\"|\"confirmed\"",
+        "submissionId": "uuid-string|null",
+        "workflowId": "uuid-string (persisted deposit-review workflow handle)"
       },
       "variants": {
         "dryRun": {
@@ -360,7 +366,7 @@
         "operation": "\"withdraw\"",
         "mode": "\"direct\"|\"relayed\"",
         "txHash": "0x-prefixed-hash",
-        "blockNumber": "decimal-string",
+        "blockNumber": "decimal-string|null",
         "amount": "decimal-string-wei",
         "recipient": "0x-prefixed-address",
         "explorerUrl": "string|null",
@@ -375,14 +381,18 @@
         "remainingBalance": "decimal-string-wei",
         "anonymitySet": "{ eligible: number, total: number, percentage: number }? (when available from the ASP)",
         "privacyCostManifest": "PrivacyCostManifest? (present in direct mode)",
-        "nextActions": "NextAction[]? (suggests accounts to verify updated balance)",
+        "nextActions": "NextAction[]? (submitted results point to tx-status; confirmed results point to accounts or sync follow-up)",
         "relayerHost": "string|null",
         "quoteRefreshCount": "number|null",
         "rootMatchedAtProofTime": "boolean?",
         "reconciliationRequired": "boolean? (true when onchain confirmation succeeded but local wallet state still needs sync)",
         "localStateSynced": "boolean? (false when local reconciliation is still required)",
         "warningCode": "string|null",
-        "warnings": "{ code: string, category: string, message: string }[]|undefined"
+        "warnings": "{ code: string, category: string, message: string }[]|undefined",
+        "status": "\"submitted\"|\"confirmed\"",
+        "submissionId": "uuid-string|null",
+        "extraGasFundAmount": "decimal-string-wei|undefined (relayed ERC20 withdrawals with extra gas enabled)",
+        "nativeTokenPrice": "number|undefined (USD quote for the gas token when available)"
       },
       "variants": {
         "dryRun": {
@@ -484,15 +494,18 @@
         "poolAccountId": "string (PA-#)",
         "poolAddress": "0x-prefixed-address",
         "scope": "decimal-string",
-        "blockNumber": "decimal-string",
+        "blockNumber": "decimal-string|null",
         "explorerUrl": "string|null",
         "destinationAddress": "0x-prefixed-address|null",
         "privacyCostManifest": "PrivacyCostManifest",
-        "nextActions": "NextAction[]? (suggests accounts to verify status after ragequit)",
+        "nextActions": "NextAction[]? (submitted results point to tx-status; confirmed results point to accounts or sync follow-up)",
         "reconciliationRequired": "boolean? (true when onchain confirmation succeeded but local wallet state still needs sync)",
         "localStateSynced": "boolean? (false when local reconciliation is still required)",
         "warningCode": "string|null",
-        "warnings": "{ code: string, category: string, message: string }[]|undefined"
+        "warnings": "{ code: string, category: string, message: string }[]|undefined",
+        "status": "\"submitted\"|\"confirmed\"",
+        "submissionId": "uuid-string|null",
+        "advisory": "string|undefined"
       },
       "variants": {
         "dryRun": {
@@ -610,7 +623,9 @@
         "missingChainIds": "number[]",
         "websiteRecoveryChainIds": "number[]",
         "unresolvedChainIds": "number[]",
-        "chainReadiness": "MigrationChainReadiness[]"
+        "chainReadiness": "MigrationChainReadiness[]",
+        "externalGuidance": "{ kind: \"website_migration\"|\"website_recovery\", message: string, url: string }|undefined",
+        "nextActions": "NextAction[]? (empty unless status = \"review_incomplete\", where a retry action is emitted)"
       },
       "chainReadinessFields": {
         "chain": "string",
@@ -636,7 +651,8 @@
         "chain": "string",
         "lastSyncTime": "iso8601-string|null|undefined",
         "syncSkipped": "boolean",
-        "events": "HistoryEvent[]"
+        "events": "HistoryEvent[]",
+        "nextActions": "NextAction[]? (history follow-ups such as accounts, pools, or deposit templates)"
       },
       "eventFields": {
         "type": "\"deposit\"|\"migration\"|\"withdrawal\"|\"ragequit\"",
@@ -663,7 +679,7 @@
         "chainFiltered": "boolean? (true when chain filtering happens client-side)",
         "note": "string? (explains pagination limitations when chainFiltered is true)",
         "events": "ActivityEvent[]",
-        "nextActions": "NextAction[]? (pagination: suggests next page when more pages exist)"
+        "nextActions": "NextAction[]? (pagination when more pages exist; otherwise a read-only follow-up such as pools or accounts)"
       },
       "poolActivityExtraFields": {
         "asset": "string",
@@ -735,7 +751,8 @@
         "agentNotes": "Record<string, string>",
         "schemas": "object (includes nextActions metadata)",
         "supportedChains": "Chain[]",
-        "safeReadOnlyCommands": "string[]"
+        "safeReadOnlyCommands": "string[]",
+        "nextActions": "NextAction[]? (suggests describe for a concrete command path)"
       }
     },
     "describe": {
@@ -763,7 +780,8 @@
         "sideEffectClass": "\"read_only\"|\"local_cache_write\"|\"local_state_write\"|\"network_write\"|\"fund_movement\"",
         "touchesFunds": "boolean",
         "requiresHumanReview": "boolean",
-        "preferredSafeVariant": "{ command: string, reason: string }|undefined"
+        "preferredSafeVariant": "{ command: string, reason: string }|undefined",
+        "nextActions": "NextAction[]? (suggests running the described command path or related schema exploration)"
       },
       "indexVariant": {
         "mode": "\"describe-index\"",
@@ -795,7 +813,8 @@
         "mode": "\"help\"",
         "topic": "string|undefined (resolved guide topic when provided)",
         "topics": "{ name: string, description: string }[]",
-        "help": "string (formatted guide text)"
+        "help": "string (formatted guide text)",
+        "nextActions": "NextAction[]? (suggests the first concrete follow-up command for the selected topic)"
       }
     },
     "meta": {
@@ -806,6 +825,79 @@
       "versionEnvelope": {
         "mode": "version",
         "version": "semver-string"
+      }
+    },
+    "config": {
+      "note": "Bare config uses the shared help envelope. Config subcommands return the structured payloads below.",
+      "subcommandVariants": {
+        "config list": "{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: Record<number, string>, configDir, nextActions?: NextAction[] }",
+        "config get": "{ key, value?, set, redacted?, nextActions?: NextAction[] }",
+        "config set": "{ key, updated, changed, removed, summary, nextActions?: NextAction[] }",
+        "config path": "{ configDir, nextActions?: NextAction[] }",
+        "config profile list": "{ profiles, active, nextActions?: NextAction[] }",
+        "config profile create": "{ profile, created, profileDir, nextActions?: NextAction[] }",
+        "config profile active": "{ profile, configDir, nextActions?: NextAction[] }",
+        "config profile use": "{ profile, active, configDir, nextActions?: NextAction[] }"
+      }
+    },
+    "completion": {
+      "note": "Completion has three JSON variants: raw script output, completion-query candidates, and managed install results.",
+      "successFields": {
+        "mode": "\"completion-script\"|\"completion-query\"|\"completion-install\"",
+        "shell": "string",
+        "completionScript": "string|undefined (present for mode = \"completion-script\")",
+        "cword": "number|undefined (present for mode = \"completion-query\")",
+        "candidates": "string[]|undefined (present for mode = \"completion-query\")",
+        "scriptPath": "string|undefined (present for mode = \"completion-install\")",
+        "profilePath": "string|undefined (present for mode = \"completion-install\")",
+        "scriptCreated": "boolean|undefined (present for mode = \"completion-install\")",
+        "scriptUpdated": "boolean|undefined (present for mode = \"completion-install\")",
+        "profileCreated": "boolean|undefined (present for mode = \"completion-install\")",
+        "profileUpdated": "boolean|undefined (present for mode = \"completion-install\")",
+        "bootstrapProfilePath": "string|undefined (bash-only, mode = \"completion-install\")",
+        "bootstrapProfileCreated": "boolean|undefined (bash-only, mode = \"completion-install\")",
+        "bootstrapProfileUpdated": "boolean|undefined (bash-only, mode = \"completion-install\")",
+        "reloadHint": "string|undefined (present for mode = \"completion-install\")",
+        "nextActions": "NextAction[]? (install guidance after script/query modes; guide follow-up after managed install)"
+      }
+    },
+    "broadcast": {
+      "successFields": {
+        "mode": "\"broadcast\"",
+        "broadcastMode": "\"onchain\"|\"relayed\"",
+        "sourceOperation": "\"deposit\"|\"withdraw\"|\"ragequit\"",
+        "chain": "string",
+        "validatedOnly": "boolean|undefined (true when --validate-only skips submission)",
+        "submissionId": "uuid-string|null",
+        "submittedBy": "0x-prefixed-address|undefined",
+        "transactions": "BroadcastTransaction[] ({ index, description, txHash: 0x-prefixed-hash|null, blockNumber: decimal-string|null, explorerUrl: string|null, status: \"submitted\"|\"confirmed\"|\"validated\" })",
+        "localStateUpdated": "false",
+        "nextActions": "NextAction[]? (submitted bundles point to tx-status; confirmed bundles point to accounts review for the underlying source operation)"
+      }
+    },
+    "tx-status": {
+      "successFields": {
+        "operation": "\"tx-status\"",
+        "submissionId": "uuid-string",
+        "sourceOperation": "\"deposit\"|\"withdraw\"|\"ragequit\"|\"broadcast\"",
+        "sourceCommand": "\"deposit\"|\"withdraw\"|\"ragequit\"|\"broadcast\"",
+        "chain": "string",
+        "asset": "string|null",
+        "poolAccountId": "string (PA-#)|null",
+        "poolAccountNumber": "number|null",
+        "workflowId": "uuid-string|null",
+        "recipient": "0x-prefixed-address|null",
+        "broadcastMode": "\"onchain\"|\"relayed\"|null",
+        "broadcastSourceOperation": "\"deposit\"|\"withdraw\"|\"ragequit\"|null",
+        "createdAt": "iso8601-string",
+        "updatedAt": "iso8601-string",
+        "status": "\"submitted\"|\"confirmed\"|\"reverted\"",
+        "reconciliationRequired": "boolean",
+        "localStateSynced": "boolean",
+        "warningCode": "string|null",
+        "lastError": "{ code: string, message: string }|null",
+        "transactions": "SubmissionTransaction[] ({ index, description, txHash, explorerUrl, blockNumber, status })",
+        "nextActions": "NextAction[]? (uses after_submit while the bundle is still pending, then routes to flow status, accounts, or sync once settled)"
       }
     }
   },

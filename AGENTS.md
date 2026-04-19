@@ -762,7 +762,7 @@ Like `deposit`, `flow start` rejects non-round amounts in machine modes because 
 
 New workflows default to a balanced post-approval privacy delay before the relayed withdrawal. `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `aggressive` randomizes the hold between 2 and 12 hours. Flow JSON includes `privacyDelayRandom` and `privacyDelayRangeSeconds`; the ranges are `[0, 0]` for `off`, `[900, 5400]` for `balanced`, and `[7200, 43200]` for `aggressive`. Pass `--privacy-delay off|balanced|aggressive` to `flow start`, or to human `flow watch`, to update the saved policy later.
 
-With `--new-wallet`, the CLI generates a dedicated workflow wallet for that one flow. ETH workflows wait for the full ETH target. ERC20 workflows wait for both the token amount and a native ETH gas reserve in the same wallet. In non-interactive mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow begins.
+With `--new-wallet`, the CLI generates a dedicated workflow wallet for that one flow. Human `flow start --new-wallet` stays attached and waits for the required funding automatically. In `--agent`, `flow start` returns an `awaiting_funding` snapshot with `walletAddress`, `requiredNativeFunding`, and `requiredTokenFunding`; fund that wallet, then continue with `flow status` / `flow step`. ETH workflows require the full ETH target. ERC20 workflows require both the token amount and a native ETH gas reserve in the same wallet. In non-interactive mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow begins.
 
 Saved flows persist local state under `~/.privacy-pools/workflows/`. `flow --new-wallet` also stores the per-workflow private key under `~/.privacy-pools/workflow-secrets/` until the workflow completes, public-recovers, or is externally stopped, so `--export-new-wallet` is a backup copy rather than the only stored copy. Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.
 
@@ -877,11 +877,13 @@ Deposit ETH or ERC-20 tokens into a Privacy Pool.
 privacy-pools deposit 0.1 ETH --agent
 ```
 
-JSON payload: `{ operation: "deposit", txHash, amount, committedValue, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `{ operation: "deposit", status: "submitted" | "confirmed", submissionId?, workflowId, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS?, vettingFeeAmount?, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired, localStateSynced, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
-All numeric values are strings (wei). `committedValue` and `label` may be `null`.
+All numeric values are strings (wei). `committedValue`, `estimatedCommitted`, and `label` may be `null`.
 
-`nextActions` provides the canonical structured guidance: poll `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending, then re-run `accounts --agent --chain <chain>` to confirm whether it was approved, declined, or `poa_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` scope for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without `--chain`.
+When `status = "submitted"` (for example with `--no-wait`), use `submissionId` with `tx-status` to poll the onchain confirmation separately. `workflowId` is always present and is the durable handle for the follow-on deposit-review workflow that `flow status` inspects through ASP approval, decline, or PoA follow-up.
+
+`nextActions` provides the canonical structured guidance. Submitted deposits point first to `tx-status` and the saved `flow status <workflowId>` handle. Confirmed deposits point at the same saved `workflowId` plus `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending, then `accounts --agent --chain <chain>` to confirm whether it was approved, declined, or `poa_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` scope for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without `--chain`.
 
 Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). An ASP vetting fee is deducted from the deposit amount. Only approved deposits can use `withdraw` (relayed or direct). Declined deposits must `ragequit` publicly to the deposit address.
 
@@ -900,9 +902,11 @@ privacy-pools withdraw 0.1 ETH --direct --confirm-direct-withdraw --agent
 privacy-pools withdraw 0.05 ETH --to 0xRecipient --no-extra-gas --agent
 ```
 
-JSON payload (relayed): `{ operation: "withdraw", mode: "relayed", txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, extraGas?, remainingBalance, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload (relayed): `{ operation: "withdraw", status: "submitted" | "confirmed", submissionId?, mode: "relayed", txHash, blockNumber|null, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired, localStateSynced, warningCode?, warnings?: [{ code, category, message }], anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
-JSON payload (direct): same but `mode: "direct"`, `feeBPS: null`, no `extraGas`. Human output includes a privacy note that direct withdrawals publicly link deposit and withdrawal addresses onchain.
+JSON payload (direct): same but `mode: "direct"`, `feeBPS: null`, no `extraGas`, and `privacyCostManifest` replaces relayer metadata. Human output includes a privacy note that direct withdrawals publicly link deposit and withdrawal addresses onchain.
+
+When `status = "submitted"` (for example with `--no-wait`), use `submissionId` with `tx-status` to poll confirmation without resubmitting.
 
 > **Note**: Direct withdrawals (`--direct`) will publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Non-interactive direct submissions and broadcastable unsigned direct payloads require `--confirm-direct-withdraw`; dry-runs do not. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poa_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
 
@@ -933,7 +937,9 @@ Public recovery to the original deposit address. Does not preserve privacy. Use 
 privacy-pools ragequit ETH --pool-account PA-1 --agent
 ```
 
-JSON payload: `{ operation: "ragequit", txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: "0", nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `{ operation: "ragequit", status: "submitted" | "confirmed", submissionId?, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber|null, explorerUrl, destinationAddress?, remainingBalance: "0", privacyCostManifest, reconciliationRequired, localStateSynced, warningCode?, warnings?: [{ code, category, message }], advisory?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+When `status = "submitted"` (for example with `--no-wait`), use `submissionId` with `tx-status` to poll confirmation without resubmitting.
 
 #### `accounts`
 
@@ -1130,6 +1136,8 @@ privacy-pools broadcast ./signed-envelope.json --validate-only --agent
 `broadcast` only accepts the full unsigned envelope JSON. It intentionally rejects the bare raw transaction array from `--unsigned tx` so the CLI can validate the signed transactions against the original preview before submission.
 
 With `--validate-only`, `broadcast` verifies the envelope and signature parity without submitting anything. The success envelope includes `validatedOnly: true`, transaction rows use `status: "validated"`, and `txHash` / `blockNumber` / `explorerUrl` stay `null`.
+
+With `--no-wait`, `broadcast` returns immediately with `submissionId` and `status: "submitted"` rows so agents can poll `tx-status <submissionId> --agent` instead of re-broadcasting the signed envelope.
 
 ## Dry-Run Mode
 

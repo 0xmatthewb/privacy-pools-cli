@@ -111,6 +111,7 @@ describe("external JSON contract doc conformance", () => {
     expect(upgrade.successFields?.command).toBe("string|null");
     expect(upgrade.successFields?.installContext).toContain("\"bun_global\"");
     expect(upgrade.successFields?.installedVersion).toBe("string|null");
+    expect(upgrade.successFields?.externalGuidance).toContain("\"manual_install\"");
   });
 
   test("doc reflects current flow machine fields", () => {
@@ -118,7 +119,9 @@ describe("external JSON contract doc conformance", () => {
     const commands = doc.commands as Record<string, unknown>;
 
     const flow = commands.flow as { successFields?: Record<string, string> };
+    expect(flow.successFields?.action).toContain("\"step\"");
     expect(flow.successFields?.phase).toContain("\"approved_waiting_privacy_delay\"");
+    expect(flow.successFields?.workflowKind).toContain("\"deposit_review\"");
     expect(flow.successFields?.walletMode).toBe("\"configured\"|\"new_wallet\"");
     expect(flow.successFields?.walletAddress).toBe("0x-prefixed-address|null");
     expect(flow.successFields?.requiredNativeFunding).toBe("decimal-string-wei|null");
@@ -128,6 +131,7 @@ describe("external JSON contract doc conformance", () => {
     expect(flow.successFields?.privacyDelayRandom).toContain("boolean");
     expect(flow.successFields?.privacyDelayRangeSeconds).toContain("[number, number]");
     expect(flow.successFields?.privacyDelayUntil).toBe("iso8601-string|null");
+    expect(flow.successFields?.nextPollAfter).toBe("iso8601-string|null");
     expect(flow.successFields?.warnings).toContain("FlowWarning[]");
     expect(flow.successFields?.nextActions).toContain("canonical saved-workflow");
 
@@ -179,5 +183,70 @@ describe("external JSON contract doc conformance", () => {
     expect(describe.successFields?.touchesFunds).toBe("boolean");
     expect(describe.successFields?.requiresHumanReview).toBe("boolean");
     expect(describe.successFields?.preferredSafeVariant).toContain("command: string");
+    expect(describe.successFields?.nextActions).toContain(
+      "suggests running the described command path",
+    );
+  });
+
+  test("doc reflects current async transaction and follow-up fields", () => {
+    const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const commands = doc.commands as Record<string, unknown>;
+
+    const deposit = commands.deposit as { successFields?: Record<string, string> };
+    expect(deposit.successFields?.status).toBe("\"submitted\"|\"confirmed\"");
+    expect(deposit.successFields?.submissionId).toBe("uuid-string|null");
+    expect(deposit.successFields?.workflowId).toContain("uuid-string");
+    expect(deposit.successFields?.blockNumber).toBe("decimal-string|null");
+    expect(deposit.successFields?.nextActions).toContain("tx-status");
+
+    const withdraw = commands.withdraw as { successFields?: Record<string, string> };
+    expect(withdraw.successFields?.status).toBe("\"submitted\"|\"confirmed\"");
+    expect(withdraw.successFields?.submissionId).toBe("uuid-string|null");
+    expect(withdraw.successFields?.blockNumber).toBe("decimal-string|null");
+    expect(withdraw.successFields?.nextActions).toContain("tx-status");
+
+    const ragequit = commands.ragequit as { successFields?: Record<string, string> };
+    expect(ragequit.successFields?.status).toBe("\"submitted\"|\"confirmed\"");
+    expect(ragequit.successFields?.submissionId).toBe("uuid-string|null");
+    expect(ragequit.successFields?.blockNumber).toBe("decimal-string|null");
+    expect(ragequit.successFields?.nextActions).toContain("tx-status");
+
+    const broadcast = commands.broadcast as { successFields?: Record<string, string> };
+    expect(broadcast.successFields?.mode).toBe("\"broadcast\"");
+    expect(broadcast.successFields?.submissionId).toBe("uuid-string|null");
+    expect(broadcast.successFields?.transactions).toContain("\"submitted\"|\"confirmed\"|\"validated\"");
+    expect(broadcast.successFields?.nextActions).toContain("tx-status");
+
+    const txStatus = commands["tx-status"] as { successFields?: Record<string, string> };
+    expect(txStatus.successFields?.operation).toBe("\"tx-status\"");
+    expect(txStatus.successFields?.submissionId).toBe("uuid-string");
+    expect(txStatus.successFields?.status).toBe("\"submitted\"|\"confirmed\"|\"reverted\"");
+    expect(txStatus.successFields?.broadcastSourceOperation).toContain("\"withdraw\"");
+    expect(txStatus.successFields?.transactions).toContain("SubmissionTransaction[]");
+    expect(txStatus.successFields?.nextActions).toContain("after_submit");
+  });
+
+  test("doc reflects current guide/history/migration discovery surfaces", () => {
+    const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const commands = doc.commands as Record<string, unknown>;
+
+    const capabilities = commands.capabilities as { successFields?: Record<string, string> };
+    expect(capabilities.successFields?.nextActions).toContain("describe");
+
+    const config = commands.config as { subcommandVariants?: Record<string, string> };
+    expect(config.subcommandVariants?.["config list"]).toContain("defaultChain");
+
+    const completion = commands.completion as { successFields?: Record<string, string> };
+    expect(completion.successFields?.mode).toContain("\"completion-install\"");
+
+    const history = commands.history as { successFields?: Record<string, string> };
+    expect(history.successFields?.nextActions).toContain("NextAction[]");
+
+    const migrate = commands["migrate status"] as { successFields?: Record<string, string> };
+    expect(migrate.successFields?.externalGuidance).toContain("\"website_migration\"");
+    expect(migrate.successFields?.nextActions).toContain("NextAction[]");
+
+    const guide = commands.guide as { successFields?: Record<string, string> };
+    expect(guide.successFields?.nextActions).toContain("NextAction[]");
   });
 });
