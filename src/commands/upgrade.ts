@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Command } from "commander";
 import { readCliPackageInfo } from "../package-info.js";
-import { createOutputContext } from "../output/common.js";
+import { createOutputContext, printJsonSuccess } from "../output/common.js";
 import {
   formatUpgradeInstallReview,
   renderUpgradeResult,
@@ -15,7 +15,6 @@ import {
   performUpgrade,
 } from "../services/upgrade.js";
 import type { GlobalOptions } from "../types.js";
-import { printJsonSuccess } from "../utils/json.js";
 import { printError, promptCancelledError } from "../utils/errors.js";
 import { info, warn } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";

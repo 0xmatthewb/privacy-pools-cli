@@ -2,10 +2,10 @@ import type { Command } from "commander";
 import { handleDepositCommand } from "./deposit.js";
 import { handleRagequitCommand } from "./ragequit.js";
 import { handleWithdrawCommand } from "./withdraw.js";
+import { printJsonSuccess } from "../output/common.js";
 import { CLIError, printError } from "../utils/errors.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import { printJsonSuccess } from "../utils/json.js";
 
 interface SimulateSharedOptions {
   unsigned?: boolean | string;

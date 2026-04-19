@@ -73,6 +73,9 @@ export {
 } from "./capabilities.js";
 export {
   renderCommandDescription,
+  renderCommandDescriptionIndex,
+  renderSchemaDescription,
+  type DescribeIndexEntry,
   type DetailedCommandDescriptor,
 } from "./describe.js";
 export {
@@ -194,13 +197,17 @@ export {
 } from "./ragequit.js";
 export {
   buildDirectWithdrawalPrivacyCostManifest,
+  formatAnonymitySetCallout,
   formatAnonymitySetValue,
   formatDirectWithdrawalReview,
   formatRelayedWithdrawalReview,
   renderWithdrawDryRun,
   renderWithdrawSuccess,
   renderWithdrawQuote,
+  type WithdrawAnonymitySet,
   type DirectWithdrawalReviewData,
+  type WithdrawUiWarning,
+  type RelayedWithdrawalRemainderGuidance,
   type RelayedWithdrawalReviewData,
   type WithdrawDryRunData,
   type WithdrawSuccessData,
@@ -216,6 +223,9 @@ export {
   type BroadcastRenderData,
 } from "./broadcast.js";
 export {
+  renderTxStatus,
+} from "./tx-status.js";
+export {
   renderGlobalStats,
   renderPoolStats,
   parseUsd,
@@ -224,3 +234,8 @@ export {
   type GlobalStatsRenderData,
   type PoolStatsRenderData,
 } from "./stats.js";
+export {
+  type StructuredJsonWarning,
+  warningFromCode,
+  mergeStructuredWarnings,
+} from "./warnings.js";

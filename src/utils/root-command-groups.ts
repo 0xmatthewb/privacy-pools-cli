@@ -17,6 +17,7 @@ export type RootCommandName =
   | "activity"
   | "protocol-stats"
   | "pool-stats"
+  | "stats"
   | "sync"
   | "migrate"
   | "upgrade"
@@ -49,6 +50,7 @@ export const ROOT_COMMAND_DESCRIPTIONS: Record<RootCommandName, string> = {
   activity: "View recent deposits and withdrawals across pools",
   "protocol-stats": "View aggregate network statistics",
   "pool-stats": "View statistics for one pool",
+  stats: "Deprecated compatibility alias for protocol-stats and pool-stats",
   sync: "Sync account state with the latest onchain data",
   migrate: "Check migration status for legacy pool accounts",
   upgrade: "Check for CLI updates",
@@ -68,7 +70,7 @@ export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
   simulate: "simulate",
   deposit: "deposit",
   withdraw: "withdraw",
-  ragequit: "ragequit",
+  ragequit: "ragequit|exit",
   broadcast: "broadcast",
   accounts: "accounts",
   pools: "pools",
@@ -76,6 +78,7 @@ export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
   activity: "activity",
   "protocol-stats": "protocol-stats",
   "pool-stats": "pool-stats",
+  stats: "stats",
   sync: "sync",
   migrate: "migrate",
   upgrade: "upgrade",
@@ -107,6 +110,7 @@ export const ROOT_COMMAND_GROUPS: RootCommandGroup[] = [
       "activity",
       "protocol-stats",
       "pool-stats",
+      "stats",
       "sync",
       "tx-status",
     ],
@@ -146,6 +150,7 @@ export const ROOT_COMMAND_ORDER: RootCommandName[] = [
   "activity",
   "protocol-stats",
   "pool-stats",
+  "stats",
   "guide",
   "capabilities",
   "describe",
