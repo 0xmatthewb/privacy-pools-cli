@@ -15,6 +15,10 @@ import {
   visibleWidth,
   wrapDisplayText,
 } from "./terminal.js";
+import {
+  ERROR_CODE_REGISTRY,
+  type RegisteredErrorCode,
+} from "./error-code-registry.js";
 import { readCliPackageInfo } from "../package-info.js";
 import type { NextAction } from "../types.js";
 
@@ -61,12 +65,10 @@ export function defaultErrorCode(category: ErrorCategory): string {
 }
 
 export function promptCancelledError(): CLIError {
-  return new CLIError(
-    PROMPT_CANCELLATION_MESSAGE,
-    "INPUT",
-    undefined,
-    "PROMPT_CANCELLED",
-  );
+  return createRegisteredCliError({
+    message: PROMPT_CANCELLATION_MESSAGE,
+    code: "PROMPT_CANCELLED",
+  });
 }
 
 const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s'")]+/gi;
@@ -355,55 +357,113 @@ function renderBoxedError(error: CLIError): string {
   return `\n${top}\n${middle}\n${bottom}\n`;
 }
 
+function lookupRegisteredError(code: RegisteredErrorCode) {
+  const entry = ERROR_CODE_REGISTRY[code];
+  if (!entry) {
+    throw new Error(`Missing error-code registry entry for ${code}.`);
+  }
+  return entry;
+}
+
+function createRegisteredCliError(params: {
+  message: string;
+  code: RegisteredErrorCode;
+  hint?: string;
+  presentation?: ErrorPresentation;
+  details?: Record<string, unknown>;
+  docsSlug?: string;
+  extra?: {
+    helpTopic?: string;
+    nextActions?: NextAction[];
+  };
+}): CLIError {
+  const { category, retryable } = lookupRegisteredError(params.code);
+  return new CLIError(
+    params.message,
+    category,
+    params.hint,
+    params.code,
+    retryable,
+    params.presentation,
+    params.details,
+    params.docsSlug,
+    params.extra,
+  );
+}
+
 export function accountMigrationRequiredError(
   hint: string = "Review this account in the Privacy Pools website first. If it shows migratable legacy deposits, migrate them there, then rerun the CLI restore or sync command.",
 ): CLIError {
-  return new CLIError(
-    "Legacy pre-upgrade Pool Accounts require migration before the CLI can safely restore this account.",
-    "INPUT",
+  return createRegisteredCliError({
+    message:
+      "Legacy pre-upgrade Pool Accounts require migration before the CLI can safely restore this account.",
+    code: "ACCOUNT_MIGRATION_REQUIRED",
     hint,
-    "ACCOUNT_MIGRATION_REQUIRED",
-    false,
-    undefined,
-    undefined,
-    "reference/migrate#migrate-status",
-  );
+    docsSlug: "reference/migrate#migrate-status",
+  });
 }
 
 export function accountWebsiteRecoveryRequiredError(
   hint: string = "Review this account in the Privacy Pools website first. Legacy declined deposits cannot be restored safely in the CLI and may require website-based public recovery instead of migration.",
 ): CLIError {
-  return new CLIError(
-    "Legacy pre-upgrade Pool Accounts require website-based recovery before the CLI can safely restore this account.",
-    "INPUT",
+  return createRegisteredCliError({
+    message:
+      "Legacy pre-upgrade Pool Accounts require website-based recovery before the CLI can safely restore this account.",
+    code: "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
     hint,
-    "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
-    false,
-    undefined,
-    undefined,
-    "reference/migrate#migrate-status",
-  );
+    docsSlug: "reference/migrate#migrate-status",
+  });
 }
 
 export function accountMigrationReviewIncompleteError(
   hint: string = "Legacy ASP review data is temporarily unavailable. Retry this command or run 'privacy-pools migrate status' once ASP connectivity is healthy before acting on this account.",
 ): CLIError {
-  return new CLIError(
-    "The CLI could not safely determine whether legacy website migration or recovery is required because legacy ASP review data is incomplete.",
-    "ASP",
+  return createRegisteredCliError({
+    message:
+      "The CLI could not safely determine whether legacy website migration or recovery is required because legacy ASP review data is incomplete.",
+    code: "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE",
     hint,
-    "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE",
-    true,
-    undefined,
-    undefined,
-    "reference/migrate#migrate-status",
-  );
+    docsSlug: "reference/migrate#migrate-status",
+  });
+}
+
+export function accountNotApprovedError(
+  message: string,
+  hint: string,
+): CLIError {
+  return createRegisteredCliError({
+    message,
+    code: "ACCOUNT_NOT_APPROVED",
+    hint,
+  });
+}
+
+export function rpcPoolResolutionFailedError(
+  message: string,
+  hint: string = "Check your RPC URL and network connectivity, then retry.",
+): CLIError {
+  return createRegisteredCliError({
+    message,
+    code: "RPC_POOL_RESOLUTION_FAILED",
+    hint,
+  });
+}
+
+export function proofMalformedError(
+  message: string,
+  hint: string = "Regenerate the proof and retry.",
+): CLIError {
+  return createRegisteredCliError({
+    message,
+    code: "PROOF_MALFORMED",
+    hint,
+  });
 }
 
 const CONTRACT_ERROR_MAP: Record<string, {
   message: string;
   hint: string;
-  code: string;
+  code: RegisteredErrorCode;
   retryable?: boolean;
   docsSlug?: string;
 }> = {
@@ -547,16 +607,12 @@ export function classifyError(error: unknown): CLIError {
   // Check for known contract revert reasons
   for (const [key, mapped] of Object.entries(CONTRACT_ERROR_MAP)) {
     if (rawMessage.includes(key)) {
-      return new CLIError(
-        mapped.message,
-        "CONTRACT",
-        mapped.hint,
-        mapped.code,
-        mapped.retryable ?? false,
-        undefined,
-        undefined,
-        mapped.docsSlug,
-      );
+      return createRegisteredCliError({
+        message: mapped.message,
+        code: mapped.code,
+        hint: mapped.hint,
+        docsSlug: mapped.docsSlug,
+      });
     }
   }
 
@@ -564,71 +620,56 @@ export function classifyError(error: unknown): CLIError {
   if (hasCode(error)) {
     const code = (error as { code: string }).code;
     if (code === "MERKLE_ERROR") {
-      return new CLIError(
-        "Pool Account not found in the Merkle tree.",
-        "PROOF",
-        "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync --chain <chain>' and retry.",
-        "PROOF_MERKLE_ERROR",
-        true,
-        undefined,
-        undefined,
-        "reference/sync#sync",
-      );
+      return createRegisteredCliError({
+        message: "Pool Account not found in the Merkle tree.",
+        code: "PROOF_MERKLE_ERROR",
+        hint:
+          "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync --chain <chain>' and retry.",
+        docsSlug: "reference/sync#sync",
+      });
     }
     if (code === "PROOF_GENERATION_FAILED") {
-      return new CLIError(
-        "Proof generation failed.",
-        "PROOF",
-        "Run 'privacy-pools sync' to refresh local state and retry. If it persists, verify you are using the correct recovery phrase and that the Pool Account has not already been spent.",
-        "PROOF_GENERATION_FAILED",
-        false,
-        undefined,
-        undefined,
-        "guide/troubleshooting",
-      );
+      return createRegisteredCliError({
+        message: "Proof generation failed.",
+        code: "PROOF_GENERATION_FAILED",
+        hint:
+          "Run 'privacy-pools sync' to refresh local state and retry. If it persists, verify you are using the correct recovery phrase and that the Pool Account has not already been spent.",
+        docsSlug: "guide/troubleshooting",
+      });
     }
     if (code === "PROOF_VERIFICATION_FAILED") {
-      return new CLIError(
-        "Proof verification failed.",
-        "PROOF",
-        "Run 'privacy-pools sync' to refresh local state and retry. If it persists, reinstall the CLI to refresh the bundled circuit artifacts.",
-        "PROOF_VERIFICATION_FAILED",
-        false,
-        undefined,
-        undefined,
-        "guide/troubleshooting",
-      );
+      return createRegisteredCliError({
+        message: "Proof verification failed.",
+        code: "PROOF_VERIFICATION_FAILED",
+        hint:
+          "Run 'privacy-pools sync' to refresh local state and retry. If it persists, reinstall the CLI to refresh the bundled circuit artifacts.",
+        docsSlug: "guide/troubleshooting",
+      });
     }
   }
 
   // Network/RPC errors
   if (rawMessage.includes("timeout")) {
-    return new CLIError(
-      `Network error: ${message}`,
-      "RPC",
-      "Check your RPC URL and network connectivity. If the request is timing out, try --timeout <seconds>.",
-      "RPC_NETWORK_ERROR",
-      true,
-      undefined,
-      undefined,
-      "guide/troubleshooting",
-    );
+    return createRegisteredCliError({
+      message: `Network error: ${message}`,
+      code: "RPC_NETWORK_ERROR",
+      hint:
+        "Check your RPC URL and network connectivity. If the request is timing out, try --timeout <seconds>.",
+      docsSlug: "guide/troubleshooting",
+    });
   }
 
   if (
     rawMessage.includes("429") ||
     rawMessage.toLowerCase().includes("rate limit")
   ) {
-    return new CLIError(
-      `RPC rate-limited: ${message}`,
-      "RPC",
-      "Your RPC provider is rate-limiting requests. Wait a moment and retry, or use a dedicated RPC URL with --rpc-url.",
-      "RPC_RATE_LIMITED",
-      true,
-      undefined,
-      undefined,
-      "guide/troubleshooting",
-    );
+    return createRegisteredCliError({
+      message: `RPC rate-limited: ${message}`,
+      code: "RPC_RATE_LIMITED",
+      hint:
+        "Your RPC provider is rate-limiting requests. Wait a moment and retry, or use a dedicated RPC URL with --rpc-url.",
+      docsSlug: "guide/troubleshooting",
+    });
   }
 
   // Catch-all for transient transport failures (ECONNREFUSED, ENOTFOUND,
@@ -639,16 +680,13 @@ export function classifyError(error: unknown): CLIError {
     isTransientNetworkError(error) ||
     /fetch|ECONNREFUSED|ENOTFOUND|ENETUNREACH|EAI_AGAIN/.test(rawMessage)
   ) {
-    return new CLIError(
-      `Network error: ${message}`,
-      "RPC",
-      "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable.",
-      "RPC_NETWORK_ERROR",
-      true,
-      undefined,
-      undefined,
-      "guide/troubleshooting",
-    );
+    return createRegisteredCliError({
+      message: `Network error: ${message}`,
+      code: "RPC_NETWORK_ERROR",
+      hint:
+        "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable.",
+      docsSlug: "guide/troubleshooting",
+    });
   }
 
   // Insufficient gas / funds from transaction simulation
@@ -656,16 +694,13 @@ export function classifyError(error: unknown): CLIError {
     rawMessage.includes("insufficient funds") ||
     rawMessage.includes("exceeds the balance")
   ) {
-    return new CLIError(
-      "Insufficient balance.",
-      "CONTRACT",
-      "Your wallet does not have enough ETH to cover the deposit amount plus gas fees. Check your signer wallet balance in a block explorer or wallet app, then fund it before retrying.",
-      "CONTRACT_INSUFFICIENT_FUNDS",
-      false,
-      undefined,
-      undefined,
-      "guide/troubleshooting",
-    );
+    return createRegisteredCliError({
+      message: "Insufficient balance.",
+      code: "CONTRACT_INSUFFICIENT_FUNDS",
+      hint:
+        "Your wallet does not have enough ETH to cover the deposit amount plus gas fees. Check your signer wallet balance in a block explorer or wallet app, then fund it before retrying.",
+      docsSlug: "guide/troubleshooting",
+    });
   }
 
   // Nonce errors (concurrent transactions or stuck tx)
@@ -673,28 +708,21 @@ export function classifyError(error: unknown): CLIError {
     rawMessage.includes("nonce") &&
     (rawMessage.includes("too low") || rawMessage.includes("already known"))
   ) {
-    return new CLIError(
-      `Transaction nonce conflict: ${message}`,
-      "CONTRACT",
-      "A previous transaction may be pending. Wait for it to confirm or use a wallet management tool to resolve stuck transactions.",
-      "CONTRACT_NONCE_ERROR",
-      true,
-      undefined,
-      undefined,
-      "guide/troubleshooting",
-    );
+    return createRegisteredCliError({
+      message: `Transaction nonce conflict: ${message}`,
+      code: "CONTRACT_NONCE_ERROR",
+      hint:
+        "A previous transaction may be pending. Wait for it to confirm or use a wallet management tool to resolve stuck transactions.",
+      docsSlug: "guide/troubleshooting",
+    });
   }
 
-  return new CLIError(
+  return createRegisteredCliError({
     message,
-    "UNKNOWN",
-    `Try 'privacy-pools sync' to refresh local state, then retry. ${repositoryIssueHint()}`,
-    undefined,
-    false,
-    undefined,
-    undefined,
-    "guide/troubleshooting",
-  );
+    code: "UNKNOWN_ERROR",
+    hint: `Try 'privacy-pools sync' to refresh local state, then retry. ${repositoryIssueHint()}`,
+    docsSlug: "guide/troubleshooting",
+  });
 }
 
 function hasCode(error: unknown): boolean {

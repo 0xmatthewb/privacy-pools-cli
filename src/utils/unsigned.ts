@@ -1,5 +1,5 @@
 import type { Address, Hex } from "viem";
-import { CLIError } from "./errors.js";
+import { proofMalformedError } from "./errors.js";
 
 type BigNumberish = bigint | number | string;
 
@@ -7,12 +7,7 @@ function toBigIntValue(value: BigNumberish, label: string): bigint {
   try {
     return BigInt(value);
   } catch {
-    throw new CLIError(
-      `Malformed proof field: ${label}.`,
-      "PROOF",
-      "Regenerate the proof and retry.",
-      "PROOF_MALFORMED"
-    );
+    throw proofMalformedError(`Malformed proof field: ${label}.`);
   }
 }
 
@@ -90,11 +85,8 @@ export function toSolidityProof(raw: Groth16Like): SolidityProof {
     !Array.isArray((proof as Record<string, unknown>).pi_b) ||
     !Array.isArray((proof as Record<string, unknown>).pi_c)
   ) {
-    throw new CLIError(
+    throw proofMalformedError(
       "Malformed proof structure: expected proof with pi_a, pi_b, and pi_c arrays.",
-      "PROOF",
-      "Regenerate the proof and retry.",
-      "PROOF_MALFORMED"
     );
   }
 
@@ -105,11 +97,8 @@ export function toSolidityProof(raw: Groth16Like): SolidityProof {
   };
 
   if (pi_a.length < 2) {
-    throw new CLIError(
+    throw proofMalformedError(
       "Malformed proof structure: pi_a requires at least 2 elements.",
-      "PROOF",
-      "Regenerate the proof and retry.",
-      "PROOF_MALFORMED"
     );
   }
 
@@ -118,30 +107,21 @@ export function toSolidityProof(raw: Groth16Like): SolidityProof {
     !Array.isArray(pi_b[0]) || (pi_b[0] as unknown[]).length < 2 ||
     !Array.isArray(pi_b[1]) || (pi_b[1] as unknown[]).length < 2
   ) {
-    throw new CLIError(
+    throw proofMalformedError(
       "Malformed proof structure: pi_b requires at least 2 pairs of 2 elements.",
-      "PROOF",
-      "Regenerate the proof and retry.",
-      "PROOF_MALFORMED"
     );
   }
 
   if (pi_c.length < 2) {
-    throw new CLIError(
+    throw proofMalformedError(
       "Malformed proof structure: pi_c requires at least 2 elements.",
-      "PROOF",
-      "Regenerate the proof and retry.",
-      "PROOF_MALFORMED"
     );
   }
 
   const pubSignals = (raw as unknown as Record<string, unknown>)?.publicSignals;
   if (!Array.isArray(pubSignals)) {
-    throw new CLIError(
+    throw proofMalformedError(
       "Malformed proof structure: expected publicSignals array.",
-      "PROOF",
-      "Regenerate the proof and retry.",
-      "PROOF_MALFORMED"
     );
   }
 
@@ -177,11 +157,8 @@ function requirePublicSignals(
   label: string,
 ): bigint[] {
   if (proof.pubSignals.length !== expectedLength) {
-    throw new CLIError(
+    throw proofMalformedError(
       `Malformed proof structure: expected ${expectedLength} public signals for ${label}.`,
-      "PROOF",
-      "Regenerate the proof and retry.",
-      "PROOF_MALFORMED"
     );
   }
 

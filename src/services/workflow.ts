@@ -217,18 +217,21 @@ const SUPPORTED_WORKFLOW_SECRET_RECORD_VERSIONS = new Set<string>([
   ...LEGACY_WORKFLOW_SECRET_RECORD_VERSIONS,
 ]);
 
-export type FlowPhase =
-  | "awaiting_funding"
-  | "depositing_publicly"
-  | "awaiting_asp"
-  | "approved_waiting_privacy_delay"
-  | "approved_ready_to_withdraw"
-  | "withdrawing"
-  | "completed"
-  | "completed_public_recovery"
-  | "paused_poa_required"
-  | "paused_declined"
-  | "stopped_external";
+export const FLOW_PHASE_VALUES = [
+  "awaiting_funding",
+  "depositing_publicly",
+  "awaiting_asp",
+  "approved_waiting_privacy_delay",
+  "approved_ready_to_withdraw",
+  "withdrawing",
+  "completed",
+  "completed_public_recovery",
+  "paused_poa_required",
+  "paused_declined",
+  "stopped_external",
+] as const;
+
+export type FlowPhase = (typeof FLOW_PHASE_VALUES)[number];
 
 export type FlowWalletMode = "configured" | "new_wallet";
 export type FlowPendingSubmission = "withdraw" | "ragequit";

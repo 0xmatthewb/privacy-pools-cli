@@ -72,6 +72,7 @@ import {
   formatRemainingTime,
 } from "../utils/format.js";
 import {
+  accountNotApprovedError,
   printError,
   CLIError,
   promptCancelledError,
@@ -1603,15 +1604,13 @@ export async function handleWithdrawCommand(
             silent,
           });
         }
-        throw new CLIError(
+        throw accountNotApprovedError(
           "No eligible Pool Account is currently approved for withdrawal.",
-          "INPUT",
           formatApprovalResolutionHint({
             chainName: chainConfig.name,
             assetSymbol: pool.symbol,
             status: singularStatus,
           }),
-          "ACCOUNT_NOT_APPROVED",
         );
       }
 
@@ -1665,9 +1664,8 @@ export async function handleWithdrawCommand(
               silent,
             });
           }
-          throw new CLIError(
+          throw accountNotApprovedError(
             `${requested.paId} is not currently approved for withdrawal.`,
-            "INPUT",
             formatApprovalResolutionHint({
               chainName: chainConfig.name,
               assetSymbol: pool.symbol,
@@ -1680,7 +1678,6 @@ export async function handleWithdrawCommand(
                   ? requested.status
                   : undefined,
             }),
-            "ACCOUNT_NOT_APPROVED",
           );
         }
 

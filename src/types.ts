@@ -156,12 +156,16 @@ export type CommandGroup =
   | "transaction"
   | "monitoring"
   | "advanced";
+export const COMMAND_SIDE_EFFECT_CLASS_VALUES = [
+  "read_only",
+  "local_cache_write",
+  "local_state_write",
+  "network_write",
+  "fund_movement",
+] as const;
+
 export type CommandSideEffectClass =
-  | "read_only"
-  | "local_cache_write"
-  | "local_state_write"
-  | "network_write"
-  | "fund_movement";
+  (typeof COMMAND_SIDE_EFFECT_CLASS_VALUES)[number];
 
 export interface CommandExecutionDescriptor {
   owner: CommandExecutionOwner;

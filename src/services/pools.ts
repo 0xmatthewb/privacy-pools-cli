@@ -10,7 +10,11 @@ import {
   type ReadOnlyRpcSession,
 } from "./sdk.js";
 import { hasCustomRpcOverride } from "./config.js";
-import { CLIError, sanitizeEndpointForDisplay } from "../utils/errors.js";
+import {
+  CLIError,
+  rpcPoolResolutionFailedError,
+  sanitizeEndpointForDisplay,
+} from "../utils/errors.js";
 import { didYouMean } from "../utils/fuzzy.js";
 import {
   elapsedRuntimeMs,
@@ -340,12 +344,8 @@ async function resolveTokenMetadataResult(
       };
     }
 
-    throw new CLIError(
+    throw rpcPoolResolutionFailedError(
       `Failed to resolve ERC-20 metadata for ${assetAddress} on ${publicClient.chain?.name ?? `chain ${publicClient.chain?.id ?? "unknown"}`}.`,
-      "RPC",
-      "Check your RPC URL and network connectivity, then retry.",
-      "RPC_POOL_RESOLUTION_FAILED",
-      true,
     );
   }
 }
@@ -778,12 +778,8 @@ export async function listPools(
         elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
         outcome: "rpc-error",
       });
-      throw new CLIError(
+      throw rpcPoolResolutionFailedError(
         `Failed to resolve pools on ${chainConfig.name} due to RPC errors.`,
-        "RPC",
-        "Check your RPC URL and network connectivity, then retry.",
-        "RPC_POOL_RESOLUTION_FAILED",
-        true
       );
     }
   }
@@ -817,12 +813,8 @@ async function resolveKnownPoolAddress(
       options,
     );
   } catch {
-    throw new CLIError(
+    throw rpcPoolResolutionFailedError(
       `Built-in pool fallback also failed for "${assetInput}" on ${chainConfig.name}.`,
-      "RPC",
-      "Check your RPC URL and network connectivity, then retry.",
-      "RPC_POOL_RESOLUTION_FAILED",
-      true
     );
   }
 }
@@ -913,12 +905,8 @@ export async function resolvePool(
         outcome: isRpcLikeError(error) ? "rpc-error" : "input-error",
       });
       if (isRpcLikeError(error)) {
-        throw new CLIError(
+        throw rpcPoolResolutionFailedError(
           `Failed to resolve pool for ${assetInput} on ${chainConfig.name} due to RPC error.`,
-          "RPC",
-          "Check your RPC URL and network connectivity, then retry.",
-          "RPC_POOL_RESOLUTION_FAILED",
-          true
         );
       }
       throw new CLIError(
