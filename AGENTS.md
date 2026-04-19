@@ -30,17 +30,20 @@ privacy-pools status --agent
 privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
 privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
 privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
-privacy-pools flow watch latest --agent
+privacy-pools flow status latest --agent
+privacy-pools flow step latest --agent
 privacy-pools flow ragequit latest --agent    # saved-workflow public recovery if declined, relayer-blocked, or you intentionally choose the public path
 
 # Manual workflow
 privacy-pools simulate deposit 0.1 ETH --agent                  # same JSON as deposit --dry-run; preview-only
-privacy-pools deposit 0.1 ETH --agent
+privacy-pools deposit 0.1 ETH --agent --no-wait
+privacy-pools tx-status <submissionId> --agent                  # poll until the deposit transaction confirms
 privacy-pools accounts --agent --chain mainnet --pending-only   # poll while the deposit remains pending; preserve the same --chain on other networks
 privacy-pools accounts --agent --chain mainnet                  # once pending disappears, confirm approved vs declined vs poa_required
 privacy-pools migrate status --agent --include-testnets               # read-only legacy migration or recovery check on CLI-supported chains
-privacy-pools withdraw --all ETH --to 0xRecipient --agent
-privacy-pools broadcast ./signed-envelope.json --agent          # optional inverse for full-envelope offline signing flows
+privacy-pools withdraw --all ETH --to 0xRecipient --agent --no-wait
+privacy-pools tx-status <submissionId> --agent                  # poll until the withdrawal confirms
+privacy-pools broadcast ./signed-envelope.json --agent --no-wait   # optional inverse for full-envelope offline signing flows
 ```
 
 ## Distribution
@@ -98,11 +101,16 @@ Each `nextActions` entry carries a `when` field from the `NextActionWhen` discri
 | --- | --- |
 | `after_init` | After successful initialization (new wallet or restore) |
 | `after_restore` | After importing an existing recovery phrase |
+| `after_submit` | After a write command returns immediately with `status: "submitted"` |
 | `after_deposit` | After a deposit transaction is confirmed onchain |
 | `after_dry_run` | After a successful dry-run validation (no tx submitted) |
 | `after_quote` | After a relayed withdrawal fee quote is returned |
 | `after_withdraw` | After a withdrawal is finalized onchain |
 | `after_ragequit` | After a public recovery (ragequit) is confirmed |
+| `after_guide` | After viewing a guide topic or the guide index |
+| `after_describe` | After viewing command metadata or an envelope schema path |
+| `after_capabilities` | After viewing the runtime capabilities manifest |
+| `after_completion` | After viewing or installing shell completion output |
 | `has_pending` | When pending deposits exist that need ASP review monitoring |
 | `status_not_ready` | When status detects setup is incomplete (no init) |
 | `status_unsigned_no_accounts` | Status shows unsigned-only mode, no accounts yet |
@@ -130,7 +138,7 @@ Each `nextActions` entry carries a `when` field from the `NextActionWhen` discri
 | `flow_manual_followup` | Flow requires a manual agent action to continue |
 | `flow_public_recovery_pending` | Flow public recovery (ragequit) is in progress |
 | `flow_public_recovery_required` | Flow must use public recovery (e.g., below relayer minimum) |
-| `flow_resume` | Saved flow can be resumed with `flow watch` |
+| `flow_resume` | Saved flow can be resumed with `flow status` + `flow step` in agent mode, or `flow watch` in human mode |
 | `flow_public_recovery_optional` | Public recovery is available as an alternative path |
 | `flow_declined` | Flow deposit was declined by the ASP |
 
@@ -213,6 +221,9 @@ Every JSON response wraps command-specific data in a standard envelope:
   "schemaVersion": "2.0.0",
   "success": true,
   "operation": "deposit",
+  "status": "submitted | confirmed",
+  "submissionId": "123e4567-e89b-12d3-a456-426614174000 | absent",
+  "workflowId": "123e4567-e89b-12d3-a456-426614174001",
   "txHash": "0x...",
   "amount": "100000000000000000",
   "committedValue": "99500000000000000 | null",
@@ -223,7 +234,7 @@ Every JSON response wraps command-specific data in a standard envelope:
   "poolAddress": "0x...",
   "scope": "123...",
   "label": "456... | null",
-  "blockNumber": "12345678",
+  "blockNumber": "12345678 | null",
   "explorerUrl": "https://etherscan.io/tx/0x...",
   "warnings": "[{ code, category, message }] | absent",
   "nextActions": [...]
@@ -237,9 +248,11 @@ Every JSON response wraps command-specific data in a standard envelope:
   "schemaVersion": "2.0.0",
   "success": true,
   "operation": "withdraw",
+  "status": "submitted | confirmed",
+  "submissionId": "123e4567-e89b-12d3-a456-426614174000 | absent",
   "mode": "relayed",
   "txHash": "0x...",
-  "blockNumber": "12345678",
+  "blockNumber": "12345678 | null",
   "amount": "99500000000000000",
   "recipient": "0x...",
   "explorerUrl": "https://etherscan.io/tx/0x...",
@@ -265,6 +278,8 @@ Every JSON response wraps command-specific data in a standard envelope:
   "schemaVersion": "2.0.0",
   "success": true,
   "operation": "ragequit",
+  "status": "submitted | confirmed",
+  "submissionId": "123e4567-e89b-12d3-a456-426614174000 | absent",
   "txHash": "0x...",
   "amount": "99500000000000000",
   "asset": "ETH",
@@ -273,11 +288,50 @@ Every JSON response wraps command-specific data in a standard envelope:
   "poolAccountId": "PA-1",
   "poolAddress": "0x...",
   "scope": "123...",
-  "blockNumber": "12345678",
+  "blockNumber": "12345678 | null",
   "explorerUrl": "https://etherscan.io/tx/0x...",
   "destinationAddress": "0x... | absent",
   "remainingBalance": "0",
   "warnings": "[{ code, category, message }] | absent",
+  "nextActions": [...]
+}
+```
+
+**`tx-status` (success):**
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "operation": "tx-status",
+  "submissionId": "123e4567-e89b-12d3-a456-426614174000",
+  "sourceOperation": "deposit | withdraw | ragequit | broadcast",
+  "sourceCommand": "deposit | withdraw | ragequit | broadcast",
+  "chain": "mainnet",
+  "asset": "ETH | absent",
+  "poolAccountId": "PA-1 | absent",
+  "poolAccountNumber": 1,
+  "workflowId": "123e4567-e89b-12d3-a456-426614174001 | absent",
+  "recipient": "0x... | absent",
+  "broadcastMode": "onchain | relayed | absent",
+  "broadcastSourceOperation": "deposit | withdraw | ragequit | absent",
+  "createdAt": "2026-04-18T12:00:00.000Z",
+  "updatedAt": "2026-04-18T12:00:15.000Z",
+  "status": "submitted | confirmed | reverted",
+  "reconciliationRequired": false,
+  "localStateSynced": true,
+  "warningCode": "string | absent",
+  "lastError": "{ step, errorCode, errorMessage, retryable } | absent",
+  "transactions": [
+    {
+      "index": 0,
+      "description": "Deposit ETH into Privacy Pool",
+      "txHash": "0x...",
+      "explorerUrl": "https://etherscan.io/tx/0x...",
+      "blockNumber": "12345678 | null",
+      "status": "submitted | confirmed | reverted"
+    }
+  ],
   "nextActions": [...]
 }
 ```
@@ -391,7 +445,8 @@ Every JSON response wraps command-specific data in a standard envelope:
     "category": "RPC",
     "message": "Network error: ...",
     "hint": "Check your RPC URL and network connectivity.",
-    "retryable": true
+    "retryable": true,
+    "nextActions": "[{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] | absent"
   }
 }
 ```
@@ -554,6 +609,8 @@ JSON payload: `{ mode: "upgrade", status, currentVersion, latestVersion, updateA
 
 `upgrade` checks npm for the latest published `privacy-pools-cli` release. Automatic upgrade is supported only for recognized global npm installs. Source checkouts, non-npm global installs, local project installs, `npx`-style ephemeral runs, CI, and other ambiguous contexts never mutate; they return manual guidance plus an exact follow-up npm command. In machine modes, `upgrade` stays check-only unless `--yes` is also present. A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process, so rerun `privacy-pools` after it completes.
 
+When `status = "manual"`, the JSON payload includes `externalGuidance: { kind, message, command? }` instead of `nextActions` so agents do not loop on a CLI command that cannot complete the upgrade automatically.
+
 #### `capabilities`
 
 Machine-readable discovery manifest.
@@ -584,6 +641,63 @@ privacy-pools describe stats global --agent
 ```
 
 JSON payload: `{ mode: "describe-index", commands: [{ command, description, group }] }` when no command path is provided; `{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }` for `describe <command...>`; or `{ path, schema }` for `describe envelope.<path>`.
+
+#### `guide`
+
+Built-in guide topics for agents and humans.
+
+```bash
+privacy-pools guide --agent
+privacy-pools guide next-actions --agent
+privacy-pools guide agents --agent
+```
+
+JSON payload: `{ mode: "help", topic?, topics: [{ name, description }], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+#### `config`
+
+Inspect or modify local CLI configuration without re-running `init`.
+
+```bash
+privacy-pools config list --agent
+privacy-pools config get default-chain --agent
+privacy-pools config set default-chain arbitrum --agent
+privacy-pools config path --agent
+privacy-pools config profile list --agent
+privacy-pools config profile use trading --agent
+```
+
+Representative JSON payloads:
+
+- `config list`: `{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir, nextActions?: [...] }`
+- `config get`: `{ key, value?, set, redacted?, nextActions?: [...] }`
+- `config set` / `config unset`: `{ key, updated, changed, removed, summary, nextActions?: [...] }`
+- `config path`: `{ configDir, nextActions?: [...] }`
+- `config profile list`: `{ profiles, active, nextActions?: [...] }`
+- `config profile create`: `{ profile, created, profileDir, nextActions?: [...] }`
+- `config profile active`: `{ profile, configDir, nextActions?: [...] }`
+- `config profile use`: `{ profile, active, configDir, nextActions?: [...] }`
+
+#### `completion`
+
+Generate or install shell completion.
+
+```bash
+privacy-pools completion zsh --agent
+privacy-pools completion --install --agent
+```
+
+JSON payload: `{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, bootstrapProfilePath?, bootstrapProfileCreated?, bootstrapProfileUpdated?, reloadHint?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+#### `tx-status`
+
+Read-only polling surface for commands that returned immediately with `--no-wait`.
+
+```bash
+privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent
+```
+
+JSON payload: `{ operation: "tx-status", submissionId, sourceOperation, sourceCommand, chain, asset?, poolAccountId?, poolAccountNumber?, workflowId?, recipient?, broadcastMode?, broadcastSourceOperation?, createdAt, updatedAt, status: "submitted" | "confirmed" | "reverted", reconciliationRequired, localStateSynced, warningCode?, lastError?, transactions: [{ index, description, txHash, explorerUrl, blockNumber, status }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 ### Wallet Required
 
@@ -631,13 +745,13 @@ Persisted easy-path workflow that compresses the normal deposit -> ASP review ->
 privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
 privacy-pools flow start 0.1 ETH --to 0xRecipient --dry-run --agent
 privacy-pools flow start 0.1 ETH --to 0xRecipient --privacy-delay off --agent
-privacy-pools flow start 0.1 ETH --to 0xRecipient --watch --agent
 privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet --export-new-wallet ./flow-wallet.txt --agent
-privacy-pools flow watch latest --agent
-privacy-pools flow watch latest --stream-json --agent
-privacy-pools flow watch latest --privacy-delay aggressive --agent   # updates the saved privacy-delay policy
 privacy-pools flow status latest --agent
+privacy-pools flow step latest --agent
 privacy-pools flow ragequit latest --agent
+privacy-pools flow watch latest                        # human-only wrapper over status + step
+privacy-pools flow watch latest --stream-json         # human-only NDJSON phase changes
+privacy-pools flow watch latest --privacy-delay aggressive   # updates the saved privacy-delay policy
 ```
 
 `flow start` performs the public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient. The saved workflow always withdraws the full remaining balance of that same Pool Account at execution time.
@@ -646,7 +760,7 @@ Creating or advancing a saved flow requires `init`. `flow status` is read-only a
 
 Like `deposit`, `flow start` rejects non-round amounts in machine modes because unique amounts can fingerprint the deposit. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that privacy tradeoff. In interactive mode, omitting `--to` prompts for the saved recipient. A round input can still become a non-round committed balance after the ASP vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.
 
-New workflows default to a balanced post-approval privacy delay before the relayed withdrawal. `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `aggressive` randomizes the hold between 2 and 12 hours. Flow JSON includes `privacyDelayRandom` and `privacyDelayRangeSeconds`; the ranges are `[0, 0]` for `off`, `[900, 5400]` for `balanced`, and `[7200, 43200]` for `aggressive`. Pass `--privacy-delay off|balanced|aggressive` to `flow start`, or to `flow watch` to update the saved policy later.
+New workflows default to a balanced post-approval privacy delay before the relayed withdrawal. `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `aggressive` randomizes the hold between 2 and 12 hours. Flow JSON includes `privacyDelayRandom` and `privacyDelayRangeSeconds`; the ranges are `[0, 0]` for `off`, `[900, 5400]` for `balanced`, and `[7200, 43200]` for `aggressive`. Pass `--privacy-delay off|balanced|aggressive` to `flow start`, or to human `flow watch`, to update the saved policy later.
 
 With `--new-wallet`, the CLI generates a dedicated workflow wallet for that one flow. ETH workflows wait for the full ETH target. ERC20 workflows wait for both the token amount and a native ETH gas reserve in the same wallet. In non-interactive mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow begins.
 
@@ -654,11 +768,20 @@ Saved flows persist local state under `~/.privacy-pools/workflows/`. `flow --new
 
 The saved workflow spends the full remaining Pool Account balance. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.
 
-`flow watch` re-checks the saved workflow and advances it using the same real branches as the frontend and protocol. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation. Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`. Deposit review state from the ASP (the approval service) remains available separately in `aspStatus`. When the Pool Account is approved, `flow watch` either waits through the saved privacy-delay window or performs the relayed private withdrawal automatically after approval and any configured privacy delay. Passing `flow watch --privacy-delay ...` updates the saved workflow policy persistently: `off` clears any saved hold immediately, and switching between `balanced` and `aggressive` resamples from the override time. Pass `--stream-json` to emit line-delimited `phase_change` events as the workflow advances, followed by the final snapshot as the last JSON line. If the workflow is `declined`, it pauses and surfaces `flow ragequit` as the canonical public recovery path. If it is `poa_required`, complete Proof of Association externally to continue privately, or use `flow ragequit` to recover publicly instead. If the saved full-balance withdrawal falls below the relayer minimum, `flow watch` surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextActions` path while the workflow is still progressing normally. `flow watch` is intentionally unbounded; agents that need a wall-clock limit should wrap it in their own external timeout.
+For agents, the canonical primitives are:
+
+- `flow status <workflowId|latest> --agent`: read-only snapshot with `workflowKind`, `phase`, `privacyDelayUntil?`, `lastError?`, `nextPollAfter`, and `nextActions`.
+- `flow step <workflowId|latest> --agent`: advance at most one saved-workflow step and return the new snapshot. When nothing actionable is available, it returns the current snapshot unchanged instead of waiting.
+
+`flow watch` remains available for humans only. It is a thin wrapper over repeated `flow status` + `flow step`; `flow watch --agent` and `flow start --watch --agent` are rejected with machine-readable `CLIError`s pointing agents back to `flow status` and `flow step`.
+
+Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`. Deposit review state from the ASP (the approval service) remains available separately in `aspStatus`. When the Pool Account is approved, human `flow watch` either waits through the saved privacy-delay window or performs the relayed private withdrawal automatically after approval and any configured privacy delay. Passing human `flow watch --privacy-delay ...` updates the saved workflow policy persistently: `off` clears any saved hold immediately, and switching between `balanced` and `aggressive` resamples from the override time. Pass `--stream-json` to human `flow watch` to emit line-delimited `phase_change` events as the workflow advances, followed by the final snapshot as the last JSON line.
+
+If the workflow is `declined`, it pauses and surfaces `flow ragequit` as the canonical public recovery path. If it is `poa_required`, complete Proof of Association externally to continue privately, or use `flow ragequit` to recover publicly instead. If the saved full-balance withdrawal falls below the relayer minimum, the workflow surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextActions` path while the workflow is still progressing normally.
 
 `flow ragequit` performs the public recovery path for a saved workflow. Once the public deposit exists, it remains available as an optional public recovery path until the workflow reaches a terminal state. If the saved full-balance withdrawal can no longer satisfy the relayer minimum, it becomes the required recovery path because the saved flow only supports relayed private withdrawal. For `walletMode = "new_wallet"` it uses the stored workflow wallet key. For `walletMode = "configured"` it must use the original depositor signer that created the saved workflow.
 
-JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "ragequit", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, warnings?: [{ code, category: "privacy"|"recipient", message }], withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "step" | "ragequit", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, warnings?: [{ code, category: "privacy"|"recipient", message }], withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 `flow start --dry-run` validates amount, pool metadata, recipient safety, wallet mode, and privacy-delay policy without saving a workflow, generating workflow secrets, writing export files, approving tokens, or submitting a deposit. In non-interactive mode, `--new-wallet --dry-run` also requires `--export-new-wallet <path>` so the equivalent real command's backup path is validated, but the dry-run does not write that file. Dry-run JSON is `{ mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }`.
 
@@ -687,7 +810,7 @@ The `phase` field in the flow JSON payload tracks the workflow through the follo
               |                |                |
               v                v                v
   +-----------+---+  +---------+-------+  +----+--------------+
-  |paused_declined|  |paused_poi_      |  |approved_waiting_  |
+  |paused_declined|  |paused_poa_      |  |approved_waiting_  |
   |               |  |required         |  |privacy_delay      |
   +-------+-------+  +--------+--------+  +--------+----------+
           |                    |                    |
@@ -729,9 +852,22 @@ The `phase` field in the flow JSON payload tracks the workflow through the follo
 **Pause and recovery paths:**
 
 - `paused_declined` -> `flow ragequit` -> `completed_public_recovery`
-- `paused_poa_required` -> complete PoA externally, then `flow watch` resumes, OR `flow ragequit` -> `completed_public_recovery`
+- `paused_poa_required` -> complete PoA externally, then `flow status` / `flow step` resumes in agent mode or `flow watch` resumes in human mode, OR `flow ragequit` -> `completed_public_recovery`
 - Any non-terminal phase -> `flow ragequit` (optional manual public recovery) -> `completed_public_recovery`
 - Any non-terminal phase -> external spend detected -> `stopped_external`
+
+#### `flow step`
+
+Advance a saved workflow by at most one actionable step without waiting. This is the canonical agent-side mutating primitive for saved workflows.
+
+```bash
+privacy-pools flow step latest --agent
+privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000 --agent
+```
+
+`flow step` never sleeps, polls, or retries internally. It either performs one saved-workflow mutation (for example submitting the public deposit, refreshing approval state once, or submitting the relayed withdrawal once) or returns the current snapshot unchanged when no action is available yet. Pair it with `flow status` for external orchestration.
+
+JSON payload: `{ mode: "flow", action: "step", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, warnings?: [{ code, category: "privacy"|"recipient", message }], withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 #### `deposit`
 
@@ -840,7 +976,7 @@ privacy-pools migrate status --agent --chain mainnet
 
 Without `--chain`, `migrate status` checks all CLI-supported mainnet chains by default. Use `--include-testnets` to include supported testnets. Like other multi-chain read-only commands, `--rpc-url` is only valid with `--chain <name>`. Review beta or other website-only migration surfaces in the Privacy Pools website.
 
-JSON payload: `{ mode: "migration-status", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }] }`
+JSON payload: `{ mode: "migration-status", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }], externalGuidance?: { kind, message, url }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 When `readinessResolved` is `false`, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.
 
@@ -852,7 +988,7 @@ Chronological event history.
 privacy-pools history --agent --limit 50
 ```
 
-JSON payload: `{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }] }`
+JSON payload: `{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 `type` is `"deposit"`, `"migration"`, `"withdrawal"`, or `"ragequit"`.
 
@@ -1060,7 +1196,7 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `ACCOUNT_MIGRATION_REQUIRED` | INPUT | No | Legacy pre-upgrade account must be migrated in the website first |
 | `ACCOUNT_WEBSITE_RECOVERY_REQUIRED` | INPUT | No | Legacy declined deposits require website-based recovery first |
 | `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | Legacy ASP review data is incomplete; retry when ASP is healthy |
-| `ACCOUNT_NOT_APPROVED` | ASP | No | Deposit is not approved; may be pending, require PoA, or be declined |
+| `ACCOUNT_NOT_APPROVED` | INPUT | No | Deposit is not approved; may be pending, require PoA, or be declined |
 | `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error; try `sync` and retry, or report the issue |
 
 ### Exit codes
@@ -1071,10 +1207,11 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | 1    | Unknown  |
 | 2    | Input    |
 | 3    | RPC      |
-| 4    | ASP      |
+| 4    | Setup    |
 | 5    | Relayer  |
 | 6    | Proof    |
 | 7    | Contract |
+| 8    | ASP      |
 
 ### Retry strategy
 
@@ -1083,12 +1220,12 @@ When `retryable: true` is present in the error response:
 1. For `RPC_NETWORK_ERROR`, `RPC_RATE_LIMITED`, or `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
 2. For `CONTRACT_INCORRECT_ASP_ROOT`, `CONTRACT_UNKNOWN_STATE_ROOT`, or `PROOF_MERKLE_ERROR`: run `sync --agent` first, then retry the original command
 3. For `CONTRACT_NO_ROOTS_AVAILABLE`, `CONTRACT_NONCE_ERROR`, `CONTRACT_RELAY_FEE_GREATER_THAN_MAX`, or `CONTRACT_NOT_YET_RAGEQUITTEABLE`: wait 30-60s or request a fresh quote, then retry
+4. For `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
 
 When `retryable: false` (non-retryable):
 
-4. For `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
-5. For `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
-6. For `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
+5. For `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
+6. For `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
 7. For `ACCOUNT_NOT_APPROVED`: suggest running `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`, preserving the same chain scope used for the withdrawal attempt. If `aspStatus` is `pending`, continue polling. If it is `poa_required`, complete Proof of Association first. If it is `declined`, the recovery path is `privacy-pools ragequit <asset> --chain <chain> --pool-account <PA-#>`.
 
 ## Supported Chains

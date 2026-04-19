@@ -21,6 +21,7 @@ privacy-pools broadcast ./signed-envelope.json --validate-only --agent
 
 | Flag | Description |
 |------|-------------|
+| `--no-wait` | Return after submission instead of waiting for confirmation |
 | `--validate-only` | Validate the envelope and signature parity without submitting any transaction |
 
 **Safety:** broadcast validates each signed transaction against the original preview envelope before the first submission.
@@ -28,8 +29,9 @@ privacy-pools broadcast ./signed-envelope.json --validate-only --agent
 **Safety:** Relayed withdrawals require a non-expired quote and a relayerRequest that exactly matches the preview calldata.
 **Safety:** broadcast never signs and never mutates local account state.
 
-**JSON output:** `{ mode: "broadcast", broadcastMode: "onchain"|"relayed", sourceOperation: "deposit"|"withdraw"|"ragequit", chain, validatedOnly?: boolean, submittedBy?, transactions: [{ index, description, txHash: string|null, blockNumber: string|null, explorerUrl: string|null, status: "confirmed"|"validated" }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ mode: "broadcast", broadcastMode: "onchain"|"relayed", sourceOperation: "deposit"|"withdraw"|"ragequit", chain, validatedOnly?: boolean, submissionId?, submittedBy?, transactions: [{ index, description, txHash: string|null, blockNumber: string|null, explorerUrl: string|null, status: "submitted"|"confirmed"|"validated" }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly.`
 - `--validate-only: same envelope, but validatedOnly: true, transaction status = "validated", txHash/blockNumber/explorerUrl = null, and no nextActions because nothing was submitted.`
+- `--no-wait: submitted transactions return immediately with submissionId so tx-status can poll confirmation later.`

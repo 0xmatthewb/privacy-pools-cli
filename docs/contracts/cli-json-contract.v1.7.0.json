@@ -101,7 +101,7 @@
         "mode": "\"flow\"",
         "action": "\"start\"|\"watch\"|\"status\"|\"ragequit\"",
         "workflowId": "uuid-string",
-        "phase": "\"awaiting_funding\"|\"depositing_publicly\"|\"awaiting_asp\"|\"approved_waiting_privacy_delay\"|\"approved_ready_to_withdraw\"|\"withdrawing\"|\"completed\"|\"completed_public_recovery\"|\"paused_declined\"|\"paused_poi_required\"|\"stopped_external\"",
+        "phase": "\"awaiting_funding\"|\"depositing_publicly\"|\"awaiting_asp\"|\"approved_waiting_privacy_delay\"|\"approved_ready_to_withdraw\"|\"withdrawing\"|\"completed\"|\"completed_public_recovery\"|\"paused_declined\"|\"paused_poa_required\"|\"stopped_external\"",
         "walletMode": "\"configured\"|\"new_wallet\"",
         "walletAddress": "0x-prefixed-address|null",
         "requiredNativeFunding": "decimal-string-wei|null",

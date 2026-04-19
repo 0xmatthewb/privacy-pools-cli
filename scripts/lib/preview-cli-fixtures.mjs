@@ -1555,7 +1555,7 @@ function renderFlowPreview(caseId) {
         action: "watch",
         snapshot: createFlowSnapshot({
           workflowId: "wf-watch-poi-required",
-          phase: "paused_poi_required",
+          phase: "paused_poa_required",
           aspStatus: "poi_required",
           lastError: {
             step: "asp_review",

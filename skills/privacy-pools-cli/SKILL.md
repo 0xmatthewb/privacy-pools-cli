@@ -48,7 +48,8 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-recovery-phrase` | One-time setup |
 | Start easy flow | `privacy-pools flow start 0.1 ETH --to 0x... --agent` | Deposit now, save later private withdrawal |
 | Start easy flow (new wallet) | `privacy-pools flow start 100 USDC --to 0x... --new-wallet --export-new-wallet ./flow-wallet.txt --agent` | Generates a dedicated workflow wallet, stores it locally for the workflow, and exports a backup before waiting for token funding plus ETH gas |
-| Watch easy flow | `privacy-pools flow watch latest --agent` | Resume the saved workflow through funding, approval, privacy delay, and withdrawal |
+| Poll easy flow | `privacy-pools flow status latest --agent` | Read the saved workflow snapshot without mutating it |
+| Advance easy flow | `privacy-pools flow step latest --agent` | Advance at most one saved-workflow step |
 | Check easy flow | `privacy-pools flow status latest --agent` | Inspect the saved workflow snapshot |
 | Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined flow, a relayer-minimum-blocked flow, a PoA-paused flow, or any saved flow where the operator intentionally stops waiting |
 | Deposit ETH | `privacy-pools deposit 0.1 ETH --agent` | Requires init |
@@ -297,8 +298,9 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 2. privacy-pools status --agent --check                                 # Check setup and health
 3. privacy-pools init --agent --default-chain mainnet --show-recovery-phrase   # Initialize (once)
 4. privacy-pools flow start 0.1 ETH --to <addr> --agent                 # Easy path: deposit now, save later withdrawal
-5. privacy-pools flow watch latest --agent                              # Resume the saved workflow until it finishes or pauses
-6. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined, relayer-blocked, or you intentionally choose the public path
+5. privacy-pools flow status [workflowId|latest] --agent                # Poll the saved workflow snapshot
+6. privacy-pools flow step [workflowId|latest] --agent                  # Advance one saved-workflow step
+7. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined, relayer-blocked, or you intentionally choose the public path
 ```
 
 The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient after approval and any configured privacy delay. New workflows default to `balanced`, which randomizes the post-approval hold between 15 and 90 minutes. `off` means no added hold, and `aggressive` randomizes the hold between 2 and 12 hours. Passing `flow watch --privacy-delay ...` persistently updates the saved workflow policy: `off` clears any saved hold immediately, while switching between `balanced` and `aggressive` resamples from the override time. `flow watch` is intentionally unbounded and may intentionally remain in `approved_waiting_privacy_delay` for that window; if your automation needs a wall-clock limit, wrap it in an external timeout.
@@ -342,7 +344,7 @@ In machine modes, non-round deposit amounts are rejected by default because they
 
 See [reference.md](reference.md#error-format) for the full current error table and payload shape.
 
-Exit codes: 0 (success), 1 (unknown), 2 (input), 3 (RPC), 4 (ASP), 5 (relayer), 6 (proof), 7 (contract).
+Exit codes: 0 (success), 1 (unknown), 2 (input), 3 (RPC), 4 (setup), 5 (relayer), 6 (proof), 7 (contract), 8 (ASP).
 
 Recommended retry strategy:
 - `RPC_NETWORK_ERROR` / `RPC_RATE_LIMITED` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.

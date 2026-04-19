@@ -35,10 +35,10 @@ describe("docs generation drift detection", () => {
     expect(reference).toContain("## `accounts`");
     expect(reference).toContain("**JSON variants:**");
     expect(normalizedReference).toContain(
-      "--summary: { chain, allChains?, chains?, warnings?, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "--summary: { chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
     );
     expect(normalizedReference).toContain(
-      "--pending-only: { chain, allChains?, chains?, warnings?, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "--pending-only: { chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
     );
   });
 

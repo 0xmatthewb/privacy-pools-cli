@@ -17,10 +17,11 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch
 privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt
 privacy-pools flow watch
 privacy-pools flow status latest
+privacy-pools flow step latest
 privacy-pools flow ragequit latest
 ```
 
-**JSON output:** `{ mode: "flow", action: "start"|"watch"|"status"|"ragequit", workflowId, phase, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [...] }`
+**JSON output:** `{ mode: "flow", action: "start"|"watch"|"status"|"step"|"ragequit", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [...] }`
 
 **JSON variants:**
 - `flow start --dry-run: { mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }`
@@ -50,7 +51,9 @@ privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-
 **Agent / CI:**
 
 ```bash
-privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
+privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent
+privacy-pools flow status latest --agent
+privacy-pools flow step latest --agent
 ```
 
 
@@ -78,7 +81,7 @@ privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch --agent
 **Safety:** Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
-**JSON output:** `{ mode: "flow", action: "start", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ mode: "flow", action: "start", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `--dry-run: { mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }`
@@ -89,7 +92,7 @@ Resume a saved flow through funding, approval, privacy delay, and withdrawal
 
 **Usage:** `privacy-pools flow watch [workflowId|latest] [options]`
 
-Re-checks a saved workflow using the same protocol realities as the frontend. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded. Agents that need a wall-clock limit should wrap the command in their own external timeout. With --stream-json, flow watch emits line-delimited JSON phase_change events as the workflow advances, followed by the final snapshot as the last JSON line.
+Human-only convenience wrapper that loops flow status plus flow step until the saved workflow changes or settles. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation using the same saved-workflow state as the one-shot primitives. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded and is rejected in --agent mode. Agents should use flow status and flow step externally instead. With --stream-json, flow watch emits line-delimited JSON phase_change events as the workflow advances, followed by the final snapshot as the last JSON line.
 
 **Basic:**
 
@@ -102,7 +105,6 @@ privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000
 
 ```bash
 privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy
-privacy-pools flow watch latest --agent
 privacy-pools flow watch latest --stream-json
 ```
 
@@ -119,7 +121,7 @@ privacy-pools flow watch latest --stream-json
 **Safety:** Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
-**JSON output:** `{ mode: "flow", action: "watch", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ mode: "flow", action: "watch", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `--stream-json: { mode: "flow", action: "watch", event: "phase_change", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot`
@@ -130,7 +132,7 @@ Show the saved easy-path workflow state
 
 **Usage:** `privacy-pools flow status [workflowId|latest] [options]`
 
-Reads the persisted workflow snapshot and prints the current saved phase plus the canonical next action. This is a saved local snapshot only. Run flow watch to re-check live state and advance the workflow. When using latest, the CLI fails closed if unreadable saved workflow files could be newer than the latest readable workflow. This is read-only and does not require init if the saved workflow already exists locally.
+Reads the persisted workflow snapshot and returns the current saved phase plus the canonical next action. flow status is read-only. Pair it with flow step when you want external orchestration instead of the human-only flow watch wrapper. When using latest, the CLI fails closed if unreadable saved workflow files could be newer than the latest readable workflow. This is read-only and does not require init if the saved workflow already exists locally.
 
 ```bash
 privacy-pools flow status
@@ -138,7 +140,23 @@ privacy-pools flow status latest --agent
 privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000
 ```
 
-**JSON output:** `{ mode: "flow", action: "status", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ mode: "flow", action: "status", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+## `flow step`
+
+Advance a saved workflow by at most one unit of work
+
+**Usage:** `privacy-pools flow step [workflowId|latest] [options]`
+
+Runs one saved-workflow advancement attempt without keeping an internal watch loop alive. Use flow step together with flow status in --agent mode: status polls, step advances. When no action is currently available, flow step returns the current snapshot unchanged instead of waiting.
+
+```bash
+privacy-pools flow step latest
+privacy-pools flow step latest --agent
+privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000
+```
+
+**JSON output:** `{ mode: "flow", action: "step", workflowId, workflowKind, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, nextPollAfter|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 ## `flow ragequit`
 
@@ -162,4 +180,4 @@ privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 **Safety:** Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
-**JSON output:** `{ mode: "flow", action: "ragequit", workflowId, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ mode: "flow", action: "ragequit", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

@@ -53,7 +53,7 @@ export const FLOW_STATUS_PREVIEW_PHASES = [
   "completed",
   "completed_public_recovery",
   "paused_declined",
-  "paused_poi_required",
+  "paused_poa_required",
   "stopped_external",
 ];
 
@@ -604,7 +604,7 @@ function createFlowStatusCase(phase) {
     completed: ["status", "completed", "success"],
     completed_public_recovery: ["status", "recovery", "ragequit"],
     paused_declined: ["status", "declined", "recovery"],
-    paused_poi_required: ["status", "poi-required", "recovery"],
+    paused_poa_required: ["status", "poi-required", "recovery"],
     stopped_external: ["status", "stopped-external", "accounts"],
   };
 
@@ -3676,7 +3676,7 @@ function createFlowSnapshotForPhase(phase) {
           at: "2026-03-27T12:05:00.000Z",
         },
       });
-    case "paused_poi_required":
+    case "paused_poa_required":
       return createFlowSnapshot({
         workflowId: "wf-poi-required",
         phase,

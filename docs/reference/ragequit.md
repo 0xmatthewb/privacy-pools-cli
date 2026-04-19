@@ -32,13 +32,14 @@ privacy-pools ragequit ETH --dry-run --pool-account PA-1
 | `-p, --pool-account <PA-ID \| numeric-index>` | Ragequit a specific Pool Account (examples: PA-2 or 2) |
 | `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
 | `--dry-run` | Generate proof and validate without submitting |
+| `--no-wait` | Return after submission instead of waiting for confirmation |
 | `--confirm-ragequit` | Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address |
 
 **Safety:** Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.
 **Safety:** Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
-**JSON output:** `{ operation, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber, explorerUrl, destinationAddress?, remainingBalance: "0", reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ operation, status: "submitted"|"confirmed", submissionId?, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber|null, explorerUrl, destinationAddress?, remainingBalance: "0", reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `--unsigned: { mode, operation, chain, asset, amount, transactions[] } (envelope JSON)`

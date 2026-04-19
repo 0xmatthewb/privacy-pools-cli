@@ -589,7 +589,7 @@ function createFlowSnapshotForPhase(phase) {
           at: "2026-03-27T12:05:00.000Z",
         },
       });
-    case "paused_poi_required":
+    case "paused_poa_required":
       return createFlowSnapshot({
         workflowId: "wf-poi-required",
         phase,

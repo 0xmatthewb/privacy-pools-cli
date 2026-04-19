@@ -29,6 +29,7 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 - [`activity`](reference/activity.md) - View recent deposits and withdrawals across pools
 - [`stats`](reference/stats.md) - View pool and network statistics
 - [`sync`](reference/sync.md) - Sync account state with the latest onchain data
+- [`tx-status`](reference/tx-status.md) - Check async transaction submission status
 
 ### Advanced
 

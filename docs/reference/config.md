@@ -18,6 +18,8 @@ privacy-pools config unset rpc-override.mainnet
 privacy-pools config path
 ```
 
+**JSON output:** `{ mode: "help", command: "config", subcommands: ["list", "get", "set", "unset", "path", "profile"], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no subcommand is provided; otherwise each config subcommand returns its own structured payload.`
+
 ## `config list`
 
 List all configuration keys and their current values
@@ -29,7 +31,7 @@ privacy-pools config list
 privacy-pools config list --agent
 ```
 
-**JSON output:** `{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir }`
+**JSON output:** `{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 ## `config get`
 
@@ -49,6 +51,8 @@ privacy-pools config get signer-key --reveal
 | Flag | Description |
 |------|-------------|
 | `--reveal` | Show the actual value of sensitive keys instead of [set] |
+
+**JSON output:** `{ key, value?, set, redacted?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 ## `config set`
 
@@ -73,6 +77,25 @@ privacy-pools init --signer-only --private-key-file ./signer-key.txt
 **Safety:** Recovery phrases are never accepted as positional arguments to prevent shell history leakage.
 **Safety:** Signer keys cannot be changed through config set. Use init --signer-only instead so the CLI keeps that flow safety-checked and explicit.
 
+**JSON output:** `{ key, updated, changed, removed, summary, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+## `config unset`
+
+Clear a single configuration key
+
+**Usage:** `privacy-pools config unset <key> [options]`
+
+Clears a stored configuration key without editing config.json by hand. default-chain resets to the implicit mainnet default. rpc-override.<chain> removes that chain override. recovery-phrase and signer-key remove the local secret files.
+
+```bash
+privacy-pools config unset rpc-override.mainnet
+privacy-pools config unset default-chain
+privacy-pools config unset recovery-phrase
+privacy-pools config remove signer-key
+```
+
+**Safety:** config unset signer-key only removes the local fallback file. If PRIVACY_POOLS_PRIVATE_KEY is set in the environment, unset it there too.
+
 ## `config path`
 
 Print the configuration directory path
@@ -84,4 +107,72 @@ privacy-pools config path
 privacy-pools config path --agent
 ```
 
-**JSON output:** `{ configDir }`
+**JSON output:** `{ configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+## `config profile`
+
+Manage named profiles
+
+Namespace for creating, listing, inspecting, and persisting named profiles. Profiles keep separate wallet identities and config directories under the CLI home.
+
+```bash
+privacy-pools config profile list
+privacy-pools config profile create trading
+privacy-pools config profile use trading
+```
+
+## `config profile list`
+
+List available profiles
+
+Shows all named profiles and marks the currently active one.
+
+```bash
+privacy-pools config profile list
+privacy-pools config profile list --agent
+```
+
+**JSON output:** `{ profiles, active, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+## `config profile create`
+
+Create a new named profile
+
+**Usage:** `privacy-pools config profile create <name> [options]`
+
+Creates a new named profile with its own config directory. Use --profile <name> on any command to operate under that profile.
+
+```bash
+privacy-pools config profile create trading
+privacy-pools config profile create ops --agent
+```
+
+**JSON output:** `{ profile, created, profileDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+## `config profile active`
+
+Show the currently active profile
+
+Displays the active profile name and its config directory path.
+
+```bash
+privacy-pools config profile active
+privacy-pools config profile active --agent
+```
+
+**JSON output:** `{ profile, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+## `config profile use`
+
+Persist the active profile
+
+**Usage:** `privacy-pools config profile use <name> [options]`
+
+Persists the default profile to use for future commands when --profile is not explicitly passed. Use 'default' to switch back to the root ~/.privacy-pools directory.
+
+```bash
+privacy-pools config profile use trading
+privacy-pools config profile use default
+```
+
+**JSON output:** `{ profile, active, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

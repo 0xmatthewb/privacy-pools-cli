@@ -38,10 +38,40 @@ Write a single configuration key
 .br
 Usage: \fBprivacy\-pools config set <key> [value] [options]\fR
 .TP
+.B config unset
+Clear a single configuration key
+.br
+Usage: \fBprivacy\-pools config unset <key> [options]\fR
+.TP
 .B config path
 Print the configuration directory path
 .br
 Usage: \fBprivacy\-pools config path [options]\fR
+.TP
+.B config profile
+Manage named profiles
+.br
+Usage: \fBprivacy\-pools config profile [options]\fR
+.TP
+.B config profile list
+List available profiles
+.br
+Usage: \fBprivacy\-pools config profile list [options]\fR
+.TP
+.B config profile create
+Create a new named profile
+.br
+Usage: \fBprivacy\-pools config profile create <name> [options]\fR
+.TP
+.B config profile active
+Show the currently active profile
+.br
+Usage: \fBprivacy\-pools config profile active [options]\fR
+.TP
+.B config profile use
+Persist the active profile
+.br
+Usage: \fBprivacy\-pools config profile use <name> [options]\fR
 .TP
 .B flow
 Deposit and privately withdraw in one guided workflow
@@ -62,6 +92,11 @@ Usage: \fBprivacy\-pools flow watch [workflowId|latest] [options]\fR
 Show the saved easy\-path workflow state
 .br
 Usage: \fBprivacy\-pools flow status [workflowId|latest] [options]\fR
+.TP
+.B flow step
+Advance a saved workflow by at most one unit of work
+.br
+Usage: \fBprivacy\-pools flow step [workflowId|latest] [options]\fR
 .TP
 .B flow ragequit
 Recover a saved workflow publicly via ragequit
@@ -92,6 +127,16 @@ Usage: \fBprivacy\-pools simulate ragequit [asset] [options]\fR
 Browse available pools
 .br
 Usage: \fBprivacy\-pools pools [asset] [options]\fR
+.TP
+.B status
+Check account setup and network status
+.br
+Usage: \fBprivacy\-pools status [options]\fR
+.TP
+.B tx\-status
+Check async transaction submission status
+.br
+Usage: \fBprivacy\-pools tx\-status <submissionId> [options]\fR
 .TP
 .B activity
 View recent deposits and withdrawals across pools
@@ -162,11 +207,6 @@ Usage: \fBprivacy\-pools history [options]\fR
 Sync account state with the latest onchain data
 .br
 Usage: \fBprivacy\-pools sync [asset] [options]\fR
-.TP
-.B status
-Check account setup and network status
-.br
-Usage: \fBprivacy\-pools status [options]\fR
 .TP
 .B ragequit
 Recover funds publicly to your deposit address

@@ -38,6 +38,7 @@ privacy-pools deposit 0.1 ETH --unsigned
 |------|-------------|
 | `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
 | `--dry-run` | Validate and preview the transaction without submitting |
+| `--no-wait` | Return after submission instead of waiting for confirmation |
 | `--ignore-unique-amount` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
 
 **Safety:** Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
@@ -45,7 +46,7 @@ privacy-pools deposit 0.1 ETH --unsigned
 **Safety:** Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at https://tornado.0xbow.io before they can withdraw privately.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
-**JSON output:** `{ operation, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ operation, status: "submitted"|"confirmed", submissionId?, workflowId, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)`

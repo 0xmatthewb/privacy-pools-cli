@@ -48,6 +48,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 | `--confirm-direct-withdraw` | Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses. |
 | `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
 | `--dry-run` | Generate and verify withdrawal artifacts without submitting |
+| `--no-wait` | Return after submission instead of waiting for confirmation |
 | `--all` | Withdraw entire Pool Account balance (requires asset: withdraw --all ETH) |
 | `--extra-gas` | For ERC20 withdrawals only: also receive native gas tokens (default on for ERC20 withdrawals, unnecessary for ETH withdrawals) |
 | `--no-extra-gas` | Disable extra gas request |
@@ -59,7 +60,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 **Safety:** --extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. It is unnecessary for ETH withdrawals.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
-**JSON output:** `{ operation, mode, txHash, blockNumber, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ operation, status: "submitted"|"confirmed", submissionId?, mode, txHash, blockNumber|null, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `direct: same fields but mode: "direct", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.`

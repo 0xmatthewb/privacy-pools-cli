@@ -76,7 +76,10 @@ describe("command discovery static conformance", () => {
       "describe",
       "completion",
     ]);
-    expect(GENERATED_COMMAND_ALIAS_MAP).toEqual({ exit: "ragequit" });
+    expect(GENERATED_COMMAND_ALIAS_MAP).toEqual({
+      remove: "config unset",
+      exit: "ragequit",
+    });
     expect(GENERATED_COMMAND_PATHS).toContain("guide");
     expect(GENERATED_COMMAND_PATHS).toContain("pools");
     expect(GENERATED_COMMAND_PATHS).toContain("withdraw");
