@@ -61,10 +61,10 @@ privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain ma
 | `-t, --to <address>` | Recipient address (required unless --direct; prompted interactively) |
 | `-p, --pool-account <PA-ID \| numeric-index>` | Withdraw from a specific Pool Account (examples: PA-2 or 2) |
 | `--direct` | WILL publicly link deposit and withdrawal addresses onchain. This cannot be undone. |
-| `--confirm-direct-withdraw` | Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses. |
+| `--confirm-direct-withdraw` | Deprecated compatibility flag for non-interactive direct withdrawals that publicly link deposit and withdrawal addresses. |
 | `--all` | Withdraw entire Pool Account balance (requires asset: simulate withdraw --all ETH) |
-| `--extra-gas` | For ERC20 withdrawals only: also receive native gas tokens (default on for ERC20 withdrawals, unnecessary for ETH withdrawals) |
-| `--no-extra-gas` | Disable extra gas request |
+| `--extra-gas` | For ERC20 withdrawals only: also receive native gas tokens. ERC20 withdrawals default to on; ETH withdrawals ignore this flag. |
+| `--no-extra-gas` | Disable extra gas for ERC20 withdrawals |
 
 **Safety:** simulate withdraw never signs or submits a transaction.
 **Safety:** Use 'withdraw --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.
@@ -87,7 +87,7 @@ privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet
 | Flag | Description |
 |------|-------------|
 | `-p, --pool-account <PA-ID \| numeric-index>` | Ragequit a specific Pool Account (examples: PA-2 or 2) |
-| `--confirm-ragequit` | Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address |
+| `--confirm-ragequit` | Deprecated compatibility flag for non-interactive ragequit commands that publicly recover funds to the original deposit address |
 
 **Safety:** simulate ragequit never signs or submits a transaction.
 **Safety:** Use 'ragequit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.

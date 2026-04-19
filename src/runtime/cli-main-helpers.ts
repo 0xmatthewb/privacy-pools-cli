@@ -107,7 +107,7 @@ function commanderUnknownOptionHint(
       case "activity":
         return "Use the asset as a positional argument instead of --asset.";
       case "stats":
-        return "Use the asset as the positional argument to 'stats pool <asset>' instead of --asset.";
+        return "Use the asset as the positional argument to 'pool-stats <asset>' instead of --asset.";
       default:
         return "Use the asset as a positional argument instead of --asset.";
     }

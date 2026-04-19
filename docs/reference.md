@@ -27,7 +27,8 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 - [`pools`](reference/pools.md) - Browse available pools
 - [`history`](reference/history.md) - View your deposit and withdrawal history
 - [`activity`](reference/activity.md) - View recent deposits and withdrawals across pools
-- [`stats`](reference/stats.md) - View pool and network statistics
+- [`protocol-stats`](reference/protocol-stats.md) - View aggregate network statistics
+- [`pool-stats`](reference/pool-stats.md) - View statistics for one pool
 - [`sync`](reference/sync.md) - Sync account state with the latest onchain data
 - [`tx-status`](reference/tx-status.md) - Check async transaction submission status
 
@@ -39,6 +40,7 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 - [`completion`](reference/completion.md) - Generate or install shell tab completion
 - [`capabilities`](reference/capabilities.md) - Describe CLI capabilities for agents
 - [`describe`](reference/describe.md) - Describe a command's flags, args, and output schema
+- [`explain`](reference/explain.md) - Explain a bundled JSON schema path
 
 ## Global Flags
 
@@ -116,7 +118,8 @@ flattened.
 | `pools` | Yes |
 | `accounts` | Yes |
 | `activity` | Yes |
-| `stats` | Yes |
+| `protocol-stats` | Yes |
+| `pool-stats` | Yes |
 | `history` | Yes |
 | `deposit` | No |
 | `withdraw` | No |

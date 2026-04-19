@@ -102,7 +102,7 @@ describe("utility command handlers", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.command).toBe("stats global");
+    expect(json.command).toBe("protocol-stats");
     expect(json.safeReadOnly).toBe(true);
     expect(json.examples).toEqual(expect.any(Array));
     expect(stderr).toBe("");
@@ -191,7 +191,7 @@ describe("utility command handlers", () => {
     expect(stdout).toContain("privacy-pools");
     expect(stdout).toContain("complete");
     if (stderr.length > 0) {
-      expect(stderr).toContain("Pipe to your shell config");
+      expect(stderr).toContain("Use the managed installer instead");
     }
   });
 

@@ -1,6 +1,6 @@
 ---
 name: privacy-pools-cli
-version: 2.0.0
+version: 2.1.0
 description: >
   Deposit, withdraw, and manage funds in Privacy Pools v1 across the CLI's
   supported mainnet and testnet chains, including Ethereum, Arbitrum,
@@ -38,8 +38,8 @@ Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so sup
 | Action | CLI (agent-friendly) | Notes |
 |--------|---------------------|-------|
 | Browse pools | `privacy-pools pools --agent` | No wallet needed |
-| Global stats | `privacy-pools stats global --agent` | No wallet needed; `--chain` not supported |
-| Pool stats | `privacy-pools stats pool --asset ETH --agent` | No wallet needed |
+| Global stats | `privacy-pools protocol-stats --agent` | No wallet needed; `--chain` not supported |
+| Pool stats | `privacy-pools pool-stats ETH --agent` | No wallet needed |
 | Activity feed | `privacy-pools activity --agent` | No wallet needed |
 | Check status | `privacy-pools status --agent --check` | No wallet needed |
 | Check upgrade availability | `privacy-pools upgrade --agent --check` | Read-only unless `--yes` is also present and the install is a supported global npm install |
@@ -84,19 +84,19 @@ All commands also accept `--json`, `--yes`, and `--quiet` individually.
 
 ---
 
-## 2. JSON output contract (v2.0.0)
+## 2. JSON output contract (v2.1.0)
 
 Every response when `--json` or `--agent` is set:
 
 ```json
-{ "schemaVersion": "2.0.0", "success": true, ...payload }
+{ "schemaVersion": "2.1.0", "success": true, ...payload }
 ```
 
 Errors:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",
@@ -128,7 +128,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -295,7 +295,7 @@ The CLI loads `.env` from the config directory (`~/.privacy-pools/.env`), not fr
 | `sepolia` | 11155111 | Yes |
 | `op-sepolia` | 11155420 | Yes |
 
-Default: `mainnet`. Override with `--chain <name>` or set via `init --default-chain <name>`. Read-only commands (`pools`, `activity`) default to all CLI-supported mainnet chains when no `--chain` is specified. `stats global` always returns cross-chain aggregates and does not accept `--chain`; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
+Default: `mainnet`. Override with `--chain <name>` or set via `init --default-chain <name>`. Read-only commands (`pools`, `activity`) default to all CLI-supported mainnet chains when no `--chain` is specified. `protocol-stats` always returns cross-chain aggregates and does not accept `--chain`; use `pool-stats <symbol> --chain <chain>` for chain-specific data.
 
 ---
 
@@ -311,7 +311,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 7. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined, relayer-blocked, or you intentionally choose the public path
 ```
 
-The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient after approval and any configured privacy delay. New workflows default to `balanced`, which randomizes the post-approval hold between 15 and 90 minutes. `off` means no added hold, and `aggressive` randomizes the hold between 2 and 12 hours. Agents should orchestrate saved workflows with `flow status` plus `flow step`. Human `flow watch` remains available as an attached wrapper, may intentionally stay in `approved_waiting_privacy_delay` for the saved hold window, and `flow watch --privacy-delay ...` can persistently update the saved privacy-delay policy: `off` clears any saved hold immediately, while switching between `balanced` and `aggressive` resamples from the override time.
+The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient after approval and any configured privacy delay. New workflows default to `balanced`, which randomizes the post-approval hold between 15 and 90 minutes. `off` means no added hold, and `strict` randomizes the hold between 2 and 12 hours. Agents should orchestrate saved workflows with `flow status` plus `flow step`. Human `flow watch` remains available as an attached wrapper, may intentionally stay in `approved_waiting_privacy_delay` for the saved hold window, and `flow watch --privacy-delay ...` can persistently update the saved privacy-delay policy: `off` clears any saved hold immediately, while switching between `balanced` and `strict` resamples from the override time.
 
 Flow caveats for agents:
 - `flow status` is the canonical read-only polling surface and `flow step` is the canonical one-shot advance surface for agents. `flow watch` is human-only and intentionally unavailable in `--agent`.

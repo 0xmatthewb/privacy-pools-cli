@@ -1,4 +1,6 @@
 import type { SubmissionRecord } from "../services/submissions.js";
+import { getConfirmationTimeoutMs } from "../utils/mode.js";
+import { resolveChain } from "../utils/validation.js";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -12,6 +14,42 @@ import {
 } from "./common.js";
 import { formatSectionHeading, formatKeyValueRows } from "./layout.js";
 import { formatTxHash } from "../utils/format.js";
+
+function buildPollingMetadata(record: SubmissionRecord): {
+  estimatedConfirmationSeconds: number;
+  pollingRecommendation: {
+    initialSeconds: number;
+    maxSeconds: number;
+    backoffFactor: number;
+  };
+} | null {
+  if (record.status !== "submitted") {
+    return null;
+  }
+
+  const avgBlockTimeSeconds = Math.max(
+    1,
+    Math.round(resolveChain(record.chain).avgBlockTimeSec ?? 12),
+  );
+  const timeoutSeconds = Math.max(
+    avgBlockTimeSeconds,
+    Math.ceil(getConfirmationTimeoutMs() / 1000),
+  );
+  const initialSeconds = Math.max(5, Math.min(avgBlockTimeSeconds, 15));
+  const maxSeconds = Math.max(initialSeconds, Math.min(avgBlockTimeSeconds * 4, 60));
+
+  return {
+    estimatedConfirmationSeconds: Math.min(
+      timeoutSeconds,
+      Math.max(avgBlockTimeSeconds * 2, 12),
+    ),
+    pollingRecommendation: {
+      initialSeconds,
+      maxSeconds,
+      backoffFactor: 1.5,
+    },
+  };
+}
 
 function buildAgentNextActions(record: SubmissionRecord) {
   if (record.reconciliationRequired) {
@@ -140,6 +178,7 @@ export function renderTxStatus(
   const humanNextActions = buildHumanNextActions(record);
 
   if (ctx.mode.isJson) {
+    const pollingMetadata = buildPollingMetadata(record);
     printJsonSuccess(
       appendNextActions({
         operation: "tx-status",
@@ -162,6 +201,7 @@ export function renderTxStatus(
         warningCode: record.warningCode ?? null,
         lastError: record.lastError ?? null,
         transactions: record.transactions,
+        ...(pollingMetadata ?? {}),
       }, agentNextActions),
       false,
     );

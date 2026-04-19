@@ -1,5 +1,5 @@
 import { Command, Option } from "commander";
-import { commandHelpText } from "../utils/help.js";
+import { commandHelpText, groupedFlagGuideText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
 
@@ -7,8 +7,8 @@ export function createDepositCommand(): Command {
   const metadata = getCommandMetadata("deposit");
   return new Command("deposit")
     .description(metadata.description)
-    .argument("<amount>", "Amount to deposit (e.g. 0.1)")
-    .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
+    .argument("<amount>", "Human-readable token amount to deposit (e.g. 0.1, not wei)")
+    .argument("[asset]", "Asset symbol or token address (case-insensitive; e.g. ETH, USDC)")
     .addOption(
       new Option(
         "--unsigned [format]",
@@ -26,6 +26,33 @@ export function createDepositCommand(): Command {
     .option(
       "--ignore-unique-amount",
       "Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint)",
+    )
+    .addHelpText(
+      "after",
+      groupedFlagGuideText([
+        {
+          heading: "Execution",
+          flags: [
+            "--unsigned [format]",
+            "--dry-run",
+            "--no-wait",
+          ],
+        },
+        {
+          heading: "Privacy",
+          flags: [
+            "--ignore-unique-amount",
+          ],
+        },
+        {
+          heading: "Output & Defaults",
+          flags: [
+            "--yes",
+            "--agent",
+            "--help-brief",
+          ],
+        },
+      ]),
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(

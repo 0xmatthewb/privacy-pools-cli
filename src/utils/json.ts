@@ -3,7 +3,7 @@ import type { NextAction } from "../types.js";
 import { CLIError } from "./errors.js";
 import { didYouMeanMany } from "./fuzzy.js";
 
-export const JSON_SCHEMA_VERSION = "2.0.0";
+export const JSON_SCHEMA_VERSION = "2.1.0";
 
 export function jsonContractDocRelativePath(
   schemaVersion: string = JSON_SCHEMA_VERSION,

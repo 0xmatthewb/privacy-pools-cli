@@ -441,6 +441,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
 
   if (ctx.mode.isJson) {
     const status: Record<string, unknown> = appendNextActions({
+      mode: "cli-status",
       configExists: result.configExists,
       configDir: result.configDir,
       defaultChain: result.defaultChain,

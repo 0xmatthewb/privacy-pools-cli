@@ -335,7 +335,7 @@ export function buildHistoryEventsFromAccounts(
 }
 
 export async function handleHistoryCommand(
-  opts: { sync?: boolean; limit?: string },
+  opts: { sync?: boolean; limit?: string; page?: string },
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
@@ -344,6 +344,7 @@ export async function handleHistoryCommand(
   const ctx = createOutputContext(mode, isVerbose);
   const silent = isSilent(ctx);
   const parsedLimit = Number(opts.limit ?? 50);
+  const parsedPage = Number(opts.page ?? 1);
   if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
     printError(
       new CLIError(
@@ -355,7 +356,19 @@ export async function handleHistoryCommand(
     );
     return;
   }
+  if (!Number.isInteger(parsedPage) || parsedPage <= 0) {
+    printError(
+      new CLIError(
+        `Invalid --page value: ${opts.page}.`,
+        "INPUT",
+        "--page must be a positive integer.",
+      ),
+      mode.isJson,
+    );
+    return;
+  }
   const limit = parsedLimit;
+  const page = parsedPage;
 
   try {
     if (await maybeRenderPreviewScenario("history")) {
@@ -385,7 +398,12 @@ export async function handleHistoryCommand(
     if (pools.length === 0) {
       spin.stop();
       renderHistoryNoPools(ctx, {
+        mode: "private-history",
         chain: chainConfig.name,
+        page,
+        perPage: limit,
+        total: 0,
+        totalPages: 0,
         lastSyncTime: loadSyncMeta(chainConfig.id)?.lastSyncTime ?? null,
         syncSkipped: opts.sync === false,
       });
@@ -454,7 +472,10 @@ export async function handleHistoryCommand(
       return 0;
     });
 
-    const limited = events.slice(0, limit);
+    const total = events.length;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+    const offset = (page - 1) * limit;
+    const limited = events.slice(offset, offset + limit);
 
     // Fetch current block for approximate relative timestamps (non-fatal).
     let currentBlock: bigint | null = null;
@@ -478,9 +499,14 @@ export async function handleHistoryCommand(
     const lastSyncTime = loadSyncMeta(chainConfig.id)?.lastSyncTime ?? null;
 
     renderHistory(ctx, {
+      mode: "private-history",
       chain: chainConfig.name,
       chainId: chainConfig.id,
       events: limited,
+      page,
+      perPage: limit,
+      total,
+      totalPages,
       poolByAddress,
       explorerTxUrl,
       currentBlock,

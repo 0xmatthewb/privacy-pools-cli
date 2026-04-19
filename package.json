@@ -15,6 +15,7 @@
     "docs/contracts/README.md",
     "docs/contracts/cli-json-contract.current.json",
     "docs/contracts/cli-json-contract.v2.0.0.json",
+    "docs/contracts/cli-json-contract.v2.1.0.json",
     "docs/man/privacy-pools.1",
     "docs/reference.md",
     "docs/runtime-upgrades.md",

@@ -267,6 +267,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("broadcast"),
       completionCommand("history", {
         options: [
+          completionOption("--page <n>"),
           completionOption("--no-sync"),
           completionOption("-n, --limit <n>"),
         ],
@@ -289,6 +290,8 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-n, --limit <n>"),
         ],
       }),
+      completionCommand("protocol-stats"),
+      completionCommand("pool-stats"),
       completionCommand("stats", {
         subcommands: [
           completionCommand("global"),
@@ -298,6 +301,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("guide"),
       completionCommand("capabilities"),
       completionCommand("describe"),
+      completionCommand("explain"),
       completionCommand("completion", {
         options: [
           completionOption("-s, --shell <shell>", SUPPORTED_COMPLETION_SHELLS),

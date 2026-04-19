@@ -38,8 +38,8 @@ export function createSimulateCommand(): Command {
   command
     .command("deposit")
     .description(depositMetadata.description)
-    .argument("<amount>", "Amount to deposit (e.g. 0.1)")
-    .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
+    .argument("<amount>", "Human-readable token amount to deposit (e.g. 0.1, not wei)")
+    .argument("[asset]", "Asset symbol or token address (case-insensitive; e.g. ETH, USDC)")
     .addOption(unsignedCompatOption())
     .addOption(impliedDryRunOption())
     .option(
@@ -60,9 +60,9 @@ export function createSimulateCommand(): Command {
     .usage("[options] [amount] [asset]")
     .argument(
       "[amount]",
-      "Amount to withdraw (e.g. 0.05, 50%, 100%) or omit for interactive",
+      "Human-readable amount to withdraw (e.g. 0.05, 50%, 100%) or omit for interactive",
     )
-    .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
+    .argument("[asset]", "Asset symbol or token address (case-insensitive; e.g. ETH, USDC)")
     .option(
       "-t, --to <address>",
       "Recipient address (required unless --direct; prompted interactively)",
@@ -80,7 +80,7 @@ export function createSimulateCommand(): Command {
     .addOption(
       new Option(
         "--confirm-direct-withdraw",
-        "Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses.",
+        "Deprecated compatibility flag for non-interactive direct withdrawals that publicly link deposit and withdrawal addresses.",
       ),
     )
     .addOption(unsignedCompatOption())
@@ -88,9 +88,9 @@ export function createSimulateCommand(): Command {
     .option("--all", "Withdraw entire Pool Account balance (requires asset: simulate withdraw --all ETH)")
     .option(
       "--extra-gas",
-      "For ERC20 withdrawals only: also receive native gas tokens (default on for ERC20 withdrawals, unnecessary for ETH withdrawals)",
+      "For ERC20 withdrawals only: also receive native gas tokens. ERC20 withdrawals default to on; ETH withdrawals ignore this flag.",
     )
-    .option("--no-extra-gas", "Disable extra gas request")
+    .option("--no-extra-gas", "Disable extra gas for ERC20 withdrawals")
     .addHelpText("after", commandHelpText(withdrawMetadata.help ?? {}))
     .action(
       createLazyAction(
@@ -102,7 +102,7 @@ export function createSimulateCommand(): Command {
   command
     .command("ragequit")
     .description(ragequitMetadata.description)
-    .argument("[asset]", "Optional positional asset alias (e.g., ragequit ETH)")
+    .argument("[asset]", "Optional asset symbol or token address (case-insensitive; e.g. ETH)")
     .option(
       "-p, --pool-account <PA-ID | numeric-index>",
       "Ragequit a specific Pool Account (examples: PA-2 or 2)",
@@ -111,7 +111,7 @@ export function createSimulateCommand(): Command {
     .addOption(impliedDryRunOption())
     .option(
       "--confirm-ragequit",
-      "Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address",
+      "Deprecated compatibility flag for non-interactive ragequit commands that publicly recover funds to the original deposit address",
     )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(

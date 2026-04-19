@@ -15,14 +15,16 @@ export type RootCommandName =
   | "pools"
   | "history"
   | "activity"
-  | "stats"
+  | "protocol-stats"
+  | "pool-stats"
   | "sync"
   | "migrate"
   | "upgrade"
   | "config"
   | "completion"
   | "capabilities"
-  | "describe";
+  | "describe"
+  | "explain";
 
 export interface RootCommandGroup {
   id: CommandGroup;
@@ -45,7 +47,8 @@ export const ROOT_COMMAND_DESCRIPTIONS: Record<RootCommandName, string> = {
   pools: "Browse available pools",
   history: "View your deposit and withdrawal history",
   activity: "View recent deposits and withdrawals across pools",
-  stats: "View pool and network statistics",
+  "protocol-stats": "View aggregate network statistics",
+  "pool-stats": "View statistics for one pool",
   sync: "Sync account state with the latest onchain data",
   migrate: "Check migration status for legacy pool accounts",
   upgrade: "Check for CLI updates",
@@ -53,6 +56,7 @@ export const ROOT_COMMAND_DESCRIPTIONS: Record<RootCommandName, string> = {
   completion: "Generate or install shell tab completion",
   capabilities: "Describe CLI capabilities for agents",
   describe: "Describe a command's flags, args, and output schema",
+  explain: "Explain a bundled JSON schema path",
 };
 
 export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
@@ -70,7 +74,8 @@ export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
   pools: "pools",
   history: "history",
   activity: "activity",
-  stats: "stats",
+  "protocol-stats": "protocol-stats",
+  "pool-stats": "pool-stats",
   sync: "sync",
   migrate: "migrate",
   upgrade: "upgrade",
@@ -78,6 +83,7 @@ export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
   completion: "completion",
   capabilities: "capabilities",
   describe: "describe",
+  explain: "explain",
 };
 
 export const ROOT_COMMAND_GROUPS: RootCommandGroup[] = [
@@ -94,7 +100,16 @@ export const ROOT_COMMAND_GROUPS: RootCommandGroup[] = [
   {
     id: "monitoring",
     heading: "Monitoring",
-    commands: ["accounts", "pools", "history", "activity", "stats", "sync", "tx-status"],
+    commands: [
+      "accounts",
+      "pools",
+      "history",
+      "activity",
+      "protocol-stats",
+      "pool-stats",
+      "sync",
+      "tx-status",
+    ],
   },
   {
     id: "advanced",
@@ -106,6 +121,7 @@ export const ROOT_COMMAND_GROUPS: RootCommandGroup[] = [
       "completion",
       "capabilities",
       "describe",
+      "explain",
     ],
   },
 ];
@@ -128,10 +144,12 @@ export const ROOT_COMMAND_ORDER: RootCommandName[] = [
   "tx-status",
   "status",
   "activity",
-  "stats",
+  "protocol-stats",
+  "pool-stats",
   "guide",
   "capabilities",
   "describe",
+  "explain",
   "completion",
 ];
 

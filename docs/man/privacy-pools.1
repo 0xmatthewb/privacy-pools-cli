@@ -143,25 +143,25 @@ View recent deposits and withdrawals across pools
 .br
 Usage: \fBprivacy\-pools activity [asset] [options]\fR
 .TP
-.B stats
-View pool and network statistics
+.B protocol\-stats
+View aggregate network statistics
 .br
-Usage: \fBprivacy\-pools stats [options]\fR
+Usage: \fBprivacy\-pools protocol\-stats [options]\fR
 .TP
-.B stats global
-Show global Privacy Pools statistics (all\-time and last 24h)
+.B pool\-stats
+View statistics for one pool
 .br
-Usage: \fBprivacy\-pools stats global [options]\fR
-.TP
-.B stats pool
-Show statistics for a specific pool (all\-time and last 24h)
-.br
-Usage: \fBprivacy\-pools stats pool [asset] [options]\fR
+Usage: \fBprivacy\-pools pool\-stats [asset] [options]\fR
 .TP
 .B describe
 Describe a command's flags, args, and output schema
 .br
 Usage: \fBprivacy\-pools describe [command] [options]\fR
+.TP
+.B explain
+Explain a bundled JSON schema path
+.br
+Usage: \fBprivacy\-pools explain <schemaPath> [options]\fR
 .TP
 .B deposit
 Deposit ETH or ERC\-20 tokens into a pool

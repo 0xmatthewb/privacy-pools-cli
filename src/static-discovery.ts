@@ -159,6 +159,15 @@ export async function runStaticCompletionQuery(
         shell: parsed.shell,
         cword: parsed.cword,
         candidates,
+        nextActions: [
+          {
+            command: "completion",
+            reason: "Install managed shell completion after validating the generated candidates.",
+            when: "after_completion",
+            options: { install: true },
+            cliCommand: "privacy-pools completion --agent --install",
+          },
+        ],
       });
       return true;
     }

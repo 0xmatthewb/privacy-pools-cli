@@ -70,7 +70,7 @@ defineScenarioSuite("agent improvements acceptance", [
         expect(json.requiresInit).toBe(true);
         expect(json.expectedLatencyClass).toBe("medium");
       }),
-      runCliStep(["describe", "stats", "global", "--agent"]),
+      runCliStep(["describe", "protocol-stats", "--agent"]),
       assertExit(0),
       assertStderrEmpty(),
       assertJson<{
@@ -80,18 +80,18 @@ defineScenarioSuite("agent improvements acceptance", [
         expectedLatencyClass: string;
         globalFlags: string[];
       }>((json) => {
-        expect(json.command).toBe("stats global");
+        expect(json.command).toBe("protocol-stats");
         expect(json.group).toBe("monitoring");
-        expect(json.usage).toBe("stats global");
+        expect(json.usage).toBe("protocol-stats");
         expect(json.expectedLatencyClass).toBe("medium");
         expect(json.globalFlags).not.toContain("-c, --chain <name>");
       }),
-      runCliStep(["describe", "stats", "global"]),
+      runCliStep(["describe", "protocol-stats"]),
       assertExit(0),
       assertStdoutEmpty(),
       assertStderr((stderr) => {
-        expect(stderr).toContain("Command: stats global");
-        expect(stderr).toMatch(/Usage:\s+privacy-pools stats global/);
+        expect(stderr).toContain("Command: protocol-stats");
+        expect(stderr).toMatch(/Usage:\s+privacy-pools protocol-stats/);
       }),
     ],
   ),
@@ -163,7 +163,7 @@ defineScenarioSuite("agent improvements acceptance", [
       expect(json.error.category).toBe("INPUT");
       expect(json.error.message).toContain("Unknown command path");
       expect(json.error.hint).toContain("withdraw quote");
-      expect(json.error.hint).toContain("stats global");
+      expect(json.error.hint).toContain("protocol-stats");
     }),
   ]),
   defineScenario(
@@ -190,10 +190,10 @@ defineScenarioSuite("agent improvements acceptance", [
         safeReadOnlyCommands: string[];
       }>((json) => {
         expect(json.commands.map((command) => command.name)).toContain(
-          "stats global",
+          "protocol-stats",
         );
         expect(json.commands.map((command) => command.name)).toContain(
-          "stats pool",
+          "pool-stats",
         );
         expect(json.commands.map((command) => command.name)).toContain(
           "describe",
@@ -204,7 +204,7 @@ defineScenarioSuite("agent improvements acceptance", [
         expect(json.commandDetails.accounts?.flags).toContain("--summary");
         expect(json.commandDetails.describe?.command).toBe("describe");
         expect(json.commandDetails.describe?.group).toBe("advanced");
-        expect(json.commandDetails["stats global"]?.globalFlags).not.toContain(
+        expect(json.commandDetails["protocol-stats"]?.globalFlags).not.toContain(
           "-c, --chain <name>",
         );
         expect(json.commandDetails.guide?.globalFlags).toContain(
@@ -217,7 +217,7 @@ defineScenarioSuite("agent improvements acceptance", [
         expect(json.commandDetails.capabilities?.execution.owner).toBe(
           "native-shell",
         );
-        expect(json.executionRoutes["stats pool"]?.owner).toBe("hybrid");
+        expect(json.executionRoutes["pool-stats"]?.owner).toBe("hybrid");
         expect(json.protocol).toEqual(CLI_PROTOCOL_PROFILE);
         expect(json.runtime).toMatchObject(
           buildRuntimeCompatibilityDescriptor(CLI_VERSION),
@@ -225,6 +225,9 @@ defineScenarioSuite("agent improvements acceptance", [
         expect(json.commandDetails.guide?.safeReadOnly).toBe(true);
         expect(json.commandDetails.completion?.safeReadOnly).toBe(false);
         expect(json.safeReadOnlyCommands).toContain("guide");
+        expect(json.safeReadOnlyCommands).toContain("protocol-stats");
+        expect(json.safeReadOnlyCommands).toContain("pool-stats");
+        expect(json.safeReadOnlyCommands).not.toContain("stats");
         expect(json.safeReadOnlyCommands).not.toContain("completion");
       }),
       runCliStep(["capabilities", "--agent", "--chain", "mainnet"]),

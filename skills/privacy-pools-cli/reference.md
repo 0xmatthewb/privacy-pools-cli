@@ -16,16 +16,16 @@ privacy-pools flow status latest --agent
 privacy-pools flow step latest --agent
 privacy-pools flow ragequit latest --agent
 privacy-pools flow watch latest                        # human-only wrapper over status + step
-privacy-pools flow watch latest --privacy-delay aggressive   # human-only saved privacy-delay update
+privacy-pools flow watch latest --privacy-delay strict   # human-only saved privacy-delay update
 ```
 
-`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so use round amounts in agent/non-interactive runs, or switch to interactive mode if a human intentionally accepts that tradeoff. In interactive mode, omitting `--to` prompts for the saved recipient. A round input can still become a non-round committed balance after the ASP vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. New workflows default to a balanced post-approval privacy delay: `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `aggressive` randomizes the hold between 2 and 12 hours. Pass `--privacy-delay off|balanced|aggressive` to `flow start`, or later to human `flow watch`, to update the saved policy persistently. `off` clears any saved hold immediately, while switching between `balanced` and `aggressive` resamples from the override time. With `--new-wallet`, the CLI generates a dedicated workflow wallet and requires a backup before proceeding. In machine mode, `flow start` returns an `awaiting_funding` snapshot so the agent can fund that wallet and continue with `flow status` / `flow step`; human runs stay attached and wait automatically. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts. ETH flows require the full ETH target. ERC20 flows require both the token amount and a native ETH gas reserve in that same wallet. The generated workflow key is also stored locally under `~/.privacy-pools/workflow-secrets/` until the workflow completes, public-recovers, or is externally stopped, so `--export-new-wallet` is a backup copy rather than the only retained secret. Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty. The saved flow spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding. For agents, `flow status` is the read-only polling primitive and `flow step` is the one-shot advance primitive. `flow watch` remains a human-only wrapper over repeated `flow status` + `flow step`; `flow watch --agent` and `flow start --watch --agent` are rejected with machine-readable input errors that point agents back to `flow status` and `flow step`. Saved workflows use phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state from the ASP (the approval service). Paused states are still successful command results: declined workflows surface `flow ragequit` as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with `flow ragequit`. If the saved full-balance withdrawal falls below the relayer minimum, the workflow surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextAction` while the workflow is still progressing normally. `flow status` reads the persisted workflow snapshot without mutating it. When using `latest`, the CLI fails closed if unreadable saved workflow files could be newer than the latest readable workflow. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
+`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so use round amounts in agent/non-interactive runs, or switch to interactive mode if a human intentionally accepts that tradeoff. In interactive mode, omitting `--to` prompts for the saved recipient. A round input can still become a non-round committed balance after the ASP vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. New workflows default to a balanced post-approval privacy delay: `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `strict` randomizes the hold between 2 and 12 hours. Pass `--privacy-delay off|balanced|strict` to `flow start`, or later to human `flow watch`, to update the saved policy persistently. `off` clears any saved hold immediately, while switching between `balanced` and `strict` resamples from the override time. With `--new-wallet`, the CLI generates a dedicated workflow wallet and requires a backup before proceeding. In machine mode, `flow start` returns an `awaiting_funding` snapshot so the agent can fund that wallet and continue with `flow status` / `flow step`; human runs stay attached and wait automatically. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts. ETH flows require the full ETH target. ERC20 flows require both the token amount and a native ETH gas reserve in that same wallet. The generated workflow key is also stored locally under `~/.privacy-pools/workflow-secrets/` until the workflow completes, public-recovers, or is externally stopped, so `--export-new-wallet` is a backup copy rather than the only retained secret. Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty. The saved flow spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding. For agents, `flow status` is the read-only polling primitive and `flow step` is the one-shot advance primitive. `flow watch` remains a human-only wrapper over repeated `flow status` + `flow step`; `flow watch --agent` and `flow start --watch --agent` are rejected with machine-readable input errors that point agents back to `flow status` and `flow step`. Saved workflows use phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state from the ASP (the approval service). Paused states are still successful command results: declined workflows surface `flow ragequit` as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with `flow ragequit`. If the saved full-balance withdrawal falls below the relayer minimum, the workflow surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextAction` while the workflow is still progressing normally. `flow status` reads the persisted workflow snapshot without mutating it. When using `latest`, the CLI fails closed if unreadable saved workflow files could be newer than the latest readable workflow. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
 
 Flow JSON payloads share this shape:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "mode": "flow",
   "action": "start",
@@ -86,7 +86,7 @@ All `--unsigned` output targets the chain specified by `--chain` (default: your 
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",
@@ -189,7 +189,7 @@ privacy-pools tx-status <submissionId> --agent
 
 ## JSON output shapes by command
 
-All responses include `{ "schemaVersion": "2.0.0", "success": true, ... }` envelope.
+All responses include `{ "schemaVersion": "2.1.0", "success": true, ... }` envelope.
 
 Some success payloads also include optional `nextActions[]` guidance with the shape `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `true` (or omitted), `cliCommand` is executable as-is. When `runnable` is `false`, `cliCommand` is omitted and `parameters[]` describes the extra user input required before execution.
 
@@ -297,13 +297,13 @@ When querying multiple chains (no `--chain` specified), `chain` is `"all-mainnet
 
 `timestamp` is an ISO 8601 string or `null`. `total` and `totalPages` may be null (always null when `chainFiltered: true`).
 
-### `stats global`
+### `protocol-stats`
 
 ```bash
-privacy-pools stats global --agent
+privacy-pools protocol-stats --agent
 ```
 
-Always returns aggregate cross-chain statistics. The `--chain` flag is **not** supported; use `stats pool --asset <symbol> --chain <chain>` for chain-specific data.
+Always returns aggregate cross-chain statistics. The `--chain` flag is **not** supported; use `pool-stats <symbol> --chain <chain>` for chain-specific data.
 
 ```json
 {
@@ -336,10 +336,10 @@ Always returns aggregate cross-chain statistics. The `--chain` flag is **not** s
 
 `chain` is always `"all-mainnets"`. `chains` lists the queried chain names. `perChain` contains per-chain breakdowns. `cacheTimestamp`, `allTime`, and `last24h` may be null. The `allTime`/`last24h` objects come from the ASP service and may contain additional fields.
 
-### `stats pool`
+### `pool-stats`
 
 ```bash
-privacy-pools stats pool --asset ETH --agent
+privacy-pools pool-stats ETH --agent
 ```
 
 ```json
@@ -438,7 +438,7 @@ Representative payload (abridged):
     }
   },
   "executionRoutes": {
-    "stats pool": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] }
+    "pool-stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] }
   },
   "globalFlags": [
     { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }
@@ -499,7 +499,7 @@ Representative payload (abridged):
     "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1"
   },
-  "safeReadOnlyCommands": ["flow", "flow status", "pools", "activity", "stats", "stats global", "stats pool", "status", "capabilities", "describe", "guide", "accounts", "history", "migrate", "migrate status", "completion"],
+  "safeReadOnlyCommands": ["flow", "flow status", "pools", "activity", "protocol-stats", "pool-stats", "status", "capabilities", "describe", "guide", "accounts", "history", "migrate", "migrate status", "completion"],
   "supportedChains": [
     { "name": "mainnet", "chainId": 1, "testnet": false },
     { "name": "arbitrum", "chainId": 42161, "testnet": false },
@@ -513,7 +513,7 @@ Representative payload (abridged):
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v2.1.0.json"
   }
 }
 ```
@@ -524,7 +524,7 @@ Representative payload (abridged):
 
 ```bash
 privacy-pools describe withdraw quote --agent
-privacy-pools describe stats global --agent
+privacy-pools describe protocol-stats --agent
 ```
 
 ```json
@@ -1075,7 +1075,7 @@ All errors in JSON mode:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",

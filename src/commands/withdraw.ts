@@ -2888,6 +2888,9 @@ export async function handleWithdrawCommand(
 
         if (isUnsigned) {
           const solidityProof = toWithdrawSolidityProof(proof);
+          const unsignedRelayerHost =
+            relayerHostLabel(quote.relayerUrl ?? relayerUrl)
+            ?? "unknown-relayer";
           const payload = buildUnsignedRelayedWithdrawOutput({
             chainId: chainConfig.id,
             chainName: chainConfig.name,
@@ -2901,6 +2904,10 @@ export async function handleWithdrawCommand(
             selectedCommitmentValue: commitment.value,
             feeBPS: quote.feeBPS,
             quoteExpiresAt: new Date(expirationMs).toISOString(),
+            quotedAt: new Date().toISOString(),
+            baseFeeBPS: quote.baseFeeBPS,
+            relayerHost: unsignedRelayerHost,
+            extraGas: effectiveExtraGas,
             withdrawal,
             proof: solidityProof,
             relayerRequest: stringifyBigInts({

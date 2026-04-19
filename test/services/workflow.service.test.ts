@@ -696,11 +696,11 @@ describe("workflow service", () => {
 
   test("flow privacy helpers summarize profiles, parse overrides, and build warnings", () => {
     expect(flowPrivacyDelayProfileSummary("balanced")).toContain("15 to 90 minutes");
-    expect(flowPrivacyDelayProfileSummary("aggressive")).toContain("2 to 12 hours");
+    expect(flowPrivacyDelayProfileSummary("strict")).toContain("2 to 12 hours");
     expect(flowPrivacyDelayProfileSummary("off", false)).toContain("legacy workflow");
     expect(resolveFlowPrivacyDelayProfile(undefined, "balanced")).toBe("balanced");
     expect(resolveOptionalFlowPrivacyDelayProfile(" aggressive ")).toBe(
-      "aggressive",
+      "strict",
     );
     expect(resolveOptionalFlowPrivacyDelayProfile("   ")).toBeUndefined();
     expect(() => resolveFlowPrivacyDelayProfile("mystery", "balanced")).toThrow(

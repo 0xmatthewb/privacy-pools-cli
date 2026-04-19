@@ -662,7 +662,7 @@ defineScenarioSuite("json-contract acceptance", [
       );
       expect(json.error.category).toBe("INPUT");
       expect(json.error.code).toBe("INPUT_ERROR");
-      expect(json.error.hint).toContain("stats pool ETH");
+      expect(json.error.hint).toContain("pool-stats ETH");
     }),
   ]),
   defineScenario("init keeps the semantic setup contract", [

@@ -3,13 +3,46 @@ import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
 
+export function createProtocolStatsCommand(): Command {
+  const metadata = getCommandMetadata("protocol-stats");
+  return new Command("protocol-stats")
+    .description(metadata.description)
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
+    .action(
+      createLazyAction(
+        () => import("../commands/stats.js"),
+        "handleProtocolStatsCommand",
+      ),
+    );
+}
+
+export function createPoolStatsCommand(): Command {
+  const metadata = getCommandMetadata("pool-stats");
+  return new Command("pool-stats")
+    .description(metadata.description)
+    .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
+    .action(
+      createLazyAction(
+        () => import("../commands/stats.js"),
+        "handlePoolStatsCommand",
+      ),
+    );
+}
+
 export function createStatsCommand(): Command {
   const metadata = getCommandMetadata("stats");
-  const globalMetadata = getCommandMetadata("stats global");
-  const poolMetadata = getCommandMetadata("stats pool");
+  const globalMetadata = getCommandMetadata("protocol-stats");
+  const poolMetadata = getCommandMetadata("pool-stats");
   const command = new Command("stats")
     .description(metadata.description)
-    .addHelpText("after", commandHelpText(metadata.help ?? {}));
+    .addHelpText("after", commandHelpText(metadata.help ?? {}))
+    .action(
+      createLazyAction(
+        () => import("../commands/stats.js"),
+        "handleDeprecatedStatsDefaultAliasCommand",
+      ),
+    );
 
   command
     .command("global", { isDefault: true })
@@ -18,7 +51,7 @@ export function createStatsCommand(): Command {
     .action(
       createLazyAction(
         () => import("../commands/stats.js"),
-        "handleGlobalStatsCommand",
+        "handleDeprecatedStatsGlobalAliasCommand",
       ),
     );
 
@@ -30,7 +63,7 @@ export function createStatsCommand(): Command {
     .action(
       createLazyAction(
         () => import("../commands/stats.js"),
-        "handlePoolStatsCommand",
+        "handleDeprecatedStatsPoolAliasCommand",
       ),
     );
 

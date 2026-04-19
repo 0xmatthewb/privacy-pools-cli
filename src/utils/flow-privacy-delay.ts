@@ -1,7 +1,7 @@
 export const FLOW_PRIVACY_DELAY_PROFILES = [
   "off",
   "balanced",
-  "aggressive",
+  "strict",
 ] as const;
 
 export type FlowPrivacyDelayProfile =
@@ -13,7 +13,7 @@ export function flowPrivacyDelayRangeSeconds(
   switch (profile) {
     case "balanced":
       return [15 * 60, 90 * 60];
-    case "aggressive":
+    case "strict":
       return [2 * 60 * 60, 12 * 60 * 60];
     case "off":
       return [0, 0];

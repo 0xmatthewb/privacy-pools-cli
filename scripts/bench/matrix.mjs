@@ -141,7 +141,7 @@ export const COMMAND_MATRICES = {
     },
     {
       family: "native-public-read-only",
-      label: "stats pool --agent --chain sepolia --asset ETH",
+      label: "pool-stats ETH --agent --chain sepolia",
       args: ["--chain", "sepolia", "stats", "pool", "--asset", "ETH", "--agent"],
       env: ({ fixtureUrl, rpcUrls }) => ({
         PRIVACY_POOLS_ASP_HOST: fixtureUrl,

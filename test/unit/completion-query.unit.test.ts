@@ -87,7 +87,7 @@ describe("completion query helpers", () => {
         ["privacy-pools", "flow", "start", "0.1", "ETH", "--privacy-delay", ""],
         6,
       ),
-    ).toEqual(["aggressive", "balanced", "off"]);
+    ).toEqual(["balanced", "off", "strict"]);
   });
 
   test("suggests command JSON fields for preferred --json field selection syntax", () => {

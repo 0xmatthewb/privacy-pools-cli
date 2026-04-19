@@ -8,6 +8,7 @@ export function createHistoryCommand(): Command {
   return new Command("history")
     .description(metadata.description)
     .option("--no-sync", "Use cached data (faster, but may be stale)")
+    .option("--page <n>", "Show page N of history results", "1")
     .option("-n, --limit <n>", "Show last N events", "50")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(

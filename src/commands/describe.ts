@@ -64,3 +64,35 @@ export async function handleDescribeCommand(...args: unknown[]): Promise<void> {
     printError(error, mode.isJson);
   }
 }
+
+function normalizeExplainPath(input: string): string {
+  const trimmed = input.trim();
+  return trimmed.startsWith("envelope.") ? trimmed : `envelope.${trimmed}`;
+}
+
+export async function handleExplainCommand(
+  schemaPath: string,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = cmd.parent?.opts() as GlobalOptions;
+  const mode = resolveGlobalMode(globalOpts);
+  const normalizedPath = normalizeExplainPath(schemaPath);
+
+  try {
+    const envelopeSchema = resolveEnvelopeSchemaPath(normalizedPath);
+    if (envelopeSchema === undefined) {
+      throw new CLIError(
+        `Unknown schema path: ${schemaPath}`,
+        "INPUT",
+        "Use a bundled schema path such as nextActions, commands.status.successFields, or envelope.nextActions.",
+      );
+    }
+
+    renderSchemaDescription(createOutputContext(mode), {
+      path: normalizedPath,
+      schema: envelopeSchema,
+    });
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
+}

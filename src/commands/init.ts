@@ -952,7 +952,7 @@ export async function collectSignerKey(
     const keyInput = await password({
       message: params.required
         ? "Signer key (private key, 0x...):"
-        : "Signer key (private key, 0x..., or Enter to skip):",
+        : "Signer key (private key, 0x..., or press Enter to skip and finish later):",
       mask: "*",
     });
 
@@ -1248,6 +1248,14 @@ export async function handleInitCommand(
           signerOnly: dryRunPlan.workflow === "signer_only",
         }),
         signerKeySource: describeSignerKeySource(opts),
+        backupCaptureMode: opts.backupFile
+          ? "file"
+          : opts.showRecoveryPhrase
+            ? "stdout"
+            : "none",
+        backupFilePath: opts.backupFile ?? null,
+        backupFileWouldWrite:
+          dryRunPlan.workflow === "create" && Boolean(opts.backupFile),
         overwriteExisting: dryRunPlan.replacingExisting,
         overwritePromptRequired: dryRunPlan.replacingExisting && !opts.force,
         writeTargets,

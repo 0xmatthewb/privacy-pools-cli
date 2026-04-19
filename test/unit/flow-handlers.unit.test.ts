@@ -499,7 +499,7 @@ describe("flow command handlers", () => {
       .mockImplementationOnce(() => ({
         ...watchLoopStartSnapshot,
         workflowId: "wf-start",
-        privacyDelayProfile: "aggressive",
+        privacyDelayProfile: "strict",
         privacyDelayConfigured: true,
       }));
     stepWorkflowMock.mockImplementationOnce(async () => watchedSnapshot);
@@ -510,7 +510,7 @@ describe("flow command handlers", () => {
       {
         to: "0x4444444444444444444444444444444444444444",
         watch: true,
-        privacyDelay: "aggressive",
+        privacyDelay: "strict",
         newWallet: true,
         exportNewWallet: "/tmp/flow-wallet.txt",
       },
@@ -522,7 +522,7 @@ describe("flow command handlers", () => {
         amountInput: "0.1",
         assetInput: "ETH",
         recipient: "0x4444444444444444444444444444444444444444",
-        privacyDelayProfile: "aggressive",
+        privacyDelayProfile: "strict",
         newWallet: true,
         exportNewWallet: "/tmp/flow-wallet.txt",
         globalOpts: expect.objectContaining({ chain: "sepolia", json: true }),

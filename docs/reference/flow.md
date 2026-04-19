@@ -60,7 +60,7 @@ privacy-pools flow step latest --agent
 | Flag | Description |
 |------|-------------|
 | `-t, --to <address>` | Recipient address for private withdrawal (prompted interactively; required whenever prompts are skipped) |
-| `--privacy-delay <profile>` | Privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance. |
+| `--privacy-delay <profile>` | Privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance. |
 | `--new-wallet` | Create and use a dedicated wallet for this workflow |
 | `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
 | `--dry-run` | Validate the flow start inputs without saving a workflow or submitting a deposit |
@@ -69,7 +69,7 @@ privacy-pools flow step latest --agent
 **Safety:** Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.
 **Safety:** If --to is omitted in interactive mode, the CLI prompts for the recipient. When prompts are skipped, --to remains required.
 **Safety:** In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.
-**Safety:** New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.
+**Safety:** New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.
 **Safety:** Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.
 **Safety:** flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.
 **Safety:** --export-new-wallet is only valid with --new-wallet.
@@ -92,7 +92,7 @@ Resume a saved flow through funding, approval, privacy delay, and withdrawal
 
 **Usage:** `privacy-pools flow watch [workflowId|latest] [options]`
 
-Human-only convenience wrapper that loops flow status plus flow step until the saved workflow changes or settles. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation using the same saved-workflow state as the one-shot primitives. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or aggressive privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded and is rejected in --agent mode. Agents should use flow status and flow step externally instead. With --stream-json, flow watch emits line-delimited JSON phase_change events as the workflow advances, followed by the final snapshot as the last JSON line.
+Human-only convenience wrapper that loops flow status plus flow step until the saved workflow changes or settles. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation using the same saved-workflow state as the one-shot primitives. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or strict privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded and is rejected in --agent mode. Agents should use flow status and flow step externally instead. With --stream-json, flow watch emits line-delimited JSON phase_change events as the workflow advances, followed by the final snapshot as the last JSON line with isFinal = true.
 
 **Basic:**
 
@@ -111,20 +111,20 @@ privacy-pools flow watch latest --stream-json
 
 | Flag | Description |
 |------|-------------|
-| `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance. |
+| `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance. |
 | `--stream-json` | Emit line-delimited JSON phase_change events plus the final snapshot |
 
 **Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.
 **Safety:** If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.
 **Safety:** Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.
-**Safety:** Passing --privacy-delay on flow watch updates the saved workflow policy. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.
-**Safety:** Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.
+**Safety:** Passing --privacy-delay on flow watch updates the saved workflow policy. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.
+**Safety:** Switching to off clears any saved hold immediately; switching between balanced and strict resamples from the override time.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
 **JSON output:** `{ mode: "flow", action: "watch", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
-- `--stream-json: { mode: "flow", action: "watch", event: "phase_change", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot`
+- `--stream-json: { mode: "flow", action: "watch", event: "phase_change", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot with isFinal: true`
 
 ## `flow status`
 
@@ -174,7 +174,7 @@ privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 
 | Flag | Description |
 |------|-------------|
-| `--confirm-ragequit` | Confirm non-interactive flow ragequit commands that intentionally choose the public recovery path |
+| `--confirm-ragequit` | Deprecated compatibility flag for non-interactive flow ragequit commands that intentionally choose the public recovery path |
 
 **Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.
 **Safety:** Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.

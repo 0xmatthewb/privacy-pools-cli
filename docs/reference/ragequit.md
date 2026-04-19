@@ -10,7 +10,7 @@ Recover funds publicly to your deposit address
 
 **Usage:** `privacy-pools ragequit [asset] [options]`
 
-Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools. Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval. In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped, pass --confirm-ragequit.
+Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools. Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval. In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped, --confirm-ragequit remains available as a deprecated compatibility flag for this release.
 
 **Basic:**
 
@@ -33,7 +33,7 @@ privacy-pools ragequit ETH --dry-run --pool-account PA-1
 | `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
 | `--dry-run` | Generate proof and validate without submitting |
 | `--no-wait` | Return after submission instead of waiting for confirmation |
-| `--confirm-ragequit` | Confirm non-interactive ragequit commands that publicly recover funds to the original deposit address |
+| `--confirm-ragequit` | Deprecated compatibility flag for non-interactive ragequit commands that publicly recover funds to the original deposit address |
 
 **Safety:** Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.
 **Safety:** Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.

@@ -8,6 +8,7 @@ import {
   printJsonSuccess,
   renderNextSteps,
   success,
+  warn,
 } from "./common.js";
 import { formatTxHash } from "../utils/format.js";
 import { inlineSeparator } from "../utils/terminal.js";
@@ -20,6 +21,11 @@ export interface BroadcastRenderData {
   submissionId?: string | null;
   validatedOnly?: boolean;
   submittedBy?: string;
+  warnings?: Array<{
+    code: string;
+    category: string;
+    message: string;
+  }>;
   transactions: Array<{
     index: number;
     description: string;
@@ -141,6 +147,10 @@ export function renderBroadcast(
         : `Submitted by: ${data.submittedBy}`,
       silent,
     );
+  }
+
+  for (const warningEntry of data.warnings ?? []) {
+    warn(warningEntry.message, silent);
   }
 
   for (const transaction of data.transactions) {

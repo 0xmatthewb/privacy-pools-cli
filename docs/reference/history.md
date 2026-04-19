@@ -28,9 +28,10 @@ privacy-pools history --no-sync --chain mainnet
 | Flag | Description |
 |------|-------------|
 | `--no-sync` | Use cached data (faster, but may be stale) |
+| `--page <n>` | Show page N of history results |
 | `-n, --limit <n>` | Show last N events |
 
-**JSON output:** `{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ mode: "private-history", chain, page, perPage, total, totalPages, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true.`

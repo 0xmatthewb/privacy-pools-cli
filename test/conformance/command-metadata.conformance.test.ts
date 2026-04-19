@@ -10,6 +10,7 @@ import {
   getCommandExecutionMetadata,
   getCommandMetadata,
   GLOBAL_FLAG_METADATA,
+  listCommandPaths,
 } from "../../src/utils/command-metadata.ts";
 import { ROOT_GLOBAL_FLAG_METADATA } from "../../src/utils/root-global-flags.ts";
 import { NEXT_ACTION_WHEN_VALUES } from "../../src/types.ts";
@@ -49,12 +50,29 @@ describe("command metadata conformance", () => {
     const runtimeCommands = collectRuntimeCommands(await createRootProgram("0.0.0"))
       .sort((left, right) => left.path.localeCompare(right.path));
 
-    expect(runtimeCommands.map((entry) => entry.path)).toEqual([...COMMAND_PATHS].sort());
+    expect(runtimeCommands.map((entry) => entry.path)).toEqual([
+      ...COMMAND_PATHS,
+      "stats global",
+      "stats pool",
+    ].sort());
 
     for (const entry of runtimeCommands) {
       const metadata = getCommandMetadata(entry.path as (typeof COMMAND_PATHS)[number]);
+      if (
+        entry.path === "protocol-stats"
+        || entry.path === "pool-stats"
+        || entry.path === "stats global"
+        || entry.path === "stats pool"
+      ) {
+        expect(entry.aliases).toEqual([]);
+        continue;
+      }
       expect(entry.aliases).toEqual(metadata.aliases ?? []);
     }
+
+    expect(runtimeCommands.some((entry) => entry.path === "stats")).toBe(true);
+    expect(runtimeCommands.some((entry) => entry.path === "stats global")).toBe(true);
+    expect(runtimeCommands.some((entry) => entry.path === "stats pool")).toBe(true);
   });
 
   test("capabilities payload stays derived from command metadata and execution metadata", () => {
@@ -67,7 +85,7 @@ describe("command metadata conformance", () => {
 
     expect(payload.executionRoutes["pools"]).toEqual(getCommandExecutionMetadata("pools"));
     expect(payload.commandDetails["withdraw"]?.execution.owner).toBe("js-runtime");
-    expect(payload.commandDetails["stats pool"]?.execution.owner).toBe("hybrid");
+    expect(payload.commandDetails["pool-stats"]?.execution.owner).toBe("hybrid");
     expect(payload.commandDetails["capabilities"]?.execution.owner).toBe("native-shell");
     expect(payload.commandDetails["withdraw"]?.sideEffectClass).toBe("fund_movement");
     expect(payload.commandDetails["withdraw"]?.touchesFunds).toBe(true);
@@ -86,6 +104,9 @@ describe("command metadata conformance", () => {
       payload.commandDetails["flow"]?.expectedNextActionWhen,
     );
     expect(payload.safeReadOnlyCommands).toContain("flow status");
+    expect(payload.safeReadOnlyCommands).toContain("protocol-stats");
+    expect(payload.safeReadOnlyCommands).toContain("pool-stats");
+    expect(payload.safeReadOnlyCommands).not.toContain("stats");
     expect(payload.exitCodes).toEqual(CAPABILITY_EXIT_CODES);
     expect(payload.envVars).toEqual(CAPABILITY_ENV_VARS);
     expect(CAPABILITIES_SCHEMAS.nextActions?.whenValues).toEqual([
@@ -101,6 +122,14 @@ describe("command metadata conformance", () => {
     })).sort((left, right) => left.flag.localeCompare(right.flag));
 
     expect(rootOptions).toEqual(metadata);
+  });
+
+  test("hidden compatibility aliases stay out of primary capabilities discovery", () => {
+    const payload = buildCapabilitiesPayload();
+
+    expect(listCommandPaths()).not.toContain("stats");
+    expect(payload.commands.map((command) => command.name)).not.toContain("stats");
+    expect(Object.keys(payload.commandDetails)).not.toContain("stats");
   });
 
   test("completion metadata hides internal plumbing flags", () => {

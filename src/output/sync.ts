@@ -57,6 +57,7 @@ export function renderSyncEmpty(ctx: OutputContext, chain: string): void {
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      isFinal: true,
       chain,
       syncedPools: 0,
       availablePoolAccounts: 0,
@@ -100,6 +101,7 @@ export function renderSyncComplete(
     printJsonSuccess(
       appendNextActions(
         {
+          isFinal: true,
           chain: result.chain,
           syncedPools: result.syncedPools,
           syncedSymbols: result.syncedSymbols,

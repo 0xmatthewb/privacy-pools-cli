@@ -6,7 +6,7 @@ describe("flow command shell", () => {
     const command = createFlowCommand();
     const subcommands = command.commands.map((subcommand) => subcommand.name());
 
-    expect(subcommands).toEqual(["start", "watch", "status", "ragequit"]);
+    expect(subcommands).toEqual(["start", "watch", "status", "step", "ragequit"]);
 
     const start = command.commands.find((subcommand) => subcommand.name() === "start");
     expect(start).toBeDefined();
@@ -22,7 +22,7 @@ describe("flow command shell", () => {
     );
     expect(
       start?.options.find((option) => option.long === "--privacy-delay")?.argChoices,
-    ).toEqual(["off", "balanced", "aggressive"]);
+    ).toEqual(["off", "balanced", "strict"]);
 
     const watch = command.commands.find((subcommand) => subcommand.name() === "watch");
     expect(watch).toBeDefined();
@@ -31,6 +31,6 @@ describe("flow command shell", () => {
     );
     expect(
       watch?.options.find((option) => option.long === "--privacy-delay")?.argChoices,
-    ).toEqual(["off", "balanced", "aggressive"]);
+    ).toEqual(["off", "balanced", "strict"]);
   });
 });

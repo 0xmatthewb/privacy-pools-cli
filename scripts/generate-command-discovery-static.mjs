@@ -130,6 +130,7 @@ const runtimeContractModulePath = join(
 
 const {
   COMMAND_PATHS,
+  listCommandPaths,
   buildCapabilitiesPayload,
   getCommandExecutionMetadata,
 } = await import(
@@ -151,11 +152,12 @@ const {
 } = await import(pathToFileURL(runtimeContractModulePath).href);
 
 const capabilitiesPayload = buildCapabilitiesPayload();
+const documentedCommandPaths = listCommandPaths();
 const packageJson = JSON.parse(
   readFileSync(packageJsonPath, "utf8"),
 );
 const cliVersion = packageJson.version;
-const rootCommandPaths = COMMAND_PATHS.filter((path) => !path.includes(" "));
+const rootCommandPaths = documentedCommandPaths.filter((path) => !path.includes(" "));
 const rootCommands = rootCommandPaths.map((path) => {
   const descriptor = capabilitiesPayload.commandDetails[path];
   return {
@@ -165,7 +167,7 @@ const rootCommands = rootCommandPaths.map((path) => {
   };
 });
 
-const aliasEntries = COMMAND_PATHS.flatMap((path) =>
+const aliasEntries = documentedCommandPaths.flatMap((path) =>
   (capabilitiesPayload.commandDetails[path]?.aliases ?? []).map((alias) => [
     alias,
     path,
@@ -175,14 +177,14 @@ const aliasEntries = COMMAND_PATHS.flatMap((path) =>
 const aliasMap = Object.fromEntries(aliasEntries);
 const staticLocalCommands = ["guide", "capabilities", "describe", "completion"];
 const commandRoutes = Object.fromEntries(
-  COMMAND_PATHS.map((path) => [path, getCommandExecutionMetadata(path)]),
+  documentedCommandPaths.map((path) => [path, getCommandExecutionMetadata(path)]),
 );
-const tokenizedCommandRoutes = COMMAND_PATHS.map((path) => ({
+const tokenizedCommandRoutes = documentedCommandPaths.map((path) => ({
   route: path,
   tokens: path.split(" "),
 })).sort((left, right) => right.tokens.length - left.tokens.length);
 const directNativeCommands = new Set(
-  COMMAND_PATHS.filter((path) => {
+  documentedCommandPaths.filter((path) => {
     const route = commandRoutes[path];
     return route.owner === "native-shell" && route.nativeModes.includes("default");
   }),
@@ -278,21 +280,30 @@ async function buildNativeShellManifest() {
   const structuredRootHelp = JSON.parse(
     captureBuiltCli(["--json", "--help"]).stdout,
   ).help;
-  const guideStructuredText = stripAnsi(
-    JSON.parse(captureBuiltCli(["--json", "guide"]).stdout).help,
+  const guideStructuredEnvelope = JSON.parse(
+    captureBuiltCli(["--agent", "guide"]).stdout,
   );
+  const {
+    schemaVersion: _guideSchemaVersion,
+    success: _guideSuccess,
+    ...guideStructuredPayload
+  } = guideStructuredEnvelope;
+  if (typeof guideStructuredPayload.help === "string") {
+    guideStructuredPayload.help = stripAnsi(guideStructuredPayload.help);
+  }
+  const guideStructuredText = stripAnsi(guideStructuredPayload.help);
   const guideHumanText = captureBuiltCli(["guide"]).stderr;
   const capabilitiesHumanText = captureBuiltCli(["capabilities"]).stderr;
 
   const helpTextByPath = Object.fromEntries(
-    COMMAND_PATHS.map((path) => [
+    documentedCommandPaths.map((path) => [
       path,
       captureBuiltCli([...path.split(" "), "--help"]).stdout,
     ]),
   );
 
   const describeHumanTextByPath = Object.fromEntries(
-    COMMAND_PATHS.map((path) => [
+    documentedCommandPaths.map((path) => [
       path,
       captureBuiltCli(["describe", ...path.split(" ")]).stderr,
     ]),
@@ -310,11 +321,12 @@ async function buildNativeShellManifest() {
     runtimeVersion: CURRENT_RUNTIME_VERSION,
     cliVersion,
     jsonSchemaVersion: JSON_SCHEMA_VERSION,
-    commandPaths: COMMAND_PATHS,
+    commandPaths: documentedCommandPaths,
     aliasMap,
     rootHelp,
     structuredRootHelp,
     helpTextByPath,
+    guideStructuredPayload,
     guideStructuredText,
     guideHumanText,
     capabilitiesHumanText,
@@ -349,7 +361,7 @@ async function buildNativeShellManifest() {
     routes: {
       staticLocalCommands,
       directNativeCommands: [...directNativeCommands],
-      helpCommandPaths: COMMAND_PATHS,
+      helpCommandPaths: documentedCommandPaths,
       commandRoutes,
     },
     capabilitiesPayload,
@@ -365,7 +377,7 @@ export interface GeneratedCommandRoute {
   nativeModes: readonly string[];
 }
 
-export const GENERATED_COMMAND_PATHS = ${JSON.stringify(COMMAND_PATHS, null, 2)} as const;
+export const GENERATED_COMMAND_PATHS = ${JSON.stringify(documentedCommandPaths, null, 2)} as const;
 
 export type GeneratedCommandPath = (typeof GENERATED_COMMAND_PATHS)[number];
 
@@ -394,7 +406,7 @@ export interface GeneratedCommandRoute {
   nativeModes: readonly string[];
 }
 
-export const GENERATED_COMMAND_PATHS = ${JSON.stringify(COMMAND_PATHS, null, 2)} as const;
+export const GENERATED_COMMAND_PATHS = ${JSON.stringify(documentedCommandPaths, null, 2)} as const;
 
 export type GeneratedCommandPath = (typeof GENERATED_COMMAND_PATHS)[number];
 

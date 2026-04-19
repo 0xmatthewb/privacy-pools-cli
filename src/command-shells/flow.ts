@@ -25,8 +25,8 @@ export function createFlowCommand(): Command {
   command
     .command("start")
     .description(startMetadata.description)
-    .argument("<amount>", "Amount to deposit (e.g. 0.1)")
-    .argument("<asset>", "Asset symbol (e.g. ETH, USDC)")
+    .argument("<amount>", "Human-readable token amount to deposit (e.g. 0.1, not wei)")
+    .argument("<asset>", "Asset symbol or token address (case-insensitive; e.g. ETH, USDC)")
     .option(
       "-t, --to <address>",
       "Recipient address for private withdrawal (prompted interactively; required whenever prompts are skipped)",
@@ -34,7 +34,7 @@ export function createFlowCommand(): Command {
     .addOption(
       new Option(
         "--privacy-delay <profile>",
-        "Privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
+        "Privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.",
       ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .option("--new-wallet", "Create and use a dedicated wallet for this workflow")
@@ -92,7 +92,7 @@ export function createFlowCommand(): Command {
     .addOption(
       new Option(
         "--privacy-delay <profile>",
-        "Persist or override the saved privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
+        "Persist or override the saved privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.",
       ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .option(
@@ -137,7 +137,7 @@ export function createFlowCommand(): Command {
     .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
     .option(
       "--confirm-ragequit",
-      "Confirm non-interactive flow ragequit commands that intentionally choose the public recovery path",
+      "Deprecated compatibility flag for non-interactive flow ragequit commands that intentionally choose the public recovery path",
     )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(

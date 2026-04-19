@@ -28,10 +28,13 @@ const ROOT_COMMAND_NAMES = [
   "tx-status",
   "status",
   "activity",
+  "protocol-stats",
+  "pool-stats",
   "stats",
   "guide",
   "capabilities",
   "describe",
+  "explain",
   "completion",
 ] as const;
 
@@ -72,12 +75,18 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
     (await import("./command-shells/status.js")).createStatusCommand(),
   activity: async () =>
     (await import("./command-shells/activity.js")).createActivityCommand(),
+  "protocol-stats": async () =>
+    (await import("./command-shells/stats.js")).createProtocolStatsCommand(),
+  "pool-stats": async () =>
+    (await import("./command-shells/stats.js")).createPoolStatsCommand(),
   stats: async () => (await import("./command-shells/stats.js")).createStatsCommand(),
   guide: async () => (await import("./command-shells/guide.js")).createGuideCommand(),
   capabilities: async () =>
     (await import("./command-shells/capabilities.js")).createCapabilitiesCommand(),
   describe: async () =>
     (await import("./command-shells/describe.js")).createDescribeCommand(),
+  explain: async () =>
+    (await import("./command-shells/describe.js")).createExplainCommand(),
   completion: async () =>
     (await import("./command-shells/completion.js")).createCompletionCommand(),
 };

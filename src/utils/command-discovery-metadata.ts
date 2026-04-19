@@ -34,6 +34,7 @@ export { COMMAND_PATHS } from "./command-catalog.js";
 const CLI_PACKAGE_INFO = readCliPackageInfo(import.meta.url);
 const EXIT_CODES_GUIDE_NOTE =
   "Exit code categories are documented in 'privacy-pools guide exit-codes'.";
+const HIDDEN_DISCOVERY_COMMANDS = new Set<CommandPath>(["stats"]);
 
 export interface GlobalFlagMetadata {
   flag: string;
@@ -66,7 +67,11 @@ function defaultExecutionMetadata(path: CommandPath): CommandExecutionDescriptor
     };
   }
 
-  if (path === "stats global" || path === "stats pool" || path === "activity") {
+  if (
+    path === "protocol-stats"
+    || path === "pool-stats"
+    || path === "activity"
+  ) {
     return {
       owner: "hybrid",
       nativeModes: ["default", "csv", "structured", "help"],
@@ -128,10 +133,10 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "status",
   "tx-status",
   "activity",
-  "stats",
-  "stats global",
-  "stats pool",
+  "protocol-stats",
+  "pool-stats",
   "describe",
+  "explain",
   "deposit",
   "withdraw",
   "withdraw quote",
@@ -214,7 +219,7 @@ const CHAIN_GLOBAL_FLAG = "-c, --chain <name>";
 
 const CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS = new Set<CommandPath>([
   "stats",
-  "stats global",
+  "protocol-stats",
 ]);
 
 function supportedGlobalFlagMetadata(path: CommandPath): GlobalFlagMetadata[] {
@@ -332,6 +337,7 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
   "guide",
   "capabilities",
   "describe",
+  "explain",
   "config",
   "config list",
   "config get",
@@ -339,8 +345,8 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
   "pools",
   "activity",
   "stats",
-  "stats global",
-  "stats pool",
+  "protocol-stats",
+  "pool-stats",
   "status",
   "flow status",
   "migrate",
@@ -518,18 +524,28 @@ export function resolveCommandPath(query: string | string[]): CommandPath | null
     return null;
   }
 
+  const visiblePaths = listCommandPaths();
+
+  if ((visiblePaths as string[]).includes(normalized)) {
+    return normalized as CommandPath;
+  }
+
+  const aliasMatch = visiblePaths.find((path) =>
+    (COMMAND_CATALOG[path].aliases ?? []).includes(normalized)
+  );
+  if (aliasMatch) {
+    return aliasMatch;
+  }
+
   if ((COMMAND_PATHS as string[]).includes(normalized)) {
     return normalized as CommandPath;
   }
 
-  const aliasMatch = COMMAND_PATHS.find((path) =>
-    (COMMAND_CATALOG[path].aliases ?? []).includes(normalized)
-  );
-  return aliasMatch ?? null;
+  return null;
 }
 
 export function listCommandPaths(): CommandPath[] {
-  return [...COMMAND_PATHS];
+  return COMMAND_PATHS.filter((path) => !HIDDEN_DISCOVERY_COMMANDS.has(path));
 }
 
 export function getCommandMetadata(path: CommandPath): CommandMetadata {
@@ -537,7 +553,7 @@ export function getCommandMetadata(path: CommandPath): CommandMetadata {
 }
 
 export function getDocumentedAgentMarkers(): string[] {
-  return COMMAND_PATHS
+  return listCommandPaths()
     .map((path) => COMMAND_CATALOG[path].agentsDocMarker)
     .filter((value): value is string => typeof value === "string" && value.length > 0);
 }
@@ -560,10 +576,10 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       };
     }),
     commandDetails: Object.fromEntries(
-      COMMAND_PATHS.map((path) => [path, buildCommandDescriptor(path)]),
+      listCommandPaths().map((path) => [path, buildCommandDescriptor(path)]),
     ),
     executionRoutes: Object.fromEntries(
-      COMMAND_PATHS.map((path) => [path, getCommandExecutionMetadata(path)]),
+      listCommandPaths().map((path) => [path, getCommandExecutionMetadata(path)]),
     ),
     globalFlags: GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({ flag, description })),
     exitCodes: CAPABILITY_EXIT_CODES,
@@ -578,7 +594,7 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
     })),
     protocol: CLI_PROTOCOL_PROFILE,
     runtime: buildRuntimeCompatibilityDescriptor(CLI_PACKAGE_INFO.version),
-    safeReadOnlyCommands: COMMAND_PATHS
+    safeReadOnlyCommands: listCommandPaths()
       .filter((path) => COMMAND_CATALOG[path].safeReadOnly)
       .map((path) => path),
     jsonOutputContract:

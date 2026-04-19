@@ -32,13 +32,13 @@ export const GENERATED_COMMAND_PATHS = [
   "flow ragequit",
   "pools",
   "activity",
-  "stats",
-  "stats global",
-  "stats pool",
+  "protocol-stats",
+  "pool-stats",
   "status",
   "tx-status",
   "capabilities",
   "describe",
+  "explain",
   "guide",
   "deposit",
   "withdraw",
@@ -95,9 +95,19 @@ export const GENERATED_ROOT_COMMANDS = [
     "description": "View recent deposits and withdrawals across pools"
   },
   {
-    "name": "stats",
-    "aliases": [],
-    "description": "View pool and network statistics"
+    "name": "protocol-stats",
+    "aliases": [
+      "stats",
+      "stats global"
+    ],
+    "description": "View aggregate network statistics"
+  },
+  {
+    "name": "pool-stats",
+    "aliases": [
+      "stats pool"
+    ],
+    "description": "View statistics for one pool"
   },
   {
     "name": "status",
@@ -118,6 +128,11 @@ export const GENERATED_ROOT_COMMANDS = [
     "name": "describe",
     "aliases": [],
     "description": "Describe a command's flags, args, and output schema"
+  },
+  {
+    "name": "explain",
+    "aliases": [],
+    "description": "Explain a bundled JSON schema path"
   },
   {
     "name": "guide",
@@ -182,6 +197,9 @@ export const GENERATED_STATIC_LOCAL_COMMANDS = [
 
 export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = {
   "remove": "config unset",
+  "stats": "protocol-stats",
+  "stats global": "protocol-stats",
+  "stats pool": "pool-stats",
   "exit": "ragequit"
 };
 
@@ -325,17 +343,7 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
       "help"
     ]
   },
-  "stats": {
-    "owner": "hybrid",
-    "nativeModes": [
-      "default",
-      "csv",
-      "structured-default",
-      "structured-global",
-      "help"
-    ]
-  },
-  "stats global": {
+  "protocol-stats": {
     "owner": "hybrid",
     "nativeModes": [
       "default",
@@ -344,7 +352,7 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
       "help"
     ]
   },
-  "stats pool": {
+  "pool-stats": {
     "owner": "hybrid",
     "nativeModes": [
       "default",
@@ -376,6 +384,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     "owner": "native-shell",
     "nativeModes": [
       "default",
+      "help"
+    ]
+  },
+  "explain": {
+    "owner": "js-runtime",
+    "nativeModes": [
       "help"
     ]
   },
@@ -713,9 +727,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
-        "--confirm-ragequit"
+        "--confirm-ragequit (deprecated)"
       ],
-      "agentFlags": "--agent [--confirm-ragequit]",
+      "agentFlags": "--agent [--confirm-ragequit (deprecated)]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -755,7 +769,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw",
+        "--confirm-direct-withdraw (deprecated)",
         "--extra-gas",
         "--no-extra-gas"
       ],
@@ -770,7 +784,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit"
+        "--confirm-ragequit (deprecated)"
       ],
       "agentFlags": "--agent",
       "requiresInit": true,
@@ -829,33 +843,27 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "expectedLatencyClass": "medium"
     },
     {
-      "name": "stats",
-      "description": "View pool and network statistics",
+      "name": "protocol-stats",
+      "description": "View aggregate network statistics",
       "group": "monitoring",
-      "usage": "stats",
-      "flags": [
-        "global",
-        "pool <symbol|address>"
+      "aliases": [
+        "stats",
+        "stats global"
       ],
-      "agentFlags": "global --agent (or: pool <symbol> --agent)",
-      "requiresInit": false,
-      "expectedLatencyClass": "medium"
-    },
-    {
-      "name": "stats global",
-      "description": "Show global Privacy Pools statistics (all-time and last 24h)",
-      "group": "monitoring",
-      "usage": "stats global",
+      "usage": "protocol-stats",
       "flags": [],
       "agentFlags": "--agent",
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
     {
-      "name": "stats pool",
-      "description": "Show statistics for a specific pool (all-time and last 24h)",
+      "name": "pool-stats",
+      "description": "View statistics for one pool",
       "group": "monitoring",
-      "usage": "stats pool <symbol|address>",
+      "aliases": [
+        "stats pool"
+      ],
+      "usage": "pool-stats <symbol|address>",
       "flags": [
         "<symbol|address>"
       ],
@@ -870,6 +878,18 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "describe <command...>",
       "flags": [
         "<command...>"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "explain",
+      "description": "Explain a bundled JSON schema path",
+      "group": "advanced",
+      "usage": "explain <schemaPath>",
+      "flags": [
+        "<schemaPath>"
       ],
       "agentFlags": "--agent",
       "requiresInit": false,
@@ -900,7 +920,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw",
+        "--confirm-direct-withdraw (deprecated)",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -985,6 +1005,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "history",
       "flags": [
         "--no-sync",
+        "--page <n>",
         "--limit <n>"
       ],
       "agentFlags": "--agent",
@@ -1014,7 +1035,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit",
+        "--confirm-ragequit (deprecated)",
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait"
@@ -1172,7 +1193,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }",
+      "jsonFields": "success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }",
       "jsonVariants": [
         "--staged: JSONL stages with mode: \"init-staged\", operation: \"init\", stage: \"preflight\"|\"recovery\"|\"backup\"|\"signer\"|\"chain\"|\"write\"|\"discovery\"|\"complete\""
       ],
@@ -2359,7 +2380,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.",
         "If --to is omitted in interactive mode, the CLI prompts for the recipient. When prompts are skipped, --to remains required.",
         "In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.",
-        "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
+        "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.",
         "Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.",
         "flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.",
         "--export-new-wallet is only valid with --new-wallet.",
@@ -2476,14 +2497,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
-        "--stream-json: { mode: \"flow\", action: \"watch\", event: \"phase_change\", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot"
+        "--stream-json: { mode: \"flow\", action: \"watch\", event: \"phase_change\", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot with isFinal: true"
       ],
       "safetyNotes": [
         "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
         "If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.",
         "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.",
-        "Passing --privacy-delay on flow watch updates the saved workflow policy. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. aggressive = 2 to 12 hours randomized; strongest fingerprint resistance.",
-        "Switching to off clears any saved hold immediately; switching between balanced and aggressive resamples from the override time.",
+        "Passing --privacy-delay on flow watch updates the saved workflow policy. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.",
+        "Switching to off clears any saved hold immediately; switching between balanced and strict resamples from the override time.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
@@ -2678,7 +2699,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
-        "--confirm-ragequit"
+        "--confirm-ragequit (deprecated)"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -2951,86 +2972,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": []
     },
-    "stats": {
-      "command": "stats",
-      "description": "View pool and network statistics",
+    "protocol-stats": {
+      "command": "protocol-stats",
+      "description": "View aggregate network statistics",
       "group": "monitoring",
-      "aliases": [],
-      "execution": {
-        "owner": "hybrid",
-        "nativeModes": [
-          "default",
-          "csv",
-          "structured-default",
-          "structured-global",
-          "help"
-        ]
-      },
-      "usage": "stats",
-      "flags": [
-        "global",
-        "pool <symbol|address>"
+      "aliases": [
+        "stats",
+        "stats global"
       ],
-      "globalFlags": [
-        "-j, --json",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "medium",
-      "safeReadOnly": true,
-      "sideEffectClass": "read_only",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [],
-      "examples": [
-        "privacy-pools stats global",
-        "privacy-pools stats pool ETH",
-        "privacy-pools stats pool USDC --agent --chain mainnet"
-      ],
-      "structuredExamples": [
-        {
-          "name": "Example 1",
-          "value": "privacy-pools stats global"
-        },
-        {
-          "name": "Example 2",
-          "value": "privacy-pools stats pool ETH"
-        },
-        {
-          "name": "Example 3",
-          "value": "privacy-pools stats pool USDC --agent --chain mainnet"
-        }
-      ],
-      "jsonFields": null,
-      "jsonVariants": [],
-      "safetyNotes": [
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentWorkflowNotes": []
-    },
-    "stats global": {
-      "command": "stats global",
-      "description": "Show global Privacy Pools statistics (all-time and last 24h)",
-      "group": "monitoring",
-      "aliases": [],
       "execution": {
         "owner": "hybrid",
         "nativeModes": [
@@ -3040,7 +2989,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "help"
         ]
       },
-      "usage": "stats global",
+      "usage": "protocol-stats",
       "flags": [],
       "globalFlags": [
         "-j, --json",
@@ -3070,20 +3019,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
-        "privacy-pools stats global",
-        "privacy-pools stats global --agent"
+        "privacy-pools protocol-stats",
+        "privacy-pools protocol-stats --agent"
       ],
       "structuredExamples": [
         {
           "name": "Example 1",
-          "value": "privacy-pools stats global"
+          "value": "privacy-pools protocol-stats"
         },
         {
           "name": "Example 2",
-          "value": "privacy-pools stats global --agent"
+          "value": "privacy-pools protocol-stats --agent"
         }
       ],
-      "jsonFields": "{ mode, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+      "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -3092,11 +3041,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": []
     },
-    "stats pool": {
-      "command": "stats pool",
-      "description": "Show statistics for a specific pool (all-time and last 24h)",
+    "pool-stats": {
+      "command": "pool-stats",
+      "description": "View statistics for one pool",
       "group": "monitoring",
-      "aliases": [],
+      "aliases": [
+        "stats pool"
+      ],
       "execution": {
         "owner": "hybrid",
         "nativeModes": [
@@ -3106,7 +3057,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "help"
         ]
       },
-      "usage": "stats pool <symbol|address>",
+      "usage": "pool-stats <symbol|address>",
       "flags": [
         "<symbol|address>"
       ],
@@ -3139,20 +3090,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
-        "privacy-pools stats pool ETH",
-        "privacy-pools stats pool USDC --agent --chain mainnet"
+        "privacy-pools pool-stats ETH",
+        "privacy-pools pool-stats USDC --agent --chain mainnet"
       ],
       "structuredExamples": [
         {
           "name": "Example 1",
-          "value": "privacy-pools stats pool ETH"
+          "value": "privacy-pools pool-stats ETH"
         },
         {
           "name": "Example 2",
-          "value": "privacy-pools stats pool USDC --agent --chain mainnet"
+          "value": "privacy-pools pool-stats USDC --agent --chain mainnet"
         }
       ],
-      "jsonFields": "{ mode, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
+      "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -3241,7 +3192,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+      "jsonFields": "{ mode: \"cli-status\", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -3305,7 +3256,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent"
         }
       ],
-      "jsonFields": "{ operation: \"tx-status\", submissionId, sourceOperation, sourceCommand, chain, asset?, poolAccountId?, poolAccountNumber?, workflowId?, recipient?, broadcastMode?, broadcastSourceOperation?, createdAt, updatedAt, status: \"submitted\"|\"confirmed\"|\"reverted\", reconciliationRequired, localStateSynced, warningCode?, lastError?, transactions: [{ index, description, txHash, explorerUrl, blockNumber, status }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ operation: \"tx-status\", submissionId, sourceOperation, sourceCommand, chain, asset?, poolAccountId?, poolAccountNumber?, workflowId?, recipient?, broadcastMode?, broadcastSourceOperation?, createdAt, updatedAt, status: \"submitted\"|\"confirmed\"|\"reverted\", reconciliationRequired, localStateSynced, warningCode?, lastError?, estimatedConfirmationSeconds?, pollingRecommendation?: { initialSeconds, maxSeconds, backoffFactor }, transactions: [{ index, description, txHash, explorerUrl, blockNumber, status }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -3429,7 +3380,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "examples": [
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
-        "privacy-pools describe stats global --agent",
+        "privacy-pools describe protocol-stats --agent",
         "privacy-pools describe envelope.shared.nextAction --agent"
       ],
       "structuredExamples": [
@@ -3443,7 +3394,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "name": "Example 3",
-          "value": "privacy-pools describe stats global --agent"
+          "value": "privacy-pools describe protocol-stats --agent"
         },
         {
           "name": "Example 4",
@@ -3451,6 +3402,77 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         }
       ],
       "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "explain": {
+      "command": "explain",
+      "description": "Explain a bundled JSON schema path",
+      "group": "advanced",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "explain <schemaPath>",
+      "flags": [
+        "<schemaPath>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools explain nextActions --agent",
+        "privacy-pools explain commands.status.successFields --agent",
+        "privacy-pools explain envelope.shared.nextAction"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools explain nextActions --agent"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools explain commands.status.successFields --agent"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools explain envelope.shared.nextAction"
+        }
+      ],
+      "jsonFields": "{ path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -3642,6 +3664,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
         "An ASP vetting fee is deducted from the deposit amount.",
         "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at https://tornado.0xbow.io before they can withdraw privately.",
+        "Deposit and simulate deposit amounts are human-readable token amounts, not wei. Asset symbols are normalized case-insensitively.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
@@ -3670,7 +3693,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw",
+        "--confirm-direct-withdraw (deprecated)",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -3773,7 +3796,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "jsonVariants": [
         "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-        "--unsigned: { mode, operation, withdrawMode, chain, transactions[], ... } (envelope JSON)",
+        "--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary? (relayed), ... } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }"
       ],
@@ -3781,8 +3804,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
-        "When prompts are skipped, --direct requires --confirm-direct-withdraw.",
-        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. It is unnecessary for ETH withdrawals.",
+        "When prompts are skipped, direct withdrawals still require an explicit acknowledgement. --confirm-direct-withdraw remains available as a deprecated compatibility flag for this release.",
+        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. ERC20 withdrawals default to this on unless --no-extra-gas is passed; ETH withdrawals ignore it.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
@@ -3889,7 +3912,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit",
+        "--confirm-ragequit (deprecated)",
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait"
@@ -4070,7 +4093,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw",
+        "--confirm-direct-withdraw (deprecated)",
         "--extra-gas",
         "--no-extra-gas"
       ],
@@ -4151,7 +4174,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit"
+        "--confirm-ragequit (deprecated)"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -4589,6 +4612,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "history",
       "flags": [
         "--no-sync",
+        "--page <n>",
         "--limit <n>"
       ],
       "globalFlags": [
@@ -4653,7 +4677,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           ]
         }
       ],
-      "jsonFields": "{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ mode: \"private-history\", chain, page, perPage, total, totalPages, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
         "--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true."
       ],
@@ -4729,7 +4753,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "value": "privacy-pools sync --chain mainnet"
         }
       ],
-      "jsonFields": "{ chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ isFinal: true, chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -4738,7 +4762,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": [
         "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
-        "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs."
+        "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs; the terminal result line includes isFinal = true."
       ]
     },
     "completion": {
@@ -4971,17 +4995,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
-    "stats": {
-      "owner": "hybrid",
-      "nativeModes": [
-        "default",
-        "csv",
-        "structured-default",
-        "structured-global",
-        "help"
-      ]
-    },
-    "stats global": {
+    "protocol-stats": {
       "owner": "hybrid",
       "nativeModes": [
         "default",
@@ -4990,7 +5004,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
-    "stats pool": {
+    "pool-stats": {
       "owner": "hybrid",
       "nativeModes": [
         "default",
@@ -5022,6 +5036,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "owner": "native-shell",
       "nativeModes": [
         "default",
+        "help"
+      ]
+    },
+    "explain": {
+      "owner": "js-runtime",
+      "nativeModes": [
         "help"
       ]
     },
@@ -5535,7 +5555,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   },
   "runtime": {
     "cliVersion": "2.1.0",
-    "jsonSchemaVersion": "2.0.0",
+    "jsonSchemaVersion": "2.1.0",
     "accountFileVersion": 3,
     "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1",
@@ -5557,13 +5577,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "flow status",
     "pools",
     "activity",
-    "stats",
-    "stats global",
-    "stats pool",
+    "protocol-stats",
+    "pool-stats",
     "status",
     "tx-status",
     "capabilities",
     "describe",
+    "explain",
     "guide",
     "simulate deposit",
     "simulate withdraw",
@@ -5579,7 +5599,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v2.1.0.json"
   }
 };
 

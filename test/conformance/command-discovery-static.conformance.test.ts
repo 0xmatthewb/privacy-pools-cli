@@ -30,13 +30,13 @@ describe("command discovery static conformance", () => {
   const sentinelCommands = [
     "guide",
     "pools",
-    "stats pool",
+    "pool-stats",
     "withdraw",
     "flow watch",
   ] as const;
 
   test("static command path catalog and alias resolution stay aligned", () => {
-    expect([...STATIC_COMMAND_PATHS]).toEqual([...COMMAND_PATHS]);
+    expect([...STATIC_COMMAND_PATHS]).toEqual(listCommandPaths());
     expect(listStaticCommandPaths()).toEqual(listCommandPaths());
 
     for (const path of sentinelCommands) {
@@ -78,6 +78,9 @@ describe("command discovery static conformance", () => {
     ]);
     expect(GENERATED_COMMAND_ALIAS_MAP).toEqual({
       remove: "config unset",
+      stats: "protocol-stats",
+      "stats global": "protocol-stats",
+      "stats pool": "pool-stats",
       exit: "ragequit",
     });
     expect(GENERATED_COMMAND_PATHS).toContain("guide");
@@ -92,9 +95,13 @@ describe("command discovery static conformance", () => {
       owner: "hybrid",
       nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
     });
-    expect(GENERATED_COMMAND_ROUTES.stats).toEqual({
+    expect(GENERATED_COMMAND_ROUTES["protocol-stats"]).toEqual({
       owner: "hybrid",
-      nativeModes: ["default", "csv", "structured-default", "structured-global", "help"],
+      nativeModes: ["default", "csv", "structured", "help"],
+    });
+    expect(GENERATED_COMMAND_ROUTES["pool-stats"]).toEqual({
+      owner: "hybrid",
+      nativeModes: ["default", "csv", "structured", "help"],
     });
     expect(GENERATED_COMMAND_ROUTES.withdraw).toEqual({
       owner: "js-runtime",

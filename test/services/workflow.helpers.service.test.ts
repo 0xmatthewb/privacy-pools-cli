@@ -751,7 +751,7 @@ describe("workflow helper coverage", () => {
     expect(resolveFlowPrivacyDelayProfile(undefined, "balanced")).toBe("balanced");
     expect(resolveOptionalFlowPrivacyDelayProfile(undefined)).toBeUndefined();
     expect(resolveOptionalFlowPrivacyDelayProfile(" aggressive ")).toBe(
-      "aggressive",
+      "strict",
     );
     expect(() => resolveFlowPrivacyDelayProfile("slow", "balanced")).toThrow(
       "Unknown flow privacy delay profile",
@@ -761,7 +761,7 @@ describe("workflow helper coverage", () => {
       samplePrivacyDelayMs: (profile) => (profile === "balanced" ? 42_000 : 84_000),
     });
     expect(sampleFlowPrivacyDelayMs("balanced")).toBe(42_000);
-    expect(sampleFlowPrivacyDelayMs("aggressive")).toBe(84_000);
+    expect(sampleFlowPrivacyDelayMs("strict")).toBe(84_000);
 
     const delaySnapshot = normalizeWorkflowSnapshot(
       sampleWorkflow("wf-delay", {
@@ -787,7 +787,7 @@ describe("workflow helper coverage", () => {
 
   test("privacy-delay policy helpers reschedule approved workflows and clear pending delay when turned off", () => {
     overrideWorkflowTimingForTests({
-      samplePrivacyDelayMs: (profile) => profile === "aggressive" ? 2 * 60 * 60_000 : 45 * 60_000,
+      samplePrivacyDelayMs: (profile) => profile === "strict" ? 2 * 60 * 60_000 : 45 * 60_000,
     });
 
     const approvedReady = sampleWorkflow("wf-approved-ready", {
@@ -798,7 +798,7 @@ describe("workflow helper coverage", () => {
     });
     const rescheduled = applyFlowPrivacyDelayPolicy(
       approvedReady,
-      "aggressive",
+      "strict",
       {
         configured: true,
         rescheduleApproved: true,
@@ -852,7 +852,7 @@ describe("workflow helper coverage", () => {
 
   test("scheduleApprovedWorkflowPrivacyDelay honors off and randomized delay profiles", () => {
     overrideWorkflowTimingForTests({
-      samplePrivacyDelayMs: (profile) => profile === "aggressive" ? 3 * 60 * 60_000 : 20 * 60_000,
+      samplePrivacyDelayMs: (profile) => profile === "strict" ? 3 * 60 * 60_000 : 20 * 60_000,
     });
 
     const off = scheduleApprovedWorkflowPrivacyDelay(
@@ -878,7 +878,7 @@ describe("workflow helper coverage", () => {
     expect(balanced.privacyDelayUntil).toBe("2026-03-24T12:20:00.000Z");
   });
 
-  test("sampleFlowPrivacyDelayMs uses the default balanced and aggressive windows", () => {
+  test("sampleFlowPrivacyDelayMs uses the default balanced and strict windows", () => {
     const originalRandom = Math.random;
 
     try {
@@ -888,7 +888,7 @@ describe("workflow helper coverage", () => {
       expect(sampleFlowPrivacyDelayMs("balanced")).toBe(15 * 60_000);
 
       Math.random = () => 0.999999999999;
-      expect(sampleFlowPrivacyDelayMs("aggressive")).toBe(12 * 60 * 60_000);
+      expect(sampleFlowPrivacyDelayMs("strict")).toBe(12 * 60 * 60_000);
     } finally {
       Math.random = originalRandom;
     }
@@ -901,8 +901,8 @@ describe("workflow helper coverage", () => {
     expect(flowPrivacyDelayProfileSummary("unexpected" as never)).toBe(
       "Balanced (randomized 15 to 90 minutes)",
     );
-    expect(flowPrivacyDelayProfileSummary("aggressive")).toBe(
-      "Aggressive (randomized 2 to 12 hours)",
+    expect(flowPrivacyDelayProfileSummary("strict")).toBe(
+      "Strict (randomized 2 to 12 hours)",
     );
     expect(flowPrivacyDelayProfileSummary("off")).toBe("Off (no added hold)");
     expect(flowPrivacyDelayProfileSummary("off", false)).toContain(

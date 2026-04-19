@@ -79,15 +79,15 @@ without omitting optional dependencies.
 **JSON envelope**: Every response follows the schema:
 
 ```
-{ "schemaVersion": "2.0.0", "success": true, ...payload }
-{ "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
+{ "schemaVersion": "2.1.0", "success": true, ...payload }
+{ "schemaVersion": "2.1.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
 ```
 
 Parse `success` first. On failure, read `error.code` for programmatic handling and `error.hint` for remediation. `errorCode` and `errorMessage` remain v2 compatibility aliases and match `error.code` and `error.message`. Check `error.retryable` before deciding to retry.
 
 Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
-The complete JSON output contract is defined in [`docs/contracts/cli-json-contract.v2.0.0.json`](docs/contracts/cli-json-contract.v2.0.0.json). For a stable bundled machine-contract path inside the installed package, prefer `docs/contracts/cli-json-contract.current.json`. Installed packages include that stable path plus the active schema snapshot for the packaged CLI version. The repository may retain older versioned snapshots for historical reference, and runtime discovery metadata may still point at the exact versioned snapshot for the active schema.
+The complete JSON output contract is defined in [`docs/contracts/cli-json-contract.v2.1.0.json`](docs/contracts/cli-json-contract.v2.1.0.json). For a stable bundled machine-contract path inside the installed package, prefer `docs/contracts/cli-json-contract.current.json`. Installed packages include that stable path plus the active schema snapshot for the packaged CLI version. The repository may retain older versioned snapshots for historical reference, and runtime discovery metadata may still point at the exact versioned snapshot for the active schema.
 
 ### NextActions Specification
 
@@ -167,7 +167,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "...commandPayload": "...",
   "nextActions": [{ "command": "string", "reason": "string", "when": "string", "cliCommand": "string", "runnable": true }]
@@ -178,7 +178,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "setupMode": "create | restore | signer_only | replace",
   "readiness": "ready | read_only | discovery_required",
@@ -197,7 +197,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "operation": "init",
   "dryRun": true,
@@ -218,7 +218,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "operation": "deposit",
   "status": "submitted | confirmed",
@@ -245,7 +245,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "operation": "withdraw",
   "status": "submitted | confirmed",
@@ -275,7 +275,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "operation": "ragequit",
   "status": "submitted | confirmed",
@@ -301,7 +301,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "operation": "tx-status",
   "submissionId": "123e4567-e89b-12d3-a456-426614174000",
@@ -340,7 +340,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "chain": "mainnet",
   "lastSyncTime": "2026-04-18T12:00:00.000Z | absent",
@@ -373,7 +373,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "chain": "mainnet",
   "search": null,
@@ -404,7 +404,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "configExists": true,
   "configDir": "/home/user/.privacy-pools",
@@ -436,7 +436,7 @@ Every JSON response wraps command-specific data in a standard envelope:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": false,
   "errorCode": "RPC_NETWORK_ERROR",
   "errorMessage": "Network error: ...",
@@ -504,7 +504,8 @@ CSV output is intentionally limited to listing and read-only reporting commands 
 | `pools` | Yes |
 | `accounts` | Yes |
 | `activity` | Yes |
-| `stats` | Yes |
+| `protocol-stats` | Yes |
+| `pool-stats` | Yes |
 | `history` | Yes |
 | `deposit` | No |
 | `withdraw` | No |
@@ -557,30 +558,30 @@ When filtering by `--chain` without a positional asset, events are filtered clie
 
 With a positional asset (`activity ETH`), mode is `"pool-activity"` and adds `asset`, `pool`, and `scope` fields. Pagination totals are accurate (server-side filtering).
 
-#### `stats global`
+#### `protocol-stats`
 
-Protocol-wide statistics. This is the default subcommand for `stats`. Always shows aggregate cross-chain data. The `--chain` flag is **not** supported for `stats global`; use `stats pool <symbol> --chain <chain>` for chain-specific data.
+Protocol-wide statistics. Always shows aggregate cross-chain data. The `--chain` flag is **not** supported for `protocol-stats`; use `pool-stats <symbol> --chain <chain>` for chain-specific data.
 
 ```bash
-privacy-pools stats global --agent
-privacy-pools stats --agent  # same as above
+privacy-pools protocol-stats --agent
+privacy-pools stats --agent  # compatibility alias
 ```
 
-JSON payload: `{ mode: "global-stats", chain: "all-mainnets", chains, cacheTimestamp, allTime, last24h, perChain? }`
+JSON payload: `{ mode: "global-stats", command: "protocol-stats", invokedAs?, deprecationWarning?, chain: "all-mainnets", chains, cacheTimestamp, allTime, last24h, perChain? }`
 
 `chains` lists the chain names queried and `perChain` contains per-chain `{ chain, cacheTimestamp, allTime, last24h }` entries.
 
 `allTime` and `last24h` are objects provided by the ASP. Expected fields: `tvlUsd`, `avgDepositSizeUsd`, `totalDepositsCount`, `totalWithdrawalsCount`, `totalDepositsValue`, `totalWithdrawalsValue`, `totalDepositsValueUsd`, `totalWithdrawalsValueUsd`.
 
-#### `stats pool`
+#### `pool-stats`
 
 Per-pool statistics.
 
 ```bash
-privacy-pools stats pool ETH --agent
+privacy-pools pool-stats ETH --agent
 ```
 
-JSON payload: `{ mode: "pool-stats", chain, asset, pool, scope, cacheTimestamp, allTime, last24h }`
+JSON payload: `{ mode: "pool-stats", command: "pool-stats", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp, allTime, last24h }`
 
 #### `status`
 
@@ -591,7 +592,7 @@ privacy-pools status --agent
 privacy-pools status --agent --check
 ```
 
-JSON payload: `{ configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?: [{ code, message, affects[] }], warnings?: [{ code, message, affects[] }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`
+JSON payload: `{ mode: "cli-status", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?: [{ code, message, affects[] }], warnings?: [{ code, message, affects[] }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`
 
 `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags: they indicate the wallet is set up for those operations, **not** that privately withdrawable funds exist. `recommendedMode`, `blockingIssues[]`, and `warnings[]` are the higher-level preflight contract for agents. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. When `recommendedMode = "read-only"` because RPC or ASP health is degraded, `nextActions` stays on public discovery and intentionally avoids account-state guidance until connectivity is restored. If only the ASP is down while RPC is still healthy, public recovery remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the operator already knows the affected account or workflow. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
 When `rpcUrl` or `aspHost` comes from a custom endpoint, the CLI redacts userinfo, query strings, and token-like path segments before printing them.
@@ -637,7 +638,7 @@ Describe one command for runtime agent introspection.
 
 ```bash
 privacy-pools describe withdraw quote --agent
-privacy-pools describe stats global --agent
+privacy-pools describe protocol-stats --agent
 ```
 
 JSON payload: `{ mode: "describe-index", commands: [{ command, description, group }] }` when no command path is provided; `{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }` for `describe <command...>`; or `{ path, schema }` for `describe envelope.<path>`.
@@ -678,6 +679,10 @@ Representative JSON payloads:
 - `config profile active`: `{ profile, configDir, nextActions?: [...] }`
 - `config profile use`: `{ profile, active, configDir, nextActions?: [...] }`
 
+`config set default-chain <chain>` persists the active profile's default chain under the CLI config home. It is profile-wide state, not a workspace/session-scoped context switch. Use per-command `--chain <name>` when one repo or one shell session needs to target a different network temporarily.
+
+Filter conventions stay intentionally mixed: use positional asset arguments for pool-specific public views (`activity ETH`, `pool-stats ETH`, `pools ETH` detail), and use flags for list refinement or state filters (`--search`, `--status`, `--pending-only`, `--page`, `--limit`).
+
 #### `completion`
 
 Generate or install shell completion.
@@ -697,7 +702,7 @@ Read-only polling surface for commands that returned immediately with `--no-wait
 privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent
 ```
 
-JSON payload: `{ operation: "tx-status", submissionId, sourceOperation, sourceCommand, chain, asset?, poolAccountId?, poolAccountNumber?, workflowId?, recipient?, broadcastMode?, broadcastSourceOperation?, createdAt, updatedAt, status: "submitted" | "confirmed" | "reverted", reconciliationRequired, localStateSynced, warningCode?, lastError?, transactions: [{ index, description, txHash, explorerUrl, blockNumber, status }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+JSON payload: `{ operation: "tx-status", submissionId, sourceOperation, sourceCommand, chain, asset?, poolAccountId?, poolAccountNumber?, workflowId?, recipient?, broadcastMode?, broadcastSourceOperation?, createdAt, updatedAt, status: "submitted" | "confirmed" | "reverted", estimatedConfirmationSeconds?, pollingRecommendation?: { initialSeconds, maxSeconds, backoffFactor }, reconciliationRequired, localStateSynced, warningCode?, lastError?, transactions: [{ index, description, txHash, explorerUrl, blockNumber, status }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 ### Wallet Required
 
@@ -717,7 +722,7 @@ privacy-pools init --agent --signer-only --private-key-file ./signer-key.txt
 printf '%s\n' 0x... | privacy-pools init --agent --recovery-phrase-file ./recovery.txt --private-key-stdin --default-chain mainnet
 ```
 
-JSON payload: `success: { setupMode, readiness, defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: "init", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, overwriteExisting, overwritePromptRequired, writeTargets[] }`
+JSON payload: `success: { setupMode, readiness, defaultChain, signerKeySet, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }; --dry-run: { operation: "init", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }`
 
 When `--show-recovery-phrase` is passed (and a new recovery phrase was generated), `recoveryPhrase` contains that recovery phrase. Otherwise `recoveryPhraseRedacted: true` and a `warning` field is included indicating the recovery phrase must be captured. When importing an existing recovery phrase, neither field is present.
 
@@ -751,7 +756,7 @@ privacy-pools flow step latest --agent
 privacy-pools flow ragequit latest --agent
 privacy-pools flow watch latest                        # human-only wrapper over status + step
 privacy-pools flow watch latest --stream-json         # human-only NDJSON phase changes
-privacy-pools flow watch latest --privacy-delay aggressive   # updates the saved privacy-delay policy
+privacy-pools flow watch latest --privacy-delay strict   # updates the saved privacy-delay policy
 ```
 
 `flow start` performs the public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient. The saved workflow always withdraws the full remaining balance of that same Pool Account at execution time.
@@ -760,7 +765,7 @@ Creating or advancing a saved flow requires `init`. `flow status` is read-only a
 
 Like `deposit`, `flow start` rejects non-round amounts in machine modes because unique amounts can fingerprint the deposit. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that privacy tradeoff. In interactive mode, omitting `--to` prompts for the saved recipient. A round input can still become a non-round committed balance after the ASP vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.
 
-New workflows default to a balanced post-approval privacy delay before the relayed withdrawal. `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `aggressive` randomizes the hold between 2 and 12 hours. Flow JSON includes `privacyDelayRandom` and `privacyDelayRangeSeconds`; the ranges are `[0, 0]` for `off`, `[900, 5400]` for `balanced`, and `[7200, 43200]` for `aggressive`. Pass `--privacy-delay off|balanced|aggressive` to `flow start`, or to human `flow watch`, to update the saved policy later.
+New workflows default to a balanced post-approval privacy delay before the relayed withdrawal. `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `strict` randomizes the hold between 2 and 12 hours. Flow JSON includes `privacyDelayRandom` and `privacyDelayRangeSeconds`; the ranges are `[0, 0]` for `off`, `[900, 5400]` for `balanced`, and `[7200, 43200]` for `strict`. Pass `--privacy-delay off|balanced|strict` to `flow start`, or to human `flow watch`, to update the saved policy later.
 
 With `--new-wallet`, the CLI generates a dedicated workflow wallet for that one flow. Human `flow start --new-wallet` stays attached and waits for the required funding automatically. In `--agent`, `flow start` returns an `awaiting_funding` snapshot with `walletAddress`, `requiredNativeFunding`, and `requiredTokenFunding`; fund that wallet, then continue with `flow status` / `flow step`. ETH workflows require the full ETH target. ERC20 workflows require both the token amount and a native ETH gas reserve in the same wallet. In non-interactive mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow begins.
 
@@ -775,7 +780,7 @@ For agents, the canonical primitives are:
 
 `flow watch` remains available for humans only. It is a thin wrapper over repeated `flow status` + `flow step`; `flow watch --agent` and `flow start --watch --agent` are rejected with machine-readable `CLIError`s pointing agents back to `flow status` and `flow step`.
 
-Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`. Deposit review state from the ASP (the approval service) remains available separately in `aspStatus`. When the Pool Account is approved, human `flow watch` either waits through the saved privacy-delay window or performs the relayed private withdrawal automatically after approval and any configured privacy delay. Passing human `flow watch --privacy-delay ...` updates the saved workflow policy persistently: `off` clears any saved hold immediately, and switching between `balanced` and `aggressive` resamples from the override time. Pass `--stream-json` to human `flow watch` to emit line-delimited `phase_change` events as the workflow advances, followed by the final snapshot as the last JSON line.
+Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`. Deposit review state from the ASP (the approval service) remains available separately in `aspStatus`. When the Pool Account is approved, human `flow watch` either waits through the saved privacy-delay window or performs the relayed private withdrawal automatically after approval and any configured privacy delay. Passing human `flow watch --privacy-delay ...` updates the saved workflow policy persistently: `off` clears any saved hold immediately, and switching between `balanced` and `strict` resamples from the override time. Pass `--stream-json` to human `flow watch` to emit line-delimited `phase_change` events as the workflow advances, followed by the final snapshot as the last JSON line.
 
 If the workflow is `declined`, it pauses and surfaces `flow ragequit` as the canonical public recovery path. If it is `poa_required`, complete Proof of Association externally to continue privately, or use `flow ragequit` to recover publicly instead. If the saved full-balance withdrawal falls below the relayer minimum, the workflow surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextActions` path while the workflow is still progressing normally.
 
@@ -908,7 +913,7 @@ JSON payload (direct): same but `mode: "direct"`, `feeBPS: null`, no `extraGas`,
 
 When `status = "submitted"` (for example with `--no-wait`), use `submissionId` with `tx-status` to poll confirmation without resubmitting.
 
-> **Note**: Direct withdrawals (`--direct`) will publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Non-interactive direct submissions and broadcastable unsigned direct payloads require `--confirm-direct-withdraw`; dry-runs do not. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poa_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
+> **Note**: Direct withdrawals (`--direct`) will publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Non-interactive direct submissions and broadcastable unsigned direct payloads accept `--confirm-direct-withdraw` as a deprecated compatibility flag for this release; dry-runs do not require it. ASP approval is still required for both relayed and direct withdrawals. If a deposit is `poa_required`, complete Proof of Association first. If it is declined, use `ragequit` instead.
 
 **Amount shortcuts:**
 - `--all`: Withdraw the entire Pool Account balance
@@ -940,6 +945,8 @@ privacy-pools ragequit ETH --pool-account PA-1 --agent
 JSON payload: `{ operation: "ragequit", status: "submitted" | "confirmed", submissionId?, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber|null, explorerUrl, destinationAddress?, remainingBalance: "0", privacyCostManifest, reconciliationRequired, localStateSynced, warningCode?, warnings?: [{ code, category, message }], advisory?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 When `status = "submitted"` (for example with `--no-wait`), use `submissionId` with `tx-status` to poll confirmation without resubmitting.
+
+Standalone ragequit uses the same typed-token confirmation backend as other high-severity confirmations. When prompts are skipped, `--confirm-ragequit` remains available as a deprecated compatibility flag for this release.
 
 #### `accounts`
 
@@ -994,7 +1001,7 @@ Chronological event history.
 privacy-pools history --agent --limit 50
 ```
 
-JSON payload: `{ chain, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+JSON payload: `{ mode: "private-history", chain, page, perPage, total, totalPages, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 `type` is `"deposit"`, `"migration"`, `"withdrawal"`, or `"ragequit"`.
 
@@ -1007,7 +1014,7 @@ privacy-pools sync --agent
 privacy-pools sync ETH --agent
 ```
 
-JSON payload: `{ chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+JSON payload: `{ isFinal: true, chain, syncedPools, syncedSymbols?, availablePoolAccounts, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 ## Auto-Sync Behavior
 
@@ -1023,7 +1030,7 @@ Query commands auto-sync with a 2-minute freshness TTL. If data was synced withi
 | sync       | Always      | N/A           |
 | pools      | No          | N/A (public)  |
 | activity   | No          | N/A (public)  |
-| stats      | No          | N/A (public)  |
+| protocol-stats / pool-stats | No | N/A (public) |
 
 ## Polling for ASP Approval
 
@@ -1055,7 +1062,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "2.1.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",

@@ -29,9 +29,14 @@ export interface HistoryPoolInfo {
 }
 
 export interface HistoryRenderData {
+  mode: "private-history";
   chain: string;
   chainId: number;
   events: HistoryEvent[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
   poolByAddress: Map<string, HistoryPoolInfo>;
   explorerTxUrl: (chainId: number, txHash: string) => string | null;
   /** Current block number for approximate relative timestamps. Null shows "-" instead. */
@@ -63,7 +68,12 @@ function renderHistoryType(type: HistoryEvent["type"]): string {
 export function renderHistoryNoPools(
   ctx: OutputContext,
   data: {
+    mode?: "private-history";
     chain: string;
+    page?: number;
+    perPage?: number;
+    total?: number;
+    totalPages?: number;
     lastSyncTime?: number | null;
     syncSkipped?: boolean;
   },
@@ -81,7 +91,12 @@ export function renderHistoryNoPools(
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: data.mode ?? "private-history",
       chain: data.chain,
+      page: data.page ?? 1,
+      perPage: data.perPage ?? 50,
+      total: data.total ?? 0,
+      totalPages: data.totalPages ?? 0,
       ...(data.lastSyncTime != null
         ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
         : {}),
@@ -103,9 +118,14 @@ export function renderHistoryNoPools(
  */
 export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void {
   const {
+    mode,
     chain,
     chainId,
     events,
+    page,
+    perPage,
+    total,
+    totalPages,
     poolByAddress,
     explorerTxUrl,
     currentBlock,
@@ -138,7 +158,12 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
       }),
     );
     printJsonSuccess(appendNextActions({
+      mode,
       chain,
+      page,
+      perPage,
+      total,
+      totalPages,
       ...(lastSyncTime != null ? { lastSyncTime: new Date(lastSyncTime).toISOString() } : {}),
       syncSkipped: syncSkipped ?? false,
       events: events.map((e) => ({
@@ -198,7 +223,9 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
 
   if (silent) return;
 
-  process.stderr.write(`\n${accentBold(`History on ${chain} (last ${events.length} events):`)}\n\n`);
+  process.stderr.write(
+    `\n${accentBold(`History on ${chain} (page ${page} of ${Math.max(totalPages, 1)}, ${total} total events):`)}\n\n`,
+  );
   if (syncSkipped && lastSyncTime != null) {
     process.stderr.write(`Cached ${formatTimeAgo(lastSyncTime)}. Re-run sync to refresh.\n\n`);
   }

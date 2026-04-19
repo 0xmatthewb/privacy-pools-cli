@@ -1,5 +1,5 @@
 import { Command, Option } from "commander";
-import { commandHelpText } from "../utils/help.js";
+import { commandHelpText, groupedFlagGuideText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
 
@@ -9,8 +9,8 @@ export function createWithdrawCommand(): Command {
   const command = new Command("withdraw")
     .description(metadata.description)
     .usage("[options] [amount] [asset]")
-    .argument("[amount]", "Amount to withdraw (e.g. 0.05, 50%, 100%) or omit for interactive")
-    .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
+    .argument("[amount]", "Human-readable amount to withdraw (e.g. 0.05, 50%, 100%) or omit for interactive")
+    .argument("[asset]", "Asset symbol or token address (case-insensitive; e.g. ETH, USDC)")
     .option("-t, --to <address>", "Recipient address (required unless --direct; prompted interactively)")
     .option(
       "-p, --pool-account <PA-ID | numeric-index>",
@@ -25,7 +25,7 @@ export function createWithdrawCommand(): Command {
     .addOption(
       new Option(
         "--confirm-direct-withdraw",
-        "Confirm non-interactive direct withdrawals that publicly link deposit and withdrawal addresses.",
+        "Deprecated compatibility flag for non-interactive direct withdrawals that publicly link deposit and withdrawal addresses.",
       ),
     )
     .addOption(
@@ -45,9 +45,47 @@ export function createWithdrawCommand(): Command {
     .option("--all", "Withdraw entire Pool Account balance (requires asset: withdraw --all ETH)")
     .option(
       "--extra-gas",
-      "For ERC20 withdrawals only: also receive native gas tokens (default on for ERC20 withdrawals, unnecessary for ETH withdrawals)",
+      "For ERC20 withdrawals only: also receive native gas tokens. ERC20 withdrawals default to on; ETH withdrawals ignore this flag.",
     )
-    .option("--no-extra-gas", "Disable extra gas request")
+    .option("--no-extra-gas", "Disable extra gas for ERC20 withdrawals")
+    .addHelpText(
+      "after",
+      groupedFlagGuideText([
+        {
+          heading: "Execution",
+          flags: [
+            "--unsigned [format]",
+            "--dry-run",
+            "--no-wait",
+            "--all",
+          ],
+        },
+        {
+          heading: "Recipient & Selection",
+          flags: [
+            "--to <address>",
+            "--pool-account <PA-ID | numeric-index>",
+          ],
+        },
+        {
+          heading: "Privacy & Fees",
+          flags: [
+            "--direct",
+            "--confirm-direct-withdraw",
+            "--extra-gas",
+            "--no-extra-gas",
+          ],
+        },
+        {
+          heading: "Output & Defaults",
+          flags: [
+            "--yes",
+            "--agent",
+            "--help-brief",
+          ],
+        },
+      ]),
+    )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(
@@ -63,7 +101,7 @@ export function createWithdrawCommand(): Command {
       "<amountOrAsset>",
       "Amount to withdraw (preferred first positional) or asset symbol",
     )
-    .argument("[amount]", "Asset symbol (preferred second positional) or amount when the asset is first")
+    .argument("[amount]", "Asset symbol (preferred second positional, case-insensitive) or amount when the asset is first")
     .option(
       "-t, --to <address>",
       "Recipient address (recommended for an accurate fee quote)",

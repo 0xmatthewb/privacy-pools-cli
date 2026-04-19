@@ -179,6 +179,16 @@ export interface UnsignedRelayedWithdrawOutput {
   selectedCommitmentValue: string;
   feeBPS: string;
   quoteExpiresAt: string;
+  quoteSummary?: {
+    quotedAt: string;
+    quoteExpiresAt: string;
+    baseFeeBPS: string;
+    quoteFeeBPS: string;
+    feeAmount: string;
+    netAmount: string;
+    relayerHost: string;
+    extraGas: boolean;
+  };
   warnings: Array<{ code: string; category: string; message: string }>;
   transactions: UnsignedTransactionPayload[];
   relayerRequest: unknown;
@@ -192,10 +202,16 @@ export function buildUnsignedRelayedWithdrawOutput(params: UnsignedBase & {
   selectedCommitmentValue: bigint;
   feeBPS: string;
   quoteExpiresAt: string;
+  quotedAt: string;
+  baseFeeBPS: string;
+  relayerHost: string;
+  extraGas: boolean;
   withdrawal: WithdrawalCall;
   proof: SolidityWithdrawProof;
   relayerRequest: unknown;
 }): UnsignedRelayedWithdrawOutput {
+  const feeAmount = (params.amount * BigInt(params.feeBPS)) / 10000n;
+  const netAmount = params.amount - feeAmount;
   const transaction: UnsignedTransactionPayload = {
     chainId: params.chainId,
     from: params.from,
@@ -221,6 +237,16 @@ export function buildUnsignedRelayedWithdrawOutput(params: UnsignedBase & {
     selectedCommitmentValue: params.selectedCommitmentValue.toString(),
     feeBPS: params.feeBPS,
     quoteExpiresAt: params.quoteExpiresAt,
+    quoteSummary: {
+      quotedAt: params.quotedAt,
+      quoteExpiresAt: params.quoteExpiresAt,
+      baseFeeBPS: params.baseFeeBPS,
+      quoteFeeBPS: params.feeBPS,
+      feeAmount: feeAmount.toString(),
+      netAmount: netAmount.toString(),
+      relayerHost: params.relayerHost,
+      extraGas: params.extraGas,
+    },
     warnings: unsignedPreviewWarnings(),
     transactions: [transaction],
     relayerRequest: params.relayerRequest,

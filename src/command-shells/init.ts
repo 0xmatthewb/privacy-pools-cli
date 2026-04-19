@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { commandHelpText, groupedFlagGuideText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
+import { INIT_STAGED_STEP_NAMES } from "../output/init.js";
 
 export function createInitCommand(): Command {
   const metadata = getCommandMetadata("init");
@@ -49,7 +50,7 @@ export function createInitCommand(): Command {
     )
     .option(
       "--staged",
-      "Emit onboarding progress as JSONL envelopes in --json/--agent mode (preflight, recovery, backup, signer, chain, write, discovery, complete)",
+      `Emit onboarding progress as JSONL envelopes in --json/--agent mode (${INIT_STAGED_STEP_NAMES.join(", ")})`,
     )
     .addHelpText(
       "after",
@@ -88,7 +89,7 @@ export function createInitCommand(): Command {
           ],
         },
         {
-          heading: "Safety",
+          heading: "Output & Defaults",
           flags: [
             "--yes",
             "--agent",

@@ -1130,6 +1130,21 @@ function isNewWalletFlow(snapshot: FlowSnapshot): boolean {
 }
 
 export function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot {
+  const normalizedPrivacyDelayProfile = (
+    (value: string | undefined): FlowPrivacyDelayProfile => {
+      switch (value) {
+        case "balanced":
+          return "balanced";
+        case "strict":
+        case "aggressive":
+          return "strict";
+        case "off":
+        default:
+          return "off";
+      }
+    }
+  )(snapshot.privacyDelayProfile as string | undefined);
+
   return {
     ...snapshot,
     schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
@@ -1141,7 +1156,7 @@ export function normalizeWorkflowSnapshot(snapshot: FlowSnapshot): FlowSnapshot 
     requiredTokenFunding: snapshot.requiredTokenFunding ?? null,
     estimatedCommittedValue: snapshot.estimatedCommittedValue ?? null,
     backupConfirmed: snapshot.backupConfirmed ?? false,
-    privacyDelayProfile: snapshot.privacyDelayProfile ?? "off",
+    privacyDelayProfile: normalizedPrivacyDelayProfile,
     privacyDelayConfigured: snapshot.privacyDelayConfigured ?? false,
     approvalObservedAt: snapshot.approvalObservedAt ?? null,
     privacyDelayUntil: snapshot.privacyDelayUntil ?? null,
@@ -1569,8 +1584,8 @@ export function flowPrivacyDelayProfileSummary(
       return configured
         ? "Off (no added hold)"
         : "Off (legacy workflow without a saved privacy-delay policy; behaves like no added hold)";
-    case "aggressive":
-      return "Aggressive (randomized 2 to 12 hours)";
+    case "strict":
+      return "Strict (randomized 2 to 12 hours)";
     default:
       return "Balanced (randomized 15 to 90 minutes)";
   }
@@ -1770,6 +1785,10 @@ export function resolveFlowPrivacyDelayProfile(
     return fallback;
   }
 
+  if (normalized === "aggressive") {
+    return "strict";
+  }
+
   if (
     (FLOW_PRIVACY_DELAY_PROFILES as readonly string[]).includes(normalized)
   ) {
@@ -1779,7 +1798,7 @@ export function resolveFlowPrivacyDelayProfile(
   throw new CLIError(
     `Unknown flow privacy delay profile: ${input}`,
     "INPUT",
-    "Use one of: off, balanced, aggressive.",
+    "Use one of: off, balanced, strict.",
   );
 }
 

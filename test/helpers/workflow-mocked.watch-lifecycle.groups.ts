@@ -772,7 +772,7 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
           nowMs: () => nowMs,
           samplePrivacyDelayMs: (profile) => {
             sampleCalls += 1;
-            return profile === "aggressive" ? 4 * 60 * 60_000 : 30 * 60_000;
+            return profile === "strict" ? 4 * 60 * 60_000 : 30 * 60_000;
           },
           sleep: async (ms) => {
             nowMs += ms;
@@ -795,7 +795,7 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
         await expect(
           watchWorkflow({
             workflowId: "wf-privacy-delay-switch",
-            privacyDelayProfile: "aggressive",
+            privacyDelayProfile: "strict",
             globalOpts: { chain: "sepolia" },
             mode: {
               isAgent: true,
@@ -811,7 +811,7 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
 
         const rescheduled = loadWorkflowSnapshot("wf-privacy-delay-switch");
         expect(rescheduled.phase).toBe("approved_waiting_privacy_delay");
-        expect(rescheduled.privacyDelayProfile).toBe("aggressive");
+        expect(rescheduled.privacyDelayProfile).toBe("strict");
         expect(rescheduled.approvalObservedAt).toBe("2026-03-24T12:00:00.000Z");
         expect(rescheduled.privacyDelayUntil).toBe("2026-03-24T16:00:00.000Z");
         expect(sampleCalls).toBe(1);
@@ -844,7 +844,7 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
           await expect(
             watchWorkflow({
               workflowId: "wf-privacy-delay-switch-message",
-              privacyDelayProfile: "aggressive",
+              privacyDelayProfile: "strict",
               globalOpts: { chain: "sepolia" },
               mode: {
                 isAgent: false,
@@ -860,7 +860,7 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
         });
 
         expect(stderr).toContain("Saved privacy-delay policy updated from");
-        expect(stderr).toContain("Aggressive (randomized 2 to 12 hours)");
+        expect(stderr).toContain("Strict (randomized 2 to 12 hours)");
         expect(stderr).toContain("local time");
       });
       test("watchWorkflow updates pending workflows to a configured privacy-delay policy before approval", async () => {
@@ -889,7 +889,7 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
           await expect(
             watchWorkflow({
               workflowId: "wf-privacy-delay-pending",
-              privacyDelayProfile: "aggressive",
+              privacyDelayProfile: "strict",
               globalOpts: { chain: "sepolia" },
               mode: {
                 isAgent: false,
@@ -906,7 +906,7 @@ export function registerWorkflowMockedWatchLifecycleTests(): void {
 
         const updated = loadWorkflowSnapshot("wf-privacy-delay-pending");
         expect(updated.phase).toBe("awaiting_asp");
-        expect(updated.privacyDelayProfile).toBe("aggressive");
+        expect(updated.privacyDelayProfile).toBe("strict");
         expect(updated.privacyDelayConfigured).toBe(true);
         expect(updated.approvalObservedAt).toBeNull();
         expect(updated.privacyDelayUntil).toBeNull();

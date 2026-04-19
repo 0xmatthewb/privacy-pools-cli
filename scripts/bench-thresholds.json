@@ -36,7 +36,7 @@
     "stats --agent": {
       "minImprovementPct": 25
     },
-    "stats pool --agent --chain sepolia --asset ETH": {
+    "pool-stats ETH --agent --chain sepolia": {
       "minImprovementPct": 25
     }
   },

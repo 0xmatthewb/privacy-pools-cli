@@ -80,8 +80,24 @@ export function isCsv(ctx: OutputContext): boolean {
 }
 
 /** Commands that support `--output csv` output. */
-const CSV_SUPPORTED_COMMANDS = ["pools", "accounts", "activity", "stats", "history"];
-const NAME_SUPPORTED_COMMANDS = ["pools", "accounts", "activity", "stats", "history"];
+const CSV_SUPPORTED_COMMANDS = [
+  "pools",
+  "accounts",
+  "activity",
+  "protocol-stats",
+  "pool-stats",
+  "stats",
+  "history",
+];
+const NAME_SUPPORTED_COMMANDS = [
+  "pools",
+  "accounts",
+  "activity",
+  "protocol-stats",
+  "pool-stats",
+  "stats",
+  "history",
+];
 
 /**
  * Throw an INPUT error when `--output csv` is used with a command that does

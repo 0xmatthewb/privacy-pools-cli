@@ -62,7 +62,7 @@ The default command matrix covers:
 - `activity --agent`
 - `activity ETH --agent --chain sepolia`
 - `stats --agent`
-- `stats pool ETH --agent --chain sepolia`
+- `pool-stats ETH --agent --chain sepolia`
 
 Treat those families as distinct budgets rather than one global number:
 

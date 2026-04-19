@@ -53,10 +53,24 @@ export interface InitDryRunResult {
   effectiveChain: string;
   recoveryPhraseSource: string;
   signerKeySource: string;
+  backupCaptureMode: "none" | "stdout" | "file";
+  backupFilePath?: string | null;
+  backupFileWouldWrite: boolean;
   overwriteExisting: boolean;
   overwritePromptRequired: boolean;
   writeTargets: string[];
 }
+
+export const INIT_STAGED_STEP_NAMES = [
+  "preflight",
+  "recovery",
+  "backup",
+  "signer",
+  "chain",
+  "write",
+  "discovery",
+  "complete",
+] as const;
 
 export function renderInitStage(
   stage: string,
@@ -553,6 +567,9 @@ export function renderInitDryRun(
         effectiveChain: result.effectiveChain,
         recoveryPhraseSource: result.recoveryPhraseSource,
         signerKeySource: result.signerKeySource,
+        backupCaptureMode: result.backupCaptureMode,
+        backupFilePath: result.backupFilePath ?? null,
+        backupFileWouldWrite: result.backupFileWouldWrite,
         overwriteExisting: result.overwriteExisting,
         overwritePromptRequired: result.overwritePromptRequired,
         writeTargets: result.writeTargets,
@@ -574,6 +591,12 @@ export function renderInitDryRun(
         { label: "Effective chain", value: result.effectiveChain },
         { label: "Recovery phrase", value: result.recoveryPhraseSource },
         { label: "Signer key", value: result.signerKeySource },
+        { label: "Backup capture", value: result.backupCaptureMode },
+        {
+          label: "Backup file",
+          value: result.backupFilePath ?? "not requested",
+          valueTone: result.backupFileWouldWrite ? "success" : "muted",
+        },
         {
           label: "Existing setup",
           value: result.overwriteExisting ? "would be replaced" : "fresh setup",

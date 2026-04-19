@@ -23,7 +23,12 @@ import {
   type UnsignedTransactionPayload,
 } from "../utils/unsigned.js";
 import { resolveChain } from "../utils/validation.js";
-import { submitRelayRequest, decodeValidatedRelayerWithdrawalData, getRelayerHosts } from "./relayer.js";
+import {
+  submitRelayRequest,
+  decodeValidatedRelayerWithdrawalData,
+  getRelayerHosts,
+  requestQuoteWithExtraGasFallback,
+} from "./relayer.js";
 import { getPublicClient } from "./sdk.js";
 
 export type BroadcastSourceOperation = "deposit" | "withdraw" | "ragequit";
@@ -46,6 +51,11 @@ export interface BroadcastResult {
   chain: string;
   validatedOnly?: boolean;
   submittedBy?: Address;
+  warnings?: Array<{
+    code: string;
+    category: string;
+    message: string;
+  }>;
   transactions: BroadcastTransactionResult[];
   localStateUpdated: false;
 }
@@ -100,6 +110,17 @@ interface ParsedRelayerRequest {
     extraGas: boolean;
     signedRelayerCommitment: Hex;
   };
+}
+
+interface ParsedQuoteSummary {
+  quotedAt: string;
+  quoteExpiresAt: string;
+  baseFeeBPS: string;
+  quoteFeeBPS: string;
+  feeAmount: string;
+  netAmount: string;
+  relayerHost: string;
+  extraGas: boolean;
 }
 
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
@@ -274,6 +295,34 @@ function readInteger(
   return value;
 }
 
+function parseOptionalQuoteSummary(
+  record: Record<string, unknown>,
+): ParsedQuoteSummary | undefined {
+  const value = record.quoteSummary;
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw new CLIError(
+      "Broadcast envelope field 'quoteSummary' must be an object when present.",
+      "INPUT",
+      "Use the original relayed --unsigned envelope without editing quoteSummary.",
+      "INPUT_BROADCAST_INVALID_ENVELOPE",
+    );
+  }
+
+  return {
+    quotedAt: readString(value, "quotedAt"),
+    quoteExpiresAt: readString(value, "quoteExpiresAt"),
+    baseFeeBPS: readDecimalString(value, "baseFeeBPS"),
+    quoteFeeBPS: readDecimalString(value, "quoteFeeBPS"),
+    feeAmount: readDecimalString(value, "feeAmount"),
+    netAmount: readDecimalString(value, "netAmount"),
+    relayerHost: readString(value, "relayerHost"),
+    extraGas: readBoolean(value, "extraGas"),
+  };
+}
+
 function validateUnsignedTransactionPayload(
   value: unknown,
   index: number,
@@ -406,6 +455,7 @@ function parseEnvelope(input: unknown): BroadcastEnvelope {
       selectedCommitmentValue: readDecimalString(input, "selectedCommitmentValue"),
       feeBPS: readDecimalString(input, "feeBPS"),
       quoteExpiresAt: readString(input, "quoteExpiresAt"),
+      quoteSummary: parseOptionalQuoteSummary(input),
       warnings: Array.isArray(input.warnings) ? input.warnings : [],
       transactions,
       relayerRequest: input.relayerRequest,
@@ -902,6 +952,86 @@ function resolveConfiguredRelayerUrl(
   return matched;
 }
 
+function buildBroadcastWarning(
+  code: string,
+  category: string,
+  message: string,
+): { code: string; category: string; message: string } {
+  return { code, category, message };
+}
+
+async function compareLiveRelayerQuote(
+  chainConfig: ChainConfig,
+  envelope: Extract<BroadcastEnvelope, { operation: "withdraw"; withdrawMode: "relayed" }>,
+  relayerRequest: ParsedRelayerRequest,
+  relayerUrl: string | undefined,
+): Promise<Array<{ code: string; category: string; message: string }>> {
+  const savedQuote = envelope.quoteSummary;
+  if (!savedQuote) {
+    return [
+      buildBroadcastWarning(
+        "QUOTE_DELTA_UNAVAILABLE",
+        "RELAYER",
+        "Could not compare the saved relayer quote against a live quote because this unsigned envelope predates quoteSummary. Broadcast will continue using the saved relayer request.",
+      ),
+    ];
+  }
+
+  try {
+    const liveQuoteResult = await requestQuoteWithExtraGasFallback(chainConfig, {
+      amount: BigInt(envelope.amount),
+      asset: relayerRequest.feeCommitment.asset,
+      extraGas: savedQuote.extraGas,
+      recipient: envelope.recipient,
+      ...(relayerUrl ? { relayerUrl } : {}),
+    });
+    const liveQuote = liveQuoteResult.quote;
+    const liveFeeAmount = (
+      BigInt(envelope.amount) * BigInt(liveQuote.feeBPS)
+    ) / 10_000n;
+    const liveNetAmount = BigInt(envelope.amount) - liveFeeAmount;
+    const liveRelayerHost = (() => {
+      try {
+        return new URL(liveQuote.relayerUrl ?? relayerUrl ?? "").host;
+      } catch {
+        return liveQuote.relayerUrl ?? relayerUrl ?? savedQuote.relayerHost;
+      }
+    })();
+
+    const changed =
+      savedQuote.baseFeeBPS !== liveQuote.baseFeeBPS
+      || savedQuote.quoteFeeBPS !== liveQuote.feeBPS
+      || savedQuote.feeAmount !== liveFeeAmount.toString()
+      || savedQuote.netAmount !== liveNetAmount.toString()
+      || savedQuote.extraGas !== liveQuoteResult.extraGas
+      || savedQuote.relayerHost.toLowerCase() !== liveRelayerHost.toLowerCase();
+
+    if (!changed) {
+      return [];
+    }
+
+    return [
+      buildBroadcastWarning(
+        "QUOTE_CHANGED",
+        "RELAYER",
+        `Relayer quote changed since this envelope was created. Previous fee ${savedQuote.feeAmount} (${savedQuote.quoteFeeBPS} BPS), current fee ${liveFeeAmount.toString()} (${liveQuote.feeBPS} BPS). Previous net ${savedQuote.netAmount}, current net ${liveNetAmount.toString()}.`,
+      ),
+    ];
+  } catch (error) {
+    const detail =
+      error instanceof Error
+        ? sanitizeDiagnosticText(error.message)
+        : sanitizeDiagnosticText(String(error));
+    return [
+      buildBroadcastWarning(
+        "QUOTE_DELTA_UNAVAILABLE",
+        "RELAYER",
+        `Could not compare the saved relayer quote against a live quote. Broadcast will continue using the saved relayer request. Detail: ${detail}`,
+      ),
+    ];
+  }
+}
+
 async function broadcastRelayedEnvelope(
   chainConfig: ChainConfig,
   envelope: Extract<BroadcastEnvelope, { operation: "withdraw"; withdrawMode: "relayed" }>,
@@ -1011,6 +1141,12 @@ async function broadcastRelayedEnvelope(
     chainConfig,
     envelope.relayerHost,
   );
+  const quoteWarnings = await compareLiveRelayerQuote(
+    chainConfig,
+    envelope,
+    relayerRequest,
+    relayerUrl,
+  );
   if (validateOnly) {
     return {
       mode: "broadcast",
@@ -1018,6 +1154,7 @@ async function broadcastRelayedEnvelope(
       sourceOperation: "withdraw",
       chain: chainConfig.name,
       validatedOnly: true,
+      ...(quoteWarnings.length > 0 ? { warnings: quoteWarnings } : {}),
       transactions: [
         {
           index: 0,
@@ -1057,6 +1194,7 @@ async function broadcastRelayedEnvelope(
       broadcastMode: "relayed",
       sourceOperation: "withdraw",
       chain: chainConfig.name,
+      ...(quoteWarnings.length > 0 ? { warnings: quoteWarnings } : {}),
       transactions: [
         {
           index: 0,
@@ -1130,6 +1268,7 @@ async function broadcastRelayedEnvelope(
     broadcastMode: "relayed",
     sourceOperation: "withdraw",
     chain: chainConfig.name,
+    ...(quoteWarnings.length > 0 ? { warnings: quoteWarnings } : {}),
     transactions: [
       {
         index: 0,

@@ -30,13 +30,13 @@ export const GENERATED_COMMAND_PATHS = [
   "flow ragequit",
   "pools",
   "activity",
-  "stats",
-  "stats global",
-  "stats pool",
+  "protocol-stats",
+  "pool-stats",
   "status",
   "tx-status",
   "capabilities",
   "describe",
+  "explain",
   "guide",
   "deposit",
   "withdraw",
@@ -70,6 +70,9 @@ export const GENERATED_STATIC_LOCAL_COMMANDS = [
 
 export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = {
   "remove": "config unset",
+  "stats": "protocol-stats",
+  "stats global": "protocol-stats",
+  "stats pool": "pool-stats",
   "exit": "ragequit"
 };
 
@@ -213,17 +216,7 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
       "help"
     ]
   },
-  "stats": {
-    "owner": "hybrid",
-    "nativeModes": [
-      "default",
-      "csv",
-      "structured-default",
-      "structured-global",
-      "help"
-    ]
-  },
-  "stats global": {
+  "protocol-stats": {
     "owner": "hybrid",
     "nativeModes": [
       "default",
@@ -232,7 +225,7 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
       "help"
     ]
   },
-  "stats pool": {
+  "pool-stats": {
     "owner": "hybrid",
     "nativeModes": [
       "default",
@@ -264,6 +257,12 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     "owner": "native-shell",
     "nativeModes": [
       "default",
+      "help"
+    ]
+  },
+  "explain": {
+    "owner": "js-runtime",
+    "nativeModes": [
       "help"
     ]
   },
@@ -472,20 +471,6 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     ]
   },
   {
-    "route": "stats global",
-    "tokens": [
-      "stats",
-      "global"
-    ]
-  },
-  {
-    "route": "stats pool",
-    "tokens": [
-      "stats",
-      "pool"
-    ]
-  },
-  {
     "route": "withdraw quote",
     "tokens": [
       "withdraw",
@@ -563,9 +548,15 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     ]
   },
   {
-    "route": "stats",
+    "route": "protocol-stats",
     "tokens": [
-      "stats"
+      "protocol-stats"
+    ]
+  },
+  {
+    "route": "pool-stats",
+    "tokens": [
+      "pool-stats"
     ]
   },
   {
@@ -590,6 +581,12 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "route": "describe",
     "tokens": [
       "describe"
+    ]
+  },
+  {
+    "route": "explain",
+    "tokens": [
+      "explain"
     ]
   },
   {

@@ -1,13 +1,21 @@
 /**
- * Output renderer for the `stats` command.
+ * Output renderer for the `stats` command family.
  *
  * `src/commands/stats.ts` delegates final output here.
- * Statistics fetching, subcommand routing, and spinner remain in
- * the command handler.
+ * Statistics fetching, alias handling, subcommand routing, and spinner remain
+ * in the command handler.
  */
 
 import type { OutputContext } from "./common.js";
-import { printJsonSuccess, printCsv, printTable, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
+import {
+  printJsonSuccess,
+  printCsv,
+  printTable,
+  isSilent,
+  createNextAction,
+  appendNextActions,
+  renderNextSteps,
+} from "./common.js";
 import { accentBold } from "../utils/theme.js";
 import { parseUsd } from "../utils/format.js";
 import type { TimeBasedStatistics } from "../types.js";
@@ -18,8 +26,6 @@ import {
   getOutputWidthClass,
 } from "./layout.js";
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
 export interface ChainStatsEntry {
   chain: string;
   cacheTimestamp: string | null;
@@ -27,20 +33,30 @@ export interface ChainStatsEntry {
   last24h: TimeBasedStatistics | null;
 }
 
+interface StatsDeprecationWarning {
+  code: string;
+  message: string;
+  replacementCommand: string;
+}
+
 export interface GlobalStatsRenderData {
   mode: "global-stats";
+  command: "protocol-stats";
+  invokedAs?: "stats" | "stats global";
+  deprecationWarning?: StatsDeprecationWarning;
   chain: string;
-  /** When multiple chains are queried, lists the chain names. */
   chains?: string[];
   cacheTimestamp: string | null;
   allTime: TimeBasedStatistics | null;
   last24h: TimeBasedStatistics | null;
-  /** Per-chain results when multi-chain. */
   perChain?: ChainStatsEntry[];
 }
 
 export interface PoolStatsRenderData {
   mode: "pool-stats";
+  command: "pool-stats";
+  invokedAs?: "stats pool";
+  deprecationWarning?: StatsDeprecationWarning;
   chain: string;
   asset: string;
   pool: string;
@@ -50,9 +66,6 @@ export interface PoolStatsRenderData {
   last24h: TimeBasedStatistics | null;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-// parseUsd is now in ../utils/format.ts — re-exported here for test compat.
 export { parseUsd } from "../utils/format.js";
 
 /** @internal Exported for unit testing. */
@@ -75,9 +88,21 @@ function statsRows(
 ): string[][] {
   return [
     ["Current TVL", parseUsd(allTime?.tvlUsd), parseUsd(last24h?.tvlUsd)],
-    ["Avg Deposit Size", parseUsd(allTime?.avgDepositSizeUsd), parseUsd(last24h?.avgDepositSizeUsd)],
-    ["Total Deposits", parseCount(allTime?.totalDepositsCount), parseCount(last24h?.totalDepositsCount)],
-    ["Total Withdrawals", parseCount(allTime?.totalWithdrawalsCount), parseCount(last24h?.totalWithdrawalsCount)],
+    [
+      "Avg Deposit Size",
+      parseUsd(allTime?.avgDepositSizeUsd),
+      parseUsd(last24h?.avgDepositSizeUsd),
+    ],
+    [
+      "Total Deposits",
+      parseCount(allTime?.totalDepositsCount),
+      parseCount(last24h?.totalDepositsCount),
+    ],
+    [
+      "Total Withdrawals",
+      parseCount(allTime?.totalWithdrawalsCount),
+      parseCount(last24h?.totalWithdrawalsCount),
+    ],
   ];
 }
 
@@ -112,23 +137,43 @@ function renderStatsBlocks(
   );
 }
 
-// ── Renderers ────────────────────────────────────────────────────────────────
+function maybeRenderDeprecationNotice(
+  warning: StatsDeprecationWarning | undefined,
+  silent: boolean,
+): void {
+  if (!warning || silent) {
+    return;
+  }
+  process.stderr.write(`Warning: ${warning.message}\n\n`);
+}
 
-export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderData): void {
+export function renderGlobalStats(
+  ctx: OutputContext,
+  data: GlobalStatsRenderData,
+): void {
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
       mode: data.mode,
+      command: data.command,
       chain: data.chain,
       ...(data.chains ? { chains: data.chains } : {}),
       cacheTimestamp: data.cacheTimestamp,
       allTime: data.allTime,
       last24h: data.last24h,
+      ...(data.invokedAs ? { invokedAs: data.invokedAs } : {}),
+      ...(data.deprecationWarning
+        ? { deprecationWarning: data.deprecationWarning }
+        : {}),
     };
     if (data.perChain) {
       payload.perChain = data.perChain;
     }
     const agentNextActions = [
-      createNextAction("pools", "Browse live pool balances and minimum deposits.", "after_stats"),
+      createNextAction(
+        "pools",
+        "Browse live pool balances and minimum deposits.",
+        "after_stats",
+      ),
     ];
     printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;
@@ -144,7 +189,10 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
       }
       printCsv(["Chain", "Metric", "All Time", "Last 24h"], rows);
     } else {
-      printCsv(["Metric", "All Time", "Last 24h"], statsRows(data.allTime, data.last24h));
+      printCsv(
+        ["Metric", "All Time", "Last 24h"],
+        statsRows(data.allTime, data.last24h),
+      );
     }
     return;
   }
@@ -159,12 +207,18 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
   }
 
   const silent = isSilent(ctx);
-  if (silent) return;
+  if (silent) {
+    return;
+  }
+
+  maybeRenderDeprecationNotice(data.deprecationWarning, silent);
   const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
 
   if (data.perChain && data.perChain.length > 0) {
     for (const entry of data.perChain) {
-      process.stderr.write(`\n${accentBold(`Global statistics (${entry.chain}):`)}\n\n`);
+      process.stderr.write(
+        `\n${accentBold(`Global statistics (${entry.chain}):`)}\n\n`,
+      );
       process.stderr.write(formatSectionHeading("Summary", { divider: true }));
       process.stderr.write(
         formatKeyValueRows([
@@ -181,7 +235,9 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
       }
     }
   } else {
-    process.stderr.write(`\n${accentBold(`Global statistics (${data.chain}):`)}\n\n`);
+    process.stderr.write(
+      `\n${accentBold(`Global statistics (${data.chain}):`)}\n\n`,
+    );
     process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(
       formatKeyValueRows([
@@ -199,29 +255,49 @@ export function renderGlobalStats(ctx: OutputContext, data: GlobalStatsRenderDat
   }
 
   renderNextSteps(ctx, [
-    createNextAction("pools", "Browse live pool balances and minimum deposits.", "after_stats"),
+    createNextAction(
+      "pools",
+      "Browse live pool balances and minimum deposits.",
+      "after_stats",
+    ),
   ]);
 }
 
-export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): void {
+export function renderPoolStats(
+  ctx: OutputContext,
+  data: PoolStatsRenderData,
+): void {
   if (ctx.mode.isJson) {
     const agentNextActions = [
-      createNextAction("pools", "Open the detailed view for this pool.", "after_pool_stats", {
-        args: [data.asset],
-        options: { agent: true, chain: data.chain },
-      }),
+      createNextAction(
+        "pools",
+        "Open the detailed view for this pool.",
+        "after_pool_stats",
+        {
+          args: [data.asset],
+          options: { agent: true, chain: data.chain },
+        },
+      ),
     ];
     printJsonSuccess(
-      appendNextActions({
-        mode: data.mode,
-        chain: data.chain,
-        asset: data.asset,
-        pool: data.pool,
-        scope: data.scope,
-        cacheTimestamp: data.cacheTimestamp,
-        allTime: data.allTime,
-        last24h: data.last24h,
-      }, agentNextActions),
+      appendNextActions(
+        {
+          mode: data.mode,
+          command: data.command,
+          chain: data.chain,
+          asset: data.asset,
+          pool: data.pool,
+          scope: data.scope,
+          cacheTimestamp: data.cacheTimestamp,
+          allTime: data.allTime,
+          last24h: data.last24h,
+          ...(data.invokedAs ? { invokedAs: data.invokedAs } : {}),
+          ...(data.deprecationWarning
+            ? { deprecationWarning: data.deprecationWarning }
+            : {}),
+        },
+        agentNextActions,
+      ),
       false,
     );
     return;
@@ -238,29 +314,34 @@ export function renderPoolStats(ctx: OutputContext, data: PoolStatsRenderData): 
   }
 
   const silent = isSilent(ctx);
-  if (!silent) {
-    const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
-    process.stderr.write(`\n${accentBold(`Pool statistics for ${data.asset} on ${data.chain}:`)}\n\n`);
-    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
-    process.stderr.write(
-      formatKeyValueRows([
-        { label: "Asset", value: data.asset },
-        { label: "Chain", value: data.chain },
-        ...(data.cacheTimestamp
-          ? [{ label: "Cache timestamp", value: data.cacheTimestamp }]
-          : []),
-      ]),
-    );
-    if (renderTable) {
-      renderStatsTable(data.allTime, data.last24h);
-    } else {
-      renderStatsBlocks(data.allTime, data.last24h);
-    }
-    renderNextSteps(ctx, [
-      createNextAction("pools", "Open the detailed view for this pool.", "after_pool_stats", {
-        args: [data.asset],
-        options: { chain: data.chain },
-      }),
-    ]);
+  if (silent) {
+    return;
   }
+
+  maybeRenderDeprecationNotice(data.deprecationWarning, silent);
+  const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
+  process.stderr.write(
+    `\n${accentBold(`Pool statistics for ${data.asset} on ${data.chain}:`)}\n\n`,
+  );
+  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
+  process.stderr.write(
+    formatKeyValueRows([
+      { label: "Asset", value: data.asset },
+      { label: "Chain", value: data.chain },
+      ...(data.cacheTimestamp
+        ? [{ label: "Cache timestamp", value: data.cacheTimestamp }]
+        : []),
+    ]),
+  );
+  if (renderTable) {
+    renderStatsTable(data.allTime, data.last24h);
+  } else {
+    renderStatsBlocks(data.allTime, data.last24h);
+  }
+  renderNextSteps(ctx, [
+    createNextAction("pools", "Open the detailed view for this pool.", "after_pool_stats", {
+      args: [data.asset],
+      options: { chain: data.chain },
+    }),
+  ]);
 }
