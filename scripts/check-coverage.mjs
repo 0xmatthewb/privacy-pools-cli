@@ -442,14 +442,16 @@ try {
     process.stdout.write(`coverage ${threshold.label}: ${summary}\n`);
   }
 
-  process.stdout.write("risk coverage scorecard:\n");
+  process.stdout.write("risk coverage scorecard (feature bundles where applicable):\n");
   for (const row of collectCoverageScorecard(mergedCoverage, RISK_COVERAGE_SCORECARD, {
     excludedSources: EXCLUDED_SOURCES,
     rootDir: ROOT,
   })) {
     const suffix = row.belowTarget ? " below target" : "";
+    const scope =
+      row.measurement === "bundle" ? ` [${row.bundleSize}-file bundle]` : "";
     process.stdout.write(
-      `- ${row.label}: ${row.percent.toFixed(2)}% (${row.hit}/${row.total}) target ${row.target}%${suffix}\n`,
+      `- ${row.label}: ${row.percent.toFixed(2)}% (${row.hit}/${row.total}) target ${row.target}%${scope}${suffix}\n`,
     );
   }
 

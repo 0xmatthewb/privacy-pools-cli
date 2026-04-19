@@ -57,12 +57,63 @@ export const COVERAGE_THRESHOLDS = [
 ];
 
 export const RISK_COVERAGE_SCORECARD = [
-  { label: "workflow", path: "src/services/workflow.ts", target: 90 },
-  { label: "withdraw", path: "src/commands/withdraw.ts", target: 90 },
-  { label: "init", path: "src/commands/init.ts", target: 90 },
-  { label: "ragequit", path: "src/commands/ragequit.ts", target: 90 },
-  { label: "account", path: "src/services/account.ts", target: 90 },
-  { label: "relayer", path: "src/services/relayer.ts", target: 90 },
+  {
+    label: "workflow",
+    paths: [
+      "src/command-shells/flow.ts",
+      "src/commands/flow.ts",
+      "src/output/flow.ts",
+      "src/services/workflow.ts",
+    ],
+    target: 90,
+  },
+  {
+    label: "init",
+    paths: [
+      "src/command-shells/init.ts",
+      "src/commands/init.ts",
+      "src/output/init.ts",
+    ],
+    target: 90,
+  },
+  {
+    label: "deposit",
+    paths: [
+      "src/command-shells/deposit.ts",
+      "src/commands/deposit.ts",
+      "src/output/deposit.ts",
+    ],
+    target: 90,
+  },
+  {
+    label: "withdraw",
+    paths: [
+      "src/command-shells/withdraw.ts",
+      "src/commands/withdraw.ts",
+      "src/output/withdraw.ts",
+    ],
+    target: 90,
+  },
+  {
+    label: "ragequit",
+    paths: [
+      "src/command-shells/ragequit.ts",
+      "src/commands/ragequit.ts",
+      "src/output/ragequit.ts",
+    ],
+    target: 90,
+  },
+  {
+    label: "accounts",
+    paths: [
+      "src/command-shells/accounts.ts",
+      "src/commands/accounts.ts",
+      "src/output/accounts.ts",
+      "src/services/account.ts",
+    ],
+    target: 90,
+  },
+  { label: "relayer-service", path: "src/services/relayer.ts", target: 90 },
 ];
 
 export function isExcludedCoverageSource(source, excludedSources) {
@@ -149,33 +200,50 @@ export function collectCoverageScorecard(
   { excludedSources = new Set(), rootDir = process.cwd() } = {},
 ) {
   return scorecard.map((entry) => {
-    const source = normalizeCoveragePath(resolve(rootDir, entry.path));
-    const lineHits = coverageMap.get(source);
-    const executableLines = lineHits
-      ? collectExecutableCoverageLines(source)
-      : new Set();
-    const total = lineHits
-      ? [...lineHits.keys()].filter((lineNumber) =>
-        executableLines.has(lineNumber)
-      ).length
-      : 0;
+    const sources = (entry.paths ?? [entry.path])
+      .filter(Boolean)
+      .map((sourcePath) => normalizeCoveragePath(resolve(rootDir, sourcePath)));
+    let total = 0;
     let hit = 0;
+    const missingSources = [];
+    const excludedEntrySources = [];
 
-    if (lineHits) {
+    for (const source of sources) {
+      if (isExcludedCoverageSource(source, excludedSources)) {
+        excludedEntrySources.push(source);
+        continue;
+      }
+
+      const lineHits = coverageMap.get(source);
+      if (!lineHits) {
+        missingSources.push(source);
+        continue;
+      }
+
+      const executableLines = collectExecutableCoverageLines(source);
       for (const [lineNumber, hits] of lineHits.entries()) {
-        if (executableLines.has(lineNumber) && hits > 0) hit += 1;
+        if (!executableLines.has(lineNumber)) continue;
+        total += 1;
+        if (hits > 0) hit += 1;
       }
     }
 
+    const percent = total === 0 ? 0 : (hit / total) * 100;
+
     return {
       ...entry,
-      source,
+      source: sources.length === 1 ? sources[0] : null,
+      sources,
+      bundleSize: sources.length,
+      measurement: sources.length === 1 ? "file" : "bundle",
+      missingSources,
+      excludedScorecardSources: excludedEntrySources,
       total,
       hit,
-      percent: total === 0 ? 0 : (hit / total) * 100,
+      percent,
       missingFromCoverage:
-        !lineHits || isExcludedCoverageSource(source, excludedSources),
-      belowTarget: total === 0 || (hit / total) * 100 < entry.target,
+        missingSources.length > 0 || excludedEntrySources.length > 0,
+      belowTarget: total === 0 || percent < entry.target,
     };
   });
 }

@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   COVERAGE_THRESHOLDS,
+  RISK_COVERAGE_SCORECARD,
   collectCoverageScorecard,
   collectExecutableCoverageLines,
   createCoverageExcludedSources,
@@ -197,5 +198,149 @@ describe("coverage policy", () => {
         belowTarget: false,
       }),
     ]);
+  });
+
+  test("risk scorecards can aggregate multi-file feature bundles", () => {
+    const rootDir = createTrackedTempDir("pp-coverage-scorecard-bundle-");
+    mkdirSync(join(rootDir, "src", "command-shells"), { recursive: true });
+    mkdirSync(join(rootDir, "src", "commands"), { recursive: true });
+    mkdirSync(join(rootDir, "src", "output"), { recursive: true });
+
+    writeFileSync(
+      join(rootDir, "src", "command-shells", "withdraw.ts"),
+      [
+        "export function shell() {",
+        "  return true;",
+        "}",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(rootDir, "src", "commands", "withdraw.ts"),
+      [
+        "interface CommandOptions {",
+        "  direct: boolean;",
+        "}",
+        "export function command(mode: string) {",
+        "  if (mode === \"ok\") {",
+        "    return true;",
+        "  }",
+        "  return false;",
+        "}",
+      ].join("\n"),
+    );
+    writeFileSync(
+      join(rootDir, "src", "output", "withdraw.ts"),
+      [
+        "export function render() {",
+        "  return \"done\";",
+        "}",
+      ].join("\n"),
+    );
+
+    const coverageMap = new Map([
+      [
+        normalizeCoveragePath(
+          resolve(rootDir, "src", "command-shells", "withdraw.ts"),
+        ),
+        new Map([
+          [1, 1],
+          [2, 1],
+          [3, 0],
+        ]),
+      ],
+      [
+        normalizeCoveragePath(resolve(rootDir, "src", "commands", "withdraw.ts")),
+        new Map([
+          [1, 0],
+          [2, 0],
+          [3, 0],
+          [4, 1],
+          [5, 1],
+          [6, 1],
+          [7, 0],
+          [8, 0],
+        ]),
+      ],
+      [
+        normalizeCoveragePath(resolve(rootDir, "src", "output", "withdraw.ts")),
+        new Map([
+          [1, 1],
+          [2, 0],
+          [3, 0],
+        ]),
+      ],
+    ]);
+
+    expect(
+      collectCoverageScorecard(
+        coverageMap,
+        [
+          {
+            label: "withdraw",
+            paths: [
+              "src/command-shells/withdraw.ts",
+              "src/commands/withdraw.ts",
+              "src/output/withdraw.ts",
+            ],
+            target: 70,
+          },
+        ],
+        { rootDir },
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        label: "withdraw",
+        measurement: "bundle",
+        bundleSize: 3,
+        total: 8,
+        hit: 6,
+        percent: 75,
+        belowTarget: false,
+        missingFromCoverage: false,
+      }),
+    ]);
+  });
+
+  test("risk scorecard definitions describe bundled command surfaces for core flows", () => {
+    expect(RISK_COVERAGE_SCORECARD).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "deposit",
+          paths: [
+            "src/command-shells/deposit.ts",
+            "src/commands/deposit.ts",
+            "src/output/deposit.ts",
+          ],
+          target: 90,
+        }),
+        expect.objectContaining({
+          label: "withdraw",
+          paths: [
+            "src/command-shells/withdraw.ts",
+            "src/commands/withdraw.ts",
+            "src/output/withdraw.ts",
+          ],
+          target: 90,
+        }),
+        expect.objectContaining({
+          label: "init",
+          paths: [
+            "src/command-shells/init.ts",
+            "src/commands/init.ts",
+            "src/output/init.ts",
+          ],
+          target: 90,
+        }),
+        expect.objectContaining({
+          label: "ragequit",
+          paths: [
+            "src/command-shells/ragequit.ts",
+            "src/commands/ragequit.ts",
+            "src/output/ragequit.ts",
+          ],
+          target: 90,
+        }),
+      ]),
+    );
   });
 });
