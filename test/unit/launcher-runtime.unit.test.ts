@@ -10,6 +10,7 @@ import {
   CURRENT_RUNTIME_REQUEST_ENV,
   CURRENT_RUNTIME_DESCRIPTOR,
 } from "../../src/runtime/runtime-contract.js";
+import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { parseRootArgv } from "../../src/utils/root-argv.ts";
 import { createTrackedTempDir } from "../helpers/temp.ts";
 import {
@@ -480,7 +481,7 @@ describe("launcher runtime coverage", () => {
       );
 
       expect(spawnCalled).toBe(false);
-      expect(json.schemaVersion).toBe("2.0.0");
+      expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(typeof json.success).toBe("boolean");
       expect(stderr).toBe("");
     } finally {
