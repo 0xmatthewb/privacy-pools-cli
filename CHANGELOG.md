@@ -6,6 +6,10 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ## [2.0.0]
 
+### Removed
+
+- `explain` command. Use `describe <schema-path>` or `describe envelope.<path>` instead.
+
 ## [1.7.0] - 2026-03-26
 
 ### Added

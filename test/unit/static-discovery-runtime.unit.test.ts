@@ -449,6 +449,21 @@ describe("static discovery runtime", () => {
     expect(stderr).toBe("");
   });
 
+  test("static describe resolves bare nextActions to the envelope alias", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      runStaticDiscoveryCommand([
+        "--json",
+        "describe",
+        "nextActions",
+      ]),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.path).toBe("envelope.nextActions");
+    expect(json.schema.cliCommand).toContain("omitted when runnable = false");
+    expect(stderr).toBe("");
+  });
+
   test("renders aliased describe output with modes and supports JSON/quiet", async () => {
     const human = await captureAsyncOutput(async () => {
       const handled = await runStaticDiscoveryCommand(["describe", "ragequit"]);

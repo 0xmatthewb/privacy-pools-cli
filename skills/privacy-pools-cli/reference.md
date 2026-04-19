@@ -527,7 +527,7 @@ privacy-pools describe withdraw quote --agent
 privacy-pools describe protocol-stats --agent
 ```
 
-Machine/runtime introspection surface for agents. Prefer `guide` for human walkthroughs and conceptual help. Prefer `explain` when you want the schema-path alias for bundled contract fields.
+Machine/runtime introspection surface for agents. Prefer `guide` for human walkthroughs and conceptual help. Use `describe envelope.<path>` when you want bundled contract fields instead of command metadata.
 
 ```json
 {
@@ -554,15 +554,15 @@ Machine/runtime introspection surface for agents. Prefer `guide` for human walkt
 }
 ```
 
-### `explain`
+### Schema paths
 
 ```bash
-privacy-pools explain nextActions --agent
-privacy-pools explain commands.status.successFields --agent
-privacy-pools explain envelope.shared.nextAction
+privacy-pools describe envelope.nextActions --agent
+privacy-pools describe envelope.commands.status.successFields --agent
+privacy-pools describe envelope.shared.nextAction --agent
 ```
 
-Human-friendly schema-path alias over `describe envelope.<path>`.
+Bundled contract-field introspection via `describe envelope.<path>`.
 
 ```json
 {

@@ -3,6 +3,7 @@ import type {
   CommandGroup,
   DetailedCommandDescriptor,
 } from "../types.js";
+import { listRelatedEnvelopePaths } from "../utils/describe-schema.js";
 import { accentBold } from "../utils/theme.js";
 import {
   formatKeyValueRows,
@@ -154,6 +155,46 @@ function writeListSection(label: string, values: string[]): void {
   }
 }
 
+function writeParagraphSection(label: string, paragraphs: string[]): void {
+  if (paragraphs.length === 0) {
+    return;
+  }
+
+  process.stderr.write(formatSectionHeading(label, { divider: true }));
+  for (const paragraph of paragraphs) {
+    process.stderr.write(`  ${paragraph}\n`);
+  }
+}
+
+function writeStructuredExamplesSection(
+  descriptor: DetailedCommandDescriptor,
+): void {
+  const hasCategorizedExamples = descriptor.examples.some(
+    (example) => typeof example !== "string",
+  );
+  if (!hasCategorizedExamples || !descriptor.structuredExamples?.length) {
+    writeListSection(
+      "Examples",
+      descriptor.examples.map((example) => {
+        if (typeof example === "string") {
+          return example;
+        }
+        return `${example.category}: ${example.commands.join(" | ")}`;
+      }),
+    );
+    return;
+  }
+
+  process.stderr.write(formatSectionHeading("Structured examples", { divider: true }));
+  for (const example of descriptor.structuredExamples) {
+    process.stderr.write(formatSectionHeading(example.name, { padTop: false }));
+    const commands = Array.isArray(example.value) ? example.value : [example.value];
+    for (const command of commands) {
+      process.stderr.write(`  ${command}\n`);
+    }
+  }
+}
+
 function formatGroupLabel(group: CommandGroup): string {
   switch (group) {
     case "getting-started":
@@ -170,6 +211,8 @@ function formatGroupLabel(group: CommandGroup): string {
 export function renderHumanCommandDescription(
   descriptor: DetailedCommandDescriptor,
 ): void {
+  const relatedEnvelopePaths = listRelatedEnvelopePaths(descriptor.command);
+
   process.stderr.write(`\n${accentBold(`Command: ${descriptor.command}`)}\n`);
   process.stderr.write(formatSectionHeading("Summary", { divider: true }));
   process.stderr.write(
@@ -186,13 +229,20 @@ export function renderHumanCommandDescription(
     ]),
   );
 
+  writeParagraphSection("When to use", descriptor.agentWorkflowNotes);
+  if (descriptor.prerequisites.length > 0) {
+    process.stderr.write(formatSectionHeading("Prerequisites", { divider: true }));
+    process.stderr.write(
+      "  Before you run this command, make sure these prerequisites are satisfied:\n",
+    );
+    for (const prerequisite of descriptor.prerequisites) {
+      process.stderr.write(`  - ${prerequisite}\n`);
+    }
+  }
+
   writeListSection("Flags", descriptor.flags);
   writeListSection("Global flags", descriptor.globalFlags);
-  writeListSection("Prerequisites", descriptor.prerequisites);
-  const flatExamples: string[] = descriptor.examples.flatMap((ex) =>
-    typeof ex === "string" ? [ex] : [`${ex.category}:`, ...ex.commands.map((c) => `  ${c}`)],
-  );
-  writeListSection("Examples", flatExamples);
+  writeStructuredExamplesSection(descriptor);
 
   if (descriptor.jsonFields) {
     process.stderr.write(formatSectionHeading("JSON fields", { divider: true }));
@@ -204,7 +254,6 @@ export function renderHumanCommandDescription(
   if (descriptor.agentRequiredFlags && descriptor.agentRequiredFlags.length > 0) {
     writeListSection("Agent-required flags", descriptor.agentRequiredFlags);
   }
-  writeListSection("Agent workflow", descriptor.agentWorkflowNotes);
 
   const additionalModes: string[] = [];
   if (descriptor.supportsUnsigned) {
@@ -224,5 +273,6 @@ export function renderHumanCommandDescription(
     );
   }
   writeListSection("Modes", additionalModes);
+  writeListSection("Related envelope paths", relatedEnvelopePaths);
   process.stderr.write("\n");
 }

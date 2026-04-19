@@ -811,7 +811,8 @@
       },
       "indexVariant": {
         "mode": "\"describe-index\"",
-        "commands": "{ command: string, description: string, group: \"getting-started\"|\"transaction\"|\"monitoring\"|\"advanced\" }[]"
+        "commands": "{ command: string, description: string, group: \"getting-started\"|\"transaction\"|\"monitoring\"|\"advanced\" }[]",
+        "envelopeRoots": "string[] (top-level schema roots accepted by describe envelope.<path> and single-token schema lookups)"
       },
       "schemaVariant": {
         "path": "string (contract path passed to describe envelope.<path>)",

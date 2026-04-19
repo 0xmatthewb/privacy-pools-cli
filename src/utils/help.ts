@@ -404,7 +404,7 @@ const guideSections: Record<string, () => string[]> = {
     chalk.bold("Discovery"),
     `  ${accent("privacy-pools capabilities --agent")}      Full runtime capability manifest`,
     `  ${accent("privacy-pools describe withdraw --agent")} Command-specific flags, risks, and JSON fields`,
-    `  ${accent("privacy-pools explain nextActions --agent")} Schema-path alias for bundled contract fields`,
+    `  ${accent("privacy-pools describe envelope.nextActions --agent")} Schema-path contract fields`,
     `  ${accent("privacy-pools guide next-actions --agent")} Shared nextActions contract`,
     "",
     chalk.bold("Recommended Flow"),
@@ -438,7 +438,7 @@ const guideSections: Record<string, () => string[]> = {
     chalk.bold("Discovery"),
     `  ${accent("privacy-pools capabilities --agent")}      Full command and schema manifest.`,
     `  ${accent("privacy-pools describe withdraw --agent")} Command-specific fields and examples.`,
-    `  ${accent("privacy-pools explain commands.status.successFields --agent")} Deep contract schema fragments.`,
+    `  ${accent("privacy-pools describe envelope.commands.status.successFields --agent")} Deep contract schema fragments.`,
   ],
 
   modes: () => [

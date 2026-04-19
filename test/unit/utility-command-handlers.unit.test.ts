@@ -4,10 +4,7 @@ import { join } from "node:path";
 import type { Command } from "commander";
 import { handleCapabilitiesCommand } from "../../src/commands/capabilities.ts";
 import { handleCompletionCommand } from "../../src/commands/completion.ts";
-import {
-  handleDescribeCommand,
-  handleExplainCommand,
-} from "../../src/commands/describe.ts";
+import { handleDescribeCommand } from "../../src/commands/describe.ts";
 import { handleGuideCommand } from "../../src/commands/guide.ts";
 import {
   COMPLETION_MANAGED_BLOCK_START,
@@ -144,10 +141,10 @@ describe("utility command handlers", () => {
     expect(stderr).toBe("");
   });
 
-  test("explain normalizes bare schema paths to envelope paths", async () => {
+  test("describe resolves bare schema paths to envelope paths", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
-      handleExplainCommand(
-        "shared.nextAction",
+      handleDescribeCommand(
+        ["shared.nextAction"],
         fakeCommand({ json: true }),
       ),
     );
@@ -158,6 +155,26 @@ describe("utility command handlers", () => {
     expect(stderr).toBe("");
   });
 
+  test("describe bare nextActions matches the explicit envelope path", async () => {
+    const bare = await captureAsyncJsonOutput(() =>
+      handleDescribeCommand(
+        ["nextActions"],
+        fakeCommand({ json: true }),
+      ),
+    );
+    const explicit = await captureAsyncJsonOutput(() =>
+      handleDescribeCommand(
+        ["envelope.nextActions"],
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(bare.json).toEqual(explicit.json);
+    expect(bare.json.path).toBe("envelope.nextActions");
+    expect(bare.stderr).toBe("");
+    expect(explicit.stderr).toBe("");
+  });
+
   test("describe returns a structured INPUT error for an unknown command path", async () => {
     const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleDescribeCommand(["definitely", "missing"], fakeCommand({ json: true })),
@@ -166,6 +183,7 @@ describe("utility command handlers", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain("Unknown command path");
+    expect(json.error.hint).toContain("Envelope schema roots");
     expect(stderr).toBe("");
     expect(exitCode).toBe(2);
   });
@@ -178,10 +196,31 @@ describe("utility command handlers", () => {
     expect(json.success).toBe(true);
     expect(json.mode).toBe("describe-index");
     expect(json.commands).toEqual(expect.any(Array));
+    expect(json.envelopeRoots).toEqual(expect.arrayContaining(["commands", "nextActions"]));
     expect(
       json.commands.some((entry: { command: string }) => entry.command === "withdraw"),
     ).toBe(true);
     expect(stderr).toBe("");
+  });
+
+  test("describe human output adds when-to-use guidance and related envelope paths", async () => {
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleDescribeCommand(
+        ["deposit"],
+        fakeCommand(),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("When to use:");
+    expect(stderr).toContain("With --no-wait, poll tx-status <submissionId>");
+    expect(stderr).toContain("Prerequisites:");
+    expect(stderr).toContain("Before you run this command");
+    expect(stderr).toContain("Structured examples:");
+    expect(stderr).toContain("Basic:");
+    expect(stderr).toContain("Agent / CI:");
+    expect(stderr).toContain("Related envelope paths:");
+    expect(stderr).toContain("envelope.commands.deposit.successFields");
   });
 
   test("completion query returns candidates in JSON mode", async () => {

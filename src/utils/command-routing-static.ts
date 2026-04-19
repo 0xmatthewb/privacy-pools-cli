@@ -36,7 +36,6 @@ export const GENERATED_COMMAND_PATHS = [
   "tx-status",
   "capabilities",
   "describe",
-  "explain",
   "guide",
   "deposit",
   "withdraw",
@@ -257,12 +256,6 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     "owner": "native-shell",
     "nativeModes": [
       "default",
-      "help"
-    ]
-  },
-  "explain": {
-    "owner": "js-runtime",
-    "nativeModes": [
       "help"
     ]
   },
@@ -581,12 +574,6 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "route": "describe",
     "tokens": [
       "describe"
-    ]
-  },
-  {
-    "route": "explain",
-    "tokens": [
-      "explain"
     ]
   },
   {

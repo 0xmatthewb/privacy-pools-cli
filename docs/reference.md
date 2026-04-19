@@ -40,7 +40,6 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 - [`completion`](reference/completion.md) - Generate or install shell tab completion
 - [`capabilities`](reference/capabilities.md) - Describe CLI capabilities for agents
 - [`describe`](reference/describe.md) - Describe a command's flags, args, and output schema
-- [`explain`](reference/explain.md) - Explain a bundled JSON schema path
 
 ## Global Flags
 

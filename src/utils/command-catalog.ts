@@ -42,7 +42,6 @@ export type CommandPath =
   | "tx-status"
   | "capabilities"
   | "describe"
-  | "explain"
   | "guide"
   | "deposit"
   | "withdraw"
@@ -1004,17 +1003,18 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Machine/runtime introspection surface for agents. Use spaced command paths such as `withdraw quote` or `protocol-stats` to inspect prerequisites, flags, risk metadata, and JSON field notes.",
-        "Prefer `guide` for human walkthroughs and conceptual help. Prefer `explain` when you want the schema-path alias for bundled contract fields.",
-        "Use describe envelope.<path> to inspect a deep fragment of the bundled JSON contract, for example envelope.nextAction or envelope.commands.init.successFields.",
+        "Prefer `guide` for human walkthroughs and conceptual help. Use `describe envelope.<path>` when you want bundled contract fields instead of command metadata.",
+        "Single-token schema lookups such as `nextActions` or `shared.nextAction` resolve automatically, while explicit `describe envelope.<path>` stays the clearest form for deeper paths.",
       ],
       examples: [
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
         "privacy-pools describe protocol-stats --agent",
-        "privacy-pools explain nextActions --agent",
+        "privacy-pools describe envelope.nextActions --agent",
+        "privacy-pools describe envelope.commands.status.successFields --agent",
       ],
       jsonFields:
-        "{ mode: \"describe-index\", commands: [{ command, description, group }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
+        "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
       seeAlso: ["capabilities","guide"],
     },
     capabilities: {
@@ -1028,38 +1028,12 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
 
     agentsDocMarker: "#### `describe`",
   },
-  explain: {
-    description: ROOT_COMMAND_DESCRIPTIONS.explain,
-    help: {
-      overview: [
-        "Human-friendly schema-path alias over `describe envelope.<path>` for the bundled JSON contract.",
-        "Use bare schema paths such as nextActions or commands.status.successFields, or pass the fully qualified envelope.<path> form.",
-      ],
-      examples: [
-        "privacy-pools explain nextActions --agent",
-        "privacy-pools explain commands.status.successFields --agent",
-        "privacy-pools explain envelope.shared.nextAction",
-      ],
-      jsonFields:
-        "{ path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      seeAlso: ["describe","capabilities","guide"],
-    },
-    capabilities: {
-      usage: "explain <schemaPath>",
-      flags: ["<schemaPath>"],
-      agentFlags: "--agent",
-      requiresInit: false,
-      expectedLatencyClass: "fast",
-    },
-    safeReadOnly: true,
-    agentsDocMarker: "#### `explain`",
-  },
   guide: {
     description: ROOT_COMMAND_DESCRIPTIONS.guide,
     help: {
       overview: [
         "Human-facing walkthrough surface for concepts, workflows, troubleshooting, and output modes.",
-        "Use `describe` or `explain` when you need machine/runtime contract introspection instead of narrative guidance.",
+        "Use `describe` when you need machine/runtime contract introspection instead of narrative guidance.",
       ],
       examples: [
         "privacy-pools guide",

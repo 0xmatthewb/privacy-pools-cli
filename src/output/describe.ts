@@ -103,6 +103,7 @@ function formatGroupLabel(group: CommandGroup): string {
 export function renderCommandDescriptionIndex(
   ctx: OutputContext,
   commands: DescribeIndexEntry[],
+  envelopeRoots: string[],
 ): void {
   guardCsvUnsupported(ctx, "describe");
   const nextActions = [
@@ -122,6 +123,7 @@ export function renderCommandDescriptionIndex(
     printJsonSuccess(appendNextActions({
       mode: "describe-index",
       commands,
+      envelopeRoots,
     }, nextActions));
     return;
   }
@@ -136,6 +138,13 @@ export function renderCommandDescriptionIndex(
     process.stderr.write(
       `  ${command.command.padEnd(20)}${command.description} ${command.group ? `(${formatGroupLabel(command.group)})` : ""}\n`,
     );
+  }
+  process.stderr.write(
+    formatSectionHeading("Envelope schema roots", { divider: true }),
+  );
+  process.stderr.write("  envelope\n");
+  for (const root of envelopeRoots) {
+    process.stderr.write(`  envelope.${root}\n`);
   }
   process.stderr.write("\n");
   renderNextSteps(ctx, [

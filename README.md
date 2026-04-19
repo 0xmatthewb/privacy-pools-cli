@@ -100,8 +100,7 @@ npm run start -- --help
 | `protocol-stats` | Aggregate cross-chain protocol statistics | |
 | `pool-stats` | Per-pool statistics for one asset | |
 | `status` | Configuration and connectivity health | |
-| `describe` | Describe one command (for agents or quick reference) | |
-| `explain` | Explain one schema path from the bundled JSON contract | |
+| `describe` | Describe one command or schema path (for agents or quick reference) | |
 | `capabilities` | Describe all CLI commands, flags, and workflows | |
 | `guide` | Print the full usage guide | |
 | `upgrade` | Check npm for updates or upgrade this CLI | |

@@ -24,8 +24,7 @@ export type RootCommandName =
   | "config"
   | "completion"
   | "capabilities"
-  | "describe"
-  | "explain";
+  | "describe";
 
 export interface RootCommandGroup {
   id: CommandGroup;
@@ -58,7 +57,6 @@ export const ROOT_COMMAND_DESCRIPTIONS: Record<RootCommandName, string> = {
   completion: "Generate or install shell tab completion",
   capabilities: "Describe CLI capabilities for agents",
   describe: "Describe a command's flags, args, and output schema",
-  explain: "Explain a bundled JSON schema path",
 };
 
 export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
@@ -86,7 +84,6 @@ export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
   completion: "completion",
   capabilities: "capabilities",
   describe: "describe",
-  explain: "explain",
 };
 
 export const ROOT_COMMAND_GROUPS: RootCommandGroup[] = [
@@ -125,7 +122,6 @@ export const ROOT_COMMAND_GROUPS: RootCommandGroup[] = [
       "completion",
       "capabilities",
       "describe",
-      "explain",
     ],
   },
 ];
@@ -154,7 +150,6 @@ export const ROOT_COMMAND_ORDER: RootCommandName[] = [
   "guide",
   "capabilities",
   "describe",
-  "explain",
   "completion",
 ];
 

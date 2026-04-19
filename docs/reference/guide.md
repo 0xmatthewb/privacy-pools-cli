@@ -10,7 +10,7 @@ Learn key concepts, workflows, and troubleshooting
 
 **Usage:** `privacy-pools guide [topic] [options]`
 
-Human-facing walkthrough surface for concepts, workflows, troubleshooting, and output modes. Use `describe` or `explain` when you need machine/runtime contract introspection instead of narrative guidance.
+Human-facing walkthrough surface for concepts, workflows, troubleshooting, and output modes. Use `describe` when you need machine/runtime contract introspection instead of narrative guidance.
 
 ```bash
 privacy-pools guide

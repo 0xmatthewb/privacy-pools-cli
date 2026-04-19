@@ -324,7 +324,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("guide"),
       completionCommand("capabilities"),
       completionCommand("describe"),
-      completionCommand("explain"),
       completionCommand("completion", {
         options: [
           completionOption("-s, --shell <shell>", SUPPORTED_COMPLETION_SHELLS),

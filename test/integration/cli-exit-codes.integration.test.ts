@@ -89,11 +89,13 @@ describe("exit-code matrix", () => {
     const json = parseJsonOutput<{
       mode?: string;
       commands?: Array<{ command?: string }>;
+      envelopeRoots?: string[];
     }>(
       result.stdout,
     );
     expect(json.mode).toBe("describe-index");
     expect(json.commands?.some((entry) => entry.command === "withdraw")).toBe(true);
+    expect(json.envelopeRoots).toEqual(expect.arrayContaining(["commands", "nextActions"]));
   });
 
   test("exit code 2 for invalid --limit value (history)", () => {

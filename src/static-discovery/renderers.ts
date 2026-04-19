@@ -2,8 +2,10 @@ import type { GlobalOptions } from "../types.js";
 import { CLIError } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import { resolveEnvelopeSchemaPath } from "../utils/describe-schema.js";
-import type { DetailedCommandDescriptor } from "../types.js";
+import {
+  listEnvelopeRootKeys,
+  resolveEnvelopeSchemaPath,
+} from "../utils/describe-schema.js";
 import { guardStaticCsvUnsupported, isQuietMode } from "./guards.js";
 
 export async function renderStaticCapabilities(
@@ -60,6 +62,14 @@ export async function renderStaticDescribe(
     resolveStaticCommandPath,
     STATIC_CAPABILITIES_PAYLOAD,
   } = await import("../utils/command-discovery-static.js");
+  const { createOutputContext } = await import("../output/common.js");
+  const {
+    renderCommandDescription,
+    renderCommandDescriptionIndex,
+    renderSchemaDescription,
+  } = await import("../output/describe.js");
+  const outputContext = createOutputContext(mode);
+
   if (commandTokens.length === 0) {
     const commands = listStaticCommandPaths().map((commandPath) => {
       const descriptor = STATIC_CAPABILITIES_PAYLOAD.commandDetails[commandPath];
@@ -69,69 +79,62 @@ export async function renderStaticDescribe(
         group: descriptor.group,
       };
     });
-    if (mode.isJson) {
-      printJsonSuccess({
-        mode: "describe-index",
-        commands,
-      });
-      return;
-    }
-
-    if (isQuietMode(globalOpts)) {
-      return;
-    }
-
-    const { renderCommandDescriptionIndex } = await import("../output/describe.js");
     renderCommandDescriptionIndex(
-      { mode, isVerbose: false, verboseLevel: mode.verboseLevel },
-      commands as Array<Pick<DetailedCommandDescriptor, "command" | "description" | "group">>,
+      outputContext,
+      commands,
+      listEnvelopeRootKeys(),
     );
     return;
   }
+
   const rawPath = commandTokens.join(" ").trim();
-  const envelopeSchema = resolveEnvelopeSchemaPath(rawPath);
-  if (envelopeSchema !== undefined) {
-    const descriptor = { path: rawPath, schema: envelopeSchema };
-    if (mode.isJson) {
-      printJsonSuccess(descriptor);
-      return;
+  if (rawPath === "envelope" || rawPath.startsWith("envelope.")) {
+    const envelopeSchema = resolveEnvelopeSchemaPath(rawPath);
+    if (envelopeSchema === undefined) {
+      throw new CLIError(
+        `Unknown schema path: ${rawPath}`,
+        "INPUT",
+        `Envelope schema roots: envelope, ${listEnvelopeRootKeys()
+          .map((root) => `envelope.${root}`)
+          .join(", ")}`,
+      );
     }
 
-    if (isQuietMode(globalOpts)) {
-      return;
-    }
-
-    const { renderSchemaDescription } = await import("../output/describe.js");
-    renderSchemaDescription(
-      { mode, isVerbose: false, verboseLevel: mode.verboseLevel },
-      descriptor,
-    );
+    renderSchemaDescription(outputContext, {
+      path: rawPath,
+      schema: envelopeSchema,
+    });
     return;
   }
 
   const commandPath = resolveStaticCommandPath(commandTokens);
-  if (!commandPath) {
-    throw new CLIError(
-      `Unknown command path: ${commandTokens.join(" ")}`,
-      "INPUT",
-      `Valid command paths: ${listStaticCommandPaths().join(", ")}, envelope.<path>`,
+  if (commandPath) {
+    renderCommandDescription(
+      outputContext,
+      STATIC_CAPABILITIES_PAYLOAD.commandDetails[commandPath],
     );
-  }
-
-  const descriptor = STATIC_CAPABILITIES_PAYLOAD.commandDetails[commandPath];
-  if (mode.isJson) {
-    printJsonSuccess(descriptor);
     return;
   }
 
-  if (isQuietMode(globalOpts)) {
-    return;
+  if (commandTokens.length === 1) {
+    const normalizedSchemaPath = `envelope.${rawPath}`;
+    const envelopeSchema = resolveEnvelopeSchemaPath(normalizedSchemaPath);
+    if (envelopeSchema !== undefined) {
+      renderSchemaDescription(outputContext, {
+        path: normalizedSchemaPath,
+        schema: envelopeSchema,
+      });
+      return;
+    }
   }
 
-  const { renderHumanCommandDescription } = await import(
-    "../output/discovery.js"
+  throw new CLIError(
+    `Unknown command path: ${commandTokens.join(" ")}`,
+    "INPUT",
+    `Valid command paths: ${listStaticCommandPaths().join(", ")}. Envelope schema roots: envelope, ${listEnvelopeRootKeys()
+      .map((root) => `envelope.${root}`)
+      .join(", ")}`,
   );
-  renderHumanCommandDescription(descriptor);
 }
 
 export async function renderStaticRootHelp(

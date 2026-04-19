@@ -16,17 +16,3 @@ export function createDescribeCommand(): Command {
       ),
     );
 }
-
-export function createExplainCommand(): Command {
-  const metadata = getCommandMetadata("explain");
-  return new Command("explain")
-    .description(metadata.description)
-    .argument("<schemaPath>", "Schema path to explain")
-    .addHelpText("after", commandHelpText(metadata.help ?? {}))
-    .action(
-      createLazyAction(
-        () => import("../commands/describe.js"),
-        "handleExplainCommand",
-      ),
-    );
-}

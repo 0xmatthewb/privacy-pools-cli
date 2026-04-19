@@ -38,7 +38,6 @@ export const GENERATED_COMMAND_PATHS = [
   "tx-status",
   "capabilities",
   "describe",
-  "explain",
   "guide",
   "deposit",
   "withdraw",
@@ -128,11 +127,6 @@ export const GENERATED_ROOT_COMMANDS = [
     "name": "describe",
     "aliases": [],
     "description": "Describe a command's flags, args, and output schema"
-  },
-  {
-    "name": "explain",
-    "aliases": [],
-    "description": "Explain a bundled JSON schema path"
   },
   {
     "name": "guide",
@@ -384,12 +378,6 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     "owner": "native-shell",
     "nativeModes": [
       "default",
-      "help"
-    ]
-  },
-  "explain": {
-    "owner": "js-runtime",
-    "nativeModes": [
       "help"
     ]
   },
@@ -878,18 +866,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "describe <command...>",
       "flags": [
         "<command...>"
-      ],
-      "agentFlags": "--agent",
-      "requiresInit": false,
-      "expectedLatencyClass": "fast"
-    },
-    {
-      "name": "explain",
-      "description": "Explain a bundled JSON schema path",
-      "group": "advanced",
-      "usage": "explain <schemaPath>",
-      "flags": [
-        "<schemaPath>"
       ],
       "agentFlags": "--agent",
       "requiresInit": false,
@@ -3381,7 +3357,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
         "privacy-pools describe protocol-stats --agent",
-        "privacy-pools explain nextActions --agent"
+        "privacy-pools describe envelope.nextActions --agent",
+        "privacy-pools describe envelope.commands.status.successFields --agent"
       ],
       "structuredExamples": [
         {
@@ -3398,81 +3375,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "name": "Example 4",
-          "value": "privacy-pools explain nextActions --agent"
-        }
-      ],
-      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
-      "jsonVariants": [],
-      "safetyNotes": [
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentWorkflowNotes": []
-    },
-    "explain": {
-      "command": "explain",
-      "description": "Explain a bundled JSON schema path",
-      "group": "advanced",
-      "aliases": [],
-      "execution": {
-        "owner": "js-runtime",
-        "nativeModes": [
-          "help"
-        ]
-      },
-      "usage": "explain <schemaPath>",
-      "flags": [
-        "<schemaPath>"
-      ],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "fast",
-      "safeReadOnly": true,
-      "sideEffectClass": "read_only",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [],
-      "examples": [
-        "privacy-pools explain nextActions --agent",
-        "privacy-pools explain commands.status.successFields --agent",
-        "privacy-pools explain envelope.shared.nextAction"
-      ],
-      "structuredExamples": [
-        {
-          "name": "Example 1",
-          "value": "privacy-pools explain nextActions --agent"
+          "value": "privacy-pools describe envelope.nextActions --agent"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools explain commands.status.successFields --agent"
-        },
-        {
-          "name": "Example 3",
-          "value": "privacy-pools explain envelope.shared.nextAction"
+          "name": "Example 5",
+          "value": "privacy-pools describe envelope.commands.status.successFields --agent"
         }
       ],
-      "jsonFields": "{ path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -5041,12 +4951,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
-    "explain": {
-      "owner": "js-runtime",
-      "nativeModes": [
-        "help"
-      ]
-    },
     "guide": {
       "owner": "native-shell",
       "nativeModes": [
@@ -5585,7 +5489,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "tx-status",
     "capabilities",
     "describe",
-    "explain",
     "guide",
     "simulate deposit",
     "simulate withdraw",
