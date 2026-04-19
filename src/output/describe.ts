@@ -135,8 +135,11 @@ export function renderCommandDescriptionIndex(
   process.stderr.write(`\n${accentBold("Describe: commands")}\n`);
   process.stderr.write(formatSectionHeading("Available command paths", { divider: true }));
   for (const command of commands) {
+    const commandLabel = command.command.length >= 20
+      ? `${command.command} `
+      : command.command.padEnd(20);
     process.stderr.write(
-      `  ${command.command.padEnd(20)}${command.description} ${command.group ? `(${formatGroupLabel(command.group)})` : ""}\n`,
+      `  ${commandLabel}${command.description} ${command.group ? `(${formatGroupLabel(command.group)})` : ""}\n`,
     );
   }
   process.stderr.write(

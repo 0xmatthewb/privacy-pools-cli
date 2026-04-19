@@ -16,6 +16,7 @@ import {
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutput,
 } from "../helpers/output.ts";
+import { stripAnsi } from "../helpers/contract-assertions.ts";
 import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
 
 const realInquirerPrompts = await import("@inquirer/prompts");
@@ -210,17 +211,37 @@ describe("utility command handlers", () => {
         fakeCommand(),
       ),
     );
+    const plain = stripAnsi(stderr);
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("When to use:");
-    expect(stderr).toContain("With --no-wait, poll tx-status <submissionId>");
-    expect(stderr).toContain("Prerequisites:");
-    expect(stderr).toContain("Before you run this command");
-    expect(stderr).toContain("Structured examples:");
-    expect(stderr).toContain("Basic:");
-    expect(stderr).toContain("Agent / CI:");
-    expect(stderr).toContain("Related envelope paths:");
-    expect(stderr).toContain("envelope.commands.deposit.successFields");
+    expect(plain).toContain(`When to use:
+  With --no-wait, poll tx-status <submissionId> until the deposit transaction confirms, then use flow status <workflowId> or accounts --chain <chain> to follow ASP review.`);
+    expect(plain).toContain(`Prerequisites:
+  Before you run this command, make sure these prerequisites are satisfied:
+  - init`);
+    expect(plain).toContain(`Structured examples:
+Basic:
+  privacy-pools deposit 0.1 ETH
+  privacy-pools deposit 100 USDC`);
+    expect(plain).toContain(`Related envelope paths:
+  envelope.commands.deposit.successFields
+  envelope.commands.deposit.variants`);
+  });
+
+  test("describe human index renders envelope roots beneath spaced command rows", async () => {
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleDescribeCommand([], fakeCommand()),
+    );
+    const plain = stripAnsi(stderr);
+
+    expect(stdout).toBe("");
+    expect(plain).toContain(
+      "config profile create Create a new named profile (Advanced)",
+    );
+    expect(plain).toContain(`Envelope schema roots:
+  envelope
+  envelope.commands`);
+    expect(plain).not.toContain("config profile createCreate");
   });
 
   test("completion query returns candidates in JSON mode", async () => {

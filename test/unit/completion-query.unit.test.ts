@@ -55,6 +55,8 @@ describe("completion query helpers", () => {
 
     expect(candidates).toContain("flow");
     expect(candidates).toContain("withdraw");
+    expect(candidates).toContain("describe");
+    expect(candidates).not.toContain("explain");
     expect(candidates).toContain("--chain");
     expect(candidates).toContain("--agent");
   });
