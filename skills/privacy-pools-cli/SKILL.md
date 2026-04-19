@@ -356,7 +356,8 @@ In machine modes, non-round deposit amounts are rejected by default because they
 
 See [reference.md](reference.md#error-format) for the full current error table and payload shape.
 
-Exit codes: 0 (success), 1 (unknown), 2 (input), 3 (RPC), 4 (setup), 5 (relayer), 6 (proof), 7 (contract), 8 (ASP).
+Successful commands exit with code `0`.
+Exit codes: 1 (unknown), 2 (input), 3 (RPC), 4 (setup), 5 (relayer), 6 (proof), 7 (contract), 8 (ASP).
 
 Recommended retry strategy:
 - `RPC_NETWORK_ERROR` / `RPC_RATE_LIMITED` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.

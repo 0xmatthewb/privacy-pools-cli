@@ -1119,6 +1119,7 @@ All errors in JSON mode:
 | Code | Category | Retryable | Meaning |
 |------|----------|-----------|---------|
 | `INPUT_ERROR` | INPUT | No | Bad arguments, missing flags |
+| `PROMPT_CANCELLED` | INPUT | No | User cancelled an interactive prompt |
 | `RPC_ERROR` | RPC | No | RPC call failure |
 | `RPC_NETWORK_ERROR` | RPC | Yes | Network connectivity issue |
 | `RPC_RATE_LIMITED` | RPC | Yes | RPC provider rate limit (429); use `--rpc-url` |
@@ -1129,9 +1130,11 @@ All errors in JSON mode:
 | `PROOF_GENERATION_FAILED` | PROOF | No | ZK proof could not be generated |
 | `PROOF_MERKLE_ERROR` | PROOF | Yes | Commitment not in Merkle tree (sync first) |
 | `PROOF_MALFORMED` | PROOF | No | Corrupt proof data |
+| `PROOF_VERIFICATION_FAILED` | PROOF | No | Proof verification failed before submission |
 | `CONTRACT_NULLIFIER_ALREADY_SPENT` | CONTRACT | No | Pool Account already withdrawn |
 | `CONTRACT_INCORRECT_ASP_ROOT` | CONTRACT | Yes | State changed, regenerate proof |
 | `CONTRACT_UNKNOWN_STATE_ROOT` | CONTRACT | Yes | State root changed, regenerate proof |
+| `CONTRACT_SCOPE_MISMATCH` | CONTRACT | Yes | Proof scope does not match the selected privacy pool |
 | `CONTRACT_CONTEXT_MISMATCH` | CONTRACT | No | Proof context does not match withdrawal |
 | `CONTRACT_INVALID_PROOF` | CONTRACT | No | Proof rejected on-chain |
 | `CONTRACT_INVALID_PROCESSOOOR` | CONTRACT | No | Wrong withdrawal mode |
@@ -1159,9 +1162,10 @@ All errors in JSON mode:
 
 ### Exit codes
 
+Successful commands exit with code `0`.
+
 | Code | Category |
 |------|----------|
-| 0 | Success |
 | 1 | Unknown |
 | 2 | Input |
 | 3 | RPC |

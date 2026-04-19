@@ -1205,9 +1205,11 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `PROOF_GENERATION_FAILED` | PROOF | No | ZK proof could not be generated; stale state or spent account |
 | `PROOF_MERKLE_ERROR` | PROOF | Yes | Pool Account commitment not found in Merkle tree; run `sync` first |
 | `PROOF_MALFORMED` | PROOF | No | Corrupt or invalid proof data |
+| `PROOF_VERIFICATION_FAILED` | PROOF | No | Proof verification failed before onchain submission |
 | `CONTRACT_NULLIFIER_ALREADY_SPENT` | CONTRACT | No | Pool Account has already been withdrawn |
 | `CONTRACT_INCORRECT_ASP_ROOT` | CONTRACT | Yes | Pool state changed since proof generation; regenerate proof |
 | `CONTRACT_UNKNOWN_STATE_ROOT` | CONTRACT | Yes | State root is outdated; run `sync` and retry |
+| `CONTRACT_SCOPE_MISMATCH` | CONTRACT | Yes | Proof scope does not match the selected privacy pool; refresh state and retry |
 | `CONTRACT_CONTEXT_MISMATCH` | CONTRACT | No | Proof context does not match the withdrawal parameters |
 | `CONTRACT_INVALID_PROOF` | CONTRACT | No | ZK proof verification failed onchain |
 | `CONTRACT_INVALID_PROCESSOOOR` | CONTRACT | No | Withdrawal type mismatch (e.g., used `--direct` when relayed was expected) |
@@ -1235,9 +1237,10 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 
 ### Exit codes
 
+Successful commands exit with code `0`.
+
 | Code | Category |
 | ---- | -------- |
-| 0    | Success  |
 | 1    | Unknown  |
 | 2    | Input    |
 | 3    | RPC      |
