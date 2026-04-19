@@ -96,6 +96,17 @@ export function parseMarkdownTable(md: string): Record<string, string>[] {
   return rows;
 }
 
+export function parseExitCodeLine(line: string): Record<string, number> {
+  const matches = Array.from(line.matchAll(/(\d+)\s*\(([^)]+)\)/g));
+  if (matches.length === 0) {
+    throw new Error(`Expected inline exit-code prose, got: ${line}`);
+  }
+
+  return Object.fromEntries(
+    matches.map((match) => [match[2].trim().toUpperCase(), Number(match[1])]),
+  );
+}
+
 export function extractBacktickedIdentifiers(doc: string): string[] {
   const matches = Array.from(doc.matchAll(/`([A-Za-z][A-Za-z0-9_]{2,})`/g)).map(
     (match) => match[1],

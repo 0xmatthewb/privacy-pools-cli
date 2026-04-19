@@ -1,7 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import type { Command } from "commander";
 import {
   captureAsyncJsonOutput,
@@ -13,6 +12,10 @@ import {
   installModuleMocks,
   restoreModuleImplementations,
 } from "../helpers/module-mocks.ts";
+import {
+  cleanupTrackedTempDir,
+  createTrackedTempDir,
+} from "../helpers/temp.ts";
 
 const realBroadcastService = captureModuleExports(
   await import("../../src/services/broadcast.ts"),
@@ -78,7 +81,7 @@ afterAll(() => {
 
 describe("broadcast command handler", () => {
   test("reads envelope JSON from a file and forwards chain/rpc overrides", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "pp-broadcast-handler-"));
+    const dir = createTrackedTempDir("pp-broadcast-handler-");
     try {
       const file = join(dir, "envelope.json");
       writeFileSync(
@@ -131,7 +134,7 @@ describe("broadcast command handler", () => {
       expect(json.success).toBe(true);
       expect(json.mode).toBe("broadcast");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      cleanupTrackedTempDir(dir);
     }
   });
 
@@ -151,7 +154,7 @@ describe("broadcast command handler", () => {
   });
 
   test("rejects malformed JSON files before calling the broadcast service", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "pp-broadcast-handler-invalid-"));
+    const dir = createTrackedTempDir("pp-broadcast-handler-invalid-");
     try {
       const file = join(dir, "invalid.json");
       writeFileSync(file, "{ definitely-not-json", "utf8");
@@ -170,12 +173,12 @@ describe("broadcast command handler", () => {
       expect(exitCode).toBe(2);
       expect(readFileSync(file, "utf8")).toContain("definitely-not-json");
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      cleanupTrackedTempDir(dir);
     }
   });
 
   test("rejects unreadable broadcast inputs with a CLI error", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "pp-broadcast-handler-dir-"));
+    const dir = createTrackedTempDir("pp-broadcast-handler-dir-");
     try {
       const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
         handleBroadcastCommand(
@@ -190,12 +193,12 @@ describe("broadcast command handler", () => {
       expect(json.errorCode).toBe("INPUT_BROADCAST_INPUT_UNREADABLE");
       expect(exitCode).toBe(2);
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      cleanupTrackedTempDir(dir);
     }
   });
 
   test("forwards --validate-only to the broadcast service", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "pp-broadcast-handler-validate-"));
+    const dir = createTrackedTempDir("pp-broadcast-handler-validate-");
     try {
       const file = join(dir, "envelope.json");
       writeFileSync(
@@ -240,7 +243,7 @@ describe("broadcast command handler", () => {
         noWait: false,
       });
     } finally {
-      rmSync(dir, { recursive: true, force: true });
+      cleanupTrackedTempDir(dir);
     }
   });
 });

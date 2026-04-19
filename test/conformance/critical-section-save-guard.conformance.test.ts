@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs";
 
 const CLI_ROOT = process.cwd();
 
-// Commands that call saveAccount directly (transaction commands)
-const DIRECT_SAVE_COMMANDS = [
+// Fund-moving commands delegate guarded persistence through the shared
+// reconciliation helper instead of open-coding guard/save/release.
+const GUARDED_PERSIST_COMMANDS = [
   "src/commands/deposit.ts",
   "src/commands/withdraw.ts",
   "src/commands/ragequit.ts",
@@ -18,27 +19,11 @@ const DELEGATED_SAVE_COMMANDS = [
 ] as const;
 
 describe("critical section conformance", () => {
-  test("transaction commands that persist account state wrap saveAccount in guard/release", () => {
-    for (const relPath of DIRECT_SAVE_COMMANDS) {
+  test("transaction commands delegate guarded persistence to persistWithReconciliation", () => {
+    for (const relPath of GUARDED_PERSIST_COMMANDS) {
       const source = readFileSync(`${CLI_ROOT}/${relPath}`, "utf8");
 
-      expect(source).toContain("guardCriticalSection");
-      expect(source).toContain("releaseCriticalSection");
-      expect(source).toContain("saveAccount(");
-
-      // Count every saveAccount( call in the file
-      const saveMatches = source.match(/saveAccount\(/g);
-      expect(saveMatches).not.toBeNull();
-      const saveCount = saveMatches!.length;
-
-      // Count guard→save→release sequences (non-greedy to match individual triples)
-      const guardedPattern =
-        /guardCriticalSection\(\);[\s\S]*?saveAccount\([\s\S]*?releaseCriticalSection\(\);/g;
-      const guardedMatches = source.match(guardedPattern);
-      expect(guardedMatches).not.toBeNull();
-
-      // Every saveAccount must live inside its own guarded region
-      expect(guardedMatches!.length).toBe(saveCount);
+      expect(source).toContain("persistWithReconciliation(");
     }
   });
 
@@ -47,6 +32,21 @@ describe("critical section conformance", () => {
       const source = readFileSync(`${CLI_ROOT}/${relPath}`, "utf8");
       expect(source).toContain("syncAccountEvents");
     }
+  });
+
+  test("persistWithReconciliation wraps direct persistence in guard/release", () => {
+    const source = readFileSync(
+      `${CLI_ROOT}/src/services/persist-with-reconciliation.ts`,
+      "utf8",
+    );
+    expect(source).toContain("guardCriticalSection");
+    expect(source).toContain("releaseCriticalSection");
+    expect(source).toContain("params.persist");
+
+    const guardedPattern =
+      /guardCriticalSection\(\);[\s\S]*?params\.persist[\s\S]*?releaseCriticalSection\(\);/g;
+    const guardedMatches = source.match(guardedPattern);
+    expect(guardedMatches).not.toBeNull();
   });
 
   test("syncAccountEvents wraps saveAccount in guard/release", () => {

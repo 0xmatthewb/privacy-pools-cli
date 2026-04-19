@@ -77,7 +77,7 @@ describe("root global flags conformance", () => {
       STATIC_COMPLETION_SPEC.options?.flatMap((option) => option.names) ?? [],
     );
     const sharedOptionNames = sorted(
-      VISIBLE_ROOT_GLOBAL_FLAG_METADATA.flatMap(({ flag }) => splitFlagNames(flag)),
+      ROOT_GLOBAL_FLAG_METADATA.flatMap(({ flag }) => splitFlagNames(flag)),
     );
 
     expect(rootOptionNames).toEqual(

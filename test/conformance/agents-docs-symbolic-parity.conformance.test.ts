@@ -13,6 +13,7 @@ import {
   extractPhaseLikeIdentifiers,
   extractSection,
   parseEnumList,
+  parseExitCodeLine,
   parseMarkdownTable,
   parseRetryStrategySections,
 } from "../helpers/docs-parse.ts";
@@ -269,12 +270,7 @@ function parseInlineExitCodes(doc: string): Record<string, number> {
     throw new Error("Missing inline exit-code prose.");
   }
 
-  return Object.fromEntries(
-    Array.from(line.matchAll(/(\d+)\s*\(([^)]+)\)/g)).map((match) => [
-      normalizeExitCodeCategory(match[2]),
-      Number(match[1]),
-    ]),
-  );
+  return parseExitCodeLine(line);
 }
 
 function formatMap(value: unknown): string {

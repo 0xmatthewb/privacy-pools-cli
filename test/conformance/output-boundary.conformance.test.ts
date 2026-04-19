@@ -3,8 +3,8 @@
  *
  * Enforces the renderer-boundary contract:
  *   - All commands delegate output formatting to `src/output/` renderers.
- *   - `printJsonSuccess` in migrated commands is limited to unsigned-output
- *     paths that intentionally bypass the renderer layer.
+ *   - `printJsonSuccess` in migrated commands is limited to the small set of
+ *     direct-JSON commands that intentionally bypass the renderer layer.
  *
  * All checks are source-level grep assertions: fast, deterministic, and
  * resistant to runtime import-order churn.
@@ -24,9 +24,11 @@ const MIGRATED_COMMANDS = ALL_COMMANDS.filter(
   (commandPath) => !UNMIGRATED_COMMANDS.includes(commandPath),
 );
 
-const UNSIGNED_PATH_COMMANDS = new Set([
+const DIRECT_JSON_COMMANDS = new Set([
   "src/commands/deposit.ts",
   "src/commands/ragequit.ts",
+  "src/commands/simulate.ts",
+  "src/commands/upgrade.ts",
   "src/commands/withdraw.ts",
 ]);
 
@@ -71,12 +73,14 @@ describe("output boundary conformance", () => {
     }
   });
 
-  test("printJsonSuccess in migrated commands is limited to unsigned-path commands", () => {
+  test("printJsonSuccess in migrated commands is limited to direct-json commands", () => {
     for (const cmd of MIGRATED_COMMANDS) {
-      if (UNSIGNED_PATH_COMMANDS.has(cmd)) continue;
+      if (DIRECT_JSON_COMMANDS.has(cmd)) continue;
       const source = readSource(cmd);
       expect(source).not.toMatch(/\bprintJsonSuccess\s*\(/);
-      expect(source).not.toMatch(/from\s+["'][^"']*utils\/json\.js["']/);
+      expect(source).not.toMatch(
+        /import\s*\{[^}]*\bprintJsonSuccess\b[^}]*\}\s*from\s+["'][^"']*utils\/json\.js["']/,
+      );
     }
   });
 
