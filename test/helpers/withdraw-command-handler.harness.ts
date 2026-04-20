@@ -1,4 +1,5 @@
 export { registerWithdrawCommandHandlerHarness } from "./withdraw-command-handler.shared.ts";
+export { WithdrawHarness } from "./withdraw-harness.ts";
 export {
   registerWithdrawValidationPreludeTests,
   registerWithdrawValidationAccountSelectionTests,

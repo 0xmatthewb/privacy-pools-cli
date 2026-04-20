@@ -199,6 +199,8 @@ export const WITHDRAW_HANDLER_RELAYED_TEST =
   "./test/unit/withdraw-command-handler.relayed.unit.test.ts";
 export const WITHDRAW_HANDLER_VALIDATION_TEST =
   "./test/unit/withdraw-command-handler.validation.unit.test.ts";
+export const WITHDRAW_SCENARIOS_TEST =
+  "./test/unit/withdraw-scenarios.unit.test.ts";
 
 export const ACCOUNT_READONLY_TESTS = [
   ACCOUNTS_READONLY_TEST,
@@ -226,6 +228,7 @@ export const WITHDRAW_HANDLER_TESTS = [
   WITHDRAW_HANDLER_QUOTE_TEST,
   WITHDRAW_HANDLER_RELAYED_TEST,
   WITHDRAW_HANDLER_VALIDATION_TEST,
+  WITHDRAW_SCENARIOS_TEST,
 ];
 
 export const COMMAND_SURFACE_TESTS = [
