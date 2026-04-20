@@ -65,6 +65,13 @@ without writing `lcov.info`, the coverage guard retries that exact batch before 
 smaller batches, so missing coverage artifacts fail closed without turning one flaky suite into a
 global coverage failure.
 
+The `init-discovery-service` suite was re-evaluated for removal from the
+default isolated lane during the 2026-04-19 coverage/golden-file refresh. We
+kept it isolated in normal runs because randomized full-suite reruns still
+surfaced unrelated order-sensitive failures elsewhere, which made the
+de-isolation experiment inconclusive. Coverage isolation remains required for
+stable LCOV output regardless.
+
 When to use preload:
 
 - Only when a suite must install a mock before the first import side effect.
@@ -86,6 +93,7 @@ Prefer assertions that protect user-facing or agent-facing contracts:
 Shared helpers live in:
 
 - `test/helpers/contract-assertions.ts`
+- `test/helpers/golden.ts`
 - `test/helpers/unsigned-assertions.ts`
 - `test/helpers/strict-stubs.ts`
 - `test/helpers/test-world.ts`
@@ -109,6 +117,27 @@ For CLI transcript coverage, prefer semantic checks over copy pinning:
 Keep exact transcript equality only where the contract is intentionally rigid,
 such as machine-readable JSON envelopes, completion output, or fail-closed
 native error envelopes.
+
+## Golden Files
+
+Golden files are the preferred exact-transcript mechanism for contracts where
+semantic assertions are too loose:
+
+- `test/golden/**/*.golden.txt` for human-facing transcripts
+- `test/golden/**/*.golden.json` for machine envelopes and discovery payloads
+- `test/helpers/golden.ts` for the shared JS-side reader/writer/normalizer
+- `native/shell/tests/golden_parity.rs` for Rust-native consumers of the same fixtures
+
+Rules:
+
+- Prefer one golden per scenario, not one per command.
+- Keep the scenario name stable and descriptive (`command/scenario`).
+- Run with `UPDATE_GOLDEN=1` to regenerate fixtures after an intentional
+  contract change.
+- Let the helper normalize only genuinely unstable values (`HASH`, `ADDR`,
+  `TS`, `BLOCK`, `WEI`) and keep the rest exact.
+- Use goldens for intentionally rigid human/output parity, JSON envelope
+  stability, and JS↔Rust/native parity. Prefer semantic assertions elsewhere.
 
 ## Suite Contract
 
@@ -138,6 +167,10 @@ Every isolated, on-demand, quarantined, or otherwise high-cost suite must declar
 - `fixtureClass`
 - `budgetMs`
 
+Online-only suites should also declare an `online` tag, or in the conformance
+lane add the `@online` marker comment so `npm run test:offline` can exclude
+them deterministically.
+
 ## Flake And Quarantine Policy
 
 - Blocking profiles must not silently retry whole suites more than once.
@@ -154,8 +187,23 @@ For new expensive or stateful suites, prefer the shared patterns that already ex
 - one canonical temp-home/temp-dir helper with `pp-` prefixes
 - one strict outbound stub registry that fails on unexpected calls
 - one semantic CLI assertion helper set for JSON, stderr/stdout ownership, and section markers
+- one `TestWorld`-backed temp home/env lifecycle for unit and service suites
 
 Avoid one-off local harnesses unless the existing helpers cannot model the behavior safely.
+
+### TestWorld Migration Policy
+
+New files under `test/unit/` and `test/services/` must use
+`createTestWorld()` (directly or through an existing harness helper) instead of
+writing `process.env.PRIVACY_POOLS_HOME` directly.
+
+The conformance ratchet in
+[`test/conformance/testing-policy.conformance.test.ts`](../test/conformance/testing-policy.conformance.test.ts)
+keeps an explicit allowlist for older files that still need migration. That
+allowlist should only shrink over time.
+
+Use `test/helpers/strict-stubs.ts` for outbound fail-closed expectations when a
+service or command test controls RPC/ASP/relayer side effects.
 
 ## Maintainer Review Checklist
 
@@ -203,6 +251,17 @@ Current policy:
 - `src/config/`: `>= 95%`
 
 `bunfig.toml` only provides Bun-native defaults such as `coverageSkipTestFiles`. It does not replace the repository coverage guard.
+
+Runner environment allowlisting is centralized in
+[`scripts/lib/env-allowlist.mjs`](../scripts/lib/env-allowlist.mjs). If a new
+`PP_*` runner variable is introduced, add it there and keep the conformance
+check green before shipping.
+
+Shared JS↔Rust parity fixtures live in two places:
+
+- `test/fixtures/rpc-abi-cases.json` for ABI encoding/decoding parity
+- `test/golden/**` for transcript and JSON-envelope parity across the Node CLI,
+  the native launcher boundary, and the direct Rust-native shell tests
 
 ## Performance Targets
 

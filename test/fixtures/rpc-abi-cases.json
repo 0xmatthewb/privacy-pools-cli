@@ -1,0 +1,55 @@
+{
+  "selectors": [
+    {
+      "signature": "symbol()",
+      "expected4Bytes": "0x95d89b41"
+    },
+    {
+      "signature": "decimals()",
+      "expected4Bytes": "0x313ce567"
+    },
+    {
+      "signature": "balanceOf(address)",
+      "expected4Bytes": "0x70a08231"
+    }
+  ],
+  "encodedCalls": [
+    {
+      "signature": "symbol()",
+      "params": [],
+      "expectedCalldata": "0x95d89b41"
+    },
+    {
+      "signature": "decimals()",
+      "params": [],
+      "expectedCalldata": "0x313ce567"
+    },
+    {
+      "signature": "balanceOf(address)",
+      "params": [
+        "0x1234567890abcdef1234567890abcdef12345678"
+      ],
+      "expectedCalldata": "0x70a082310000000000000000000000001234567890abcdef1234567890abcdef12345678"
+    }
+  ],
+  "decodedResponses": [
+    {
+      "method": "symbol",
+      "kind": "string",
+      "rawHex": "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000034554480000000000000000000000000000000000000000000000000000000000",
+      "expectedValue": "ETH"
+    },
+    {
+      "method": "decimals",
+      "kind": "uint256",
+      "rawHex": "0x0000000000000000000000000000000000000000000000000000000000000012",
+      "expectedValue": "18"
+    },
+    {
+      "method": "token",
+      "kind": "address",
+      "rawHex": "0x000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "expectedValue": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+    }
+  ]
+}

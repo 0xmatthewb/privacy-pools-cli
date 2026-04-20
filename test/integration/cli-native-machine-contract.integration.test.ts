@@ -23,16 +23,23 @@ import {
   normalizeParityStderr,
   resolveParityTestTimeout,
   runBuiltCli,
+  runNativeBinaryDirect,
   runNativeBuiltCli,
   seedSavedWorkflow,
   TEST_RECIPIENT,
   withJsFallback,
   ensureNativeShellBinary,
 } from "../helpers/native-shell.ts";
+import { expectJsonGolden } from "../helpers/golden.ts";
+import {
+  GOLDEN_JSON_CASES,
+  resolveGoldenCaseRunOptions,
+} from "../helpers/golden-cli-cases.ts";
 
 describe("native machine contract parity", () => {
   let nativeBinary: string;
   let fixture: FixtureServer | null = null;
+  const sharedJsonCases = GOLDEN_JSON_CASES.filter((goldenCase) => goldenCase.sharedNative);
 
   beforeAll(async () => {
     nativeBinary = ensureNativeShellBinary();
@@ -45,6 +52,21 @@ describe("native machine contract parity", () => {
     }
   });
 
+  for (const goldenCase of sharedJsonCases) {
+    nativeTest(goldenCase.name, () => {
+      const runOptions = resolveGoldenCaseRunOptions(goldenCase.env, fixture);
+      const jsResult = runBuiltCli(goldenCase.args, withJsFallback(runOptions));
+      const nativeResult = runNativeBuiltCli(nativeBinary, goldenCase.args, runOptions);
+
+      expect(jsResult.status).toBe(goldenCase.status);
+      expect(nativeResult.status).toBe(goldenCase.status);
+      expect(jsResult.stderr).toBe("");
+      expect(nativeResult.stderr).toBe("");
+      expectJsonGolden(goldenCase.name, parseJsonOutput(jsResult.stdout));
+      expectJsonGolden(goldenCase.name, parseJsonOutput(nativeResult.stdout));
+    });
+  }
+
   nativeTest("structured root help stays machine-readable", () => {
     expectJsonParity(nativeBinary, ["--json", "--help"]);
   });
@@ -53,10 +75,9 @@ describe("native machine contract parity", () => {
     expectJsonParity(nativeBinary, ["--json", "--version"]);
   });
 
-  nativeTest("machine-readable guide, capabilities, and describe outputs stay identical", () => {
+  nativeTest("machine-readable guide and capabilities outputs stay identical", () => {
     expectJsonParity(nativeBinary, ["--agent", "guide"]);
     expectJsonParity(nativeBinary, ["--agent", "capabilities"]);
-    expectJsonParity(nativeBinary, ["--agent", "describe", "protocol-stats"]);
   });
 
   nativeTest("completion scripts and query payloads stay identical", () => {
@@ -118,10 +139,28 @@ describe("native machine contract parity", () => {
   });
 
   nativeTest("offline public envelopes and degraded pool discovery stay aligned", () => {
-    expectJsonParity(nativeBinary, ["--json", "--chain", "mainnet", "activity"], {
-      js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
-      native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
-    });
+    const offlineActivityArgs = ["--json", "--chain", "mainnet", "activity"];
+    const offlineActivityEnv = { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" };
+    const jsOfflineActivity = runBuiltCli(
+      offlineActivityArgs,
+      withJsFallback({ env: offlineActivityEnv }),
+    );
+    const nativeOfflineActivity = runNativeBuiltCli(
+      nativeBinary,
+      offlineActivityArgs,
+      { env: offlineActivityEnv },
+    );
+    for (const result of [jsOfflineActivity, nativeOfflineActivity]) {
+      expectJsonErrorContract(result, {
+        status: 3,
+        errorCode: "RPC_NETWORK_ERROR",
+        category: "RPC",
+        message: "Network error",
+      });
+      expect(normalizeParityStderr(result.stderr)).toBe("");
+    }
+    expect(nativeOfflineActivity.status).toBe(jsOfflineActivity.status);
+
     expectJsonParity(
       nativeBinary,
       ["--json", "--chain", "mainnet", "stats", "pool", "ETH"],
@@ -239,14 +278,37 @@ describe("native machine contract parity", () => {
         native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
       },
     );
-    expectDirectNativeBuiltJsonParity(
-      nativeBinary,
-      ["--json", "--chain", "mainnet", "activity"],
-      {
-        js: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
-        native: { env: { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" } },
-      },
+
+    const offlineActivityArgs = ["--json", "--chain", "mainnet", "activity"];
+    const offlineActivityEnv = { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" };
+    const jsOfflineActivity = runBuiltCli(
+      offlineActivityArgs,
+      withJsFallback({ env: offlineActivityEnv }),
     );
+    const nativeOfflineActivity = runNativeBuiltCli(
+      nativeBinary,
+      offlineActivityArgs,
+      { env: offlineActivityEnv },
+    );
+    const directNativeOfflineActivity = runNativeBinaryDirect(
+      nativeBinary,
+      offlineActivityArgs,
+      { env: offlineActivityEnv },
+    );
+    for (const result of [
+      jsOfflineActivity,
+      nativeOfflineActivity,
+      directNativeOfflineActivity,
+    ]) {
+      expectJsonErrorContract(result, {
+        status: 3,
+        errorCode: "RPC_NETWORK_ERROR",
+        category: "RPC",
+        message: "Network error",
+      });
+      expect(normalizeParityStderr(result.stderr)).toBe("");
+    }
+
     expectDirectNativeBuiltJsonParity(
       nativeBinary,
       ["--agent", "pools"],

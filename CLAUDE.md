@@ -19,6 +19,7 @@ npm run typecheck        # tsc --noEmit
 
 ```bash
 npm run test                   # unit + integration + fuzz + services (~2 min)
+npm run test:offline           # default suite + offline-safe conformance only
 npm run test:smoke             # packaged-smoke integration (timeout 180s)
 npm run test:fuzz              # fuzz suite (timeout 120s)
 npm run test:conformance       # build + conformance core suite
@@ -41,11 +42,19 @@ Process isolation is intentional here. Bun runs test files in a shared process b
 The preferred test harness primitives are:
 - `test/helpers/test-world.ts` for temp home/env/process lifecycle
 - `test/helpers/contract-assertions.ts` for JSON envelope, nextActions, and stream-boundary checks
+- `test/helpers/golden.ts` for normalized `.golden.txt` / `.golden.json` contracts in `test/golden/`
 - `test/helpers/strict-stubs.ts` for fail-closed outbound expectations
 
 Default isolated suites are intentionally limited to `contracts-service`, `proofs-service`, `workflow-mocked`, `workflow-internal`, and `init-interactive`. Coverage-only isolation additionally keeps `workflow-service` and `bootstrap-runtime` out of the shared batch.
+`init-discovery-service` remains isolated in the default lane for now: a 2026-04-19 re-evaluation was blocked by unrelated randomized order-sensitivity elsewhere in the suite, so we kept the conservative containment boundary.
 
 To run a single test file: `node scripts/run-bun-tests.mjs ./test/unit/some-file.unit.test.ts`
+
+Offline iteration support is explicit. `node scripts/run-test-suite.mjs --exclude-tag online`
+skips any manifest-tagged online suites, and `node scripts/run-conformance-suite.mjs core --exclude-tag online`
+skips the conformance files marked with `@online` when you need a no-network pass.
+`UPDATE_GOLDEN=1 node scripts/run-bun-tests.mjs ./test/integration/cli-golden.integration.test.ts`
+refreshes the shared golden fixtures deterministically.
 
 ## Architecture
 
@@ -116,10 +125,10 @@ These areas must be kept in sync when either side changes.
 |------|-------------|------------|
 | Config loading | `native/shell/src/config.rs` | `src/services/config.ts`, `src/config/chains.ts` |
 | Root argv parsing | `native/shell/src/root_argv.rs` | `src/utils/root-argv.ts` |
-| Output formatting | `native/shell/src/output.rs` | `src/output/layout.ts`, `src/utils/format.ts` |
-| RPC ABI encoding | `native/shell/src/commands/pools/rpc_abi.rs` | viem library |
-| Token metadata | `native/shell/src/commands/pools/rpc_token.rs` | viem `readContract` |
-| NextActions | `native/shell/src/output.rs` | `src/output/common.ts` |
+| Output formatting | `native/shell/src/output.rs`, `native/shell/tests/golden_parity.rs` via `test/golden/*.golden.txt` | `test/integration/cli-golden.integration.test.ts`, `test/integration/cli-native-human-output.integration.test.ts` via `test/golden/*.golden.txt` |
+| RPC ABI encoding | `native/shell/src/commands/pools/rpc_abi.rs` via `test/fixtures/rpc-abi-cases.json` | `test/unit/rpc-abi-parity.unit.test.ts` via viem + `test/fixtures/rpc-abi-cases.json` |
+| Token metadata | `native/shell/src/commands/pools/rpc_token.rs` decoded against `test/fixtures/rpc-abi-cases.json` primitives | `test/unit/rpc-abi-parity.unit.test.ts` decoded against `test/fixtures/rpc-abi-cases.json` |
+| NextActions | `native/shell/src/output.rs`, `native/shell/tests/golden_parity.rs` via `test/golden/*.golden.json` | `src/output/common.ts`, `test/integration/cli-golden.integration.test.ts`, `test/integration/cli-native-machine-contract.integration.test.ts` via `test/golden/*.golden.json` |
 
 The bridge version guard (`src/runtime/runtime-contract.js` ↔ `native/shell/src/contract.rs`)
 ensures the native binary is compatible with the JS runtime at the protocol level, but cannot

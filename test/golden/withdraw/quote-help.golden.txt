@@ -1,0 +1,41 @@
+// normalized: NONE
+Usage: privacy-pools withdraw quote [options] <amountOrAsset> [amount]
+
+Request relayer quote and limits without generating a proof
+
+Arguments:
+  amountOrAsset       Amount to withdraw (preferred first positional) or asset
+                      symbol
+  amount              Asset symbol (preferred second positional,
+                      case-insensitive) or amount when the asset is first
+
+Options:
+  -t, --to <address>  Recipient address (recommended for an accurate fee quote)
+  -h, --help          display help for command
+Preferred order: privacy-pools withdraw quote <amount> <asset>
+Also supported: privacy-pools withdraw quote <asset> <amount>
+
+Examples:
+  privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
+  privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...
+  privacy-pools withdraw quote 100 USDC --agent --chain mainnet
+
+Prerequisites:
+  Requires: init
+
+Agent workflow:
+  Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.
+  Preferred order is withdraw quote <amount> <asset>; withdraw quote <asset> <amount> remains supported for compatibility.
+
+Structured output:
+  Use --json for the full envelope.
+  Use --json <fields> or --json=<fields> to keep only selected top-level fields.
+  Use --jq/--jmes for JMESPath filtering or --template for custom text rendering.
+  --json <fields>, --jq/--jmes, and --template are mutually exclusive.
+
+JSON output (--json):
+  { mode: "relayed-quote", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }
+
+See also:
+  privacy-pools withdraw
+  privacy-pools accounts

@@ -1,0 +1,14 @@
+// normalized: NONE
+{
+  "error": {
+    "category": "INPUT",
+    "code": "INPUT_ERROR",
+    "hint": "Use --chain <name> to target a single chain with --rpc-url.",
+    "message": "--rpc-url cannot be combined with multi-chain queries.",
+    "retryable": false
+  },
+  "errorCode": "INPUT_ERROR",
+  "errorMessage": "--rpc-url cannot be combined with multi-chain queries.",
+  "schemaVersion": "2.0.0",
+  "success": false
+}

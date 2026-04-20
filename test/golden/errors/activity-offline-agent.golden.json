@@ -1,0 +1,15 @@
+// normalized: NONE
+{
+  "error": {
+    "category": "RPC",
+    "code": "RPC_NETWORK_ERROR",
+    "docsSlug": "guide/troubleshooting",
+    "hint": "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable.",
+    "message": "Network error: fetch failed",
+    "retryable": true
+  },
+  "errorCode": "RPC_NETWORK_ERROR",
+  "errorMessage": "Network error: fetch failed",
+  "schemaVersion": "2.0.0",
+  "success": false
+}

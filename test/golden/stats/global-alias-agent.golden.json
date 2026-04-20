@@ -1,0 +1,44 @@
+// normalized: TS, WEI
+{
+  "allTime": {
+    "totalDepositsCount": 100,
+    "totalDepositsValue": "<WEI>",
+    "totalDepositsValueUsd": "600000",
+    "totalWithdrawalsCount": 50,
+    "totalWithdrawalsValue": "<WEI>",
+    "totalWithdrawalsValueUsd": "300000",
+    "tvl": "50000000000000000000",
+    "tvlUsd": "150000"
+  },
+  "cacheTimestamp": "<TS>",
+  "chain": "all-mainnets",
+  "chains": [
+    "mainnet",
+    "arbitrum",
+    "optimism"
+  ],
+  "command": "protocol-stats",
+  "deprecationWarning": {
+    "code": "COMMAND_ALIAS_DEPRECATED",
+    "message": "Command 'stats global' is deprecated and will be removed in the next minor release. Use 'privacy-pools protocol-stats' instead.",
+    "replacementCommand": "privacy-pools protocol-stats"
+  },
+  "invokedAs": "stats global",
+  "last24h": {
+    "totalDepositsCount": 5,
+    "totalDepositsValue": "<WEI>",
+    "totalWithdrawalsCount": 2,
+    "totalWithdrawalsValue": "<WEI>"
+  },
+  "mode": "global-stats",
+  "nextActions": [
+    {
+      "cliCommand": "privacy-pools pools --agent",
+      "command": "pools",
+      "reason": "Browse live pool balances and minimum deposits.",
+      "when": "after_stats"
+    }
+  ],
+  "schemaVersion": "2.0.0",
+  "success": true
+}

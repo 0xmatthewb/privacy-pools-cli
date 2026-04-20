@@ -1,0 +1,5035 @@
+// normalized: NONE
+{
+  "agentNotes": {
+    "firstRun": "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
+    "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
+    "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poa_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at https://tornado.0xbow.io first if poa_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). Follow nextActions from the deposit response for the canonical polling command.",
+    "statusCheck": "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC or ASP health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known.",
+    "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one. 'broadcast' is an optional first-party inverse for full-envelope workflows; Bankr and custom signers can keep using their own submission logic unchanged.",
+    "withdrawQuote": "Use 'withdraw quote <amount> <asset> --agent' to check relayer fees before committing to a withdrawal."
+  },
+  "agentWorkflow": [
+    "1. privacy-pools status --agent",
+    "2. privacy-pools init --agent --default-chain <chain> (--show-recovery-phrase | --backup-file <path>)",
+    "3. privacy-pools pools --agent --chain <chain>",
+    "4. privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>",
+    "5. privacy-pools flow status [workflowId|latest] --agent",
+    "6. privacy-pools flow step [workflowId|latest] --agent",
+    "7. privacy-pools flow ragequit [workflowId|latest] --agent  (optional public recovery after the deposit exists; canonical if the saved workflow is declined)",
+    "8. privacy-pools deposit <amount> <asset> --agent --chain <chain>  (manual alternative)",
+    "9. privacy-pools accounts --agent --chain <chain> --pending-only  (reviewed entries disappear; confirm approved vs declined vs poa_required with accounts --agent --chain <chain>)",
+    "10. privacy-pools withdraw <amount> <asset> --to <address> --agent --chain <chain>"
+  ],
+  "commandDetails": {
+    "accounts": {
+      "agentWorkflowNotes": [
+        "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --include-testnets to include supported testnets.",
+        "Use --summary or --pending-only to reduce JSON size for polling loops.",
+        "When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (https://tornado.0xbow.io) before choosing withdraw or ragequit."
+      ],
+      "aliases": [],
+      "command": "accounts",
+      "description": "View balances, approval status, and pool accounts",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools accounts",
+            "privacy-pools accounts --include-testnets",
+            "privacy-pools accounts --details"
+          ]
+        },
+        {
+          "category": "Compact modes",
+          "commands": [
+            "privacy-pools accounts --summary",
+            "privacy-pools accounts --chain <name> --pending-only",
+            "privacy-pools accounts --chain <name> --status approved",
+            "privacy-pools accounts --chain <name> --pending-only --watch"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools accounts --agent",
+            "privacy-pools accounts --no-sync --chain mainnet"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--no-sync",
+        "--include-testnets",
+        "--details",
+        "--summary",
+        "--pending-only",
+        "--status <status>",
+        "--watch"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "jsonFields": "{ chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "--summary: { chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, pendingCount, approvedCount, poaRequiredCount, declinedCount, unknownCount, spentCount, exitedCount, balances, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "--pending-only: { chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts, pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }"
+      ],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": true,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_cache_write",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools accounts",
+            "privacy-pools accounts --include-testnets",
+            "privacy-pools accounts --details"
+          ]
+        },
+        {
+          "name": "Compact modes",
+          "value": [
+            "privacy-pools accounts --summary",
+            "privacy-pools accounts --chain <name> --pending-only",
+            "privacy-pools accounts --chain <name> --status approved",
+            "privacy-pools accounts --chain <name> --pending-only --watch"
+          ]
+        },
+        {
+          "name": "Agent / CI",
+          "value": [
+            "privacy-pools accounts --agent",
+            "privacy-pools accounts --no-sync --chain mainnet"
+          ]
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "accounts"
+    },
+    "activity": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "activity",
+      "description": "View recent deposits and withdrawals across pools",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools activity",
+            "privacy-pools activity --page 2 --limit 20",
+            "privacy-pools activity --include-testnets",
+            "privacy-pools activity ETH"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools activity USDC --agent --chain mainnet"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "default",
+          "csv",
+          "structured",
+          "help"
+        ],
+        "owner": "hybrid"
+      },
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "[asset]",
+        "--include-testnets",
+        "--page <n>",
+        "--limit <n>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "jsonFields": "{ mode, chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools activity",
+            "privacy-pools activity --page 2 --limit 20",
+            "privacy-pools activity --include-testnets",
+            "privacy-pools activity ETH"
+          ]
+        },
+        {
+          "name": "Agent / CI",
+          "value": [
+            "privacy-pools activity USDC --agent --chain mainnet"
+          ]
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "activity"
+    },
+    "broadcast": {
+      "agentWorkflowNotes": [
+        "Keep using your existing Bankr or custom signer path if you already have one. broadcast is optional and does not change the current --unsigned contract.",
+        "For first-party envelope workflows, the canonical sequence is: build with --unsigned, sign outside the CLI, then return with broadcast.",
+        "With --no-wait, use tx-status <submissionId> to poll confirmation without re-broadcasting."
+      ],
+      "aliases": [],
+      "command": "broadcast",
+      "description": "Broadcast a signed envelope or relayer request built elsewhere",
+      "examples": [
+        "privacy-pools broadcast ./signed-deposit-envelope.json",
+        "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent --no-wait",
+        "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent --no-wait",
+        "privacy-pools broadcast ./signed-envelope.json --validate-only --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--validate-only",
+        "--no-wait"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, validatedOnly?: boolean, submissionId?, submittedBy?, transactions: [{ index, description, txHash: string|null, blockNumber: string|null, explorerUrl: string|null, status: \"submitted\"|\"confirmed\"|\"validated\" }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "Partial submission failure: standard error envelope with error.details.submittedTransactions[] and error.details.failedAtIndex so agents do not retry blindly.",
+        "--validate-only: same envelope, but validatedOnly: true, transaction status = \"validated\", txHash/blockNumber/explorerUrl = null, and no nextActions because nothing was submitted.",
+        "--no-wait: submitted transactions return immediately with submissionId so tx-status can poll confirmation later."
+      ],
+      "prerequisites": [],
+      "requiresHumanReview": true,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "broadcast validates each signed transaction against the original preview envelope before the first submission.",
+        "Onchain bundles are submitted sequentially and confirmed one-by-one so ERC20 approval + deposit ordering remains safe.",
+        "Relayed withdrawals require a non-expired quote and a relayerRequest that exactly matches the preview calldata.",
+        "broadcast never signs and never mutates local account state.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "fund_movement",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools broadcast ./signed-deposit-envelope.json"
+        },
+        {
+          "name": "Example 2",
+          "value": "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent --no-wait"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent --no-wait"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools broadcast ./signed-envelope.json --validate-only --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": true,
+      "usage": "broadcast <input>"
+    },
+    "capabilities": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "capabilities",
+      "description": "Describe CLI capabilities for agents",
+      "examples": [
+        "privacy-pools capabilities",
+        "privacy-pools capabilities --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "default",
+          "help"
+        ],
+        "owner": "native-shell"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ commands[{ group, ... }], commandDetails{ ...group... }, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools capabilities"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools capabilities --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "capabilities"
+    },
+    "completion": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "completion",
+      "description": "Generate or install shell tab completion",
+      "examples": [
+        "privacy-pools completion --install",
+        "privacy-pools completion --install zsh",
+        "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
+        "privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools",
+        "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
+        "privacy-pools completion powershell >> $PROFILE"
+      ],
+      "execution": {
+        "nativeModes": [
+          "default",
+          "help"
+        ],
+        "owner": "hybrid"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "[shell]",
+        "--shell <shell>",
+        "--install"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, bootstrapProfilePath?, bootstrapProfileCreated?, bootstrapProfileUpdated?, reloadHint?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_state_write",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools completion --install"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools completion --install zsh"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools"
+        },
+        {
+          "name": "Example 5",
+          "value": "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish"
+        },
+        {
+          "name": "Example 6",
+          "value": "privacy-pools completion powershell >> $PROFILE"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "completion"
+    },
+    "config": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config",
+      "description": "View and manage CLI configuration",
+      "examples": [
+        "privacy-pools config list",
+        "privacy-pools config get default-chain",
+        "privacy-pools config set default-chain arbitrum",
+        "privacy-pools config unset rpc-override.mainnet",
+        "privacy-pools config path"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "list",
+        "get <key>",
+        "set <key> [value]",
+        "unset <key>",
+        "path"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ mode: \"help\", command: \"config\", subcommands: [\"list\", \"get\", \"set\", \"unset\", \"path\", \"profile\"], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no subcommand is provided; otherwise each config subcommand returns its own structured payload.",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config list"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config get default-chain"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools config set default-chain arbitrum"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools config unset rpc-override.mainnet"
+        },
+        {
+          "name": "Example 5",
+          "value": "privacy-pools config path"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config"
+    },
+    "config get": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config get",
+      "description": "Read a single configuration key",
+      "examples": [
+        "privacy-pools config get default-chain",
+        "privacy-pools config get rpc-override.mainnet",
+        "privacy-pools config get recovery-phrase --reveal",
+        "privacy-pools config get signer-key --reveal"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--reveal"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ key, value?, set, redacted?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config get default-chain"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config get rpc-override.mainnet"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools config get recovery-phrase --reveal"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools config get signer-key --reveal"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config get <key>"
+    },
+    "config list": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config list",
+      "description": "List all configuration keys and their current values",
+      "examples": [
+        "privacy-pools config list",
+        "privacy-pools config list --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config list"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config list --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config list"
+    },
+    "config path": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config path",
+      "description": "Print the configuration directory path",
+      "examples": [
+        "privacy-pools config path",
+        "privacy-pools config path --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config path"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config path --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config path"
+    },
+    "config profile": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config profile",
+      "description": "Manage named profiles",
+      "examples": [
+        "privacy-pools config profile list",
+        "privacy-pools config profile create trading",
+        "privacy-pools config profile use trading"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": null,
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config profile list"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config profile create trading"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools config profile use trading"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config profile <command>"
+    },
+    "config profile active": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config profile active",
+      "description": "Show the currently active profile",
+      "examples": [
+        "privacy-pools config profile active",
+        "privacy-pools config profile active --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ profile, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config profile active"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config profile active --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config profile active"
+    },
+    "config profile create": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config profile create",
+      "description": "Create a new named profile",
+      "examples": [
+        "privacy-pools config profile create trading",
+        "privacy-pools config profile create ops --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ profile, created, profileDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config profile create trading"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config profile create ops --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config profile create <name>"
+    },
+    "config profile list": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config profile list",
+      "description": "List available profiles",
+      "examples": [
+        "privacy-pools config profile list",
+        "privacy-pools config profile list --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ profiles, active, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config profile list"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config profile list --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config profile list"
+    },
+    "config profile use": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config profile use",
+      "description": "Persist the active profile",
+      "examples": [
+        "privacy-pools config profile use trading",
+        "privacy-pools config profile use default"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ profile, active, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config profile use trading"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config profile use default"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config profile use <name>"
+    },
+    "config set": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "config set",
+      "description": "Write a single configuration key",
+      "examples": [
+        "privacy-pools config set default-chain arbitrum",
+        "privacy-pools config set rpc-override.mainnet https://my-rpc.example.com",
+        "privacy-pools config set recovery-phrase --file ./phrase.txt",
+        "privacy-pools init --signer-only --private-key-file ./signer-key.txt"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--file <path>",
+        "--stdin"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ key, updated, changed, removed, summary, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Recovery phrases are never accepted as positional arguments to prevent shell history leakage.",
+        "Signer keys cannot be changed through config set. Use init --signer-only instead so the CLI keeps that flow safety-checked and explicit.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_state_write",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config set default-chain arbitrum"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config set rpc-override.mainnet https://my-rpc.example.com"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools config set recovery-phrase --file ./phrase.txt"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools init --signer-only --private-key-file ./signer-key.txt"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config set <key> [value]"
+    },
+    "config unset": {
+      "agentWorkflowNotes": [],
+      "aliases": [
+        "remove"
+      ],
+      "command": "config unset",
+      "description": "Clear a single configuration key",
+      "examples": [
+        "privacy-pools config unset rpc-override.mainnet",
+        "privacy-pools config unset default-chain",
+        "privacy-pools config unset recovery-phrase",
+        "privacy-pools config remove signer-key"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "<key>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": null,
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "config unset signer-key only removes the local fallback file. If PRIVACY_POOLS_PRIVATE_KEY is set in the environment, unset it there too.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools config unset rpc-override.mainnet"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools config unset default-chain"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools config unset recovery-phrase"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools config remove signer-key"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "config unset <key>"
+    },
+    "deposit": {
+      "agentWorkflowNotes": [
+        "With --no-wait, poll tx-status <submissionId> until the deposit transaction confirms, then use flow status <workflowId> or accounts --chain <chain> to follow ASP review.",
+        "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at https://tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.",
+        "If the deposit transaction was submitted but confirmation timed out or the CLI was interrupted afterward, run sync --chain <chain> before retrying so local state can detect the onchain deposit."
+      ],
+      "aliases": [],
+      "command": "deposit",
+      "description": "Deposit ETH or ERC-20 tokens into a pool",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools deposit 0.1 ETH",
+            "privacy-pools deposit 100 USDC"
+          ]
+        },
+        {
+          "category": "With options",
+          "commands": [
+            "privacy-pools deposit 0.1 ETH --chain mainnet",
+            "privacy-pools deposit 0.1 ETH --dry-run"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools deposit 0.05 ETH --agent",
+            "privacy-pools deposit 0.1 ETH --unsigned"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--unsigned [envelope|tx]",
+        "--dry-run",
+        "--no-wait",
+        "--ignore-unique-amount"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, workflowId, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
+        "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
+        "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }"
+      ],
+      "preferredSafeVariant": {
+        "command": "pools",
+        "reason": "Browse pools and balances before submitting a new deposit."
+      },
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": true,
+      "requiresInit": true,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
+        "An ASP vetting fee is deducted from the deposit amount.",
+        "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at https://tornado.0xbow.io before they can withdraw privately.",
+        "Deposit and simulate deposit amounts are human-readable token amounts, not wei. Asset symbols are normalized case-insensitively.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "fund_movement",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools deposit 0.1 ETH",
+            "privacy-pools deposit 100 USDC"
+          ]
+        },
+        {
+          "name": "With options",
+          "value": [
+            "privacy-pools deposit 0.1 ETH --chain mainnet",
+            "privacy-pools deposit 0.1 ETH --dry-run"
+          ]
+        },
+        {
+          "name": "Agent / CI",
+          "value": [
+            "privacy-pools deposit 0.05 ETH --agent",
+            "privacy-pools deposit 0.1 ETH --unsigned"
+          ]
+        }
+      ],
+      "supportsDryRun": true,
+      "supportsUnsigned": true,
+      "touchesFunds": true,
+      "usage": "deposit <amount> [asset]"
+    },
+    "describe": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "describe",
+      "description": "Describe a command's flags, args, and output schema",
+      "examples": [
+        "privacy-pools describe withdraw",
+        "privacy-pools describe withdraw quote --agent",
+        "privacy-pools describe protocol-stats --agent",
+        "privacy-pools describe envelope.nextActions --agent",
+        "privacy-pools describe envelope.commands.status.successFields --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "default",
+          "help"
+        ],
+        "owner": "native-shell"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "<command...>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools describe withdraw"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools describe withdraw quote --agent"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools describe protocol-stats --agent"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools describe envelope.nextActions --agent"
+        },
+        {
+          "name": "Example 5",
+          "value": "privacy-pools describe envelope.commands.status.successFields --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "describe <command...>"
+    },
+    "flow": {
+      "agentWorkflowNotes": [
+        "Start with flow start <amount> <asset> --to <address> --agent, then poll with flow status <workflowId|latest> --agent and advance with flow step <workflowId|latest> --agent until the workflow completes or pauses.",
+        "If flow status or flow step returns flow_declined or flow_public_recovery_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
+        "If flow status or flow step returns flow_public_recovery_optional, prefer completing the private path unless the operator explicitly chooses public recovery."
+      ],
+      "aliases": [],
+      "command": "flow",
+      "description": "Deposit and privately withdraw in one guided workflow",
+      "examples": [
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run",
+        "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch",
+        "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
+        "privacy-pools flow watch",
+        "privacy-pools flow status latest",
+        "privacy-pools flow step latest",
+        "privacy-pools flow ragequit latest"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "expectedNextActionWhen": [
+        "after_dry_run",
+        "flow_resume",
+        "flow_public_recovery_required",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_optional",
+        "flow_manual_followup"
+      ],
+      "flags": [
+        "start <amount> <asset> --to <address>",
+        "watch [workflowId|latest]",
+        "status [workflowId|latest]",
+        "step [workflowId|latest]",
+        "ragequit [workflowId|latest]"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"step\"|\"ragequit\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [...] }",
+      "jsonVariants": [
+        "flow start --dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }"
+      ],
+      "prerequisites": [
+        "init for start/watch/ragequit; saved workflow for status"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient..."
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
+        },
+        {
+          "name": "Example 5",
+          "value": "privacy-pools flow watch"
+        },
+        {
+          "name": "Example 6",
+          "value": "privacy-pools flow status latest"
+        },
+        {
+          "name": "Example 7",
+          "value": "privacy-pools flow step latest"
+        },
+        {
+          "name": "Example 8",
+          "value": "privacy-pools flow ragequit latest"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "flow"
+    },
+    "flow ragequit": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "flow ragequit",
+      "description": "Recover a saved workflow publicly via ragequit",
+      "examples": [
+        "privacy-pools flow ragequit",
+        "privacy-pools flow ragequit latest --agent",
+        "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "expectedNextActionWhen": [
+        "flow_public_recovery_pending",
+        "after_ragequit"
+      ],
+      "flags": [
+        "[workflowId|latest]",
+        "--confirm-ragequit (deprecated)"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "preferredSafeVariant": {
+        "command": "flow status",
+        "reason": "Inspect the saved workflow state before triggering the public recovery path."
+      },
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": true,
+      "requiresInit": true,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
+        "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "fund_movement",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools flow ragequit"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools flow ragequit latest --agent"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": true,
+      "usage": "flow ragequit [workflowId|latest]"
+    },
+    "flow start": {
+      "agentRequiredFlags": [
+        "--to"
+      ],
+      "agentWorkflowNotes": [
+        "With --new-wallet, --agent returns an awaiting_funding snapshot with the dedicated wallet address and required funding amounts instead of running an internal watch loop.",
+        "In --agent mode, --watch is rejected. Start the flow, then use flow status and flow step as separate one-shot primitives."
+      ],
+      "aliases": [],
+      "command": "flow start",
+      "description": "Deposit now and save a later private withdrawal workflow",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+            "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet"
+          ]
+        },
+        {
+          "category": "With options",
+          "commands": [
+            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
+            "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent",
+            "privacy-pools flow status latest --agent",
+            "privacy-pools flow step latest --agent"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "expectedNextActionWhen": [
+        "after_dry_run",
+        "flow_resume",
+        "flow_public_recovery_required",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_optional",
+        "flow_manual_followup"
+      ],
+      "flags": [
+        "--to <address>",
+        "--privacy-delay <profile>",
+        "--dry-run",
+        "--watch",
+        "--new-wallet",
+        "--export-new-wallet <path>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }"
+      ],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": true,
+      "requiresInit": true,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.",
+        "If --to is omitted in interactive mode, the CLI prompts for the recipient. When prompts are skipped, --to remains required.",
+        "In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.",
+        "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.",
+        "Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.",
+        "flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.",
+        "--export-new-wallet is only valid with --new-wallet.",
+        "Non-interactive workflow wallets require --export-new-wallet so the generated private key is backed up before the flow starts.",
+        "Dry-run with --new-wallet in non-interactive mode still requires --export-new-wallet to validate the backup path, but it does not write the file.",
+        "The generated workflow key is also stored locally under workflow-secrets until the workflow completes or recovers publicly, so --export-new-wallet is a backup copy rather than the only retained secret.",
+        "Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.",
+        "The saved flow spends the entire remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.",
+        "Manual commands remain the advanced/manual path when you need custom control over Pool Account selection, amount, or withdrawal mode.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "fund_movement",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+            "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet"
+          ]
+        },
+        {
+          "name": "With options",
+          "value": [
+            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
+            "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
+          ]
+        },
+        {
+          "name": "Agent / CI",
+          "value": [
+            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent",
+            "privacy-pools flow status latest --agent",
+            "privacy-pools flow step latest --agent"
+          ]
+        }
+      ],
+      "supportsDryRun": true,
+      "supportsUnsigned": false,
+      "touchesFunds": true,
+      "usage": "flow start <amount> <asset> --to <address>"
+    },
+    "flow status": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "flow status",
+      "description": "Show the saved easy-path workflow state",
+      "examples": [
+        "privacy-pools flow status",
+        "privacy-pools flow status latest --agent",
+        "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "expectedNextActionWhen": [
+        "flow_resume",
+        "flow_public_recovery_required",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_optional",
+        "flow_manual_followup"
+      ],
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"flow\", action: \"status\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [
+        "saved workflow (usually created after init)"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools flow status"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools flow status latest --agent"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "flow status [workflowId|latest]"
+    },
+    "flow step": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "flow step",
+      "description": "Advance a saved workflow by at most one unit of work",
+      "examples": [
+        "privacy-pools flow step latest",
+        "privacy-pools flow step latest --agent",
+        "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "expectedNextActionWhen": [
+        "flow_resume",
+        "flow_public_recovery_required",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_optional",
+        "flow_manual_followup"
+      ],
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"flow\", action: \"step\", workflowId, workflowKind, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, nextPollAfter|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [
+        "saved workflow (usually created after init)"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools flow step latest"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools flow step latest --agent"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "flow step [workflowId|latest]"
+    },
+    "flow watch": {
+      "agentWorkflowNotes": [
+        "flow watch is not available in --agent mode.",
+        "Use flow status to poll and flow step to advance the same saved workflow externally."
+      ],
+      "aliases": [],
+      "command": "flow watch",
+      "description": "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools flow watch",
+            "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000"
+          ]
+        },
+        {
+          "category": "With options",
+          "commands": [
+            "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
+            "privacy-pools flow watch latest --stream-json"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "expectedNextActionWhen": [
+        "flow_resume",
+        "flow_public_recovery_required",
+        "flow_declined",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_optional",
+        "flow_manual_followup"
+      ],
+      "flags": [
+        "[workflowId|latest]",
+        "--privacy-delay <profile>",
+        "--stream-json"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "--stream-json: { mode: \"flow\", action: \"watch\", event: \"phase_change\", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot with isFinal: true"
+      ],
+      "preferredSafeVariant": {
+        "command": "flow status",
+        "reason": "Inspect the saved workflow state before re-attaching a long-running flow."
+      },
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": true,
+      "requiresInit": true,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.",
+        "If the saved full-balance withdrawal falls below the relayer minimum, flow watch surfaces flow ragequit as the required public recovery path because saved flows only support relayed private withdrawals.",
+        "Once the public deposit exists, operators can also choose flow ragequit manually instead of waiting, but it is not emitted as the default nextAction while the workflow is still progressing normally. The happy-path canonical resume command remains flow watch.",
+        "Passing --privacy-delay on flow watch updates the saved workflow policy. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.",
+        "Switching to off clears any saved hold immediately; switching between balanced and strict resamples from the override time.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "fund_movement",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools flow watch",
+            "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000"
+          ]
+        },
+        {
+          "name": "With options",
+          "value": [
+            "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
+            "privacy-pools flow watch latest --stream-json"
+          ]
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": true,
+      "usage": "flow watch [workflowId|latest]"
+    },
+    "guide": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "guide",
+      "description": "Learn key concepts, workflows, and troubleshooting",
+      "examples": [
+        "privacy-pools guide",
+        "privacy-pools guide json",
+        "privacy-pools help modes",
+        "privacy-pools guide --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "default",
+          "help"
+        ],
+        "owner": "native-shell"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "getting-started",
+      "jsonFields": "{ mode: \"help\", topic?, topics: [{ name, description }], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools guide"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools guide json"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools help modes"
+        },
+        {
+          "name": "Example 4",
+          "value": "privacy-pools guide --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "guide"
+    },
+    "history": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "history",
+      "description": "View your deposit and withdrawal history",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools history",
+            "privacy-pools history --limit 10"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools history --agent",
+            "privacy-pools history --no-sync --chain mainnet"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--no-sync",
+        "--page <n>",
+        "--limit <n>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "jsonFields": "{ mode: \"private-history\", chain, page, perPage, total, totalPages, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true."
+      ],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": true,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_cache_write",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools history",
+            "privacy-pools history --limit 10"
+          ]
+        },
+        {
+          "name": "Agent / CI",
+          "value": [
+            "privacy-pools history --agent",
+            "privacy-pools history --no-sync --chain mainnet"
+          ]
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "history"
+    },
+    "init": {
+      "agentWorkflowNotes": [
+        "When generating a new recovery phrase in machine mode, pass --show-recovery-phrase or --backup-file so the phrase is captured before init completes.",
+        "When loading an existing recovery phrase, inspect restoreDiscovery and nextActions instead of assuming the account is immediately ready to transact."
+      ],
+      "aliases": [],
+      "command": "init",
+      "description": "Create, load, or finish setting up your Privacy Pools account",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools init",
+            "privacy-pools init --dry-run",
+            "privacy-pools init --signer-only",
+            "privacy-pools init --yes --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+            "privacy-pools init --force --yes --default-chain mainnet"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
+            "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+            "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
+          ]
+        },
+        {
+          "category": "Load existing account",
+          "commands": [
+            "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
+            "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
+            "privacy-pools init --signer-only --private-key-file ./my-key.txt",
+            "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--recovery-phrase <phrase>",
+        "--recovery-phrase-file <path>",
+        "--recovery-phrase-stdin",
+        "--backup-file <path>",
+        "--private-key <key>",
+        "--private-key-file <path>",
+        "--private-key-stdin",
+        "--signer-only",
+        "--default-chain <chain>",
+        "--force",
+        "--show-recovery-phrase",
+        "--staged",
+        "--dry-run"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "getting-started",
+      "jsonFields": "success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }",
+      "jsonVariants": [
+        "--staged: JSONL stages with mode: \"init-staged\", operation: \"init\", stage: \"preflight\"|\"recovery\"|\"backup\"|\"signer\"|\"chain\"|\"write\"|\"discovery\"|\"complete\""
+      ],
+      "prerequisites": [],
+      "requiresHumanReview": true,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.",
+        "Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.",
+        "Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_state_write",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools init",
+            "privacy-pools init --dry-run",
+            "privacy-pools init --signer-only",
+            "privacy-pools init --yes --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+            "privacy-pools init --force --yes --default-chain mainnet"
+          ]
+        },
+        {
+          "name": "Agent / CI",
+          "value": [
+            "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
+            "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+            "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
+          ]
+        },
+        {
+          "name": "Load existing account",
+          "value": [
+            "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
+            "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
+            "privacy-pools init --signer-only --private-key-file ./my-key.txt",
+            "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
+          ]
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "init"
+    },
+    "migrate": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "migrate",
+      "description": "Check migration status for legacy pool accounts",
+      "examples": [
+        "privacy-pools migrate status",
+        "privacy-pools migrate status --chain mainnet",
+        "privacy-pools migrate status --include-testnets --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "status [--include-testnets]"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": null,
+      "jsonVariants": [],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": true,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools migrate status"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools migrate status --chain mainnet"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools migrate status --include-testnets --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "migrate"
+    },
+    "migrate status": {
+      "agentWorkflowNotes": [
+        "Use this after init/import when the CLI warns that a legacy pre-upgrade account may need website migration or website-based recovery."
+      ],
+      "aliases": [],
+      "command": "migrate status",
+      "description": "Check migration status for legacy pool accounts",
+      "examples": [
+        "privacy-pools migrate status",
+        "privacy-pools migrate status --chain mainnet",
+        "privacy-pools migrate status --include-testnets --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--include-testnets"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }], externalGuidance?: { kind, message, url }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": true,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "This command is read-only. It never submits migration transactions and does not persist rebuilt account state.",
+        "When readinessResolved is false, treat the result as incomplete and review the account in the Privacy Pools website before acting on it.",
+        "This check is limited to chains currently supported by the CLI. Review beta or other website-only migration surfaces in the Privacy Pools website.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools migrate status"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools migrate status --chain mainnet"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools migrate status --include-testnets --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "migrate status"
+    },
+    "pool-stats": {
+      "agentWorkflowNotes": [],
+      "aliases": [
+        "stats pool"
+      ],
+      "command": "pool-stats",
+      "description": "View statistics for one pool",
+      "examples": [
+        "privacy-pools pool-stats ETH",
+        "privacy-pools pool-stats USDC --agent --chain mainnet"
+      ],
+      "execution": {
+        "nativeModes": [
+          "default",
+          "csv",
+          "structured",
+          "help"
+        ],
+        "owner": "hybrid"
+      },
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "<symbol|address>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools pool-stats ETH"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools pool-stats USDC --agent --chain mainnet"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "pool-stats <symbol|address>"
+    },
+    "pools": {
+      "agentWorkflowNotes": [
+        "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
+        "Registry-backed aggregate fields may be null when upstream data is unavailable for that pool/chain: totalInPoolValue*, totalDeposits*, acceptedDeposits*, pendingDeposits*, *Count, growth24h, and pendingGrowth24h."
+      ],
+      "aliases": [],
+      "command": "pools",
+      "description": "Browse available pools",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools pools",
+            "privacy-pools pools ETH",
+            "privacy-pools pools BOLD --chain mainnet"
+          ]
+        },
+        {
+          "category": "Search and sort",
+          "commands": [
+            "privacy-pools pools --include-testnets --sort tvl-desc",
+            "privacy-pools pools --search usdc --sort asset-asc"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools pools --agent --chain mainnet"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "default-list",
+          "default-detail",
+          "csv-list",
+          "structured-list",
+          "help"
+        ],
+        "owner": "hybrid"
+      },
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "--include-testnets",
+        "--search <query>",
+        "--sort <mode>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "jsonFields": "{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
+        "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }"
+      ],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools pools",
+            "privacy-pools pools ETH",
+            "privacy-pools pools BOLD --chain mainnet"
+          ]
+        },
+        {
+          "name": "Search and sort",
+          "value": [
+            "privacy-pools pools --include-testnets --sort tvl-desc",
+            "privacy-pools pools --search usdc --sort asset-asc"
+          ]
+        },
+        {
+          "name": "Agent / CI",
+          "value": [
+            "privacy-pools pools --agent --chain mainnet"
+          ]
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "pools"
+    },
+    "protocol-stats": {
+      "agentWorkflowNotes": [],
+      "aliases": [
+        "stats",
+        "stats global"
+      ],
+      "command": "protocol-stats",
+      "description": "View aggregate network statistics",
+      "examples": [
+        "privacy-pools protocol-stats",
+        "privacy-pools protocol-stats --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "default",
+          "csv",
+          "structured",
+          "help"
+        ],
+        "owner": "hybrid"
+      },
+      "expectedLatencyClass": "medium",
+      "flags": [],
+      "globalFlags": [
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools protocol-stats"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools protocol-stats --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "protocol-stats"
+    },
+    "ragequit": {
+      "agentRequiredFlags": [
+        "--pool-account"
+      ],
+      "agentWorkflowNotes": [
+        "With --no-wait, poll tx-status <submissionId> until the public recovery confirms instead of resubmitting.",
+        "If the public recovery transaction was submitted but confirmation timed out, re-run ragequit or sync --chain <chain> before retrying so the CLI can detect the onchain result."
+      ],
+      "aliases": [
+        "exit"
+      ],
+      "command": "ragequit",
+      "description": "Recover funds publicly to your deposit address",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools ragequit ETH --pool-account PA-1",
+            "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet"
+          ]
+        },
+        {
+          "category": "Advanced modes",
+          "commands": [
+            "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
+            "privacy-pools ragequit ETH --dry-run --pool-account PA-1"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--pool-account <PA-ID | numeric-index>",
+        "--confirm-ragequit (deprecated)",
+        "--unsigned [envelope|tx]",
+        "--dry-run",
+        "--no-wait"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber|null, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "--unsigned: { mode, operation, chain, asset, amount, transactions[] } (envelope JSON)",
+        "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
+        "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }"
+      ],
+      "prerequisites": [
+        "init (account state should be synced)"
+      ],
+      "requiresHumanReview": true,
+      "requiresInit": true,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.",
+        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "fund_movement",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools ragequit ETH --pool-account PA-1",
+            "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet"
+          ]
+        },
+        {
+          "name": "Advanced modes",
+          "value": [
+            "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
+            "privacy-pools ragequit ETH --dry-run --pool-account PA-1"
+          ]
+        }
+      ],
+      "supportsDryRun": true,
+      "supportsUnsigned": true,
+      "touchesFunds": true,
+      "usage": "ragequit [asset] --pool-account <PA-ID | numeric-index>"
+    },
+    "simulate": {
+      "agentWorkflowNotes": [
+        "Treat simulate as a convenience alias for --dry-run, not as a new machine contract. Existing after_dry_run nextActions remain unchanged."
+      ],
+      "aliases": [],
+      "command": "simulate",
+      "description": "Preview deposit, withdraw, and ragequit without submitting",
+      "examples": [
+        "privacy-pools simulate deposit 0.1 ETH",
+        "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient...",
+        "privacy-pools simulate ragequit ETH --pool-account PA-1"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "deposit <amount> [asset]",
+        "withdraw [amount] [asset] --to <address>",
+        "ragequit [asset] --pool-account <PA-ID | numeric-index>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"help\", command: \"simulate\", subcommands: [\"deposit\", \"withdraw\", \"ragequit\"], help } when no subcommand is provided; otherwise each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.",
+      "jsonVariants": [],
+      "prerequisites": [
+        "init for deposit, withdraw, and ragequit previews"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "simulate never signs or submits a transaction.",
+        "simulate is intentionally read-only and rejects --unsigned to keep preview and signing workflows distinct.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools simulate deposit 0.1 ETH"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "simulate"
+    },
+    "simulate deposit": {
+      "agentWorkflowNotes": [
+        "This is a pure alias for deposit --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged."
+      ],
+      "aliases": [],
+      "command": "simulate deposit",
+      "description": "Preview deposit validation without signing or submitting",
+      "examples": [
+        "privacy-pools simulate deposit 0.1 ETH",
+        "privacy-pools simulate deposit 100 USDC --agent --chain mainnet"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "expectedNextActionWhen": [
+        "after_dry_run"
+      ],
+      "flags": [
+        "--ignore-unique-amount"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": true,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "simulate deposit never signs or submits a transaction.",
+        "Use 'deposit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools simulate deposit 0.1 ETH"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools simulate deposit 100 USDC --agent --chain mainnet"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "simulate deposit <amount> [asset]"
+    },
+    "simulate ragequit": {
+      "agentRequiredFlags": [
+        "--pool-account"
+      ],
+      "agentWorkflowNotes": [
+        "This is a pure alias for ragequit --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged."
+      ],
+      "aliases": [],
+      "command": "simulate ragequit",
+      "description": "Preview ragequit validation without signing or submitting",
+      "examples": [
+        "privacy-pools simulate ragequit ETH --pool-account PA-1",
+        "privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "expectedNextActionWhen": [
+        "after_dry_run"
+      ],
+      "flags": [
+        "--pool-account <PA-ID | numeric-index>",
+        "--confirm-ragequit (deprecated)"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": true,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "simulate ragequit never signs or submits a transaction.",
+        "Use 'ragequit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>"
+    },
+    "simulate withdraw": {
+      "agentRequiredFlags": [
+        "--to"
+      ],
+      "agentWorkflowNotes": [
+        "This is a pure alias for withdraw --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged."
+      ],
+      "aliases": [],
+      "command": "simulate withdraw",
+      "description": "Preview withdrawal validation without signing or submitting",
+      "examples": [
+        "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient...",
+        "privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain mainnet"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "expectedNextActionWhen": [
+        "after_dry_run"
+      ],
+      "flags": [
+        "--to <address>",
+        "--pool-account <PA-ID | numeric-index>",
+        "--all",
+        "--direct",
+        "--confirm-direct-withdraw (deprecated)",
+        "--extra-gas",
+        "--no-extra-gas"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": true,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "simulate withdraw never signs or submits a transaction.",
+        "Use 'withdraw --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain mainnet"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "simulate withdraw [amount] [asset] --to <address>"
+    },
+    "status": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "status",
+      "description": "Check account setup and network status",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools status",
+            "privacy-pools status --check",
+            "privacy-pools status --check asp",
+            "privacy-pools status --no-check"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools status --agent --check rpc",
+            "privacy-pools status --chain mainnet --rpc-url https://..."
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--check [scope]",
+        "--no-check"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "getting-started",
+      "jsonFields": "{ mode: \"cli-status\", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools status",
+            "privacy-pools status --check",
+            "privacy-pools status --check asp",
+            "privacy-pools status --no-check"
+          ]
+        },
+        {
+          "name": "Agent / CI",
+          "value": [
+            "privacy-pools status --agent --check rpc",
+            "privacy-pools status --chain mainnet --rpc-url https://..."
+          ]
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "status"
+    },
+    "sync": {
+      "agentWorkflowNotes": [
+        "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
+        "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs; the terminal result line includes isFinal = true."
+      ],
+      "aliases": [],
+      "command": "sync",
+      "description": "Sync account state with the latest onchain data",
+      "examples": [
+        "privacy-pools sync",
+        "privacy-pools sync ETH --agent",
+        "privacy-pools sync --chain mainnet"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "[asset]",
+        "--stream-json"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "jsonFields": "{ isFinal: true, chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "--stream-json progress events: { mode: \"sync-progress\", chain, event: \"stage\"|\"heartbeat\", stage, elapsedMs? }"
+      ],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": true,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_state_write",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools sync"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools sync ETH --agent"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools sync --chain mainnet"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "sync"
+    },
+    "tx-status": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "tx-status",
+      "description": "Check async transaction submission status",
+      "examples": [
+        "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000",
+        "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "expectedNextActionWhen": [
+        "after_submit"
+      ],
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "jsonFields": "{ operation: \"tx-status\", submissionId, sourceOperation, sourceCommand, chain, asset?, poolAccountId?, poolAccountNumber?, workflowId?, recipient?, broadcastMode?, broadcastSourceOperation?, createdAt, updatedAt, status: \"submitted\"|\"confirmed\"|\"reverted\", reconciliationRequired, localStateSynced, warningCode?, lastError?, estimatedConfirmationSeconds?, pollingRecommendation?: { initialSeconds, maxSeconds, backoffFactor }, transactions: [{ index, description, txHash, explorerUrl, blockNumber, status }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "tx-status <submissionId>"
+    },
+    "upgrade": {
+      "agentWorkflowNotes": [
+        "In machine modes, upgrade is check-only unless --yes is explicitly present.",
+        "Treat status = ready as an available update on a supported global npm install, status = manual as an available update requiring manual follow-up, and status = upgraded as a completed install that still requires a fresh CLI invocation."
+      ],
+      "aliases": [],
+      "command": "upgrade",
+      "description": "Check for CLI updates",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools upgrade --check",
+            "privacy-pools upgrade",
+            "privacy-pools upgrade --yes"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools upgrade --agent --check",
+            "privacy-pools upgrade --agent --yes"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "--check"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "advanced",
+      "jsonFields": "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, releaseHighlights?: string[], externalGuidance?: { kind, message, command? }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "preferredSafeVariant": {
+        "command": "upgrade --check",
+        "reason": "Check for a newer npm release without mutating the installed CLI."
+      },
+      "prerequisites": [],
+      "requiresHumanReview": true,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Automatic upgrade only runs for recognized global npm installs of privacy-pools-cli.",
+        "Source checkouts, non-npm global installs, local project installs, npx-style ephemeral runs, CI, and ambiguous contexts stay read-only and still return an exact npm follow-up command.",
+        "A successful upgrade updates the installed CLI on disk but does not hot-reexec the current process. Re-run privacy-pools after it completes.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_state_write",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools upgrade --check",
+            "privacy-pools upgrade",
+            "privacy-pools upgrade --yes"
+          ]
+        },
+        {
+          "name": "Agent / CI",
+          "value": [
+            "privacy-pools upgrade --agent --check",
+            "privacy-pools upgrade --agent --yes"
+          ]
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "upgrade"
+    },
+    "withdraw": {
+      "agentRequiredFlags": [
+        "--to"
+      ],
+      "agentWorkflowNotes": [
+        "With --no-wait, poll tx-status <submissionId> until the withdrawal confirms instead of resubmitting.",
+        "If the CLI is interrupted after proof generation but before submission completes, re-run withdraw to generate a fresh proof and re-evaluate the current account state.",
+        "If a direct or relayed withdrawal transaction was submitted but confirmation timed out, run sync --chain <chain> before retrying so local state can detect the onchain result."
+      ],
+      "aliases": [],
+      "command": "withdraw",
+      "description": "Withdraw privately from a pool",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
+            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2"
+          ]
+        },
+        {
+          "category": "Amount variants",
+          "commands": [
+            "privacy-pools withdraw --all ETH --to 0xRecipient...",
+            "privacy-pools withdraw 50% ETH --to 0xRecipient..."
+          ]
+        },
+        {
+          "category": "With options",
+          "commands": [
+            "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
+            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet"
+          ]
+        },
+        {
+          "category": "Quote",
+          "commands": [
+            "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--to <address>",
+        "--pool-account <PA-ID | numeric-index>",
+        "--all",
+        "--direct",
+        "--confirm-direct-withdraw (deprecated)",
+        "--extra-gas",
+        "--no-extra-gas",
+        "--unsigned [envelope|tx]",
+        "--dry-run",
+        "--no-wait"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, mode, txHash, blockNumber|null, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "direct: same fields but mode: \"direct\", feeBPS: null, no extraGas, and human output explains the onchain link between deposit and withdrawal.",
+        "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary?: { quotedAt, quoteExpiresAt, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, relayerHost, extraGas } (relayed), ... } (envelope JSON)",
+        "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
+        "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }"
+      ],
+      "preferredSafeVariant": {
+        "command": "withdraw quote",
+        "reason": "Check relayer fees and confirm the withdrawal inputs before submitting."
+      },
+      "prerequisites": [
+        "init (account state should be synced)"
+      ],
+      "requiresHumanReview": true,
+      "requiresInit": true,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
+        "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
+        "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
+        "When prompts are skipped, direct withdrawals still require an explicit acknowledgement. --confirm-direct-withdraw remains available as a deprecated compatibility flag for this release.",
+        "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. ERC20 withdrawals default to this on unless --no-extra-gas is passed; ETH withdrawals ignore it.",
+        "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "fund_movement",
+      "structuredExamples": [
+        {
+          "name": "Basic",
+          "value": [
+            "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
+            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2"
+          ]
+        },
+        {
+          "name": "Amount variants",
+          "value": [
+            "privacy-pools withdraw --all ETH --to 0xRecipient...",
+            "privacy-pools withdraw 50% ETH --to 0xRecipient..."
+          ]
+        },
+        {
+          "name": "With options",
+          "value": [
+            "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
+            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet"
+          ]
+        },
+        {
+          "name": "Quote",
+          "value": [
+            "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
+          ]
+        }
+      ],
+      "supportsDryRun": true,
+      "supportsUnsigned": true,
+      "touchesFunds": true,
+      "usage": "withdraw [amount] [asset] --to <address>"
+    },
+    "withdraw quote": {
+      "agentWorkflowNotes": [
+        "Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.",
+        "Preferred order is withdraw quote <amount> <asset>; withdraw quote <asset> <amount> remains supported for compatibility."
+      ],
+      "aliases": [],
+      "command": "withdraw quote",
+      "description": "Request relayer quote and limits without generating a proof",
+      "examples": [
+        "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
+        "privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...",
+        "privacy-pools withdraw quote 100 USDC --agent --chain mainnet"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "--to <address>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [],
+      "prerequisites": [
+        "init"
+      ],
+      "requiresHumanReview": false,
+      "requiresInit": true,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw quote ETH 0.1 --to 0xRecipient..."
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools withdraw quote 100 USDC --agent --chain mainnet"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "withdraw quote <amount> <asset>"
+    }
+  },
+  "commands": [
+    {
+      "agentFlags": "--agent [--staged] --default-chain <chain> (--show-recovery-phrase | --backup-file <path>)",
+      "description": "Create, load, or finish setting up your Privacy Pools account",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--recovery-phrase <phrase>",
+        "--recovery-phrase-file <path>",
+        "--recovery-phrase-stdin",
+        "--backup-file <path>",
+        "--private-key <key>",
+        "--private-key-file <path>",
+        "--private-key-stdin",
+        "--signer-only",
+        "--default-chain <chain>",
+        "--force",
+        "--show-recovery-phrase",
+        "--staged",
+        "--dry-run"
+      ],
+      "group": "getting-started",
+      "name": "init",
+      "requiresInit": false,
+      "usage": "init"
+    },
+    {
+      "agentFlags": "--agent [--check] [--yes]",
+      "description": "Check for CLI updates",
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "--check"
+      ],
+      "group": "advanced",
+      "name": "upgrade",
+      "requiresInit": false,
+      "usage": "upgrade"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "View and manage CLI configuration",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "list",
+        "get <key>",
+        "set <key> [value]",
+        "unset <key>",
+        "path"
+      ],
+      "group": "advanced",
+      "name": "config",
+      "requiresInit": false,
+      "usage": "config"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "List all configuration keys and their current values",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "advanced",
+      "name": "config list",
+      "requiresInit": false,
+      "usage": "config list"
+    },
+    {
+      "agentFlags": "--agent [--reveal]",
+      "description": "Read a single configuration key",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--reveal"
+      ],
+      "group": "advanced",
+      "name": "config get",
+      "requiresInit": false,
+      "usage": "config get <key>"
+    },
+    {
+      "agentFlags": "--agent --file <path> | --stdin",
+      "description": "Write a single configuration key",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--file <path>",
+        "--stdin"
+      ],
+      "group": "advanced",
+      "name": "config set",
+      "requiresInit": false,
+      "usage": "config set <key> [value]"
+    },
+    {
+      "agentFlags": "--agent <key>",
+      "aliases": [
+        "remove"
+      ],
+      "description": "Clear a single configuration key",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "<key>"
+      ],
+      "group": "advanced",
+      "name": "config unset",
+      "requiresInit": false,
+      "usage": "config unset <key>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Print the configuration directory path",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "advanced",
+      "name": "config path",
+      "requiresInit": false,
+      "usage": "config path"
+    },
+    {
+      "description": "Manage named profiles",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "advanced",
+      "name": "config profile",
+      "requiresInit": false,
+      "usage": "config profile <command>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "List available profiles",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "advanced",
+      "name": "config profile list",
+      "requiresInit": false,
+      "usage": "config profile list"
+    },
+    {
+      "agentFlags": "--agent <name>",
+      "description": "Create a new named profile",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "advanced",
+      "name": "config profile create",
+      "requiresInit": false,
+      "usage": "config profile create <name>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Show the currently active profile",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "advanced",
+      "name": "config profile active",
+      "requiresInit": false,
+      "usage": "config profile active"
+    },
+    {
+      "description": "Persist the active profile",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "advanced",
+      "name": "config profile use",
+      "requiresInit": false,
+      "usage": "config profile use <name>"
+    },
+    {
+      "agentFlags": "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent, then use status/step/ragequit --agent",
+      "description": "Deposit and privately withdraw in one guided workflow",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "start <amount> <asset> --to <address>",
+        "watch [workflowId|latest]",
+        "status [workflowId|latest]",
+        "step [workflowId|latest]",
+        "ragequit [workflowId|latest]"
+      ],
+      "group": "transaction",
+      "name": "flow",
+      "requiresInit": false,
+      "usage": "flow"
+    },
+    {
+      "agentFlags": "--agent [--privacy-delay <profile>] [--dry-run] [--new-wallet] [--export-new-wallet <path>]",
+      "description": "Deposit now and save a later private withdrawal workflow",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--to <address>",
+        "--privacy-delay <profile>",
+        "--dry-run",
+        "--watch",
+        "--new-wallet",
+        "--export-new-wallet <path>"
+      ],
+      "group": "transaction",
+      "name": "flow start",
+      "requiresInit": true,
+      "usage": "flow start <amount> <asset> --to <address>"
+    },
+    {
+      "agentFlags": "not supported in --agent mode",
+      "description": "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "[workflowId|latest]",
+        "--privacy-delay <profile>",
+        "--stream-json"
+      ],
+      "group": "transaction",
+      "name": "flow watch",
+      "requiresInit": true,
+      "usage": "flow watch [workflowId|latest]"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Show the saved easy-path workflow state",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "group": "transaction",
+      "name": "flow status",
+      "requiresInit": false,
+      "usage": "flow status [workflowId|latest]"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Advance a saved workflow by at most one unit of work",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "[workflowId|latest]"
+      ],
+      "group": "transaction",
+      "name": "flow step",
+      "requiresInit": false,
+      "usage": "flow step [workflowId|latest]"
+    },
+    {
+      "agentFlags": "--agent [--confirm-ragequit (deprecated)]",
+      "description": "Recover a saved workflow publicly via ragequit",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "[workflowId|latest]",
+        "--confirm-ragequit (deprecated)"
+      ],
+      "group": "transaction",
+      "name": "flow ragequit",
+      "requiresInit": true,
+      "usage": "flow ragequit [workflowId|latest]"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Preview deposit, withdraw, and ragequit without submitting",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "deposit <amount> [asset]",
+        "withdraw [amount] [asset] --to <address>",
+        "ragequit [asset] --pool-account <PA-ID | numeric-index>"
+      ],
+      "group": "transaction",
+      "name": "simulate",
+      "requiresInit": false,
+      "usage": "simulate"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Preview deposit validation without signing or submitting",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--ignore-unique-amount"
+      ],
+      "group": "transaction",
+      "name": "simulate deposit",
+      "requiresInit": true,
+      "usage": "simulate deposit <amount> [asset]"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Preview withdrawal validation without signing or submitting",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--to <address>",
+        "--pool-account <PA-ID | numeric-index>",
+        "--all",
+        "--direct",
+        "--confirm-direct-withdraw (deprecated)",
+        "--extra-gas",
+        "--no-extra-gas"
+      ],
+      "group": "transaction",
+      "name": "simulate withdraw",
+      "requiresInit": true,
+      "usage": "simulate withdraw [amount] [asset] --to <address>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Preview ragequit validation without signing or submitting",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--pool-account <PA-ID | numeric-index>",
+        "--confirm-ragequit (deprecated)"
+      ],
+      "group": "transaction",
+      "name": "simulate ragequit",
+      "requiresInit": true,
+      "usage": "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>"
+    },
+    {
+      "agentFlags": "--agent [--include-testnets] [--search <query>] [--sort <mode>]",
+      "description": "Browse available pools",
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "--include-testnets",
+        "--search <query>",
+        "--sort <mode>"
+      ],
+      "group": "monitoring",
+      "name": "pools",
+      "requiresInit": false,
+      "usage": "pools"
+    },
+    {
+      "agentFlags": "--agent [--check <all|rpc|asp|none>] [--no-check]",
+      "description": "Check account setup and network status",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--check [scope]",
+        "--no-check"
+      ],
+      "group": "getting-started",
+      "name": "status",
+      "requiresInit": false,
+      "usage": "status"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Check async transaction submission status",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "monitoring",
+      "name": "tx-status",
+      "requiresInit": false,
+      "usage": "tx-status <submissionId>"
+    },
+    {
+      "agentFlags": "--agent [<asset>] [--include-testnets] [--page <n>] [--limit <n>]",
+      "description": "View recent deposits and withdrawals across pools",
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "[asset]",
+        "--include-testnets",
+        "--page <n>",
+        "--limit <n>"
+      ],
+      "group": "monitoring",
+      "name": "activity",
+      "requiresInit": false,
+      "usage": "activity"
+    },
+    {
+      "agentFlags": "--agent",
+      "aliases": [
+        "stats",
+        "stats global"
+      ],
+      "description": "View aggregate network statistics",
+      "expectedLatencyClass": "medium",
+      "flags": [],
+      "group": "monitoring",
+      "name": "protocol-stats",
+      "requiresInit": false,
+      "usage": "protocol-stats"
+    },
+    {
+      "agentFlags": "--agent",
+      "aliases": [
+        "stats pool"
+      ],
+      "description": "View statistics for one pool",
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "<symbol|address>"
+      ],
+      "group": "monitoring",
+      "name": "pool-stats",
+      "requiresInit": false,
+      "usage": "pool-stats <symbol|address>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Describe a command's flags, args, and output schema",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "<command...>"
+      ],
+      "group": "advanced",
+      "name": "describe",
+      "requiresInit": false,
+      "usage": "describe <command...>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Deposit ETH or ERC-20 tokens into a pool",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--unsigned [envelope|tx]",
+        "--dry-run",
+        "--no-wait",
+        "--ignore-unique-amount"
+      ],
+      "group": "transaction",
+      "name": "deposit",
+      "requiresInit": true,
+      "usage": "deposit <amount> [asset]"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Withdraw privately from a pool",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--to <address>",
+        "--pool-account <PA-ID | numeric-index>",
+        "--all",
+        "--direct",
+        "--confirm-direct-withdraw (deprecated)",
+        "--extra-gas",
+        "--no-extra-gas",
+        "--unsigned [envelope|tx]",
+        "--dry-run",
+        "--no-wait"
+      ],
+      "group": "transaction",
+      "name": "withdraw",
+      "requiresInit": true,
+      "usage": "withdraw [amount] [asset] --to <address>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Request relayer quote and limits without generating a proof",
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "--to <address>"
+      ],
+      "group": "transaction",
+      "name": "withdraw quote",
+      "requiresInit": true,
+      "usage": "withdraw quote <amount> <asset>"
+    },
+    {
+      "agentFlags": "--agent [--validate-only] [--no-wait] <input>",
+      "description": "Broadcast a signed envelope or relayer request built elsewhere",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--validate-only",
+        "--no-wait"
+      ],
+      "group": "transaction",
+      "name": "broadcast",
+      "requiresInit": false,
+      "usage": "broadcast <input>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "View balances, approval status, and pool accounts",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--no-sync",
+        "--include-testnets",
+        "--details",
+        "--summary",
+        "--pending-only",
+        "--status <status>",
+        "--watch"
+      ],
+      "group": "monitoring",
+      "name": "accounts",
+      "requiresInit": true,
+      "usage": "accounts"
+    },
+    {
+      "agentFlags": "status --agent [--include-testnets]",
+      "description": "Check migration status for legacy pool accounts",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "status [--include-testnets]"
+      ],
+      "group": "advanced",
+      "name": "migrate",
+      "requiresInit": true,
+      "usage": "migrate"
+    },
+    {
+      "agentFlags": "--agent [--include-testnets]",
+      "description": "Check migration status for legacy pool accounts",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--include-testnets"
+      ],
+      "group": "advanced",
+      "name": "migrate status",
+      "requiresInit": true,
+      "usage": "migrate status"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "View your deposit and withdrawal history",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--no-sync",
+        "--page <n>",
+        "--limit <n>"
+      ],
+      "group": "monitoring",
+      "name": "history",
+      "requiresInit": true,
+      "usage": "history"
+    },
+    {
+      "agentFlags": "--agent [asset] [--stream-json]",
+      "description": "Sync account state with the latest onchain data",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "[asset]",
+        "--stream-json"
+      ],
+      "group": "monitoring",
+      "name": "sync",
+      "requiresInit": true,
+      "usage": "sync"
+    },
+    {
+      "agentFlags": "--agent",
+      "aliases": [
+        "exit"
+      ],
+      "description": "Recover funds publicly to your deposit address",
+      "expectedLatencyClass": "slow",
+      "flags": [
+        "--pool-account <PA-ID | numeric-index>",
+        "--confirm-ragequit (deprecated)",
+        "--unsigned [envelope|tx]",
+        "--dry-run",
+        "--no-wait"
+      ],
+      "group": "transaction",
+      "name": "ragequit",
+      "requiresInit": true,
+      "usage": "ragequit [asset] --pool-account <PA-ID | numeric-index>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Learn key concepts, workflows, and troubleshooting",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "getting-started",
+      "name": "guide",
+      "requiresInit": false,
+      "usage": "guide"
+    },
+    {
+      "agentFlags": "--agent [shell] [--install]",
+      "description": "Generate or install shell tab completion",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "[shell]",
+        "--shell <shell>",
+        "--install"
+      ],
+      "group": "advanced",
+      "name": "completion",
+      "requiresInit": false,
+      "usage": "completion"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Describe CLI capabilities for agents",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "advanced",
+      "name": "capabilities",
+      "requiresInit": false,
+      "usage": "capabilities"
+    }
+  ],
+  "documentation": {
+    "agentGuide": "AGENTS.md",
+    "changelog": "CHANGELOG.md",
+    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json",
+    "reference": "docs/reference.md",
+    "runtimeUpgrades": "docs/runtime-upgrades.md"
+  },
+  "envVars": [
+    {
+      "description": "Enable agent mode by default (equivalent to --agent).",
+      "name": "PRIVACY_POOLS_AGENT"
+    },
+    {
+      "description": "Suppress human-oriented stderr output by default, matching --quiet.",
+      "name": "PRIVACY_POOLS_QUIET"
+    },
+    {
+      "description": "Skip confirmation prompts by default, matching --yes.",
+      "name": "PRIVACY_POOLS_YES"
+    },
+    {
+      "description": "Suppress spinners/progress indicators by default, matching --no-progress.",
+      "name": "PRIVACY_POOLS_NO_PROGRESS"
+    },
+    {
+      "description": "Disable colored output, matching --no-color.",
+      "name": "NO_COLOR"
+    },
+    {
+      "description": "Set to 1 to disable the update-available notification.",
+      "name": "PP_NO_UPDATE_CHECK"
+    },
+    {
+      "aliases": [
+        "PRIVACY_POOLS_CONFIG_DIR"
+      ],
+      "description": "Override the CLI config directory.",
+      "name": "PRIVACY_POOLS_HOME"
+    },
+    {
+      "description": "Fallback config base. Used as $XDG_CONFIG_HOME/privacy-pools when no Privacy Pools override is set and no legacy ~/.privacy-pools directory exists.",
+      "name": "XDG_CONFIG_HOME"
+    },
+    {
+      "description": "Signer private key; takes precedence over the saved .signer file.",
+      "name": "PRIVACY_POOLS_PRIVATE_KEY"
+    },
+    {
+      "description": "Override the circuit artifact directory with a trusted pre-provisioned path.",
+      "name": "PRIVACY_POOLS_CIRCUITS_DIR"
+    },
+    {
+      "aliases": [
+        "PP_RPC_URL"
+      ],
+      "description": "Override the RPC endpoint for all chains.",
+      "name": "PRIVACY_POOLS_RPC_URL"
+    },
+    {
+      "aliases": [
+        "PP_ASP_HOST"
+      ],
+      "description": "Override the ASP endpoint for all chains.",
+      "name": "PRIVACY_POOLS_ASP_HOST"
+    },
+    {
+      "aliases": [
+        "PP_RELAYER_HOST"
+      ],
+      "description": "Override the relayer endpoint for all chains.",
+      "name": "PRIVACY_POOLS_RELAYER_HOST"
+    },
+    {
+      "aliases": [
+        "PP_RPC_URL_<CHAIN>"
+      ],
+      "description": "Override the RPC endpoint for one chain, for example ARBITRUM or SEPOLIA.",
+      "name": "PRIVACY_POOLS_RPC_URL_<CHAIN>"
+    },
+    {
+      "aliases": [
+        "PP_ASP_HOST_<CHAIN>"
+      ],
+      "description": "Override the ASP endpoint for one chain.",
+      "name": "PRIVACY_POOLS_ASP_HOST_<CHAIN>"
+    },
+    {
+      "aliases": [
+        "PP_RELAYER_HOST_<CHAIN>"
+      ],
+      "description": "Override the relayer endpoint for one chain.",
+      "name": "PRIVACY_POOLS_RELAYER_HOST_<CHAIN>"
+    },
+    {
+      "description": "Set to 1 to force the pure JS runtime path.",
+      "name": "PRIVACY_POOLS_CLI_DISABLE_NATIVE"
+    },
+    {
+      "description": "Advanced maintainer override for the launcher target native-shell binary path.",
+      "name": "PRIVACY_POOLS_CLI_BINARY"
+    },
+    {
+      "description": "Advanced maintainer override for the packaged JS worker entrypoint.",
+      "name": "PRIVACY_POOLS_CLI_JS_WORKER"
+    }
+  ],
+  "executionRoutes": {
+    "accounts": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "activity": {
+      "nativeModes": [
+        "default",
+        "csv",
+        "structured",
+        "help"
+      ],
+      "owner": "hybrid"
+    },
+    "broadcast": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "capabilities": {
+      "nativeModes": [
+        "default",
+        "help"
+      ],
+      "owner": "native-shell"
+    },
+    "completion": {
+      "nativeModes": [
+        "default",
+        "help"
+      ],
+      "owner": "hybrid"
+    },
+    "config": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config get": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config list": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config path": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config profile": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config profile active": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config profile create": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config profile list": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config profile use": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config set": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "config unset": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "deposit": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "describe": {
+      "nativeModes": [
+        "default",
+        "help"
+      ],
+      "owner": "native-shell"
+    },
+    "flow": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "flow ragequit": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "flow start": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "flow status": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "flow step": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "flow watch": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "guide": {
+      "nativeModes": [
+        "default",
+        "help"
+      ],
+      "owner": "native-shell"
+    },
+    "history": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "init": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "migrate": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "migrate status": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "pool-stats": {
+      "nativeModes": [
+        "default",
+        "csv",
+        "structured",
+        "help"
+      ],
+      "owner": "hybrid"
+    },
+    "pools": {
+      "nativeModes": [
+        "default-list",
+        "default-detail",
+        "csv-list",
+        "structured-list",
+        "help"
+      ],
+      "owner": "hybrid"
+    },
+    "protocol-stats": {
+      "nativeModes": [
+        "default",
+        "csv",
+        "structured",
+        "help"
+      ],
+      "owner": "hybrid"
+    },
+    "ragequit": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "simulate": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "simulate deposit": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "simulate ragequit": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "simulate withdraw": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "status": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "sync": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "tx-status": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "upgrade": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "withdraw": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "withdraw quote": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    }
+  },
+  "exitCodes": [
+    {
+      "category": "SUCCESS",
+      "code": 0,
+      "description": "Successful command completion.",
+      "errorCode": "SUCCESS"
+    },
+    {
+      "category": "UNKNOWN",
+      "code": 1,
+      "description": "Unknown or general runtime failure.",
+      "errorCode": "UNKNOWN_ERROR"
+    },
+    {
+      "category": "INPUT",
+      "code": 2,
+      "description": "Invalid input, prompt cancellation in machine mode, or validation failure.",
+      "errorCode": "INPUT_ERROR"
+    },
+    {
+      "category": "SETUP",
+      "code": 4,
+      "description": "Local setup is incomplete or a signer/recovery phrase is required before the command can continue.",
+      "errorCode": "SETUP_REQUIRED"
+    },
+    {
+      "category": "RPC",
+      "code": 3,
+      "description": "RPC, transport, or network connectivity failure.",
+      "errorCode": "RPC_ERROR"
+    },
+    {
+      "category": "ASP",
+      "code": 8,
+      "description": "ASP service failure or approval-state fetch issue.",
+      "errorCode": "ASP_ERROR"
+    },
+    {
+      "category": "RELAYER",
+      "code": 5,
+      "description": "Relayer quote or submission failure.",
+      "errorCode": "RELAYER_ERROR"
+    },
+    {
+      "category": "PROOF",
+      "code": 6,
+      "description": "ZK proof generation or proof-input failure.",
+      "errorCode": "PROOF_ERROR"
+    },
+    {
+      "category": "CONTRACT",
+      "code": 7,
+      "description": "Onchain simulation or contract revert failure.",
+      "errorCode": "CONTRACT_ERROR"
+    }
+  ],
+  "globalFlags": [
+    {
+      "description": "Target chain (mainnet, arbitrum, optimism, ...)",
+      "flag": "-c, --chain <name>"
+    },
+    {
+      "description": "Machine-readable JSON output on stdout. After the command name, pass --json <fields> or --json=<fields> to select top-level fields.",
+      "flag": "-j, --json"
+    },
+    {
+      "description": "Render structured output through a lightweight Mustache-style template with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration",
+      "flag": "--template <template>"
+    },
+    {
+      "description": "Output format: table (default), csv, json, yaml, wide, name",
+      "flag": "-o, --output <format>"
+    },
+    {
+      "description": "Skip confirmation prompts",
+      "flag": "-y, --yes"
+    },
+    {
+      "description": "Open the primary explorer or portal link in your browser when available",
+      "flag": "--web"
+    },
+    {
+      "description": "Show condensed command help without the extended guide appendix",
+      "flag": "--help-brief"
+    },
+    {
+      "description": "Override RPC URL",
+      "flag": "-r, --rpc-url <url>"
+    },
+    {
+      "description": "Machine-friendly mode (alias for --json --yes --quiet)",
+      "flag": "--agent"
+    },
+    {
+      "description": "Suppress human-oriented stderr output",
+      "flag": "-q, --quiet"
+    },
+    {
+      "description": "Disable ASCII banner output",
+      "flag": "--no-banner"
+    },
+    {
+      "description": "Enable verbose/debug output (-v info, -vv debug, -vvv trace)",
+      "flag": "-v, --verbose"
+    },
+    {
+      "description": "Suppress spinners/progress indicators (useful in CI)",
+      "flag": "--no-progress"
+    },
+    {
+      "description": "Suppress header rows in CSV and wide/tabular table output",
+      "flag": "--no-header"
+    },
+    {
+      "description": "Network/transaction timeout in seconds (default: 30)",
+      "flag": "--timeout <seconds>"
+    },
+    {
+      "description": "Filter JSON output with a JMESPath expression (implies --json)",
+      "flag": "--jmes <expression>"
+    },
+    {
+      "description": "Compatibility alias for --jmes (JMESPath, not jq syntax)",
+      "flag": "--jq <expression>"
+    },
+    {
+      "description": "Disable colored output (also respects NO_COLOR env var)",
+      "flag": "--no-color"
+    },
+    {
+      "description": "Use a named profile (separate wallet identity and config)",
+      "flag": "--profile <name>"
+    }
+  ],
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docsSlug?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+  "protocol": {
+    "coreSdkPackage": "@0xbow/privacy-pools-core-sdk",
+    "coreSdkVersion": "1.2.0",
+    "displayName": "Privacy Pools v1",
+    "family": "privacy-pools",
+    "generation": "v1",
+    "notes": [
+      "Chain support is a CLI-curated subset of the broader website deployment catalog.",
+      "Proof, signer, mnemonic, workflow, migration, relayer, and transaction-composition logic stays in JS."
+    ],
+    "profile": "privacy-pools-v1",
+    "supportedChainPolicy": "cli-curated"
+  },
+  "runtime": {
+    "accountFileVersion": 3,
+    "cliVersion": "2.0.0",
+    "jsonSchemaVersion": "2.0.0",
+    "manifestVersion": "1",
+    "nativeBridgeVersion": "1",
+    "runtimeVersion": "v1",
+    "workerProtocolVersion": "1",
+    "workflowSecretVersion": "1",
+    "workflowSnapshotVersion": "2"
+  },
+  "safeReadOnlyCommands": [
+    "config",
+    "config list",
+    "config get",
+    "config path",
+    "config profile",
+    "config profile list",
+    "config profile active",
+    "flow",
+    "simulate",
+    "flow status",
+    "pools",
+    "activity",
+    "protocol-stats",
+    "pool-stats",
+    "status",
+    "tx-status",
+    "capabilities",
+    "describe",
+    "guide",
+    "simulate deposit",
+    "simulate withdraw",
+    "simulate ragequit",
+    "accounts",
+    "migrate",
+    "migrate status",
+    "history"
+  ],
+  "schemaVersion": "2.0.0",
+  "schemas": {
+    "aspApprovalStatus": {
+      "description": "ASP approval status for a Pool Account. 'approved' means the deposit has been vetted and is eligible for private withdrawal. 'pending' means the ASP has not yet approved the deposit. 'poa_required' means Proof of Association (https://tornado.0xbow.io) is required before private withdrawal. 'declined' means the ASP rejected the deposit for private withdrawal. 'unknown' applies to exited or spent accounts, or when ASP status could not be determined.",
+      "values": [
+        "approved",
+        "pending",
+        "poa_required",
+        "declined",
+        "unknown"
+      ]
+    },
+    "errorCategories": {
+      "description": "Error responses include error.{ code, category, message, hint?, retryable? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message.",
+      "exitCodes": {
+        "ASP": 8,
+        "CONTRACT": 7,
+        "INPUT": 2,
+        "PROOF": 6,
+        "RELAYER": 5,
+        "RPC": 3,
+        "UNKNOWN": 1
+      },
+      "values": [
+        "INPUT",
+        "RPC",
+        "ASP",
+        "RELAYER",
+        "PROOF",
+        "CONTRACT",
+        "UNKNOWN"
+      ]
+    },
+    "nextActions": {
+      "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. JSON nextActions are emitted in --agent mode even though --agent implies --quiet; quiet only suppresses human-oriented stderr sections. Ordering is deterministic and priority-ordered: primary private/resume paths first, required public recovery before optional public recovery, optional public recovery after private paths, and deposit templates last. When runnable is omitted or true, the command is fully specified and can be executed as shown. When runnable is false, cliCommand is omitted and parameters[] describes the missing user input before execution.",
+      "shape": "{ command, reason, when, cliCommand?: string, args?: string[], options?: Record<string, string|number|boolean|null>, parameters?: [{ name, type, required }], runnable?: boolean }",
+      "whenValues": [
+        "after_init",
+        "after_restore",
+        "after_deposit",
+        "after_dry_run",
+        "after_quote",
+        "after_withdraw",
+        "after_ragequit",
+        "after_submit",
+        "has_pending",
+        "status_not_ready",
+        "status_unsigned_no_accounts",
+        "status_unsigned_has_accounts",
+        "status_ready_no_accounts",
+        "status_ready_has_accounts",
+        "status_degraded_health",
+        "status_restore_discovery",
+        "after_sync",
+        "after_guide",
+        "after_describe",
+        "after_capabilities",
+        "after_completion",
+        "after_pools",
+        "after_pool_detail",
+        "after_upgrade",
+        "after_activity",
+        "after_stats",
+        "after_pool_stats",
+        "after_history",
+        "after_config_list",
+        "after_config_set",
+        "no_pools_found",
+        "accounts_pending_empty",
+        "accounts_summary_empty",
+        "accounts_empty",
+        "accounts_other_chain_activity",
+        "accounts_restore_check",
+        "flow_manual_followup",
+        "flow_public_recovery_pending",
+        "flow_public_recovery_required",
+        "flow_resume",
+        "flow_public_recovery_optional",
+        "flow_declined"
+      ]
+    },
+    "poolAccountStatus": {
+      "description": "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poa_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means ragequit/exit was used.",
+      "values": [
+        "approved",
+        "pending",
+        "poa_required",
+        "declined",
+        "unknown",
+        "spent",
+        "exited"
+      ]
+    },
+    "sideEffectClass": {
+      "description": "Machine-readable risk classification for a command path. read_only never mutates local or remote protocol state. local_cache_write refreshes or stores derived local cache/state without changing wallet intent. local_state_write may mutate local CLI state or secrets. network_write is reserved for remote mutations that do not directly move user funds. fund_movement may submit deposits, withdrawals, or public recoveries.",
+      "values": [
+        "read_only",
+        "local_cache_write",
+        "local_state_write",
+        "network_write",
+        "fund_movement"
+      ]
+    },
+    "statusIssues": {
+      "blockingIssueShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[], reasonCode?: string }",
+      "description": "Structured preflight issues returned by status --agent. blockingIssues describe setup blockers that should stop execution. warnings describe degraded or follow-up-worthy states that may still allow safe read-only usage.",
+      "warningShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[], reasonCode?: string }"
+    },
+    "statusRecommendedMode": {
+      "description": "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only means status detected degraded RPC or ASP health, so public discovery is the default safe path until connectivity is restored. When only the ASP is degraded but RPC remains healthy, public recovery may still be available if the affected account or workflow is already known.",
+      "values": [
+        "setup-required",
+        "read-only",
+        "unsigned-only",
+        "ready"
+      ]
+    },
+    "unsignedOutput": {
+      "envelopeFormat": "{ schemaVersion, success, mode, operation, chain, transactions: [{ from, to, data, value, ... }], ... }",
+      "note": "Default --unsigned emits the envelope format. Use --unsigned tx for raw transaction array only.",
+      "txFormat": "[{ from, to, data, value, valueHex, chainId, description }]: raw array, no envelope wrapper. Intended for direct piping to signing tools."
+    }
+  },
+  "success": true,
+  "supportedChains": [
+    {
+      "chainId": 1,
+      "name": "mainnet",
+      "testnet": false
+    },
+    {
+      "chainId": 42161,
+      "name": "arbitrum",
+      "testnet": false
+    },
+    {
+      "chainId": 10,
+      "name": "optimism",
+      "testnet": false
+    },
+    {
+      "chainId": 11155111,
+      "name": "sepolia",
+      "testnet": true
+    },
+    {
+      "chainId": 11155420,
+      "name": "op-sepolia",
+      "testnet": true
+    }
+  ]
+}

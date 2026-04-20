@@ -1,0 +1,48 @@
+// normalized: ADDR, TS, WEI
+{
+  "allTime": {
+    "totalDepositsCount": 100,
+    "totalDepositsValue": "<WEI>",
+    "totalDepositsValueUsd": "600000",
+    "totalWithdrawalsCount": 50,
+    "totalWithdrawalsValue": "<WEI>",
+    "totalWithdrawalsValueUsd": "300000",
+    "tvl": "50000000000000000000",
+    "tvlUsd": "150000"
+  },
+  "asset": "ETH",
+  "cacheTimestamp": "<TS>",
+  "chain": "sepolia",
+  "command": "pool-stats",
+  "deprecationWarning": {
+    "code": "COMMAND_ALIAS_DEPRECATED",
+    "message": "Command 'stats pool' is deprecated and will be removed in the next minor release. Use 'privacy-pools pool-stats ETH' instead.",
+    "replacementCommand": "privacy-pools pool-stats ETH"
+  },
+  "invokedAs": "stats pool",
+  "last24h": {
+    "totalDepositsCount": 5,
+    "totalDepositsValue": "<WEI>",
+    "totalWithdrawalsCount": 2,
+    "totalWithdrawalsValue": "<WEI>"
+  },
+  "mode": "pool-stats",
+  "nextActions": [
+    {
+      "args": [
+        "ETH"
+      ],
+      "cliCommand": "privacy-pools pools ETH --agent --chain sepolia",
+      "command": "pools",
+      "options": {
+        "chain": "sepolia"
+      },
+      "reason": "Open the detailed view for this pool.",
+      "when": "after_pool_stats"
+    }
+  ],
+  "pool": "<ADDR>",
+  "schemaVersion": "2.0.0",
+  "scope": "12345",
+  "success": true
+}

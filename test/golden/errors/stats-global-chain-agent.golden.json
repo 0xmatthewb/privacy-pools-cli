@@ -1,0 +1,14 @@
+// normalized: NONE
+{
+  "error": {
+    "category": "INPUT",
+    "code": "INPUT_ERROR",
+    "hint": "For chain-specific data use: privacy-pools pool-stats <symbol> --chain <chain>",
+    "message": "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
+    "retryable": false
+  },
+  "errorCode": "INPUT_ERROR",
+  "errorMessage": "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
+  "schemaVersion": "2.0.0",
+  "success": false
+}

@@ -157,9 +157,63 @@ pub(super) fn decode_abi_string(hex_data: &str) -> Result<String, CliError> {
 mod tests {
     use super::{
         checksum_address, decode_abi_string, decode_abi_words, decode_address_word,
-        decode_uint256_word, encode_address_word,
+        decode_uint256_word, encode_address_word, function_selector,
     };
     use num_bigint::BigUint;
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    struct RpcAbiFixture {
+        selectors: Vec<RpcAbiSelectorCase>,
+        #[serde(rename = "encodedCalls")]
+        encoded_calls: Vec<RpcAbiEncodedCallCase>,
+        #[serde(rename = "decodedResponses")]
+        decoded_responses: Vec<RpcAbiDecodedResponseCase>,
+    }
+
+    #[derive(Deserialize)]
+    struct RpcAbiSelectorCase {
+        signature: String,
+        #[serde(rename = "expected4Bytes")]
+        expected_4_bytes: String,
+    }
+
+    #[derive(Deserialize)]
+    struct RpcAbiEncodedCallCase {
+        signature: String,
+        params: Vec<String>,
+        #[serde(rename = "expectedCalldata")]
+        expected_calldata: String,
+    }
+
+    #[derive(Deserialize)]
+    struct RpcAbiDecodedResponseCase {
+        kind: String,
+        #[serde(rename = "rawHex")]
+        raw_hex: String,
+        #[serde(rename = "expectedValue")]
+        expected_value: String,
+    }
+
+    fn load_fixture() -> RpcAbiFixture {
+        serde_json::from_str(include_str!(
+            "../../../../../test/fixtures/rpc-abi-cases.json"
+        ))
+        .expect("shared rpc abi fixture should parse")
+    }
+
+    fn encode_call(signature: &str, params: &[String]) -> Result<String, crate::error::CliError> {
+        let selector = hex::encode(function_selector(signature));
+        if params.is_empty() {
+            return Ok(format!("0x{selector}"));
+        }
+
+        let mut calldata = format!("0x{selector}");
+        for param in params {
+            calldata.push_str(&encode_address_word(param)?);
+        }
+        Ok(calldata)
+    }
 
     #[test]
     fn encode_address_word_rejects_invalid_addresses() {
@@ -260,5 +314,66 @@ mod tests {
                 .code,
             "RPC_POOL_RESOLUTION_FAILED",
         );
+    }
+
+    #[test]
+    fn shared_fixture_function_selectors_match() {
+        let fixture = load_fixture();
+
+        for entry in fixture.selectors {
+            assert_eq!(
+                format!("0x{}", hex::encode(function_selector(&entry.signature))),
+                entry.expected_4_bytes,
+            );
+        }
+    }
+
+    #[test]
+    fn shared_fixture_calldata_matches() {
+        let fixture = load_fixture();
+
+        for entry in fixture.encoded_calls {
+            let encoded = encode_call(&entry.signature, &entry.params)
+                .expect("shared fixture calldata should encode");
+            assert_eq!(encoded, entry.expected_calldata);
+        }
+    }
+
+    #[test]
+    fn shared_fixture_responses_decode() {
+        let fixture = load_fixture();
+
+        for entry in fixture.decoded_responses {
+            match entry.kind.as_str() {
+                "string" => {
+                    assert_eq!(
+                        decode_abi_string(&entry.raw_hex)
+                            .expect("string fixture payload should decode"),
+                        entry.expected_value,
+                    );
+                }
+                "uint256" => {
+                    let words = decode_abi_words(&entry.raw_hex)
+                        .expect("uint fixture payload should split into words");
+                    assert_eq!(words.len(), 1);
+                    assert_eq!(
+                        decode_uint256_word(&words[0]).to_string(),
+                        entry.expected_value,
+                    );
+                }
+                "address" => {
+                    let words = decode_abi_words(&entry.raw_hex)
+                        .expect("address fixture payload should split into words");
+                    assert_eq!(words.len(), 1);
+                    let decoded = decode_address_word(&words[0])
+                        .expect("address fixture payload should decode");
+                    assert_eq!(
+                        checksum_address(&decoded).expect("address fixture should checksum"),
+                        entry.expected_value,
+                    );
+                }
+                other => panic!("unsupported shared fixture decode kind: {other}"),
+            }
+        }
     }
 }

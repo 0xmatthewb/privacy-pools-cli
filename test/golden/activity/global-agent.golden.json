@@ -1,0 +1,43 @@
+// normalized: ADDR, HASH, TS
+{
+  "chain": "all-mainnets",
+  "chains": [
+    "mainnet",
+    "arbitrum",
+    "optimism"
+  ],
+  "events": [
+    {
+      "amountFormatted": "1 ETH",
+      "amountRaw": "1000000000000000000",
+      "chainId": 11155111,
+      "explorerUrl": "https://sepolia.etherscan.io/tx/<HASH>",
+      "poolAddress": "<ADDR>",
+      "poolSymbol": "ETH",
+      "reviewStatus": "approved",
+      "timestamp": "<TS>",
+      "txHash": "<HASH>",
+      "type": "deposit"
+    }
+  ],
+  "mode": "global-activity",
+  "nextActions": [
+    {
+      "cliCommand": "privacy-pools activity --agent --page 2 --limit 12",
+      "command": "activity",
+      "options": {
+        "limit": 12,
+        "page": 2
+      },
+      "reason": "View the next page.",
+      "when": "after_activity"
+    }
+  ],
+  "page": 1,
+  "perPage": 12,
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "total": 13,
+  "totalEvents": 13,
+  "totalPages": 2
+}

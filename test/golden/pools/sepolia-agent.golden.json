@@ -1,0 +1,57 @@
+// normalized: ADDR, WEI
+{
+  "chain": "sepolia",
+  "nextActions": [
+    {
+      "command": "deposit",
+      "options": {
+        "chain": "sepolia"
+      },
+      "parameters": [
+        {
+          "name": "amount",
+          "required": true,
+          "type": "token_amount"
+        },
+        {
+          "name": "asset",
+          "required": true,
+          "type": "asset_symbol"
+        }
+      ],
+      "reason": "Deposit into a pool.",
+      "runnable": false,
+      "when": "after_pools"
+    }
+  ],
+  "pools": [
+    {
+      "acceptedDepositsCount": 35,
+      "acceptedDepositsValue": "<WEI>",
+      "acceptedDepositsValueUsd": null,
+      "asset": "ETH",
+      "decimals": 18,
+      "growth24h": 0.05,
+      "maxRelayFeeBPS": "250",
+      "minimumDeposit": "<WEI>",
+      "myPoolAccountsCount": 0,
+      "pendingDepositsCount": 7,
+      "pendingDepositsValue": "<WEI>",
+      "pendingDepositsValueUsd": null,
+      "pendingGrowth24h": null,
+      "pool": "<ADDR>",
+      "scope": "12345",
+      "tokenAddress": "<ADDR>",
+      "totalDepositsCount": 42,
+      "totalDepositsValue": "<WEI>",
+      "totalDepositsValueUsd": null,
+      "totalInPoolValue": "<WEI>",
+      "totalInPoolValueUsd": null,
+      "vettingFeeBPS": "50"
+    }
+  ],
+  "schemaVersion": "2.0.0",
+  "search": null,
+  "sort": "tvl-desc",
+  "success": true
+}

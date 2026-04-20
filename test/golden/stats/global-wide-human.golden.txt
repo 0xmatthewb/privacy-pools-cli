@@ -1,0 +1,21 @@
+// normalized: TS
+Fetching global statistics...
+Warning: Command 'stats global' is deprecated and will be removed in the next minor release. Use 'privacy-pools protocol-stats' instead.
+
+Global statistics (all-mainnets):
+
+------------------------------------------------------------------------------------------------------------------------
+Summary:
+  Chain:           all-mainnets
+  Cache timestamp: <TS>
+  Metric              All Time   Last 24h
+  -----------------   --------   --------
+  Current TVL         $150,000   -
+  Avg Deposit Size    -          -
+  Total Deposits      100        5
+  Total Withdrawals   50         2
+
+------------------------------------------------------------------------------------------------------------------------
+Next steps:
+  privacy-pools pools
+    Browse live pool balances and minimum deposits.
