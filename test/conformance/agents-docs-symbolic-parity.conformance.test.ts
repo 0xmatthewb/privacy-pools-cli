@@ -1,3 +1,6 @@
+/**
+ * @online
+ */
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { FLOW_PHASE_VALUES } from "../../src/services/workflow.ts";

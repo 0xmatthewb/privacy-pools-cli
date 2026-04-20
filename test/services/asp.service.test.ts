@@ -12,9 +12,28 @@ import {
   formatIncompleteAspReviewDataMessage,
   overrideAspRetryWaitForTests,
 } from "../../src/services/asp.ts";
+import {
+  createStrictStubRegistry,
+  type StrictStubRegistry,
+} from "../helpers/strict-stubs.ts";
 
 const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
+let strictFetchRegistry: StrictStubRegistry<
+  [RequestInfo | URL, RequestInit | undefined],
+  Promise<Response>
+> | null = null;
+
+function installStrictFetch(
+  name: string,
+): StrictStubRegistry<
+  [RequestInfo | URL, RequestInit | undefined],
+  Promise<Response>
+> {
+  strictFetchRegistry = createStrictStubRegistry(name);
+  globalThis.fetch = strictFetchRegistry.createStub() as typeof fetch;
+  return strictFetchRegistry;
+}
 
 describe("asp service", () => {
   beforeEach(() => {
@@ -22,22 +41,29 @@ describe("asp service", () => {
   });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
-    overrideAspRetryWaitForTests();
-    mock.restore();
+    try {
+      strictFetchRegistry?.assertConsumed();
+    } finally {
+      strictFetchRegistry?.reset();
+      strictFetchRegistry = null;
+      globalThis.fetch = originalFetch;
+      overrideAspRetryWaitForTests();
+      mock.restore();
+    }
   });
 
   test("sends decimal X-Pool-Scope header to mt-roots/mt-leaves", async () => {
     const calls: Array<{ url: string; headers: HeadersInit | undefined }> = [];
+    const fetchRegistry = installStrictFetch("asp.scope-headers");
+    fetchRegistry.expectCall(
+      "mt-roots",
+      async (input, init) => {
+        calls.push({
+          url: String(input),
+          headers: init?.headers,
+        });
 
-    globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
-      calls.push({
-        url: String(input),
-        headers: init?.headers,
-      });
-
-      return Promise.resolve(
-        new Response(
+        return new Response(
           JSON.stringify({
             mtRoot: "1",
             createdAt: "2026-01-01T00:00:00.000Z",
@@ -45,10 +71,36 @@ describe("asp service", () => {
             aspLeaves: [],
             stateTreeLeaves: [],
           }),
-          { status: 200 }
-        )
-      );
-    }) as typeof fetch;
+          { status: 200 },
+        );
+      },
+      {
+        match: (input) => String(input).includes("/public/mt-roots"),
+      },
+    );
+    fetchRegistry.expectCall(
+      "mt-leaves",
+      async (input, init) => {
+        calls.push({
+          url: String(input),
+          headers: init?.headers,
+        });
+
+        return new Response(
+          JSON.stringify({
+            mtRoot: "1",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            onchainMtRoot: "1",
+            aspLeaves: [],
+            stateTreeLeaves: [],
+          }),
+          { status: 200 },
+        );
+      },
+      {
+        match: (input) => String(input).includes("/public/mt-leaves"),
+      },
+    );
 
     await fetchMerkleRoots(chain, 123456789n);
     await fetchMerkleLeaves(chain, 123456789n);
@@ -78,15 +130,20 @@ describe("asp service", () => {
 
   test("fetchDepositsLargerThan calls endpoint with amount query", async () => {
     let seenUrl = "";
-    globalThis.fetch = mock((input: RequestInfo | URL) => {
-      seenUrl = String(input);
-      return Promise.resolve(
-        new Response(
+    const fetchRegistry = installStrictFetch("asp.deposits-larger-than");
+    fetchRegistry.expectCall(
+      "deposits-larger-than",
+      async (input) => {
+        seenUrl = String(input);
+        return new Response(
           JSON.stringify({ eligibleDeposits: 12, totalDeposits: 34, percentage: 35.29 }),
-          { status: 200 }
-        )
-      );
-    }) as typeof fetch;
+          { status: 200 },
+        );
+      },
+      {
+        match: (input) => String(input).includes("/public/deposits-larger-than"),
+      },
+    );
 
     const payload = await fetchDepositsLargerThan(chain, 777n, 123n);
     expect(seenUrl).toContain("/1/public/deposits-larger-than?amount=123");

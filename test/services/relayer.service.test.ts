@@ -11,15 +11,34 @@ import {
 } from "../../src/services/relayer.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
+import {
+  createStrictStubRegistry,
+  type StrictStubRegistry,
+} from "../helpers/strict-stubs.ts";
 
 const chain = CHAINS.mainnet;
 const sepolia = CHAINS.sepolia;
 const originalFetch = globalThis.fetch;
+let strictFetchRegistry: StrictStubRegistry<
+  [RequestInfo | URL, RequestInit | undefined],
+  Promise<Response>
+> | null = null;
 const VALID_WITHDRAWAL_DATA = encodeRelayerWithdrawalData({
   recipient: "0x0000000000000000000000000000000000000001",
   feeRecipient: "0x0000000000000000000000000000000000000002",
   relayFeeBPS: 12n,
 });
+
+function installStrictFetch(
+  name: string,
+): StrictStubRegistry<
+  [RequestInfo | URL, RequestInit | undefined],
+  Promise<Response>
+> {
+  strictFetchRegistry = createStrictStubRegistry(name);
+  globalThis.fetch = strictFetchRegistry.createStub() as typeof fetch;
+  return strictFetchRegistry;
+}
 
 function buildRelayerDetailsResponse(params: {
   chainId?: number;
@@ -78,9 +97,15 @@ function buildRelayerQuoteResponse(params: {
 
 describe("relayer service", () => {
   afterEach(() => {
-    globalThis.fetch = originalFetch;
-    overrideRelayerRetryWaitForTests();
-    mock.restore();
+    try {
+      strictFetchRegistry?.assertConsumed();
+    } finally {
+      strictFetchRegistry?.reset();
+      strictFetchRegistry = null;
+      globalThis.fetch = originalFetch;
+      overrideRelayerRetryWaitForTests();
+      mock.restore();
+    }
   });
 
   test("requestQuote serializes bigint amount as string", async () => {
@@ -131,46 +156,64 @@ describe("relayer service", () => {
       ],
     };
     const seenUrls: string[] = [];
-
-    globalThis.fetch = mock((input: RequestInfo | URL) => {
-      const url = String(input);
-      seenUrls.push(url);
-
-      if (url.startsWith("https://primary-relayer.test/relayer/details")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "10" })),
-            { status: 200 },
-          ),
+    const fetchRegistry = installStrictFetch("relayer.failover-quote");
+    fetchRegistry.expectCall(
+      "primary-details",
+      async (input) => {
+        const url = String(input);
+        seenUrls.push(url);
+        return new Response(
+          JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "10" })),
+          { status: 200 },
         );
-      }
-
-      if (url.startsWith("https://backup-relayer.test/relayer/details")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
-            { status: 200 },
-          ),
+      },
+      {
+        match: (input) =>
+          String(input).startsWith("https://primary-relayer.test/relayer/details"),
+      },
+    );
+    fetchRegistry.expectCall(
+      "backup-details",
+      async (input) => {
+        const url = String(input);
+        seenUrls.push(url);
+        return new Response(
+          JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
+          { status: 200 },
         );
-      }
-
-      if (url.startsWith("https://primary-relayer.test/relayer/quote")) {
-        return Promise.resolve(
-          new Response(JSON.stringify({ message: "busy" }), { status: 503 }),
+      },
+      {
+        match: (input) =>
+          String(input).startsWith("https://backup-relayer.test/relayer/details"),
+      },
+    );
+    fetchRegistry.expectCall(
+      "primary-quote-503",
+      async (input) => {
+        const url = String(input);
+        seenUrls.push(url);
+        return new Response(JSON.stringify({ message: "busy" }), { status: 503 });
+      },
+      {
+        match: (input) =>
+          String(input).startsWith("https://primary-relayer.test/relayer/quote"),
+      },
+    );
+    fetchRegistry.expectCall(
+      "backup-quote-200",
+      async (input) => {
+        const url = String(input);
+        seenUrls.push(url);
+        return new Response(
+          JSON.stringify(buildRelayerQuoteResponse({ relayerUrl: "https://backup-relayer.test" })),
+          { status: 200 },
         );
-      }
-
-      if (url.startsWith("https://backup-relayer.test/relayer/quote")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify(buildRelayerQuoteResponse({ relayerUrl: "https://backup-relayer.test" })),
-            { status: 200 },
-          ),
-        );
-      }
-
-      throw new Error(`unexpected relayer URL ${url}`);
-    }) as typeof fetch;
+      },
+      {
+        match: (input) =>
+          String(input).startsWith("https://backup-relayer.test/relayer/quote"),
+      },
+    );
 
     const quote = await requestQuote(fallbackChain as typeof chain, {
       amount: 1000n,
@@ -353,31 +396,37 @@ describe("relayer service", () => {
       ],
     };
     const seenUrls: string[] = [];
-
-    globalThis.fetch = mock((input: RequestInfo | URL) => {
-      const url = String(input);
-      seenUrls.push(url);
-
-      if (url.startsWith("https://primary-relayer.test/relayer/details")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "30" })),
-            { status: 200 },
-          ),
+    const fetchRegistry = installStrictFetch("relayer.trim-dedupe");
+    fetchRegistry.expectCall(
+      "primary-details",
+      async (input) => {
+        const url = String(input);
+        seenUrls.push(url);
+        return new Response(
+          JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "30" })),
+          { status: 200 },
         );
-      }
-
-      if (url.startsWith("https://backup-relayer.test/relayer/details")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
-            { status: 200 },
-          ),
+      },
+      {
+        match: (input) =>
+          String(input).startsWith("https://primary-relayer.test/relayer/details"),
+      },
+    );
+    fetchRegistry.expectCall(
+      "backup-details",
+      async (input) => {
+        const url = String(input);
+        seenUrls.push(url);
+        return new Response(
+          JSON.stringify(buildRelayerDetailsResponse({ feeBPS: "12" })),
+          { status: 200 },
         );
-      }
-
-      throw new Error(`unexpected relayer URL ${url}`);
-    }) as typeof fetch;
+      },
+      {
+        match: (input) =>
+          String(input).startsWith("https://backup-relayer.test/relayer/details"),
+      },
+    );
 
     const details = await getRelayerDetails(
       weirdChain as typeof chain,
