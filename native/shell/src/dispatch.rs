@@ -136,11 +136,22 @@ pub fn handle_completion(
             query_completion_candidates(&query.words, query.cword, &manifest.completion_spec);
 
         if parsed.is_structured_output_mode {
+            let mut install_options = Map::new();
+            install_options.insert("agent".to_string(), Value::Bool(true));
+            install_options.insert("install".to_string(), Value::Bool(true));
             print_json_success(json!({
                 "mode": "completion-query",
                 "shell": query.shell,
                 "cword": query.cword,
                 "candidates": candidates,
+                "nextActions": [crate::output::build_next_action(
+                    "completion",
+                    "Install managed shell completion after validating the generated candidates.",
+                    "after_completion",
+                    None,
+                    Some(&install_options),
+                    None,
+                )],
             }));
         } else if !candidates.is_empty() {
             std::io::Write::write_all(

@@ -294,6 +294,28 @@ fn json_cases() -> Vec<JsonGoldenCase> {
             status: 0,
         },
         JsonGoldenCase {
+            name: "capabilities/agent",
+            args: &["--agent", "capabilities"],
+            env_mode: EnvMode::None,
+            status: 0,
+        },
+        JsonGoldenCase {
+            name: "completion/query-bash-agent",
+            args: &[
+                "--json",
+                "completion",
+                "--query",
+                "--shell",
+                "bash",
+                "--cword",
+                "1",
+                "--",
+                "privacy-pools",
+            ],
+            env_mode: EnvMode::None,
+            status: 0,
+        },
+        JsonGoldenCase {
             name: "pools/sepolia-agent",
             args: &["--agent", "--chain", "sepolia", "pools"],
             env_mode: EnvMode::Fixture,
