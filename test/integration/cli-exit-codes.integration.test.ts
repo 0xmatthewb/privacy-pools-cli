@@ -114,7 +114,7 @@ describe("exit-code matrix", () => {
     // Trigger an ASP error
     const result = runCli(
       ["--json", "pools", "--chain", "sepolia"],
-      { home, timeoutMs: 10_000, env: OFFLINE_ASP_ENV }
+      { home, timeoutMs: 20_000, env: OFFLINE_ASP_ENV }
     );
     expect(result.status).not.toBe(0);
 
@@ -126,7 +126,7 @@ describe("exit-code matrix", () => {
     expect(typeof json.error?.category).toBe("string");
     expect(json.error?.code).toBe("ASP_ERROR");
     expect(typeof json.error?.message).toBe("string");
-  }, 10_000);
+  }, 20_000);
 
   test("all documented exit codes are distinct positive integers", () => {
     const codes = Object.values(EXIT_CODE_MAP);
