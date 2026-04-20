@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   getPublicClient,
   getDataService,
@@ -10,10 +10,12 @@ import { CHAINS } from "../../src/config/chains.ts";
 import { getRpcUrls } from "../../src/services/config.ts";
 import type { Address } from "viem";
 import { createStrictStubRegistry } from "../helpers/strict-stubs.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 describe("sdk service", () => {
   const poolAddress = "0x0000000000000000000000000000000000000001" as Address;
   const originalFetch = globalThis.fetch;
+  let world: TestWorld;
   const poolInfo = {
     address: poolAddress,
     chainId: CHAINS.sepolia.id,
@@ -43,10 +45,16 @@ describe("sdk service", () => {
     return (JSON.parse(String(init?.body)) as { method: string }).method;
   }
 
-  afterEach(() => {
+  beforeEach(() => {
+    world = createTestWorld({ prefix: "pp-sdk-service-test-" });
+    world.useConfigHome();
+  });
+
+  afterEach(async () => {
     globalThis.fetch = originalFetch;
     resetSdkServiceCachesForTests();
     mock.restore();
+    await world.teardown();
   });
 
   /* ---------------------------------------------------------------- */
