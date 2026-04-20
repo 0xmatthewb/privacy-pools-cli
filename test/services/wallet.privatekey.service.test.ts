@@ -3,33 +3,32 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadPrivateKey, getSignerAddress } from "../../src/services/wallet.ts";
 import { CLIError } from "../../src/utils/errors.ts";
-import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 const VALID_KEY_NO_PREFIX =
   "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const VALID_KEY_WITH_PREFIX = `0x${VALID_KEY_NO_PREFIX}`;
 
 describe("loadPrivateKey", () => {
-  const origHome = process.env.PRIVACY_POOLS_HOME;
   const origKey = process.env.PRIVACY_POOLS_PRIVATE_KEY;
+  const worlds: TestWorld[] = [];
 
-  afterEach(() => {
-    // Restore env
-    if (origHome !== undefined) {
-      process.env.PRIVACY_POOLS_HOME = origHome;
-    } else {
-      delete process.env.PRIVACY_POOLS_HOME;
+  afterEach(async () => {
+    while (worlds.length > 0) {
+      const world = worlds.pop();
+      await world?.teardown();
     }
     if (origKey !== undefined) {
       process.env.PRIVACY_POOLS_PRIVATE_KEY = origKey;
     } else {
       delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
     }
-    cleanupTrackedTempDirs();
   });
 
-  function isolatedHome(): string {
-    return createTrackedTempDir("pp-wallet-pk-test-");
+  function useIsolatedHome(): string {
+    const world = createTestWorld({ prefix: "pp-wallet-pk-test-" });
+    worlds.push(world);
+    return world.useConfigHome();
   }
 
   function writeSignerFile(homeDir: string, content: string): void {
@@ -38,9 +37,8 @@ describe("loadPrivateKey", () => {
   }
 
   test("env var PRIVACY_POOLS_PRIVATE_KEY takes precedence over .signer file", () => {
-    const home = isolatedHome();
+    const home = useIsolatedHome();
     writeSignerFile(home, "0x1111111111111111111111111111111111111111111111111111111111111111");
-    process.env.PRIVACY_POOLS_HOME = home;
     process.env.PRIVACY_POOLS_PRIVATE_KEY = VALID_KEY_WITH_PREFIX;
 
     const result = loadPrivateKey();
@@ -54,8 +52,7 @@ describe("loadPrivateKey", () => {
   });
 
   test("normalizes non-0x-prefixed key from env var", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    useIsolatedHome();
     process.env.PRIVACY_POOLS_PRIVATE_KEY = VALID_KEY_NO_PREFIX;
 
     const result = loadPrivateKey();
@@ -64,9 +61,8 @@ describe("loadPrivateKey", () => {
   });
 
   test("normalizes non-0x-prefixed key from .signer file", () => {
-    const home = isolatedHome();
+    const home = useIsolatedHome();
     writeSignerFile(home, VALID_KEY_NO_PREFIX);
-    process.env.PRIVACY_POOLS_HOME = home;
     delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
 
     const result = loadPrivateKey();
@@ -74,8 +70,7 @@ describe("loadPrivateKey", () => {
   });
 
   test("rejects key with wrong length (too short)", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    useIsolatedHome();
     process.env.PRIVACY_POOLS_PRIVATE_KEY = "0xabcdef1234";
 
     try {
@@ -91,8 +86,7 @@ describe("loadPrivateKey", () => {
   });
 
   test("rejects key with non-hex characters", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    useIsolatedHome();
     // 64 chars but with 'zz' which is not valid hex
     process.env.PRIVACY_POOLS_PRIVATE_KEY =
       "0xzz0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
@@ -107,8 +101,7 @@ describe("loadPrivateKey", () => {
   });
 
   test("rejects key with too many characters", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    useIsolatedHome();
     process.env.PRIVACY_POOLS_PRIVATE_KEY = "0x" + "aa".repeat(33); // 66 hex chars, too long
 
     try {
@@ -121,8 +114,7 @@ describe("loadPrivateKey", () => {
   });
 
   test("valid key round-trips to deterministic signer address", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    useIsolatedHome();
     process.env.PRIVACY_POOLS_PRIVATE_KEY = VALID_KEY_WITH_PREFIX;
 
     const key = loadPrivateKey();
@@ -134,9 +126,8 @@ describe("loadPrivateKey", () => {
   });
 
   test("reads key from .signer file when env var is not set", () => {
-    const home = isolatedHome();
+    const home = useIsolatedHome();
     writeSignerFile(home, VALID_KEY_WITH_PREFIX);
-    process.env.PRIVACY_POOLS_HOME = home;
     delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
 
     const result = loadPrivateKey();

@@ -200,7 +200,6 @@ const maybeRecoverMissingWalletSetupMock = mock(async () => false);
 
 let handleRagequitCommand: typeof import("../../src/commands/ragequit.ts").handleRagequitCommand;
 let world: TestWorld;
-let ragequitImportCounter = 0;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -303,8 +302,12 @@ async function loadRagequitCommandHandler(): Promise<void> {
     maybeRecoverMissingWalletSetup: maybeRecoverMissingWalletSetupMock,
   }));
 
+  if (handleRagequitCommand) {
+    return;
+  }
+
   ({ handleRagequitCommand } = await import(
-    `../../src/commands/ragequit.ts?bust=${ragequitImportCounter++}`
+    "../../src/commands/ragequit.ts"
   ));
 }
 

@@ -197,6 +197,21 @@ describe("broadcast command handler", () => {
     }
   });
 
+  test("rejects missing broadcast input paths before reading", async () => {
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleBroadcastCommand(
+        "/definitely/missing-envelope.json",
+        {},
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(broadcastEnvelopeMock).not.toHaveBeenCalled();
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_BROADCAST_INPUT_NOT_FOUND");
+    expect(exitCode).toBe(2);
+  });
+
   test("forwards --validate-only to the broadcast service", async () => {
     const dir = createTrackedTempDir("pp-broadcast-handler-validate-");
     try {
@@ -243,6 +258,89 @@ describe("broadcast command handler", () => {
         noWait: false,
       });
     } finally {
+      cleanupTrackedTempDir(dir);
+    }
+  });
+
+  test("creates a submission record for --no-wait broadcasts", async () => {
+    const dir = createTrackedTempDir("pp-broadcast-handler-nowait-");
+    const previousHome = process.env.PRIVACY_POOLS_HOME;
+    process.env.PRIVACY_POOLS_HOME = dir;
+    broadcastEnvelopeMock.mockImplementationOnce(async () => ({
+      mode: "broadcast" as const,
+      broadcastMode: "onchain" as const,
+      sourceOperation: "deposit" as const,
+      chain: "mainnet",
+      submittedBy: "0x1111111111111111111111111111111111111111",
+      transactions: [
+        {
+          index: 0,
+          description: "Deposit ETH into Privacy Pool",
+          txHash: "0x" + "cd".repeat(32),
+          blockNumber: null,
+          explorerUrl: null,
+          status: "submitted" as const,
+        },
+      ],
+      localStateUpdated: false as const,
+    }));
+
+    try {
+      const file = join(dir, "envelope.json");
+      writeFileSync(
+        file,
+        JSON.stringify({
+          schemaVersion: JSON_SCHEMA_VERSION,
+          success: true,
+          mode: "unsigned",
+          operation: "deposit",
+          chain: "mainnet",
+          asset: "ETH",
+          amount: "1",
+          precommitment: "42",
+          warnings: [],
+          transactions: [
+            {
+              chainId: 1,
+              from: null,
+              to: "0x1111111111111111111111111111111111111111",
+              value: "1",
+              data: "0x1234",
+              description: "Deposit ETH into Privacy Pool",
+            },
+          ],
+          signedTransactions: ["0x02"],
+        }),
+      );
+
+      const { json } = await captureAsyncJsonOutput(() =>
+        handleBroadcastCommand(
+          file,
+          { noWait: true },
+          fakeCommand({ json: true }),
+        ),
+      );
+
+      expect(json.success).toBe(true);
+      expect(json.submissionId).toEqual(expect.any(String));
+      expect(json.nextActions).toContainEqual(
+        expect.objectContaining({
+          command: "tx-status",
+          when: "after_submit",
+        }),
+      );
+      expect(broadcastEnvelopeMock.mock.calls[0]?.[1]).toEqual({
+        rpcOverride: undefined,
+        expectedChain: undefined,
+        validateOnly: false,
+        noWait: true,
+      });
+    } finally {
+      if (previousHome === undefined) {
+        delete process.env.PRIVACY_POOLS_HOME;
+      } else {
+        process.env.PRIVACY_POOLS_HOME = previousHome;
+      }
       cleanupTrackedTempDir(dir);
     }
   });

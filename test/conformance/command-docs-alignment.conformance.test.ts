@@ -78,7 +78,7 @@ describe("command docs alignment", () => {
 
     for (const expectation of expectations) {
       const marker = getCommandMetadata(expectation.path).agentsDocMarker;
-      expect(marker).toBeDefined();
+      expect(typeof marker).toBe("string");
       const section = extractDocumentSection(AGENTS, marker!, AGENT_MARKERS);
 
       for (const field of expectation.markers) {
@@ -90,7 +90,7 @@ describe("command docs alignment", () => {
   test("AGENTS accounts variants keep executable nextActions guidance", () => {
     const metadata = getCommandMetadata("accounts");
     const marker = metadata.agentsDocMarker;
-    expect(marker).toBeDefined();
+    expect(typeof marker).toBe("string");
 
     const section = extractDocumentSection(AGENTS, marker!, AGENT_MARKERS);
     const jsonVariants = metadata.help?.jsonVariants ?? [];
@@ -101,8 +101,6 @@ describe("command docs alignment", () => {
       variant.startsWith("--pending-only:"),
     );
 
-    expect(summaryVariant).toBeDefined();
-    expect(pendingOnlyVariant).toBeDefined();
     expect(section).toContain(formatJsonVariantDocLine(summaryVariant!));
     expect(section).toContain(formatJsonVariantDocLine(pendingOnlyVariant!));
   });

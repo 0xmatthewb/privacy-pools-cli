@@ -58,7 +58,7 @@ describe("chain config anchors", () => {
 
     for (const [name, exp] of Object.entries(expected)) {
       const chain = CHAINS[name];
-      expect(chain).toBeDefined();
+      expect(chain).toEqual(expect.anything());
       expect(chain.id).toBe(exp.id);
       expect(chain.entrypoint.toLowerCase()).toBe(exp.entrypoint);
       expect(chain.startBlock.toString()).toBe(exp.startBlock);

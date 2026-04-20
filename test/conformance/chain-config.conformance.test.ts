@@ -4,6 +4,7 @@
  * and validates that all CLI chain configs are structurally sound.
  *
  * @frontend-parity
+ * @online
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

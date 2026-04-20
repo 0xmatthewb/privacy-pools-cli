@@ -123,9 +123,8 @@ describe("exit-code matrix", () => {
       error?: { category?: string; code?: string; message?: string };
     }>(result.stdout);
     expect(json.success).toBe(false);
-    expect(json.error).toBeDefined();
     expect(typeof json.error?.category).toBe("string");
-    expect(typeof json.error?.code).toBe("string");
+    expect(json.error?.code).toBe("ASP_ERROR");
     expect(typeof json.error?.message).toBe("string");
   }, 10_000);
 

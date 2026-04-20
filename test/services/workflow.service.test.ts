@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 import {
   alignSnapshotToPoolAccount,
   buildFlowLastError,
@@ -39,14 +39,16 @@ import {
 } from "../../src/services/workflow-storage-version.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const VALID_WORKFLOW_PRIVATE_KEY =
   "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const VALID_WORKFLOW_ADDRESS =
   "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+const worlds: TestWorld[] = [];
 
-function isolatedHome(): string {
-  const home = createTrackedTempDir("pp-workflow-service-test-");
+function useIsolatedHome(): string {
+  const world = createTestWorld({ prefix: "pp-workflow-service-test-" });
+  worlds.push(world);
+  const home = world.useConfigHome();
   mkdirSync(join(home, "workflows"), { recursive: true });
   return home;
 }
@@ -121,18 +123,15 @@ function samplePoolAccount(
 }
 
 describe("workflow service", () => {
-  afterEach(() => {
-    if (ORIGINAL_HOME === undefined) {
-      delete process.env.PRIVACY_POOLS_HOME;
-    } else {
-      process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+  afterEach(async () => {
+    while (worlds.length > 0) {
+      const world = worlds.pop();
+      await world?.teardown();
     }
-    cleanupTrackedTempDirs();
   });
 
   test("resolveLatestWorkflowId returns the most recently updated workflow", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     writeWorkflow(
       home,
@@ -147,8 +146,7 @@ describe("workflow service", () => {
   });
 
   test("resolveLatestWorkflowId ignores corrupt workflow files that are definitely older than the latest readable snapshot", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     writeWorkflow(
       home,
@@ -170,8 +168,7 @@ describe("workflow service", () => {
   });
 
   test("resolveLatestWorkflowId fails closed when a newer unreadable workflow exists", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     writeWorkflow(
       home,
@@ -191,8 +188,7 @@ describe("workflow service", () => {
   });
 
   test("getWorkflowStatus defaults to latest", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     writeWorkflow(
       home,
@@ -214,8 +210,7 @@ describe("workflow service", () => {
   });
 
   test("getWorkflowStatus accepts explicit latest", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     writeWorkflow(
       home,
@@ -236,8 +231,7 @@ describe("workflow service", () => {
   });
 
   test("loadWorkflowSnapshot throws INPUT CLIError for corrupt files", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     writeFileSync(join(home, "workflows", "broken.json"), "{not valid json", "utf-8");
 
     try {
@@ -252,8 +246,7 @@ describe("workflow service", () => {
   });
 
   test("resolveLatestWorkflowId throws INPUT CLIError when no workflows exist", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     try {
       resolveLatestWorkflowId();
@@ -267,8 +260,7 @@ describe("workflow service", () => {
   });
 
   test("resolveLatestWorkflowId throws a targeted error when all workflow files are corrupt", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     writeFileSync(join(home, "workflows", "broken.json"), "{not valid json", "utf-8");
 
     try {
@@ -283,8 +275,7 @@ describe("workflow service", () => {
   });
 
   test("loadWorkflowSnapshot normalizes legacy workflows to configured wallet defaults", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     writeWorkflow(home, sampleWorkflow("legacy"));
 
@@ -298,8 +289,7 @@ describe("workflow service", () => {
   });
 
   test("loadWorkflowSnapshot accepts legacy workflow schema versions", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     writeWorkflow(
       home,
@@ -311,8 +301,7 @@ describe("workflow service", () => {
   });
 
   test("loadWorkflowSnapshot rejects unsupported workflow schema versions", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     writeWorkflow(
       home,
@@ -452,8 +441,7 @@ describe("workflow service", () => {
   });
 
   test("validateWorkflowWalletBackupPath accepts new files and rejects invalid targets", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const missingParent = join(home, "missing", "wallet.txt");
     expect(() => validateWorkflowWalletBackupPath("   ")).toThrow(
@@ -480,8 +468,7 @@ describe("workflow service", () => {
   });
 
   test("writePrivateTextFile persists content and wraps filesystem failures", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const targetPath = join(home, "backup.txt");
     writePrivateTextFile(targetPath, "secret backup");
@@ -492,8 +479,7 @@ describe("workflow service", () => {
   });
 
   test("workflow secret records round-trip and render backup text", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const saved = saveWorkflowSecretRecord({
       schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
@@ -513,8 +499,7 @@ describe("workflow service", () => {
   });
 
   test("loadWorkflowSecretRecord rejects unreadable, unsupported, mismatched, and tampered secrets", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     const secretsDir = join(home, "workflow-secrets");
     mkdirSync(secretsDir, { recursive: true });
 
@@ -574,8 +559,7 @@ describe("workflow service", () => {
   });
 
   test("loadWorkflowSecretRecord rejects missing, structurally invalid, and broken private keys", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     const secretsDir = join(home, "workflow-secrets");
     mkdirSync(secretsDir, { recursive: true });
 
@@ -624,8 +608,7 @@ describe("workflow service", () => {
   });
 
   test("saveWorkflowSnapshotIfChanged persists only changed workflow state", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     const original = saveWorkflowSnapshot(sampleWorkflow("wf-save"));
 
     const sameState = saveWorkflowSnapshotIfChanged(original, {
@@ -645,8 +628,7 @@ describe("workflow service", () => {
   });
 
   test("cleanupTerminalWorkflowSecret removes saved secrets only for terminal new-wallet flows", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     saveWorkflowSecretRecord({
       schemaVersion: WORKFLOW_SECRET_RECORD_VERSION,
       workflowId: "wf-cleanup",
@@ -679,8 +661,7 @@ describe("workflow service", () => {
   });
 
   test("loadWorkflowSnapshot rejects missing workflows and invalid object structure", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     expect(() => loadWorkflowSnapshot("wf-missing")).toThrow("Unknown workflow");
 

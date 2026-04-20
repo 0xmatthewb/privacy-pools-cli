@@ -373,6 +373,6 @@ describe("completion query helpers", () => {
     expect(STATIC_COMPLETION_SPEC.name).toBe("privacy-pools");
     expect(
       STATIC_COMPLETION_SPEC.subcommands?.find((subcommand) => subcommand.name === "flow"),
-    ).toBeDefined();
+    ).toEqual(expect.anything());
   });
 });

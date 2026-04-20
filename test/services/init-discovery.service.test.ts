@@ -163,6 +163,55 @@ describe("init discovery service", () => {
     });
   });
 
+  test("passes rpc overrides only to the selected chain and returns no_deposits on clean scans", async () => {
+    const calls: Array<{
+      chain: string;
+      rpcOverride: string | undefined;
+      kind: "registry" | "data";
+    }> = [];
+
+    listKnownPoolsFromRegistryMock.mockImplementation(async (chain, rpcOverride) => {
+      calls.push({ chain: chain.name, rpcOverride, kind: "registry" });
+      return [
+        {
+          pool: "0x" + "33".repeat(20),
+          scope: 3n,
+          deploymentBlock: undefined,
+        },
+      ];
+    });
+    getDataServiceMock.mockImplementation(async (chain, _pool, rpcOverride) => {
+      calls.push({ chain: chain.name, rpcOverride, kind: "data" });
+      return { kind: "data-service" };
+    });
+
+    const result = await discoverLoadedAccounts(
+      "test test test test test test test test test test test junk",
+      {
+        defaultChain: "mainnet",
+        rpcUrl: "https://rpc.example",
+      },
+    );
+
+    expect(result).toEqual({
+      status: "no_deposits",
+      chainsChecked: getDefaultReadOnlyChains().map((chain) => chain.name),
+    });
+    expect(calls.filter((call) => call.chain === "mainnet")).toEqual([
+      { chain: "mainnet", rpcOverride: "https://rpc.example", kind: "registry" },
+      { chain: "mainnet", rpcOverride: "https://rpc.example", kind: "data" },
+    ]);
+    expect(
+      calls.filter((call) => call.chain !== "mainnet").every((call) => call.rpcOverride === undefined),
+    ).toBe(true);
+    expect(toPoolInfoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chainId: CHAINS.mainnet.id,
+        deploymentBlock: CHAINS.mainnet.startBlock,
+      }),
+    );
+  });
+
   test("surfaces website-action-required discovery while preserving any found chains", async () => {
     accountHasDepositsMock.mockImplementation(
       (chainId: number) => chainId === CHAINS.mainnet.id,
@@ -192,6 +241,37 @@ describe("init discovery service", () => {
       status: "legacy_website_action_required",
       chainsChecked: getDefaultReadOnlyChains().map((chain) => chain.name),
       foundAccountChains: ["mainnet"],
+    });
+  });
+
+  test("legacy website-action requirements outrank degraded chains even without deposits", async () => {
+    initializeAccountServiceWithStateMock.mockImplementation(
+      async (_dataService, _mnemonic, _pools, chainId: number) => {
+        if (chainId === CHAINS.mainnet.id) {
+          throw new CLIError(
+            "website recovery required",
+            "INPUT",
+            "Use the website first.",
+            "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
+          );
+        }
+        if (chainId === CHAINS.arbitrum.id) {
+          throw new Error("rpc unavailable");
+        }
+        return {};
+      },
+    );
+
+    const result = await discoverLoadedAccounts(
+      "test test test test test test test test test test test junk",
+      {
+        defaultChain: "mainnet",
+      },
+    );
+
+    expect(result).toEqual({
+      status: "legacy_website_action_required",
+      chainsChecked: getDefaultReadOnlyChains().map((chain) => chain.name),
     });
   });
 });

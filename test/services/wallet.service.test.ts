@@ -113,7 +113,6 @@ describe("wallet service", () => {
     test("returns object with masterNullifier and masterSecret fields", () => {
       const mnemonic = "test test test test test test test test test test test junk";
       const keys = getMasterKeys(mnemonic);
-      expect(keys).toBeDefined();
       expect(keys).toHaveProperty("masterNullifier");
       expect(keys).toHaveProperty("masterSecret");
     });

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { z } from "zod";
 import {
   annotateArgs,
   extractTagArgs,
@@ -21,6 +22,15 @@ const TEST_FILE = "./test/unit/mode.timeout.unit.test.ts";
 const ISOLATED_PROOFS_TEST = "./test/services/proofs.service.test.ts";
 const ISOLATED_WORKFLOW_INTERNAL_TEST =
   "./test/services/workflow.internal.service.test.ts";
+const isolatedSuiteSchema = z.object({
+  label: z.string().min(1),
+  reason: z.string().trim().min(1),
+  tests: z.array(z.string().min(1)).nonempty(),
+});
+const coverageSuiteSchema = isolatedSuiteSchema.extend({
+  budgetMs: z.number().int().nullable(),
+  tags: z.array(z.string().min(1)).nonempty(),
+});
 
 describe("test runner arg helpers", () => {
   test("hasExplicitTimeoutArg detects inline and split timeout flags", () => {
@@ -186,11 +196,7 @@ describe("test runner arg helpers", () => {
   test("remaining isolated suites document a concrete isolation reason", () => {
     expect(DEFAULT_TEST_ISOLATED_SUITES.length).toBeGreaterThan(0);
     for (const suite of DEFAULT_TEST_ISOLATED_SUITES) {
-      expect(typeof suite.label).toBe("string");
-      expect(suite.label.trim().length).toBeGreaterThan(0);
-      expect(typeof suite.reason).toBe("string");
-      expect(suite.reason?.trim().length).toBeGreaterThan(0);
-      expect(suite.tests.length).toBeGreaterThan(0);
+      isolatedSuiteSchema.parse(suite);
     }
   });
 
@@ -204,9 +210,7 @@ describe("test runner arg helpers", () => {
       expect(coverageLabels).toContain(label);
     }
     for (const suite of COVERAGE_ISOLATED_SUITES) {
-      expect(typeof suite.reason).toBe("string");
-      expect(suite.reason.trim().length).toBeGreaterThan(0);
-      expect(suite.tests.length).toBeGreaterThan(0);
+      coverageSuiteSchema.parse(suite);
     }
   });
 });

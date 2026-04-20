@@ -42,6 +42,7 @@ const realWalletService = captureModuleExports(
 const realPreviewRuntime = captureModuleExports(
   await import("../../src/preview/runtime.ts"),
 );
+const realWeb = captureModuleExports(await import("../../src/utils/web.ts"));
 const realPromptCancellation = captureModuleExports(
   await import("../../src/utils/prompt-cancellation.ts"),
 );
@@ -68,6 +69,7 @@ const FLOW_MODULE_RESTORES = [
   ["../../src/utils/mode.ts", realMode],
   ["../../src/utils/errors.ts", realErrors],
   ["../../src/preview/runtime.ts", realPreviewRuntime],
+  ["../../src/utils/web.ts", realWeb],
   ["../../src/utils/prompt-cancellation.ts", realPromptCancellation],
   ["../../src/utils/prompts.ts", realPromptUtils],
   ["../../src/utils/setup-recovery.ts", realSetupRecovery],
@@ -154,6 +156,7 @@ const maybeRenderPreviewScenarioMock = mock(async () => false);
 const maybeRecoverMissingWalletSetupMock = mock(async () => false);
 const confirmActionWithSeverityMock = mock(async () => true);
 const ensurePromptInteractionAvailableMock = mock(() => undefined);
+const maybeLaunchBrowserMock = mock(() => undefined);
 
 let handleFlowRootCommand: typeof import("../../src/commands/flow.ts").handleFlowRootCommand;
 let handleFlowStartCommand: typeof import("../../src/commands/flow.ts").handleFlowStartCommand;
@@ -220,6 +223,10 @@ async function loadFlowHandlers(): Promise<void> {
       ...realPreviewRuntime,
       maybeRenderPreviewScenario: maybeRenderPreviewScenarioMock,
     })],
+    ["../../src/utils/web.ts", () => ({
+      ...realWeb,
+      maybeLaunchBrowser: maybeLaunchBrowserMock,
+    })],
     ["../../src/utils/prompt-cancellation.ts", () => ({
       ...realPromptCancellation,
       ensurePromptInteractionAvailable: ensurePromptInteractionAvailableMock,
@@ -240,7 +247,18 @@ async function loadFlowHandlers(): Promise<void> {
     })],
   ]);
 
-  const flowModule = await import("../../src/commands/flow.ts?flow-handler-unit-tests");
+  if (
+    handleFlowRootCommand &&
+    handleFlowStartCommand &&
+    handleFlowWatchCommand &&
+    handleFlowStatusCommand &&
+    handleFlowStepCommand &&
+    handleFlowRagequitCommand
+  ) {
+    return;
+  }
+
+  const flowModule = await import("../../src/commands/flow.ts");
   ({
     handleFlowRootCommand,
     handleFlowStartCommand,
@@ -334,6 +352,7 @@ describe("flow command handlers", () => {
     clearMockCalls(maybeRecoverMissingWalletSetupMock);
     clearMockCalls(confirmActionWithSeverityMock);
     clearMockCalls(ensurePromptInteractionAvailableMock);
+    clearMockCalls(maybeLaunchBrowserMock);
 
     formatFlowRagequitReviewMock.mockImplementation(() => "review");
     createOutputContextMock.mockImplementation(() => ctx);
@@ -387,6 +406,7 @@ describe("flow command handlers", () => {
     maybeRecoverMissingWalletSetupMock.mockImplementation(async () => false);
     confirmActionWithSeverityMock.mockImplementation(async () => true);
     ensurePromptInteractionAvailableMock.mockImplementation(() => undefined);
+    maybeLaunchBrowserMock.mockImplementation(() => undefined);
 
     await loadFlowHandlers();
   });
@@ -467,6 +487,28 @@ describe("flow command handlers", () => {
     expect(ragequitWorkflowMock).toHaveBeenCalledWith(
       expect.objectContaining({ workflowId: "latest" }),
     );
+  });
+
+  test("root command can choose another saved workflow and route the selected action", async () => {
+    listSavedWorkflowIdsMock.mockImplementationOnce(() => ["wf-latest", "wf-2"]);
+    selectPromptMock
+      .mockImplementationOnce(async () => "choose_saved")
+      .mockImplementationOnce(async () => "wf-2")
+      .mockImplementationOnce(async () => "status");
+    getWorkflowStatusMock.mockImplementationOnce(() => ({
+      ...statusSnapshot,
+      workflowId: "wf-2",
+    }));
+
+    await handleFlowRootCommand({}, fakeCommand({}));
+
+    expect(getWorkflowStatusMock).toHaveBeenCalledWith(
+      expect.objectContaining({ workflowId: "wf-2" }),
+    );
+    expect(renderFlowResultMock).toHaveBeenCalledWith(ctx, {
+      action: "status",
+      snapshot: expect.objectContaining({ workflowId: "wf-2" }),
+    });
   });
 
   test("root command treats prompt cancellation as a clean human stop", async () => {
@@ -842,6 +884,75 @@ describe("flow command handlers", () => {
     );
   });
 
+  test("start dry-run fails closed when the amount is below the pool minimum", async () => {
+    const cmd = fakeCommand({ agent: true, chain: "sepolia" });
+
+    await handleFlowStartCommand(
+      "0.00001",
+      "ETH",
+      {
+        to: "0x4444444444444444444444444444444444444444",
+        newWallet: true,
+        exportNewWallet: "/tmp/flow-wallet.txt",
+        dryRun: true,
+      },
+      cmd,
+    );
+
+    expect(renderFlowStartDryRunMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error] = printErrorMock.mock.calls[0] ?? [];
+    expect((error as InstanceType<typeof realErrors.CLIError>).message).toContain(
+      "below the minimum",
+    );
+  });
+
+  test("start dry-run rejects non-round amounts in machine mode and warns humans when privacy delay is off", async () => {
+    const agentCmd = fakeCommand({ agent: true, chain: "sepolia" });
+
+    await handleFlowStartCommand(
+      "0.123456789123456789",
+      "ETH",
+      {
+        to: "0x4444444444444444444444444444444444444444",
+        newWallet: true,
+        exportNewWallet: "/tmp/flow-wallet.txt",
+        dryRun: true,
+      },
+      agentCmd,
+    );
+
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [agentError] = printErrorMock.mock.calls[0] ?? [];
+    expect((agentError as InstanceType<typeof realErrors.CLIError>).code).toBe(
+      "INPUT_NONROUND_AMOUNT",
+    );
+
+    clearMockCalls(printErrorMock);
+    await handleFlowStartCommand(
+      "0.123456789123456789",
+      "ETH",
+      {
+        to: "0x4444444444444444444444444444444444444444",
+        newWallet: true,
+        exportNewWallet: "/tmp/flow-wallet.txt",
+        dryRun: true,
+        privacyDelay: "off",
+      },
+      fakeCommand({ chain: "sepolia" }),
+    );
+
+    expect(renderFlowStartDryRunMock).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        warnings: expect.arrayContaining([
+          expect.objectContaining({ code: "amount_pattern_linkability" }),
+          expect.objectContaining({ code: "timing_delay_disabled" }),
+        ]),
+      }),
+    );
+  });
+
   test("start rejects --watch in agent mode with structured nextActions", async () => {
     const cmd = fakeCommand({ agent: true });
 
@@ -936,6 +1047,26 @@ describe("flow command handlers", () => {
     expect(printErrorMock).not.toHaveBeenCalled();
   });
 
+  test("start opens the browser when the resulting snapshot exposes an explorer target", async () => {
+    startWorkflowMock.mockImplementationOnce(async () => ({
+      ...startSnapshot,
+      depositExplorerUrl: "https://explorer/deposit",
+    }));
+
+    await handleFlowStartCommand(
+      "0.1",
+      "ETH",
+      { to: "0x4444444444444444444444444444444444444444" },
+      fakeCommand({ json: true }),
+    );
+    expect(maybeLaunchBrowserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://explorer/deposit",
+        label: "flow deposit transaction",
+      }),
+    );
+  });
+
   test("start swallows preview-rendered errors without printing failures", async () => {
     startWorkflowMock.mockImplementationOnce(async () => {
       throw new realPreviewRuntime.PreviewScenarioRenderedError();
@@ -979,6 +1110,15 @@ describe("flow command handlers", () => {
       action: "watch",
       snapshot: finalSnapshot,
     });
+  });
+
+  test("watch returns early when preview output is rendered before any work begins", async () => {
+    maybeRenderPreviewScenarioMock.mockImplementationOnce(async () => true);
+
+    await handleFlowWatchCommand("wf-watch", {}, fakeCommand({}));
+
+    expect(getWorkflowStatusMock).not.toHaveBeenCalled();
+    expect(stepWorkflowMock).not.toHaveBeenCalled();
   });
 
   test("watch rejects agent mode with status and step guidance", async () => {
@@ -1219,6 +1359,26 @@ describe("flow command handlers", () => {
     expect(printErrorMock).toHaveBeenCalledWith(blocked, true);
   });
 
+  test("watch opens the browser when the final snapshot exposes an explorer url", async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => ({
+      ...watchLoopStartSnapshot,
+      workflowId: "wf-watch",
+    }));
+    stepWorkflowMock.mockImplementationOnce(async () => ({
+      ...watchSnapshot,
+      withdrawExplorerUrl: "https://explorer/withdraw",
+    }));
+
+    await handleFlowWatchCommand("wf-watch", {}, fakeCommand({}));
+
+    expect(maybeLaunchBrowserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://explorer/withdraw",
+        label: "flow withdrawal transaction",
+      }),
+    );
+  });
+
   test("status loads the snapshot and renders the status action", async () => {
     const cmd = fakeCommand({ quiet: true });
 
@@ -1229,6 +1389,22 @@ describe("flow command handlers", () => {
       action: "status",
       snapshot: statusSnapshot,
     });
+  });
+
+  test("status opens the browser when the snapshot carries an explorer target", async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => ({
+      ...statusSnapshot,
+      depositExplorerUrl: "https://explorer/deposit",
+    }));
+
+    await handleFlowStatusCommand("wf-status", undefined, fakeCommand({}));
+
+    expect(maybeLaunchBrowserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://explorer/deposit",
+        label: "flow deposit transaction",
+      }),
+    );
   });
 
   test("status forwards lookup failures through printError", async () => {
@@ -1263,6 +1439,22 @@ describe("flow command handlers", () => {
     });
   });
 
+  test("step opens the browser when the stepped snapshot carries an explorer target", async () => {
+    stepWorkflowMock.mockImplementationOnce(async () => ({
+      ...watchSnapshot,
+      withdrawExplorerUrl: "https://explorer/withdraw",
+    }));
+
+    await handleFlowStepCommand("wf-step", undefined, fakeCommand({}));
+
+    expect(maybeLaunchBrowserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://explorer/withdraw",
+        label: "flow withdrawal transaction",
+      }),
+    );
+  });
+
   test("step forwards failures through printError", async () => {
     const boom = new Error("step exploded");
     stepWorkflowMock.mockImplementationOnce(async () => {
@@ -1292,6 +1484,27 @@ describe("flow command handlers", () => {
       action: "ragequit",
       snapshot: ragequitSnapshot,
     });
+  });
+
+  test("ragequit requires an explicit override once a workflow is approved and offers private-path nextActions", async () => {
+    getWorkflowStatusMock.mockImplementationOnce(() => ({
+      ...statusSnapshot,
+      workflowId: "wf-approved",
+      aspStatus: "approved",
+      poolAccountId: "PA-7",
+    }));
+
+    await handleFlowRagequitCommand("wf-approved", undefined, fakeCommand({ json: true }));
+
+    expect(ragequitWorkflowMock).not.toHaveBeenCalled();
+    expect(printErrorMock).toHaveBeenCalledTimes(1);
+    const [error] = printErrorMock.mock.calls[0] ?? [];
+    expect((error as InstanceType<typeof realErrors.CLIError>).code).toBe(
+      "INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE",
+    );
+    expect(
+      (error as InstanceType<typeof realErrors.CLIError>).extra?.nextActions,
+    ).toHaveLength(3);
   });
 
   test("ragequit returns early when preview output is rendered before review", async () => {
@@ -1388,6 +1601,26 @@ describe("flow command handlers", () => {
     expect(infoMock).toHaveBeenCalledWith(
       realPromptCancellation.PROMPT_CANCELLATION_MESSAGE,
       false,
+    );
+  });
+
+  test("ragequit opens the browser when the recovery result exposes an explorer url", async () => {
+    ragequitWorkflowMock.mockImplementationOnce(async () => ({
+      ...ragequitSnapshot,
+      ragequitExplorerUrl: "https://explorer/ragequit",
+    }));
+
+    await handleFlowRagequitCommand(
+      "wf-ragequit",
+      { confirmRagequit: true },
+      fakeCommand({}),
+    );
+
+    expect(maybeLaunchBrowserMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://explorer/ragequit",
+        label: "flow ragequit transaction",
+      }),
     );
   });
 });

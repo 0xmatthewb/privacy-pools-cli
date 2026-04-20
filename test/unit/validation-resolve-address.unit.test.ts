@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { CLIError } from "../../src/utils/errors.ts";
+import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
 
 let importCounter = 0;
+const realViem = captureModuleExports(await import("viem"));
+const realViemChains = captureModuleExports(await import("viem/chains"));
+const realViemEns = captureModuleExports(await import("viem/ens"));
 
 async function importValidationModule() {
   importCounter += 1;
@@ -9,7 +16,11 @@ async function importValidationModule() {
 }
 
 afterEach(() => {
-  mock.restore();
+  restoreModuleImplementations([
+    ["viem", realViem],
+    ["viem/chains", realViemChains],
+    ["viem/ens", realViemEns],
+  ]);
 });
 
 describe("resolveAddressOrEns", () => {
@@ -27,7 +38,6 @@ describe("resolveAddressOrEns", () => {
   });
 
   test("resolves ENS names through the mainnet client", async () => {
-    const realViem = await import("viem");
     const createPublicClientMock = mock(() => ({
       getEnsAddress: async ({ name }: { name: string }) => {
         expect(name).toBe("normalized:alice.eth");
@@ -64,8 +74,6 @@ describe("resolveAddressOrEns", () => {
   });
 
   test("fails cleanly when an ENS name cannot be resolved", async () => {
-    const realViem = await import("viem");
-
     mock.module("viem", () => ({
       ...realViem,
       createPublicClient: () => ({

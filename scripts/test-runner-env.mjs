@@ -1,19 +1,7 @@
-const STRIPPED_PREFIXES = ["PRIVACY_POOLS_", "PP_"];
-const ALLOWED_EXACT_KEYS = new Set([
-  "PP_FLAKE_SEED",
-  "PP_KEEP_COVERAGE_ROOT",
-  "PP_TEST_BUILT_WORKSPACE_SNAPSHOT",
-  "PP_TEST_MAIN_CONCURRENCY",
-  "PP_TEST_RUN_ID",
-]);
-const ALLOWED_PREFIXES = ["PP_ANVIL_"];
-
-function isAllowedRunnerKey(key) {
-  return (
-    ALLOWED_EXACT_KEYS.has(key) ||
-    ALLOWED_PREFIXES.some((prefix) => key.startsWith(prefix))
-  );
-}
+import {
+  isAllowedRunnerEnvKey,
+  RUNNER_ENV_STRIPPED_PREFIXES,
+} from "./lib/env-allowlist.mjs";
 
 export function buildTestRunnerEnv(
   overrides = {},
@@ -23,10 +11,10 @@ export function buildTestRunnerEnv(
 
   for (const [key, value] of Object.entries(baseEnv)) {
     if (value === undefined) continue;
-    const isStrippedPrefix = STRIPPED_PREFIXES.some((prefix) =>
+    const isStrippedPrefix = RUNNER_ENV_STRIPPED_PREFIXES.some((prefix) =>
       key.startsWith(prefix),
     );
-    if (isStrippedPrefix && !isAllowedRunnerKey(key)) continue;
+    if (isStrippedPrefix && !isAllowedRunnerEnvKey(key)) continue;
     env[key] = value;
   }
 

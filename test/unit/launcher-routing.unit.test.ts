@@ -153,7 +153,7 @@ describe("launcher routing", () => {
     expect(target.kind).toBe("native-binary");
     expect(target.command).toBe("/tmp/privacy-pools-native");
     expect(target.args).toEqual(["flow", "--help"]);
-    expect(target.env[NATIVE_JS_BRIDGE_ENV]).toBeTruthy();
+    expect(typeof target.env[NATIVE_JS_BRIDGE_ENV]).toBe("string");
     const bridge = decodeNativeJsBridgeDescriptor(
       String(target.env[NATIVE_JS_BRIDGE_ENV]),
     );
@@ -574,7 +574,7 @@ describe("launcher routing", () => {
       expect(stderr).toBe("");
       expect(spawnMock).toHaveBeenCalledTimes(1);
       const [command, args] = spawnMock.mock.calls[0] as [string, string[]];
-      expect(command).toBeTruthy();
+      expect(typeof command).toBe("string");
       expect(args.at(-1)).toBe(workerPath);
     } finally {
       launcherTestInternals.resetSpawnImplementationForTests();

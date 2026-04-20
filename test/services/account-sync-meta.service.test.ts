@@ -11,29 +11,28 @@ import {
 } from "../../src/services/account.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import {
-  cleanupTrackedTempDirs,
-  createTrackedTempDir,
-} from "../helpers/temp.ts";
+  createTestWorld,
+  type TestWorld,
+} from "../helpers/test-world.ts";
 
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_INIT_WITH_EVENTS = AccountService.initializeWithEvents;
 const MNEMONIC = "test test test test test test test test test test test junk";
+const worlds: TestWorld[] = [];
 
 function useIsolatedHome(): string {
-  const home = createTrackedTempDir("pp-account-sync-meta-");
-  process.env.PRIVACY_POOLS_HOME = home;
+  const world = createTestWorld({ prefix: "pp-account-sync-meta-" });
+  worlds.push(world);
+  const home = world.useConfigHome();
   mkdirSync(join(home, "accounts"), { recursive: true });
   return home;
 }
 
-afterEach(() => {
+afterEach(async () => {
   AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
-  if (ORIGINAL_HOME === undefined) {
-    delete process.env.PRIVACY_POOLS_HOME;
-  } else {
-    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+  while (worlds.length > 0) {
+    const world = worlds.pop();
+    await world?.teardown();
   }
-  cleanupTrackedTempDirs();
 });
 
 describe("account sync metadata + event syncing", () => {

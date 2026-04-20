@@ -105,10 +105,8 @@ describe("native manifest conformance", () => {
     );
 
     expect(nativeAccountsJsonVariants).toEqual(jsAccountsJsonVariants);
-    expect(summaryVariant).toBeDefined();
     expect(summaryVariant).toContain("nextActions");
     expect(summaryVariant).toContain("cliCommand");
-    expect(pendingOnlyVariant).toBeDefined();
     expect(pendingOnlyVariant).toContain("nextActions");
     expect(pendingOnlyVariant).toContain("cliCommand");
   });

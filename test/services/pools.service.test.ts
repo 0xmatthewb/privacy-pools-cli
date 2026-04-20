@@ -264,7 +264,7 @@ describe("pools service", () => {
     const deploymentHint = lookupPoolDeploymentBlock(chainId, asset, pool);
     expect(pools).toHaveLength(1);
     expect(pools[0].symbol).toBe("USDC");
-    expect(deploymentHint).toBeDefined();
+    expect(typeof deploymentHint).toBe("bigint");
     expect(pools[0].deploymentBlock).toBe(deploymentHint);
   });
 
@@ -1055,7 +1055,7 @@ describe("pools service", () => {
       );
       expect(pool.pool.toLowerCase()).toBe(ethPool.toLowerCase());
       expect(pool.scope).toBe(scope);
-      expect(deploymentHint).toBeDefined();
+      expect(typeof deploymentHint).toBe("bigint");
       expect(pool.deploymentBlock).toBe(chainConfig.startBlock);
       expect(statsRequests).toBe(0);
     } finally {

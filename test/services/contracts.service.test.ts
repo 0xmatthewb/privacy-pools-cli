@@ -138,7 +138,7 @@ const chain = CHAINS.mainnet;
 
 function getCapturedCall(method: string) {
   const call = capturedCalls.find((entry) => entry.method === method);
-  expect(call).toBeDefined();
+  expect(call).toEqual(expect.objectContaining({ method }));
   return call!;
 }
 

@@ -54,8 +54,8 @@ describe("renderGlobalStats parity", () => {
     expect(json.mode).toBe("global-stats");
     expect(json.chain).toBe("sepolia");
     expect(json.cacheTimestamp).toBe("2025-01-01T00:00:00.000Z");
-    expect(json.allTime).toBeTruthy();
-    expect(json.last24h).toBeTruthy();
+    expect(json.allTime).toEqual(expect.any(Object));
+    expect(json.last24h).toEqual(expect.any(Object));
     expect(stderr).toBe("");
   });
 
@@ -126,7 +126,7 @@ describe("renderPoolStats parity", () => {
     expect(json.pool).toBe("0x1111111111111111111111111111111111111111");
     expect(json.scope).toBe("42");
     expect(json.cacheTimestamp).toBe("2025-01-01T00:00:00.000Z");
-    expect(json.allTime).toBeTruthy();
+    expect(json.allTime).toEqual(expect.any(Object));
     expect(json.last24h).toBeNull();
     expect(stderr).toBe("");
   });

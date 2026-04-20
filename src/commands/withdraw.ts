@@ -161,6 +161,30 @@ import {
   type PoolAccountRef,
 } from "../utils/pool-accounts.js";
 import { type AspApprovalStatus } from "../utils/statuses.js";
+import {
+  buildDirectRecipientMismatchNextActions as buildDirectRecipientMismatchNextActionsHelper,
+  buildRemainderBelowMinNextActions as buildRemainderBelowMinNextActionsHelper,
+  buildWithdrawQuoteWarnings as buildWithdrawQuoteWarningsHelper,
+  formatApprovalResolutionHint as formatApprovalResolutionHintHelper,
+  formatRelayedWithdrawalRemainderHint as formatRelayedWithdrawalRemainderHintHelper,
+  getRelayedWithdrawalRemainderAdvisory as getRelayedWithdrawalRemainderAdvisoryHelper,
+  getSuspiciousTestnetMinWithdrawFloor as getSuspiciousTestnetMinWithdrawFloorHelper,
+  normalizeRelayerQuoteExpirationMs as normalizeRelayerQuoteExpirationMsHelper,
+  refreshExpiredRelayerQuoteForWithdrawal as refreshExpiredRelayerQuoteForWithdrawalHelper,
+  relayerHostLabel as relayerHostLabelHelper,
+  validateRelayerQuoteForWithdrawal as validateRelayerQuoteForWithdrawalHelper,
+} from "./withdraw/quote.js";
+import {
+  collectKnownWithdrawalRecipients as collectKnownWithdrawalRecipientsHelper,
+  collectKnownWorkflowRecipients as collectKnownWorkflowRecipientsHelper,
+  confirmRecipientIfNew as confirmRecipientIfNewHelper,
+  rememberSuccessfulWithdrawalRecipient as rememberSuccessfulWithdrawalRecipientHelper,
+  validateRecipientAddressOrEnsInput as validateRecipientAddressOrEnsInputHelper,
+} from "./withdraw/recipients.js";
+import {
+  getEligibleUnapprovedStatuses as getEligibleUnapprovedStatusesHelper,
+  resolveRequestedWithdrawalPoolAccountOrThrow as resolveRequestedWithdrawalPoolAccountOrThrowHelper,
+} from "./withdraw/pool-accounts.js";
 
 const entrypointLatestRootAbi = [
   {
@@ -190,17 +214,12 @@ interface WithdrawCommandOptions {
   extraGas?: boolean;
 }
 
-function relayerHostLabel(relayerUrl: string | undefined): string | null {
-  if (!relayerUrl) return null;
-  try {
-    return new URL(relayerUrl).host;
-  } catch {
-    return relayerUrl;
-  }
+export function relayerHostLabel(relayerUrl: string | undefined): string | null {
+  return relayerHostLabelHelper(relayerUrl);
 }
 
 export function getSuspiciousTestnetMinWithdrawFloor(decimals: number): bigint {
-  return decimals >= 6 ? 10n ** BigInt(decimals - 6) : 1n;
+  return getSuspiciousTestnetMinWithdrawFloorHelper(decimals);
 }
 
 export function buildWithdrawQuoteWarnings(params: {
@@ -209,27 +228,10 @@ export function buildWithdrawQuoteWarnings(params: {
   minWithdrawAmount: bigint;
   decimals: number;
 }): WithdrawUiWarning[] {
-  if (!params.chainIsTestnet) {
-    return [];
-  }
-
-  const friendlyFloor = getSuspiciousTestnetMinWithdrawFloor(params.decimals);
-  if (params.minWithdrawAmount >= friendlyFloor) {
-    return [];
-  }
-
-  return [
-    {
-      code: "TESTNET_MIN_WITHDRAW_AMOUNT_UNUSUALLY_LOW",
-      category: "testnet",
-      message:
-        `This is a testnet quote. The relayer minimum is below ${formatAmount(friendlyFloor, params.decimals, params.assetSymbol)}, ` +
-        "so treat it as a testnet convenience rather than a production-like floor.",
-    },
-  ];
+  return buildWithdrawQuoteWarningsHelper(params);
 }
 
-async function fetchWithdrawalAnonymitySet(
+export async function fetchWithdrawalAnonymitySet(
   chainConfig: ChainConfig,
   pool: PoolStats,
   amount: bigint,
@@ -250,7 +252,7 @@ async function fetchWithdrawalAnonymitySet(
   }
 }
 
-function writeWithdrawalAnonymitySetHint(
+export function writeWithdrawalAnonymitySetHint(
   anonymitySet: WithdrawAnonymitySet | undefined,
   silent: boolean,
 ): void {
@@ -260,86 +262,17 @@ function writeWithdrawalAnonymitySetHint(
   process.stderr.write(formatAnonymitySetCallout(anonymitySet));
 }
 
-function buildDirectRecipientMismatchNextActions(params: {
+export function buildDirectRecipientMismatchNextActions(params: {
   amountInput: string;
   assetInput: string | null;
   chainName: string;
   recipientAddress: Address;
   signerAddress: Address;
 }): NextAction[] {
-  const actions: NextAction[] = [];
-  if (params.assetInput) {
-    actions.push(
-      createNextAction(
-        "withdraw",
-        "Use the default relayed mode to withdraw to a different recipient address.",
-        "after_dry_run",
-        {
-          args: [params.amountInput, params.assetInput],
-          options: {
-            agent: true,
-            chain: params.chainName,
-            to: params.recipientAddress,
-          },
-        },
-      ),
-    );
-    actions.push(
-      createNextAction(
-        "withdraw",
-        "Retry direct mode without --to to auto-fill the signer address.",
-        "after_dry_run",
-        {
-          args: [params.amountInput, params.assetInput],
-          options: {
-            agent: true,
-            chain: params.chainName,
-            direct: true,
-            confirmDirectWithdraw: true,
-          },
-        },
-      ),
-    );
-    return actions;
-  }
-
-  actions.push(
-    createNextAction(
-      "withdraw",
-      "Use the default relayed mode to withdraw to a different recipient address.",
-      "after_dry_run",
-      {
-        options: {
-          agent: true,
-          chain: params.chainName,
-          to: params.recipientAddress,
-        },
-        runnable: false,
-        parameters: [{ name: "asset", type: "asset", required: true }],
-      },
-    ),
-  );
-  actions.push(
-    createNextAction(
-      "withdraw",
-      "Retry direct mode without --to to auto-fill the signer address.",
-      "after_dry_run",
-      {
-        options: {
-          agent: true,
-          chain: params.chainName,
-          direct: true,
-          confirmDirectWithdraw: true,
-        },
-        runnable: false,
-        parameters: [{ name: "asset", type: "asset", required: true }],
-      },
-    ),
-  );
-  return actions;
+  return buildDirectRecipientMismatchNextActionsHelper(params);
 }
 
-function buildRemainderBelowMinNextActions(params: {
+export function buildRemainderBelowMinNextActions(params: {
   chainName: string;
   asset: string;
   decimals: number;
@@ -349,83 +282,7 @@ function buildRemainderBelowMinNextActions(params: {
   minWithdrawAmount: bigint;
   signerAddress: Address | null;
 }): NextAction[] {
-  const actions: NextAction[] = [
-    createNextAction(
-      "withdraw",
-      "Withdraw the full Pool Account balance so no stranded remainder is left behind.",
-      "after_quote",
-      {
-        args: [params.asset],
-        options: {
-          agent: true,
-          chain: params.chainName,
-          all: true,
-          to: params.recipient,
-          poolAccount: params.poolAccountId,
-        },
-      },
-    ),
-    createNextAction(
-      "ragequit",
-      "Use the public recovery path instead of leaving a remainder below the relayer minimum.",
-      "after_quote",
-      {
-        args: [params.asset],
-        options: {
-          agent: true,
-          chain: params.chainName,
-          poolAccount: params.poolAccountId,
-          confirmRagequit: true,
-        },
-      },
-    ),
-  ];
-
-  const maxSafeRelayedAmount = params.poolAccountValue - params.minWithdrawAmount;
-  if (maxSafeRelayedAmount >= params.minWithdrawAmount) {
-    actions.splice(
-      1,
-      0,
-      createNextAction(
-        "withdraw",
-        "Withdraw less so the remaining balance stays privately withdrawable.",
-        "after_quote",
-        {
-          args: [formatUnits(maxSafeRelayedAmount, params.decimals), params.asset],
-          options: {
-            agent: true,
-            chain: params.chainName,
-            to: params.recipient,
-            poolAccount: params.poolAccountId,
-          },
-        },
-      ),
-    );
-  }
-
-  if (
-    params.signerAddress &&
-    params.recipient.toLowerCase() === params.signerAddress.toLowerCase()
-  ) {
-    actions.push(
-      createNextAction(
-        "withdraw",
-        "Direct mode is also valid here because the recipient already matches the signer address.",
-        "after_quote",
-        {
-          args: [formatUnits(params.poolAccountValue, params.decimals), params.asset],
-          options: {
-            agent: true,
-            chain: params.chainName,
-            direct: true,
-            confirmDirectWithdraw: true,
-          },
-        },
-      ),
-    );
-  }
-
-  return actions;
+  return buildRemainderBelowMinNextActionsHelper(params);
 }
 
 interface WithdrawQuoteCommandOptions {
@@ -482,17 +339,8 @@ const MAX_WITHDRAW_CONFIRM_REVIEW_ATTEMPTS = 5;
 
 export { createWithdrawCommand } from "../command-shells/withdraw.js";
 
-function validateRecipientAddressOrEnsInput(value: string): true | string {
-  const trimmed = value.trim();
-  try {
-    assertSafeRecipientAddress(trimmed as `0x${string}`, "Recipient");
-    return true;
-  } catch (error) {
-    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(trimmed)) {
-      return true;
-    }
-    return error instanceof Error ? error.message : "Invalid address or ENS name.";
-  }
+export function validateRecipientAddressOrEnsInput(value: string): true | string {
+  return validateRecipientAddressOrEnsInputHelper(value);
 }
 
 async function promptRecipientAddressOrEns(
@@ -540,7 +388,7 @@ async function promptRecipientAddressOrEns(
   );
 }
 
-async function deriveNativeGasTokenPrice(
+export async function deriveNativeGasTokenPrice(
   chainConfig: ChainConfig,
   rpcUrl: string | undefined,
   selectedPool: PoolStats,
@@ -560,71 +408,36 @@ async function deriveNativeGasTokenPrice(
   }
 }
 
-async function confirmRecipientIfNew(params: {
+export async function confirmRecipientIfNew(params: {
   address: string;
   knownRecipients: readonly string[];
   skipPrompts: boolean;
   silent: boolean;
 }): Promise<RecipientSafetyWarning[]> {
-  if (isKnownRecipient(params.address, params.knownRecipients)) {
-    return [];
-  }
-
-  const warning = newRecipientWarning(params.address);
-  if (params.skipPrompts) {
-    return [warning];
-  }
-
-  warn(warning.message, params.silent);
-  ensurePromptInteractionAvailable();
-  const ok = await confirmActionWithSeverity({
-    severity: "standard",
-    standardMessage: "Use this new recipient?",
-    highStakesToken: CONFIRMATION_TOKENS.recipient,
-    highStakesWarning: "Recipient review changed while waiting for confirmation.",
-    confirm: confirmPrompt,
-  });
-  if (!ok) {
-    throw promptCancelledError();
-  }
-  return [];
-}
-
-function collectKnownWorkflowRecipients(): string[] {
-  const recipients: string[] = [];
-  for (const workflowId of listSavedWorkflowIds()) {
-    try {
-      const snapshot = getWorkflowStatus({ workflowId });
-      if (snapshot.recipient) recipients.push(snapshot.recipient);
-      if (snapshot.walletAddress) recipients.push(snapshot.walletAddress);
-    } catch {
-      // Ignore unreadable workflow files during transaction preflight. The
-      // dedicated flow commands report workflow state strictly when requested.
+  if (!isKnownRecipient(params.address, params.knownRecipients)) {
+    const warning = newRecipientWarning(params.address);
+    if (!params.skipPrompts) {
+      warn(warning.message, params.silent);
     }
   }
-  return recipients;
+  return await confirmRecipientIfNewHelper(params);
 }
 
-function collectKnownWithdrawalRecipients(
+export function collectKnownWorkflowRecipients(): string[] {
+  return collectKnownWorkflowRecipientsHelper();
+}
+
+export function collectKnownWithdrawalRecipients(
   signerAddress: Address | null,
 ): string[] {
-  return [
-    ...(signerAddress ? [signerAddress] : []),
-    ...loadKnownRecipientHistory(),
-    ...collectKnownWorkflowRecipients(),
-  ];
+  return collectKnownWithdrawalRecipientsHelper(signerAddress);
 }
 
-function rememberSuccessfulWithdrawalRecipient(address: string): void {
-  try {
-    rememberKnownRecipient(address);
-  } catch {
-    // Best effort only. The withdrawal result should not fail because the
-    // advisory recipient-history cache could not be updated.
-  }
+export function rememberSuccessfulWithdrawalRecipient(address: string): void {
+  rememberSuccessfulWithdrawalRecipientHelper(address);
 }
 
-async function withSuspendedSpinner<T>(
+export async function withSuspendedSpinner<T>(
   spin: ReturnType<typeof spinner>,
   task: () => Promise<T>,
 ): Promise<T> {
@@ -645,232 +458,48 @@ export function getEligibleUnapprovedStatuses(
   poolAccounts: readonly PoolAccountRef[],
   withdrawalAmount: bigint,
 ): WithdrawReviewStatus[] {
-  const statuses = new Set<WithdrawReviewStatus>();
-
-  for (const poolAccount of poolAccounts) {
-    if (poolAccount.value < withdrawalAmount) continue;
-    if (poolAccount.status === "approved") continue;
-    if (
-      poolAccount.status === "pending" ||
-      poolAccount.status === "poa_required" ||
-      poolAccount.status === "declined" ||
-      poolAccount.status === "unknown"
-    ) {
-      statuses.add(poolAccount.status);
-    }
-  }
-
-  return Array.from(statuses);
+  return getEligibleUnapprovedStatusesHelper(poolAccounts, withdrawalAmount);
 }
 
 export function formatApprovalResolutionHint(
   params: ApprovalResolutionHintParams,
 ): string {
-  const { chainName, assetSymbol, poolAccountId, status } = params;
-  const ragequitSelector = poolAccountId ?? "<PA-#>";
-  const ragequitCmd = `privacy-pools ragequit ${assetSymbol} --chain ${chainName} --pool-account ${ragequitSelector}`;
-
-  switch (status) {
-    case "pending":
-      return `ASP approval is required for both relayed and direct withdrawals. Run 'privacy-pools accounts --chain ${chainName}' to check aspStatus. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`;
-    case "poa_required":
-      return `This Pool Account needs Proof of Association before it can use withdraw. Complete the PoA flow at ${POA_PORTAL_URL}, then re-run 'privacy-pools accounts --chain ${chainName}' to confirm aspStatus. If you prefer a public recovery path instead, use '${ragequitCmd}'.`;
-    case "declined":
-      return `This Pool Account was declined by the ASP. Private withdraw, including --direct, is unavailable. Ragequit is available to publicly recover funds to the original deposit address: '${ragequitCmd}'.`;
-    default:
-      return `Run 'privacy-pools accounts --chain ${chainName}' to inspect aspStatus. Pending deposits need more time, POA-needed deposits need Proof of Association at ${POA_PORTAL_URL}, and declined deposits can be recovered publicly via ragequit: '${ragequitCmd}'.`;
-  }
+  return formatApprovalResolutionHintHelper(params);
 }
 
 export function getRelayedWithdrawalRemainderAdvisory(
   params: RelayedWithdrawalRemainderAdvisoryParams,
 ): RelayedWithdrawalRemainderGuidance | null {
-  const {
-    remainingBalance,
-    minWithdrawAmount,
-    poolAccountId,
-    assetSymbol,
-    decimals,
-    poolAccountValue,
-    chainName,
-    recipient,
-  } = params;
-  if (remainingBalance <= 0n || remainingBalance >= minWithdrawAmount) {
-    return null;
-  }
-
-  const chainArg = chainName ? ` --chain ${chainName}` : "";
-  const recipientArg = recipient ? ` --to ${recipient}` : " --to <address>";
-  const choices: string[] = [];
-  const maxSafeRelayedAmount = poolAccountValue !== undefined
-    ? poolAccountValue - minWithdrawAmount
-    : null;
-
-  if (
-    recipient &&
-    chainName &&
-    maxSafeRelayedAmount !== null &&
-    maxSafeRelayedAmount >= minWithdrawAmount
-  ) {
-    choices.push(
-      `Withdraw less: privacy-pools withdraw ${formatUnits(maxSafeRelayedAmount, decimals)} ${assetSymbol}${chainArg}${recipientArg} --pool-account ${poolAccountId}`,
-    );
-  } else if (
-    maxSafeRelayedAmount !== null &&
-    maxSafeRelayedAmount >= minWithdrawAmount
-  ) {
-    choices.push(
-      `Withdraw less and leave at least ${formatAmount(minWithdrawAmount, decimals, assetSymbol)} in ${poolAccountId}.`,
-    );
-  }
-
-  if (chainName && recipient) {
-    choices.push(
-      `Use max: privacy-pools withdraw --all ${assetSymbol}${chainArg}${recipientArg} --pool-account ${poolAccountId}`,
-    );
-    choices.push(
-      `Continue now, then recover the leftover publicly later: privacy-pools ragequit ${assetSymbol}${chainArg} --pool-account ${poolAccountId} --confirm-ragequit`,
-    );
-  } else {
-    choices.push(
-      `Use max / --all to empty ${poolAccountId} in one relayed withdrawal.`,
-    );
-    choices.push(
-      `Continue now and ragequit the leftover later if you intentionally accept public recovery for the remainder.`,
-    );
-  }
-
-  return {
-    summary:
-      `${poolAccountId} would keep ${formatAmount(remainingBalance, decimals, assetSymbol)}, ` +
-      `which is below the relayer minimum (${formatAmount(minWithdrawAmount, decimals, assetSymbol)}).`,
-    choices,
-  };
+  return getRelayedWithdrawalRemainderAdvisoryHelper(params);
 }
 
-function formatRelayedWithdrawalRemainderHint(
+export function formatRelayedWithdrawalRemainderHint(
   guidance: RelayedWithdrawalRemainderGuidance,
 ): string {
-  return [
-    guidance.summary,
-    ...guidance.choices.map((choice) => `- ${choice}`),
-  ].join("\n");
+  return formatRelayedWithdrawalRemainderHintHelper(guidance);
 }
 
 export function normalizeRelayerQuoteExpirationMs(expiration: number): number {
-  return expiration < 1e12 ? expiration * 1000 : expiration;
+  return normalizeRelayerQuoteExpirationMsHelper(expiration);
 }
 
 export function validateRelayerQuoteForWithdrawal(
   quote: Pick<RelayerQuoteResponse, "feeBPS" | "feeCommitment">,
   maxRelayFeeBPS: bigint | string,
 ): ValidatedRelayerQuoteForWithdrawal {
-  if (!quote.feeCommitment) {
-    throw new CLIError(
-      "Relayer quote is missing required fee details.",
-      "RELAYER",
-      "The relayer may not support this asset/chain combination.",
-    );
-  }
-
-  let quoteFeeBPS: bigint;
-  try {
-    quoteFeeBPS = BigInt(quote.feeBPS);
-  } catch {
-    throw new CLIError(
-      "Relayer returned malformed feeBPS (expected integer string).",
-      "RELAYER",
-      "Request a fresh quote and retry.",
-    );
-  }
-
-  const maxFeeBPS = typeof maxRelayFeeBPS === "bigint"
-    ? maxRelayFeeBPS
-    : BigInt(maxRelayFeeBPS);
-  if (quoteFeeBPS > maxFeeBPS) {
-    throw new CLIError(
-      `Quoted relay fee (${formatBPS(quote.feeBPS)}) exceeds onchain maximum (${formatBPS(maxFeeBPS.toString())}).`,
-      "RELAYER",
-      "Try again later when fees are lower. If privacy is not a concern, --direct withdraws without a relayer but publicly links your deposit and withdrawal addresses.",
-    );
-  }
-
-  return {
-    quoteFeeBPS,
-    expirationMs: normalizeRelayerQuoteExpirationMs(
-      quote.feeCommitment.expiration,
-    ),
-  };
+  return validateRelayerQuoteForWithdrawalHelper(quote, maxRelayFeeBPS);
 }
 
 export async function refreshExpiredRelayerQuoteForWithdrawal(
   params: RefreshExpiredRelayerQuoteForWithdrawalParams,
 ): Promise<RefreshedRelayerQuoteForWithdrawal> {
-  const nowMs = params.nowMs ?? Date.now;
-  const maxAttempts = params.maxAttempts ?? 3;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    if (attempt > 1 && params.onRetry) {
-      params.onRetry(attempt, maxAttempts);
-    }
-    const quote = await params.fetchQuote();
-    const { quoteFeeBPS, expirationMs } = validateRelayerQuoteForWithdrawal(
-      quote,
-      params.maxRelayFeeBPS,
-    );
-    if (nowMs() <= expirationMs) {
-      return {
-        quote,
-        quoteFeeBPS,
-        expirationMs,
-        attempts: attempt,
-      };
-    }
-  }
-
-  throw new CLIError(
-    "Relayer returned stale/expired quotes repeatedly.",
-    "RELAYER",
-    "Wait a moment and retry, or switch to another relayer.",
-  );
+  return await refreshExpiredRelayerQuoteForWithdrawalHelper(params);
 }
 
 export function resolveRequestedWithdrawalPoolAccountOrThrow(
   params: RequestedWithdrawalPoolAccountParams,
 ): PoolAccountRef {
-  const requested = params.requestedPoolAccounts.find(
-    (poolAccount) => poolAccount.paNumber === params.fromPaNumber,
-  );
-  if (requested) {
-    return requested;
-  }
-
-  const historical = params.allPoolAccounts.find(
-    (poolAccount) => poolAccount.paNumber === params.fromPaNumber,
-  );
-  const unavailableReason = historical
-    ? describeUnavailablePoolAccount(historical, "withdraw")
-    : null;
-  if (historical && unavailableReason) {
-    throw new CLIError(
-      unavailableReason,
-      "INPUT",
-      `Run 'privacy-pools accounts --chain ${params.chainName}' to inspect ${historical.paId} and choose a Pool Account with remaining balance.`,
-    );
-  }
-
-  const unknownPoolAccount = getUnknownPoolAccountError({
-    paNumber: params.fromPaNumber,
-    symbol: params.symbol,
-    chainName: params.chainName,
-    knownPoolAccountsCount: params.allPoolAccounts.length,
-    availablePaIds: params.allPoolAccounts.map((poolAccount) => poolAccount.paId),
-  });
-  throw new CLIError(
-    unknownPoolAccount.message,
-    "INPUT",
-    unknownPoolAccount.hint,
-  );
+  return resolveRequestedWithdrawalPoolAccountOrThrowHelper(params);
 }
 
 export async function handleWithdrawCommand(

@@ -91,7 +91,7 @@ const MAX_FLOW_RECIPIENT_PROMPT_ATTEMPTS = 5;
 
 export { createFlowCommand } from "../command-shells/flow.js";
 
-function getFlowBrowserTarget(snapshot: FlowSnapshot): {
+export function getFlowBrowserTarget(snapshot: FlowSnapshot): {
   url: string;
   label: string;
 } | null {
@@ -133,7 +133,7 @@ function getRootGlobalOptions(cmd: Command): GlobalOptions {
   return cmd.parent?.parent?.opts() as GlobalOptions;
 }
 
-function flowCancelledCliError(): CLIError {
+export function flowCancelledCliError(): CLIError {
   return new CLIError(
     "Flow cancelled.",
     "INPUT",
@@ -141,7 +141,7 @@ function flowCancelledCliError(): CLIError {
   );
 }
 
-function flowDetachedCliError(): CLIError {
+export function flowDetachedCliError(): CLIError {
   return new CLIError(
     "Flow watch detached.",
     "INPUT",
@@ -149,24 +149,24 @@ function flowDetachedCliError(): CLIError {
   );
 }
 
-function isPausedFlowPhase(snapshot: FlowSnapshot): boolean {
+export function isPausedFlowPhase(snapshot: FlowSnapshot): boolean {
   return (
     snapshot.phase === "paused_declined" ||
     snapshot.phase === "paused_poa_required"
   );
 }
 
-function isWatchTerminalSnapshot(snapshot: FlowSnapshot): boolean {
+export function isWatchTerminalSnapshot(snapshot: FlowSnapshot): boolean {
   return isTerminalFlowPhase(snapshot.phase) || isPausedFlowPhase(snapshot);
 }
 
-function throwIfWatchAborted(signal?: AbortSignal): void {
+export function throwIfWatchAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw new FlowCancelledError("detached");
   }
 }
 
-async function sleepWithAbort(
+export async function sleepWithAbort(
   ms: number,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -200,7 +200,7 @@ async function sleepWithAbort(
   });
 }
 
-async function maybeApplyFlowWatchPrivacyDelayOverride(params: {
+export async function maybeApplyFlowWatchPrivacyDelayOverride(params: {
   workflowId?: string;
   privacyDelayProfile?: string;
   silent: boolean;
@@ -234,7 +234,7 @@ async function maybeApplyFlowWatchPrivacyDelayOverride(params: {
   return updatedSnapshot;
 }
 
-async function watchFlowWithStatusAndStep(params: {
+export async function watchFlowWithStatusAndStep(params: {
   workflowId?: string;
   privacyDelayProfile?: string;
   globalOpts?: GlobalOptions;
@@ -323,7 +323,7 @@ async function watchFlowWithStatusAndStep(params: {
   }
 }
 
-function collectKnownFlowRecipients(): string[] {
+export function collectKnownFlowRecipients(): string[] {
   const recipients: string[] = [...loadKnownRecipientHistory()];
   try {
     recipients.push(getSignerAddress(loadPrivateKey()));
@@ -348,7 +348,7 @@ function collectKnownFlowRecipients(): string[] {
   return recipients;
 }
 
-function validateRecipientAddressOrEnsInput(value: string): true | string {
+export function validateRecipientAddressOrEnsInput(value: string): true | string {
   const trimmed = value.trim();
   try {
     assertSafeRecipientAddress(trimmed as `0x${string}`, "Recipient");
@@ -361,7 +361,7 @@ function validateRecipientAddressOrEnsInput(value: string): true | string {
   }
 }
 
-async function promptFlowRecipientAddressOrEns(
+export async function promptFlowRecipientAddressOrEns(
   promptInput: PromptInput,
   silent: boolean,
 ): Promise<string> {
@@ -399,7 +399,7 @@ async function promptFlowRecipientAddressOrEns(
   );
 }
 
-async function confirmRecipientIfNew(params: {
+export async function confirmRecipientIfNew(params: {
   address: string;
   knownRecipients: readonly string[];
   skipPrompts: boolean;

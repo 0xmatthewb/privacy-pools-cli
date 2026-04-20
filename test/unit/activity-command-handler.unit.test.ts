@@ -25,11 +25,15 @@ const realPools = captureModuleExports(
   await import("../../src/services/pools.ts"),
 );
 const realAsp = captureModuleExports(await import("../../src/services/asp.ts"));
+const realPreviewRuntime = captureModuleExports(
+  await import("../../src/preview/runtime.ts"),
+);
 
 const ACTIVITY_HANDLER_MODULE_RESTORES = [
   ["../../src/services/config.ts", realConfig],
   ["../../src/services/pools.ts", realPools],
   ["../../src/services/asp.ts", realAsp],
+  ["../../src/preview/runtime.ts", realPreviewRuntime],
 ] as const;
 
 const loadConfigMock = mock(() => ({
@@ -114,6 +118,7 @@ const fetchGlobalEventsMock = mock(async () => ({
     },
   ],
 }));
+const maybeRenderPreviewProgressStepMock = mock(async () => false);
 
 let handleActivityCommand: typeof import("../../src/commands/activity.ts").handleActivityCommand;
 
@@ -140,6 +145,10 @@ async function loadActivityHandler(): Promise<void> {
       fetchPoolEvents: fetchPoolEventsMock,
       fetchGlobalEvents: fetchGlobalEventsMock,
     })],
+    ["../../src/preview/runtime.ts", () => ({
+      ...realPreviewRuntime,
+      maybeRenderPreviewProgressStep: maybeRenderPreviewProgressStepMock,
+    })],
   ]);
 
   ({ handleActivityCommand } = await import("../../src/commands/activity.ts"));
@@ -152,10 +161,12 @@ describe("activity command handler", () => {
     resolvePoolMock.mockClear();
     fetchPoolEventsMock.mockClear();
     fetchGlobalEventsMock.mockClear();
+    maybeRenderPreviewProgressStepMock.mockClear();
     loadConfigMock.mockImplementation(() => ({
       defaultChain: "mainnet",
       rpcOverrides: {},
     }));
+    maybeRenderPreviewProgressStepMock.mockImplementation(async () => false);
     resolvePoolMock.mockImplementation(async () => ({
       symbol: "ETH",
       pool: "0x1111111111111111111111111111111111111111",
@@ -364,5 +375,39 @@ describe("activity command handler", () => {
     expect(stderr).toContain("Global activity");
     expect(stderr).toContain("optimism");
     expect(stderr).toContain("Withdraw");
+  });
+
+  test("aggregates mainnet and testnet activity when --include-testnets is enabled", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleActivityCommand(
+        undefined,
+        { includeTestnets: true, page: "1", limit: "4" },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("global-activity");
+    expect(json.chain).toBe("all-chains");
+    expect(json.total).toBeNull();
+    expect(json.totalPages).toBeNull();
+    expect(json.note).toContain("Pagination totals are unavailable");
+    expect(json.events.length).toBeGreaterThan(0);
+    expect(fetchGlobalEventsMock).toHaveBeenCalled();
+    expect(stderr).toBe("");
+  });
+
+  test("returns early when preview rendering takes over activity fetch", async () => {
+    maybeRenderPreviewProgressStepMock.mockImplementationOnce(
+      async (step: string) => step === "activity.fetch",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleActivityCommand(undefined, {}, fakeCommand({})),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expect(fetchGlobalEventsMock).not.toHaveBeenCalled();
   });
 });

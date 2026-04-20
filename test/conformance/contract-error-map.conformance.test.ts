@@ -9,6 +9,8 @@
  *
  * This test verifies every key in CONTRACT_ERROR_MAP exists in at least
  * one upstream Solidity interface file.
+ *
+ * @online
  */
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, test } from "bun:test";

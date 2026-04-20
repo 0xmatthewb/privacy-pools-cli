@@ -149,7 +149,6 @@ describe("renderPools parity", () => {
     expect(json.pools.length).toBe(1);
     expect(json.pools[0].asset).toBe("ETH");
     expect(json.pools[0].tokenAddress).toBe("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE");
-    expect(json.nextActions).toBeDefined();
     expect(json.nextActions.length).toBe(1);
     expect(json.nextActions[0].command).toBe("deposit");
     expect(json.nextActions[0].runnable).toBe(false);
@@ -203,7 +202,6 @@ describe("renderPools parity", () => {
     const { stdout } = captureOutput(() => renderPools(ctx, data));
 
     const json = parseCapturedJson(stdout);
-    expect(json.nextActions).toBeDefined();
     expect(json.nextActions[0].command).toBe("deposit");
     // All-chains query must NOT include chain — agent picks the target chain
     expect(json.nextActions[0].options?.chain).toBeUndefined();
@@ -1018,7 +1016,6 @@ describe("renderPoolDetail parity", () => {
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.asset).toBe("ETH");
-    expect(json.nextActions).toBeDefined();
     expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
       "withdraw",
       "ragequit",
@@ -1047,7 +1044,6 @@ describe("renderPoolDetail parity", () => {
     });
 
     // myFunds shape
-    expect(json.myFunds).toBeDefined();
     expect(json.myFunds.balance).toBe("1000000000000000000");
     expect(json.myFunds.poolAccounts).toBe(1);
     expect(json.myFunds.pendingCount).toBe(0);
@@ -1159,7 +1155,6 @@ describe("renderPoolDetail parity", () => {
     const { stdout } = captureOutput(() => renderPoolDetail(ctx, data));
 
     const json = parseCapturedJson(stdout);
-    expect(json.myFunds).toBeDefined();
     expect(json.myFundsWarning).toBe("Some ASP review data was unavailable or incomplete.");
   });
 
@@ -1315,7 +1310,6 @@ describe("renderUpgradeResult nextActions", () => {
     const { stdout } = captureOutput(() => renderUpgradeResult(ctx, result));
 
     const json = parseCapturedJson(stdout);
-    expect(json.nextActions).toBeDefined();
     expect(json.nextActions.length).toBe(1);
     expect(json.nextActions[0].command).toBe("upgrade");
     expect(json.nextActions[0].runnable).toBeUndefined(); // runnable (default true)
@@ -1350,7 +1344,6 @@ describe("renderUpgradeResult nextActions", () => {
     const { stdout } = captureOutput(() => renderUpgradeResult(ctx, baseResult));
 
     const json = parseCapturedJson(stdout);
-    expect(json.nextActions).toBeDefined();
     expect(json.nextActions).toHaveLength(1);
     expect(json.nextActions[0]).toMatchObject({
       command: "status",

@@ -9,7 +9,6 @@ describe("flow command shell", () => {
     expect(subcommands).toEqual(["start", "watch", "status", "step", "ragequit"]);
 
     const start = command.commands.find((subcommand) => subcommand.name() === "start");
-    expect(start).toBeDefined();
     expect(start?.options.map((option) => option.flags)).toEqual(
       expect.arrayContaining([
         "-t, --to <address>",
@@ -25,7 +24,6 @@ describe("flow command shell", () => {
     ).toEqual(["off", "balanced", "strict"]);
 
     const watch = command.commands.find((subcommand) => subcommand.name() === "watch");
-    expect(watch).toBeDefined();
     expect(watch?.options.map((option) => option.flags)).toEqual(
       expect.arrayContaining(["--privacy-delay <profile>"]),
     );

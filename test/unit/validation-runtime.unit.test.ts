@@ -7,9 +7,21 @@ import {
   validateAddress,
   validatePositive,
 } from "../../src/utils/validation.ts";
+import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
+
+const realViem = captureModuleExports(await import("viem"));
+const realViemChains = captureModuleExports(await import("viem/chains"));
+const realViemEns = captureModuleExports(await import("viem/ens"));
 
 afterEach(() => {
-  mock.restore();
+  restoreModuleImplementations([
+    ["viem", realViem],
+    ["viem/chains", realViemChains],
+    ["viem/ens", realViemEns],
+  ]);
 });
 
 describe("validation runtime coverage", () => {
@@ -25,7 +37,6 @@ describe("validation runtime coverage", () => {
   });
 
   test("resolveAddressOrEns resolves ENS names through the mainnet client", async () => {
-    const realViem = await import("viem");
     const createPublicClientMock = mock(() => ({
       getEnsAddress: async ({ name }: { name: string }) => {
         expect(name).toBe("normalized:alice.eth");
@@ -53,7 +64,6 @@ describe("validation runtime coverage", () => {
   });
 
   test("lookupEnsNameForAddress returns verified reverse ENS names", async () => {
-    const realViem = await import("viem");
     const createPublicClientMock = mock(() => ({
       getEnsName: async ({ address }: { address: string }) => {
         expect(address).toBe("0x5555555555555555555555555555555555555555");
@@ -84,8 +94,6 @@ describe("validation runtime coverage", () => {
   });
 
   test("resolveAddressOrEns converts ENS lookup failures into a CLIError", async () => {
-    const realViem = await import("viem");
-
     mock.module("viem", () => ({
       ...realViem,
       createPublicClient: () => ({
@@ -113,8 +121,6 @@ describe("validation runtime coverage", () => {
   });
 
   test("resolveAddressOrEns fails closed when ENS lookup returns no address", async () => {
-    const realViem = await import("viem");
-
     mock.module("viem", () => ({
       ...realViem,
       createPublicClient: () => ({

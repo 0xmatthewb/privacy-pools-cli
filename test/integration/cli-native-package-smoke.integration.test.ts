@@ -450,7 +450,7 @@ describe("native package smoke", () => {
     };
 
     expect(pkg.bin).toBeUndefined();
-    expect(pkg.privacyPoolsCliNative?.binaryPath).toBeTruthy();
+    expect(typeof pkg.privacyPoolsCliNative?.binaryPath).toBe("string");
   });
 
   nativePackageSmokeTest("packaged native executes fixture-backed public read-only commands successfully", () => {
@@ -728,7 +728,7 @@ describe("native package smoke", () => {
         errorCode?: string;
       }>(result.stdout);
       expect(payload.success).toBe(false);
-      expect(payload.errorCode).toBeTruthy();
+      expect(typeof payload.errorCode).toBe("string");
     } finally {
       renameSync(statsHandlerBackupPath, statsHandlerPath);
       writeFileSync(packageJsonPath, originalPackageJson, "utf8");

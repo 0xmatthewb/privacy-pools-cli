@@ -297,7 +297,7 @@ describe("workflow funding helper coverage", () => {
       pool: samplePool(),
     });
 
-    expect(refreshed.requiredNativeFunding).toBeTruthy();
+    expect(typeof refreshed.requiredNativeFunding).toBe("string");
     expect(refreshed.requiredTokenFunding).toBeNull();
     expect(BigInt(refreshed.requiredNativeFunding!)).toBeGreaterThan(100n);
 

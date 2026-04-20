@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { z } from "zod";
 import {
   PREVIEW_COVERAGE_SPEC,
   FLOW_STATUS_PREVIEW_PHASES,
@@ -18,60 +19,77 @@ import {
 } from "../../scripts/lib/preview-cli-catalog.mjs";
 import { GENERATED_COMMAND_PATHS } from "../../src/utils/command-manifest.ts";
 
+const previewCaseSchema = z
+  .object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    journey: z.string().min(1),
+    surface: z.string().min(1),
+    owner: z.string().refine((value) => PREVIEW_OWNERS.includes(value)),
+    runtime: z.string().refine((value) => PREVIEW_RUNTIMES.includes(value)),
+    source: z.string().refine((value) => PREVIEW_SOURCES.includes(value)),
+    executionKind: z.string().refine((value) =>
+      PREVIEW_EXECUTION_KINDS.includes(value),
+    ),
+    modes: z
+      .array(z.string().refine((value) => PREVIEW_MODES.includes(value)))
+      .nonempty()
+      .refine((value) => new Set(value).size === value.length),
+    covers: z.array(z.string()).nonempty(),
+    requiredSetup: z.array(z.string()).nonempty(),
+    expectedExitCodes: z.array(z.number().int()).nonempty(),
+    commandPath: z.string().min(1),
+    stateId: z.string().min(1),
+    stateClass: z.string().refine((value) =>
+      PREVIEW_STATE_CLASSES.includes(value),
+    ),
+    truthRequirement: z.string().refine((value) =>
+      PREVIEW_TRUTH_REQUIREMENTS.includes(value),
+    ),
+    fidelity: z.string().refine((value) => PREVIEW_FIDELITIES.includes(value)),
+    interactive: z.boolean(),
+    runtimeTarget: z.string(),
+    variantPolicy: z
+      .array(z.string().refine((value) => PREVIEW_VARIANT_IDS.includes(value)))
+      .nonempty(),
+    syntheticReason: z.string().min(1).optional(),
+    preview: z
+      .object({
+        requiresTtyScript: z.boolean().optional(),
+        ttyScript: z.unknown().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .superRefine((previewCase, ctx) => {
+    const requiresSyntheticReason =
+      previewCase.executionKind === "renderer-fixture"
+      || previewCase.requiredSetup.includes("preview-scenario")
+      || previewCase.fidelity === "progress-snapshot";
+
+    if (requiresSyntheticReason && !previewCase.syntheticReason) {
+      ctx.addIssue({
+        code: "custom",
+        message: "syntheticReason is required for synthetic preview cases",
+        path: ["syntheticReason"],
+      });
+    }
+
+    if (!requiresSyntheticReason && previewCase.syntheticReason !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "syntheticReason must stay absent for live preview cases",
+        path: ["syntheticReason"],
+      });
+    }
+  });
+
 describe("preview cli catalog", () => {
   test("declares the richer preview contract for every case", () => {
-    const ids = PREVIEW_CASES.map((previewCase) => previewCase.id);
+    const ids = PREVIEW_CASES.map((previewCase) =>
+      previewCaseSchema.parse(previewCase).id,
+    );
     expect(new Set(ids).size).toBe(ids.length);
-
-    for (const previewCase of PREVIEW_CASES) {
-      expect(previewCase.label.length).toBeGreaterThan(0);
-      expect(previewCase.journey.length).toBeGreaterThan(0);
-      expect(previewCase.surface.length).toBeGreaterThan(0);
-      expect(PREVIEW_OWNERS).toContain(previewCase.owner);
-      expect(PREVIEW_RUNTIMES).toContain(previewCase.runtime);
-      expect(PREVIEW_SOURCES).toContain(previewCase.source);
-      expect(PREVIEW_EXECUTION_KINDS).toContain(previewCase.executionKind);
-      expect(Array.isArray(previewCase.modes)).toBe(true);
-      expect(previewCase.modes.length).toBeGreaterThan(0);
-      for (const mode of previewCase.modes) {
-        expect(PREVIEW_MODES).toContain(mode);
-      }
-      expect(new Set(previewCase.modes).size).toBe(previewCase.modes.length);
-      expect(Array.isArray(previewCase.covers)).toBe(true);
-      expect(previewCase.covers.length).toBeGreaterThan(0);
-      expect(Array.isArray(previewCase.requiredSetup)).toBe(true);
-      expect(previewCase.requiredSetup.length).toBeGreaterThan(0);
-      expect(Array.isArray(previewCase.expectedExitCodes)).toBe(true);
-      expect(previewCase.expectedExitCodes.length).toBeGreaterThan(0);
-      expect(typeof previewCase.commandPath).toBe("string");
-      expect(previewCase.commandPath.length).toBeGreaterThan(0);
-      expect(typeof previewCase.stateId).toBe("string");
-      expect(previewCase.stateId.length).toBeGreaterThan(0);
-      expect(PREVIEW_STATE_CLASSES).toContain(previewCase.stateClass);
-      expect(PREVIEW_TRUTH_REQUIREMENTS).toContain(previewCase.truthRequirement);
-      expect(PREVIEW_FIDELITIES).toContain(previewCase.fidelity);
-      expect(typeof previewCase.interactive).toBe("boolean");
-      expect(typeof previewCase.runtimeTarget).toBe("string");
-      expect(Array.isArray(previewCase.variantPolicy)).toBe(true);
-      expect(previewCase.variantPolicy.length).toBeGreaterThan(0);
-      for (const variantId of previewCase.variantPolicy) {
-        expect(PREVIEW_VARIANT_IDS).toContain(variantId);
-      }
-      for (const exitCode of previewCase.expectedExitCodes) {
-        expect(Number.isInteger(exitCode)).toBe(true);
-      }
-
-      const requiresSyntheticReason =
-        previewCase.executionKind === "renderer-fixture"
-        || previewCase.requiredSetup.includes("preview-scenario")
-        || previewCase.fidelity === "progress-snapshot";
-      if (requiresSyntheticReason) {
-        expect(typeof previewCase.syntheticReason).toBe("string");
-        expect(previewCase.syntheticReason?.length).toBeGreaterThan(0);
-      } else {
-        expect(previewCase.syntheticReason).toBeUndefined();
-      }
-    }
   });
 
   test("keeps key user journeys and ownership sentinels covered", () => {
@@ -187,7 +205,7 @@ describe("preview cli catalog", () => {
     for (const prompt of PREVIEW_PROMPT_INVENTORY) {
       const previewCase = findPreviewCase(prompt.caseId);
       expect(previewCase?.preview?.requiresTtyScript).toBe(true);
-      expect(previewCase?.preview?.ttyScript).toBeDefined();
+      expect(previewCase?.preview?.ttyScript).toEqual(expect.anything());
     }
   });
 

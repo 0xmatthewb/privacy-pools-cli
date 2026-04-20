@@ -998,7 +998,6 @@ describe("renderWithdrawSuccess parity", () => {
     // Net received and remaining balance lines should NOT have "$"
     const lines = stderr.split("\n");
     const remainingLine = lines.find((l: string) => l.includes("Remaining in PA-2:"));
-    expect(remainingLine).toBeDefined();
     expect(remainingLine).not.toContain("$");
   });
 
@@ -1180,7 +1179,6 @@ describe("renderWithdrawQuote parity", () => {
 
     const json = parseCapturedJson(stdout);
     // Agent still gets the action — they can decide for themselves
-    expect(json.nextActions).toBeDefined();
     expect(json.nextActions.length).toBeGreaterThan(0);
   });
 

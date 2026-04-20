@@ -36,6 +36,7 @@
     "start": "node scripts/start-built-cli.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-test-suite.mjs",
+    "test:offline": "node scripts/run-test-suite.mjs --exclude-tag online && npm run build && node scripts/run-conformance-suite.mjs core --exclude-tag online",
     "test:install": "node scripts/run-test-profile.mjs install",
     "test:native:fmt": "cargo fmt --manifest-path native/shell/Cargo.toml --check",
     "test:native:lint": "cargo clippy --manifest-path native/shell/Cargo.toml --tests -- -D warnings",
@@ -98,7 +99,8 @@
     "@types/jmespath": "^0.15.2",
     "node-pty": "^1.1.0",
     "tsx": "4.21.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "zod": "^3.25.76"
   },
   "license": "Apache-2.0",
   "author": "matthewb",

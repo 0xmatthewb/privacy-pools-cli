@@ -75,7 +75,7 @@ describe("preview cli runners", () => {
     const initSetupModePrompt = resolvePreviewExecution("init-setup-mode-prompt");
     expect(initSetupModePrompt.modes).toEqual(["tty"]);
     expect(initSetupModePrompt.execution.requiresTtyScript).toBe(true);
-    expect(initSetupModePrompt.execution.ttyScript).toBeDefined();
+    expect(initSetupModePrompt.execution.ttyScript).toEqual(expect.anything());
 
     expect(planPreviewSuite(["welcome-banner", "accounts-empty"]).map((plan) => plan.id)).toEqual([
       "welcome-banner",

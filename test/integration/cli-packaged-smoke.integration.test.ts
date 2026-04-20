@@ -103,7 +103,7 @@ function assertSuccessfulPack(
   }
 
   const tarballName = pack.stdout.trim().split(/\r?\n/g).pop()?.trim();
-  expect(tarballName).toBeTruthy();
+  expect(typeof tarballName).toBe("string");
   return tarballName!;
 }
 

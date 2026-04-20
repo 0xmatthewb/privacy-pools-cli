@@ -360,7 +360,6 @@ const selectPromptMock = mock(async () => 1);
 let handleWithdrawCommand: typeof import("../../src/commands/withdraw.ts").handleWithdrawCommand;
 let handleWithdrawQuoteCommand: typeof import("../../src/commands/withdraw.ts").handleWithdrawQuoteCommand;
 let world: TestWorld;
-let withdrawImportCounter = 0;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -499,8 +498,12 @@ async function loadWithdrawCommandHandlers(): Promise<void> {
     calculateContext: calculateContextMock,
   }));
 
+  if (handleWithdrawCommand && handleWithdrawQuoteCommand) {
+    return;
+  }
+
   ({ handleWithdrawCommand, handleWithdrawQuoteCommand } = await import(
-    `../../src/commands/withdraw.ts?bust=${withdrawImportCounter++}`
+    "../../src/commands/withdraw.ts"
   ));
 }
 

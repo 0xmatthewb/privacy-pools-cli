@@ -13,6 +13,8 @@
  *
  * Uses viem's toFunctionSelector (already a project dependency) so no
  * additional AST parser is needed.
+ *
+ * @online
  */
 import { beforeAll, describe, expect, test } from "bun:test";
 import { toFunctionSelector } from "viem";
@@ -273,8 +275,6 @@ describe("ABI selector parity conformance", () => {
 
     const rawSigs = extractRawFunctions(upstreamIPrivacyPool);
     const rawWithdraw = findFunction(rawSigs, "withdraw");
-    expect(rawWithdraw).toBeDefined();
-
     const resolved = resolveSignature(rawWithdraw!, structs);
     const upstreamSelector = toFunctionSelector(resolved);
 
@@ -293,8 +293,6 @@ describe("ABI selector parity conformance", () => {
 
     const rawSigs = extractRawFunctions(upstreamIEntrypoint);
     const rawRelay = findFunction(rawSigs, "relay");
-    expect(rawRelay).toBeDefined();
-
     const resolved = resolveSignature(rawRelay!, structs);
     const upstreamSelector = toFunctionSelector(resolved);
 
@@ -353,8 +351,6 @@ describe("ABI selector parity conformance", () => {
 
     const rawSigs = extractRawFunctions(upstreamIPrivacyPool);
     const rawRagequit = findFunction(rawSigs, "ragequit");
-    expect(rawRagequit).toBeDefined();
-
     const resolved = resolveSignature(rawRagequit!, structs);
     const upstreamSelector = toFunctionSelector(resolved);
 

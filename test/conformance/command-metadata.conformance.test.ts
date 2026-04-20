@@ -135,7 +135,6 @@ describe("command metadata conformance", () => {
   test("completion metadata hides internal plumbing flags", () => {
     const completion = buildCapabilitiesPayload().commands.find((command) => command.name === "completion");
 
-    expect(completion).toBeDefined();
     expect(completion?.flags).toEqual(["[shell]", "--shell <shell>", "--install"]);
     expect(completion?.flags ?? []).not.toContain("--query");
     expect(completion?.flags ?? []).not.toContain("--cword <index>");
@@ -157,13 +156,11 @@ describe("command metadata conformance", () => {
       variant.startsWith("--pending-only:")
     );
 
-    expect(summaryVariant).toBeDefined();
     expect(summaryVariant).toContain("approvedCount");
     expect(summaryVariant).toContain("balances");
     expect(summaryVariant).toContain("nextActions");
     expect(summaryVariant).toContain("cliCommand");
 
-    expect(pendingOnlyVariant).toBeDefined();
     expect(pendingOnlyVariant).toContain("accounts");
     expect(pendingOnlyVariant).toContain("pendingCount");
     expect(pendingOnlyVariant).toContain("nextActions");

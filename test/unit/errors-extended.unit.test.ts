@@ -143,7 +143,7 @@ describe("classifyError - contract revert completeness", () => {
       expect(err.category).toBe("CONTRACT");
       expect(err.code).toBe(code);
       expect(err.retryable).toBe(retryable);
-      expect(err.hint).toBeTruthy();
+      expect(typeof err.hint).toBe("string");
     });
   }
 });

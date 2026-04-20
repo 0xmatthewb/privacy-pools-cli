@@ -198,6 +198,28 @@ async function signPreviewTransaction(
   });
 }
 
+async function signLegacyPreviewTransaction(
+  account: ReturnType<typeof privateKeyToAccount>,
+  preview: {
+    chainId: number;
+    to: Address;
+    value: string;
+    data: Hex;
+  },
+  nonce: number,
+): Promise<Hex> {
+  return await account.signTransaction({
+    chainId: preview.chainId,
+    to: preview.to,
+    value: BigInt(preview.value),
+    data: preview.data,
+    nonce,
+    gas: 300_000n,
+    gasPrice: 2_000_000_000n,
+    type: "legacy",
+  });
+}
+
 beforeAll(async () => {
   installModuleMocks([
     [
@@ -283,6 +305,142 @@ describe("broadcast service", () => {
     });
   });
 
+  test("rejects malformed envelope roots, metadata, and chain overrides", async () => {
+    const preview = buildUnsignedDepositOutput({
+      chainId: chain.id,
+      chainName: chain.name,
+      assetSymbol: "ETH",
+      amount: 1n,
+      from: null,
+      entrypoint: chain.entrypoint,
+      assetAddress: chain.entrypoint,
+      precommitment: 42n,
+      isNative: true,
+    });
+
+    await expect(broadcastEnvelope("not-json")).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        success: false,
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        mode: "broadcast",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        operation: "sync",
+      } as unknown),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        transactions: [],
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope(preview, { expectedChain: "sepolia" }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_CHAIN_OVERRIDE_MISMATCH",
+    });
+  });
+
+  test("rejects malformed transaction payload fields and relayed quote summaries", async () => {
+    const preview = buildUnsignedDepositOutput({
+      chainId: chain.id,
+      chainName: chain.name,
+      assetSymbol: "ETH",
+      amount: 1n,
+      from: null,
+      entrypoint: chain.entrypoint,
+      assetAddress: chain.entrypoint,
+      precommitment: 42n,
+      isNative: true,
+    });
+    const tx = preview.transactions[0]!;
+    const { from: _from, ...withoutFrom } = tx;
+
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        amount: "abc",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        transactions: [{ ...withoutFrom }],
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        transactions: [{ ...tx, to: "not-an-address" }],
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        transactions: [{ ...tx, data: "xyz" }],
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+
+    const { preview: relayedPreview } = buildRelayedWithdrawPreview();
+    await expect(
+      broadcastEnvelope({
+        ...relayedPreview,
+        quoteSummary: "not-an-object",
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...relayedPreview,
+        quoteSummary: {
+          ...relayedPreview.quoteSummary,
+          extraGas: "yes",
+        },
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...relayedPreview,
+        withdrawMode: "sideways",
+        relayerHost: "fastrelay.xyz",
+      } as unknown),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+  });
+
   test("rejects signed transaction count mismatches", async () => {
     const preview = buildUnsignedDepositOutput({
       chainId: chain.id,
@@ -305,6 +463,97 @@ describe("broadcast service", () => {
       }),
     ).rejects.toMatchObject({
       code: "INPUT_BROADCAST_SIGNED_TRANSACTION_COUNT_MISMATCH",
+    });
+  });
+
+  test("rejects missing, malformed, and unparsable signed transactions", async () => {
+    const preview = buildUnsignedDepositOutput({
+      chainId: chain.id,
+      chainName: chain.name,
+      assetSymbol: "ETH",
+      amount: 1n,
+      from: null,
+      entrypoint: chain.entrypoint,
+      assetAddress: chain.entrypoint,
+      precommitment: 42n,
+      isNative: true,
+    });
+
+    await expect(broadcastEnvelope(preview)).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_MISSING_SIGNED_TRANSACTIONS",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        success: true,
+        signedTransactions: ["nope"],
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_SIGNED_TRANSACTION",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        success: true,
+        signedTransactions: ["0x1234"],
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_SIGNED_TRANSACTION",
+    });
+  });
+
+  test("rejects preview chain, target, and value mismatches against signed payloads", async () => {
+    const preview = buildUnsignedDepositOutput({
+      chainId: chain.id,
+      chainName: chain.name,
+      assetSymbol: "ETH",
+      amount: 1n,
+      from: null,
+      entrypoint: chain.entrypoint,
+      assetAddress: chain.entrypoint,
+      precommitment: 42n,
+      isNative: true,
+    });
+    const signed = await signPreviewTransaction(signer, preview.transactions[0]!, 0);
+
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        transactions: preview.transactions.map((transaction) => ({
+          ...transaction,
+          chainId: chain.id + 1,
+        })),
+        success: true,
+        signedTransactions: [signed],
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_CHAIN_MISMATCH",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        transactions: preview.transactions.map((transaction) => ({
+          ...transaction,
+          to: recipientAddress,
+        })),
+        success: true,
+        signedTransactions: [signed],
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_SIGNED_TRANSACTION_MISMATCH",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        transactions: preview.transactions.map((transaction) => ({
+          ...transaction,
+          value: "2",
+        })),
+        success: true,
+        signedTransactions: [signed],
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_SIGNED_TRANSACTION_MISMATCH",
     });
   });
 
@@ -526,6 +775,132 @@ describe("broadcast service", () => {
     expect(result.transactions).toHaveLength(1);
   });
 
+  test("supports legacy signed transactions and validate-only onchain broadcasts", async () => {
+    const preview = buildUnsignedDepositOutput({
+      chainId: chain.id,
+      chainName: chain.name,
+      assetSymbol: "ETH",
+      amount: 1n,
+      from: null,
+      entrypoint: chain.entrypoint,
+      assetAddress: chain.entrypoint,
+      precommitment: 42n,
+      isNative: true,
+    });
+    const signed = await signLegacyPreviewTransaction(
+      signer,
+      preview.transactions[0]!,
+      0,
+    );
+
+    const result = await broadcastEnvelope(
+      {
+        ...preview,
+        success: true,
+        signedTransactions: [signed],
+      },
+      { validateOnly: true },
+    );
+
+    expect(result.validatedOnly).toBe(true);
+    expect(result.broadcastMode).toBe("onchain");
+    expect(result.submittedBy?.toLowerCase()).toBe(signer.address.toLowerCase());
+    expect(result.transactions).toEqual([
+      expect.objectContaining({
+        index: 0,
+        txHash: null,
+        status: "validated",
+      }),
+    ]);
+  });
+
+  test("returns submitted onchain transactions immediately when noWait is enabled", async () => {
+    const preview = buildUnsignedDepositOutput({
+      chainId: chain.id,
+      chainName: chain.name,
+      assetSymbol: "ETH",
+      amount: 1n,
+      from: null,
+      entrypoint: chain.entrypoint,
+      assetAddress: chain.entrypoint,
+      precommitment: 42n,
+      isNative: true,
+    });
+    const signed = await signPreviewTransaction(signer, preview.transactions[0]!, 0);
+
+    const result = await broadcastEnvelope(
+      {
+        ...preview,
+        success: true,
+        signedTransactions: [signed],
+      },
+      { noWait: true },
+    );
+
+    expect(result.transactions).toEqual([
+      expect.objectContaining({
+        index: 0,
+        txHash: expect.stringMatching(/^0x/),
+        blockNumber: null,
+        status: "submitted",
+      }),
+    ]);
+    expect(publicClientWaitForReceiptMock).not.toHaveBeenCalled();
+  });
+
+  test("surfaces first-transaction submission failures and confirmed onchain reverts", async () => {
+    const preview = buildUnsignedDepositOutput({
+      chainId: chain.id,
+      chainName: chain.name,
+      assetSymbol: "ETH",
+      amount: 1n,
+      from: null,
+      entrypoint: chain.entrypoint,
+      assetAddress: chain.entrypoint,
+      precommitment: 42n,
+      isNative: true,
+    });
+    const signed = await signPreviewTransaction(signer, preview.transactions[0]!, 0);
+
+    publicClientRequestMock.mockRejectedValueOnce(new Error("rpc offline"));
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        success: true,
+        signedTransactions: [signed],
+      }),
+    ).rejects.toMatchObject({
+      code: "RPC_BROADCAST_SUBMISSION_FAILED",
+      details: {
+        failedAtIndex: 0,
+        submittedTransactions: [],
+      },
+    });
+
+    publicClientWaitForReceiptMock.mockResolvedValueOnce({
+      status: "reverted" as const,
+      blockNumber: 101n,
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        success: true,
+        signedTransactions: [signed],
+      }),
+    ).rejects.toMatchObject({
+      code: "CONTRACT_BROADCAST_REVERTED",
+      details: {
+        failedAtIndex: 0,
+        submittedTransactions: [
+          expect.objectContaining({
+            index: 0,
+            status: "confirmed",
+          }),
+        ],
+      },
+    });
+  });
+
   test("surfaces submitted transaction details on partial bundle failure", async () => {
     const preview = buildUnsignedDepositOutput({
       chainId: chain.id,
@@ -634,6 +1009,36 @@ describe("broadcast service", () => {
     });
   });
 
+  test("accepts the default relayer host on single-relayer chains and rejects unknown hosts", async () => {
+    const { preview } = buildRelayedWithdrawPreview();
+
+    const noHostResult = await broadcastEnvelope(
+      {
+        ...preview,
+        success: true,
+        relayerHost: null,
+      },
+      { noWait: true },
+    );
+
+    expect(submitRelayRequestMock.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        relayerUrl: "https://fastrelay.xyz",
+      }),
+    );
+    expect(noHostResult.transactions[0]?.status).toBe("submitted");
+
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        success: true,
+        relayerHost: "unknown.example",
+      }),
+    ).rejects.toMatchObject({
+      code: "RELAYER_BROADCAST_RELAYER_HOST_MISMATCH",
+    });
+  });
+
   test("validate-only relayed broadcast warns when the live quote changed", async () => {
     const { preview } = buildRelayedWithdrawPreview();
     requestQuoteWithExtraGasFallbackMock.mockResolvedValueOnce({
@@ -703,6 +1108,130 @@ describe("broadcast service", () => {
     expect(requestQuoteWithExtraGasFallbackMock).not.toHaveBeenCalled();
   });
 
+  test("validate-only relayed broadcast warns when the live quote cannot be refreshed", async () => {
+    const { preview } = buildRelayedWithdrawPreview();
+    requestQuoteWithExtraGasFallbackMock.mockRejectedValueOnce(
+      new Error("relayer temporarily unavailable"),
+    );
+
+    const result = await broadcastEnvelope(
+      {
+        ...preview,
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      },
+      { validateOnly: true },
+    );
+
+    expect(result.validatedOnly).toBe(true);
+    expect(result.warnings?.map((warning) => warning.code)).toEqual([
+      "QUOTE_DELTA_UNAVAILABLE",
+    ]);
+  });
+
+  test("rejects malformed relayed requests, malformed proofs, and preview mismatches", async () => {
+    const { preview } = buildRelayedWithdrawPreview();
+
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        quoteExpiresAt: "tomorrow-ish",
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        relayerRequest: null,
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        relayerRequest: {
+          ...(preview.relayerRequest as Record<string, unknown>),
+          withdrawal: "nope",
+        },
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        relayerRequest: {
+          ...(preview.relayerRequest as Record<string, unknown>),
+          feeCommitment: "nope",
+        },
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        relayerRequest: {
+          ...(preview.relayerRequest as Record<string, unknown>),
+          publicSignals: "nope",
+        },
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        relayerRequest: {
+          ...(preview.relayerRequest as Record<string, unknown>),
+          proof: { pi_a: ["bad"] },
+        },
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_INVALID_ENVELOPE",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        transactions: preview.transactions.map((transaction) => ({
+          ...transaction,
+          to: tokenAddress,
+        })),
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_RELAYER_REQUEST_MISMATCH",
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        transactions: preview.transactions.map((transaction) => ({
+          ...transaction,
+          value: "1",
+        })),
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "INPUT_BROADCAST_RELAYER_REQUEST_MISMATCH",
+    });
+  });
+
   test("broadcasts relayed withdrawal envelopes without requiring local signer state", async () => {
     const { preview } = buildRelayedWithdrawPreview();
     publicClientWaitForReceiptMock.mockResolvedValueOnce({
@@ -726,5 +1255,79 @@ describe("broadcast service", () => {
     expect(result.broadcastMode).toBe("relayed");
     expect(result.sourceOperation).toBe("withdraw");
     expect(result.transactions[0]?.blockNumber).toBe("222");
+  });
+
+  test("wraps relayer submission failures and surfaces relayed no-wait/confirmation errors", async () => {
+    const { preview } = buildRelayedWithdrawPreview();
+
+    submitRelayRequestMock.mockRejectedValueOnce(new Error("relay backend offline"));
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "RELAYER_BROADCAST_SUBMISSION_FAILED",
+    });
+
+    submitRelayRequestMock.mockResolvedValueOnce({
+      success: true,
+      txHash: ("0x" + "ef".repeat(32)) as Hex,
+      timestamp: Date.now(),
+      requestId: "relay-timeout",
+    });
+    const noWaitResult = await broadcastEnvelope(
+      {
+        ...preview,
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      },
+      { noWait: true },
+    );
+    expect(noWaitResult.transactions[0]?.status).toBe("submitted");
+
+    submitRelayRequestMock.mockResolvedValueOnce({
+      success: true,
+      txHash: ("0x" + "ee".repeat(32)) as Hex,
+      timestamp: Date.now(),
+      requestId: "relay-timeout-2",
+    });
+    publicClientWaitForReceiptMock.mockRejectedValueOnce(new Error("timeout"));
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "RPC_BROADCAST_CONFIRMATION_TIMEOUT",
+      details: {
+        failedAtIndex: 0,
+      },
+    });
+
+    submitRelayRequestMock.mockResolvedValueOnce({
+      success: true,
+      txHash: ("0x" + "fe".repeat(32)) as Hex,
+      timestamp: Date.now(),
+      requestId: "relay-revert",
+    });
+    publicClientWaitForReceiptMock.mockResolvedValueOnce({
+      status: "reverted" as const,
+      blockNumber: 333n,
+    });
+    await expect(
+      broadcastEnvelope({
+        ...preview,
+        success: true,
+        relayerHost: "fastrelay.xyz",
+      }),
+    ).rejects.toMatchObject({
+      code: "CONTRACT_BROADCAST_REVERTED",
+      details: {
+        failedAtIndex: 0,
+      },
+    });
   });
 });

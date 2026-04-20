@@ -76,7 +76,7 @@ describe("sdk dependency conformance", () => {
       (name) => name.startsWith("index-") && name.endsWith(".js")
     );
 
-    expect(bundleFile).toBeDefined();
+    expect(bundleFile).toEqual(expect.any(String));
 
     const bundle = readFileSync(join(nodeDistDir, bundleFile!), "utf8");
     const fnStart = bundle.indexOf("function generateMasterKeys(mnemonic)");
@@ -98,7 +98,7 @@ describe("sdk dependency conformance", () => {
       (name) => name.startsWith("index-") && name.endsWith(".js")
     );
 
-    expect(bundleFile).toBeDefined();
+    expect(bundleFile).toEqual(expect.any(String));
 
     const bundle = readFileSync(join(nodeDistDir, bundleFile!), "utf8");
     const fnStart = bundle.indexOf("static _initializeLegacyAccount(mnemonic)");

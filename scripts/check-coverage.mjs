@@ -50,6 +50,7 @@ const keepCoverageRoot = process.env.PP_KEEP_COVERAGE_ROOT === "1";
 const MAX_COVERAGE_LCOV_RETRIES = 3;
 let sharedBuiltWorkspaceSnapshotRoot = null;
 let cleanedUp = false;
+let keptCoverageRootNotified = false;
 // Keep coverage-owned isolated suites serial until Bun's lcov writer is
 // reliable across concurrent coverage processes. The default test runner still
 // uses fixtureClass-aware concurrency for non-coverage execution.
@@ -152,6 +153,14 @@ function cleanupCoverageResources() {
       maxRetries: 3,
       retryDelay: 50,
     });
+    return;
+  }
+
+  if (!keptCoverageRootNotified) {
+    keptCoverageRootNotified = true;
+    process.stdout.write(
+      `coverage debug artifacts kept at ${coverageRootDir}\n`,
+    );
   }
 }
 
@@ -419,9 +428,12 @@ try {
       serializeCoverageMapToLcov(mergedCoverage),
       "utf8",
     );
-    process.stdout.write(
-      `coverage debug artifacts kept at ${coverageRootDir}\n`,
-    );
+    if (!keptCoverageRootNotified) {
+      keptCoverageRootNotified = true;
+      process.stdout.write(
+        `coverage debug artifacts kept at ${coverageRootDir}\n`,
+      );
+    }
   }
 
   const {

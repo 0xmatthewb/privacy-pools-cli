@@ -265,7 +265,7 @@ describe("resolvePool", () => {
     expect(pool.asset.toLowerCase()).toBe(asset.toLowerCase());
     expect(pool.pool.toLowerCase()).toBe(poolAddress.toLowerCase());
     expect(pool.symbol).toBe("USDC");
-    expect(deploymentHint).toBeDefined();
+    expect(typeof deploymentHint).toBe("bigint");
     expect(pool.deploymentBlock).toBe(deploymentHint);
   });
 

@@ -22,7 +22,7 @@ import { renderSyncEmpty, renderSyncComplete } from "../output/sync.js";
 import { maybeRenderPreviewScenario } from "../preview/runtime.js";
 import { maybeRecoverMissingWalletSetup } from "../utils/setup-recovery.js";
 
-function summarizeSyncedEventCounts(account: unknown): {
+export function summarizeSyncedEventCounts(account: unknown): {
   deposits: number;
   withdrawals: number;
   ragequits: number;

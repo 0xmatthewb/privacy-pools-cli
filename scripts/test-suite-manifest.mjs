@@ -189,6 +189,16 @@ export const RELAYER_HELPERS_SERVICE_TEST =
   "./test/services/relayer.helpers.service.test.ts";
 export const WITHDRAW_COMMAND_HELPERS_TEST =
   "./test/unit/withdraw-command.helpers.unit.test.ts";
+export const WITHDRAW_HANDLER_DIRECT_TEST =
+  "./test/unit/withdraw-command-handler.direct.unit.test.ts";
+export const WITHDRAW_HANDLER_INTERACTIVE_TEST =
+  "./test/unit/withdraw-command-handler.interactive.unit.test.ts";
+export const WITHDRAW_HANDLER_QUOTE_TEST =
+  "./test/unit/withdraw-command-handler.quote.unit.test.ts";
+export const WITHDRAW_HANDLER_RELAYED_TEST =
+  "./test/unit/withdraw-command-handler.relayed.unit.test.ts";
+export const WITHDRAW_HANDLER_VALIDATION_TEST =
+  "./test/unit/withdraw-command-handler.validation.unit.test.ts";
 
 export const ACCOUNT_READONLY_TESTS = [
   ACCOUNTS_READONLY_TEST,
@@ -208,6 +218,14 @@ export const RAGEQUIT_HANDLER_TESTS = [
   RAGEQUIT_HANDLER_UNSIGNED_TEST,
   RAGEQUIT_HANDLER_OWNERSHIP_TEST,
   RAGEQUIT_HANDLER_HUMAN_CONFIRMATION_TEST,
+];
+
+export const WITHDRAW_HANDLER_TESTS = [
+  WITHDRAW_HANDLER_DIRECT_TEST,
+  WITHDRAW_HANDLER_INTERACTIVE_TEST,
+  WITHDRAW_HANDLER_QUOTE_TEST,
+  WITHDRAW_HANDLER_RELAYED_TEST,
+  WITHDRAW_HANDLER_VALIDATION_TEST,
 ];
 
 export const COMMAND_SURFACE_TESTS = [
@@ -456,17 +474,6 @@ export const ISOLATED_SUITES = [
       "the account sync-events suite yields richer lcov maps for rebuild and persistence branches when coverage runs in its own Bun process",
   }),
   defineIsolatedSuite({
-    label: "account-handler-errors",
-    tests: [ACCOUNT_HANDLER_ERRORS_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: false,
-    isolateInCoverage: false,
-    fixtureClass: "account-handler",
-    tags: ["unit", "accounts", "errors"],
-    reason:
-      "self-cleaning restore snapshots now return output/common and account modules to their real exports between tests",
-  }),
-  defineIsolatedSuite({
     label: "account-readonly",
     tests: ACCOUNT_READONLY_TESTS,
     timeoutMs: 120_000,
@@ -500,6 +507,18 @@ export const ISOLATED_SUITES = [
     tags: ["unit", "withdraw", "coverage"],
     reason:
       "the withdraw helper suite yields richer lcov maps for quote-validation branches when coverage runs in its own Bun process",
+  }),
+  defineIsolatedSuite({
+    label: "withdraw-scenarios",
+    tests: WITHDRAW_HANDLER_TESTS,
+    timeoutMs: 120_000,
+    budgetMs: 30_000,
+    isolateInDefaultTest: false,
+    isolateInCoverage: true,
+    fixtureClass: "withdraw-handler",
+    tags: ["unit", "withdraw", "coverage", "fund-moving"],
+    reason:
+      "the withdraw handler scenario suite installs a broad mock graph and only emits stable lcov when coverage runs in its own Bun process",
   }),
   defineIsolatedSuite({
     label: "init-interactive-cancel-invalid",
@@ -570,17 +589,6 @@ export const ISOLATED_SUITES = [
       "Bun lcov stays stable for the stateful init handler only when coverage runs through a non-tty child process",
   }),
   defineIsolatedSuite({
-    label: "deposit-handler",
-    tests: [DEPOSIT_HANDLER_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: false,
-    isolateInCoverage: false,
-    fixtureClass: "deposit-handler",
-    tags: ["unit", "deposit", "fund-moving"],
-    reason:
-      "command-handler mocks now restore shared sdk, preflight, and transaction helpers to real export snapshots",
-  }),
-  defineIsolatedSuite({
     label: "ragequit-command-helpers-coverage",
     tests: [RAGEQUIT_COMMAND_HELPERS_TEST],
     timeoutMs: 120_000,
@@ -635,28 +643,6 @@ export const ISOLATED_SUITES = [
     tags: ["unit", "ragequit", "coverage", "fund-moving"],
     reason:
       "the human-confirmation ragequit slice stays deterministic when coverage runs in its own Bun process",
-  }),
-  defineIsolatedSuite({
-    label: "pools-handler",
-    tests: [POOLS_HANDLER_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: false,
-    isolateInCoverage: false,
-    fixtureClass: "pools-handler",
-    tags: ["unit", "pools"],
-    reason:
-      "pools handler restores shared sdk, account, asp, and pool-account modules after each test batch",
-  }),
-  defineIsolatedSuite({
-    label: "flow-handlers",
-    tests: [FLOW_HANDLERS_TEST],
-    timeoutMs: 120_000,
-    isolateInDefaultTest: false,
-    isolateInCoverage: false,
-    fixtureClass: "flow-handlers",
-    tags: ["unit", "workflow", "flow", "fund-moving"],
-    reason:
-      "flow handler mocks restore workflow and output modules to captured real export snapshots between tests",
   }),
   defineIsolatedSuite({
     label: "bootstrap-runtime",

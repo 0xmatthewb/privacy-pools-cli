@@ -96,9 +96,18 @@ describe("external JSON contract doc conformance", () => {
     expect(status.successFields?.blockingIssues).toContain("StatusIssue[]?");
     expect(status.successFields?.warnings).toContain("StatusIssue[]?");
 
-    const meta = commands.meta as Record<string, unknown>;
-    expect(meta.helpEnvelope).toBeTruthy();
-    expect(meta.versionEnvelope).toBeTruthy();
+    const meta = commands.meta as {
+      helpEnvelope?: Record<string, string>;
+      versionEnvelope?: Record<string, string>;
+    };
+    expect(meta.helpEnvelope).toEqual({
+      mode: "help",
+      help: "string",
+    });
+    expect(meta.versionEnvelope).toEqual({
+      mode: "version",
+      version: "semver-string",
+    });
   });
 
   test("doc reflects current upgrade machine fields", () => {

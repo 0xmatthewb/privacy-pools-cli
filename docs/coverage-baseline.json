@@ -1,0 +1,197 @@
+{
+  "generatedAt": "2026-04-19",
+  "command": "PP_KEEP_COVERAGE_ROOT=1 npm run test:coverage",
+  "overall": {
+    "percent": 79.69,
+    "linesHit": 37975,
+    "linesFound": 47652
+  },
+  "thresholds": {
+    "services": {
+      "percent": 85.85,
+      "linesHit": 9364,
+      "linesFound": 10908
+    },
+    "workflow-engine": {
+      "percent": 91.13,
+      "linesHit": 3844,
+      "linesFound": 4218
+    },
+    "utils": {
+      "percent": 86.74,
+      "linesHit": 9718,
+      "linesFound": 11204
+    },
+    "command-shells": {
+      "percent": 98.14,
+      "linesHit": 1111,
+      "linesFound": 1132
+    },
+    "bootstrap": {
+      "percent": 86.05,
+      "linesHit": 944,
+      "linesFound": 1097
+    },
+    "config": {
+      "percent": 95.89,
+      "linesHit": 327,
+      "linesFound": 341
+    }
+  },
+  "failingThresholds": {
+    "overall-src": {
+      "percent": 79.69,
+      "linesHit": 37975,
+      "linesFound": 47652,
+      "target": 85
+    },
+    "commands": {
+      "percent": 59.35,
+      "linesHit": 6822,
+      "linesFound": 11494,
+      "target": 85
+    },
+    "output": {
+      "percent": 84.81,
+      "linesHit": 7988,
+      "linesFound": 9419,
+      "target": 85
+    },
+    "launcher-runtime": {
+      "percent": 84.03,
+      "linesHit": 1858,
+      "linesFound": 2211,
+      "target": 85
+    }
+  },
+  "riskScorecard": {
+    "workflow": {
+      "percent": 92.9,
+      "linesHit": 5101,
+      "linesFound": 5491,
+      "target": 90
+    },
+    "init": {
+      "percent": 92.42,
+      "linesHit": 1500,
+      "linesFound": 1623,
+      "target": 90
+    },
+    "deposit": {
+      "percent": 92.7,
+      "linesHit": 1029,
+      "linesFound": 1110,
+      "target": 90
+    },
+    "withdraw": {
+      "percent": 33.73,
+      "linesHit": 1081,
+      "linesFound": 3205,
+      "target": 90
+    },
+    "ragequit": {
+      "percent": 70.64,
+      "linesHit": 895,
+      "linesFound": 1267,
+      "target": 90
+    },
+    "accounts": {
+      "percent": 94.86,
+      "linesHit": 1735,
+      "linesFound": 1829,
+      "target": 90
+    },
+    "relayer-service": {
+      "percent": 100,
+      "linesHit": 436,
+      "linesFound": 436,
+      "target": 90
+    }
+  },
+  "topUncoveredFiles": [
+    {
+      "path": "src/commands/withdraw.ts",
+      "missed": 2731,
+      "percent": 10.84,
+      "linesHit": 332,
+      "linesFound": 3063
+    },
+    {
+      "path": "src/commands/ragequit.ts",
+      "missed": 515,
+      "percent": 54.78,
+      "linesHit": 624,
+      "linesFound": 1139
+    },
+    {
+      "path": "src/services/broadcast.ts",
+      "missed": 446,
+      "percent": 61.62,
+      "linesHit": 716,
+      "linesFound": 1162
+    },
+    {
+      "path": "src/services/workflow.ts",
+      "missed": 374,
+      "percent": 91.13,
+      "linesHit": 3844,
+      "linesFound": 4218
+    },
+    {
+      "path": "src/commands/flow.ts",
+      "missed": 275,
+      "percent": 72.69,
+      "linesHit": 732,
+      "linesFound": 1007
+    },
+    {
+      "path": "src/output/flow.ts",
+      "missed": 193,
+      "percent": 87.01,
+      "linesHit": 1293,
+      "linesFound": 1486
+    },
+    {
+      "path": "src/commands/tx-status.ts",
+      "missed": 187,
+      "percent": 22.08,
+      "linesHit": 53,
+      "linesFound": 240
+    },
+    {
+      "path": "src/commands/init.ts",
+      "missed": 164,
+      "percent": 87.8,
+      "linesHit": 1180,
+      "linesFound": 1344
+    },
+    {
+      "path": "src/utils/json.ts",
+      "missed": 146,
+      "percent": 55.89,
+      "linesHit": 185,
+      "linesFound": 331
+    },
+    {
+      "path": "src/output/pools.ts",
+      "missed": 144,
+      "percent": 79.04,
+      "linesHit": 543,
+      "linesFound": 687
+    },
+    {
+      "path": "src/commands/deposit.ts",
+      "missed": 141,
+      "percent": 83.25,
+      "linesHit": 701,
+      "linesFound": 842
+    },
+    {
+      "path": "src/output/accounts.ts",
+      "missed": 140,
+      "percent": 84.16,
+      "linesHit": 744,
+      "linesFound": 884
+    }
+  ]
+}

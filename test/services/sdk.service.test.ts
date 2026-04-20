@@ -9,6 +9,7 @@ import {
 import { CHAINS } from "../../src/config/chains.ts";
 import { getRpcUrls } from "../../src/services/config.ts";
 import type { Address } from "viem";
+import { createStrictStubRegistry } from "../helpers/strict-stubs.ts";
 
 describe("sdk service", () => {
   const poolAddress = "0x0000000000000000000000000000000000000001" as Address;
@@ -38,6 +39,10 @@ describe("sdk service", () => {
     );
   }
 
+  function requestMethod(init?: RequestInit): string {
+    return (JSON.parse(String(init?.body)) as { method: string }).method;
+  }
+
   afterEach(() => {
     globalThis.fetch = originalFetch;
     resetSdkServiceCachesForTests();
@@ -51,13 +56,11 @@ describe("sdk service", () => {
   describe("getPublicClient", () => {
     test("returns a PublicClient with the correct chain", () => {
       const client = getPublicClient(CHAINS.mainnet);
-      expect(client).toBeDefined();
       expect(client.chain?.id).toBe(1);
     });
 
     test("respects rpcOverride as single transport", () => {
       const client = getPublicClient(CHAINS.mainnet, "https://custom-rpc.example.com");
-      expect(client).toBeDefined();
       expect(client.chain?.id).toBe(1);
     });
 
@@ -92,14 +95,31 @@ describe("sdk service", () => {
 
     test("builds default read-only sessions with the cheaper basic probe", async () => {
       const seenMethods: string[] = [];
-      const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body)) as { method: string };
-        seenMethods.push(body.method);
-        if (body.method === "eth_blockNumber") return rpcSuccess("0x1000");
-        if (body.method === "eth_call") return rpcSuccess("0x");
-        throw new Error(`unexpected method ${body.method}`);
-      });
-      globalThis.fetch = fetchMock as typeof fetch;
+      const fetchRegistry = createStrictStubRegistry<
+        [RequestInfo | URL, RequestInit | undefined],
+        Promise<Response>
+      >("sdk.readonly-basic-probe");
+      fetchRegistry.expectCall(
+        "eth_blockNumber",
+        async (_input, init) => {
+          seenMethods.push(requestMethod(init));
+          return rpcSuccess("0x1000");
+        },
+        {
+          match: (_input, init) => requestMethod(init) === "eth_blockNumber",
+        },
+      );
+      fetchRegistry.expectCall(
+        "eth_call",
+        async (_input, init) => {
+          seenMethods.push(requestMethod(init));
+          return rpcSuccess("0x");
+        },
+        {
+          match: (_input, init) => requestMethod(init) === "eth_call",
+        },
+      );
+      globalThis.fetch = fetchRegistry.createStub() as typeof fetch;
 
       const session = await getReadOnlyRpcSession(CHAINS.sepolia);
 
@@ -108,6 +128,7 @@ describe("sdk service", () => {
       expect(seenMethods).toContain("eth_blockNumber");
       expect(seenMethods).toContain("eth_call");
       expect(seenMethods).not.toContain("eth_getLogs");
+      fetchRegistry.assertConsumed();
     });
 
     test("dedupes latest block reads within the short-lived session window", async () => {
@@ -130,41 +151,35 @@ describe("sdk service", () => {
 
     test("selects a single basic-probe-healthy rpc url for multi-url read-only sessions", async () => {
       const urls = getRpcUrls(CHAINS.sepolia.id);
-      const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const requestUrl = String(input);
-        const body = JSON.parse(String(init?.body)) as { method: string };
-
-        if (requestUrl === urls[0] && body.method === "eth_blockNumber") {
-          return rpcSuccess("0x1000");
-        }
-        if (requestUrl === urls[0] && body.method === "eth_call") {
-          return rpcSuccess("0x");
-        }
-        if (requestUrl === urls[0] && body.method === "eth_getLogs") {
-          return rpcError("logs unavailable");
-        }
-
-        if (body.method === "eth_blockNumber") {
-          return rpcSuccess("0x1000");
-        }
-        if (body.method === "eth_call") {
-          return rpcSuccess("0x");
-        }
-        if (body.method === "eth_getLogs") {
-          return rpcSuccess([]);
-        }
-
-        throw new Error(`unexpected probe ${body.method} for ${requestUrl}`);
-      });
-      globalThis.fetch = fetchMock as typeof fetch;
+      const fetchRegistry = createStrictStubRegistry<
+        [RequestInfo | URL, RequestInit | undefined],
+        Promise<Response>
+      >("sdk.readonly-multi-url");
+      fetchRegistry.expectCall(
+        "primary eth_blockNumber",
+        async () => rpcSuccess("0x1000"),
+        {
+          match: (input, init) =>
+            String(input) === urls[0] && requestMethod(init) === "eth_blockNumber",
+        },
+      );
+      fetchRegistry.expectCall(
+        "primary eth_call",
+        async () => rpcSuccess("0x"),
+        {
+          match: (input, init) =>
+            String(input) === urls[0] && requestMethod(init) === "eth_call",
+        },
+      );
+      globalThis.fetch = fetchRegistry.createStub() as typeof fetch;
 
       const session = await getReadOnlyRpcSession(CHAINS.sepolia);
 
       expect(session.rpcUrl).toBe(urls[0]);
-      expect(fetchMock.mock.calls.every(([, init]) => {
-        const body = JSON.parse(String(init?.body)) as { method: string };
-        return body.method !== "eth_getLogs";
-      })).toBe(true);
+      expect(
+        fetchRegistry.calls.every(({ args: [, init] }) => requestMethod(init) !== "eth_getLogs"),
+      ).toBe(true);
+      fetchRegistry.assertConsumed();
     });
   });
 
@@ -185,17 +200,30 @@ describe("sdk service", () => {
 
     test("returns the first healthy url in configured order", async () => {
       const urls = getRpcUrls(CHAINS.mainnet.id);
-      const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body)) as { method: string };
-        if (body.method === "eth_blockNumber") return rpcSuccess("0x1000");
-        if (body.method === "eth_getLogs") return rpcSuccess([]);
-        throw new Error(`unexpected method ${body.method}`);
-      });
-      globalThis.fetch = fetchMock as typeof fetch;
+      const fetchRegistry = createStrictStubRegistry<
+        [RequestInfo | URL, RequestInit | undefined],
+        Promise<Response>
+      >("sdk.healthy-rpc-first-url");
+      fetchRegistry.expectCall(
+        "eth_blockNumber",
+        async () => rpcSuccess("0x1000"),
+        {
+          match: (_input, init) => requestMethod(init) === "eth_blockNumber",
+        },
+      );
+      fetchRegistry.expectCall(
+        "eth_getLogs",
+        async () => rpcSuccess([]),
+        {
+          match: (_input, init) => requestMethod(init) === "eth_getLogs",
+        },
+      );
+      globalThis.fetch = fetchRegistry.createStub() as typeof fetch;
 
       const url = await getHealthyRpcUrl(CHAINS.mainnet.id);
 
       expect(url).toBe(urls[0]);
+      fetchRegistry.assertConsumed();
     });
 
     test("picks a healthy url when some fail the log probe", async () => {
@@ -449,7 +477,7 @@ describe("sdk service", () => {
         poolAddress,
         "https://rpc.example.com"
       );
-      expect(ds).toBeDefined();
+      expect(ds).toEqual(expect.anything());
       expect((ds as any).chainConfigs[0].startBlock).toBe(CHAINS.mainnet.startBlock);
     });
 
@@ -459,7 +487,7 @@ describe("sdk service", () => {
         poolAddress,
         "https://rpc.example.com"
       );
-      expect(ds).toBeDefined();
+      expect(ds).toEqual(expect.anything());
       expect((ds as any).chainConfigs[0].startBlock).toBe(CHAINS.sepolia.startBlock);
     });
 

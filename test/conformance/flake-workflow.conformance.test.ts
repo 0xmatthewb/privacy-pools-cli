@@ -19,7 +19,6 @@ const packageJson = JSON.parse(
 
 describe("flake workflow conformance", () => {
   test("flake workflow runs the repo's full flake contract", () => {
-    expect(packageJson.scripts?.["test:flake"]).toBeTruthy();
     expect(packageJson.scripts?.["test:flake"]).toBe(
       "node scripts/run-flake-suite.mjs",
     );

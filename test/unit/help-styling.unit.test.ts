@@ -160,7 +160,6 @@ describe("styleCommanderHelp", () => {
     expect(plain).toContain("JSON output (--json):");
 
     const examplesLine = result.split("\n").find((line) => stripAnsi(line).includes("privacy-pools deposit 0.1 ETH"));
-    expect(examplesLine).toBeDefined();
     expect(examplesLine).toMatch(/\x1b\[/);
   });
 

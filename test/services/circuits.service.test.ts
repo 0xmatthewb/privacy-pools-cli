@@ -185,7 +185,7 @@ describe("circuits service", () => {
   test("shared checksum manifest includes the installed SDK tag", () => {
     const manifest = sharedChecksumManifest as Record<string, Record<string, string>>;
 
-    expect(manifest[installedSdkTag()]).toBeDefined();
+    expect(manifest[installedSdkTag()]).toEqual(expect.any(Object));
     expect(Object.keys(manifest)).toEqual([installedSdkTag()]);
     expect(Object.keys(manifest[installedSdkTag()])).toEqual([...ALL_FILES]);
   });

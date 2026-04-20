@@ -10,6 +10,7 @@
  *   SDK:                     installed @0xbow/privacy-pools-core-sdk@1.2.0
  *
  * @frontend-parity
+ * @online
  */
 import { beforeAll, describe, expect, test } from "bun:test";
 import {

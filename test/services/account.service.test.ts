@@ -104,7 +104,6 @@ describe("account service strict sync behavior", () => {
       false
     );
 
-    expect(service).toBeDefined();
     expect(service).toBeInstanceOf(AccountService);
     expect(service.account.poolAccounts.size).toBe(0);
     expect(loadAccount(11155111)).toBeNull();

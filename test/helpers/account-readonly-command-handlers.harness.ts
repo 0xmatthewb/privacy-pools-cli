@@ -202,6 +202,32 @@ const initializeWithEventsMock = mock(async () => ({
   errors: [],
 }));
 
+function clearMockCalls(fn: {
+  mockClear?: () => unknown;
+  mockReset?: () => unknown;
+  mock?: {
+    calls?: unknown[];
+    results?: unknown[];
+    contexts?: unknown[];
+    instances?: unknown[];
+  };
+}): void {
+  if (typeof fn.mockClear === "function") {
+    fn.mockClear();
+    return;
+  }
+
+  if (typeof fn.mockReset === "function") {
+    fn.mockReset();
+    return;
+  }
+
+  fn.mock?.calls?.splice(0);
+  fn.mock?.results?.splice(0);
+  fn.mock?.contexts?.splice(0);
+  fn.mock?.instances?.splice(0);
+}
+
 let handleAccountsCommand: typeof import("../../src/commands/accounts.ts").handleAccountsCommand;
 let handleHistoryCommand: typeof import("../../src/commands/history.ts").handleHistoryCommand;
 let handleSyncCommand: typeof import("../../src/commands/sync.ts").handleSyncCommand;
@@ -302,6 +328,21 @@ export function registerAccountReadonlyCommandHandlerHarness(): void {
   beforeEach(() => {
     world = createTestWorld({ prefix: "pp-account-readonly-handler-" });
     mock.restore();
+    clearMockCalls(initializeAccountServiceWithStateMock);
+    clearMockCalls(assertAccountStateFreshForNoSyncMock);
+    clearMockCalls(syncAccountEventsMock);
+    clearMockCalls(withSuppressedSdkStdoutSyncMock);
+    clearMockCalls(withSuppressedSdkStdoutMock);
+    clearMockCalls(getDataServiceMock);
+    clearMockCalls(getPublicClientMock);
+    clearMockCalls(listPoolsMock);
+    clearMockCalls(resolvePoolMock);
+    clearMockCalls(listKnownPoolsFromRegistryMock);
+    clearMockCalls(loadAspDepositReviewStateMock);
+    clearMockCalls(buildAllPoolAccountRefsMock);
+    clearMockCalls(collectActiveLabelsMock);
+    clearMockCalls(buildMigrationChainReadinessFromLegacyAccountMock);
+    clearMockCalls(initializeWithEventsMock);
     initializeAccountServiceWithStateMock.mockImplementation(async () => ({
       accountService: {
         account: { poolAccounts: new Map() },

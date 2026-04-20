@@ -43,8 +43,8 @@ function expectPoolResolutionFailure(
   },
 ): void {
   expect(json.success).toBe(false);
-  expect(json.error).toBeDefined();
   expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
+  expect(json.error?.code).toBe("RPC_POOL_RESOLUTION_FAILED");
   expect(json.errorMessage).toContain(
     'Built-in pool fallback also failed for "ETH" on sepolia.',
   );

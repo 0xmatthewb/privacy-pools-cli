@@ -81,8 +81,7 @@ describe("banner runtime", () => {
       });
     });
 
-    expect(result).toBeDefined();
-    expect(result!.includedWelcomeText).toBe(true);
+    expect(result).toEqual({ includedWelcomeText: true });
 
     rmSync(markerPath, { force: true });
   });
@@ -102,8 +101,7 @@ describe("banner runtime", () => {
       result = await printBanner({ version: "1.0.0" });
     });
 
-    expect(result).toBeDefined();
-    expect(result!.includedWelcomeText).toBe(false);
+    expect(result).toEqual({ includedWelcomeText: false });
 
     rmSync(markerPath, { force: true });
   });

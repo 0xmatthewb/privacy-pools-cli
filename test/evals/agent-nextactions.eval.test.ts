@@ -37,7 +37,7 @@ describe("agent nextActions eval", () => {
                 a.command === "init" ||
                 a.command.includes("init"),
             );
-            expect(initAction).toBeDefined();
+            expect(initAction).toEqual(expect.anything());
           },
         },
       ],
@@ -151,7 +151,7 @@ describe("agent nextActions eval", () => {
 
     // Step 0: status succeeded and emitted nextAction
     expect(results[0].result.status).toBe(0);
-    expect(results[0].followedAction).toBeDefined();
+    expect(results[0].followedAction).toEqual(expect.anything());
     expect(results[0].followedAction!.command).toBe("init");
 
     // Step 1: the followed init command ran and succeeded
@@ -172,7 +172,7 @@ describe("agent nextActions eval", () => {
     };
 
     const action = extractFirstRunnableAction(payload);
-    expect(action).toBeDefined();
+    expect(action).toEqual(expect.anything());
     expect(action!.command).toBe("status");
   });
 });

@@ -165,7 +165,6 @@ describe("renderActivity pool-activity parity", () => {
     const { stdout } = captureOutput(() => renderActivity(ctx, data));
 
     const json = JSON.parse(stdout.trim());
-    expect(json.nextActions).toBeDefined();
     expect(json.nextActions.length).toBe(1);
     const action = json.nextActions[0];
     expect(action.command).toBe("activity");

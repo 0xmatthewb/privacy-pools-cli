@@ -626,7 +626,7 @@ describe("launcher runtime coverage", () => {
       expect(spawnCall?.command).toBe(target.command);
       expect(spawnCall?.args).toEqual(target.args);
       expect(spawnCall?.stdio).toBe("inherit");
-      expect(spawnCall?.env[CURRENT_RUNTIME_REQUEST_ENV]).toBeDefined();
+      expect(typeof spawnCall?.env[CURRENT_RUNTIME_REQUEST_ENV]).toBe("string");
     } finally {
       if (originalWorkerOverride === undefined) {
         delete process.env.PRIVACY_POOLS_CLI_JS_WORKER;

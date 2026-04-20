@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { AccountService } from "@0xbow/privacy-pools-core-sdk";
-import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 import {
   ACCOUNT_FILE_VERSION,
   assertAccountStateFreshForNoSync,
@@ -23,12 +23,14 @@ import {
 import { CLIError } from "../../src/utils/errors.ts";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_INIT_WITH_EVENTS = AccountService.initializeWithEvents;
 const ORIGINAL_FETCH = global.fetch;
+const worlds: TestWorld[] = [];
 
-function isolatedHome(): string {
-  const home = createTrackedTempDir("pp-account-persist-test-");
+function useIsolatedHome(): string {
+  const world = createTestWorld({ prefix: "pp-account-persist-test-" });
+  worlds.push(world);
+  const home = world.useConfigHome();
   // Ensure accounts subdirectory exists
   mkdirSync(join(home, "accounts"), { recursive: true });
   return home;
@@ -131,15 +133,13 @@ function makeMixedLegacyAccount() {
 }
 
 describe("account persistence", () => {
-  afterEach(() => {
+  afterEach(async () => {
     AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
     global.fetch = ORIGINAL_FETCH;
-    if (ORIGINAL_HOME === undefined) {
-      delete process.env.PRIVACY_POOLS_HOME;
-    } else {
-      process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+    while (worlds.length > 0) {
+      const world = worlds.pop();
+      await world?.teardown();
     }
-    cleanupTrackedTempDirs();
   });
 
   /* ---------------------------------------------------------------- */
@@ -147,16 +147,14 @@ describe("account persistence", () => {
   /* ---------------------------------------------------------------- */
 
   test("loadAccount returns null when no account file exists", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const result = loadAccount(99999);
     expect(result).toBeNull();
   });
 
   test("loadAccount throws INPUT CLIError on corrupt JSON file", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     const accountsDir = join(home, "accounts");
     writeFileSync(join(accountsDir, "11155111.json"), "{{not valid json", "utf-8");
 
@@ -177,8 +175,7 @@ describe("account persistence", () => {
   /* ---------------------------------------------------------------- */
 
   test("saveAccount and loadAccount round-trip preserves BigInt and Map values", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const account = {
       chainId: 11155111,
@@ -197,8 +194,7 @@ describe("account persistence", () => {
   });
 
   test("saveAccount ignores legacy predictable temp-file symlinks", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     const accountsDir = join(home, "accounts");
     const victimPath = join(home, "victim.txt");
     writeFileSync(victimPath, "do not overwrite", "utf-8");
@@ -213,8 +209,7 @@ describe("account persistence", () => {
   });
 
   test("loadAccount ignores interrupted temp siblings and returns the last committed state", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     const accountsDir = join(home, "accounts");
 
     saveAccount(11155111, {
@@ -266,8 +261,7 @@ describe("account persistence", () => {
   });
 
   test("needsLegacyAccountRebuild detects versionless saved accounts", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const accountsDir = join(home, "accounts");
     writeFileSync(
@@ -287,8 +281,7 @@ describe("account persistence", () => {
   });
 
   test("needsLegacyAccountRebuild detects current-version snapshots missing legacy history", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const accountsDir = join(home, "accounts");
     writeFileSync(
@@ -304,8 +297,7 @@ describe("account persistence", () => {
   });
 
   test("needsLegacyAccountRebuild detects current-version snapshots missing legacy readiness", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const accountsDir = join(home, "accounts");
     writeFileSync(
@@ -322,8 +314,7 @@ describe("account persistence", () => {
   });
 
   test("assertAccountStateFreshForNoSync blocks stale saved accounts and passes fresh ones", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     writeFileSync(
       join(home, "accounts", "11155111.json"),
@@ -389,8 +380,7 @@ describe("account persistence", () => {
   });
 
   test("fresh legacy sources are cloned before storage attachment", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const externalLegacyAccount = makeLegacyAccount({ isMigrated: true });
     AccountService.initializeWithEvents = (async () => ({
@@ -419,7 +409,7 @@ describe("account persistence", () => {
     const attachedLegacyPoolAccounts = getStoredLegacyPoolAccounts(
       result.accountService.account as any,
     );
-    expect(attachedLegacyPoolAccounts).toBeDefined();
+    expect(attachedLegacyPoolAccounts).toBeInstanceOf(Map);
     expect(attachedLegacyPoolAccounts).not.toBe(externalLegacyAccount.account.poolAccounts);
 
     const originalStoredValue =
@@ -427,7 +417,9 @@ describe("account persistence", () => {
     expect(originalStoredValue).toBe(1n);
 
     const externalLegacyPoolAccount = externalLegacyAccount.account.poolAccounts.get(1n)?.[0];
-    expect(externalLegacyPoolAccount).toBeDefined();
+    expect(externalLegacyPoolAccount).toEqual(
+      expect.objectContaining({ deposit: expect.any(Object) }),
+    );
     if (externalLegacyPoolAccount) {
       externalLegacyPoolAccount.deposit.value = 99n;
     }
@@ -444,8 +436,7 @@ describe("account persistence", () => {
   /* ---------------------------------------------------------------- */
 
   test("saved account + forceSync + strictSync=true fails closed on event sync failure", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     // Write a saved account file so the saved-account path is triggered
     const fakeAccount = {
@@ -485,8 +476,7 @@ describe("account persistence", () => {
   });
 
   test("saved account + forceSync + strictSync=false warns but returns service", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     AccountService.initializeWithEvents = (async () => ({
       account: {
@@ -533,7 +523,6 @@ describe("account persistence", () => {
       );
 
       // Should return a service despite sync failures
-      expect(service).toBeDefined();
       expect(service).toBeInstanceOf(AccountService);
       // Should have emitted a warning
       expect(
@@ -547,8 +536,7 @@ describe("account persistence", () => {
   });
 
   test("legacy saved account snapshots are rebuilt through initializeWithEvents", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const accountsDir = join(home, "accounts");
     writeFileSync(
@@ -604,8 +592,7 @@ describe("account persistence", () => {
   });
 
   test("fresh mnemonic restore fails closed when SDK reports unmigrated legacy commitments", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     global.fetch = (async () =>
       new Response(
         JSON.stringify([{ label: "11", reviewStatus: "approved" }]),
@@ -648,8 +635,7 @@ describe("account persistence", () => {
   });
 
   test("fresh mnemonic restore fails with a retryable review-incomplete error when legacy ASP review data is unavailable", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     global.fetch = (async () => {
       throw new Error("asp unavailable");
     }) as typeof global.fetch;
@@ -688,8 +674,7 @@ describe("account persistence", () => {
   });
 
   test("stale saved snapshots are rebuilt before the migration gate runs", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     global.fetch = (async () =>
       new Response(
         JSON.stringify([{ label: "11", reviewStatus: "approved" }]),
@@ -746,8 +731,7 @@ describe("account persistence", () => {
   });
 
   test("current-version snapshots missing legacy history are rebuilt before the migration gate runs", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     global.fetch = (async () =>
       new Response(
         JSON.stringify([{ label: "11", reviewStatus: "approved" }]),
@@ -804,8 +788,7 @@ describe("account persistence", () => {
   });
 
   test("stale saved snapshots are rejected when rebuild is disabled", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const accountsDir = join(home, "accounts");
     writeFileSync(
@@ -835,8 +818,7 @@ describe("account persistence", () => {
   });
 
   test("current-version snapshots missing legacy history are rejected when rebuild is disabled", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const accountsDir = join(home, "accounts");
     writeFileSync(
@@ -866,8 +848,7 @@ describe("account persistence", () => {
   });
 
   test("legacy account rebuild fails closed when SDK reports unmigrated legacy commitments", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
     global.fetch = (async () =>
       new Response(
         JSON.stringify([{ label: "11", reviewStatus: "approved" }]),
@@ -918,8 +899,7 @@ describe("account persistence", () => {
   });
 
   test("fresh mnemonic restore surfaces website recovery guidance for declined-only legacy deposits", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     global.fetch = (async () =>
       new Response(
@@ -967,8 +947,7 @@ describe("account persistence", () => {
   });
 
   test("fresh mnemonic restore can persist website recovery visibility for read-only commands", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     global.fetch = (async () =>
       new Response(
@@ -1013,8 +992,7 @@ describe("account persistence", () => {
   });
 
   test("fresh mnemonic restore keeps declined legacy visibility for mixed migration-required wallets", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     global.fetch = (async () =>
       new Response(
@@ -1060,8 +1038,7 @@ describe("account persistence", () => {
   });
 
   test("read-only visibility still fails closed when legacy migration is required", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     global.fetch = (async () =>
       new Response(JSON.stringify([]), {
@@ -1103,8 +1080,7 @@ describe("account persistence", () => {
   });
 
   test("saved mixed migration-required snapshots keep declined legacy visibility for read-only commands", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     saveAccount(11155111, {
       masterKeys: [1n, 2n],
@@ -1145,8 +1121,7 @@ describe("account persistence", () => {
   });
 
   test("saved-account sync surfaces website recovery guidance instead of dropping legacy state", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     saveAccount(11155111, {
       masterKeys: [1n, 2n],
@@ -1205,8 +1180,7 @@ describe("account persistence", () => {
   });
 
   test("saved-account sync keeps declined legacy visibility for mixed migration-required wallets", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     saveAccount(11155111, {
       masterKeys: [1n, 2n],
@@ -1263,8 +1237,7 @@ describe("account persistence", () => {
   });
 
   test("saved blocked snapshots still fail closed for non-read-only commands", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     saveAccount(11155111, {
       masterKeys: [1n, 2n],
@@ -1292,8 +1265,7 @@ describe("account persistence", () => {
   });
 
   test("fresh mnemonic restore succeeds when legacy commitments are already migrated", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const rebuiltService = new AccountService({} as any, {
       account: {
@@ -1328,8 +1300,7 @@ describe("account persistence", () => {
   });
 
   test("partial fresh initialization does not persist a trusted snapshot", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const rebuiltService = new AccountService({} as any, {
       account: {
@@ -1363,8 +1334,7 @@ describe("account persistence", () => {
   });
 
   test("partial legacy rebuild does not overwrite the stale saved snapshot", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const accountsDir = join(home, "accounts");
     writeFileSync(
@@ -1410,8 +1380,7 @@ describe("account persistence", () => {
   });
 
   test("partial sync fails closed and does not persist a mixed snapshot", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     AccountService.initializeWithEvents = (async () => ({
       account: {
@@ -1461,8 +1430,7 @@ describe("account persistence", () => {
   });
 
   test("saved account without forceSync skips sync and returns service directly", async () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const fakeAccount = {
       poolAccounts: new Map(),
@@ -1483,7 +1451,6 @@ describe("account persistence", () => {
       false
     );
 
-    expect(service).toBeDefined();
     expect(service).toBeInstanceOf(AccountService);
   });
 });
@@ -1491,15 +1458,13 @@ describe("account persistence", () => {
 // ── Backup/recovery round-trip ────────────────────────────────────────────
 
 describe("backup and recovery round-trip", () => {
-  afterEach(() => {
-    if (ORIGINAL_HOME === undefined) {
-      delete process.env.PRIVACY_POOLS_HOME;
-    } else {
-      process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+  afterEach(async () => {
+    while (worlds.length > 0) {
+      const world = worlds.pop();
+      await world?.teardown();
     }
     AccountService.initializeWithEvents = ORIGINAL_INIT_WITH_EVENTS;
     global.fetch = ORIGINAL_FETCH;
-    cleanupTrackedTempDirs();
   });
 
   function makeAccountState(value: bigint = 500000n, ragequit = false) {
@@ -1535,7 +1500,7 @@ describe("backup and recovery round-trip", () => {
     const restored = deserialize(serialized) as any;
 
     // Master keys preserved
-    expect(restored.masterKeys).toBeDefined();
+    expect(restored.masterKeys).toEqual(expect.any(Array));
     expect(restored.masterKeys.length).toBe(2);
     expect(restored.masterKeys[0]).toBe(1n);
     expect(restored.masterKeys[1]).toBe(2n);
@@ -1546,7 +1511,7 @@ describe("backup and recovery round-trip", () => {
 
     // Deposit fields preserved
     const entries = restored.poolAccounts.get(1n);
-    expect(entries).toBeDefined();
+    expect(entries).toEqual(expect.any(Array));
     expect(entries.length).toBe(1);
     const pa = entries[0];
     expect(pa.label).toBe(11n);
@@ -1559,8 +1524,7 @@ describe("backup and recovery round-trip", () => {
   });
 
   test("save to disk then load from disk preserves full state", () => {
-    const home = isolatedHome();
-    process.env.PRIVACY_POOLS_HOME = home;
+    const home = useIsolatedHome();
 
     const state = makeAccountState(999n, true);
     const chainId = 11155111;
@@ -1570,12 +1534,12 @@ describe("backup and recovery round-trip", () => {
     expect(loaded).not.toBeNull();
 
     // Verify key fields survived the full write→read cycle
-    expect(loaded.masterKeys).toBeDefined();
+    expect(loaded.masterKeys).toEqual(expect.any(Array));
     expect(loaded.masterKeys[0]).toBe(1n);
     expect(loaded.poolAccounts).toBeInstanceOf(Map);
     const entries = loaded.poolAccounts.get(1n);
     expect(entries[0].deposit.value).toBe(999n);
-    expect(entries[0].ragequit).toBeDefined();
+    expect(entries[0].ragequit).toEqual(expect.any(Object));
     expect(entries[0].ragequit.transactionHash).toBe("0x" + "22".repeat(32));
   });
 
