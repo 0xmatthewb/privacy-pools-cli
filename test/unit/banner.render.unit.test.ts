@@ -41,7 +41,10 @@ afterEach(() => {
 });
 
 describe("banner render layouts", () => {
-  test("uses the narrow tty fallback without rendering the full welcome text twice", async () => {
+  test("narrow tty: banner renders nothing, welcome screen takes over", async () => {
+    // Narrow fallback: we intentionally render *no* banner output and return
+    // includedWelcomeText=false so the caller's welcomeScreen() prints the
+    // wordmark/tagline/version/actions exactly once (no duplication).
     const sessionId = `banner:test/narrow:${Date.now()}:${Math.random().toString(16).slice(2)}`;
     const markerPath = markerPathFor(sessionId);
     process.env.TERM_SESSION_ID = sessionId;
@@ -55,16 +58,13 @@ describe("banner render layouts", () => {
     });
 
     expect(result).toEqual({ includedWelcomeText: false });
-    expectSemanticText(captured.stderr, {
-      includes: ["PRIVACY POOLS", "A compliant way to transact privately on Ethereum."],
-      excludes: ["privacy-pools status"],
-    });
+    expect(captured.stderr).toBe("");
     expect(existsSync(markerPath)).toBe(true);
 
     rmSync(markerPath, { force: true });
   });
 
-  test("renders the compact tty animated layout without paying real sleep cost", async () => {
+  test("renders the compact tty layout with welcome text and ripple pool", async () => {
     const sessionId = `banner:test/compact:${Date.now()}:${Math.random().toString(16).slice(2)}`;
     const markerPath = markerPathFor(sessionId);
     process.env.TERM_SESSION_ID = sessionId;
@@ -81,7 +81,6 @@ describe("banner render layouts", () => {
     expect(result).toEqual({ includedWelcomeText: true });
     expectSemanticText(captured.stderr, {
       includes: ["PRIVACY POOLS", "privacy-pools init", "privacy-pools guide"],
-      patterns: [/\x1b\[/],
     });
     expect(existsSync(markerPath)).toBe(true);
 
@@ -105,7 +104,6 @@ describe("banner render layouts", () => {
     expect(result).toEqual({ includedWelcomeText: true });
     expectSemanticText(captured.stderr, {
       includes: ["v2.2.0", "privacy-pools init", "privacy-pools --help"],
-      patterns: [/\x1b\[/],
     });
     expect(existsSync(markerPath)).toBe(true);
 

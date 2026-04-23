@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { accent, brand } from "./theme.js";
-import { renderRippleFrame, RIPPLE_FRAME_COUNT, RIPPLE_FRAME_DELAY_MS } from "./ripple.js";
-import { getTerminalColumns, supportsUnicodeOutput, visibleWidth, padDisplay, inlineSeparator } from "./terminal.js";
+import { renderKoiPond, KOI_POND_WIDTH, KOI_POND_HEIGHT } from "./koi-pond.js";
+import { getTerminalColumns, visibleWidth, padDisplay, inlineSeparator } from "./terminal.js";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -112,7 +112,7 @@ function composeWelcomeText(meta: BannerMeta): string[] {
 
   return [
     brand("PRIVACY POOLS"),
-    chalk.dim("A compliant way to transact privately on Ethereum."),
+    chalk.dim("Compliant private transactions on Ethereum."),
     versionLine,
     "",
     ...actionLines,
@@ -149,113 +149,132 @@ function composeSideBySide(
 
 // ── Main banner ─────────────────────────────────────────────────────────────
 
+/** Widest visible line of the welcome text block. */
+function welcomeTextWidth(lines: readonly string[]): number {
+  let max = 0;
+  for (const line of lines) {
+    const w = visibleWidth(line);
+    if (w > max) max = w;
+  }
+  return max;
+}
+
+const SIDE_BY_SIDE_GAP = 3;
+/** Minimum terminal rows required for compact mode (pool above text). */
+const COMPACT_MIN_ROWS_HEADROOM = 2;
+
+type BannerMode = "narrow" | "compact" | "side";
+
+interface BannerLayout {
+  mode: BannerMode;
+  columns: number;
+  rows: number | null;
+}
+
+function getTerminalRows(): number | null {
+  const r =
+    (process.stderr as { rows?: number }).rows ??
+    (process.stdout as { rows?: number }).rows;
+  return typeof r === "number" && r > 0 ? r : null;
+}
+
+/**
+ * Decide which layout to render for the current terminal size.
+ * Three modes:
+ *   - `narrow`: text-only (terminal too narrow for the illustration)
+ *   - `compact`: koi pond centered above text
+ *   - `side`: koi pond left of text
+ */
+function computeBannerLayout(welcomeText: readonly string[]): BannerLayout {
+  const columns = getTerminalColumns();
+  const rows = getTerminalRows();
+  const textWidth = welcomeTextWidth(welcomeText);
+  const textHeight = welcomeText.length;
+
+  // Below this width, the welcome text itself starts to feel cramped and
+  // adding any illustration makes it worse. Drop to text-only fallback.
+  if (columns < 72) {
+    return { mode: "narrow", columns, rows };
+  }
+
+  // Side-by-side requires: pool + gap + text block + small margin.
+  if (columns - textWidth - SIDE_BY_SIDE_GAP >= KOI_POND_WIDTH) {
+    return { mode: "side", columns, rows };
+  }
+
+  // Compact (pool above text) requires room for pool + text block vertically.
+  const canFitVertically =
+    rows === null || rows >= KOI_POND_HEIGHT + textHeight + COMPACT_MIN_ROWS_HEADROOM;
+  if (canFitVertically) {
+    return { mode: "compact", columns, rows };
+  }
+
+  // Not enough vertical room for pool + text.
+  return { mode: "narrow", columns, rows };
+}
+
+/**
+ * Render one full banner frame as an array of lines (no trailing newlines).
+ */
+function composeBannerFrame(
+  layout: BannerLayout,
+  welcomeText: readonly string[],
+  useColor: boolean,
+): string[] {
+  if (layout.mode === "narrow") {
+    // welcomeText already begins with wordmark + tagline + version.
+    return [...welcomeText];
+  }
+
+  const poolFrame = renderKoiPond({ useColor });
+
+  if (layout.mode === "side") {
+    return composeSideBySide(poolFrame, [...welcomeText], SIDE_BY_SIDE_GAP);
+  }
+
+  // Compact: center the pond horizontally above the text block.
+  const poolLeftPad = Math.max(0, Math.floor((layout.columns - KOI_POND_WIDTH) / 2));
+  const pad = " ".repeat(poolLeftPad);
+  const centeredPool = poolFrame.map((line) => pad + line);
+  return [...centeredPool, "", ...welcomeText];
+}
+
+/** Write a frame to stderr, one line at a time with newlines. */
+function writeBannerFrame(lines: readonly string[]): void {
+  for (const line of lines) {
+    process.stderr.write(line + "\n");
+  }
+}
+
+// ── Public entry point ──────────────────────────────────────────────────
+
 export async function printBanner(
   meta: BannerMeta = {},
 ): Promise<{ includedWelcomeText: boolean }> {
   // Only show once per terminal session.
   if (hasBannerBeenShown()) return { includedWelcomeText: false };
 
-  const columns = getTerminalColumns();
   const useColor = chalk.level > 0;
-  const useUnicode = supportsUnicodeOutput();
+  const welcomeText = composeWelcomeText(meta);
+  const layout = computeBannerLayout(welcomeText);
 
-  // ── Narrow (< 72 columns) ──────────────────────────────────────────────
-  if (columns < 72) {
-    process.stderr.write(brand("PRIVACY POOLS") + "\n");
-    process.stderr.write(chalk.dim("A compliant way to transact privately on Ethereum.") + "\n");
-    process.stderr.write("\n");
+  // Narrow: no room for the illustration. Let the caller render the
+  // welcome screen on its own (wordmark + tagline + version + actions) —
+  // we'd otherwise double-print the wordmark and tagline.
+  if (layout.mode === "narrow") {
     markBannerShown();
     return { includedWelcomeText: false };
   }
 
-  const welcomeText = composeWelcomeText(meta);
-
-  // ── Non-TTY (piped, CI, etc.) ─────────────────────────────────────────
-  if (!process.stderr.isTTY) {
-    const poolWidth = columns >= 96 ? 62 : 40;
-    const poolHeight = columns >= 96 ? 22 : 14;
-    const frame = renderRippleFrame(poolWidth, poolHeight, 10, { useColor, useUnicode });
-
-    let output: string[];
-    if (columns >= 96) {
-      output = composeSideBySide(frame, welcomeText, 3);
-    } else {
-      output = [...frame, "", ...welcomeText];
-    }
-
-    for (const line of output) {
-      process.stderr.write(line + "\n");
-    }
-    process.stderr.write("\n");
-    markBannerShown();
-    return { includedWelcomeText: true };
-  }
-
-  // ── Wide TTY (>= 96 columns): side-by-side animation ─────────────────
-  if (columns >= 96) {
-    const poolWidth = 62;
-    const poolHeight = 22;
-
-    // First frame
-    const firstFrame = renderRippleFrame(poolWidth, poolHeight, 0, { useColor, useUnicode });
-    const firstComposed = composeSideBySide(firstFrame, welcomeText, 3);
-    const lineCount = firstComposed.length;
-
-    for (const line of firstComposed) {
-      process.stderr.write(line + "\n");
-    }
-
-    // Animate frames 1..18
-    for (let t = 1; t < RIPPLE_FRAME_COUNT; t++) {
-      await bannerSleepFn(RIPPLE_FRAME_DELAY_MS);
-      process.stderr.write(`\x1b[${lineCount}A`);
-      const frame = renderRippleFrame(poolWidth, poolHeight, t, { useColor, useUnicode });
-      const composed = composeSideBySide(frame, welcomeText, 3);
-      for (const line of composed) {
-        process.stderr.write(line + "\n");
-      }
-    }
-
-    // Breathing pause
-    await bannerSleepFn(180);
-    markBannerShown();
-    return { includedWelcomeText: true };
-  }
-
-  // ── Compact TTY (72 <= columns < 96): pool above text ─────────────────
-  const poolWidth = 40;
-  const poolHeight = 14;
-
-  // First frame (pool only, text is static below)
-  const firstFrame = renderRippleFrame(poolWidth, poolHeight, 0, { useColor, useUnicode });
-  for (const line of firstFrame) {
+  // Render the static koi pond illustration. `computeBannerLayout` already
+  // picks side-by-side when there's room for the pool beside the
+  // text block; otherwise it falls back to the compact pool-above-text
+  // layout. No animation, no cursor games, no resize listener.
+  const frame = composeBannerFrame(layout, welcomeText, useColor);
+  for (const line of frame) {
     process.stderr.write(line + "\n");
   }
-  // Static text below pool
   process.stderr.write("\n");
-  for (const line of welcomeText) {
-    process.stderr.write(line + "\n");
-  }
-
-  // Animate frames 1..18 (cursor-up only covers pool lines)
-  const poolLineCount = poolHeight;
-  const textBlockHeight = 1 + welcomeText.length; // blank line + text lines
-  const totalUp = poolLineCount + textBlockHeight;
-
-  for (let t = 1; t < RIPPLE_FRAME_COUNT; t++) {
-    await bannerSleepFn(RIPPLE_FRAME_DELAY_MS);
-    // Move cursor up past text and pool
-    process.stderr.write(`\x1b[${totalUp}A`);
-    const frame = renderRippleFrame(poolWidth, poolHeight, t, { useColor, useUnicode });
-    for (const line of frame) {
-      process.stderr.write(line + "\n");
-    }
-    // Move cursor down past static text
-    process.stderr.write(`\x1b[${textBlockHeight}B`);
-  }
-
-  // Breathing pause
-  await bannerSleepFn(180);
   markBannerShown();
   return { includedWelcomeText: true };
 }

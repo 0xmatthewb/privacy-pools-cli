@@ -97,8 +97,8 @@ describe("renderRippleFrame", () => {
   });
 
   test("exports expected animation constants", () => {
-    expect(RIPPLE_FRAME_COUNT).toBe(19);
-    expect(RIPPLE_FRAME_DELAY_MS).toBe(80);
+    expect(RIPPLE_FRAME_COUNT).toBe(40);
+    expect(RIPPLE_FRAME_DELAY_MS).toBe(55);
   });
 
   test("handles small dimensions without errors", () => {

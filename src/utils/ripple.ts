@@ -20,22 +20,37 @@ export const ASCII_DENSITY = " .,:-=+*#%@";
 
 // ── Animation constants ─────────────────────────────────────────────────────
 
-/** Number of frames in one ripple animation cycle. */
-export const RIPPLE_FRAME_COUNT = 19;
+/**
+ * Number of frames the welcome banner animates through.
+ * 40 frames × RIPPLE_FRAME_DELAY_MS ≈ 2.2s — long enough for the motion
+ * to register as "water rippling," short enough to not overstay.
+ */
+export const RIPPLE_FRAME_COUNT = 40;
 
-/** Milliseconds per frame (~12.5 fps). */
-export const RIPPLE_FRAME_DELAY_MS = 80;
+/** Milliseconds per frame (~18 fps). Tuned for motion that reads as water. */
+export const RIPPLE_FRAME_DELAY_MS = 55;
 
 // ── Color palette (pre-computed zones for ANSI efficiency) ──────────────────
+//
+// Design: water-dominant pool with a small warm center accent.
+// Blue shades carry ~85% of the pool's visible area; the gold core is a
+// small highlight (think "sun glint on water") rather than a dominant
+// color band. Concentric zones from center outward:
+//
+//   1. tiny gold core           — warm accent, maybe 2-4 chars wide
+//   2. bright water (accent)    — primary brand blue
+//   3. mid water                — slightly deeper blue for depth
+//   4. dim water                — outer cool-blue falloff
+//   5. edge fade                — chalk.dim so the pool edges bleed into bg
 
-const BRAND_HEX = "#D4A030";
-const ACCENT_HEX = "#5AADD6";
-const TRANSITION_HEX = "#8EA87A";
-const DIM_HEX = "#4A7E9B";
+const BRAND_HEX = "#D4A030";   // gold — small center accent only
+const ACCENT_HEX = "#5AADD6";  // bright water (primary brand blue)
+const MID_HEX = "#4594C2";     // mid water — slightly deeper than accent
+const DIM_HEX = "#4A7E9B";     // dim water — outer falloff
 
 const colorBrand = chalk.hex(BRAND_HEX);
-const colorTransition = chalk.hex(TRANSITION_HEX);
 const colorAccent = chalk.hex(ACCENT_HEX);
+const colorMid = chalk.hex(MID_HEX);
 const colorDim = chalk.hex(DIM_HEX);
 const colorEdge = chalk.dim;
 
@@ -49,10 +64,12 @@ const colorEdge = chalk.dim;
 const ASPECT_Y = 0.48;
 
 function applyZoneColor(ch: string, dist: number): string {
-  if (dist < 0.25) return colorBrand(ch);
-  if (dist < 0.38) return colorTransition(ch);
-  if (dist < 0.65) return colorAccent(ch);
-  if (dist < 0.80) return colorDim(ch);
+  // Gold covers ~2.25% of the disk (r < 0.15 → π·r² ≈ 0.07 of full area);
+  // visible warm center, but the rest of the pool reads clearly as water.
+  if (dist < 0.15) return colorBrand(ch);
+  if (dist < 0.40) return colorAccent(ch);
+  if (dist < 0.68) return colorMid(ch);
+  if (dist < 0.88) return colorDim(ch);
   return colorEdge(ch);
 }
 
@@ -64,24 +81,28 @@ function applyZoneColor(ch: string, dist: number): string {
  * @param timeStep  Animation time (0..RIPPLE_FRAME_COUNT-1)
  * @param options.useColor  Apply ANSI color codes
  * @param options.useUnicode  Use Unicode density characters
+ * @param options.aspectY    Override vertical aspect. Default (ASPECT_Y) keeps
+ *                           the ellipse visually circular; pass a larger value
+ *                           (e.g. 1.0) to fill a wide rectangle with an oval.
  * @returns Array of strings, one per line (no trailing newline)
  */
 export function renderRippleFrame(
   width: number,
   height: number,
   timeStep: number,
-  options: { useColor: boolean; useUnicode: boolean },
+  options: { useColor: boolean; useUnicode: boolean; aspectY?: number },
 ): string[] {
   const ramp = options.useUnicode ? UNICODE_DENSITY : ASCII_DENSITY;
   const cx = width / 2;
   const cy = height / 2;
+  const aspectY = options.aspectY ?? ASPECT_Y;
   const lines: string[] = [];
 
   for (let y = 0; y < height; y++) {
     let line = "";
     for (let x = 0; x < width; x++) {
       const dx = (x - cx) / cx;
-      const dy = ((y - cy) / cy) / ASPECT_Y;
+      const dy = ((y - cy) / cy) / aspectY;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       // Outside the elliptical boundary
