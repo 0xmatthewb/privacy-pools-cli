@@ -59,7 +59,7 @@ export function welcomeScreen(
 
   const lines = [
     brand("PRIVACY POOLS"),
-    chalk.dim("Compliant private transactions on Ethereum."),
+    chalk.hex("#A8A8A8")("A compliant way to transact privately on Ethereum."),
     versionLine,
     "",
     ...actionLines,

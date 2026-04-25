@@ -86,6 +86,13 @@ export function overrideBannerSleepForTests(
   bannerSleepFn = sleepFn ?? defaultBannerSleep;
 }
 
+/**
+ * Body-text grey — slightly brighter than chalk.dim's terminal-faint so the
+ * tagline and version line read clearly without competing with the gold
+ * wordmark or the accent-colored commands.
+ */
+const muted = chalk.hex("#A8A8A8");
+
 function formatBannerActionLines(actions: readonly WelcomeAction[]): string[] {
   const renderedCommands = actions.map(
     (action) => `privacy-pools ${action.cliCommand}`,
@@ -94,7 +101,7 @@ function formatBannerActionLines(actions: readonly WelcomeAction[]): string[] {
     Math.max(...renderedCommands.map((command) => command.length), 0) + 2;
 
   return actions.map((action, index) =>
-    `${accent(renderedCommands[index].padEnd(commandWidth))}${chalk.dim(action.description)}`,
+    `${accent(renderedCommands[index].padEnd(commandWidth))}${muted(action.description)}`,
   );
 }
 
@@ -104,7 +111,7 @@ function composeWelcomeText(meta: BannerMeta): string[] {
   const sep = inlineSeparator();
 
   const versionLine = version
-    ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent(website)}${meta.readinessLabel ? `${chalk.dim(sep)}${chalk.dim(meta.readinessLabel)}` : ""}`
+    ? `${muted(`v${version}`)}${muted(sep)}${accent(website)}${meta.readinessLabel ? `${muted(sep)}${muted(meta.readinessLabel)}` : ""}`
     : accent(website);
   const actionLines = formatBannerActionLines(
     meta.actions ?? DEFAULT_WELCOME_BANNER_ACTIONS,
@@ -112,7 +119,7 @@ function composeWelcomeText(meta: BannerMeta): string[] {
 
   return [
     brand("PRIVACY POOLS"),
-    chalk.dim("Compliant private transactions on Ethereum."),
+    muted("A compliant way to transact privately on Ethereum."),
     versionLine,
     "",
     ...actionLines,

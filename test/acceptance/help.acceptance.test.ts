@@ -159,7 +159,7 @@ defineScenarioSuite("help acceptance", [
       expect(
         stderr.includes(BANNER_SENTINEL) || stderr.includes(COMPACT_BANNER_SENTINEL),
       ).toBe(true);
-      expect(stderr).toContain("Compliant private transactions on Ethereum.");
+      expect(stderr).toContain("A compliant way to transact privately on Ethereum.");
     }),
     runCliStep([]),
     assertExit(0),

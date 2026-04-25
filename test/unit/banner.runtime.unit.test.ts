@@ -51,7 +51,7 @@ describe("banner runtime", () => {
     });
 
     expect(first.stdout).toBe("");
-    expect(first.stderr).toContain("Compliant private transactions on Ethereum.");
+    expect(first.stderr).toContain("A compliant way to transact privately on Ethereum.");
     expect(first.stderr).toContain("v1.2.3");
     expect(existsSync(markerPath)).toBe(true);
 
