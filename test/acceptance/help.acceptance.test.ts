@@ -105,8 +105,8 @@ defineScenarioSuite("help acceptance", [
       expect(stdout).toContain("Usage: privacy-pools withdraw [options] [amount] [asset]");
     }),
   ]),
-  defineScenario("ragequit help exposes the updated crisis guidance and structured output help", [
-    runCliStep(["ragequit", "--help"]),
+  defineScenario("ragequit full help exposes the updated crisis guidance and structured output help", [
+    runCliStep(["ragequit", "--help-full", "--help"]),
     assertExit(0),
     assertStderrEmpty(),
     assertStdout((stdout) => {
@@ -155,11 +155,14 @@ defineScenarioSuite("help acceptance", [
     },
     runCliStep([]),
     assertExit(0),
-    assertStderr((stderr) => {
+    assertStdout((stdout) => {
       expect(
-        stderr.includes(BANNER_SENTINEL) || stderr.includes(COMPACT_BANNER_SENTINEL),
+        stdout.includes(BANNER_SENTINEL) || stdout.includes(COMPACT_BANNER_SENTINEL),
       ).toBe(true);
-      expect(stderr).toContain("A compliant way to transact privately on Ethereum.");
+      expect(stdout).toContain("A compliant way to transact privately on Ethereum.");
+    }),
+    assertStderr((stderr) => {
+      expect(stderr.trim()).toBe("");
     }),
     runCliStep([]),
     assertExit(0),

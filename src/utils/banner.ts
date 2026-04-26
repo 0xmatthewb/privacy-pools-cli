@@ -266,10 +266,10 @@ function composeBannerFrame(
   return [...centeredPool, "", ...welcomeText];
 }
 
-/** Write a frame to stderr, one line at a time with newlines. */
+/** Write a welcome frame to stdout, matching built-in help/welcome output. */
 function writeBannerFrame(lines: readonly string[]): void {
   for (const line of lines) {
-    process.stderr.write(line + "\n");
+    process.stdout.write(line + "\n");
   }
 }
 
@@ -299,7 +299,7 @@ export async function printBanner(
   // layout. No animation, no cursor games, no resize listener.
   const frame = composeBannerFrame(layout, welcomeText, useColor);
   writeBannerFrame(frame);
-  process.stderr.write("\n");
+  process.stdout.write("\n");
   markBannerShown(meta.version);
   return { includedWelcomeText: true };
 }

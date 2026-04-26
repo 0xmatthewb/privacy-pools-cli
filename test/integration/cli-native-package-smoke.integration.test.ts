@@ -259,12 +259,12 @@ describe("native package smoke", () => {
     });
 
     expect(firstResult.status).toBe(0);
-    expect(firstResult.stdout.trim()).toBe("");
     expect(
-      firstResult.stderr.includes(BANNER_SENTINEL) ||
-        firstResult.stderr.includes(COMPACT_BANNER_SENTINEL),
+      firstResult.stdout.includes(BANNER_SENTINEL) ||
+        firstResult.stdout.includes(COMPACT_BANNER_SENTINEL),
     ).toBe(true);
-    expectSemanticText(firstResult.stderr, {
+    expect(firstResult.stderr.trim()).toBe("");
+    expectSemanticText(firstResult.stdout, {
       includes: [
         "privacy-pools init",
         "privacy-pools guide",
@@ -282,8 +282,9 @@ describe("native package smoke", () => {
     expectSemanticText(secondResult.stdout, {
       includes: ["privacy-pools status", "privacypools.com"],
     });
-    expect(secondResult.stderr).not.toContain(BANNER_SENTINEL);
-    expect(secondResult.stderr).not.toContain(COMPACT_BANNER_SENTINEL);
+    expect(secondResult.stdout).not.toContain(BANNER_SENTINEL);
+    expect(secondResult.stdout).not.toContain(COMPACT_BANNER_SENTINEL);
+    expect(secondResult.stderr.trim()).toBe("");
   });
 
   nativePackageSmokeTest("packaged native honors quiet mode for human capabilities output", () => {

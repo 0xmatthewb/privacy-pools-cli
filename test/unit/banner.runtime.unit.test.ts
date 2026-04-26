@@ -49,9 +49,9 @@ describe("banner runtime", () => {
       });
     });
 
-    expect(first.stdout).toBe("");
-    expect(first.stderr).toContain("A compliant way to transact privately on Ethereum.");
-    expect(first.stderr).toContain("v1.2.3");
+    expect(first.stderr).toBe("");
+    expect(first.stdout).toContain("A compliant way to transact privately on Ethereum.");
+    expect(first.stdout).toContain("v1.2.3");
     expect(existsSync(markerPath)).toBe(true);
 
     const second = await captureAsyncOutput(async () => {
