@@ -140,6 +140,21 @@ interface PoolDescriptor {
   deploymentBlock: bigint;
 }
 
+export interface SyncBlockRangeProgress {
+  fromBlock: bigint;
+  toBlock: bigint | null;
+  currentBlock: bigint;
+  label?: string;
+}
+
+export type SyncBlockRangeMarker = (progress: SyncBlockRangeProgress) => void;
+
+interface RebuildAccountScopesOptions {
+  markBlockRange?: SyncBlockRangeMarker;
+  toBlock?: bigint | null;
+  poolSymbolsByAddress?: ReadonlyMap<string, string>;
+}
+
 interface LegacyAccountSource {
   account?: { poolAccounts?: ReadonlyMap<unknown, readonly unknown[]> };
 }
@@ -500,19 +515,129 @@ export function summarizeScopePreservations(scopes: AccountScope[]): string {
     .join("; ");
 }
 
+function maxEventBlock(
+  events: readonly unknown[],
+  fallback: bigint,
+): bigint {
+  let current = fallback;
+  for (const event of events) {
+    if (
+      event &&
+      typeof event === "object" &&
+      "blockNumber" in event &&
+      typeof (event as { blockNumber?: unknown }).blockNumber === "bigint" &&
+      (event as { blockNumber: bigint }).blockNumber > current
+    ) {
+      current = (event as { blockNumber: bigint }).blockNumber;
+    }
+  }
+  return current;
+}
+
+function progressLabelForPool(
+  pool: PoolInfo,
+  kind: "deposits" | "withdrawals" | "ragequits",
+  options: RebuildAccountScopesOptions,
+): string {
+  const address = String(pool.address).toLowerCase();
+  const symbol = options.poolSymbolsByAddress?.get(address);
+  return symbol ? `${symbol} ${kind}` : kind;
+}
+
+function instrumentDataServiceForSyncProgress(
+  dataService: DataService,
+  pools: PoolDescriptor[],
+  options: RebuildAccountScopesOptions,
+): DataService {
+  if (!options.markBlockRange) return dataService;
+  const deploymentBlockByAddress = new Map(
+    pools.map((pool) => [pool.address.toLowerCase(), pool.deploymentBlock]),
+  );
+  const mark = options.markBlockRange;
+  const toBlock = options.toBlock ?? null;
+
+  const resolveFromBlock = (
+    pool: PoolInfo,
+    candidate?: bigint,
+  ): bigint => (
+    candidate ??
+    pool.deploymentBlock ??
+    deploymentBlockByAddress.get(String(pool.address).toLowerCase()) ??
+    0n
+  );
+
+  return new Proxy(dataService, {
+    get(target, prop, receiver) {
+      if (prop === "getDeposits") {
+        return async (pool: PoolInfo) => {
+          const fromBlock = resolveFromBlock(pool);
+          const label = progressLabelForPool(pool, "deposits", options);
+          mark({ fromBlock, toBlock, currentBlock: fromBlock, label });
+          const events = await target.getDeposits(pool);
+          mark({
+            fromBlock,
+            toBlock,
+            currentBlock: toBlock ?? maxEventBlock(events, fromBlock),
+            label,
+          });
+          return events;
+        };
+      }
+      if (prop === "getWithdrawals") {
+        return async (pool: PoolInfo, fromBlockArg?: bigint) => {
+          const fromBlock = resolveFromBlock(pool, fromBlockArg);
+          const label = progressLabelForPool(pool, "withdrawals", options);
+          mark({ fromBlock, toBlock, currentBlock: fromBlock, label });
+          const events = await target.getWithdrawals(pool, fromBlockArg);
+          mark({
+            fromBlock,
+            toBlock,
+            currentBlock: toBlock ?? maxEventBlock(events, fromBlock),
+            label,
+          });
+          return events;
+        };
+      }
+      if (prop === "getRagequits") {
+        return async (pool: PoolInfo, fromBlockArg?: bigint) => {
+          const fromBlock = resolveFromBlock(pool, fromBlockArg);
+          const label = progressLabelForPool(pool, "ragequits", options);
+          mark({ fromBlock, toBlock, currentBlock: fromBlock, label });
+          const events = await target.getRagequits(pool, fromBlockArg);
+          mark({
+            fromBlock,
+            toBlock,
+            currentBlock: toBlock ?? maxEventBlock(events, fromBlock),
+            label,
+          });
+          return events;
+        };
+      }
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
 export async function rebuildAccountScopesFromEvents(
   dataService: DataService,
   mnemonic: string,
   currentAccount: AccountState,
   pools: PoolDescriptor[],
+  options: RebuildAccountScopesOptions = {},
 ): Promise<RebuildAccountScopesResult> {
   if (pools.length === 0) {
     return { account: currentAccount, legacyAccount: undefined, errors: [] };
   }
 
+  const instrumentedDataService = instrumentDataServiceForSyncProgress(
+    dataService,
+    pools,
+    options,
+  );
   const result = await withSuppressedSdkStdout(async () =>
     AccountService.initializeWithEvents(
-      dataService,
+      instrumentedDataService,
       { mnemonic },
       pools.map(toPoolInfo),
     ),
@@ -911,6 +1036,8 @@ export interface SyncEventsOptions {
   dataService: DataService;
   mnemonic: string;
   allowLegacyRecoveryVisibility?: boolean;
+  markBlockRange?: SyncBlockRangeMarker;
+  toBlock?: bigint | null;
 }
 
 /**
@@ -934,11 +1061,19 @@ export async function syncAccountEvents(
     }
 
     const persistedAccount = loadAccount(chainId);
+    const poolSymbolsByAddress = new Map(
+      pools.map((pool) => [pool.pool.toLowerCase(), pool.symbol]),
+    );
     const { account, legacyAccount, errors } = await rebuildAccountScopesFromEvents(
       opts.dataService,
       opts.mnemonic,
       persistedAccount ?? accountService.account,
       poolInfos,
+      {
+        markBlockRange: opts.markBlockRange,
+        toBlock: opts.toBlock ?? null,
+        poolSymbolsByAddress,
+      },
     );
     const resolved = await resolveLegacyInitializationPolicy(
       legacyAccount,
@@ -948,13 +1083,10 @@ export async function syncAccountEvents(
     const poolAddressByScope = new Map(
       poolInfos.map((info) => [info.scope, info.address.toLowerCase()]),
     );
-    const poolSymbolByAddress = new Map(
-      pools.map((pool) => [pool.pool.toLowerCase(), pool.symbol]),
-    );
     const poolSymbolByScope = new Map(
       poolInfos.map((info) => [
         info.scope,
-        poolSymbolByAddress.get(info.address.toLowerCase()) ?? info.scope.toString(),
+        poolSymbolsByAddress.get(info.address.toLowerCase()) ?? info.scope.toString(),
       ]),
     );
 
@@ -962,7 +1094,7 @@ export async function syncAccountEvents(
       for (const error of errors) {
         const symbol =
           poolSymbolByScope.get(error.scope)
-          ?? poolSymbolByAddress.get(poolAddressByScope.get(error.scope) ?? "")
+          ?? poolSymbolsByAddress.get(poolAddressByScope.get(error.scope) ?? "")
           ?? error.scope.toString();
         warn(
           `Sync failed for ${symbol} pool: ${sanitizeDiagnosticText(error.reason)}`,

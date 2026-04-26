@@ -7,6 +7,7 @@ import { getDataService, getReadOnlyRpcSession } from "../services/sdk.js";
 import {
   initializeAccountServiceWithState,
   loadSyncMeta,
+  type SyncBlockRangeProgress,
   syncAccountEvents,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
@@ -71,6 +72,42 @@ export function summarizeSyncedEventCounts(account: unknown): {
 }
 
 export { createSyncCommand } from "../command-shells/sync.js";
+
+export function formatSyncBlockRangeProgress(
+  progress: SyncBlockRangeProgress,
+): string {
+  const toLabel = progress.toBlock === null
+    ? "latest"
+    : progress.toBlock.toString();
+  const prefix = progress.label
+    ? `Syncing ${progress.label}`
+    : "Syncing events";
+  const range = `blocks ${progress.fromBlock.toString()} to ${toLabel}`;
+
+  if (
+    progress.toBlock === null ||
+    progress.toBlock <= progress.fromBlock
+  ) {
+    return `${prefix} (${range})...`;
+  }
+
+  const total = Number(progress.toBlock - progress.fromBlock);
+  const current = Number(
+    progress.currentBlock <= progress.fromBlock
+      ? 0n
+      : progress.currentBlock >= progress.toBlock
+        ? progress.toBlock - progress.fromBlock
+        : progress.currentBlock - progress.fromBlock,
+  );
+  const ratio = total > 0 && Number.isFinite(total)
+    ? Math.max(0, Math.min(1, current / total))
+    : 0;
+  const width = 18;
+  const filled = Math.round(ratio * width);
+  const bar = `${"#".repeat(filled)}${"-".repeat(width - filled)}`;
+  const percent = Math.round(ratio * 100);
+  return `${prefix} (${range}) [${bar}] ${percent}%`;
+}
 
 interface SyncCommandOptions {
   streamJson?: boolean;
@@ -226,6 +263,12 @@ export async function handleSyncCommand(
       scannedToBlock: scannedToBlock === null ? null : scannedToBlock.toString(),
     });
 
+    const markBlockRange = silent
+      ? undefined
+      : (progress: SyncBlockRangeProgress) => {
+          spin.text = formatSyncBlockRangeProgress(progress);
+        };
+
     await withSpinnerProgress(
       spin,
       scannedToBlock === null
@@ -241,6 +284,8 @@ export async function handleSyncCommand(
           errorLabel: "Sync",
           dataService,
           mnemonic,
+          markBlockRange,
+          toBlock: scannedToBlock,
         }),
     );
 
