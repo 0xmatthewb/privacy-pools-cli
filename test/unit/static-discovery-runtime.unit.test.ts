@@ -424,6 +424,18 @@ describe("static discovery runtime", () => {
     expect(stderr).toContain("JSON fields:");
   });
 
+  test("static describe does not treat command paths as guide topics", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      runStaticDiscoveryCommand(["describe", "flow", "--agent"]),
+    );
+
+    expect(stderr).toBe("");
+    expect(json.success).toBe(true);
+    expect(json.command).toBe("flow");
+    expect(json.topic).toBeUndefined();
+    expect(json.expectedNextActionWhen).toContain("flow_resume");
+  });
+
   test("static describe resolves envelope schema paths in both JSON and human modes", async () => {
     const human = await captureAsyncOutput(async () => {
       const handled = await runStaticDiscoveryCommand([
@@ -464,15 +476,15 @@ describe("static discovery runtime", () => {
     expect(stderr).toBe("");
   });
 
-  test("renders aliased describe output with modes and supports JSON/quiet", async () => {
+  test("renders command describe output with modes and supports JSON/quiet", async () => {
     const human = await captureAsyncOutput(async () => {
       const handled = await runStaticDiscoveryCommand(["describe", "ragequit"]);
       expect(handled).toBe(true);
     });
-    expect(human.stdout).toContain("Privacy Pools: ragequit");
-    expect(human.stdout).toContain("Ragequit / Public Recovery");
-    expect(human.stdout).toContain("privacy-pools ragequit ETH --pool-account PA-1");
-    expect(human.stderr).toBe("");
+    expect(human.stdout).toBe("");
+    expect(human.stderr).toContain("Command: ragequit");
+    expect(human.stderr).toContain("Recover funds publicly to your deposit address");
+    expect(human.stderr).toContain("privacy-pools ragequit ETH --pool-account PA-1");
 
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       runStaticDiscoveryCommand(["--json", "describe", "withdraw"]),

@@ -157,6 +157,7 @@ Environment Variables:
   PRIVACY_POOLS_YES  Skip confirmation prompts by default, matching --yes.
   PRIVACY_POOLS_NO_PROGRESS  Suppress spinners/progress indicators by default, matching --no-progress.
   NO_COLOR  Disable colored output, matching --no-color.
+  PRIVACY_POOLS_BANNER / PRIVACY_POOLS_BANNER_ART  Choose the welcome illustration. Set to merkle for the alternate Merkle tree banner.
   PP_NO_UPDATE_CHECK  Set to 1 to disable the update-available notification.
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -183,6 +184,7 @@ Environment Variable Fallbacks:
   PRIVACY_POOLS_YES  Skip confirmation prompts by default, matching --yes.
   PRIVACY_POOLS_NO_PROGRESS  Suppress spinners/progress indicators by default, matching --no-progress.
   NO_COLOR  Disable colored output, matching --no-color.
+  PRIVACY_POOLS_BANNER / PRIVACY_POOLS_BANNER_ART  Choose the welcome illustration. Set to merkle for the alternate Merkle tree banner.
   PP_NO_UPDATE_CHECK  Set to 1 to disable the update-available notification.
 
 ------------------------------------------------------------------------------------------------------------------------

@@ -75,6 +75,7 @@ const loadKnownRecipientHistoryMock = mock(() => [
 const loadRecipientHistoryEntriesMock = mock(() => []);
 const rememberKnownRecipientMock = mock(() => undefined);
 const confirmActionWithSeverityMock = mock(async () => true);
+const selectPromptMock = mock(async <Value,>() => "" as Value);
 const ensurePromptInteractionAvailableMock = mock(() => undefined);
 
 let buildDirectRecipientMismatchNextActions:
@@ -101,6 +102,8 @@ let relayerHostLabel:
   typeof import("../../src/commands/withdraw.ts").relayerHostLabel;
 let rememberSuccessfulWithdrawalRecipient:
   typeof import("../../src/commands/withdraw.ts").rememberSuccessfulWithdrawalRecipient;
+let promptRecentRecipientAddressOrEns:
+  typeof import("../../src/commands/withdraw.ts").promptRecentRecipientAddressOrEns;
 let validateRecipientAddressOrEnsInput:
   typeof import("../../src/commands/withdraw.ts").validateRecipientAddressOrEnsInput;
 let withSuspendedSpinner:
@@ -132,6 +135,7 @@ async function loadWithdrawHelpers(): Promise<void> {
     ["../../src/utils/prompts.ts", () => ({
       ...realPrompts,
       confirmActionWithSeverity: confirmActionWithSeverityMock,
+      selectPrompt: selectPromptMock,
     })],
     ["../../src/utils/prompt-cancellation.ts", () => ({
       ...realPromptCancellation,
@@ -152,6 +156,7 @@ async function loadWithdrawHelpers(): Promise<void> {
     getSuspiciousTestnetMinWithdrawFloor,
     relayerHostLabel,
     rememberSuccessfulWithdrawalRecipient,
+    promptRecentRecipientAddressOrEns,
     validateRecipientAddressOrEnsInput,
     withSuspendedSpinner,
     writeWithdrawalAnonymitySetHint,
@@ -169,9 +174,11 @@ describe("withdraw command helper coverage", () => {
     loadRecipientHistoryEntriesMock.mockClear();
     rememberKnownRecipientMock.mockClear();
     confirmActionWithSeverityMock.mockClear();
+    selectPromptMock.mockClear();
     ensurePromptInteractionAvailableMock.mockClear();
     loadRecipientHistoryEntriesMock.mockImplementation(() => []);
     confirmActionWithSeverityMock.mockImplementation(async () => true);
+    selectPromptMock.mockImplementation(async <Value,>() => "" as Value);
     await loadWithdrawHelpers();
   });
 
@@ -488,6 +495,40 @@ describe("withdraw command helper coverage", () => {
       }),
     ).rejects.toThrow();
     expect(ensurePromptInteractionAvailableMock).toHaveBeenCalled();
+  });
+
+  test("prompts with recent recipient choices and returns the selected entry", async () => {
+    loadRecipientHistoryEntriesMock.mockImplementation(() => [
+      {
+        address: "0x5555555555555555555555555555555555555555",
+        ensName: "alice.eth",
+        label: "alice",
+        source: "manual",
+        useCount: 2,
+        firstUsedAt: "2026-01-01T00:00:00.000Z",
+        lastUsedAt: "2026-01-02T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    selectPromptMock.mockImplementationOnce(async () =>
+      "0x5555555555555555555555555555555555555555"
+    );
+
+    await loadWithdrawHelpers();
+
+    await expect(promptRecentRecipientAddressOrEns()).resolves.toEqual({
+      address: "0x5555555555555555555555555555555555555555",
+      ensName: "alice.eth",
+    });
+    expect(selectPromptMock).toHaveBeenCalledTimes(1);
+    const promptArg = selectPromptMock.mock.calls[0]?.[0] as {
+      choices?: Array<{ name: string; value: string; description?: string }>;
+    };
+    expect(promptArg.choices?.[0]).toMatchObject({
+      name: expect.stringContaining("alice"),
+      value: "0x5555555555555555555555555555555555555555",
+      description: expect.stringContaining("alice.eth"),
+    });
   });
 
   test("suspends and restores spinners around async tasks", async () => {

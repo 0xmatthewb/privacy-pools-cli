@@ -11,29 +11,20 @@ import {
   upsertRecipientHistoryEntry,
 } from "../../src/services/recipient-history.ts";
 import { setActiveProfile } from "../../src/runtime/config-paths.ts";
-import {
-  cleanupTrackedTempDir,
-  createTrackedTempDir,
-} from "../helpers/temp.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
-
+let world: TestWorld;
 let tempHome: string;
 
 beforeEach(() => {
-  tempHome = createTrackedTempDir("pp-recipient-history-");
-  process.env.PRIVACY_POOLS_HOME = tempHome;
+  world = createTestWorld({ prefix: "pp-recipient-history-" });
+  tempHome = world.useConfigHome();
   setActiveProfile(undefined);
 });
 
-afterEach(() => {
-  if (ORIGINAL_HOME === undefined) {
-    delete process.env.PRIVACY_POOLS_HOME;
-  } else {
-    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
-  }
+afterEach(async () => {
   setActiveProfile(undefined);
-  cleanupTrackedTempDir(tempHome);
+  await world.teardown();
 });
 
 describe("recipient history", () => {

@@ -54,6 +54,9 @@ describe("welcome readiness", () => {
       "guide",
       "--help",
     ]);
+    expect(state.bannerHint).toBe(
+      "Privacy Pools: deposit publicly, withdraw privately.",
+    );
     expect(getWelcomeReadinessLabel()).toBe("setup: run init");
   });
 
@@ -125,7 +128,7 @@ describe("welcome readiness", () => {
     )?.description).toBe("deposit, then withdraw privately");
   });
 
-  test("getWelcomeState promotes active workflows and pending ASP review follow-ups", () => {
+  test("getWelcomeState promotes active workflow follow-ups", () => {
     const home = useWelcomeHome("pp-welcome-workflow-active-");
     mkdirSync(home, { recursive: true });
     writeFileSync(
@@ -137,7 +140,7 @@ describe("welcome readiness", () => {
     saveSignerKey(PRIVATE_KEY);
     saveWorkflowSnapshot({
       schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
-      workflowId: "wf-pending-review",
+      workflowId: "wf-active",
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
       phase: "awaiting_asp",
@@ -161,7 +164,7 @@ describe("welcome readiness", () => {
       expect.arrayContaining([
         "flow status latest",
         "flow watch latest",
-        "accounts --pending-only",
+        "accounts",
       ]),
     );
     expect(getWelcomeReadinessLabel()).toBe("workflow: active");

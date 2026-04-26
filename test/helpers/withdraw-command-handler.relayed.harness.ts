@@ -147,7 +147,7 @@ export function registerWithdrawRelayedPreludeTests(): void {
     );
 
     expect(stderr).toContain(
-      "Estimated anonymity set at this amount: 8 of 12 deposits (66.7%; larger is more private)",
+      "Anonymity set:        8 of 12 deposits (66.7%; larger is more private)",
     );
   });
 

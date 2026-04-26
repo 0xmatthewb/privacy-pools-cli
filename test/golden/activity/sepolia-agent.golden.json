@@ -18,12 +18,6 @@
   "mode": "global-activity",
   "nextActions": [
     {
-      "cliCommand": "privacy-pools init --agent --chain sepolia",
-      "command": "init",
-      "reason": "Finish setup before submitting deposits or withdrawals.",
-      "when": "status_not_ready"
-    },
-    {
       "cliCommand": "privacy-pools activity --agent --page 2 --limit 12 --chain sepolia",
       "command": "activity",
       "options": {

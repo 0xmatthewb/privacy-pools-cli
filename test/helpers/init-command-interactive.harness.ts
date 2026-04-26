@@ -86,6 +86,13 @@ async function loadInitCommandHandler(): Promise<void> {
     password: passwordPromptMock,
     select: selectPromptMock,
   }));
+  mock.module("@clack/prompts", () => ({
+    confirm: confirmPromptMock,
+    isCancel: () => false,
+    password: passwordPromptMock,
+    select: selectPromptMock,
+    text: inputPromptMock,
+  }));
   mock.module("../../src/preview/runtime.ts", () => ({
     ...realPreviewRuntime,
     maybeRenderPreviewScenario: maybeRenderPreviewScenarioMock,

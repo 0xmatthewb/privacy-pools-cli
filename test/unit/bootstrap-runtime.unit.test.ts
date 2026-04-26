@@ -232,12 +232,12 @@ afterEach(() => {
 describe("bootstrap runtime coverage", () => {
   test("createRootProgram resolves root command aliases for partial command loading", async () => {
     const program = await realProgram.createRootProgram("1.2.3", {
-      argv: ["exit"],
+      argv: ["recents"],
       loadAllCommands: false,
       styledHelp: false,
     });
 
-    expect(program.commands.map((command) => command.name())).toContain("ragequit");
+    expect(program.commands.map((command) => command.name())).toContain("recipients");
     expect(program.commands).toHaveLength(1);
   });
 

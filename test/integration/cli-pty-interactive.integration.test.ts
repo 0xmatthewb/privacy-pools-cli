@@ -21,10 +21,13 @@ const LOAD_RECOVERY_SENTINEL = "[pp-init:load-recovery]";
 
 const PYTHON_PTY_SCRIPT = `
 import json
+import fcntl
 import os
 import pty
 import select
 import signal
+import struct
+import termios
 import time
 
 workdir = os.environ["PP_TEST_PTY_CWD"]
@@ -38,12 +41,23 @@ if pid == 0:
     os.chdir(workdir)
     os.execvpe(argv[0], argv, env)
 
+fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
+
 output = ""
 selected_replace_path = False
 sent_cancel = False
 timed_out = False
 deadline = time.time() + 25
 status = None
+
+def saw_sentinel(value, sentinel):
+    index = 0
+    for char in value:
+        if char == sentinel[index]:
+            index += 1
+            if index == len(sentinel):
+                return True
+    return False
 
 while time.time() < deadline:
     done_pid, done_status = os.waitpid(pid, os.WNOHANG)
@@ -74,11 +88,11 @@ while time.time() < deadline:
     text = chunk.decode(errors="replace")
     output += text
 
-    if not selected_replace_path and "${GOAL_SENTINEL}" in output:
-        os.write(fd, b"\\x1b[B\\n")
+    if not selected_replace_path and saw_sentinel(output, "${GOAL_SENTINEL}"):
+        os.write(fd, b"\\x1b[B\\r")
         selected_replace_path = True
 
-    if selected_replace_path and not sent_cancel and "${LOAD_RECOVERY_SENTINEL}" in output:
+    if selected_replace_path and not sent_cancel and saw_sentinel(output, "${LOAD_RECOVERY_SENTINEL}"):
         os.write(fd, b"\\x03")
         sent_cancel = True
 

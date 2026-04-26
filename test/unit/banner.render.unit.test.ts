@@ -127,12 +127,12 @@ describe("banner render layouts", () => {
     const captured = await captureAsyncOutput(async () => {
       await printBanner({
         version: "2.2.0",
-        bannerHint: "Start a guided flow or browse pools before depositing.",
+        bannerHint: "Deposit publicly, then withdraw privately when ready.",
       });
     });
 
     expectSemanticText(captured.stdout, {
-      includes: ["Start a guided flow or browse pools before depositing."],
+      includes: ["Deposit publicly, then withdraw privately when ready."],
     });
 
     rmSync(markerPath, { force: true });

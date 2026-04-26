@@ -14,19 +14,23 @@ describe("root program lazy loading", () => {
   test("resolves root command aliases when loading on demand", async () => {
     const program = await createRootProgram("0.0.0", {
       loadAllCommands: false,
-      argv: ["exit"],
+      argv: ["recents"],
     });
 
-    expect(program.commands.map((command) => command.name())).toEqual(["ragequit"]);
+    expect(program.commands.map((command) => command.name())).toEqual([
+      "recipients",
+    ]);
   });
 
   test("loads the help target command when using help <command>", async () => {
     const program = await createRootProgram("0.0.0", {
       loadAllCommands: false,
-      argv: ["help", "flow"],
+      argv: ["help", "withdraw"],
     });
 
-    expect(program.commands.map((command) => command.name())).toEqual(["flow"]);
+    expect(program.commands.map((command) => command.name())).toEqual([
+      "withdraw",
+    ]);
   });
 
   test("loads upgrade on demand as a tooling root command", async () => {

@@ -11,7 +11,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CHAINS } from "../../src/config/chains.ts";
 import { createOutputContext, createNextAction, formatExecutableNextActionCommand, formatNextActionCommand, renderNextSteps } from "../../src/output/common.ts";
 import { appendNextActions } from "../../src/output/common.ts";
 import { renderInitResult, type InitRenderResult } from "../../src/output/init.ts";
@@ -26,27 +25,20 @@ import { renderGlobalStats, renderPoolStats, type GlobalStatsRenderData, type Po
 import { renderSyncComplete, type SyncResult } from "../../src/output/sync.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { configureNextActionGlobals } from "../../src/utils/next-action-globals.ts";
-import { saveAccount } from "../../src/services/account-storage.ts";
 import { saveMnemonicToFile, saveSignerKey } from "../../src/services/config.ts";
 import { createSubmissionRecord } from "../../src/services/submissions.ts";
 import { saveWorkflowSnapshot } from "../../src/services/workflow.ts";
 import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
-import { cleanupTrackedTempDirs, createTrackedTempDir } from "../helpers/temp.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
-const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_PRIVATE_KEY = process.env.PRIVACY_POOLS_PRIVATE_KEY;
 const MNEMONIC =
   "test test test test test test test test test test test junk";
 const PRIVATE_KEY = `0x${"22".repeat(32)}`;
+const worlds: TestWorld[] = [];
 
 function restoreOutputNextStepsEnv(): void {
-  if (ORIGINAL_HOME === undefined) {
-    delete process.env.PRIVACY_POOLS_HOME;
-  } else {
-    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
-  }
-
   if (ORIGINAL_PRIVATE_KEY === undefined) {
     delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
   } else {
@@ -55,8 +47,9 @@ function restoreOutputNextStepsEnv(): void {
 }
 
 function useNextStepsHome(prefix: string, setup: boolean = true): string {
-  const home = createTrackedTempDir(prefix);
-  process.env.PRIVACY_POOLS_HOME = home;
+  const world = createTestWorld({ prefix });
+  worlds.push(world);
+  const home = world.useConfigHome();
   delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
   if (setup) {
     mkdirSync(home, { recursive: true });
@@ -71,9 +64,11 @@ function useNextStepsHome(prefix: string, setup: boolean = true): string {
   return home;
 }
 
-afterEach(() => {
+afterEach(async () => {
   restoreOutputNextStepsEnv();
-  cleanupTrackedTempDirs();
+  for (const world of worlds.splice(0).reverse()) {
+    await world.teardown();
+  }
 });
 
 // ── formatNextActionCommand ─────────────────────────────────────────────────
@@ -293,6 +288,37 @@ describe("urgent next-step recommendations", () => {
     );
   });
 
+  test("renderNextSteps can receive command context without relying on process argv", () => {
+    useNextStepsHome("pp-next-urgent-render-options-");
+    saveActiveWorkflow();
+    const ctx = createOutputContext(makeMode());
+
+    const { stderr } = captureOutput(() =>
+      renderNextSteps(
+        ctx,
+        [createNextAction("pools", "Browse available pools.", "after_init")],
+        { commandPath: "status" },
+      ),
+    );
+
+    expect(stderr).toContain("privacy-pools flow status wf-urgent");
+  });
+
+  test("renderNextSteps keeps stable-state output contextual only", () => {
+    useNextStepsHome("pp-next-urgent-stable-");
+    const ctx = createOutputContext(makeMode(), false, { commandPath: "status" });
+
+    const { stderr } = captureOutput(() =>
+      renderNextSteps(ctx, [
+        createNextAction("pools", "Browse available pools.", "after_init"),
+      ]),
+    );
+
+    expect(stderr).toContain("privacy-pools pools");
+    expect(stderr).not.toContain("pending workflow");
+    expect(stderr).not.toContain("pending approval");
+  });
+
   test("appendNextActions adds pending transaction polling from local submissions", () => {
     useNextStepsHome("pp-next-urgent-submission-");
     const record = createSubmissionRecord({
@@ -322,28 +348,24 @@ describe("urgent next-step recommendations", () => {
     expect(result.nextActions?.[0]?.cliCommand).toContain("--agent");
   });
 
-  test("appendNextActions adds pending approval polling when account storage exposes pending status", () => {
-    useNextStepsHome("pp-next-urgent-pending-");
-    saveAccount(CHAINS.sepolia.id, {
-      poolAccounts: new Map([
-        [1n, [{ status: "pending", aspStatus: "pending" }]],
-      ]),
-    });
+  test("appendNextActions promotes active workflow after deposit success payloads", () => {
+    useNextStepsHome("pp-next-urgent-post-deposit-");
+    saveActiveWorkflow();
 
     const result = appendNextActions(
-      { operation: "pools" },
-      undefined,
-      { commandPath: "pools", mode: makeMode({ isJson: true }) },
+      { operation: "deposit", status: "confirmed" },
+      [createNextAction("accounts", "Review the new Pool Account.", "after_deposit")],
+      { commandPath: "deposit", mode: makeMode({ isJson: true }) },
     );
 
     expect(result.nextActions?.[0]).toMatchObject({
-      command: "accounts",
-      when: "has_pending",
-      options: { chain: "sepolia", pendingOnly: true },
+      command: "flow status",
+      when: "flow_resume",
     });
-    expect(result.nextActions?.[0]?.cliCommand).toContain("--agent");
-    expect(result.nextActions?.[0]?.cliCommand).toContain("--chain sepolia");
-    expect(result.nextActions?.[0]?.cliCommand).toContain("--pending-only");
+    expect(result.nextActions?.[1]).toMatchObject({
+      command: "accounts",
+      when: "after_deposit",
+    });
   });
 
   test("appendNextActions adds setup guidance when init has not run", () => {
@@ -361,6 +383,25 @@ describe("urgent next-step recommendations", () => {
     });
   });
 
+  test("appendNextActions keeps contextual actions first when setup is missing", () => {
+    useNextStepsHome("pp-next-urgent-init-contextual-", false);
+
+    const result = appendNextActions(
+      { operation: "activity" },
+      [createNextAction("activity", "Open the next page.", "after_activity", {
+        options: { page: 2, limit: 5, agent: true },
+      })],
+      { commandPath: "activity", mode: makeMode({ isJson: true }) },
+    );
+
+    expect(result.nextActions).toHaveLength(1);
+    expect(result.nextActions?.[0]).toMatchObject({
+      command: "activity",
+      when: "after_activity",
+      options: { page: 2, limit: 5 },
+    });
+  });
+
   test("urgent recommendations are suppressed for flow command renderers", () => {
     useNextStepsHome("pp-next-urgent-flow-suppress-");
     saveActiveWorkflow();
@@ -372,6 +413,39 @@ describe("urgent next-step recommendations", () => {
     );
 
     expect(result.nextActions).toBeUndefined();
+  });
+
+  test("appendNextActions surfaces completed public recovery follow-up", () => {
+    useNextStepsHome("pp-next-urgent-public-recovery-");
+    saveWorkflowSnapshot({
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+      workflowId: "wf-recovered",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      phase: "completed_public_recovery",
+      chain: "sepolia",
+      asset: "ETH",
+      depositAmount: "100000000000000000",
+      recipient: "0x1111111111111111111111111111111111111111",
+      walletMode: "configured",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      poolAccountId: "PA-1",
+      poolAccountNumber: 1,
+      depositTxHash: "0x" + "aa".repeat(32),
+      depositBlockNumber: "123",
+    });
+
+    const result = appendNextActions(
+      { operation: "pools" },
+      undefined,
+      { commandPath: "pools", mode: makeMode({ isJson: true }) },
+    );
+
+    expect(result.nextActions?.[0]).toMatchObject({
+      command: "accounts",
+      when: "after_ragequit",
+      options: { chain: "sepolia" },
+    });
   });
 });
 

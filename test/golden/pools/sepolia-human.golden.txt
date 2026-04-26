@@ -13,8 +13,6 @@ Summary:
   ETH     42               5 ETH          -           2 ETH     0.001 ETH     0.50%
 
 Next steps:
-  → privacy-pools init  (needs init)
-    Finish setup before submitting deposits or withdrawals.
   privacy-pools pools ETH --chain sepolia
     Open the detailed view for this pool.
   privacy-pools activity --chain sepolia

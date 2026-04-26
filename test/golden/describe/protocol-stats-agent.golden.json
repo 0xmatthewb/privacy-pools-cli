@@ -48,12 +48,6 @@
   "jsonVariants": [],
   "nextActions": [
     {
-      "cliCommand": "privacy-pools init --agent",
-      "command": "init",
-      "reason": "Finish setup before submitting deposits or withdrawals.",
-      "when": "status_not_ready"
-    },
-    {
       "cliCommand": "privacy-pools protocol-stats --agent",
       "command": "protocol-stats",
       "reason": "Run this command path now that its contract and prerequisites are loaded.",

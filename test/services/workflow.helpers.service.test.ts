@@ -57,6 +57,7 @@ import {
   saveWorkflowSnapshotIfChanged,
   saveWorkflowSnapshotIfChangedWithLock,
   scheduleApprovedWorkflowPrivacyDelay,
+  sleepWithWorkflowPrivacyDelayCountdown,
   updateSnapshot,
   validateWorkflowWalletBackupPath,
   withWorkflowOperationLock,
@@ -783,6 +784,40 @@ describe("workflow helper coverage", () => {
         Date.parse("2026-03-24T12:44:30.000Z"),
       ),
     ).toBe(30_000);
+  });
+
+  test("workflow privacy-delay sleep renders a live countdown on tty stderr", async () => {
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    const originalIsTty = process.stderr.isTTY;
+    const writes: string[] = [];
+    Object.defineProperty(process.stderr, "isTTY", {
+      configurable: true,
+      value: true,
+    });
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      writes.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    overrideWorkflowTimingForTests({ sleep: async () => undefined });
+
+    try {
+      await sleepWithWorkflowPrivacyDelayCountdown({
+        sleepMs: 1,
+        privacyDelayUntilMs: Date.now() + 60_000,
+        silent: false,
+      });
+    } finally {
+      overrideWorkflowTimingForTests();
+      process.stderr.write = originalWrite;
+      Object.defineProperty(process.stderr, "isTTY", {
+        configurable: true,
+        value: originalIsTty,
+      });
+    }
+
+    const output = writes.join("");
+    expect(output).toContain("Privacy delay remaining:");
+    expect(output).toContain("Press Ctrl-C to detach.");
   });
 
   test("privacy-delay policy helpers reschedule approved workflows and clear pending delay when turned off", () => {

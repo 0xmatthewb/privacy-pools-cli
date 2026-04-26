@@ -228,6 +228,8 @@ const PROSE_WHITELIST = new Set([
   "PP_RELAYER_HOST",
   "PP_RPC_URL",
   "PP_RPC_URL_ARBITRUM",
+  "PRIVACY_POOLS_BANNER",
+  "PRIVACY_POOLS_BANNER_ART",
   "PRIVACY_POOLS_ASP_HOST",
   "PRIVACY_POOLS_ASP_HOST_SEPOLIA",
   "PRIVACY_POOLS_CIRCUITS_DIR",
@@ -240,6 +242,7 @@ const PROSE_WHITELIST = new Set([
   "PRIVACY_POOLS_RELAYER_HOST",
   "PRIVACY_POOLS_RPC_URL",
   "PRIVACY_POOLS_RPC_URL_ARBITRUM",
+  "merkle",
 
   // Other machine-contract prose values currently documented verbatim.
   "asset",

@@ -187,7 +187,7 @@ describe("format utils matrix", () => {
     const output = logs.join("");
     expect(output).toContain("Pool Address");
     expect(output).toContain("Chain");
-    expect(output).not.toContain("  ───");
+    expect(output).toMatch(/(?:────|----)/);
   });
 
   test("success/warn/fail/info/verbose formatting emits expected markers", () => {

@@ -2,12 +2,13 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { guideText, helpTestInternals, welcomeScreen } from "../../src/utils/help.ts";
+import { commandHelpText, guideText, helpTestInternals, welcomeScreen } from "../../src/utils/help.ts";
 import { DEFAULT_WELCOME_SCREEN_ACTIONS } from "../../src/utils/welcome-readiness.ts";
 
 const ORIGINAL_ENV = {
   npm_lifecycle_event: process.env.npm_lifecycle_event,
   npm_execpath: process.env.npm_execpath,
+  CODEX_AGENT: process.env.CODEX_AGENT,
 };
 
 describe("help content", () => {
@@ -22,6 +23,12 @@ describe("help content", () => {
       delete process.env.npm_execpath;
     } else {
       process.env.npm_execpath = ORIGINAL_ENV.npm_execpath;
+    }
+
+    if (ORIGINAL_ENV.CODEX_AGENT === undefined) {
+      delete process.env.CODEX_AGENT;
+    } else {
+      process.env.CODEX_AGENT = ORIGINAL_ENV.CODEX_AGENT;
     }
   });
 
@@ -145,5 +152,29 @@ describe("help content", () => {
       expect(welcome).toContain(`privacy-pools ${action.cliCommand}`);
     }
     expect(welcome).toMatch(/load existing account|website export/i);
+  });
+
+  test("welcomeScreen renders the readiness hint used by narrow and repeat banners", () => {
+    const welcome = welcomeScreen({
+      bannerHint: "Privacy Pools: deposit publicly, withdraw privately.",
+    });
+
+    expect(welcome).toContain(
+      "Privacy Pools: deposit publicly, withdraw privately.",
+    );
+  });
+
+  test("commandHelpText keeps agent guidance visible in brief agent help", () => {
+    process.env.CODEX_AGENT = "1";
+
+    const help = commandHelpText({
+      agentWorkflowNotes: ["Use --agent for machine-readable output."],
+    });
+
+    expect(help).toContain("Tip: add --help-full");
+    expect(help).toContain("Agent guidance:");
+    expect(help).toContain(
+      "Use --agent for --json --yes --quiet when you need a runnable machine contract.",
+    );
   });
 });

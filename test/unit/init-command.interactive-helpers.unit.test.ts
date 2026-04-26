@@ -18,6 +18,7 @@ import {
 } from "../helpers/module-mocks.ts";
 
 const realPrompts = captureModuleExports(await import("@inquirer/prompts"));
+const realClackPrompts = captureModuleExports(await import("@clack/prompts"));
 const realPreviewRuntime = captureModuleExports(
   await import("../../src/preview/runtime.ts"),
 );
@@ -34,6 +35,7 @@ const ensurePromptInteractionAvailableMock = mock(() => undefined);
 
 const RESTORE_DEFINITIONS = [
   ["@inquirer/prompts", realPrompts],
+  ["@clack/prompts", realClackPrompts],
   ["../../src/preview/runtime.ts", realPreviewRuntime],
   ["../../src/utils/prompt-cancellation.ts", realPromptCancellation],
 ] as const;
@@ -58,6 +60,14 @@ async function loadInitHelpers() {
     confirm: confirmPromptMock,
     input: inputPromptMock,
     password: passwordPromptMock,
+  }));
+  mock.module("@clack/prompts", () => ({
+    ...realClackPrompts,
+    select: selectPromptMock,
+    confirm: confirmPromptMock,
+    text: inputPromptMock,
+    password: passwordPromptMock,
+    isCancel: () => false,
   }));
   mock.module("../../src/preview/runtime.ts", () => ({
     ...realPreviewRuntime,

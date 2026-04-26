@@ -229,7 +229,7 @@ describe("launcher routing", () => {
   test("resolveCommandRoute strips help and expands aliases to the canonical route", () => {
     expect(launcherTestInternals.resolveCommandRoute([])).toBeNull();
     expect(
-      launcherTestInternals.resolveCommandRoute(["help", "exit"]),
+      launcherTestInternals.resolveCommandRoute(["help", "ragequit"]),
     ).toBe("ragequit");
     expect(
       launcherTestInternals.resolveCommandRoute([

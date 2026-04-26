@@ -5190,6 +5190,13 @@
       "name": "NO_COLOR"
     },
     {
+      "aliases": [
+        "PRIVACY_POOLS_BANNER_ART"
+      ],
+      "description": "Choose the welcome illustration. Set to merkle for the alternate Merkle tree banner.",
+      "name": "PRIVACY_POOLS_BANNER"
+    },
+    {
       "description": "Set to 1 to disable the update-available notification.",
       "name": "PP_NO_UPDATE_CHECK"
     },
