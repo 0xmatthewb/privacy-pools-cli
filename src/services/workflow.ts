@@ -1590,6 +1590,44 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+async function sleepWithWorkflowPrivacyDelayCountdown(params: {
+  sleepMs: number;
+  privacyDelayUntilMs: number;
+  silent: boolean;
+  signal?: AbortSignal;
+}): Promise<void> {
+  if (
+    params.sleepMs <= 0 ||
+    params.silent ||
+    process.stderr.isTTY !== true ||
+    !Number.isFinite(params.privacyDelayUntilMs) ||
+    params.privacyDelayUntilMs <= Date.now()
+  ) {
+    await sleep(params.sleepMs, params.signal);
+    return;
+  }
+
+  const pollDeadlineMs = Date.now() + params.sleepMs;
+  let lastLineLength = 0;
+  const render = () => {
+    const line =
+      `Privacy delay remaining: ${formatRemainingTime(params.privacyDelayUntilMs)}. ` +
+      `Next check in ${formatRemainingTime(pollDeadlineMs)}. Press Ctrl-C to detach.`;
+    const padding = " ".repeat(Math.max(0, lastLineLength - line.length));
+    process.stderr.write(`\r${line}${padding}`);
+    lastLineLength = line.length;
+  };
+
+  render();
+  const interval = setInterval(render, 1000);
+  try {
+    await sleep(params.sleepMs, params.signal);
+  } finally {
+    clearInterval(interval);
+    process.stderr.write("\n");
+  }
+}
+
 export function flowPrivacyDelayProfileSummary(
   profile: FlowPrivacyDelayProfile,
   configured: boolean = true,
@@ -3528,6 +3566,10 @@ export async function executeRelayedWithdrawalForFlow(
       }, {
         progress,
       }),
+    {
+      dynamicSuffix: () =>
+        `quote valid for ${formatRemainingTime(expirationMs)}`,
+    },
   );
 
   await assertLatestRootUnchanged(
@@ -5019,6 +5061,13 @@ export async function watchWorkflow(
           `ASP approval is confirmed, and this workflow is waiting until ${delaySummary} before requesting the private withdrawal.${countdownSuffix} Checking again in ${humanPollDelayLabel(sleepMs)}.`,
           silent,
         );
+        await sleepWithWorkflowPrivacyDelayCountdown({
+          sleepMs,
+          privacyDelayUntilMs: privDelayMs,
+          silent,
+          signal: params.abortSignal,
+        });
+        continue;
       } else {
         info(
           `Still waiting for ASP approval for ${result.snapshot.poolAccountId} on ${result.snapshot.chain}. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
