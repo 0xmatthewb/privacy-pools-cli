@@ -1,7 +1,12 @@
 import type { Address } from "viem";
 import {
+  clearRecipientHistory,
+  loadRecipientHistoryEntries,
   loadKnownRecipientHistory,
+  removeRecipientHistoryEntry,
   rememberKnownRecipient,
+  upsertRecipientHistoryEntry,
+  type RecipientHistoryEntry,
 } from "../../services/recipient-history.js";
 import {
   getWorkflowStatus,
@@ -20,6 +25,24 @@ import {
   confirmPrompt,
 } from "../../utils/prompts.js";
 import { ensurePromptInteractionAvailable } from "../../utils/prompt-cancellation.js";
+import { resolveSafeRecipientAddressOrEns } from "../../utils/recipient-safety.js";
+import type { Command } from "commander";
+import type { GlobalOptions } from "../../types.js";
+import { resolveGlobalMode } from "../../utils/mode.js";
+import { printError } from "../../utils/errors.js";
+import {
+  createOutputContext,
+  guardCsvUnsupported,
+  isSilent,
+  printJsonSuccess,
+  success,
+  info,
+} from "../../output/common.js";
+import {
+  formatKeyValueRows,
+  formatSectionHeading,
+} from "../../output/layout.js";
+import { formatAddress } from "../../utils/format.js";
 
 export function validateRecipientAddressOrEnsInput(value: string): true | string {
   const trimmed = value.trim();
@@ -88,11 +111,210 @@ export function collectKnownWithdrawalRecipients(
   ];
 }
 
-export function rememberSuccessfulWithdrawalRecipient(address: string): void {
+export function rememberSuccessfulWithdrawalRecipient(
+  address: string,
+  metadata: {
+    ensName?: string | null;
+    chain?: string | null;
+    label?: string | null;
+  } = {},
+): void {
   try {
-    rememberKnownRecipient(address);
+    if (
+      metadata.ensName !== undefined ||
+      metadata.chain !== undefined ||
+      metadata.label !== undefined
+    ) {
+      rememberKnownRecipient(address, metadata);
+    } else {
+      rememberKnownRecipient(address);
+    }
   } catch {
     // Best effort only. The withdrawal result should not fail because the
     // advisory recipient-history cache could not be updated.
+  }
+}
+
+interface RecipientCommandOptions {
+  label?: string;
+}
+
+function rootOptionsForCommand(cmd: Command): GlobalOptions {
+  let current: Command = cmd;
+  while (current.parent) {
+    current = current.parent;
+  }
+  return current.opts() as GlobalOptions;
+}
+
+function recipientPayload(entry: RecipientHistoryEntry): Record<string, unknown> {
+  return {
+    address: entry.address,
+    label: entry.label ?? null,
+    ensName: entry.ensName ?? null,
+    chain: entry.chain ?? null,
+    source: entry.source,
+    useCount: entry.useCount,
+    firstUsedAt: entry.firstUsedAt,
+    lastUsedAt: entry.lastUsedAt,
+    updatedAt: entry.updatedAt,
+  };
+}
+
+function renderRecipientList(
+  entries: readonly RecipientHistoryEntry[],
+  cmd: Command,
+): void {
+  const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
+  const ctx = createOutputContext(mode);
+  try {
+    guardCsvUnsupported(ctx, "withdraw recipients");
+    if (mode.isJson) {
+      printJsonSuccess({
+        mode: "recipient-history",
+        operation: "list",
+        count: entries.length,
+        recipients: entries.map(recipientPayload),
+      });
+      return;
+    }
+
+    if (isSilent(ctx)) return;
+    if (entries.length === 0) {
+      info("No remembered withdrawal recipients yet.", false);
+      info("Successful withdrawals are added automatically; use 'withdraw recipients add <address>' to add one manually.", false);
+      return;
+    }
+
+    process.stderr.write(formatSectionHeading("Withdrawal recipients", { divider: true }));
+    for (const entry of entries) {
+      const title = entry.label
+        ? `${entry.label} (${formatAddress(entry.address)})`
+        : formatAddress(entry.address);
+      process.stderr.write(`${title}\n`);
+      process.stderr.write(
+        formatKeyValueRows([
+          { label: "Address", value: entry.address },
+          ...(entry.ensName ? [{ label: "ENS", value: entry.ensName }] : []),
+          ...(entry.chain ? [{ label: "Chain", value: entry.chain }] : []),
+          { label: "Source", value: entry.source },
+          { label: "Uses", value: String(entry.useCount) },
+          ...(entry.lastUsedAt
+            ? [{ label: "Last used", value: entry.lastUsedAt }]
+            : []),
+        ]),
+      );
+    }
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
+}
+
+export async function handleWithdrawRecipientsListCommand(
+  _opts: unknown,
+  cmd: Command,
+): Promise<void> {
+  renderRecipientList(loadRecipientHistoryEntries(), cmd);
+}
+
+export async function handleWithdrawRecipientsAddCommand(
+  addressOrEns: string,
+  positionalLabel: string | undefined,
+  opts: RecipientCommandOptions,
+  cmd: Command,
+): Promise<void> {
+  const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
+  const ctx = createOutputContext(mode);
+  try {
+    guardCsvUnsupported(ctx, "withdraw recipients add");
+    const resolved = await resolveSafeRecipientAddressOrEns(
+      addressOrEns,
+      "Recipient",
+    );
+    const entry = upsertRecipientHistoryEntry({
+      address: resolved.address,
+      ensName: resolved.ensName,
+      label: opts.label ?? positionalLabel,
+      source: "manual",
+    });
+
+    if (mode.isJson) {
+      printJsonSuccess({
+        mode: "recipient-history",
+        operation: "add",
+        recipient: recipientPayload(entry),
+      });
+      return;
+    }
+
+    if (!isSilent(ctx)) {
+      success(`Remembered recipient ${formatAddress(entry.address)}.`, false);
+    }
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
+}
+
+export async function handleWithdrawRecipientsRemoveCommand(
+  addressOrEns: string,
+  _opts: unknown,
+  cmd: Command,
+): Promise<void> {
+  const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
+  const ctx = createOutputContext(mode);
+  try {
+    guardCsvUnsupported(ctx, "withdraw recipients remove");
+    const resolved = await resolveSafeRecipientAddressOrEns(
+      addressOrEns,
+      "Recipient",
+    );
+    const removed = removeRecipientHistoryEntry(resolved.address);
+
+    if (mode.isJson) {
+      printJsonSuccess({
+        mode: "recipient-history",
+        operation: "remove",
+        address: resolved.address,
+        removed,
+      });
+      return;
+    }
+
+    if (!isSilent(ctx)) {
+      if (removed) {
+        success(`Removed recipient ${formatAddress(resolved.address)}.`, false);
+      } else {
+        info(`Recipient ${formatAddress(resolved.address)} was not remembered.`, false);
+      }
+    }
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
+}
+
+export async function handleWithdrawRecipientsClearCommand(
+  _opts: unknown,
+  cmd: Command,
+): Promise<void> {
+  const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
+  const ctx = createOutputContext(mode);
+  try {
+    guardCsvUnsupported(ctx, "withdraw recipients clear");
+    const removedCount = clearRecipientHistory();
+
+    if (mode.isJson) {
+      printJsonSuccess({
+        mode: "recipient-history",
+        operation: "clear",
+        removedCount,
+      });
+      return;
+    }
+
+    if (!isSilent(ctx)) {
+      success(`Cleared ${removedCount} remembered recipient(s).`, false);
+    }
+  } catch (error) {
+    printError(error, mode.isJson);
   }
 }

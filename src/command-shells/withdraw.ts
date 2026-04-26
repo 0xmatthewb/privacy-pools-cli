@@ -82,6 +82,7 @@ export function createWithdrawCommand(): Command {
             "--yes",
             "--agent",
             "--help-brief",
+            "--help-full",
           ],
         },
       ]),
@@ -91,6 +92,67 @@ export function createWithdrawCommand(): Command {
       createLazyAction(
         () => import("../commands/withdraw.js"),
         "handleWithdrawCommand",
+      ),
+    );
+
+  const recipients = command
+    .command("recipients")
+    .alias("recents")
+    .description("List remembered withdrawal recipients")
+    .addHelpText(
+      "after",
+      "\nSuccessful withdrawals are remembered automatically. Use add/remove to manage the local address book manually.\n",
+    )
+    .action(
+      createLazyAction(
+        () => import("../commands/withdraw/recipients.js"),
+        "handleWithdrawRecipientsListCommand",
+      ),
+    );
+
+  recipients
+    .command("list")
+    .alias("ls")
+    .description("List remembered withdrawal recipients")
+    .action(
+      createLazyAction(
+        () => import("../commands/withdraw/recipients.js"),
+        "handleWithdrawRecipientsListCommand",
+      ),
+    );
+
+  recipients
+    .command("add")
+    .description("Add a recipient to the local withdrawal address book")
+    .argument("<address-or-ens>", "Recipient address or ENS name")
+    .argument("[label]", "Optional display label")
+    .option("--label <label>", "Optional display label")
+    .action(
+      createLazyAction(
+        () => import("../commands/withdraw/recipients.js"),
+        "handleWithdrawRecipientsAddCommand",
+      ),
+    );
+
+  recipients
+    .command("remove")
+    .alias("rm")
+    .description("Remove a recipient from the local withdrawal address book")
+    .argument("<address-or-ens>", "Recipient address or ENS name")
+    .action(
+      createLazyAction(
+        () => import("../commands/withdraw/recipients.js"),
+        "handleWithdrawRecipientsRemoveCommand",
+      ),
+    );
+
+  recipients
+    .command("clear")
+    .description("Clear all remembered withdrawal recipients")
+    .action(
+      createLazyAction(
+        () => import("../commands/withdraw/recipients.js"),
+        "handleWithdrawRecipientsClearCommand",
       ),
     );
 
