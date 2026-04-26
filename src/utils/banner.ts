@@ -183,7 +183,10 @@ function getTerminalRows(): number | null {
 }
 
 function resolveBannerArt(env: NodeJS.ProcessEnv = process.env): BannerArt {
-  const raw = env.PRIVACY_POOLS_BANNER_ART?.trim().toLowerCase();
+  const raw = (
+    env.PRIVACY_POOLS_BANNER_ART ??
+    env.PRIVACY_POOLS_BANNER
+  )?.trim().toLowerCase();
   if (raw === "merkle" || raw === "tree" || raw === "proof") {
     return "merkle";
   }
