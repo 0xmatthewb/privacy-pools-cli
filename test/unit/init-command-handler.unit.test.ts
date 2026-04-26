@@ -46,6 +46,8 @@ let handleInitCommand: typeof import("../../src/commands/init.ts").handleInitCom
 
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_SIGNER = process.env.PRIVACY_POOLS_PRIVATE_KEY;
+const ORIGINAL_FORCE_TTY = process.env.PP_FORCE_TTY;
+const ORIGINAL_INIT_PROMPT_ENGINE = process.env.PRIVACY_POOLS_INIT_PROMPT_ENGINE;
 const VALID_MNEMONIC =
   "test test test test test test test test test test test junk";
 
@@ -85,6 +87,7 @@ function useIsolatedHome(): string {
 }
 
 beforeEach(() => {
+  process.env.PRIVACY_POOLS_INIT_PROMPT_ENGINE = "inquirer";
   mock.restore();
   confirmPromptMock.mockClear();
   inputPromptMock.mockClear();
@@ -118,6 +121,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   mock.restore();
+  isPromptCancellationErrorMock.mockImplementation(realIsPromptCancellationError);
   if (ORIGINAL_HOME === undefined) {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
@@ -127,6 +131,16 @@ afterEach(() => {
     delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
   } else {
     process.env.PRIVACY_POOLS_PRIVATE_KEY = ORIGINAL_SIGNER;
+  }
+  if (ORIGINAL_FORCE_TTY === undefined) {
+    delete process.env.PP_FORCE_TTY;
+  } else {
+    process.env.PP_FORCE_TTY = ORIGINAL_FORCE_TTY;
+  }
+  if (ORIGINAL_INIT_PROMPT_ENGINE === undefined) {
+    delete process.env.PRIVACY_POOLS_INIT_PROMPT_ENGINE;
+  } else {
+    process.env.PRIVACY_POOLS_INIT_PROMPT_ENGINE = ORIGINAL_INIT_PROMPT_ENGINE;
   }
   cleanupTrackedTempDirs();
 });
@@ -191,7 +205,6 @@ describe("init command handler", () => {
 
   test("warns humans when loading an existing account from an inline recovery phrase", async () => {
     const home = useIsolatedHome();
-    selectPromptMock.mockImplementationOnce(async () => "restore");
 
     const { stderr } = await captureAsyncOutput(() =>
       handleInitCommand(
@@ -1084,6 +1097,7 @@ describe("init command handler", () => {
 
   test("treats abrupt interactive prompt closure as a clean human cancellation", async () => {
     useIsolatedHome();
+    process.env.PP_FORCE_TTY = "1";
     selectPromptMock.mockImplementationOnce(async () => {
       const error = new Error("prompt aborted") as Error & { name: string };
       error.name = "ExitPromptError";

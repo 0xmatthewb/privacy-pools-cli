@@ -7,6 +7,17 @@
  */
 
 import chalk from "chalk";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { CHAINS } from "../config/chains.js";
+import { loadAccount } from "../services/account-storage.js";
+import {
+  configExists,
+  getSubmissionsDir,
+  getWorkflowsDir,
+  loadSignerKey,
+  mnemonicExists,
+} from "../services/config.js";
 import type { ResolvedGlobalMode } from "../utils/mode.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { printCsv } from "./csv.js";
@@ -24,8 +35,7 @@ import {
   printTable,
 } from "../utils/format.js";
 import { CLIError } from "../utils/errors.js";
-import { accent } from "../utils/theme.js";
-import { formatSectionHeading } from "./layout.js";
+import { accent, muted } from "../utils/theme.js";
 
 // ── Re-exports so renderers only need one import ─────────────────────────────
 
@@ -52,6 +62,10 @@ export interface OutputContext {
   isVerbose: boolean;
   /** Verbose level: 0=off, 1=info, 2=debug, 3=trace. */
   verboseLevel: number;
+  /** Optional command path for renderer-level tests or non-argv integrations. */
+  commandPath?: string;
+  /** Disable local urgent recommendations for a specific render surface. */
+  suppressUrgentRecommendations?: boolean;
 }
 
 /**
@@ -60,8 +74,20 @@ export interface OutputContext {
 export function createOutputContext(
   mode: ResolvedGlobalMode,
   isVerbose: boolean = false,
+  options: {
+    commandPath?: string;
+    suppressUrgentRecommendations?: boolean;
+  } = {},
 ): OutputContext {
-  return { mode, isVerbose, verboseLevel: mode.verboseLevel };
+  return {
+    mode,
+    isVerbose,
+    verboseLevel: mode.verboseLevel,
+    ...(options.commandPath ? { commandPath: options.commandPath } : {}),
+    ...(options.suppressUrgentRecommendations
+      ? { suppressUrgentRecommendations: true }
+      : {}),
+  };
 }
 
 /**
@@ -168,12 +194,477 @@ export function createNextAction(
 export const DRY_RUN_FOOTER_COPY =
   "Dry-run: validation succeeded. Re-run without --dry-run to submit.";
 
+interface UrgentRecommendationContext {
+  mode?: ResolvedGlobalMode;
+  commandPath?: string;
+  suppressUrgentRecommendations?: boolean;
+}
+
+interface StoredWorkflowRecommendationState {
+  workflowId: string;
+  phase: string;
+  chain?: string | null;
+  asset?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  reconciliationRequired?: boolean;
+}
+
+interface StoredSubmissionRecommendationState {
+  submissionId: string;
+  sourceCommand?: string | null;
+  operation?: string | null;
+  chain?: string | null;
+  asset?: string | null;
+  status?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  reconciliationRequired?: boolean;
+}
+
+const KNOWN_ROOT_COMMANDS = new Set([
+  "accounts",
+  "activity",
+  "broadcast",
+  "capabilities",
+  "completion",
+  "config",
+  "deposit",
+  "describe",
+  "flow",
+  "guide",
+  "history",
+  "init",
+  "migrate",
+  "pool-stats",
+  "pools",
+  "protocol-stats",
+  "ragequit",
+  "simulate",
+  "status",
+  "sync",
+  "tx-status",
+  "upgrade",
+  "withdraw",
+]);
+
+const OPTIONS_WITH_VALUES = new Set([
+  "--chain",
+  "-c",
+  "--config",
+  "--default-chain",
+  "--jmes",
+  "--jq",
+  "--json-fields",
+  "--output",
+  "-o",
+  "--profile",
+  "--rpc-url",
+  "-r",
+  "--template",
+  "--timeout",
+]);
+
+const TERMINAL_FLOW_PHASES = new Set([
+  "completed",
+  "completed_public_recovery",
+  "stopped_external",
+]);
+
+function isNonNullRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function parseCommandPathFromArgv(argv: readonly string[]): string | null {
+  for (let index = 0; index < argv.length; index++) {
+    const token = argv[index];
+    if (!token || token === "--") break;
+    if (token.startsWith("--") && token.includes("=")) {
+      continue;
+    }
+    if (OPTIONS_WITH_VALUES.has(token)) {
+      index++;
+      continue;
+    }
+    if (token.startsWith("-")) {
+      continue;
+    }
+    return KNOWN_ROOT_COMMANDS.has(token) ? token : null;
+  }
+  return null;
+}
+
+function resolveRecommendationCommandPath(
+  ctx?: UrgentRecommendationContext,
+): string | null {
+  if (ctx?.commandPath) return ctx.commandPath;
+  return parseCommandPathFromArgv(process.argv.slice(2));
+}
+
+function shouldSuppressUrgentRecommendations(
+  ctx?: UrgentRecommendationContext,
+  payload?: Record<string, unknown>,
+): boolean {
+  if (ctx?.suppressUrgentRecommendations) return true;
+  if (payload?.success === false) return true;
+  if (payload?.mode === "flow") return true;
+
+  const commandPath = resolveRecommendationCommandPath(ctx);
+  if (!commandPath) return true;
+  return commandPath === "flow" || commandPath.startsWith("flow ");
+}
+
+function readJsonFile(filePath: string): unknown | null {
+  try {
+    return JSON.parse(readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function parseDateMs(value: unknown): number {
+  if (typeof value !== "string") return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function listStoredWorkflowStates(): StoredWorkflowRecommendationState[] {
+  const dir = getWorkflowsDir();
+  if (!existsSync(dir)) return [];
+
+  const states: Array<StoredWorkflowRecommendationState & { fileMtimeMs: number }> = [];
+  for (const entry of readdirSync(dir)) {
+    if (!entry.endsWith(".json")) continue;
+    const filePath = join(dir, entry);
+    const parsed = readJsonFile(filePath);
+    if (!isNonNullRecord(parsed)) continue;
+    if (typeof parsed.workflowId !== "string" || typeof parsed.phase !== "string") {
+      continue;
+    }
+
+    let fileMtimeMs = 0;
+    try {
+      fileMtimeMs = statSync(filePath).mtimeMs;
+    } catch {
+      fileMtimeMs = 0;
+    }
+
+    states.push({
+      workflowId: parsed.workflowId,
+      phase: parsed.phase,
+      chain: typeof parsed.chain === "string" ? parsed.chain : null,
+      asset: typeof parsed.asset === "string" ? parsed.asset : null,
+      createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : null,
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : null,
+      reconciliationRequired: parsed.reconciliationRequired === true,
+      fileMtimeMs,
+    });
+  }
+
+  return states.sort((left, right) => {
+    const leftTime = parseDateMs(left.updatedAt) || parseDateMs(left.createdAt) || left.fileMtimeMs;
+    const rightTime = parseDateMs(right.updatedAt) || parseDateMs(right.createdAt) || right.fileMtimeMs;
+    return rightTime - leftTime;
+  });
+}
+
+function listStoredSubmissionStates(): StoredSubmissionRecommendationState[] {
+  const dir = getSubmissionsDir();
+  if (!existsSync(dir)) return [];
+
+  const states: Array<StoredSubmissionRecommendationState & { fileMtimeMs: number }> = [];
+  for (const entry of readdirSync(dir)) {
+    if (!entry.endsWith(".json")) continue;
+    const filePath = join(dir, entry);
+    const parsed = readJsonFile(filePath);
+    if (!isNonNullRecord(parsed)) continue;
+    if (typeof parsed.submissionId !== "string") continue;
+
+    let fileMtimeMs = 0;
+    try {
+      fileMtimeMs = statSync(filePath).mtimeMs;
+    } catch {
+      fileMtimeMs = 0;
+    }
+
+    states.push({
+      submissionId: parsed.submissionId,
+      sourceCommand: typeof parsed.sourceCommand === "string" ? parsed.sourceCommand : null,
+      operation: typeof parsed.operation === "string" ? parsed.operation : null,
+      chain: typeof parsed.chain === "string" ? parsed.chain : null,
+      asset: typeof parsed.asset === "string" ? parsed.asset : null,
+      status: typeof parsed.status === "string" ? parsed.status : null,
+      createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : null,
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : null,
+      reconciliationRequired: parsed.reconciliationRequired === true,
+      fileMtimeMs,
+    });
+  }
+
+  return states.sort((left, right) => {
+    const leftTime = parseDateMs(left.updatedAt) || parseDateMs(left.createdAt) || left.fileMtimeMs;
+    const rightTime = parseDateMs(right.updatedAt) || parseDateMs(right.createdAt) || right.fileMtimeMs;
+    return rightTime - leftTime;
+  });
+}
+
+function hasExplicitPendingReviewState(value: unknown, seen = new Set<object>()): boolean {
+  if (!isNonNullRecord(value)) {
+    return false;
+  }
+  if (seen.has(value)) return false;
+  seen.add(value);
+
+  for (const [key, nested] of Object.entries(value)) {
+    if ((key === "status" || key === "aspStatus") && nested === "pending") {
+      return true;
+    }
+    if (isNonNullRecord(nested) && hasExplicitPendingReviewState(nested, seen)) {
+      return true;
+    }
+    if (Array.isArray(nested)) {
+      for (const item of nested) {
+        if (hasExplicitPendingReviewState(item, seen)) return true;
+      }
+    }
+  }
+
+  if (value instanceof Map) {
+    for (const nested of value.values()) {
+      if (hasExplicitPendingReviewState(nested, seen)) return true;
+    }
+  }
+
+  return false;
+}
+
+function getPendingApprovalChains(): string[] {
+  const chains: string[] = [];
+  for (const chain of Object.values(CHAINS)) {
+    try {
+      const account = loadAccount(chain.id);
+      if (account && hasExplicitPendingReviewState(account)) {
+        chains.push(chain.name);
+      }
+    } catch {
+      // Urgent recommendations are best-effort; strict commands still own errors.
+    }
+  }
+  return chains;
+}
+
+function scopedAccountsOptions(chains: readonly string[]): Record<string, NextActionOptionValue> {
+  const options: Record<string, NextActionOptionValue> = { agent: true, pendingOnly: true };
+  if (chains.length === 1 && chains[0]) {
+    options.chain = chains[0];
+    return options;
+  }
+  if (chains.some((chain) => CHAINS[chain]?.isTestnet)) {
+    options.includeTestnets = true;
+  }
+  return options;
+}
+
+function syncRecommendationFor(
+  source: { chain?: string | null; asset?: string | null },
+  reason: string,
+): NextAction {
+  return createNextAction(
+    "sync",
+    reason,
+    "after_sync",
+    {
+      ...(source.asset ? { args: [source.asset] } : {}),
+      options: {
+        agent: true,
+        ...(source.chain ? { chain: source.chain } : {}),
+      },
+    },
+  );
+}
+
+function needsSetupRecommendation(): NextAction | null {
+  try {
+    if (!configExists() || !mnemonicExists()) {
+      return createNextAction(
+        "init",
+        "Finish setup before submitting deposits or withdrawals.",
+        "status_not_ready",
+        { options: { agent: true } },
+      );
+    }
+
+    if (!loadSignerKey()) {
+      return createNextAction(
+        "init",
+        "Add a signer key before submitting deposits or withdrawals.",
+        "status_not_ready",
+        { options: { agent: true, signerOnly: true } },
+      );
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export function getUrgentRecommendations(
+  ctx: UrgentRecommendationContext = {},
+): NextAction[] {
+  if (shouldSuppressUrgentRecommendations(ctx)) return [];
+
+  const actions: NextAction[] = [];
+  const workflows = listStoredWorkflowStates();
+  const activeWorkflow = workflows.find(
+    (workflow) => !TERMINAL_FLOW_PHASES.has(workflow.phase),
+  );
+  if (activeWorkflow) {
+    actions.push(
+      createNextAction(
+        "flow status",
+        `Saved workflow ${activeWorkflow.workflowId} is still ${activeWorkflow.phase.replaceAll("_", " ")}; inspect it before starting another action.`,
+        "flow_resume",
+        {
+          args: [activeWorkflow.workflowId],
+          options: { agent: true },
+        },
+      ),
+    );
+  }
+
+  const pendingApprovalChains = getPendingApprovalChains();
+  if (pendingApprovalChains.length > 0) {
+    actions.push(
+      createNextAction(
+        "accounts",
+        pendingApprovalChains.length === 1
+          ? `A Pool Account on ${pendingApprovalChains[0]} is still under ASP review; poll pending approvals before withdrawing.`
+          : "Pool Accounts on saved chains are still under ASP review; poll pending approvals before withdrawing.",
+        "has_pending",
+        { options: scopedAccountsOptions(pendingApprovalChains) },
+      ),
+    );
+  }
+
+  const submissions = listStoredSubmissionStates();
+  const submitted = submissions.find((submission) => submission.status === "submitted");
+  if (submitted) {
+    actions.push(
+      createNextAction(
+        "tx-status",
+        `A previous ${submitted.sourceCommand ?? submitted.operation ?? "transaction"} submission is still pending; poll it before resubmitting related work.`,
+        "after_submit",
+        {
+          args: [submitted.submissionId],
+          options: { agent: true },
+        },
+      ),
+    );
+  }
+
+  const workflowReconciliation = workflows.find(
+    (workflow) => workflow.reconciliationRequired === true,
+  );
+  if (workflowReconciliation) {
+    actions.push(
+      syncRecommendationFor(
+        workflowReconciliation,
+        "A saved workflow needs local state reconciliation before you rely on its snapshot.",
+      ),
+    );
+  }
+
+  const submissionReconciliation = submissions.find(
+    (submission) => submission.reconciliationRequired === true,
+  );
+  if (submissionReconciliation) {
+    actions.push(
+      syncRecommendationFor(
+        submissionReconciliation,
+        "A previous transaction confirmed onchain, but local state needs reconciliation before you rely on saved balances.",
+      ),
+    );
+  }
+
+  const setupAction = needsSetupRecommendation();
+  if (setupAction) {
+    actions.push(setupAction);
+  }
+
+  return actions;
+}
+
+function stableOptionsKey(
+  options: Record<string, NextActionOptionValue> | undefined,
+): string {
+  if (!options) return "";
+  const entries = Object.entries(options)
+    .filter(([key]) => key !== "agent")
+    .sort(([left], [right]) => left.localeCompare(right));
+  return JSON.stringify(entries);
+}
+
+function nextActionDedupeKey(action: NextAction): string {
+  return JSON.stringify({
+    command: action.command,
+    args: action.args ?? [],
+    options: stableOptionsKey(action.options),
+    runnable: action.runnable === false ? false : true,
+  });
+}
+
+function urgentActionCoveredByExisting(
+  urgent: NextAction,
+  existing: readonly NextAction[],
+): boolean {
+  if (urgent.command === "init") {
+    return existing.some((action) => action.command === "init");
+  }
+  if (urgent.command === "accounts" && urgent.options?.pendingOnly === true) {
+    return existing.some(
+      (action) =>
+        action.command === "accounts" &&
+        action.options?.pendingOnly === true,
+    );
+  }
+  return false;
+}
+
+function mergeUrgentRecommendations(
+  ctx: UrgentRecommendationContext | undefined,
+  nextActions: NextAction[] | undefined,
+  payload?: Record<string, unknown>,
+): NextAction[] | undefined {
+  if (shouldSuppressUrgentRecommendations(ctx, payload)) {
+    return nextActions;
+  }
+
+  const urgent = getUrgentRecommendations(ctx);
+  if (urgent.length === 0) return nextActions;
+
+  const seen = new Set<string>();
+  const merged: NextAction[] = [];
+  const existing = nextActions ?? [];
+  for (const action of [
+    ...urgent.filter((action) => !urgentActionCoveredByExisting(action, existing)),
+    ...existing,
+  ]) {
+    const key = nextActionDedupeKey(action);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(action);
+  }
+  return merged;
+}
+
 export function appendNextActions<T extends Record<string, unknown>>(
   payload: T,
   nextActions: NextAction[] | undefined,
+  ctx?: UrgentRecommendationContext,
 ): T & { nextActions?: NextAction[] } {
-  return nextActions && nextActions.length > 0
-    ? { ...payload, nextActions: nextActions.map((action) => withCliCommand(action)) }
+  const mergedNextActions = mergeUrgentRecommendations(ctx, nextActions, payload);
+  return mergedNextActions && mergedNextActions.length > 0
+    ? { ...payload, nextActions: mergedNextActions.map((action) => withCliCommand(action)) }
     : { ...payload };
 }
 
@@ -300,21 +791,28 @@ export function renderNextSteps(
   ctx: OutputContext,
   nextActions: NextAction[] | undefined,
 ): void {
-  if (!nextActions || nextActions.length === 0) return;
   if (isSilent(ctx)) return;
+  const mergedNextActions = mergeUrgentRecommendations(ctx, nextActions);
+  if (!mergedNextActions || mergedNextActions.length === 0) return;
 
   // Only show fully-specified commands to humans.  Template actions
   // (runnable: false) are for agents — humans shouldn't see a
   // half-formed command that errors when copy-pasted.
-  const runnable = nextActions.filter((a) => a.runnable !== false);
+  const runnable = mergedNextActions.filter((a) => a.runnable !== false);
   if (runnable.length === 0) return;
-
-  process.stderr.write(
-    formatSectionHeading("Next steps", { divider: true, tone: "muted" }),
+  const urgentKeys = new Set(
+    getUrgentRecommendations(ctx).map((action) => nextActionDedupeKey(action)),
   );
+
+  process.stderr.write(`\n${chalk.bold("Next steps:")}\n`);
   for (const action of runnable) {
     const cmd = formatNextActionCommand(action);
-    process.stderr.write(`  ${accent(cmd)}\n`);
-    process.stderr.write(`    ${chalk.dim(action.reason)}\n`);
+    const urgent = urgentKeys.has(nextActionDedupeKey(action));
+    process.stderr.write(
+      urgent
+        ? `  ${accent("→")} ${chalk.bold(accent(cmd))}\n`
+        : `  ${accent(cmd)}\n`,
+    );
+    process.stderr.write(`    ${muted(action.reason)}\n`);
   }
 }

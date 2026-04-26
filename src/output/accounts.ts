@@ -6,7 +6,6 @@
  * the command handler.
  */
 
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -27,7 +26,7 @@ import {
   formatTxHash,
   formatUsdValue,
 } from "../utils/format.js";
-import { accentBold } from "../utils/theme.js";
+import { accentBold, muted } from "../utils/theme.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import { explorerTxUrl, isMultiChainScope, POA_PORTAL_URL } from "../config/chains.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
@@ -635,7 +634,7 @@ function renderHumanGroupTable(
       ? `  ${formatUsdValue(total, group.decimals, group.tokenPrice!)}`
       : "";
     process.stderr.write(
-      chalk.dim(
+      muted(
         `    Total: ${totalFmt}${usdFmt}  (${activePAs.length} account${activePAs.length === 1 ? "" : "s"})\n`,
       ),
     );
@@ -768,9 +767,9 @@ export function renderAccountsNoPools(
         : `Pool Accounts on ${data.chain}:`;
     process.stderr.write(`\n${accentBold(title)}\n`);
     if (data.syncSkipped && data.lastSyncTime != null) {
-      process.stderr.write(chalk.dim(`  Cached ${formatTimeAgo(data.lastSyncTime)}\n`));
+      process.stderr.write(muted(`  Cached ${formatTimeAgo(data.lastSyncTime)}\n`));
     } else if (data.lastSyncTime != null) {
-      process.stderr.write(chalk.dim(`  Updated ${formatTimeAgo(data.lastSyncTime)}\n`));
+      process.stderr.write(muted(`  Updated ${formatTimeAgo(data.lastSyncTime)}\n`));
     }
     process.stderr.write(renderEmptyAccountsGuidance(data));
   }
@@ -933,9 +932,9 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
   if (!silent) {
     process.stderr.write(`\n${accentBold(title)}\n`);
     if (syncSkipped && data.lastSyncTime != null) {
-      process.stderr.write(chalk.dim(`  Cached ${formatTimeAgo(data.lastSyncTime)}\n`));
+      process.stderr.write(muted(`  Cached ${formatTimeAgo(data.lastSyncTime)}\n`));
     } else if (data.lastSyncTime != null) {
-      process.stderr.write(chalk.dim(`  Updated ${formatTimeAgo(data.lastSyncTime)}\n`));
+      process.stderr.write(muted(`  Updated ${formatTimeAgo(data.lastSyncTime)}\n`));
     }
     process.stderr.write("\n");
   }

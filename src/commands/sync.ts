@@ -175,6 +175,16 @@ export async function handleSyncCommand(
             poolInfos[0]!.deploymentBlock,
           )
         : chainConfig.startBlock;
+    let scannedToBlock: bigint | null = null;
+    try {
+      const rpcSession = await getReadOnlyRpcSession(
+        chainConfig,
+        globalOpts?.rpcUrl,
+      );
+      scannedToBlock = await rpcSession.getLatestBlockNumber();
+    } catch {
+      scannedToBlock = null;
+    }
 
     const dataService = await getDataService(
       chainConfig,
@@ -202,15 +212,25 @@ export async function handleSyncCommand(
       0,
     );
     currentStage = "syncing_events";
+    if (!silent) {
+      spin.text =
+        scannedToBlock === null
+          ? `Syncing events from block ${scannedFromBlock.toString()}...`
+          : `Syncing events from block ${scannedFromBlock.toString()} to ${scannedToBlock.toString()}...`;
+    }
     emitSyncEvent({
       event: "stage",
       stage: currentStage,
       previousAvailablePoolAccounts: previousSpendableCount,
+      scannedFromBlock: scannedFromBlock.toString(),
+      scannedToBlock: scannedToBlock === null ? null : scannedToBlock.toString(),
     });
 
     await withSpinnerProgress(
       spin,
-      "Syncing deposit/withdrawal/ragequit events",
+      scannedToBlock === null
+        ? `Syncing deposit/withdrawal/ragequit events from block ${scannedFromBlock.toString()}`
+        : `Syncing deposit/withdrawal/ragequit events from block ${scannedFromBlock.toString()} to ${scannedToBlock.toString()}`,
       () =>
         syncAccountEvents(preSyncService, poolInfos, pools, chainConfig.id, {
           skip: skipImmediateSync,
@@ -231,16 +251,6 @@ export async function handleSyncCommand(
       (acc, list) => acc + list.length,
       0,
     );
-    let scannedToBlock: bigint | null = null;
-    try {
-      const rpcSession = await getReadOnlyRpcSession(
-        chainConfig,
-        globalOpts?.rpcUrl,
-      );
-      scannedToBlock = await rpcSession.getLatestBlockNumber();
-    } catch {
-      scannedToBlock = null;
-    }
     const syncMeta = loadSyncMeta(chainConfig.id);
     const eventCounts = summarizeSyncedEventCounts(preSyncService.account);
     currentStage = "finalizing";

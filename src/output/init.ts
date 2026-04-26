@@ -11,6 +11,7 @@ import type {
   NextActionOptionValue,
   RestoreDiscoverySummary,
 } from "../types.js";
+import chalk from "chalk";
 import { MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
 import { INIT_STAGED_STEP_NAMES } from "../utils/init-staged-steps.js";
 import { accent } from "../utils/theme.js";
@@ -748,9 +749,7 @@ export function renderInitResult(ctx: OutputContext, result: InitRenderResult): 
     const browsePoolsCommand = isTestnetChain(result.defaultChain)
       ? `privacy-pools pools --chain ${result.defaultChain}`
       : "privacy-pools pools";
-    process.stderr.write(
-      formatSectionHeading("Next steps", { divider: true, tone: "muted" }),
-    );
+    process.stderr.write(`\n${chalk.bold("Next steps:")}\n`);
 
     if (result.readiness === "read_only") {
       process.stderr.write(

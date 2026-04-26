@@ -2,7 +2,6 @@
  * Output renderer for the `config` command.
  */
 
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
   guardCsvUnsupported,
@@ -17,7 +16,7 @@ import {
   formatSectionHeading,
   type KeyValueRow,
 } from "./layout.js";
-import { accentBold } from "../utils/theme.js";
+import { accentBold, muted } from "../utils/theme.js";
 
 // ── config list ──────────────────────────────────────────────────────────────
 
@@ -172,7 +171,7 @@ export function renderConfigPath(ctx: OutputContext, configDir: string): void {
   // Always write to stdout for scripting: `dir=$(privacy-pools config path)`
   // Context hint on stderr so interactive users understand the stdout output.
   if (process.stderr.isTTY && !isSilent(ctx)) {
-    process.stderr.write(`${chalk.dim("# Config directory:")}\n`);
+    process.stderr.write(`${muted("# Config directory:")}\n`);
   }
   process.stdout.write(`${configDir}\n`);
 }

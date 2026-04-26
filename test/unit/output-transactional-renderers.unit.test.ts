@@ -244,7 +244,7 @@ describe("renderDepositDryRun parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Dry-run: validation succeeded. Re-run without --dry-run to submit.");
-    expect(stderr).toContain("Summary:");
+    expect(stderr).toContain("Deposit dry-run");
     expect(stderr).toMatch(/Chain:\s+sepolia/);
     expect(stderr).toMatch(/Asset:\s+ETH/);
     expect(stderr).toMatch(/Pool Account:\s+PA-1/);
@@ -459,7 +459,7 @@ describe("renderRagequitDryRun parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("Dry-run: validation succeeded. Re-run without --dry-run to submit.");
-    expect(stderr).toContain("Summary:");
+    expect(stderr).toContain("Ragequit dry-run");
     expect(stderr).toMatch(/Chain:\s+sepolia/);
     expect(stderr).toMatch(/Asset:\s+ETH/);
     expect(stderr).toMatch(/Pool Account:\s+PA-2/);
@@ -734,7 +734,7 @@ describe("renderWithdrawDryRun parity", () => {
       }),
     );
 
-    expect(stderr).toContain("Privacy note:");
+    expect(stderr).toContain("Anonymity set:");
     expect(stderr).toContain("42 of 128 deposits (32.8%; larger is more private)");
     expect(stderr).not.toContain("eligible");
   });

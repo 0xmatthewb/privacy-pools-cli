@@ -108,6 +108,8 @@ let promptFlowRecipientAddressOrEns:
   typeof import("../../src/commands/flow.ts").promptFlowRecipientAddressOrEns;
 let sleepWithAbort:
   typeof import("../../src/commands/flow.ts").sleepWithAbort;
+let sleepWithPrivacyDelayCountdown:
+  typeof import("../../src/commands/flow.ts").sleepWithPrivacyDelayCountdown;
 let throwIfWatchAborted:
   typeof import("../../src/commands/flow.ts").throwIfWatchAborted;
 let validateRecipientAddressOrEnsInput:
@@ -183,6 +185,7 @@ async function loadFlowHelpers(): Promise<void> {
     maybeApplyFlowWatchPrivacyDelayOverride,
     promptFlowRecipientAddressOrEns,
     sleepWithAbort,
+    sleepWithPrivacyDelayCountdown,
     throwIfWatchAborted,
     validateRecipientAddressOrEnsInput,
     watchFlowWithStatusAndStep,
@@ -285,6 +288,39 @@ describe("flow command helpers", () => {
     const deferredSleep = sleepWithAbort(25, deferredAbort.signal as AbortSignal);
     setTimeout(() => deferredAbort.abort(), 0);
     await expect(deferredSleep).rejects.toThrow("detached");
+  });
+
+  test("renders a live privacy-delay countdown when stderr is a tty", async () => {
+    const stderrChunks: string[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    const originalIsTTY = process.stderr.isTTY;
+    process.stderr.write = ((chunk: unknown) => {
+      stderrChunks.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    Object.defineProperty(process.stderr, "isTTY", {
+      configurable: true,
+      value: true,
+    });
+
+    try {
+      await sleepWithPrivacyDelayCountdown({
+        sleepMs: 0,
+        privacyDelayUntilMs: Date.now() + 65_000,
+        silent: false,
+      });
+
+      const output = stderrChunks.join("");
+      expect(output).toContain("\rPrivacy delay remaining:");
+      expect(output).toContain("Next check in");
+      expect(output).toContain("Ctrl-C to detach");
+    } finally {
+      process.stderr.write = originalWrite;
+      Object.defineProperty(process.stderr, "isTTY", {
+        configurable: true,
+        value: originalIsTTY,
+      });
+    }
   });
 
   test("applies saved privacy-delay overrides only when they change the workflow", async () => {

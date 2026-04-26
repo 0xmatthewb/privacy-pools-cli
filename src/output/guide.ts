@@ -20,6 +20,21 @@ function buildGuideNextActions(topic: string | undefined, agent: boolean) {
   const baseOptions = agent ? { agent: true } : undefined;
 
   switch (topic) {
+    case "topics":
+      return [
+        createNextAction(
+          "guide quickstart",
+          "Open the setup and first-deposit guide topic.",
+          "after_guide",
+          { options: baseOptions },
+        ),
+        createNextAction(
+          "guide workflow",
+          "Open the end-to-end deposit and withdrawal workflow topic.",
+          "after_guide",
+          { options: baseOptions },
+        ),
+      ];
     case "agents":
     case "json":
     case "next-actions":

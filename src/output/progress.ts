@@ -1,9 +1,10 @@
-import chalk from "chalk";
 import {
   accent,
   directionDeposit,
   directionRecovery,
   directionWithdraw,
+  faint,
+  muted,
   statusHealthy,
   statusPending,
 } from "../utils/theme.js";
@@ -55,9 +56,9 @@ function renderStepMarker(state: NarrativeStepState | FlowRailStepState): string
     case "blocked":
       return directionRecovery(glyph("warning"));
     case "skipped":
-      return chalk.dim(supportsUnicodeOutput() ? "·" : "-");
+      return faint(supportsUnicodeOutput() ? "·" : "-");
     default:
-      return chalk.dim(glyph("pending"));
+      return faint(glyph("pending"));
   }
 }
 
@@ -70,9 +71,9 @@ function renderStepLabel(step: { label: string; state: NarrativeStepState | Flow
     case "blocked":
       return directionRecovery(step.label);
     case "skipped":
-      return chalk.dim(step.label);
+      return muted(step.label);
     default:
-      return chalk.dim(step.label);
+      return muted(step.label);
   }
 }
 
@@ -83,22 +84,45 @@ export function renderNarrativeSteps(steps: NarrativeStep[]): string {
     .map((step) => {
       const prefix = renderStepMarker(step.state);
       const label = renderStepLabel(step);
-      const note = step.note ? ` ${chalk.dim(`- ${step.note}`)}` : "";
+      const note = step.note ? ` ${muted(`- ${step.note}`)}` : "";
       return `  ${prefix} ${label}${note}`;
     })
     .join("\n")}\n`;
 }
 
+export function createNarrativeProgressWriter(
+  options: { silent?: boolean; stream?: NodeJS.WriteStream } = {},
+): (steps: NarrativeStep[]) => void {
+  const stream = options.stream ?? process.stderr;
+  let renderedLineCount = 0;
+
+  return (steps: NarrativeStep[]) => {
+    if (options.silent) return;
+
+    const rendered = renderNarrativeSteps(steps);
+    if (!rendered) return;
+
+    if (renderedLineCount > 0 && stream.isTTY) {
+      stream.write(`\x1b[${renderedLineCount}A\x1b[J`);
+    } else if (renderedLineCount === 0) {
+      stream.write("\n");
+    }
+
+    stream.write(rendered);
+    renderedLineCount = rendered.split("\n").length - 1;
+  };
+}
+
 export function renderFlowRail(steps: FlowRailStep[]): string {
   if (steps.length === 0) return "";
 
-  const connector = chalk.dim(" -> ");
+  const connector = faint(" -> ");
   const rail = steps
     .map((step) => `${renderStepMarker(step.state)} ${renderStepLabel(step)}`)
     .join(connector);
   const noteLines = steps
     .filter((step) => step.note && (step.state === "active" || step.state === "blocked"))
-    .map((step) => `    ${chalk.dim(step.note!)}`);
+    .map((step) => `    ${muted(step.note!)}`);
 
   return noteLines.length > 0
     ? `  ${rail}\n${noteLines.join("\n")}\n`

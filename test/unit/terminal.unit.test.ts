@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+  formatHyperlink,
   getOutputWidthClass,
   getTerminalColumns,
+  stripAnsiCodes,
+  supportsOsc8Hyperlinks,
 } from "../../src/utils/terminal.ts";
 
 const originalPreviewColumns = process.env.PRIVACY_POOLS_CLI_PREVIEW_COLUMNS;
@@ -13,6 +16,10 @@ const originalStderrColumns = Object.getOwnPropertyDescriptor(
 const originalStdoutColumns = Object.getOwnPropertyDescriptor(
   process.stdout,
   "columns",
+);
+const originalStderrIsTty = Object.getOwnPropertyDescriptor(
+  process.stderr,
+  "isTTY",
 );
 
 function restoreColumnsProperty(
@@ -36,6 +43,13 @@ function setStreamColumns(
   });
 }
 
+function setStderrTty(value: boolean): void {
+  Object.defineProperty(process.stderr, "isTTY", {
+    configurable: true,
+    value,
+  });
+}
+
 describe("terminal width resolution", () => {
   afterEach(() => {
     if (originalPreviewColumns === undefined) {
@@ -52,6 +66,7 @@ describe("terminal width resolution", () => {
 
     restoreColumnsProperty(process.stderr, originalStderrColumns);
     restoreColumnsProperty(process.stdout, originalStdoutColumns);
+    restoreColumnsProperty(process.stderr, originalStderrIsTty);
   });
 
   test("prefers the explicit argument over env and live stream widths", () => {
@@ -102,5 +117,46 @@ describe("terminal width resolution", () => {
 
     process.env.COLUMNS = "240";
     expect(getTerminalColumns()).toBe(120);
+  });
+});
+
+describe("terminal hyperlinks", () => {
+  test("formats OSC-8 links when supported", () => {
+    setStderrTty(true);
+    const rendered = formatHyperlink("etherscan", "https://etherscan.io/tx/0xabc", {
+      env: { PRIVACY_POOLS_FORCE_HYPERLINKS: "1" },
+    });
+
+    expect(rendered).toContain("\x1B]8;;https://etherscan.io/tx/0xabc\x1B\\");
+    expect(rendered).toContain("etherscan");
+    expect(stripAnsiCodes(rendered)).toBe("etherscan");
+  });
+
+  test("falls back to the label when hyperlinks are disabled", () => {
+    setStderrTty(true);
+
+    expect(
+      supportsOsc8Hyperlinks({
+        env: {
+          PRIVACY_POOLS_FORCE_HYPERLINKS: "1",
+          PRIVACY_POOLS_NO_HYPERLINKS: "1",
+        },
+      }),
+    ).toBe(false);
+    expect(
+      formatHyperlink("plain", "https://example.com", {
+        env: { PRIVACY_POOLS_NO_HYPERLINKS: "1" },
+      }),
+    ).toBe("plain");
+    expect(
+      formatHyperlink("plain", "https://example.com", {
+        env: { NO_HYPERLINKS: "1" },
+      }),
+    ).toBe("plain");
+    expect(
+      supportsOsc8Hyperlinks({
+        env: { CI: "true", PRIVACY_POOLS_FORCE_HYPERLINKS: "1" },
+      }),
+    ).toBe(false);
   });
 });

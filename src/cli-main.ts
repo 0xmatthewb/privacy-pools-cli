@@ -220,6 +220,7 @@ export async function runCli(
             version: pkg.version,
             repository: normalizeRepositoryUrl(pkg.repository),
             readinessLabel: welcomeState.readinessLabel,
+            bannerHint: welcomeState.bannerHint,
             actions: welcomeState.bannerActions,
           });
           bannerIncludedWelcome = bannerResult.includedWelcomeText;

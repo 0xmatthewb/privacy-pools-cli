@@ -35,6 +35,7 @@ export interface GlobalOptions {
   quiet?: boolean;
   yes?: boolean;
   helpBrief?: boolean;
+  helpFull?: boolean;
   verbose?: boolean;
   noProgress?: boolean;
   noHeader?: boolean;

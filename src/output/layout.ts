@@ -3,7 +3,10 @@ import {
   accent,
   accentBold,
   dangerTone,
+  faint,
+  muted,
   notice,
+  subtle,
   successTone,
 } from "../utils/theme.js";
 import {
@@ -48,12 +51,12 @@ export interface BoxOptions {
 }
 
 function sectionHeadingColor(tone: SectionTone): (value: string) => string {
-  return tone === "muted" ? chalk.dim : accentBold;
+  return tone === "muted" ? subtle : accentBold;
 }
 
 function sectionDivider(): string {
   const fill = supportsUnicodeOutput() ? "─" : "-";
-  return chalk.dim(fill.repeat(getTerminalColumns()));
+  return faint(fill.repeat(getTerminalColumns()));
 }
 
 function applyValueTone(
@@ -70,7 +73,7 @@ function applyValueTone(
     case "danger":
       return dangerTone(value);
     case "muted":
-      return chalk.dim(value);
+      return muted(value);
     default:
       return value;
   }
@@ -106,7 +109,7 @@ export function formatKeyValueRows(rows: KeyValueRow[]): string {
   return `${rows
     .map((row) => {
       const valueTone = row.valueTone ?? "default";
-      return `  ${chalk.dim(`${row.label}:`.padEnd(width))} ${applyValueTone(row.value, valueTone)}`;
+      return `  ${faint(`${row.label}:`.padEnd(width))} ${applyValueTone(row.value, valueTone)}`;
     })
     .join("\n")}\n`;
 }
@@ -117,7 +120,7 @@ export function formatStackedKeyValueRows(rows: KeyValueRow[]): string {
   return `${rows
     .map((row) => {
       const valueTone = row.valueTone ?? "default";
-      return `  ${chalk.dim(row.label)}\n    ${applyValueTone(row.value, valueTone)}`;
+      return `  ${faint(row.label)}\n    ${applyValueTone(row.value, valueTone)}`;
     })
     .join("\n")}\n`;
 }
@@ -139,13 +142,28 @@ function resolveCalloutHeading(kind: CalloutKind): string {
   }
 }
 
+function calloutTone(kind: CalloutKind): (value: string) => string {
+  switch (kind) {
+    case "success":
+      return successTone;
+    case "warning":
+    case "privacy":
+      return notice;
+    case "danger":
+      return dangerTone;
+    case "recovery":
+    case "read-only":
+      return accent;
+  }
+}
+
 export function formatCallout(
   kind: CalloutKind,
   lines: string | string[],
 ): string {
   const content = Array.isArray(lines) ? lines : [lines];
   if (content.length === 0) return "";
-  const gutter = supportsUnicodeOutput() ? "│" : "|";
+  const gutter = calloutTone(kind)(supportsUnicodeOutput() ? "│" : "|");
   const wrapWidth = Math.max(24, getTerminalColumns() - 6);
   const label = chalk.bold(`${resolveCalloutHeading(kind)}:`);
   const rendered = [

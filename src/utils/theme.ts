@@ -6,6 +6,7 @@
  */
 
 import chalk from "chalk";
+import { formatHyperlink } from "./terminal.js";
 
 // ── Accent colours ────────────────────────────────────────────────────────────
 
@@ -21,6 +22,15 @@ export const brand = chalk.bold.hex("#D4A030");
 /** Muted amber — warnings, hints, and cautionary help text. */
 export const notice = chalk.hex("#CA8A2E");
 
+/** Clear body-text grey, brighter than chalk.dim on many terminals. */
+export const muted = chalk.hex("#A8A8A8");
+
+/** Secondary text grey for supporting labels and low-emphasis copy. */
+export const subtle = chalk.hex("#88919F");
+
+/** Faint terminal styling for separators and lowest-emphasis metadata. */
+export const faint = chalk.dim;
+
 /** Vivid green — success messages and approved/spendable states. */
 export const successTone = chalk.hex("#22C55E");
 
@@ -32,10 +42,11 @@ export const spinnerColor = "cyan" as const;
 
 /** Semantic wrappers so renderers style by meaning instead of raw color names. */
 export const amount = chalk.bold;
-export const txHash = chalk.dim;
+export const txHash = faint;
 export const chainName = accent;
 export const poolAsset = accent;
-export const explorerUrl = chalk.underline;
+export const explorerUrl = (url: string): string =>
+  formatHyperlink(chalk.underline(url), url);
 export const statusHealthy = successTone;
 export const statusPending = notice;
 export const statusFailed = dangerTone;

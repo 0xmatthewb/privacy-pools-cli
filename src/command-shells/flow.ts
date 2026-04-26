@@ -73,6 +73,7 @@ export function createFlowCommand(): Command {
             "--yes",
             "--agent",
             "--help-brief",
+            "--help-full",
           ],
         },
       ]),

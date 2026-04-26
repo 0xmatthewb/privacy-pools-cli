@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import chalk from "chalk";
 import {
   formatCallout,
   formatKeyValueRows,
@@ -9,6 +10,17 @@ import {
 function stripAnsi(value: string): string {
   return value.replace(/\x1B\[[0-9;]*m/g, "");
 }
+
+let originalChalkLevel: typeof chalk.level;
+
+beforeAll(() => {
+  originalChalkLevel = chalk.level;
+  chalk.level = 3;
+});
+
+afterAll(() => {
+  chalk.level = originalChalkLevel;
+});
 
 describe("formatSectionHeading", () => {
   test("renders a titled section with an optional divider", () => {
@@ -66,6 +78,19 @@ describe("formatCallout", () => {
     expect(callout).toMatch(
       /[│|] Relayed withdrawals preserve privacy better\./,
     );
+  });
+
+  test("tints the gutter by callout kind", () => {
+    const success = formatCallout("success", "Ready.");
+    const danger = formatCallout("danger", "Blocked.");
+    const successGutter = success.match(/\x1B\[[0-9;]+m[│|]\x1B\[[0-9;]+m/)?.[0];
+    const dangerGutter = danger.match(/\x1B\[[0-9;]+m[│|]\x1B\[[0-9;]+m/)?.[0];
+
+    expect(successGutter).toBeTruthy();
+    expect(dangerGutter).toBeTruthy();
+    expect(successGutter).not.toBe(dangerGutter);
+    expect(stripAnsi(success)).toMatch(/[│|] Success:/);
+    expect(stripAnsi(danger)).toMatch(/[│|] Danger:/);
   });
 });
 

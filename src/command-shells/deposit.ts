@@ -50,6 +50,7 @@ export function createDepositCommand(): Command {
             "--yes",
             "--agent",
             "--help-brief",
+            "--help-full",
           ],
         },
       ]),

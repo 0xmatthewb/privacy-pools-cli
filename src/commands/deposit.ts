@@ -84,8 +84,8 @@ import {
   PROMPT_CANCELLATION_MESSAGE,
 } from "../utils/prompt-cancellation.js";
 import {
+  createNarrativeProgressWriter,
   createNarrativeSteps,
-  renderNarrativeSteps,
 } from "../output/progress.js";
 import {
   maybeRecoverMissingWalletSetup,
@@ -516,14 +516,12 @@ export async function handleDepositCommand(
         pool.pool,
         globalOpts?.rpcUrl,
       );
+      const writeDepositNarrative = createNarrativeProgressWriter({ silent });
       const writeDepositProgress = (activeIndex: number, note?: string) => {
-        if (silent) return;
         const labels = isNative
           ? ["Prepare deposit", "Generate deposit secret", "Submit deposit"]
           : ["Prepare deposit", "Approve token", "Submit deposit"];
-        process.stderr.write(
-          `\n${renderNarrativeSteps(createNarrativeSteps(labels, activeIndex, note))}`,
-        );
+        writeDepositNarrative(createNarrativeSteps(labels, activeIndex, note));
       };
       writeDepositProgress(0, "Loading wallet state and preparing the deposit.");
       const accountService = await initializeAccountService(

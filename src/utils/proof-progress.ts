@@ -12,6 +12,10 @@ export interface ProofProgressController {
   markVerifyProofPhase(): void;
 }
 
+export interface ProofProgressOptions {
+  dynamicSuffix?: (elapsedSeconds: number) => string | null | undefined;
+}
+
 /** @internal Exported for test isolation only. */
 export function resetFirstRunMessage(): void {
   firstRunMessageShown = false;
@@ -79,6 +83,7 @@ export async function withProofProgress<T>(
   spin: Ora,
   label: string,
   fn: (progress: ProofProgressController) => Promise<T>,
+  opts: ProofProgressOptions = {},
 ): Promise<T> {
   const isFirstRun = !firstRunMessageShown;
   firstRunMessageShown = true;
@@ -116,7 +121,15 @@ export async function withProofProgress<T>(
   const renderProgress = () => {
     const elapsed = Math.floor((Date.now() - start) / 1000);
     const phaseLabel = currentPhaseLabel(elapsed);
-    spin.text = `${label}... (${elapsed}s) - ${phaseLabel}`;
+    const suffixes = [phaseLabel];
+    const dynamicSuffix = opts.dynamicSuffix?.(elapsed)?.trim();
+    if (dynamicSuffix) {
+      suffixes.push(dynamicSuffix);
+    }
+    if (elapsed >= 10) {
+      suffixes.push("Ctrl-C is safe; nothing has been submitted yet");
+    }
+    spin.text = `${label}... (${elapsed}s) - ${suffixes.join(" - ")}`;
     if (spin.isSpinning) {
       spin.render();
     }

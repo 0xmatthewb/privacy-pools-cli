@@ -3,6 +3,7 @@ export type OutputWidthClass = "wide" | "compact" | "narrow";
 type OutputStreamName = "stdout" | "stderr";
 
 let outputAnsiGuardsInstalled = false;
+const TRUE_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
 
 export function supportsUnicodeOutput(
   env: NodeJS.ProcessEnv = process.env,
@@ -66,7 +67,76 @@ export function inlineSeparator(): string {
 }
 
 export function stripAnsiCodes(value: string): string {
-  return value.replace(/\x1B\[[0-9;]*[A-Za-z]/g, "");
+  return value
+    .replace(/\x1B]8;[^\x07\x1B]*(?:\x07|\x1B\\)/g, "")
+    .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "");
+}
+
+function readBooleanEnv(
+  env: NodeJS.ProcessEnv,
+  name: string,
+): boolean {
+  const raw = env[name];
+  return typeof raw === "string" && TRUE_ENV_VALUES.has(raw.trim().toLowerCase());
+}
+
+export function supportsOsc8Hyperlinks(
+  options: {
+    streamName?: OutputStreamName;
+    env?: NodeJS.ProcessEnv;
+  } = {},
+): boolean {
+  const env = options.env ?? process.env;
+  if (
+    readBooleanEnv(env, "PRIVACY_POOLS_NO_HYPERLINKS") ||
+    readBooleanEnv(env, "NO_HYPERLINKS") ||
+    readBooleanEnv(env, "NO_COLOR") ||
+    readBooleanEnv(env, "CI") ||
+    env.TERM === "dumb"
+  ) {
+    return false;
+  }
+
+  if (
+    readBooleanEnv(env, "PRIVACY_POOLS_FORCE_HYPERLINKS") ||
+    readBooleanEnv(env, "FORCE_HYPERLINK")
+  ) {
+    return true;
+  }
+
+  const stream =
+    (options.streamName ?? "stderr") === "stdout"
+      ? process.stdout
+      : process.stderr;
+  if (stream.isTTY !== true) {
+    return false;
+  }
+
+  return true;
+}
+
+function sanitizeOsc8Url(url: string): string {
+  return url.replace(/[\x00-\x1f\x7f\\]/g, "");
+}
+
+export function formatHyperlink(
+  label: string,
+  url: string | null | undefined,
+  options: {
+    streamName?: OutputStreamName;
+    env?: NodeJS.ProcessEnv;
+  } = {},
+): string {
+  if (!url || !supportsOsc8Hyperlinks(options)) {
+    return label;
+  }
+
+  const safeUrl = sanitizeOsc8Url(url);
+  if (!safeUrl) {
+    return label;
+  }
+
+  return `\x1B]8;;${safeUrl}\x1B\\${label}\x1B]8;;\x1B\\`;
 }
 
 function streamSupportsForcedColor(

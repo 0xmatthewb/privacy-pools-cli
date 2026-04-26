@@ -4,12 +4,21 @@ import { ensurePromptInteractionAvailable } from "./prompt-cancellation.js";
 import {
   amount,
   chainName,
+  faint,
+  muted,
   poolAsset,
   statusFailed,
   statusHealthy,
   statusPending,
 } from "./theme.js";
-import { getOutputWidthClass, inlineSeparator, supportsUnicodeOutput } from "./terminal.js";
+import {
+  getOutputWidthClass,
+  inlineSeparator,
+  padDisplay,
+  supportsUnicodeOutput,
+  visibleWidth,
+  wrapDisplayText,
+} from "./terminal.js";
 
 export type ConfirmationSeverity = "standard" | "high_stakes";
 export type PromptModule = Pick<
@@ -34,6 +43,37 @@ export const CONFIRMATION_TOKENS = {
 
 export function confirmationTokenMismatchMessage(token: string): string {
   return `Confirmation token did not match. Expected '${token}' (exact case).`;
+}
+
+export function formatSeverityWarningBlock(warning: string, token: string): string {
+  const useUnicode = supportsUnicodeOutput();
+  const topLeft = useUnicode ? "╭" : "+";
+  const topRight = useUnicode ? "╮" : "+";
+  const bottomLeft = useUnicode ? "╰" : "+";
+  const bottomRight = useUnicode ? "╯" : "+";
+  const horizontal = useUnicode ? "─" : "-";
+  const vertical = useUnicode ? "│" : "|";
+  const title = " High-risk confirmation ";
+  const tokenBadge = chalk.bold.bgRed(` ${token} `);
+  const maxWidth = 76;
+  const bodyLines = [
+    ...wrapDisplayText(warning, maxWidth),
+    "",
+    `Type ${tokenBadge} exactly to continue.`,
+  ];
+  const contentWidth = Math.max(
+    32,
+    visibleWidth(title) + 2,
+    ...bodyLines.map((line) => visibleWidth(line)),
+  );
+  const titleRemainder = Math.max(0, contentWidth - visibleWidth(title));
+  const top =
+    `${topLeft}${horizontal}${chalk.bold(title)}${horizontal.repeat(titleRemainder + 1)}${topRight}`;
+  const bottom = `${bottomLeft}${horizontal.repeat(contentWidth + 2)}${bottomRight}`;
+  const body = bodyLines
+    .map((line) => `${vertical} ${padDisplay(line, contentWidth)} ${vertical}`)
+    .join("\n");
+  return `\n${statusFailed(top)}\n${body}\n${statusFailed(bottom)}\n`;
 }
 
 export async function getPromptModule(): Promise<PromptModule> {
@@ -82,7 +122,7 @@ function joinPromptFacts(facts: string[]): string {
 
   const widthClass = getOutputWidthClass();
   const limit = widthClass === "narrow" ? 2 : widthClass === "compact" ? 3 : 4;
-  return nonEmpty.slice(0, limit).join(chalk.dim(` ${inlineSeparator().trim()} `));
+  return nonEmpty.slice(0, limit).join(faint(` ${inlineSeparator().trim()} `));
 }
 
 function renderStatusFact(status: string): string {
@@ -109,7 +149,7 @@ function renderStatusFact(status: string): string {
   ) {
     return statusFailed(status);
   }
-  return chalk.dim(status);
+  return muted(status);
 }
 
 export function formatPoolPromptChoice(params: {
@@ -145,13 +185,13 @@ export function formatPoolPromptChoice(params: {
     liquidity ? `TVL ${liquidity}` : "",
     minDeposit,
     params.tokenPrice !== null && params.tokenPrice !== undefined
-      ? chalk.dim(`$${Math.round(params.tokenPrice).toLocaleString("en-US")}/token`)
+      ? muted(`$${Math.round(params.tokenPrice).toLocaleString("en-US")}/token`)
       : "",
   ];
 
   const metadata = joinPromptFacts(facts);
   return metadata.length > 0
-    ? `${poolAsset(params.symbol)}  ${chalk.dim(supportsUnicodeOutput() ? "·" : "-")}  ${metadata}`
+    ? `${poolAsset(params.symbol)}  ${faint(supportsUnicodeOutput() ? "·" : "-")}  ${metadata}`
     : poolAsset(params.symbol);
 }
 
@@ -174,14 +214,14 @@ export function formatPoolAccountPromptChoice(params: {
       ),
     ),
     params.usdValue && params.usdValue !== "-"
-      ? chalk.dim(params.usdValue)
+      ? muted(params.usdValue)
       : "",
     renderStatusFact(params.status),
     params.chain ? chainName(params.chain) : "",
   ];
   const metadata = joinPromptFacts(facts);
   return metadata.length > 0
-    ? `${params.poolAccountId}  ${chalk.dim(supportsUnicodeOutput() ? "·" : "-")}  ${metadata}`
+    ? `${params.poolAccountId}  ${faint(supportsUnicodeOutput() ? "·" : "-")}  ${metadata}`
     : params.poolAccountId;
 }
 
@@ -248,7 +288,9 @@ export async function confirmActionWithSeverity(params: {
     });
   }
 
-  process.stderr.write(`${statusFailed(params.highStakesWarning)}\n`);
+  process.stderr.write(
+    formatSeverityWarningBlock(params.highStakesWarning, params.highStakesToken),
+  );
   const typed = await inputPrompt({
     message: `Type "${params.highStakesToken}" to confirm:`,
   });

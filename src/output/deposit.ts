@@ -6,7 +6,6 @@
  * command handler.
  */
 
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -26,6 +25,7 @@ import {
   formatDenseOutcomeLine,
   formatTxHash,
 } from "../utils/format.js";
+import { muted } from "../utils/theme.js";
 import { inlineSeparator } from "../utils/terminal.js";
 import { isTestnetChain, POA_PORTAL_URL } from "../config/chains.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
@@ -260,43 +260,51 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
         : data.balanceSufficient
           ? "yes"
           : "no";
-    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(
-      formatKeyValueRows([
-        { label: "Chain", value: data.chain },
-        { label: "Asset", value: data.asset },
-        { label: "Pool Account", value: data.poolAccountId },
-        {
-          label: "Amount",
-          value: formatAmount(
-            data.amount,
-            data.decimals,
-            data.asset,
-          ),
+      formatReviewSurface({
+        title: "Deposit dry-run",
+        summaryRows: [
+          { label: "Chain", value: data.chain },
+          { label: "Asset", value: data.asset },
+          { label: "Pool Account", value: data.poolAccountId },
+          {
+            label: "Amount",
+            value: formatAmount(
+              data.amount,
+              data.decimals,
+              data.asset,
+            ),
+          },
+          {
+            label: "Vetting fee",
+            value: `${formatAmount(data.feeAmount, data.decimals, data.asset)} (${formatBPS(data.vettingFeeBPS)})`,
+            valueTone: "warning",
+          },
+          {
+            label: "Expected net deposited",
+            value: formatAmount(
+              data.estimatedCommitted,
+              data.decimals,
+              data.asset,
+            ),
+            valueTone: "success",
+          },
+          {
+            label: "Balance sufficient",
+            value: balanceLabel,
+            valueTone:
+              data.balanceSufficient === true
+                ? "success"
+                : data.balanceSufficient === false
+                ? "warning"
+                : "muted",
+          },
+        ],
+        primaryCallout: {
+          kind: "read-only",
+          lines: "No transaction was submitted and no local Pool Account was saved.",
         },
-        {
-          label: "Vetting fee",
-          value: `${formatAmount(data.feeAmount, data.decimals, data.asset)} (${formatBPS(data.vettingFeeBPS)})`,
-        },
-        {
-          label: "Expected net deposited",
-          value: formatAmount(
-            data.estimatedCommitted,
-            data.decimals,
-            data.asset,
-          ),
-        },
-        {
-          label: "Balance sufficient",
-          value: balanceLabel,
-          valueTone:
-            data.balanceSufficient === true
-              ? "success"
-              : data.balanceSufficient === false
-              ? "warning"
-              : "muted",
-        },
-      ]),
+      }),
     );
   }
   renderNextSteps(ctx, humanNextActions);
@@ -492,7 +500,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     );
     const summaryRows = [
       ...(data.poolAccountNumber === 1
-        ? [{ label: "", value: chalk.dim("Welcome to the pool.") }]
+        ? [{ label: "", value: muted("Welcome to the pool.") }]
         : []),
       { label: "Chain", value: data.chain },
       { label: "Pool Account", value: data.poolAccountId },

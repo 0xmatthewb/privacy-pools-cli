@@ -197,6 +197,39 @@ describe("withProofProgress", () => {
 
     expect(captured).toBe("Generating... (0s) - verify proof");
   });
+
+  test("appends a dynamic suffix to proof progress text", async () => {
+    const spin = mockSpinner();
+    let captured = "";
+
+    await withProofProgress(
+      spin as any,
+      "Generating",
+      async () => {
+        captured = spin.text;
+        return "ok";
+      },
+      { dynamicSuffix: () => "quote valid for 2m" },
+    );
+
+    expect(captured).toBe(
+      "Generating... (0s) - verify circuits if needed - quote valid for 2m",
+    );
+  });
+
+  test("shows a cancel-safe hint once proof generation has taken 10s", async () => {
+    jest.useFakeTimers();
+    const spin = mockSpinner();
+    const promise = withProofProgress(spin as any, "Generating", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10_100));
+      return "ok";
+    });
+
+    jest.advanceTimersByTime(10_100);
+    await expect(promise).resolves.toBe("ok");
+    expect(spin.text).toContain("Ctrl-C is safe; nothing has been submitted yet");
+    jest.useRealTimers();
+  });
 });
 
 describe("withSpinnerProgress", () => {

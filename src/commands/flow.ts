@@ -37,9 +37,15 @@ import type { GlobalOptions } from "../types.js";
 import { formatAmountDecimal, isRoundAmount, suggestRoundAmounts } from "../utils/amount-privacy.js";
 import { isNativePoolAsset, POA_PORTAL_URL } from "../config/chains.js";
 import { CLIError, printError, promptCancelledError } from "../utils/errors.js";
-import { deriveTokenPrice, info, warn } from "../utils/format.js";
+import {
+  deriveTokenPrice,
+  formatRemainingTime,
+  info,
+  warn,
+} from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
+  canPrompt,
   ensurePromptInteractionAvailable,
   isPromptCancellationError,
   PROMPT_CANCELLATION_MESSAGE,
@@ -200,6 +206,43 @@ export async function sleepWithAbort(
   });
 }
 
+export async function sleepWithPrivacyDelayCountdown(params: {
+  sleepMs: number;
+  privacyDelayUntilMs: number;
+  silent: boolean;
+  signal?: AbortSignal;
+}): Promise<void> {
+  if (
+    params.silent ||
+    !process.stderr.isTTY ||
+    !Number.isFinite(params.privacyDelayUntilMs) ||
+    params.privacyDelayUntilMs <= Date.now()
+  ) {
+    await sleepWithAbort(params.sleepMs, params.signal);
+    return;
+  }
+
+  const pollDeadlineMs = Date.now() + params.sleepMs;
+  let lastLineLength = 0;
+  const render = () => {
+    const line =
+      `Privacy delay remaining: ${formatRemainingTime(params.privacyDelayUntilMs)}. ` +
+      `Next check in ${formatRemainingTime(pollDeadlineMs)}. Press Ctrl-C to detach.`;
+    const padding = " ".repeat(Math.max(0, lastLineLength - line.length));
+    process.stderr.write(`\r${line}${padding}`);
+    lastLineLength = line.length;
+  };
+
+  render();
+  const interval = setInterval(render, 1000);
+  try {
+    await sleepWithAbort(params.sleepMs, params.signal);
+  } finally {
+    clearInterval(interval);
+    process.stderr.write("\n");
+  }
+}
+
 export async function maybeApplyFlowWatchPrivacyDelayOverride(params: {
   workflowId?: string;
   privacyDelayProfile?: string;
@@ -303,10 +346,23 @@ export async function watchFlowWithStatusAndStep(params: {
         silent,
       );
     } else if (snapshot.phase === "approved_waiting_privacy_delay") {
+      const privacyDelayUntilMs = snapshot.privacyDelayUntil
+        ? Date.parse(snapshot.privacyDelayUntil)
+        : Number.NaN;
+      const privacyDelayRemaining = Number.isFinite(privacyDelayUntilMs)
+        ? formatRemainingTime(privacyDelayUntilMs)
+        : null;
       info(
-        `Still waiting for the saved privacy delay before the private withdrawal. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
+        `Still waiting for the saved privacy delay before the private withdrawal.${privacyDelayRemaining ? ` ${privacyDelayRemaining} remaining.` : ""} Checking again in ${humanPollDelayLabel(sleepMs)}.`,
         silent,
       );
+      await sleepWithPrivacyDelayCountdown({
+        sleepMs,
+        privacyDelayUntilMs,
+        silent,
+        signal: params.abortSignal,
+      });
+      continue;
     } else if (snapshot.phase === "withdrawing") {
       info(
         `Still waiting for the private withdrawal to settle. Checking again in ${humanPollDelayLabel(sleepMs)}.`,
@@ -581,7 +637,7 @@ export async function handleFlowRootCommand(
   const mode = resolveGlobalMode(globalOpts);
 
   try {
-    if (mode.isJson || !process.stdin.isTTY || !process.stderr.isTTY) {
+    if (mode.isJson || !canPrompt()) {
       throw new CLIError(
         "Use a flow subcommand in non-interactive mode: start, watch, status, step, or ragequit.",
         "INPUT",

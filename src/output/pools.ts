@@ -5,11 +5,10 @@
  * Pool fetching, search, sort, and spinner remain in the command handler.
  */
 
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
 import { POA_PORTAL_URL } from "../config/chains.js";
-import { accentBold } from "../utils/theme.js";
+import { accentBold, muted } from "../utils/theme.js";
 import { formatAddress, formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
@@ -421,7 +420,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   }
   if (ctx.mode.verboseLevel >= 1) {
     process.stderr.write(
-      chalk.dim(
+      muted(
         "\nVetting fees are deducted on deposit.\n" +
         "Pool Balance: current total value in the pool (accepted + pending deposits).\n" +
         "Pending: deposits still under ASP review.\n",

@@ -4,13 +4,17 @@ type SymbolName =
   | "active"
   | "pending"
   | "current"
-  | "warning";
+  | "warning"
+  | "success"
+  | "failure";
 
 const UNICODE_SYMBOLS: Record<SymbolName, string> = {
   active: "●",
   pending: "○",
   current: "◉",
   warning: "⚠",
+  success: "✓",
+  failure: "✖",
 };
 
 const ASCII_SYMBOLS: Record<SymbolName, string> = {
@@ -18,6 +22,8 @@ const ASCII_SYMBOLS: Record<SymbolName, string> = {
   pending: "o",
   current: ">",
   warning: "!",
+  success: "+",
+  failure: "x",
 };
 
 export function glyph(name: SymbolName): string {

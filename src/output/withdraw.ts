@@ -543,63 +543,76 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
   if (!silent) process.stderr.write("\n");
   success(DRY_RUN_FOOTER_COPY, silent);
   if (!silent) {
-    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(
-      formatKeyValueRows([
-        { label: "Mode", value: data.withdrawMode },
-        {
-          label: "Amount",
-          value: formatAmount(data.amount, data.decimals, data.asset),
+      formatReviewSurface({
+        title: "Withdrawal dry-run",
+        summaryRows: [
+          { label: "Mode", value: data.withdrawMode },
+          {
+            label: "Amount",
+            value: formatAmount(data.amount, data.decimals, data.asset),
+          },
+          { label: "Recipient", value: formatAddress(data.recipient) },
+          { label: "Pool Account", value: data.poolAccountId },
+          ...(data.withdrawMode === "relayed" && data.feeBPS
+            ? [{ label: "Relayer fee", value: formatBPS(data.feeBPS), valueTone: "warning" as const }]
+            : []),
+          ...(data.withdrawMode === "relayed" && data.quoteExpiresAt
+            ? [{
+                label: "Quote expires",
+                value: formatHumanQuoteExpiry(new Date(data.quoteExpiresAt).getTime()).label,
+              }]
+            : []),
+          ...(data.withdrawMode === "relayed" && data.relayerHost
+            ? [{ label: "Relayer", value: data.relayerHost }]
+            : []),
+          ...(data.withdrawMode === "relayed" && data.quoteRefreshCount !== undefined
+            ? [{ label: "Quote refreshes", value: String(data.quoteRefreshCount) }]
+            : []),
+          ...(data.withdrawMode === "relayed" && data.remainingBelowMinGuidance
+            ? [{
+                label: "Remainder",
+                value: formatAmount(
+                  data.selectedCommitmentValue - data.amount,
+                  data.decimals,
+                  data.asset,
+                ),
+                valueTone: "warning" as const,
+              }]
+            : []),
+          ...(data.withdrawMode === "relayed" && data.extraGas
+            ? [{
+                label: "Gas token received",
+                value: "enabled (receive ETH for gas)",
+                valueTone: "accent" as const,
+              }]
+            : []),
+          {
+            label: "Pool Account balance",
+            value: formatAmount(data.selectedCommitmentValue, data.decimals, data.asset),
+          },
+          {
+            label: "Root check",
+            value: data.rootMatchedAtProofTime === false
+              ? "stale at proof time"
+              : "matched latest root",
+            valueTone: data.rootMatchedAtProofTime === false ? "warning" : "success",
+          },
+          ...(data.anonymitySet
+            ? [{
+                label: "Anonymity set",
+                value: formatAnonymitySetValue(data.anonymitySet),
+              }]
+            : []),
+        ],
+        primaryCallout: {
+          kind: data.withdrawMode === "direct" ? "warning" : "read-only",
+          lines: data.withdrawMode === "direct"
+            ? "Direct withdrawals publicly link your deposit and withdrawal addresses onchain. Use relayed mode for private withdrawals."
+            : "No transaction was submitted and no local account state was changed.",
         },
-        { label: "Recipient", value: formatAddress(data.recipient) },
-        { label: "Pool Account", value: data.poolAccountId },
-        ...(data.withdrawMode === "relayed" && data.feeBPS
-          ? [{ label: "Relayer fee", value: formatBPS(data.feeBPS) }]
-          : []),
-        ...(data.withdrawMode === "relayed" && data.quoteExpiresAt
-          ? [{
-              label: "Quote expires",
-              value: formatHumanQuoteExpiry(new Date(data.quoteExpiresAt).getTime()).label,
-            }]
-          : []),
-        ...(data.withdrawMode === "relayed" && data.relayerHost
-          ? [{ label: "Relayer", value: data.relayerHost }]
-          : []),
-        ...(data.withdrawMode === "relayed" && data.quoteRefreshCount !== undefined
-          ? [{ label: "Quote refreshes", value: String(data.quoteRefreshCount) }]
-          : []),
-        ...(data.withdrawMode === "relayed" && data.remainingBelowMinGuidance
-          ? [{
-              label: "Remainder",
-              value: formatAmount(
-                data.selectedCommitmentValue - data.amount,
-                data.decimals,
-                data.asset,
-              ),
-            }]
-          : []),
-        ...(data.withdrawMode === "relayed" && data.extraGas
-          ? [{
-              label: "Gas token received",
-              value: "enabled (receive ETH for gas)",
-            }]
-          : []),
-        {
-          label: "Pool Account balance",
-          value: formatAmount(data.selectedCommitmentValue, data.decimals, data.asset),
-        },
-      ]),
+      }),
     );
-    if (data.withdrawMode === "direct") {
-      process.stderr.write(
-        formatCallout(
-          "privacy",
-          "Direct withdrawals publicly link your deposit and withdrawal addresses onchain. Use relayed mode for private withdrawals.",
-        ),
-      );
-    } else if (data.anonymitySet) {
-      process.stderr.write(formatAnonymitySetCallout(data.anonymitySet));
-    }
     if (data.withdrawMode === "relayed" && data.remainingBelowMinGuidance) {
       process.stderr.write(
         formatRelayedWithdrawalRemainderHint(data.remainingBelowMinGuidance),

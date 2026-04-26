@@ -8,8 +8,12 @@
  *      intentionally exposes it, and browse/post-success surfaces stay quiet
  */
 
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { CHAINS } from "../../src/config/chains.ts";
 import { createOutputContext, createNextAction, formatExecutableNextActionCommand, formatNextActionCommand, renderNextSteps } from "../../src/output/common.ts";
+import { appendNextActions } from "../../src/output/common.ts";
 import { renderInitResult, type InitRenderResult } from "../../src/output/init.ts";
 import { renderDepositSuccess, type DepositSuccessData } from "../../src/output/deposit.ts";
 import { renderWithdrawSuccess, type WithdrawSuccessData } from "../../src/output/withdraw.ts";
@@ -22,7 +26,55 @@ import { renderGlobalStats, renderPoolStats, type GlobalStatsRenderData, type Po
 import { renderSyncComplete, type SyncResult } from "../../src/output/sync.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { configureNextActionGlobals } from "../../src/utils/next-action-globals.ts";
+import { saveAccount } from "../../src/services/account-storage.ts";
+import { saveMnemonicToFile, saveSignerKey } from "../../src/services/config.ts";
+import { createSubmissionRecord } from "../../src/services/submissions.ts";
+import { saveWorkflowSnapshot } from "../../src/services/workflow.ts";
+import { WORKFLOW_SNAPSHOT_VERSION } from "../../src/services/workflow-storage-version.ts";
+import { cleanupTrackedTempDirs, createTrackedTempDir } from "../helpers/temp.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
+
+const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
+const ORIGINAL_PRIVATE_KEY = process.env.PRIVACY_POOLS_PRIVATE_KEY;
+const MNEMONIC =
+  "test test test test test test test test test test test junk";
+const PRIVATE_KEY = `0x${"22".repeat(32)}`;
+
+function restoreOutputNextStepsEnv(): void {
+  if (ORIGINAL_HOME === undefined) {
+    delete process.env.PRIVACY_POOLS_HOME;
+  } else {
+    process.env.PRIVACY_POOLS_HOME = ORIGINAL_HOME;
+  }
+
+  if (ORIGINAL_PRIVATE_KEY === undefined) {
+    delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
+  } else {
+    process.env.PRIVACY_POOLS_PRIVATE_KEY = ORIGINAL_PRIVATE_KEY;
+  }
+}
+
+function useNextStepsHome(prefix: string, setup: boolean = true): string {
+  const home = createTrackedTempDir(prefix);
+  process.env.PRIVACY_POOLS_HOME = home;
+  delete process.env.PRIVACY_POOLS_PRIVATE_KEY;
+  if (setup) {
+    mkdirSync(home, { recursive: true });
+    writeFileSync(
+      join(home, "config.json"),
+      JSON.stringify({ defaultChain: "mainnet", rpcOverrides: {} }),
+      "utf8",
+    );
+    saveMnemonicToFile(MNEMONIC);
+    saveSignerKey(PRIVATE_KEY);
+  }
+  return home;
+}
+
+afterEach(() => {
+  restoreOutputNextStepsEnv();
+  cleanupTrackedTempDirs();
+});
 
 // ── formatNextActionCommand ─────────────────────────────────────────────────
 
@@ -158,6 +210,7 @@ describe("renderNextSteps suppression", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() => renderNextSteps(ctx, sampleActions));
     expect(stderr).toContain("Next steps:");
+    expect(stderr).not.toContain("────");
     expect(stderr).toContain("privacy-pools accounts --chain sepolia");
     expect(stderr).toContain("Check balance.");
   });
@@ -196,6 +249,129 @@ describe("renderNextSteps suppression", () => {
     const ctx = createOutputContext(makeMode());
     const { stderr } = captureOutput(() => renderNextSteps(ctx, []));
     expect(stderr).toBe("");
+  });
+});
+
+// ── Local urgent recommendations ───────────────────────────────────────────
+
+describe("urgent next-step recommendations", () => {
+  function saveActiveWorkflow(): void {
+    saveWorkflowSnapshot({
+      schemaVersion: WORKFLOW_SNAPSHOT_VERSION,
+      workflowId: "wf-urgent",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      phase: "awaiting_asp",
+      chain: "sepolia",
+      asset: "ETH",
+      depositAmount: "100000000000000000",
+      recipient: "0x1111111111111111111111111111111111111111",
+      walletMode: "configured",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      poolAccountId: "PA-1",
+      poolAccountNumber: 1,
+      depositTxHash: "0x" + "aa".repeat(32),
+      depositBlockNumber: "123",
+    });
+  }
+
+  test("renderNextSteps promotes active saved workflows before ordinary suggestions", () => {
+    useNextStepsHome("pp-next-urgent-workflow-");
+    saveActiveWorkflow();
+    const ctx = createOutputContext(makeMode(), false, { commandPath: "status" });
+
+    const { stderr } = captureOutput(() =>
+      renderNextSteps(ctx, [
+        createNextAction("pools", "Browse available pools.", "after_init"),
+      ]),
+    );
+
+    expect(stderr).toContain("privacy-pools flow status wf-urgent");
+    expect(stderr).toContain("privacy-pools pools");
+    expect(stderr.indexOf("privacy-pools flow status wf-urgent")).toBeLessThan(
+      stderr.indexOf("privacy-pools pools"),
+    );
+  });
+
+  test("appendNextActions adds pending transaction polling from local submissions", () => {
+    useNextStepsHome("pp-next-urgent-submission-");
+    const record = createSubmissionRecord({
+      operation: "deposit",
+      sourceCommand: "deposit",
+      chain: "sepolia",
+      asset: "ETH",
+      transactions: [
+        {
+          description: "Deposit ETH into Privacy Pool",
+          txHash: "0x" + "ab".repeat(32),
+        },
+      ],
+    });
+
+    const result = appendNextActions(
+      { operation: "pools" },
+      [createNextAction("pools", "Browse available pools.", "after_init")],
+      { commandPath: "pools", mode: makeMode({ isJson: true }) },
+    );
+
+    expect(result.nextActions?.[0]).toMatchObject({
+      command: "tx-status",
+      args: [record.submissionId],
+      when: "after_submit",
+    });
+    expect(result.nextActions?.[0]?.cliCommand).toContain("--agent");
+  });
+
+  test("appendNextActions adds pending approval polling when account storage exposes pending status", () => {
+    useNextStepsHome("pp-next-urgent-pending-");
+    saveAccount(CHAINS.sepolia.id, {
+      poolAccounts: new Map([
+        [1n, [{ status: "pending", aspStatus: "pending" }]],
+      ]),
+    });
+
+    const result = appendNextActions(
+      { operation: "pools" },
+      undefined,
+      { commandPath: "pools", mode: makeMode({ isJson: true }) },
+    );
+
+    expect(result.nextActions?.[0]).toMatchObject({
+      command: "accounts",
+      when: "has_pending",
+      options: { chain: "sepolia", pendingOnly: true },
+    });
+    expect(result.nextActions?.[0]?.cliCommand).toContain("--agent");
+    expect(result.nextActions?.[0]?.cliCommand).toContain("--chain sepolia");
+    expect(result.nextActions?.[0]?.cliCommand).toContain("--pending-only");
+  });
+
+  test("appendNextActions adds setup guidance when init has not run", () => {
+    useNextStepsHome("pp-next-urgent-init-", false);
+
+    const result = appendNextActions(
+      { operation: "pools" },
+      undefined,
+      { commandPath: "pools", mode: makeMode({ isJson: true }) },
+    );
+
+    expect(result.nextActions?.[0]).toMatchObject({
+      command: "init",
+      when: "status_not_ready",
+    });
+  });
+
+  test("urgent recommendations are suppressed for flow command renderers", () => {
+    useNextStepsHome("pp-next-urgent-flow-suppress-");
+    saveActiveWorkflow();
+
+    const result = appendNextActions(
+      { mode: "flow", action: "status" },
+      undefined,
+      { commandPath: "flow", mode: makeMode({ isJson: true }) },
+    );
+
+    expect(result.nextActions).toBeUndefined();
   });
 });
 

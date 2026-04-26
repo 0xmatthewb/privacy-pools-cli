@@ -135,8 +135,8 @@ async function maybeWritePostCommandUpdateNotice(
     return;
   }
 
-  const chalk = (await import("chalk")).default;
-  process.stderr.write(chalk.dim(notice) + "\n");
+  const { muted } = await import("./utils/theme.js");
+  process.stderr.write(muted(notice) + "\n");
 }
 
 async function spawnLaunchTarget(target: LaunchTarget): Promise<void> {

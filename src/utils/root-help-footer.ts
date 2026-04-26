@@ -34,7 +34,7 @@ export function rootHelpFooterPlain(): string {
 }
 
 export async function rootHelpFooterStyled(): Promise<string> {
-  const { accent } = await import("./theme.js");
+  const { accent, muted } = await import("./theme.js");
   const chalk = (await import("chalk")).default;
   const commandGroupLabelWidth = 18;
   return [
@@ -42,12 +42,12 @@ export async function rootHelpFooterStyled(): Promise<string> {
     chalk.bold("Command Groups:"),
     ...COMMAND_GROUPS.map(
       ([label, commands]) =>
-        `  ${chalk.dim(label.padEnd(commandGroupLabelWidth))}${accent(commands)}`,
+        `  ${muted(label.padEnd(commandGroupLabelWidth))}${accent(commands)}`,
     ),
     "",
     chalk.bold("Common workflows:"),
     ...COMMON_WORKFLOWS.map(
-      ([label, command]) => `  ${chalk.dim(label.padEnd(18))}${accent(command)}`,
+      ([label, command]) => `  ${muted(label.padEnd(18))}${accent(command)}`,
     ),
     "",
     ...ROOT_HELP_FOOTER_ENTRIES.map(

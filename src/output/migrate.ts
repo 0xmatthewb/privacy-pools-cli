@@ -1,4 +1,3 @@
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
   createNextAction,
@@ -9,7 +8,14 @@ import {
   printTable,
   warn,
 } from "./common.js";
-import { accentBold, notice } from "../utils/theme.js";
+import {
+  accentBold,
+  muted,
+  notice,
+  statusFailed,
+  statusHealthy,
+  statusPending,
+} from "../utils/theme.js";
 import type { MigrationChainStatus } from "../services/migration.js";
 import { formatCallout, formatKeyValueRows, formatSectionHeading } from "./layout.js";
 
@@ -83,17 +89,17 @@ function statusSummaryLine(status: MigrationStatusSummary): string {
 function renderChainStatus(status: MigrationChainStatus): string {
   switch (status) {
     case "migration_required":
-      return chalk.yellow("migration required");
+      return statusPending("migration required");
     case "partially_migrated":
-      return chalk.yellow("partially migrated");
+      return statusPending("partially migrated");
     case "fully_migrated":
-      return chalk.green("fully migrated");
+      return statusHealthy("fully migrated");
     case "website_recovery_required":
-      return chalk.red("website recovery");
+      return statusFailed("website recovery");
     case "review_incomplete":
-      return chalk.yellow("review incomplete");
+      return statusPending("review incomplete");
     case "no_legacy":
-      return chalk.dim("no legacy");
+      return muted("no legacy");
   }
 }
 

@@ -2,20 +2,18 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  overrideBannerSleepForTests,
-  printBanner,
-} from "../../src/utils/banner.ts";
+import { printBanner } from "../../src/utils/banner.ts";
 import { captureAsyncOutput } from "../helpers/output.ts";
 import { expectSemanticText } from "../helpers/contract-assertions.ts";
 
 const ORIGINAL_TERM_SESSION_ID = process.env.TERM_SESSION_ID;
 const ORIGINAL_COLUMNS = process.env.COLUMNS;
+const ORIGINAL_BANNER_ART = process.env.PRIVACY_POOLS_BANNER_ART;
 const ORIGINAL_STDERR_IS_TTY = process.stderr.isTTY;
 
-function markerPathFor(sessionId: string): string {
+function markerPathFor(sessionId: string, version = "unknown"): string {
   const sanitized = sessionId.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
-  return join(tmpdir(), `privacy-pools-banner-${sanitized}.shown`);
+  return join(tmpdir(), `privacy-pools-banner-${sanitized}-v${version}.shown`);
 }
 
 function setStderrTty(value: boolean): void {
@@ -36,8 +34,12 @@ afterEach(() => {
   } else {
     process.env.COLUMNS = ORIGINAL_COLUMNS;
   }
+  if (ORIGINAL_BANNER_ART === undefined) {
+    delete process.env.PRIVACY_POOLS_BANNER_ART;
+  } else {
+    process.env.PRIVACY_POOLS_BANNER_ART = ORIGINAL_BANNER_ART;
+  }
   setStderrTty(Boolean(ORIGINAL_STDERR_IS_TTY));
-  overrideBannerSleepForTests();
 });
 
 describe("banner render layouts", () => {
@@ -46,7 +48,7 @@ describe("banner render layouts", () => {
     // includedWelcomeText=false so the caller's welcomeScreen() prints the
     // wordmark/tagline/version/actions exactly once (no duplication).
     const sessionId = `banner:test/narrow:${Date.now()}:${Math.random().toString(16).slice(2)}`;
-    const markerPath = markerPathFor(sessionId);
+    const markerPath = markerPathFor(sessionId, "2.0.0");
     process.env.TERM_SESSION_ID = sessionId;
     process.env.COLUMNS = "60";
     setStderrTty(true);
@@ -66,11 +68,10 @@ describe("banner render layouts", () => {
 
   test("renders the compact tty layout with welcome text and ripple pool", async () => {
     const sessionId = `banner:test/compact:${Date.now()}:${Math.random().toString(16).slice(2)}`;
-    const markerPath = markerPathFor(sessionId);
+    const markerPath = markerPathFor(sessionId, "2.0.0");
     process.env.TERM_SESSION_ID = sessionId;
     process.env.COLUMNS = "80";
     setStderrTty(true);
-    overrideBannerSleepForTests(async () => {});
     rmSync(markerPath, { force: true });
 
     let result: { includedWelcomeText: boolean } | undefined;
@@ -89,11 +90,10 @@ describe("banner render layouts", () => {
 
   test("renders the wide tty side-by-side layout and keeps the welcome actions visible", async () => {
     const sessionId = `banner:test/wide:${Date.now()}:${Math.random().toString(16).slice(2)}`;
-    const markerPath = markerPathFor(sessionId);
+    const markerPath = markerPathFor(sessionId, "2.2.0");
     process.env.TERM_SESSION_ID = sessionId;
     process.env.COLUMNS = "120";
     setStderrTty(true);
-    overrideBannerSleepForTests(async () => {});
     rmSync(markerPath, { force: true });
 
     let result: { includedWelcomeText: boolean } | undefined;
@@ -105,6 +105,50 @@ describe("banner render layouts", () => {
     expectSemanticText(captured.stderr, {
       includes: ["v2.2.0", "privacy-pools init", "privacy-pools --help"],
     });
+    expect(existsSync(markerPath)).toBe(true);
+
+    rmSync(markerPath, { force: true });
+  });
+
+  test("renders optional state-aware banner hints", async () => {
+    const sessionId = `banner:test/hint:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+    const markerPath = markerPathFor(sessionId, "2.2.0");
+    process.env.TERM_SESSION_ID = sessionId;
+    process.env.COLUMNS = "120";
+    setStderrTty(true);
+    rmSync(markerPath, { force: true });
+
+    const captured = await captureAsyncOutput(async () => {
+      await printBanner({
+        version: "2.2.0",
+        bannerHint: "Start a guided flow or browse pools before depositing.",
+      });
+    });
+
+    expectSemanticText(captured.stderr, {
+      includes: ["Start a guided flow or browse pools before depositing."],
+    });
+
+    rmSync(markerPath, { force: true });
+  });
+
+  test("renders the Merkle tree art when the banner art toggle is set", async () => {
+    const sessionId = `banner:test/merkle:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+    const markerPath = markerPathFor(sessionId, "2.3.0");
+    process.env.TERM_SESSION_ID = sessionId;
+    process.env.COLUMNS = "120";
+    process.env.PRIVACY_POOLS_BANNER_ART = "merkle";
+    setStderrTty(true);
+    rmSync(markerPath, { force: true });
+
+    const captured = await captureAsyncOutput(async () => {
+      await printBanner({ version: "2.3.0" });
+    });
+
+    expectSemanticText(captured.stderr, {
+      includes: ["PRIVACY POOLS", "privacy-pools init"],
+    });
+    expect(captured.stderr).toContain("◉");
     expect(existsSync(markerPath)).toBe(true);
 
     rmSync(markerPath, { force: true });

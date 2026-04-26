@@ -85,6 +85,46 @@ describe("welcome readiness", () => {
     );
   });
 
+  test("getWelcomeState adds no-deposit banner hints for read-only setup", () => {
+    const home = useWelcomeHome("pp-welcome-read-only-empty-");
+    mkdirSync(home, { recursive: true });
+    writeFileSync(
+      join(home, "config.json"),
+      JSON.stringify({ defaultChain: "mainnet", rpcOverrides: {} }),
+      "utf8",
+    );
+    saveMnemonicToFile(MNEMONIC);
+
+    const state = getWelcomeState();
+
+    expect(state.kind).toBe("read_only_no_deposits");
+    expect(state.bannerHint).toBe(
+      "Browse pools now; add a signer key before depositing.",
+    );
+  });
+
+  test("getWelcomeState adds no-deposit banner hints for ready setup", () => {
+    const home = useWelcomeHome("pp-welcome-ready-empty-");
+    mkdirSync(home, { recursive: true });
+    writeFileSync(
+      join(home, "config.json"),
+      JSON.stringify({ defaultChain: "mainnet", rpcOverrides: {} }),
+      "utf8",
+    );
+    saveMnemonicToFile(MNEMONIC);
+    saveSignerKey(PRIVATE_KEY);
+
+    const state = getWelcomeState();
+
+    expect(state.kind).toBe("ready_no_deposits");
+    expect(state.bannerHint).toBe(
+      "Flow = deposit + privacy delay + private withdrawal.",
+    );
+    expect(state.bannerActions.find((action) =>
+      action.cliCommand === "flow start 0.1 ETH",
+    )?.description).toBe("deposit, then withdraw privately");
+  });
+
   test("getWelcomeState promotes active workflows and pending ASP review follow-ups", () => {
     const home = useWelcomeHome("pp-welcome-workflow-active-");
     mkdirSync(home, { recursive: true });

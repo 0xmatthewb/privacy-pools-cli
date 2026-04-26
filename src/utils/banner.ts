@@ -1,6 +1,11 @@
 import chalk from "chalk";
-import { accent, brand } from "./theme.js";
+import { accent, brand, muted } from "./theme.js";
 import { renderKoiPond, KOI_POND_WIDTH, KOI_POND_HEIGHT } from "./koi-pond.js";
+import {
+  renderMerkleTree,
+  MERKLE_TREE_WIDTH,
+  MERKLE_TREE_HEIGHT,
+} from "./merkle-tree.js";
 import { getTerminalColumns, visibleWidth, padDisplay, inlineSeparator } from "./terminal.js";
 import { existsSync, writeFileSync } from "fs";
 import { join } from "path";
@@ -10,7 +15,7 @@ import {
   type WelcomeAction,
 } from "./welcome-readiness.js";
 
-// ── Session marker (unchanged) ─────────────────────────────────────────────
+// ── Session marker ─────────────────────────────────────────────────────────
 
 function sanitizeForFilename(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
@@ -39,24 +44,32 @@ function getSessionIdentifier(): string | null {
   return null;
 }
 
-function bannerMarkerPath(): string {
+type BannerArt = "koi" | "merkle";
+
+function bannerMarkerVersionSuffix(version: string | undefined): string {
+  const trimmed = version?.trim();
+  return sanitizeForFilename(`v${trimmed && trimmed.length > 0 ? trimmed : "unknown"}`);
+}
+
+function bannerMarkerPath(version: string | undefined): string {
   const sessionId = getSessionIdentifier();
+  const versionSuffix = bannerMarkerVersionSuffix(version);
   if (sessionId) {
     return join(
       tmpdir(),
-      `privacy-pools-banner-${sanitizeForFilename(sessionId)}.shown`
+      `privacy-pools-banner-${sanitizeForFilename(sessionId)}-${versionSuffix}.shown`
     );
   }
   // Worst-case fallback if session detection fails.
-  return join(tmpdir(), "privacy-pools-banner-fallback.shown");
+  return join(tmpdir(), `privacy-pools-banner-fallback-${versionSuffix}.shown`);
 }
 
-function hasBannerBeenShown(): boolean {
-  return existsSync(bannerMarkerPath());
+function hasBannerBeenShown(version: string | undefined): boolean {
+  return existsSync(bannerMarkerPath(version));
 }
 
-function markBannerShown(): void {
-  const markerPath = bannerMarkerPath();
+function markBannerShown(version: string | undefined): void {
+  const markerPath = bannerMarkerPath(version);
   try {
     writeFileSync(markerPath, "", { mode: 0o600 });
   } catch {
@@ -71,27 +84,9 @@ interface BannerMeta {
   repository?: string | null;
   website?: string;
   readinessLabel?: string;
+  bannerHint?: string;
   actions?: readonly WelcomeAction[];
 }
-
-function defaultBannerSleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-let bannerSleepFn = defaultBannerSleep;
-
-export function overrideBannerSleepForTests(
-  sleepFn?: (ms: number) => Promise<void>,
-): void {
-  bannerSleepFn = sleepFn ?? defaultBannerSleep;
-}
-
-/**
- * Body-text grey — slightly brighter than chalk.dim's terminal-faint so the
- * tagline and version line read clearly without competing with the gold
- * wordmark or the accent-colored commands.
- */
-const muted = chalk.hex("#A8A8A8");
 
 function formatBannerActionLines(actions: readonly WelcomeAction[]): string[] {
   const renderedCommands = actions.map(
@@ -121,31 +116,32 @@ function composeWelcomeText(meta: BannerMeta): string[] {
     brand("PRIVACY POOLS"),
     muted("A compliant way to transact privately on Ethereum."),
     versionLine,
+    ...(meta.bannerHint ? [muted(meta.bannerHint)] : []),
     "",
     ...actionLines,
   ];
 }
 
 function composeSideBySide(
-  poolLines: string[],
+  artLines: string[],
   textLines: string[],
   gap: number,
 ): string[] {
-  const poolHeight = poolLines.length;
+  const poolHeight = artLines.length;
   const textHeight = textLines.length;
   const totalHeight = Math.max(poolHeight, textHeight);
   const textOffset = Math.floor((poolHeight - textHeight) / 2);
 
-  // Determine the maximum visible width across all pool lines for consistent padding
+  // Determine the maximum visible width across all art lines for consistent padding
   let maxPoolWidth = 0;
-  for (const line of poolLines) {
+  for (const line of artLines) {
     const w = visibleWidth(line);
     if (w > maxPoolWidth) maxPoolWidth = w;
   }
 
   const result: string[] = [];
   for (let i = 0; i < totalHeight; i++) {
-    const poolPart = i < poolHeight ? padDisplay(poolLines[i], maxPoolWidth) : " ".repeat(maxPoolWidth);
+    const poolPart = i < poolHeight ? padDisplay(artLines[i], maxPoolWidth) : " ".repeat(maxPoolWidth);
     const textIdx = i - textOffset;
     const textPart = textIdx >= 0 && textIdx < textHeight ? textLines[textIdx] : "";
     result.push(poolPart + " ".repeat(gap) + textPart);
@@ -176,6 +172,7 @@ interface BannerLayout {
   mode: BannerMode;
   columns: number;
   rows: number | null;
+  art: BannerArt;
 }
 
 function getTerminalRows(): number | null {
@@ -183,6 +180,26 @@ function getTerminalRows(): number | null {
     (process.stderr as { rows?: number }).rows ??
     (process.stdout as { rows?: number }).rows;
   return typeof r === "number" && r > 0 ? r : null;
+}
+
+function resolveBannerArt(env: NodeJS.ProcessEnv = process.env): BannerArt {
+  const raw = env.PRIVACY_POOLS_BANNER_ART?.trim().toLowerCase();
+  if (raw === "merkle" || raw === "tree" || raw === "proof") {
+    return "merkle";
+  }
+  return "koi";
+}
+
+function bannerArtSize(art: BannerArt): { width: number; height: number } {
+  return art === "merkle"
+    ? { width: MERKLE_TREE_WIDTH, height: MERKLE_TREE_HEIGHT }
+    : { width: KOI_POND_WIDTH, height: KOI_POND_HEIGHT };
+}
+
+function renderBannerArt(art: BannerArt, useColor: boolean): string[] {
+  return art === "merkle"
+    ? renderMerkleTree({ useColor })
+    : renderKoiPond({ useColor });
 }
 
 /**
@@ -197,27 +214,29 @@ function computeBannerLayout(welcomeText: readonly string[]): BannerLayout {
   const rows = getTerminalRows();
   const textWidth = welcomeTextWidth(welcomeText);
   const textHeight = welcomeText.length;
+  const art = resolveBannerArt();
+  const artSize = bannerArtSize(art);
 
   // Below this width, the welcome text itself starts to feel cramped and
   // adding any illustration makes it worse. Drop to text-only fallback.
   if (columns < 72) {
-    return { mode: "narrow", columns, rows };
+    return { mode: "narrow", columns, rows, art };
   }
 
   // Side-by-side requires: pool + gap + text block + small margin.
-  if (columns - textWidth - SIDE_BY_SIDE_GAP >= KOI_POND_WIDTH) {
-    return { mode: "side", columns, rows };
+  if (columns - textWidth - SIDE_BY_SIDE_GAP >= artSize.width) {
+    return { mode: "side", columns, rows, art };
   }
 
   // Compact (pool above text) requires room for pool + text block vertically.
   const canFitVertically =
-    rows === null || rows >= KOI_POND_HEIGHT + textHeight + COMPACT_MIN_ROWS_HEADROOM;
+    rows === null || rows >= artSize.height + textHeight + COMPACT_MIN_ROWS_HEADROOM;
   if (canFitVertically) {
-    return { mode: "compact", columns, rows };
+    return { mode: "compact", columns, rows, art };
   }
 
   // Not enough vertical room for pool + text.
-  return { mode: "narrow", columns, rows };
+  return { mode: "narrow", columns, rows, art };
 }
 
 /**
@@ -233,16 +252,17 @@ function composeBannerFrame(
     return [...welcomeText];
   }
 
-  const poolFrame = renderKoiPond({ useColor });
+  const artFrame = renderBannerArt(layout.art, useColor);
+  const artWidth = bannerArtSize(layout.art).width;
 
   if (layout.mode === "side") {
-    return composeSideBySide(poolFrame, [...welcomeText], SIDE_BY_SIDE_GAP);
+    return composeSideBySide(artFrame, [...welcomeText], SIDE_BY_SIDE_GAP);
   }
 
   // Compact: center the pond horizontally above the text block.
-  const poolLeftPad = Math.max(0, Math.floor((layout.columns - KOI_POND_WIDTH) / 2));
+  const poolLeftPad = Math.max(0, Math.floor((layout.columns - artWidth) / 2));
   const pad = " ".repeat(poolLeftPad);
-  const centeredPool = poolFrame.map((line) => pad + line);
+  const centeredPool = artFrame.map((line) => pad + line);
   return [...centeredPool, "", ...welcomeText];
 }
 
@@ -259,7 +279,7 @@ export async function printBanner(
   meta: BannerMeta = {},
 ): Promise<{ includedWelcomeText: boolean }> {
   // Only show once per terminal session.
-  if (hasBannerBeenShown()) return { includedWelcomeText: false };
+  if (hasBannerBeenShown(meta.version)) return { includedWelcomeText: false };
 
   const useColor = chalk.level > 0;
   const welcomeText = composeWelcomeText(meta);
@@ -269,19 +289,17 @@ export async function printBanner(
   // welcome screen on its own (wordmark + tagline + version + actions) —
   // we'd otherwise double-print the wordmark and tagline.
   if (layout.mode === "narrow") {
-    markBannerShown();
+    markBannerShown(meta.version);
     return { includedWelcomeText: false };
   }
 
-  // Render the static koi pond illustration. `computeBannerLayout` already
-  // picks side-by-side when there's room for the pool beside the
+  // Render the static illustration. `computeBannerLayout` already
+  // picks side-by-side when there's room for the art beside the
   // text block; otherwise it falls back to the compact pool-above-text
   // layout. No animation, no cursor games, no resize listener.
   const frame = composeBannerFrame(layout, welcomeText, useColor);
-  for (const line of frame) {
-    process.stderr.write(line + "\n");
-  }
+  writeBannerFrame(frame);
   process.stderr.write("\n");
-  markBannerShown();
+  markBannerShown(meta.version);
   return { includedWelcomeText: true };
 }

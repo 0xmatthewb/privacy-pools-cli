@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import chalk from "chalk";
 import {
   chmodSync,
   existsSync,
@@ -146,9 +145,10 @@ import {
   selectPrompt,
 } from "../utils/prompts.js";
 import {
+  createNarrativeProgressWriter,
   createNarrativeSteps,
-  renderNarrativeSteps,
 } from "../output/progress.js";
+import { muted } from "../utils/theme.js";
 import {
   assertKnownPoolRoot,
   poolRootCacheScopeKey,
@@ -264,6 +264,10 @@ function isPausedFlowPhase(phase: FlowPhase): boolean {
   return phase === "paused_declined" || phase === "paused_poa_required";
 }
 
+let workflowNarrativeProgress:
+  | { key: string; writer: (steps: ReturnType<typeof createNarrativeSteps>) => void }
+  | null = null;
+
 function writeWorkflowNarrativeProgress(
   labels: string[],
   activeIndex: number,
@@ -271,9 +275,14 @@ function writeWorkflowNarrativeProgress(
   note?: string,
 ): void {
   if (silent) return;
-  process.stderr.write(
-    `\n${renderNarrativeSteps(createNarrativeSteps(labels, activeIndex, note))}`,
-  );
+  const key = labels.join("\0");
+  if (!workflowNarrativeProgress || workflowNarrativeProgress.key !== key) {
+    workflowNarrativeProgress = {
+      key,
+      writer: createNarrativeProgressWriter({ silent }),
+    };
+  }
+  workflowNarrativeProgress.writer(createNarrativeSteps(labels, activeIndex, note));
 }
 
 export interface FlowLastError {
@@ -4946,7 +4955,7 @@ export async function watchWorkflow(
           const phaseElapsed = performance.now() - phaseEnteredAt;
           if (phaseElapsed >= 1000 && !silent) {
             process.stderr.write(
-              `${chalk.dim(`  ${previousPhase} completed in ${formatElapsed(Math.round(phaseElapsed))}`)}\n`,
+              `${muted(`  ${previousPhase} completed in ${formatElapsed(Math.round(phaseElapsed))}`)}\n`,
             );
           }
         }
@@ -4960,7 +4969,7 @@ export async function watchWorkflow(
         const phaseElapsed = performance.now() - phaseEnteredAt;
         if (phaseElapsed >= 1000 && !silent) {
           process.stderr.write(
-            `${chalk.dim(`  ${previousPhase} completed in ${formatElapsed(Math.round(phaseElapsed))}`)}\n`,
+            `${muted(`  ${previousPhase} completed in ${formatElapsed(Math.round(phaseElapsed))}`)}\n`,
           );
         }
         phaseEnteredAt = performance.now();

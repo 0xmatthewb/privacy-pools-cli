@@ -9,6 +9,7 @@ import {
   formatUsdValue,
   isStablecoinPrice,
   usdSuffix,
+  fail,
   info,
   printTable,
   setForceWideTables,
@@ -35,6 +36,7 @@ describe("format utils matrix", () => {
     [1n, 18, undefined, "0.000000000000000001"],
     [1000000000000000000n, 18, undefined, "1"],
     [1000000000000000000n, 18, "ETH", "1 ETH"],
+    [1234567890000000000000n, 18, "ETH", "1,234.56789 ETH"],
     [1234567n, 6, "USDC", "1.234567 USDC"],
     [42n, 0, "TOK", "42 TOK"],
     [314159n, 5, undefined, "3.14159"],
@@ -188,7 +190,7 @@ describe("format utils matrix", () => {
     expect(output).not.toContain("  ───");
   });
 
-  test("success/warn/info/verbose formatting emits expected markers", () => {
+  test("success/warn/fail/info/verbose formatting emits expected markers", () => {
     const logs: string[] = [];
     process.stderr.write = ((chunk: unknown) => {
       logs.push(String(chunk));
@@ -197,12 +199,14 @@ describe("format utils matrix", () => {
 
     success("ok");
     warn("careful");
+    fail("broken");
     info("heads-up");
     verbose("quiet", false);
     verbose("noisy", true);
 
-    expect(logs.some((l) => /(?:●|\*) ok/.test(l))).toBe(true);
-    expect(logs.some((l) => /(?:●|\*) careful/.test(l))).toBe(true);
+    expect(logs.some((l) => /(?:✓|\+) ok/.test(l))).toBe(true);
+    expect(logs.some((l) => /(?:⚠|!) careful/.test(l))).toBe(true);
+    expect(logs.some((l) => /(?:✖|x) broken/.test(l))).toBe(true);
     expect(logs.some((l) => /(?:●|\*) heads-up/.test(l))).toBe(true);
     expect(logs.some((l) => l.includes("quiet"))).toBe(false);
     expect(logs.some((l) => l.includes("noisy"))).toBe(true);
@@ -274,6 +278,7 @@ describe("format utils matrix", () => {
 
     success("ok", true);
     warn("careful", true);
+    fail("broken", true);
     info("heads-up", true);
     verbose("noisy", true, true);
 

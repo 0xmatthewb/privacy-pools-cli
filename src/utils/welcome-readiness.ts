@@ -29,6 +29,7 @@ export type WelcomeStateKind =
 export interface WelcomeState {
   kind: WelcomeStateKind;
   readinessLabel: string;
+  bannerHint?: string;
   bannerActions: WelcomeAction[];
   screenActions: WelcomeAction[];
 }
@@ -52,7 +53,7 @@ const WELCOME_ACTIONS: Record<string, WelcomeAction> = {
   },
   guide: {
     cliCommand: "guide",
-    description: "learn workflows",
+    description: "concepts and reference",
   },
   "--help": {
     cliCommand: "--help",
@@ -60,7 +61,7 @@ const WELCOME_ACTIONS: Record<string, WelcomeAction> = {
   },
   "flow start 0.1 ETH": {
     cliCommand: "flow start 0.1 ETH",
-    description: "guided workflow",
+    description: "deposit, then withdraw privately",
   },
   pools: {
     cliCommand: "pools",
@@ -72,15 +73,15 @@ const WELCOME_ACTIONS: Record<string, WelcomeAction> = {
   },
   "accounts --pending-only": {
     cliCommand: "accounts --pending-only",
-    description: "check pending review",
+    description: "check ASP review",
   },
   "flow status latest": {
     cliCommand: "flow status latest",
-    description: "latest workflow",
+    description: "check saved workflow",
   },
   "flow watch latest": {
     cliCommand: "flow watch latest",
-    description: "resume workflow",
+    description: "resume saved workflow",
   },
 };
 
@@ -107,10 +108,12 @@ function buildWelcomeState(
   readinessLabel: string,
   bannerCommands: readonly string[],
   screenCommands: readonly string[],
+  bannerHint?: string,
 ): WelcomeState {
   return {
     kind,
     readinessLabel,
+    ...(bannerHint ? { bannerHint } : {}),
     bannerActions: resolveActions(bannerCommands),
     screenActions: resolveActions(screenCommands),
   };
@@ -206,17 +209,18 @@ export function getWelcomeState(): WelcomeState {
             ],
           )
         : buildWelcomeState(
-            "read_only_no_deposits",
-            "setup: read-only",
-            ["status", "pools", "--help"],
-            [
-              "status",
-              "init --signer-only",
-              "pools",
-              "guide",
-              "--help",
-            ],
-          );
+          "read_only_no_deposits",
+          "setup: read-only",
+          ["status", "pools", "--help"],
+          [
+            "status",
+            "init --signer-only",
+            "pools",
+            "guide",
+            "--help",
+          ],
+          "Browse pools now; add a signer key before depositing.",
+        );
     }
 
     return hasDeposits
@@ -243,6 +247,7 @@ export function getWelcomeState(): WelcomeState {
             "guide",
             "--help",
           ],
+          "Flow = deposit + privacy delay + private withdrawal.",
         );
   } catch {
     return fallbackWelcomeState();

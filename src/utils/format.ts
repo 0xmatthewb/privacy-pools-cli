@@ -3,8 +3,10 @@ import ora, { type Ora } from "ora";
 import { formatUnits } from "viem";
 import {
   accent,
+  dangerTone,
   directionDeposit,
   explorerUrl,
+  faint,
   notice,
   spinnerColor,
   successTone,
@@ -62,6 +64,25 @@ function truncateDecimals(value: string, max: number): string {
   return trimmed.length > 0 ? `${intPart}.${trimmed}` : intPart || "0";
 }
 
+const groupedIntegerFormatter = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 0,
+  useGrouping: true,
+});
+
+function groupIntegerPart(value: string): string {
+  if (value === "") return value;
+  const sign = value.startsWith("-") ? "-" : "";
+  const unsigned = sign ? value.slice(1) : value;
+  if (!/^\d+$/.test(unsigned)) return value;
+  return `${sign}${groupedIntegerFormatter.format(BigInt(unsigned))}`;
+}
+
+function groupFormattedDecimal(value: string): string {
+  const dot = value.indexOf(".");
+  if (dot === -1) return groupIntegerPart(value);
+  return `${groupIntegerPart(value.slice(0, dot))}${value.slice(dot)}`;
+}
+
 export function formatAmount(
   value: bigint,
   decimals: number,
@@ -72,6 +93,7 @@ export function formatAmount(
   if (maxDecimals !== undefined) {
     formatted = truncateDecimals(formatted, maxDecimals);
   }
+  formatted = groupFormattedDecimal(formatted);
   return symbol ? `${formatted} ${symbol}` : formatted;
 }
 
@@ -211,7 +233,7 @@ export function printTable(
       .map((header, index) => chalk.bold(padDisplay(header, widths[index])))
       .join(gap)}`);
     lines.push(`  ${widths
-      .map((width) => chalk.dim(fill.repeat(width)))
+      .map((width) => faint(fill.repeat(width)))
       .join(gap)}`);
   }
 
@@ -220,12 +242,12 @@ export function printTable(
 }
 
 function formatStackedTable(headers: string[], rows: string[][]): string {
-  const divider = chalk.dim("  ───");
+  const divider = faint("  ───");
   return `${rows
     .map((row) =>
       headers
         .map((header, index) =>
-          `  ${chalk.dim(header)}\n    ${row[index] && row[index].length > 0 ? row[index] : "-"}`
+          `  ${faint(header)}\n    ${row[index] && row[index].length > 0 ? row[index] : "-"}`
         )
         .join("\n"),
     )
@@ -273,7 +295,7 @@ function withElapsedTracking<T extends Ora>(spin: T): T {
     const elapsed = performance.now() - startTime;
     const msg = message ?? spin.text;
     if (msg && elapsed >= 250) {
-      return originalSucceed(`${msg} ${chalk.dim(`(${formatElapsed(Math.round(elapsed))})`)}`);
+      return originalSucceed(`${msg} ${faint(`(${formatElapsed(Math.round(elapsed))})`)}`);
     }
     return originalSucceed(message);
   } as typeof spin.succeed;
@@ -282,7 +304,7 @@ function withElapsedTracking<T extends Ora>(spin: T): T {
     const elapsed = performance.now() - startTime;
     const msg = message ?? spin.text;
     if (msg && elapsed >= 250) {
-      return originalFail(`${msg} ${chalk.dim(`(${formatElapsed(Math.round(elapsed))})`)}`);
+      return originalFail(`${msg} ${faint(`(${formatElapsed(Math.round(elapsed))})`)}`);
     }
     return originalFail(message);
   } as typeof spin.fail;
@@ -388,12 +410,17 @@ export function spinner(text: string, quiet: boolean = false) {
 
 export function success(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${successTone(`${glyph("active")} ${message}`)}\n`);
+  process.stderr.write(`${successTone(`${glyph("success")} ${message}`)}\n`);
 }
 
 export function warn(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${notice(`${glyph("active")} ${message}`)}\n`);
+  process.stderr.write(`${notice(`${glyph("warning")} ${message}`)}\n`);
+}
+
+export function fail(message: string, quiet: boolean = false): void {
+  if (quiet) return;
+  process.stderr.write(`${dangerTone(`${glyph("failure")} ${message}`)}\n`);
 }
 
 export function info(message: string, quiet: boolean = false): void {
@@ -407,7 +434,7 @@ export function verbose(
   quiet: boolean = false
 ): void {
   if (isVerbose && !quiet) {
-    process.stderr.write(`${chalk.dim(message)}\n`);
+    process.stderr.write(`${faint(message)}\n`);
   }
 }
 
@@ -419,7 +446,7 @@ export function stageHeader(
 ): void {
   if (quiet) return;
   process.stderr.write(
-    `\n${accent(`${glyph("current")} ${label}`)} ${chalk.dim(`(${step}/${total})`)}\n`,
+    `\n${accent(`${glyph("current")} ${label}`)} ${faint(`(${step}/${total})`)}\n`,
   );
 }
 
@@ -494,7 +521,7 @@ export function verboseL2(
   quiet: boolean = false,
 ): void {
   if (quiet || verboseLevel < 2) return;
-  process.stderr.write(`${chalk.dim(`[debug] ${message}`)}\n`);
+  process.stderr.write(`${faint(`[debug] ${message}`)}\n`);
 }
 
 /**
@@ -506,5 +533,5 @@ export function verboseL3(
   quiet: boolean = false,
 ): void {
   if (quiet || verboseLevel < 3) return;
-  process.stderr.write(`${chalk.dim(`[trace] ${message}`)}\n`);
+  process.stderr.write(`${faint(`[trace] ${message}`)}\n`);
 }

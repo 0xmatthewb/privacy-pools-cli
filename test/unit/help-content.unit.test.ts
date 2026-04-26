@@ -67,6 +67,17 @@ describe("help content", () => {
     expect(guide).toMatch(/website export|load an existing account/i);
   });
 
+  test("guideText exposes a topic index and accepts flow as a workflow shortcut", () => {
+    const topics = guideText("topics");
+    expect(topics).toContain("Available Topics");
+    expect(topics).toContain("quickstart");
+    expect(topics).toContain("workflow");
+
+    const flow = guideText("flow");
+    expect(flow).toContain("Privacy Pools: workflow");
+    expect(flow).toContain("flow start");
+  });
+
   test("guideText formats unknown topics cleanly and lists valid topics once", () => {
     const guide = guideText("definitely-not-a-topic");
     expect(guide).toContain("Unknown guide topic: definitely-not-a-topic");

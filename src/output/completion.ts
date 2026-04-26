@@ -4,7 +4,6 @@
  * `src/commands/completion.ts` delegates output rendering here.
  */
 
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -19,6 +18,7 @@ import type {
   CompletionInstallPlan,
   CompletionInstallResult,
 } from "../utils/completion-install.js";
+import { muted } from "../utils/theme.js";
 
 /**
  * Render completion script output.
@@ -52,7 +52,7 @@ export function renderCompletionScript(
   process.stdout.write(script.endsWith("\n") ? script : `${script}\n`);
   if (process.stderr.isTTY && !isSilent(ctx)) {
     process.stderr.write(
-      chalk.dim("# Pipe to your shell config or eval to enable completions.\n"),
+      muted("# Pipe to your shell config or eval to enable completions.\n"),
     );
   }
   renderNextSteps(ctx, [

@@ -5,7 +5,6 @@
  * Health-check execution and config loading remain in the command handler.
  */
 
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import {
   appendNextActions,
@@ -17,7 +16,7 @@ import {
 } from "./common.js";
 import { displayDecimals, formatAmount } from "../utils/format.js";
 import { inlineSeparator } from "../utils/terminal.js";
-import { accentBold, statusFailed, statusHealthy, statusPending } from "../utils/theme.js";
+import { accentBold, faint, statusFailed, statusHealthy, statusPending } from "../utils/theme.js";
 import { CHAINS, MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
 import type {
   NextActionOptionValue,
@@ -523,7 +522,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         : preflight.recommendedMode === "read-only"
         ? statusPending(`${glyph("warning")} Read-only`)
         : statusFailed(`${glyph("warning")} Setup required`);
-    process.stderr.write(`  ${badgeLabel}${chalk.dim(inlineSeparator())}${badgeParts.join(chalk.dim(inlineSeparator()))}\n\n`);
+    process.stderr.write(`  ${badgeLabel}${faint(inlineSeparator())}${badgeParts.join(faint(inlineSeparator()))}\n\n`);
 
     const walletRows: KeyValueRow[] = [
       {

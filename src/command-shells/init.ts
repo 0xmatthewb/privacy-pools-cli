@@ -94,6 +94,7 @@ export function createInitCommand(): Command {
             "--yes",
             "--agent",
             "--help-brief",
+            "--help-full",
           ],
         },
       ]),

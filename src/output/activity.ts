@@ -6,12 +6,12 @@
  * the command handler.
  */
 
-import chalk from "chalk";
 import type { OutputContext } from "./common.js";
 import { printJsonSuccess, printCsv, printTable, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
 import { formatAddress } from "../utils/format.js";
 import {
   accentBold,
+  muted,
   successTone,
 } from "../utils/theme.js";
 import { explorerTxUrl } from "../config/chains.js";
@@ -314,10 +314,10 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   // Pagination footer
   if (data.totalPages !== null && data.totalPages > 1) {
     process.stderr.write(
-      `\n  ${chalk.dim(`Page ${data.page} of ${data.totalPages}`)}` +
-        (data.total !== null ? chalk.dim(`${inlineSeparator()}${data.total} events`) : "") +
+      `\n  ${muted(`Page ${data.page} of ${data.totalPages}`)}` +
+        (data.total !== null ? muted(`${inlineSeparator()}${data.total} events`) : "") +
         (data.page < data.totalPages
-          ? `\n  ${chalk.dim(`privacy-pools activity --page ${data.page + 1}`)}`
+          ? `\n  ${muted(`privacy-pools activity --page ${data.page + 1}`)}`
           : "") +
         "\n",
     );

@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { accent, accentBold, notice } from "./theme.js";
+import { accent, accentBold, muted, notice } from "./theme.js";
 import {
   ROOT_HELP_FOOTER_ENTRIES,
   rootHelpFooterPlain as rootHelpFooterPlainValue,
@@ -87,8 +87,9 @@ function buildRootHelpBaseLines(): string[] {
     "  -y, --yes              Skip confirmation prompts",
     "  --web                  Open the primary explorer or portal link in your",
     "                         browser when available",
-    "  --help-brief           Show condensed command help without the extended guide",
-    "                         appendix",
+    "  --help-brief           Show condensed command help (default)",
+    "  --help-full            Show full command help with examples, safety notes, and",
+    "                         JSON fields",
     "  -r, --rpc-url <url>    Override RPC URL",
     "  --template <template>  Render structured output through a lightweight",
     "                         Mustache-style template with {{path.to.value}}",
@@ -124,7 +125,7 @@ function styleCmdLine(line: string): string {
   const pipeIdx = cmdText.indexOf("|");
   const s = pipeIdx === -1
     ? accent(cmdText)
-    : accent(cmdText.slice(0, pipeIdx)) + chalk.dim(cmdText.slice(pipeIdx));
+    : accent(cmdText.slice(0, pipeIdx)) + muted(cmdText.slice(pipeIdx));
   return `${m[1]}${s}${m[3]}${m[4]}`;
 }
 

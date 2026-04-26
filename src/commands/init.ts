@@ -60,7 +60,7 @@ import {
   inputPrompt,
   passwordPrompt,
   selectPrompt,
-} from "../utils/prompts.js";
+} from "../utils/init-prompts.js";
 import {
   ensurePromptInteractionAvailable,
   isPromptCancellationError,

@@ -234,48 +234,51 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
   if (!silent) process.stderr.write("\n");
   success(DRY_RUN_FOOTER_COPY, silent);
   if (!silent) {
-    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
     process.stderr.write(
-      formatKeyValueRows([
-        { label: "Chain", value: data.chain },
-        { label: "Asset", value: data.asset },
-        { label: "Pool Account", value: data.poolAccountId },
-        {
-          label: "Amount",
-          value:
-            formatAmount(
-              data.amount,
-              data.decimals,
-              data.asset,
-            ) +
-            (() => {
-              const amountUsd = formatUsdValue(
+      formatReviewSurface({
+        title: "Ragequit dry-run",
+        summaryRows: [
+          { label: "Chain", value: data.chain },
+          { label: "Asset", value: data.asset },
+          { label: "Pool Account", value: data.poolAccountId },
+          {
+            label: "Amount",
+            value:
+              formatAmount(
                 data.amount,
                 data.decimals,
-                data.tokenPrice ?? null,
-              );
-              return amountUsd === "-" ? "" : ` (${amountUsd})`;
-            })(),
+                data.asset,
+              ) +
+              (() => {
+                const amountUsd = formatUsdValue(
+                  data.amount,
+                  data.decimals,
+                  data.tokenPrice ?? null,
+                );
+                return amountUsd === "-" ? "" : ` (${amountUsd})`;
+              })(),
+          },
+          ...(data.destinationAddress
+            ? [{
+                label: "Destination",
+                value: data.destinationAddress,
+              }]
+            : []),
+          {
+            label: "Privacy outcome",
+            value: "no privacy (public recovery)",
+            valueTone: "warning",
+          },
+        ],
+        primaryCallout: {
+          kind: "recovery",
+          lines: RAGEQUIT_PRIVACY_WARNING_COPY,
         },
-        ...(data.destinationAddress
-          ? [{
-              label: "Destination",
-              value: data.destinationAddress,
-            }]
-          : []),
-      ]),
-    );
-    process.stderr.write(
-      formatCallout(
-        "recovery",
-        RAGEQUIT_PRIVACY_WARNING_COPY,
-      ),
-    );
-    process.stderr.write(
-      formatCallout(
-        "danger",
-        "Once submitted onchain, this ragequit cannot be reversed into a private withdrawal for the same Pool Account.",
-      ),
+        secondaryCallout: {
+          kind: "danger",
+          lines: "Once submitted onchain, this ragequit cannot be reversed into a private withdrawal for the same Pool Account.",
+        },
+      }),
     );
   }
   renderNextSteps(ctx, humanNextActions);

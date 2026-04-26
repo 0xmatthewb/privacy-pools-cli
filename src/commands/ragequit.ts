@@ -90,8 +90,8 @@ import {
   PROMPT_CANCELLATION_MESSAGE,
 } from "../utils/prompt-cancellation.js";
 import {
+  createNarrativeProgressWriter,
   createNarrativeSteps,
-  renderNarrativeSteps,
 } from "../output/progress.js";
 import {
   maybeRecoverMissingWalletSetup,
@@ -360,14 +360,14 @@ export async function handleRagequitCommand(
   const fromPaRaw = opts.poolAccount;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
+  const writeRagequitNarrative = createNarrativeProgressWriter({ silent });
   const writeRagequitProgress = (activeIndex: number, note?: string) => {
-    if (silent) return;
-    process.stderr.write(
-      `\n${renderNarrativeSteps(createNarrativeSteps([
+    writeRagequitNarrative(
+      createNarrativeSteps([
         "Account synced",
         "Generate and verify Pool Account proof",
         "Submit ragequit",
-      ], activeIndex, note))}`,
+      ], activeIndex, note),
     );
   };
 

@@ -1,5 +1,4 @@
-import chalk from "chalk";
-import { dangerTone, notice, successTone } from "./theme.js";
+import { dangerTone, muted, notice, successTone } from "./theme.js";
 
 export type PoolAccountStatus =
   | "approved"
@@ -152,7 +151,7 @@ export function renderAspApprovalStatus(
     case "declined":
       return dangerTone(label);
     default:
-      return chalk.dim(label);
+      return muted(label);
   }
 }
 
@@ -192,9 +191,9 @@ export function renderPoolAccountStatus(status: PoolAccountStatus): string {
     case "declined":
       return dangerTone(label);
     case "unknown":
-      return chalk.dim(label);
+      return muted(label);
     case "spent":
     case "exited":
-      return chalk.dim(label);
+      return muted(label);
   }
 }

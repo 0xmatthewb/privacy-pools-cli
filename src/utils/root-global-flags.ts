@@ -60,7 +60,13 @@ export const ROOT_GLOBAL_FLAG_METADATA: readonly RootGlobalFlagEntry[] = [
   },
   {
     flag: "--help-brief",
-    description: "Show condensed command help without the extended guide appendix",
+    description: "Show condensed command help (default)",
+    takesValue: false,
+    welcomeBoolean: false,
+  },
+  {
+    flag: "--help-full",
+    description: "Show full command help with examples, safety notes, and JSON fields",
     takesValue: false,
     welcomeBoolean: false,
   },

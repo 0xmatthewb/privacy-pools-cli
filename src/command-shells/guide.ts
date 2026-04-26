@@ -8,6 +8,9 @@ export function createGuideCommand(): Command {
   return new Command("guide")
     .description(metadata.description)
     .argument("[topic]", `Guide topic: ${GUIDE_TOPICS.map((topic) => topic.name).join(", ")}`)
+    .option("--topics", "List available guide topics")
+    .option("--pager", "Open guide output in $PAGER")
+    .option("--no-pager", "Print guide output directly")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

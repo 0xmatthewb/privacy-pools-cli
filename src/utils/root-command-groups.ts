@@ -68,7 +68,7 @@ export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
   simulate: "simulate",
   deposit: "deposit",
   withdraw: "withdraw",
-  ragequit: "ragequit|exit",
+  ragequit: "ragequit",
   broadcast: "broadcast",
   accounts: "accounts",
   pools: "pools",

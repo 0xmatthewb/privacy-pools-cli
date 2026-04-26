@@ -6,7 +6,7 @@ import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
 import { detectAgentEnvironment } from "./detect-agent.js";
 import { envVarsForSection } from "./env-vars.js";
 import { OUTPUT_FORMAT_DESCRIPTION } from "./mode.js";
-import { accent, accentBold, brand, dangerTone, notice, successTone } from "./theme.js";
+import { accent, accentBold, brand, dangerTone, muted, notice, successTone } from "./theme.js";
 import { inlineSeparator } from "./terminal.js";
 import {
   DEFAULT_WELCOME_SCREEN_ACTIONS,
@@ -32,7 +32,7 @@ function formatWelcomeActionLines(actions: readonly WelcomeAction[]): string[] {
     Math.max(...renderedCommands.map((command) => command.length), 0) + 1;
 
   return actions.map((action, index) =>
-    `${accent(renderedCommands[index].padEnd(commandWidth))}${chalk.dim(action.description)}`,
+    `${accent(renderedCommands[index].padEnd(commandWidth))}${muted(action.description)}`,
   );
 }
 
@@ -51,7 +51,7 @@ export function welcomeScreen(
   const version = options.version?.trim();
   const sep = inlineSeparator();
   const versionLine = version
-    ? `${chalk.dim(`v${version}`)}${chalk.dim(sep)}${accent("privacypools.com")}${options.readinessLabel ? `${chalk.dim(sep)}${chalk.dim(options.readinessLabel)}` : ""}`
+    ? `${muted(`v${version}`)}${muted(sep)}${accent("privacypools.com")}${options.readinessLabel ? `${muted(sep)}${muted(options.readinessLabel)}` : ""}`
     : accent("privacypools.com");
   const actionLines = formatWelcomeActionLines(
     options.actions ?? DEFAULT_WELCOME_SCREEN_ACTIONS,
@@ -59,7 +59,7 @@ export function welcomeScreen(
 
   const lines = [
     brand("PRIVACY POOLS"),
-    chalk.hex("#A8A8A8")("A compliant way to transact privately on Ethereum."),
+    muted("A compliant way to transact privately on Ethereum."),
     versionLine,
     "",
     ...actionLines,
@@ -69,8 +69,8 @@ export function welcomeScreen(
   if (shouldShowPathRegistrationHint(options.packageRoot)) {
     lines.push(
       "",
-      chalk.dim("  Running from source? Register the CLI on your PATH:"),
-      chalk.dim("    npm link"),
+      muted("  Running from source? Register the CLI on your PATH:"),
+      muted("    npm link"),
     );
   }
 
@@ -86,6 +86,7 @@ export function welcomeScreen(
 // ── Guide Topics ────────────────────────────────────────────────────────────
 
 export const GUIDE_TOPICS = [
+  { name: "topics", description: "Browse available guide topics" },
   { name: "quickstart", description: "Install, setup, and first deposit" },
   { name: "keys", description: "Two-key model (recovery phrase + signer key)" },
   { name: "workflow", description: "Step-by-step workflow for deposits and withdrawals" },
@@ -121,6 +122,7 @@ const GUIDE_TOPIC_ALIASES: Record<string, GuideTopic> = {
   environment: "env-vars",
   "env-vars": "env-vars",
   envvars: "env-vars",
+  flow: "workflow",
   "next-actions": "next-actions",
   nextaction: "next-actions",
   nextactions: "next-actions",
@@ -151,7 +153,13 @@ export function isGuideTopic(topic?: string): boolean {
 export function isBriefHelpRequested(
   argv: readonly string[] = process.argv.slice(2),
 ): boolean {
-  return argv.includes("--help-brief");
+  return argv.includes("--help-brief") || !argv.includes("--help-full");
+}
+
+export function isFullHelpRequested(
+  argv: readonly string[] = process.argv.slice(2),
+): boolean {
+  return argv.includes("--help-full") && !argv.includes("--help-brief");
 }
 
 export function buildGuidePayload(topic?: string): {
@@ -184,42 +192,56 @@ function formatEnvVarEntryLines(
   });
 }
 
+function guideTopicListLines(): string[] {
+  return [
+    chalk.bold("Available Topics"),
+    ...GUIDE_TOPICS
+      .filter((topic) => topic.name !== "topics")
+      .map((topic) => `  ${accent(topic.name.padEnd(14))}${muted(topic.description)}`),
+    "",
+    muted("  Run privacy-pools guide <topic> to open one topic."),
+    muted("  Common shortcuts: guide flow, guide json, guide troubleshooting."),
+  ];
+}
+
 // ── Guide section builders (keyed by topic) ────────────────────────────────
 
 const guideSections: Record<string, () => string[]> = {
+  topics: guideTopicListLines,
+
   quickstart: () => [
     chalk.bold("Install & Run"),
     `  ${accent("npm i -g privacy-pools-cli")}`,
-    `  ${accent("npm i -g github:0xmatthewb/privacy-pools-cli")}  ${chalk.dim("(unreleased/source builds)")}`,
+    `  ${accent("npm i -g github:0xmatthewb/privacy-pools-cli")}  ${muted("(unreleased/source builds)")}`,
     `  ${accent("privacy-pools status")}`,
-    `  ${accent("privacy-pools upgrade --check")}                ${chalk.dim("(check npm for a newer installed release)")}`,
-    `  ${accent("npm run dev -- status")}                        ${chalk.dim("(from source, no global install)")}`,
-    `  ${accent("privacy-pools completion --help")}                  ${chalk.dim("(shell autocomplete setup)")}`,
+    `  ${accent("privacy-pools upgrade --check")}                ${muted("(check npm for a newer installed release)")}`,
+    `  ${accent("npm run dev -- status")}                        ${muted("(from source, no global install)")}`,
+    `  ${accent("privacy-pools completion --help")}                  ${muted("(shell autocomplete setup)")}`,
     "",
     chalk.bold("Quick Start"),
     `  ${accent("privacy-pools init")}`,
-    `  ${accent("privacy-pools init --recovery-phrase-file <downloaded-file>")} ${chalk.dim("(load an existing account from a website export)")}`,
-    `  ${accent("cat <downloaded-file> | privacy-pools init --recovery-phrase-stdin")} ${chalk.dim("(stdin alternative for loading an account)")}`,
-    `  ${accent("privacy-pools init --signer-only")} ${chalk.dim("(finish setup or replace the signer key without changing the account)")}`,
-    `  ${accent("privacy-pools flow start 0.1 ETH --to 0xRecipient")}          ${chalk.dim("(easy path: deposit now, withdraw later)")}`,
-    `  ${accent("privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet")}  ${chalk.dim("(easy path with a dedicated workflow wallet)")}`,
-    `  ${accent("privacy-pools pools")}                                          ${chalk.dim("(browse available pools)")}`,
+    `  ${accent("privacy-pools init --recovery-phrase-file <downloaded-file>")} ${muted("(load an existing account from a website export)")}`,
+    `  ${accent("cat <downloaded-file> | privacy-pools init --recovery-phrase-stdin")} ${muted("(stdin alternative for loading an account)")}`,
+    `  ${accent("privacy-pools init --signer-only")} ${muted("(finish setup or replace the signer key without changing the account)")}`,
+    `  ${accent("privacy-pools flow start 0.1 ETH --to 0xRecipient")}          ${muted("(easy path: deposit now, withdraw later)")}`,
+    `  ${accent("privacy-pools flow start 100 USDC --to 0xRecipient --new-wallet")}  ${muted("(easy path with a dedicated workflow wallet)")}`,
+    `  ${accent("privacy-pools pools")}                                          ${muted("(browse available pools)")}`,
     `  ${accent("privacy-pools deposit 0.1 ETH")}`,
-    `  ${accent("privacy-pools accounts --chain mainnet --pending-only")}        ${chalk.dim("(poll ASP review; keep the same --chain until it disappears)")}`,
-    `  ${accent("privacy-pools accounts --chain mainnet")}                       ${chalk.dim("(then confirm approved vs declined vs POA Needed)")}`,
+    `  ${accent("privacy-pools accounts --chain mainnet --pending-only")}        ${muted("(poll ASP review; keep the same --chain until it disappears)")}`,
+    `  ${accent("privacy-pools accounts --chain mainnet")}                       ${muted("(then confirm approved vs declined vs POA Needed)")}`,
     `  ${accent("privacy-pools withdraw 0.05 ETH --to 0xRecipient --pool-account PA-1")}`,
-    chalk.dim("  Transaction commands use your default chain (set during init)."),
-    chalk.dim("  Public dashboards like pools/activity/protocol-stats default to CLI-supported mainnet chains."),
-    chalk.dim("  Use --include-testnets to include supported testnets, or --chain to scope one network."),
-    chalk.dim("  Accounts is wallet-dependent: use --chain to keep approval checks on the same network as the deposit."),
+    muted("  Transaction commands use your default chain (set during init)."),
+    muted("  Public dashboards like pools/activity/protocol-stats default to CLI-supported mainnet chains."),
+    muted("  Use --include-testnets to include supported testnets, or --chain to scope one network."),
+    muted("  Accounts is wallet-dependent: use --chain to keep approval checks on the same network as the deposit."),
     "",
-    chalk.dim("  Deposits are reviewed by the 0xBow ASP before approval."),
-    chalk.dim(`  ${DEPOSIT_APPROVAL_TIMELINE_COPY}`),
-    chalk.dim("  ASP approval is required for withdraw, including --direct. Ragequit is your"),
-    chalk.dim("  self-custody guarantee, always available to publicly recover funds to the"),
-    chalk.dim("  original deposit address. Declined saved easy-path workflows use"),
-    chalk.dim("  'flow ragequit' as their canonical public recovery path, and operators can"),
-    chalk.dim("  also choose it manually after the public deposit exists."),
+    muted("  Deposits are reviewed by the 0xBow ASP before approval."),
+    muted(`  ${DEPOSIT_APPROVAL_TIMELINE_COPY}`),
+    muted("  ASP approval is required for withdraw, including --direct. Ragequit is your"),
+    muted("  self-custody guarantee, always available to publicly recover funds to the"),
+    muted("  original deposit address. Declined saved easy-path workflows use"),
+    muted("  'flow ragequit' as their canonical public recovery path, and operators can"),
+    muted("  also choose it manually after the public deposit exists."),
   ],
 
   keys: () => [
@@ -247,14 +269,14 @@ const guideSections: Record<string, () => string[]> = {
     ` 12. ${accent("history")}        View transaction history`,
     `  *  ${accent("status")}         Check setup and connection health (checks run by default)`,
     `  *  ${accent("upgrade")}        Check npm for updates or upgrade this CLI`,
-    `  *  ${accent("activity")}       Public onchain feed ${chalk.dim("(for your history, use 'history')")}`,
+    `  *  ${accent("activity")}       Public onchain feed ${muted("(for your history, use 'history')")}`,
     `  *  ${accent("ragequit")}       Self-custody guarantee. Publicly recovers funds to deposit address`,
     `  *  ${accent("withdraw quote")} Check relayer fees before withdrawing`,
-    chalk.dim("  'migrate status' is read-only. The CLI does not submit migration transactions; use the website for actual migration or website-based recovery."),
-    chalk.dim("  It only checks chains currently supported by the CLI; review beta or website-only legacy migration surfaces in the website."),
-    chalk.dim("  Human 'flow start --new-wallet' waits for funding automatically; '--agent' returns an awaiting_funding snapshot instead."),
-    chalk.dim("  In machine mode, this path requires '--export-new-wallet <path>' so the generated key is backed up first."),
-    chalk.dim("  Manual commands remain available for advanced control."),
+    muted("  'migrate status' is read-only. The CLI does not submit migration transactions; use the website for actual migration or website-based recovery."),
+    muted("  It only checks chains currently supported by the CLI; review beta or website-only legacy migration surfaces in the website."),
+    muted("  Human 'flow start --new-wallet' waits for funding automatically; '--agent' returns an awaiting_funding snapshot instead."),
+    muted("  In machine mode, this path requires '--export-new-wallet <path>' so the generated key is backed up first."),
+    muted("  Manual commands remain available for advanced control."),
   ],
 
   ragequit: () => [
@@ -262,14 +284,14 @@ const guideSections: Record<string, () => string[]> = {
     `  ${accent("privacy-pools ragequit ETH --pool-account PA-1")}`,
     `  ${accent("privacy-pools flow ragequit latest")}`,
     "",
-    chalk.dim("  Ragequit publicly recovers a Pool Account to the original deposit address."),
-    chalk.dim("  It is your self-custody fallback when ASP approval is unavailable, a saved"),
-    chalk.dim("  flow is declined, the relayer minimum blocks a saved full-balance withdrawal,"),
-    chalk.dim("  or you explicitly choose public recovery instead of waiting."),
+    muted("  Ragequit publicly recovers a Pool Account to the original deposit address."),
+    muted("  It is your self-custody fallback when ASP approval is unavailable, a saved"),
+    muted("  flow is declined, the relayer minimum blocks a saved full-balance withdrawal,"),
+    muted("  or you explicitly choose public recovery instead of waiting."),
     "",
-    chalk.dim("  This does not provide privacy for that Pool Account. Prefer withdraw or"),
-    chalk.dim("  flow watch when the account can continue through the private relayed path."),
-    chalk.dim("  In the website this corresponds to the Exit path."),
+    muted("  This does not provide privacy for that Pool Account. Prefer withdraw or"),
+    muted("  flow watch when the account can continue through the private relayed path."),
+    muted("  In the website this corresponds to the Exit path."),
   ],
 
   "flow-states": () => [
@@ -322,7 +344,7 @@ const guideSections: Record<string, () => string[]> = {
     "  Unsigned mode builds transaction payloads without signing or submitting.",
     "  Requires init (recovery phrase) for deposit secret generation.",
     "  Does NOT require a signer key. The signing party provides their own.",
-    `  Output includes ${chalk.dim("from")} plus ${chalk.dim("description")}. ${chalk.dim("from")} is null when the signer is unconstrained, and set when the protocol requires a specific caller.`,
+    `  Output includes ${muted("from")} plus ${muted("description")}. ${muted("from")} is null when the signer is unconstrained, and set when the protocol requires a specific caller.`,
     `  ${notice("--unsigned")}           (default) Wrapped in JSON envelope: { schemaVersion, success, ... }`,
     `  ${notice("--unsigned tx")}        Raw transaction array: [{ from, to, data, value, valueHex, chainId, description }]`,
     "             Raw format skips the envelope. Intended for direct piping to signing tools.",
@@ -386,19 +408,19 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("pending")}        Still under ASP review`,
     `  ${notice("poa_required")}   Proof of Association is required before private withdrawal`,
     `  ${dangerTone("declined")}       Private withdrawal unavailable; ragequit remains available`,
-    `  ${chalk.dim("spent")}          Already withdrawn`,
-    `  ${chalk.dim("exited")}         Ragequit completed`,
+    `  ${muted("spent")}          Already withdrawn`,
+    `  ${muted("exited")}         Ragequit completed`,
     "",
     chalk.bold("Useful Commands"),
     `  ${accent("privacy-pools accounts --chain <chain>")}`,
     `  ${accent("privacy-pools withdraw --pool-account PA-1 --to 0xRecipient")}`,
     `  ${accent("privacy-pools ragequit --pool-account PA-1")}`,
-    `  ${accent("privacy-pools migrate status --agent --include-testnets")}  ${chalk.dim("(legacy readiness only)")}`,
+    `  ${accent("privacy-pools migrate status --agent --include-testnets")}  ${muted("(legacy readiness only)")}`,
   ],
 
   agents: () => [
     chalk.bold("Agent Mode"),
-    `  ${notice("--agent")} is shorthand for ${chalk.dim("--json --yes --quiet")}.`,
+    `  ${notice("--agent")} is shorthand for ${muted("--json --yes --quiet")}.`,
     "  Structured JSON stays on stdout. Human-oriented narration stays on stderr and is suppressed in agent mode.",
     "",
     chalk.bold("Discovery"),
@@ -414,7 +436,7 @@ const guideSections: Record<string, () => string[]> = {
     `  4. ${accent("privacy-pools flow start <amount> <asset> --to <address> --agent --chain <chain>")}`,
     `  5. ${accent("privacy-pools flow status [workflowId|latest] --agent")}`,
     `  6. ${accent("privacy-pools flow step [workflowId|latest] --agent")}`,
-    `  7. ${accent("privacy-pools tx-status <submissionId> --agent")}  ${chalk.dim("(when using --no-wait on deposit/withdraw/ragequit/broadcast)")}`,
+    `  7. ${accent("privacy-pools tx-status <submissionId> --agent")}  ${muted("(when using --no-wait on deposit/withdraw/ragequit/broadcast)")}`,
   ],
 
   json: () => [
@@ -465,7 +487,7 @@ const guideSections: Record<string, () => string[]> = {
     "",
     chalk.bold("Related Modes"),
     `  ${notice("--json")} keeps structured envelopes on stdout.`,
-    `  ${notice("--agent")} is shorthand for ${chalk.dim("--json --yes --quiet")}.`,
+    `  ${notice("--agent")} is shorthand for ${muted("--json --yes --quiet")}.`,
   ],
 
   troubleshooting: () => [
@@ -482,7 +504,7 @@ const guideSections: Record<string, () => string[]> = {
     "                   declined. Declined deposits can be recovered",
     "                   publicly via ragequit.",
     "  Custom RPC?       Pass --rpc-url on any command, or save per-chain overrides in",
-    `                   ~/.privacy-pools/config.json under ${chalk.dim('"rpcOverrides": { "<chainId>": "https://..." }')}.`,
+    `                   ~/.privacy-pools/config.json under ${muted('"rpcOverrides": { "<chainId>": "https://..." }')}.`,
   ],
 
   "exit-codes": () => [
@@ -506,9 +528,9 @@ function guideAppendixSections(): string[] {
     chalk.bold("Using CLI with an Existing Website Account"),
     `  If you already use ${accent("privacypools.com")}, you can access the same account from the CLI:`,
     `  1. Export your 12/24-word recovery phrase from the website.`,
-    `  2. Run: ${accent("privacy-pools init --recovery-phrase-file ./recovery.txt")} ${chalk.dim("(or: cat recovery.txt | privacy-pools init --recovery-phrase-stdin)")}`,
+    `  2. Run: ${accent("privacy-pools init --recovery-phrase-file ./recovery.txt")} ${muted("(or: cat recovery.txt | privacy-pools init --recovery-phrase-stdin)")}`,
     `  3. Set your signer key: ${accent("export PRIVACY_POOLS_PRIVATE_KEY=0x...")}`,
-    `  4. Run: ${accent("privacy-pools accounts")}  ${chalk.dim("(syncs onchain state automatically)")}`,
+    `  4. Run: ${accent("privacy-pools accounts")}  ${muted("(syncs onchain state automatically)")}`,
     `  If the website account was created before the 2024 security update, run ${accent("privacy-pools migrate status")} to inspect legacy readiness on CLI-supported chains. Review beta or website-only legacy migration surfaces in the website.`,
     "",
     chalk.bold("Terminology"),
@@ -517,7 +539,7 @@ function guideAppendixSections(): string[] {
     `  ${notice("Pool Account")}             Your onchain deposit, tracked for withdrawal or ragequit recovery.`,
     `  ${notice("0xBow ASP status")}  ${successTone("approved")} (withdraw ready), ${notice("pending")} (waiting),`,
     `                                   ${notice("poa_required")} (Proof of Association needed),`,
-    `                                   ${dangerTone("declined")} (ragequit available), ${chalk.dim("unknown")} (unresolved).`,
+    `                                   ${dangerTone("declined")} (ragequit available), ${muted("unknown")} (unresolved).`,
     `  ${notice("Relayed withdrawal")}       Privacy-preserving withdrawal via a relayer (recommended).`,
     `  ${notice("Direct withdrawal")}        Non-private withdrawal; links deposit and withdrawal onchain.`,
     `  ${notice("Ragequit")}    Self-custody guarantee. Public, irreversible recovery to original deposit address.`,
@@ -528,14 +550,14 @@ function guideAppendixSections(): string[] {
     `  Use ${accent("privacy-pools describe <command...> --agent")} to inspect one command at runtime.`,
     "",
     chalk.bold("Further Reading"),
-    `  ${accent("privacy-pools <command> --help")}  ${chalk.dim("(command-specific details and examples)")}`,
-    chalk.dim("  Package-relative docs (open from a source checkout or installed package root):"),
+    `  ${accent("privacy-pools <command> --help")}  ${muted("(command-specific details and examples)")}`,
+    muted("  Package-relative docs (open from a source checkout or installed package root):"),
     `  ${accent("docs/reference.md")}   Flags, configuration, environment variables, project structure`,
     `  ${accent("docs/runtime-upgrades.md")}  Native runtime troubleshooting, fallback controls, upgrade playbook`,
     `  ${accent("AGENTS.md")}           Agent integration guide, JSON payloads, unsigned mode`,
     `  ${accent("CHANGELOG.md")}        Release history and migration notes`,
     "",
-    chalk.dim("  Run privacy-pools <command> --help for command-specific details."),
+    muted("  Run privacy-pools <command> --help for command-specific details."),
   ];
 }
 
@@ -547,14 +569,14 @@ export function guideText(topic?: string): string {
     const resolvedTopic = resolveGuideTopic(topic);
     const builder = resolvedTopic ? guideSections[resolvedTopic] : undefined;
     if (!builder) {
-      const available = GUIDE_TOPICS.map((t) => `  ${accent(t.name)}  ${chalk.dim(t.description)}`).join("\n");
+      const available = GUIDE_TOPICS.map((t) => `  ${accent(t.name)}  ${muted(t.description)}`).join("\n");
       return [
         `Unknown guide topic: ${topic}`,
         "",
         "Available topics",
         available,
         "",
-        chalk.dim("  Run 'privacy-pools guide' with no topic for the full guide."),
+        muted("  Run 'privacy-pools guide' with no topic for the full guide."),
       ].join("\n");
     }
     return [accentBold(`Privacy Pools: ${resolvedTopic}`), "", ...builder()].join("\n");
@@ -595,8 +617,8 @@ export const helpTestInternals = {
 };
 
 export function commandHelpText(config: CommandHelpConfig): string {
-  if (isBriefHelpRequested()) {
-    return "";
+  if (!isFullHelpRequested()) {
+    return "\nTip: add --help-full for examples, safety notes, and JSON fields.";
   }
 
   const lines: string[] = [];
@@ -684,6 +706,8 @@ export function commandHelpText(config: CommandHelpConfig): string {
       lines.push(`  privacy-pools ${ref}`);
     }
   }
+
+  lines.push("", "Tip: omit --help-full for condensed command help.");
 
   return lines.join("\n");
 }

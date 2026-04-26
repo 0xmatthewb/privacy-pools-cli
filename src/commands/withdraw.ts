@@ -136,8 +136,8 @@ import {
   PROMPT_CANCELLATION_MESSAGE,
 } from "../utils/prompt-cancellation.js";
 import {
+  createNarrativeProgressWriter,
   createNarrativeSteps,
-  renderNarrativeSteps,
 } from "../output/progress.js";
 import {
   maybeRecoverMissingWalletSetup,
@@ -433,8 +433,15 @@ export function collectKnownWithdrawalRecipients(
   return collectKnownWithdrawalRecipientsHelper(signerAddress);
 }
 
-export function rememberSuccessfulWithdrawalRecipient(address: string): void {
-  rememberSuccessfulWithdrawalRecipientHelper(address);
+export function rememberSuccessfulWithdrawalRecipient(
+  address: string,
+  metadata: {
+    ensName?: string | null;
+    chain?: string | null;
+    label?: string | null;
+  } = {},
+): void {
+  rememberSuccessfulWithdrawalRecipientHelper(address, metadata);
 }
 
 export async function withSuspendedSpinner<T>(
@@ -529,8 +536,8 @@ export async function handleWithdrawCommand(
   const fromPaRaw = opts.poolAccount;
   const fromPaNumber =
     fromPaRaw === undefined ? undefined : parsePoolAccountSelector(fromPaRaw);
+  const writeWithdrawNarrative = createNarrativeProgressWriter({ silent });
   const writeWithdrawProgress = (activeIndex: number, note?: string) => {
-    if (silent) return;
     const labels = isDirect
       ? [
           "Account & ASP data synced",
@@ -543,9 +550,7 @@ export async function handleWithdrawCommand(
           "Generate and verify withdrawal proof",
           "Submit to relayer",
         ];
-    process.stderr.write(
-      `\n${renderNarrativeSteps(createNarrativeSteps(labels, activeIndex, note))}`,
-    );
+    writeWithdrawNarrative(createNarrativeSteps(labels, activeIndex, note));
   };
 
   try {
@@ -1862,7 +1867,10 @@ export async function handleWithdrawCommand(
               },
             ],
           });
-          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
+          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
+            ensName: recipientEnsName,
+            chain: chainConfig.name,
+          });
 
           const ctx = createOutputContext(mode);
           renderWithdrawSuccess(ctx, {
@@ -1959,7 +1967,10 @@ export async function handleWithdrawCommand(
         } else {
           spin.succeed("Direct withdrawal confirmed!");
         }
-        rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
+        rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
+          ensName: recipientEnsName,
+          chain: chainConfig.name,
+        });
 
         const ctx = createOutputContext(mode);
         renderWithdrawSuccess(ctx, {
@@ -2437,14 +2448,13 @@ export async function handleWithdrawCommand(
           "Re-run the withdrawal command to generate a fresh proof.",
         );
 
-        const quoteValidLabel = formatRemainingTime(expirationMs);
         const { stateTreeDepth, aspTreeDepth } = deriveWithdrawalTreeDepths({
           stateMerkleProof,
           aspMerkleProof,
         });
         const proof = await withProofProgress(
           spin,
-          `Generating and verifying ZK proof (quote valid for ${quoteValidLabel})`,
+          "Generating and verifying ZK proof",
           (progress) =>
             proveWithdrawal(commitment, {
               context,
@@ -2460,6 +2470,10 @@ export async function handleWithdrawCommand(
             }, {
               progress,
             }),
+          {
+            dynamicSuffix: () =>
+              `quote valid for ${formatRemainingTime(expirationMs)}`,
+          },
         );
         verbose(
           `Proof generated: publicSignals=${proof.publicSignals.length}`,
@@ -2626,7 +2640,10 @@ export async function handleWithdrawCommand(
               },
             ],
           });
-          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
+          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
+            ensName: recipientEnsName,
+            chain: chainConfig.name,
+          });
 
           const ctx = createOutputContext(mode);
           renderWithdrawSuccess(ctx, {
@@ -2732,7 +2749,10 @@ export async function handleWithdrawCommand(
         } else {
           spin.succeed("Relayed withdrawal confirmed!");
         }
-        rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress);
+        rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
+          ensName: recipientEnsName,
+          chain: chainConfig.name,
+        });
 
         const ctx = createOutputContext(mode);
         renderWithdrawSuccess(ctx, {
