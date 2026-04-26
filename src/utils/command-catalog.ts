@@ -45,6 +45,11 @@ export type CommandPath =
   | "guide"
   | "deposit"
   | "withdraw"
+  | "recipients"
+  | "recipients list"
+  | "recipients add"
+  | "recipients remove"
+  | "recipients clear"
   | "withdraw recipients"
   | "withdraw recipients list"
   | "withdraw recipients add"
@@ -1225,6 +1230,125 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
 
     agentsDocMarker: "**Withdrawal quote:**",
+  },
+  recipients: {
+    description: ROOT_COMMAND_DESCRIPTIONS.recipients,
+    aliases: ["recents"],
+    help: {
+      overview: [
+        "Shows the local withdrawal recipient history. Successful withdrawals are remembered automatically, and you can add labels manually for repeated recipients.",
+      ],
+      examples: [
+        "privacy-pools recipients",
+        "privacy-pools recipients add 0xRecipient... treasury",
+        "privacy-pools recipients remove 0xRecipient...",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
+      safetyNotes: [
+        "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
+      ],
+      agentWorkflowNotes: [
+        "Use this read-only list to offer previously used recipients before prompting for a new address.",
+      ],
+      seeAlso: ["withdraw", "recipients add", "recipients remove"],
+    },
+    capabilities: {
+      usage: "recipients",
+      flags: [],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+  },
+  "recipients list": {
+    description: "List remembered withdrawal recipients",
+    aliases: ["ls"],
+    help: {
+      examples: [
+        "privacy-pools recipients list",
+        "privacy-pools recents",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
+      agentWorkflowNotes: [
+        "Use this read-only list to offer previously used recipients before prompting for a new address.",
+      ],
+      seeAlso: ["withdraw", "recipients"],
+    },
+    capabilities: {
+      usage: "recipients list",
+      flags: [],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+  },
+  "recipients add": {
+    description: "Add a recipient to the local withdrawal address book",
+    help: {
+      examples: [
+        "privacy-pools recipients add 0xRecipient... treasury",
+        "privacy-pools recipients add vitalik.eth --label donations",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
+      safetyNotes: [
+        "Adding a recipient does not authorize a withdrawal. The withdrawal command still performs recipient review before submission.",
+      ],
+      seeAlso: ["recipients", "recipients remove"],
+    },
+    capabilities: {
+      usage: "recipients add <address-or-ens> [label]",
+      flags: ["--label <label>"],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+  },
+  "recipients remove": {
+    description: "Remove a recipient from the local withdrawal address book",
+    aliases: ["rm"],
+    help: {
+      examples: [
+        "privacy-pools recipients remove 0xRecipient...",
+        "privacy-pools recipients rm treasury.eth",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
+      seeAlso: ["recipients", "recipients add"],
+    },
+    capabilities: {
+      usage: "recipients remove <address-or-ens>",
+      flags: [],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+  },
+  "recipients clear": {
+    description: "Clear all remembered withdrawal recipients",
+    help: {
+      examples: [
+        "privacy-pools recipients clear",
+        "privacy-pools recipients clear --yes",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation: \"clear\", removedCount }",
+      safetyNotes: [
+        "This only clears local recipient metadata. It does not affect accounts, workflows, or onchain state.",
+      ],
+      seeAlso: ["recipients", "recipients add"],
+    },
+    capabilities: {
+      usage: "recipients clear",
+      flags: [],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
   },
   "withdraw recipients": {
     description: "List remembered withdrawal recipients",

@@ -9,6 +9,7 @@ export type RootCommandName =
   | "simulate"
   | "deposit"
   | "withdraw"
+  | "recipients"
   | "ragequit"
   | "broadcast"
   | "accounts"
@@ -41,6 +42,7 @@ export const ROOT_COMMAND_DESCRIPTIONS: Record<RootCommandName, string> = {
   simulate: "Preview deposit, withdraw, and ragequit without submitting",
   deposit: "Deposit ETH or ERC-20 tokens into a pool",
   withdraw: "Withdraw privately from a pool",
+  recipients: "Manage remembered withdrawal recipients",
   ragequit: "Recover funds publicly to your deposit address",
   broadcast: "Broadcast a signed envelope or relayer request built elsewhere",
   accounts: "View balances, approval status, and pool accounts",
@@ -68,6 +70,7 @@ export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
   simulate: "simulate",
   deposit: "deposit",
   withdraw: "withdraw",
+  recipients: "recipients|recents",
   ragequit: "ragequit",
   broadcast: "broadcast",
   accounts: "accounts",
@@ -95,7 +98,7 @@ export const ROOT_COMMAND_GROUPS: RootCommandGroup[] = [
   {
     id: "transaction",
     heading: "Transactions",
-    commands: ["flow", "simulate", "deposit", "withdraw", "ragequit", "broadcast"],
+    commands: ["flow", "simulate", "deposit", "withdraw", "recipients", "ragequit", "broadcast"],
   },
   {
     id: "monitoring",
@@ -137,6 +140,7 @@ export const ROOT_COMMAND_ORDER: RootCommandName[] = [
   "accounts",
   "migrate",
   "withdraw",
+  "recipients",
   "ragequit",
   "broadcast",
   "history",

@@ -147,6 +147,20 @@ function rootOptionsForCommand(cmd: Command): GlobalOptions {
   return current.opts() as GlobalOptions;
 }
 
+function recipientCommandPrefix(cmd: Command): string {
+  const path: string[] = [];
+  let current: Command | undefined = cmd;
+  while (current?.parent) {
+    path.unshift(current.name());
+    current = current.parent;
+  }
+  return path[0] === "withdraw" ? "withdraw recipients" : "recipients";
+}
+
+function recipientCommandPath(cmd: Command, suffix?: string): string {
+  return [recipientCommandPrefix(cmd), suffix].filter(Boolean).join(" ");
+}
+
 function recipientPayload(entry: RecipientHistoryEntry): Record<string, unknown> {
   return {
     address: entry.address,
@@ -167,8 +181,9 @@ function renderRecipientList(
 ): void {
   const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
   const ctx = createOutputContext(mode);
+  const commandPrefix = recipientCommandPrefix(cmd);
   try {
-    guardCsvUnsupported(ctx, "withdraw recipients");
+    guardCsvUnsupported(ctx, commandPrefix);
     if (mode.isJson) {
       printJsonSuccess({
         mode: "recipient-history",
@@ -182,7 +197,7 @@ function renderRecipientList(
     if (isSilent(ctx)) return;
     if (entries.length === 0) {
       info("No remembered withdrawal recipients yet.", false);
-      info("Successful withdrawals are added automatically; use 'withdraw recipients add <address>' to add one manually.", false);
+      info(`Successful withdrawals are added automatically; use '${commandPrefix} add <address>' to add one manually.`, false);
       return;
     }
 
@@ -226,7 +241,7 @@ export async function handleWithdrawRecipientsAddCommand(
   const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
   const ctx = createOutputContext(mode);
   try {
-    guardCsvUnsupported(ctx, "withdraw recipients add");
+    guardCsvUnsupported(ctx, recipientCommandPath(cmd, "add"));
     const resolved = await resolveSafeRecipientAddressOrEns(
       addressOrEns,
       "Recipient",
@@ -263,7 +278,7 @@ export async function handleWithdrawRecipientsRemoveCommand(
   const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
   const ctx = createOutputContext(mode);
   try {
-    guardCsvUnsupported(ctx, "withdraw recipients remove");
+    guardCsvUnsupported(ctx, recipientCommandPath(cmd, "remove"));
     const resolved = await resolveSafeRecipientAddressOrEns(
       addressOrEns,
       "Recipient",
@@ -299,7 +314,7 @@ export async function handleWithdrawRecipientsClearCommand(
   const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
   const ctx = createOutputContext(mode);
   try {
-    guardCsvUnsupported(ctx, "withdraw recipients clear");
+    guardCsvUnsupported(ctx, recipientCommandPath(cmd, "clear"));
     const removedCount = clearRecipientHistory();
 
     if (mode.isJson) {

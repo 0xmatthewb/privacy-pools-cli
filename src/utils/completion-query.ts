@@ -270,6 +270,28 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionOption("-t, --to <address>"),
             ],
           }),
+          completionCommand("recipients", {
+            aliases: ["recents"],
+            subcommands: [
+              completionCommand("list", { aliases: ["ls"] }),
+              completionCommand("add", {
+                options: [completionOption("--label <label>")],
+              }),
+              completionCommand("remove", { aliases: ["rm"] }),
+              completionCommand("clear"),
+            ],
+          }),
+        ],
+      }),
+      completionCommand("recipients", {
+        aliases: ["recents"],
+        subcommands: [
+          completionCommand("list", { aliases: ["ls"] }),
+          completionCommand("add", {
+            options: [completionOption("--label <label>")],
+          }),
+          completionCommand("remove", { aliases: ["rm"] }),
+          completionCommand("clear"),
         ],
       }),
       completionCommand("ragequit", {
@@ -321,7 +343,13 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionCommand("pool"),
         ],
       }),
-      completionCommand("guide"),
+      completionCommand("guide", {
+        options: [
+          completionOption("--topics"),
+          completionOption("--pager"),
+          completionOption("--no-pager"),
+        ],
+      }),
       completionCommand("capabilities"),
       completionCommand("describe"),
       completionCommand("completion", {

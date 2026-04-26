@@ -78,10 +78,10 @@ describe("command discovery static conformance", () => {
       "completion",
     ]);
     expect(GENERATED_COMMAND_ALIAS_MAP).toEqual({
-      ls: "withdraw recipients list",
+      ls: "recipients list",
       remove: "config unset",
-      recents: "withdraw recipients",
-      rm: "withdraw recipients remove",
+      recents: "recipients",
+      rm: "recipients remove",
       stats: "protocol-stats",
       "stats global": "protocol-stats",
       "stats pool": "pool-stats",

@@ -42,6 +42,11 @@ export const GENERATED_COMMAND_PATHS = [
   "deposit",
   "withdraw",
   "withdraw quote",
+  "recipients",
+  "recipients list",
+  "recipients add",
+  "recipients remove",
+  "recipients clear",
   "withdraw recipients",
   "withdraw recipients list",
   "withdraw recipients add",
@@ -149,6 +154,13 @@ export const GENERATED_ROOT_COMMANDS = [
     "description": "Withdraw privately from a pool"
   },
   {
+    "name": "recipients",
+    "aliases": [
+      "recents"
+    ],
+    "description": "Manage remembered withdrawal recipients"
+  },
+  {
     "name": "ragequit",
     "aliases": [],
     "description": "Recover funds publicly to your deposit address"
@@ -197,9 +209,9 @@ export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> =
   "stats": "protocol-stats",
   "stats global": "protocol-stats",
   "stats pool": "pool-stats",
-  "recents": "withdraw recipients",
-  "ls": "withdraw recipients list",
-  "rm": "withdraw recipients remove"
+  "recents": "recipients",
+  "ls": "recipients list",
+  "rm": "recipients remove"
 };
 
 export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = {
@@ -406,6 +418,36 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "withdraw quote": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "recipients": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "recipients list": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "recipients add": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "recipients remove": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "recipients clear": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -941,6 +983,67 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlags": "--agent",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
+    },
+    {
+      "name": "recipients",
+      "description": "Manage remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [
+        "recents"
+      ],
+      "usage": "recipients",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "recipients list",
+      "description": "List remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [
+        "ls"
+      ],
+      "usage": "recipients list",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "recipients add",
+      "description": "Add a recipient to the local withdrawal address book",
+      "group": "transaction",
+      "usage": "recipients add <address-or-ens> [label]",
+      "flags": [
+        "--label <label>"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "recipients remove",
+      "description": "Remove a recipient from the local withdrawal address book",
+      "group": "transaction",
+      "aliases": [
+        "rm"
+      ],
+      "usage": "recipients remove <address-or-ens>",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "recipients clear",
+      "description": "Clear all remembered withdrawal recipients",
+      "group": "transaction",
+      "usage": "recipients clear",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
     },
     {
       "name": "withdraw recipients",
@@ -3931,6 +4034,351 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Preferred order is withdraw quote <amount> <asset>; withdraw quote <asset> <amount> remains supported for compatibility."
       ]
     },
+    "recipients": {
+      "command": "recipients",
+      "description": "Manage remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [
+        "recents"
+      ],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "recipients",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools recipients",
+        "privacy-pools recipients add 0xRecipient... treasury",
+        "privacy-pools recipients remove 0xRecipient..."
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools recipients"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools recipients add 0xRecipient... treasury"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools recipients remove 0xRecipient..."
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "Use this read-only list to offer previously used recipients before prompting for a new address."
+      ]
+    },
+    "recipients list": {
+      "command": "recipients list",
+      "description": "List remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [
+        "ls"
+      ],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "recipients list",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools recipients list",
+        "privacy-pools recents"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools recipients list"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools recents"
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "Use this read-only list to offer previously used recipients before prompting for a new address."
+      ]
+    },
+    "recipients add": {
+      "command": "recipients add",
+      "description": "Add a recipient to the local withdrawal address book",
+      "group": "transaction",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "recipients add <address-or-ens> [label]",
+      "flags": [
+        "--label <label>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools recipients add 0xRecipient... treasury",
+        "privacy-pools recipients add vitalik.eth --label donations"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools recipients add 0xRecipient... treasury"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools recipients add vitalik.eth --label donations"
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Adding a recipient does not authorize a withdrawal. The withdrawal command still performs recipient review before submission.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "recipients remove": {
+      "command": "recipients remove",
+      "description": "Remove a recipient from the local withdrawal address book",
+      "group": "transaction",
+      "aliases": [
+        "rm"
+      ],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "recipients remove <address-or-ens>",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools recipients remove 0xRecipient...",
+        "privacy-pools recipients rm treasury.eth"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools recipients remove 0xRecipient..."
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools recipients rm treasury.eth"
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "recipients clear": {
+      "command": "recipients clear",
+      "description": "Clear all remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "recipients clear",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools recipients clear",
+        "privacy-pools recipients clear --yes"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools recipients clear"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools recipients clear --yes"
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"clear\", removedCount }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "This only clears local recipient metadata. It does not affect accounts, workflows, or onchain state.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
     "withdraw recipients": {
       "command": "withdraw recipients",
       "description": "List remembered withdrawal recipients",
@@ -5455,6 +5903,36 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
+    "recipients": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "recipients list": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "recipients add": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "recipients remove": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "recipients clear": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
     "withdraw recipients": {
       "owner": "js-runtime",
       "nativeModes": [
@@ -6003,6 +6481,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "capabilities",
     "describe",
     "guide",
+    "recipients",
+    "recipients list",
     "withdraw recipients",
     "withdraw recipients list",
     "simulate deposit",

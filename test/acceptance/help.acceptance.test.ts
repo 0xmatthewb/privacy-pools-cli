@@ -30,6 +30,7 @@ defineScenarioSuite("help acceptance", [
       expect(stdout).toContain("status");
       expect(stdout).toContain("pools");
       expect(stdout).toContain("withdraw");
+      expect(stdout).toContain("recipients|recents");
       expect(stdout).toContain("ragequit");
       expect(stdout).toContain("completion");
     }),
@@ -103,6 +104,16 @@ defineScenarioSuite("help acceptance", [
     assertStderrEmpty(),
     assertStdout((stdout) => {
       expect(stdout).toContain("Usage: privacy-pools withdraw [options] [amount] [asset]");
+    }),
+  ]),
+  defineScenario("recipients help exposes the address-book surface", [
+    runCliStep(["recipients", "--help"]),
+    assertExit(0),
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("Usage: privacy-pools recipients|recents");
+      expect(stdout).toContain("add [options] <address-or-ens> [label]");
+      expect(stdout).toContain("remove|rm <address-or-ens>");
     }),
   ]),
   defineScenario("ragequit full help exposes the updated crisis guidance and structured output help", [

@@ -21,6 +21,7 @@ const ROOT_COMMAND_NAMES = [
   "accounts",
   "migrate",
   "withdraw",
+  "recipients",
   "ragequit",
   "broadcast",
   "history",
@@ -39,7 +40,9 @@ const ROOT_COMMAND_NAMES = [
 
 type RootCommandName = (typeof ROOT_COMMAND_NAMES)[number];
 
-const ROOT_COMMAND_ALIASES: Record<string, RootCommandName> = {};
+const ROOT_COMMAND_ALIASES: Record<string, RootCommandName> = {
+  recents: "recipients",
+};
 
 const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
   init: async () => (await import("./command-shells/init.js")).createInitCommand(),
@@ -59,6 +62,8 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
     (await import("./command-shells/migrate.js")).createMigrateCommand(),
   withdraw: async () =>
     (await import("./command-shells/withdraw.js")).createWithdrawCommand(),
+  recipients: async () =>
+    (await import("./command-shells/recipients.js")).createRecipientsCommand(),
   ragequit: async () =>
     (await import("./command-shells/ragequit.js")).createRagequitCommand(),
   broadcast: async () =>

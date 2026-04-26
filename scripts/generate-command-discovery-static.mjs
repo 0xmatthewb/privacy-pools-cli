@@ -174,7 +174,12 @@ const aliasEntries = documentedCommandPaths.flatMap((path) =>
   ]),
 );
 
-const aliasMap = Object.fromEntries(aliasEntries);
+const aliasMap = {};
+for (const [alias, path] of aliasEntries) {
+  if (!(alias in aliasMap)) {
+    aliasMap[alias] = path;
+  }
+}
 const staticLocalCommands = ["guide", "capabilities", "describe", "completion"];
 const commandRoutes = Object.fromEntries(
   documentedCommandPaths.map((path) => [path, getCommandExecutionMetadata(path)]),
