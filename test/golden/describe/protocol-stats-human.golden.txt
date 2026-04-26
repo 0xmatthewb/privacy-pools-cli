@@ -20,6 +20,7 @@ Global flags:
   -y, --yes
   --web
   --help-brief
+  --help-full
   -r, --rpc-url <url>
   --agent
   -q, --quiet
@@ -46,7 +47,8 @@ JSON fields:
 Safety notes:
   Exit code categories are documented in 'privacy-pools guide exit-codes'.
 
-------------------------------------------------------------------------------------------------------------------------
 Next steps:
+  → privacy-pools init
+    Finish setup before submitting deposits or withdrawals.
   privacy-pools protocol-stats
     Run this command path now that its contract and prerequisites are loaded.

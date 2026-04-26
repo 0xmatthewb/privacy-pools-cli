@@ -80,6 +80,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -186,6 +187,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -266,6 +268,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -347,6 +350,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -420,6 +424,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -509,6 +514,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -589,6 +595,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -661,6 +668,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -725,6 +733,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -790,6 +799,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -858,6 +868,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -922,6 +933,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -986,6 +998,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1050,6 +1063,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1119,6 +1133,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1199,6 +1214,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1300,6 +1316,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1398,6 +1415,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1499,6 +1517,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1599,6 +1618,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1718,6 +1738,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1825,6 +1846,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1906,6 +1928,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2003,6 +2026,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2090,6 +2114,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2178,6 +2203,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2294,6 +2320,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2385,6 +2412,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2460,6 +2488,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2540,6 +2569,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2634,6 +2664,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2719,6 +2750,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2766,9 +2798,7 @@
         "With --no-wait, poll tx-status <submissionId> until the public recovery confirms instead of resubmitting.",
         "If the public recovery transaction was submitted but confirmation timed out, re-run ragequit or sync --chain <chain> before retrying so the CLI can detect the onchain result."
       ],
-      "aliases": [
-        "exit"
-      ],
+      "aliases": [],
       "command": "ragequit",
       "description": "Recover funds publicly to your deposit address",
       "examples": [
@@ -2809,6 +2839,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2895,6 +2926,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2974,6 +3006,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3053,6 +3086,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3137,6 +3171,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3222,6 +3257,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3301,6 +3337,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3376,6 +3413,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3458,6 +3496,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3579,6 +3618,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3686,6 +3726,7 @@
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3730,6 +3771,351 @@
       "supportsUnsigned": false,
       "touchesFunds": false,
       "usage": "withdraw quote <amount> <asset>"
+    },
+    "withdraw recipients": {
+      "agentWorkflowNotes": [
+        "Use this read-only list to offer previously used recipients before prompting for a new address."
+      ],
+      "aliases": [
+        "recents"
+      ],
+      "command": "withdraw recipients",
+      "description": "List remembered withdrawal recipients",
+      "examples": [
+        "privacy-pools withdraw recipients",
+        "privacy-pools withdraw recipients add 0xRecipient... treasury",
+        "privacy-pools withdraw recipients remove 0xRecipient..."
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools withdraw recipients remove 0xRecipient..."
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "withdraw recipients"
+    },
+    "withdraw recipients add": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "withdraw recipients add",
+      "description": "Add a recipient to the local withdrawal address book",
+      "examples": [
+        "privacy-pools withdraw recipients add 0xRecipient... treasury",
+        "privacy-pools withdraw recipients add vitalik.eth --label donations"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--label <label>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Adding a recipient does not authorize a withdrawal. The withdrawal command still performs recipient review before submission.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_state_write",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recipients add vitalik.eth --label donations"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "withdraw recipients add <address-or-ens> [label]"
+    },
+    "withdraw recipients clear": {
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "withdraw recipients clear",
+      "description": "Clear all remembered withdrawal recipients",
+      "examples": [
+        "privacy-pools withdraw recipients clear",
+        "privacy-pools withdraw recipients clear --yes"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"clear\", removedCount }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "This only clears local recipient metadata. It does not affect accounts, workflows, or onchain state.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_state_write",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients clear"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recipients clear --yes"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "withdraw recipients clear"
+    },
+    "withdraw recipients list": {
+      "agentWorkflowNotes": [
+        "Use this read-only list to offer previously used recipients before prompting for a new address."
+      ],
+      "aliases": [
+        "ls"
+      ],
+      "command": "withdraw recipients list",
+      "description": "List remembered withdrawal recipients",
+      "examples": [
+        "privacy-pools withdraw recipients list",
+        "privacy-pools withdraw recents"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients list"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recents"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "withdraw recipients list"
+    },
+    "withdraw recipients remove": {
+      "agentWorkflowNotes": [],
+      "aliases": [
+        "rm"
+      ],
+      "command": "withdraw recipients remove",
+      "description": "Remove a recipient from the local withdrawal address book",
+      "examples": [
+        "privacy-pools withdraw recipients remove 0xRecipient...",
+        "privacy-pools withdraw recipients rm treasury.eth"
+      ],
+      "execution": {
+        "nativeModes": [
+          "help"
+        ],
+        "owner": "js-runtime"
+      },
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "transaction",
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
+      "jsonVariants": [],
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": false,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "local_state_write",
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients remove 0xRecipient..."
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recipients rm treasury.eth"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "withdraw recipients remove <address-or-ens>"
     }
   },
   "commands": [
@@ -4165,6 +4551,67 @@
     },
     {
       "agentFlags": "--agent",
+      "aliases": [
+        "recents"
+      ],
+      "description": "List remembered withdrawal recipients",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "transaction",
+      "name": "withdraw recipients",
+      "requiresInit": false,
+      "usage": "withdraw recipients"
+    },
+    {
+      "agentFlags": "--agent",
+      "aliases": [
+        "ls"
+      ],
+      "description": "List remembered withdrawal recipients",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "transaction",
+      "name": "withdraw recipients list",
+      "requiresInit": false,
+      "usage": "withdraw recipients list"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Add a recipient to the local withdrawal address book",
+      "expectedLatencyClass": "fast",
+      "flags": [
+        "--label <label>"
+      ],
+      "group": "transaction",
+      "name": "withdraw recipients add",
+      "requiresInit": false,
+      "usage": "withdraw recipients add <address-or-ens> [label]"
+    },
+    {
+      "agentFlags": "--agent",
+      "aliases": [
+        "rm"
+      ],
+      "description": "Remove a recipient from the local withdrawal address book",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "transaction",
+      "name": "withdraw recipients remove",
+      "requiresInit": false,
+      "usage": "withdraw recipients remove <address-or-ens>"
+    },
+    {
+      "agentFlags": "--agent",
+      "description": "Clear all remembered withdrawal recipients",
+      "expectedLatencyClass": "fast",
+      "flags": [],
+      "group": "transaction",
+      "name": "withdraw recipients clear",
+      "requiresInit": false,
+      "usage": "withdraw recipients clear"
+    },
+    {
+      "agentFlags": "--agent",
       "description": "Request relayer quote and limits without generating a proof",
       "expectedLatencyClass": "medium",
       "flags": [
@@ -4259,9 +4706,6 @@
     },
     {
       "agentFlags": "--agent",
-      "aliases": [
-        "exit"
-      ],
       "description": "Recover funds publicly to your deposit address",
       "expectedLatencyClass": "slow",
       "flags": [
@@ -4692,6 +5136,36 @@
         "help"
       ],
       "owner": "js-runtime"
+    },
+    "withdraw recipients": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "withdraw recipients add": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "withdraw recipients clear": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "withdraw recipients list": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
+    },
+    "withdraw recipients remove": {
+      "nativeModes": [
+        "help"
+      ],
+      "owner": "js-runtime"
     }
   },
   "exitCodes": [
@@ -4776,8 +5250,12 @@
       "flag": "--web"
     },
     {
-      "description": "Show condensed command help without the extended guide appendix",
+      "description": "Show condensed command help (default)",
       "flag": "--help-brief"
+    },
+    {
+      "description": "Show full command help with examples, safety notes, and JSON fields",
+      "flag": "--help-full"
     },
     {
       "description": "Override RPC URL",
@@ -4873,6 +5351,8 @@
     "capabilities",
     "describe",
     "guide",
+    "withdraw recipients",
+    "withdraw recipients list",
     "simulate deposit",
     "simulate withdraw",
     "simulate ragequit",
@@ -4963,7 +5443,7 @@
       ]
     },
     "poolAccountStatus": {
-      "description": "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poa_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means ragequit/exit was used.",
+      "description": "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poa_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means public recovery was used.",
       "values": [
         "approved",
         "pending",

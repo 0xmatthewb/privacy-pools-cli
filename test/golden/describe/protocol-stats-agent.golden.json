@@ -29,6 +29,7 @@
     "-y, --yes",
     "--web",
     "--help-brief",
+    "--help-full",
     "-r, --rpc-url <url>",
     "--agent",
     "-q, --quiet",
@@ -46,6 +47,12 @@
   "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
   "jsonVariants": [],
   "nextActions": [
+    {
+      "cliCommand": "privacy-pools init --agent",
+      "command": "init",
+      "reason": "Finish setup before submitting deposits or withdrawals.",
+      "when": "status_not_ready"
+    },
     {
       "cliCommand": "privacy-pools protocol-stats --agent",
       "command": "protocol-stats",

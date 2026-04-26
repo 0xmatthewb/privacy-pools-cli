@@ -45,6 +45,11 @@ export type CommandPath =
   | "guide"
   | "deposit"
   | "withdraw"
+  | "withdraw recipients"
+  | "withdraw recipients list"
+  | "withdraw recipients add"
+  | "withdraw recipients remove"
+  | "withdraw recipients clear"
   | "withdraw quote"
   | "ragequit"
   | "broadcast"
@@ -1221,9 +1226,127 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
 
     agentsDocMarker: "**Withdrawal quote:**",
   },
+  "withdraw recipients": {
+    description: "List remembered withdrawal recipients",
+    aliases: ["recents"],
+    help: {
+      overview: [
+        "Shows the local withdrawal recipient history. Successful withdrawals are remembered automatically, and you can add labels manually for repeated recipients.",
+      ],
+      examples: [
+        "privacy-pools withdraw recipients",
+        "privacy-pools withdraw recipients add 0xRecipient... treasury",
+        "privacy-pools withdraw recipients remove 0xRecipient...",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
+      safetyNotes: [
+        "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
+      ],
+      agentWorkflowNotes: [
+        "Use this read-only list to offer previously used recipients before prompting for a new address.",
+      ],
+      seeAlso: ["withdraw", "withdraw recipients add", "withdraw recipients remove"],
+    },
+    capabilities: {
+      usage: "withdraw recipients",
+      flags: [],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+  },
+  "withdraw recipients list": {
+    description: "List remembered withdrawal recipients",
+    aliases: ["ls"],
+    help: {
+      examples: [
+        "privacy-pools withdraw recipients list",
+        "privacy-pools withdraw recents",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
+      agentWorkflowNotes: [
+        "Use this read-only list to offer previously used recipients before prompting for a new address.",
+      ],
+      seeAlso: ["withdraw", "withdraw recipients"],
+    },
+    capabilities: {
+      usage: "withdraw recipients list",
+      flags: [],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+    safeReadOnly: true,
+  },
+  "withdraw recipients add": {
+    description: "Add a recipient to the local withdrawal address book",
+    help: {
+      examples: [
+        "privacy-pools withdraw recipients add 0xRecipient... treasury",
+        "privacy-pools withdraw recipients add vitalik.eth --label donations",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
+      safetyNotes: [
+        "Adding a recipient does not authorize a withdrawal. The withdrawal command still performs recipient review before submission.",
+      ],
+      seeAlso: ["withdraw recipients", "withdraw recipients remove"],
+    },
+    capabilities: {
+      usage: "withdraw recipients add <address-or-ens> [label]",
+      flags: ["--label <label>"],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+  },
+  "withdraw recipients remove": {
+    description: "Remove a recipient from the local withdrawal address book",
+    aliases: ["rm"],
+    help: {
+      examples: [
+        "privacy-pools withdraw recipients remove 0xRecipient...",
+        "privacy-pools withdraw recipients rm treasury.eth",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
+      seeAlso: ["withdraw recipients", "withdraw recipients add"],
+    },
+    capabilities: {
+      usage: "withdraw recipients remove <address-or-ens>",
+      flags: [],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+  },
+  "withdraw recipients clear": {
+    description: "Clear all remembered withdrawal recipients",
+    help: {
+      examples: [
+        "privacy-pools withdraw recipients clear",
+        "privacy-pools withdraw recipients clear --yes",
+      ],
+      jsonFields:
+        "{ mode: \"recipient-history\", operation: \"clear\", removedCount }",
+      safetyNotes: [
+        "This only clears local recipient metadata. It does not affect accounts, workflows, or onchain state.",
+      ],
+      seeAlso: ["withdraw recipients", "withdraw recipients add"],
+    },
+    capabilities: {
+      usage: "withdraw recipients clear",
+      flags: [],
+      agentFlags: "--agent",
+      requiresInit: false,
+      expectedLatencyClass: "fast",
+    },
+  },
   ragequit: {
     description: ROOT_COMMAND_DESCRIPTIONS.ragequit,
-    aliases: ["exit"],
     help: {
       overview: [
         "Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved.",

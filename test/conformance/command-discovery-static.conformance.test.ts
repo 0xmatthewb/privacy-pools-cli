@@ -44,7 +44,8 @@ describe("command discovery static conformance", () => {
       expect(resolveStaticCommandPath(path.split(" "))).toBe(path);
     }
 
-    expect(resolveStaticCommandPath("exit")).toBe(resolveCommandPath("exit"));
+    expect(resolveStaticCommandPath("exit")).toBeNull();
+    expect(resolveCommandPath("exit")).toBeNull();
     expect(resolveStaticCommandPath("not-a-command")).toBeNull();
   });
 
@@ -77,11 +78,13 @@ describe("command discovery static conformance", () => {
       "completion",
     ]);
     expect(GENERATED_COMMAND_ALIAS_MAP).toEqual({
+      ls: "withdraw recipients list",
       remove: "config unset",
+      recents: "withdraw recipients",
+      rm: "withdraw recipients remove",
       stats: "protocol-stats",
       "stats global": "protocol-stats",
       "stats pool": "pool-stats",
-      exit: "ragequit",
     });
     expect(GENERATED_COMMAND_PATHS).toContain("guide");
     expect(GENERATED_COMMAND_PATHS).toContain("pools");

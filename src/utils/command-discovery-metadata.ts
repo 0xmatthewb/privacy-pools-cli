@@ -138,6 +138,11 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "describe",
   "deposit",
   "withdraw",
+  "withdraw recipients",
+  "withdraw recipients list",
+  "withdraw recipients add",
+  "withdraw recipients remove",
+  "withdraw recipients clear",
   "withdraw quote",
   "broadcast",
   "accounts",
@@ -270,7 +275,7 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   poolAccountStatus: {
     values: ["approved", "pending", "poa_required", "declined", "unknown", "spent", "exited"],
     description:
-      "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poa_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means ragequit/exit was used.",
+      "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poa_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means public recovery was used.",
   },
   errorCategories: {
     values: ["INPUT", "RPC", "ASP", "RELAYER", "PROOF", "CONTRACT", "UNKNOWN"],
@@ -350,6 +355,8 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
   "migrate",
   "migrate status",
   "withdraw quote",
+  "withdraw recipients",
+  "withdraw recipients list",
   "simulate",
   "simulate deposit",
   "simulate withdraw",
@@ -367,6 +374,9 @@ const LOCAL_STATE_WRITE_COMMANDS = new Set<CommandPath>([
   "completion",
   "config set",
   "sync",
+  "withdraw recipients add",
+  "withdraw recipients remove",
+  "withdraw recipients clear",
 ]);
 
 const FUND_MOVEMENT_COMMANDS = new Set<CommandPath>([

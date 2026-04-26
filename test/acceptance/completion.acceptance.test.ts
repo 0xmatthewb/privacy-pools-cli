@@ -134,7 +134,7 @@ defineScenarioSuite("completion acceptance", [
     assertCompletionLines([
       "init",
       "completion",
-      "exit",
+      "ragequit",
       "-j",
       "--json",
       "--agent",

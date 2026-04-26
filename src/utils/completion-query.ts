@@ -94,6 +94,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionOption("-y, --yes"),
       completionOption("--web"),
       completionOption("--help-brief"),
+      completionOption("--help-full"),
       completionOption("-r, --rpc-url <url>"),
       completionOption("--json-fields <fields>"),
       completionOption("--template <template>"),
@@ -272,7 +273,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         ],
       }),
       completionCommand("ragequit", {
-        aliases: ["exit"],
         options: [
           completionOption("-p, --pool-account <PA-#|#>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),

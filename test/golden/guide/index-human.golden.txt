@@ -2,6 +2,28 @@
 
 Privacy Pools: Quick Guide
 
+Available Topics:
+  quickstart    Install, setup, and first deposit
+  keys          Two-key model (recovery phrase + signer key)
+  workflow      Step-by-step workflow for deposits and withdrawals
+  flow-states   Flow state machine and transitions
+  ragequit      Public recovery to the deposit address
+  automation    Global flags, env vars, and agent/CI integration
+  env-vars      Environment variable fallbacks and overrides
+  next-actions  How nextActions guide agent follow-up
+  profiles      Named profiles and wallet/config separation
+  pool-accounts Pool Account states, approval, and recovery
+  agents        Agent mode, discovery, and machine workflows
+  json          JSON envelope, field selection, and JMESPath filtering
+  modes         Confirmation, dry-run, unsigned, and agent modes
+  quiet         Quiet mode and low-noise automation output
+  troubleshootingCommon issues and fixes
+  exit-codes    CLI exit codes by category
+
+  Run privacy-pools guide <topic> to open one topic.
+  Common shortcuts: guide flow, guide json, guide troubleshooting.
+
+------------------------------------------------------------------------------------------------------------------------
 Install & Run:
   npm i -g privacy-pools-cli
   npm i -g github:0xmatthewb/privacy-pools-cli  (unreleased/source builds)

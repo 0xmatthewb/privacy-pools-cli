@@ -16,7 +16,6 @@ Summary:
   Total Deposits      100        5
   Total Withdrawals   50         2
 
-------------------------------------------------------------------------------------------------------------------------
 Next steps:
   privacy-pools pools ETH --chain sepolia
     Open the detailed view for this pool.

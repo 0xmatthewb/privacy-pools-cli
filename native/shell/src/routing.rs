@@ -265,8 +265,7 @@ mod tests {
             "aliasMap": {
                 "stats": "protocol-stats",
                 "stats global": "protocol-stats",
-                "stats pool": "pool-stats",
-                "exit": "ragequit"
+                "stats pool": "pool-stats"
             },
             "rootHelp": "help",
             "structuredRootHelp": "structured help",

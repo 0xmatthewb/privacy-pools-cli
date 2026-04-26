@@ -20,6 +20,12 @@
   ],
   "nextActions": [
     {
+      "cliCommand": "privacy-pools init --agent",
+      "command": "init",
+      "reason": "Finish setup before submitting deposits or withdrawals.",
+      "when": "status_not_ready"
+    },
+    {
       "command": "deposit",
       "parameters": [
         {

@@ -26,4 +26,8 @@ Your funds:
 Recent activity:
   Type      Amount   Time       Status
   -------   ------   --------   --------
-  Deposit   1 ETH    887d ago   Approved
+  Deposit   1 ETH    893d ago   Approved
+
+Next steps:
+  → privacy-pools init
+    Finish setup before submitting deposits or withdrawals.

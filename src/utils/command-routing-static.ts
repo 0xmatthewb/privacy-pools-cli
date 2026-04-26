@@ -40,6 +40,11 @@ export const GENERATED_COMMAND_PATHS = [
   "deposit",
   "withdraw",
   "withdraw quote",
+  "withdraw recipients",
+  "withdraw recipients list",
+  "withdraw recipients add",
+  "withdraw recipients remove",
+  "withdraw recipients clear",
   "ragequit",
   "simulate deposit",
   "simulate withdraw",
@@ -72,7 +77,9 @@ export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> =
   "stats": "protocol-stats",
   "stats global": "protocol-stats",
   "stats pool": "pool-stats",
-  "exit": "ragequit"
+  "recents": "withdraw recipients",
+  "ls": "withdraw recipients list",
+  "rm": "withdraw recipients remove"
 };
 
 export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = {
@@ -284,6 +291,36 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
       "help"
     ]
   },
+  "withdraw recipients": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw recipients list": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw recipients add": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw recipients remove": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw recipients clear": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
   "ragequit": {
     "owner": "js-runtime",
     "nativeModes": [
@@ -387,6 +424,38 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     ]
   },
   {
+    "route": "withdraw recipients list",
+    "tokens": [
+      "withdraw",
+      "recipients",
+      "list"
+    ]
+  },
+  {
+    "route": "withdraw recipients add",
+    "tokens": [
+      "withdraw",
+      "recipients",
+      "add"
+    ]
+  },
+  {
+    "route": "withdraw recipients remove",
+    "tokens": [
+      "withdraw",
+      "recipients",
+      "remove"
+    ]
+  },
+  {
+    "route": "withdraw recipients clear",
+    "tokens": [
+      "withdraw",
+      "recipients",
+      "clear"
+    ]
+  },
+  {
     "route": "config list",
     "tokens": [
       "config",
@@ -468,6 +537,13 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "tokens": [
       "withdraw",
       "quote"
+    ]
+  },
+  {
+    "route": "withdraw recipients",
+    "tokens": [
+      "withdraw",
+      "recipients"
     ]
   },
   {

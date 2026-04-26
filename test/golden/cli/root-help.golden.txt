@@ -15,7 +15,7 @@ Privacy Pools: a compliant way to transact privately on Ethereum
                          submitting
   deposit                Deposit ETH or ERC-20 tokens into a pool
   withdraw               Withdraw privately from a pool
-  ragequit|exit          Recover funds publicly to your deposit address
+  ragequit               Recover funds publicly to your deposit address
   broadcast              Broadcast a signed envelope or relayer request built
                          elsewhere
 
@@ -50,8 +50,9 @@ Options:
   -y, --yes              Skip confirmation prompts
   --web                  Open the primary explorer or portal link in your
                          browser when available
-  --help-brief           Show condensed command help without the extended guide
-                         appendix
+  --help-brief           Show condensed command help (default)
+  --help-full            Show full command help with examples, safety notes, and
+                         JSON fields
   -r, --rpc-url <url>    Override RPC URL
   --template <template>  Render structured output through a lightweight
                          Mustache-style template with {{path.to.value}}

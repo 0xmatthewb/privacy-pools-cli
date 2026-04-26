@@ -42,6 +42,11 @@ export const GENERATED_COMMAND_PATHS = [
   "deposit",
   "withdraw",
   "withdraw quote",
+  "withdraw recipients",
+  "withdraw recipients list",
+  "withdraw recipients add",
+  "withdraw recipients remove",
+  "withdraw recipients clear",
   "ragequit",
   "simulate deposit",
   "simulate withdraw",
@@ -145,9 +150,7 @@ export const GENERATED_ROOT_COMMANDS = [
   },
   {
     "name": "ragequit",
-    "aliases": [
-      "exit"
-    ],
+    "aliases": [],
     "description": "Recover funds publicly to your deposit address"
   },
   {
@@ -194,7 +197,9 @@ export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> =
   "stats": "protocol-stats",
   "stats global": "protocol-stats",
   "stats pool": "pool-stats",
-  "exit": "ragequit"
+  "recents": "withdraw recipients",
+  "ls": "withdraw recipients list",
+  "rm": "withdraw recipients remove"
 };
 
 export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = {
@@ -401,6 +406,36 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCom
     ]
   },
   "withdraw quote": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw recipients": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw recipients list": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw recipients add": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw recipients remove": {
+    "owner": "js-runtime",
+    "nativeModes": [
+      "help"
+    ]
+  },
+  "withdraw recipients clear": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -908,6 +943,67 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "expectedLatencyClass": "slow"
     },
     {
+      "name": "withdraw recipients",
+      "description": "List remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [
+        "recents"
+      ],
+      "usage": "withdraw recipients",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "withdraw recipients list",
+      "description": "List remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [
+        "ls"
+      ],
+      "usage": "withdraw recipients list",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "withdraw recipients add",
+      "description": "Add a recipient to the local withdrawal address book",
+      "group": "transaction",
+      "usage": "withdraw recipients add <address-or-ens> [label]",
+      "flags": [
+        "--label <label>"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "withdraw recipients remove",
+      "description": "Remove a recipient from the local withdrawal address book",
+      "group": "transaction",
+      "aliases": [
+        "rm"
+      ],
+      "usage": "withdraw recipients remove <address-or-ens>",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
+      "name": "withdraw recipients clear",
+      "description": "Clear all remembered withdrawal recipients",
+      "group": "transaction",
+      "usage": "withdraw recipients clear",
+      "flags": [],
+      "agentFlags": "--agent",
+      "requiresInit": false,
+      "expectedLatencyClass": "fast"
+    },
+    {
       "name": "withdraw quote",
       "description": "Request relayer quote and limits without generating a proof",
       "group": "transaction",
@@ -1005,9 +1101,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "name": "ragequit",
       "description": "Recover funds publicly to your deposit address",
       "group": "transaction",
-      "aliases": [
-        "exit"
-      ],
       "usage": "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
@@ -1091,6 +1184,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1209,6 +1303,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1309,6 +1404,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1388,6 +1484,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1454,6 +1551,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1531,6 +1629,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1611,6 +1710,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1686,6 +1786,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1750,6 +1851,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1819,6 +1921,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1883,6 +1986,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -1947,6 +2051,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2011,6 +2116,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2081,6 +2187,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2196,6 +2303,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2278,6 +2386,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2413,6 +2522,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2522,6 +2632,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2603,6 +2714,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2685,6 +2797,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2775,6 +2888,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2885,6 +2999,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -2974,6 +3089,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3045,6 +3161,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3112,6 +3229,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3198,6 +3316,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3266,6 +3385,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3333,6 +3453,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3413,6 +3534,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3492,6 +3614,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3618,6 +3741,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3753,6 +3877,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3806,13 +3931,356 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Preferred order is withdraw quote <amount> <asset>; withdraw quote <asset> <amount> remains supported for compatibility."
       ]
     },
+    "withdraw recipients": {
+      "command": "withdraw recipients",
+      "description": "List remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [
+        "recents"
+      ],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "withdraw recipients",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools withdraw recipients",
+        "privacy-pools withdraw recipients add 0xRecipient... treasury",
+        "privacy-pools withdraw recipients remove 0xRecipient..."
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+        },
+        {
+          "name": "Example 3",
+          "value": "privacy-pools withdraw recipients remove 0xRecipient..."
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "Use this read-only list to offer previously used recipients before prompting for a new address."
+      ]
+    },
+    "withdraw recipients list": {
+      "command": "withdraw recipients list",
+      "description": "List remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [
+        "ls"
+      ],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "withdraw recipients list",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools withdraw recipients list",
+        "privacy-pools withdraw recents"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients list"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recents"
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "Use this read-only list to offer previously used recipients before prompting for a new address."
+      ]
+    },
+    "withdraw recipients add": {
+      "command": "withdraw recipients add",
+      "description": "Add a recipient to the local withdrawal address book",
+      "group": "transaction",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "withdraw recipients add <address-or-ens> [label]",
+      "flags": [
+        "--label <label>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools withdraw recipients add 0xRecipient... treasury",
+        "privacy-pools withdraw recipients add vitalik.eth --label donations"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recipients add vitalik.eth --label donations"
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Adding a recipient does not authorize a withdrawal. The withdrawal command still performs recipient review before submission.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "withdraw recipients remove": {
+      "command": "withdraw recipients remove",
+      "description": "Remove a recipient from the local withdrawal address book",
+      "group": "transaction",
+      "aliases": [
+        "rm"
+      ],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "withdraw recipients remove <address-or-ens>",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools withdraw recipients remove 0xRecipient...",
+        "privacy-pools withdraw recipients rm treasury.eth"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients remove 0xRecipient..."
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recipients rm treasury.eth"
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "withdraw recipients clear": {
+      "command": "withdraw recipients clear",
+      "description": "Clear all remembered withdrawal recipients",
+      "group": "transaction",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "withdraw recipients clear",
+      "flags": [],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "fast",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        "privacy-pools withdraw recipients clear",
+        "privacy-pools withdraw recipients clear --yes"
+      ],
+      "structuredExamples": [
+        {
+          "name": "Example 1",
+          "value": "privacy-pools withdraw recipients clear"
+        },
+        {
+          "name": "Example 2",
+          "value": "privacy-pools withdraw recipients clear --yes"
+        }
+      ],
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"clear\", removedCount }",
+      "jsonVariants": [],
+      "safetyNotes": [
+        "This only clears local recipient metadata. It does not affect accounts, workflows, or onchain state.",
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
     "ragequit": {
       "command": "ragequit",
       "description": "Recover funds publicly to your deposit address",
       "group": "transaction",
-      "aliases": [
-        "exit"
-      ],
+      "aliases": [],
       "execution": {
         "owner": "js-runtime",
         "nativeModes": [
@@ -3835,6 +4303,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -3934,6 +4403,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4015,6 +4485,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4094,6 +4565,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4173,6 +4645,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4267,6 +4740,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4380,6 +4854,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4453,6 +4928,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4533,6 +5009,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4622,6 +5099,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4703,6 +5181,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "-y, --yes",
         "--web",
         "--help-brief",
+        "--help-full",
         "-r, --rpc-url <url>",
         "--agent",
         "-q, --quiet",
@@ -4976,6 +5455,36 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
+    "withdraw recipients": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "withdraw recipients list": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "withdraw recipients add": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "withdraw recipients remove": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "withdraw recipients clear": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
     "ragequit": {
       "owner": "js-runtime",
       "nativeModes": [
@@ -5071,7 +5580,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "flag": "--help-brief",
-      "description": "Show condensed command help without the extended guide appendix"
+      "description": "Show condensed command help (default)"
+    },
+    {
+      "flag": "--help-full",
+      "description": "Show full command help with examples, safety notes, and JSON fields"
     },
     {
       "flag": "-r, --rpc-url <url>",
@@ -5318,7 +5831,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "spent",
         "exited"
       ],
-      "description": "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poa_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means ragequit/exit was used."
+      "description": "User-facing status of a Pool Account. Active accounts surface their effective review state ('approved', 'pending', 'poa_required', 'declined', or 'unknown'). 'spent' means an approved account was withdrawn. 'exited' means public recovery was used."
     },
     "errorCategories": {
       "values": [
@@ -5490,6 +6003,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "capabilities",
     "describe",
     "guide",
+    "withdraw recipients",
+    "withdraw recipients list",
     "simulate deposit",
     "simulate withdraw",
     "simulate ragequit",
