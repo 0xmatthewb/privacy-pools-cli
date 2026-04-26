@@ -3,7 +3,6 @@ import {
   accent,
   accentBold,
   dangerTone,
-  faint,
   muted,
   notice,
   subtle,
@@ -56,7 +55,7 @@ function sectionHeadingColor(tone: SectionTone): (value: string) => string {
 
 function sectionDivider(): string {
   const fill = supportsUnicodeOutput() ? "─" : "-";
-  return faint(fill.repeat(getTerminalColumns()));
+  return subtle(fill.repeat(getTerminalColumns()));
 }
 
 function applyValueTone(
@@ -109,7 +108,7 @@ export function formatKeyValueRows(rows: KeyValueRow[]): string {
   return `${rows
     .map((row) => {
       const valueTone = row.valueTone ?? "default";
-      return `  ${faint(`${row.label}:`.padEnd(width))} ${applyValueTone(row.value, valueTone)}`;
+      return `  ${muted(`${row.label}:`.padEnd(width))} ${applyValueTone(row.value, valueTone)}`;
     })
     .join("\n")}\n`;
 }
@@ -120,7 +119,7 @@ export function formatStackedKeyValueRows(rows: KeyValueRow[]): string {
   return `${rows
     .map((row) => {
       const valueTone = row.valueTone ?? "default";
-      return `  ${faint(row.label)}\n    ${applyValueTone(row.value, valueTone)}`;
+      return `  ${muted(row.label)}\n    ${applyValueTone(row.value, valueTone)}`;
     })
     .join("\n")}\n`;
 }
@@ -208,19 +207,20 @@ export function formatBox(
     ? sectionHeadingColor(options.tone ?? "accent")(title)
     : null;
 
-  let topBorder = `${topLeft}${horizontal.repeat(contentWidth + 2)}${topRight}`;
+  let topBorder = subtle(`${topLeft}${horizontal.repeat(contentWidth + 2)}${topRight}`);
   if (titleText) {
     const plainTitle = visibleWidth(title ?? "");
     const remaining = Math.max(0, contentWidth - plainTitle - 2);
     topBorder =
-      `${topLeft}${horizontal.repeat(2)} ${titleText} ` +
-      `${horizontal.repeat(Math.max(0, remaining))}${topRight}`;
+      subtle(`${topLeft}${horizontal.repeat(2)} `) +
+      `${titleText} ` +
+      subtle(`${horizontal.repeat(Math.max(0, remaining))}${topRight}`);
   }
 
   const body = wrappedLines.map(
-    (line) => `${vertical} ${padDisplay(line, contentWidth)} ${vertical}`,
+    (line) => `${subtle(vertical)} ${padDisplay(line, contentWidth)} ${subtle(vertical)}`,
   );
-  const bottomBorder = `${bottomLeft}${horizontal.repeat(contentWidth + 2)}${bottomRight}`;
+  const bottomBorder = subtle(`${bottomLeft}${horizontal.repeat(contentWidth + 2)}${bottomRight}`);
   const linesOut = [topBorder, ...body, bottomBorder];
 
   return `${options.padTop === false ? "" : "\n"}${linesOut.join("\n")}\n`;

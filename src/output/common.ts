@@ -630,6 +630,23 @@ function urgentActionCoveredByExisting(
   return false;
 }
 
+function urgentRecommendationLabel(action: NextAction): string {
+  switch (action.when) {
+    case "flow_resume":
+      return "pending workflow";
+    case "has_pending":
+      return "pending approval";
+    case "after_submit":
+      return "interrupted tx";
+    case "after_sync":
+      return "needs sync";
+    case "status_not_ready":
+      return "needs init";
+    default:
+      return "recommended";
+  }
+}
+
 function mergeUrgentRecommendations(
   ctx: UrgentRecommendationContext | undefined,
   nextActions: NextAction[] | undefined,
@@ -810,7 +827,7 @@ export function renderNextSteps(
     const urgent = urgentKeys.has(nextActionDedupeKey(action));
     process.stderr.write(
       urgent
-        ? `  ${accent("→")} ${chalk.bold(accent(cmd))}\n`
+        ? `  ${accent("→")} ${chalk.bold(accent(cmd))}  ${muted(`(${urgentRecommendationLabel(action)})`)}\n`
         : `  ${accent(cmd)}\n`,
     );
     process.stderr.write(`    ${muted(action.reason)}\n`);

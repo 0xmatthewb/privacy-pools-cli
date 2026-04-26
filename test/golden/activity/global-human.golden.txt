@@ -18,7 +18,7 @@ Summary:
   privacy-pools activity --page 2
 
 Next steps:
-  → privacy-pools init
+  → privacy-pools init  (needs init)
     Finish setup before submitting deposits or withdrawals.
   privacy-pools activity --page 2 --limit 12
     View the next page.

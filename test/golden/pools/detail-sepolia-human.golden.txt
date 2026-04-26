@@ -29,5 +29,5 @@ Recent activity:
   Deposit   1 ETH    893d ago   Approved
 
 Next steps:
-  → privacy-pools init
+  → privacy-pools init  (needs init)
     Finish setup before submitting deposits or withdrawals.
