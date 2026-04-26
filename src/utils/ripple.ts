@@ -5,10 +5,11 @@
  * array of styled strings representing one frame of concentric water
  * ripples radiating from an amber center to blue edges.
  *
- * Used by the banner module for the animated welcome screen.
+ * Preserved for future TUI surfaces.
  */
 
 import chalk from "chalk";
+import { faint } from "./theme.js";
 
 // ── Density ramps ────────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ export const RIPPLE_FRAME_DELAY_MS = 55;
 //   2. bright water (accent)    — primary brand blue
 //   3. mid water                — slightly deeper blue for depth
 //   4. dim water                — outer cool-blue falloff
-//   5. edge fade                — chalk.dim so the pool edges bleed into bg
+//   5. edge fade                — theme faint so the pool edges bleed into bg
 
 const BRAND_HEX = "#D4A030";   // gold — small center accent only
 const ACCENT_HEX = "#5AADD6";  // bright water (primary brand blue)
@@ -52,7 +53,7 @@ const colorBrand = chalk.hex(BRAND_HEX);
 const colorAccent = chalk.hex(ACCENT_HEX);
 const colorMid = chalk.hex(MID_HEX);
 const colorDim = chalk.hex(DIM_HEX);
-const colorEdge = chalk.dim;
+const colorEdge = faint;
 
 // ── Frame rendering ─────────────────────────────────────────────────────────
 

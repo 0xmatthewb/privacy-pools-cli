@@ -71,9 +71,9 @@ export async function runCli(
   const captureMachineOutput =
     isStructuredOutputMode && (isHelpLike || isVersionLike);
   const machineOutput = { value: "" };
-  const [chalk, dangerTone, styleCommanderHelp] = shouldStyleHelp
+  const [muted, dangerTone, styleCommanderHelp] = shouldStyleHelp
     ? await Promise.all([
-        import("chalk").then((mod) => mod.default),
+        import("./utils/theme.js").then((mod) => mod.muted),
         import("./utils/theme.js").then((mod) => mod.dangerTone),
         import("./utils/root-help.js").then((mod) => mod.styleCommanderHelp),
       ])
@@ -136,7 +136,7 @@ export async function runCli(
   if (!isMachineMode) {
     program.showSuggestionAfterError(true);
     program.showHelpAfterError(
-      chalk!.dim("\nUse --help to see usage and examples."),
+      muted!("\nUse --help to see usage and examples."),
     );
   } else {
     program.showSuggestionAfterError(false);
@@ -194,7 +194,7 @@ export async function runCli(
     ) {
       const notice = consumePostCommandUpdateNotice(pkg.version);
       if (notice) {
-        process.stderr.write(chalk!.dim(notice) + "\n");
+        process.stderr.write(muted!(notice) + "\n");
       }
     }
   } catch (err) {
@@ -236,7 +236,7 @@ export async function runCli(
           );
         }
         const notice = getUpdateNotice(pkg.version);
-        if (notice) process.stderr.write(chalk!.dim(notice) + "\n");
+        if (notice) process.stderr.write(muted!(notice) + "\n");
         if (shouldCheckUpdates) {
           checkForUpdateInBackground();
         }
