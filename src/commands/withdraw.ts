@@ -36,8 +36,9 @@ import {
 import { accountHasDeposits } from "../services/account-storage.js";
 import { resolvePool, listPools } from "../services/pools.js";
 import {
+  loadRecipientHistoryEntries,
   loadKnownRecipientHistory,
-  rememberKnownRecipient,
+  type RecipientHistoryEntry,
 } from "../services/recipient-history.js";
 import {
   getWorkflowStatus,
@@ -343,9 +344,63 @@ export function validateRecipientAddressOrEnsInput(value: string): true | string
   return validateRecipientAddressOrEnsInputHelper(value);
 }
 
+function recentRecipientDescription(entry: RecipientHistoryEntry): string {
+  return [
+    entry.ensName,
+    entry.chain,
+    entry.useCount > 0 ? `${entry.useCount} use${entry.useCount === 1 ? "" : "s"}` : null,
+  ].filter(Boolean).join(" - ");
+}
+
+async function promptRecentRecipientAddressOrEns(): Promise<{
+  address: Address;
+  ensName?: string;
+} | null> {
+  const entries = loadRecipientHistoryEntries().slice(0, 5);
+  if (entries.length === 0) return null;
+
+  const newRecipientValue = "__privacy_pools_new_recipient__";
+  const selected = await selectPrompt<string>({
+    message: "Recipient:",
+    choices: [
+      ...entries.map((entry) => ({
+        name: entry.label
+          ? `${entry.label} (${formatAddress(entry.address)})`
+          : `Recent ${formatAddress(entry.address)}`,
+        value: entry.address,
+        description: recentRecipientDescription(entry),
+      })),
+      {
+        name: "Enter a new recipient",
+        value: newRecipientValue,
+        description: "Type an address or ENS name.",
+      },
+    ],
+  });
+
+  if (selected === newRecipientValue) return null;
+  const entry = entries.find(
+    (candidate) => candidate.address.toLowerCase() === selected.toLowerCase(),
+  );
+  return {
+    address: selected as Address,
+    ...(entry?.ensName ? { ensName: entry.ensName } : {}),
+  };
+}
+
 async function promptRecipientAddressOrEns(
   silent: boolean,
 ): Promise<{ address: Address; ensName?: string }> {
+  const remembered = await promptRecentRecipientAddressOrEns();
+  if (remembered) {
+    if (remembered.ensName) {
+      info(`Using remembered recipient ${remembered.ensName} -> ${remembered.address}`, silent);
+    } else {
+      info(`Using remembered recipient ${remembered.address}`, silent);
+    }
+    return remembered;
+  }
+
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_RECIPIENT_PROMPT_ATTEMPTS; attempt += 1) {
     const prompted = (await inputPrompt({

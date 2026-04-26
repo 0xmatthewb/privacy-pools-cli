@@ -72,6 +72,7 @@ const getWorkflowStatusMock = mock(({ workflowId }: { workflowId: string }) => {
 const loadKnownRecipientHistoryMock = mock(() => [
   "0x4444444444444444444444444444444444444444",
 ]);
+const loadRecipientHistoryEntriesMock = mock(() => []);
 const rememberKnownRecipientMock = mock(() => undefined);
 const confirmActionWithSeverityMock = mock(async () => true);
 const ensurePromptInteractionAvailableMock = mock(() => undefined);
@@ -125,6 +126,7 @@ async function loadWithdrawHelpers(): Promise<void> {
     ["../../src/services/recipient-history.ts", () => ({
       ...realRecipientHistory,
       loadKnownRecipientHistory: loadKnownRecipientHistoryMock,
+      loadRecipientHistoryEntries: loadRecipientHistoryEntriesMock,
       rememberKnownRecipient: rememberKnownRecipientMock,
     })],
     ["../../src/utils/prompts.ts", () => ({
@@ -164,9 +166,11 @@ describe("withdraw command helper coverage", () => {
     listSavedWorkflowIdsMock.mockClear();
     getWorkflowStatusMock.mockClear();
     loadKnownRecipientHistoryMock.mockClear();
+    loadRecipientHistoryEntriesMock.mockClear();
     rememberKnownRecipientMock.mockClear();
     confirmActionWithSeverityMock.mockClear();
     ensurePromptInteractionAvailableMock.mockClear();
+    loadRecipientHistoryEntriesMock.mockImplementation(() => []);
     confirmActionWithSeverityMock.mockImplementation(async () => true);
     await loadWithdrawHelpers();
   });

@@ -29,6 +29,10 @@ interface RecipientHistoryFile {
 }
 
 export function recipientHistoryPath(): string {
+  return join(getConfigDir(), "recipients.json");
+}
+
+export function legacyRecipientHistoryPath(): string {
   return join(getConfigDir(), "known-recipients.json");
 }
 
@@ -150,9 +154,15 @@ function writeRecipientHistory(
 
 export function loadRecipientHistoryEntries(): RecipientHistoryEntry[] {
   const path = recipientHistoryPath();
-  if (!existsSync(path)) return [];
+  const legacyPath = legacyRecipientHistoryPath();
+  const readablePath = existsSync(path)
+    ? path
+    : existsSync(legacyPath)
+      ? legacyPath
+      : null;
+  if (!readablePath) return [];
   try {
-    return parseRecipientHistory(readFileSync(path, "utf-8"));
+    return parseRecipientHistory(readFileSync(readablePath, "utf-8"));
   } catch {
     return [];
   }

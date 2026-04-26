@@ -9,7 +9,11 @@ import {
 } from "../output/flow.js";
 import { loadConfig } from "../services/config.js";
 import { resolvePool } from "../services/pools.js";
-import { loadKnownRecipientHistory } from "../services/recipient-history.js";
+import {
+  loadKnownRecipientHistory,
+  loadRecipientHistoryEntries,
+  type RecipientHistoryEntry,
+} from "../services/recipient-history.js";
 import { getSignerAddress, loadPrivateKey } from "../services/wallet.js";
 import {
   applyFlowPrivacyDelayPolicy,
@@ -39,6 +43,7 @@ import { isNativePoolAsset, POA_PORTAL_URL } from "../config/chains.js";
 import { CLIError, printError, promptCancelledError } from "../utils/errors.js";
 import {
   deriveTokenPrice,
+  formatAddress,
   formatRemainingTime,
   info,
   warn,
@@ -417,10 +422,50 @@ export function validateRecipientAddressOrEnsInput(value: string): true | string
   }
 }
 
+function recentRecipientDescription(entry: RecipientHistoryEntry): string {
+  return [
+    entry.ensName,
+    entry.chain,
+    entry.useCount > 0 ? `${entry.useCount} use${entry.useCount === 1 ? "" : "s"}` : null,
+  ].filter(Boolean).join(" - ");
+}
+
+async function promptRecentFlowRecipient(): Promise<string | null> {
+  const entries = loadRecipientHistoryEntries().slice(0, 5);
+  if (entries.length === 0) return null;
+
+  const newRecipientValue = "__privacy_pools_new_recipient__";
+  const selected = await selectPrompt<string>({
+    message: "Recipient:",
+    choices: [
+      ...entries.map((entry) => ({
+        name: entry.label
+          ? `${entry.label} (${formatAddress(entry.address)})`
+          : `Recent ${formatAddress(entry.address)}`,
+        value: entry.address,
+        description: recentRecipientDescription(entry),
+      })),
+      {
+        name: "Enter a new recipient",
+        value: newRecipientValue,
+        description: "Type an address or ENS name.",
+      },
+    ],
+  });
+
+  return selected === newRecipientValue ? null : selected;
+}
+
 export async function promptFlowRecipientAddressOrEns(
   promptInput: PromptInput,
   silent: boolean,
 ): Promise<string> {
+  const remembered = await promptRecentFlowRecipient();
+  if (remembered) {
+    info(`Using remembered recipient ${remembered}`, silent);
+    return remembered;
+  }
+
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_FLOW_RECIPIENT_PROMPT_ATTEMPTS; attempt += 1) {
     const prompted = (await promptInput({

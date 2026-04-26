@@ -75,6 +75,7 @@ const stepWorkflowMock = mock(async () => makeSnapshot("completed"));
 const loadKnownRecipientHistoryMock = mock(() => [
   "0x4444444444444444444444444444444444444444",
 ]);
+const loadRecipientHistoryEntriesMock = mock(() => []);
 const loadPrivateKeyMock = mock(
   () => "0x" + "11".repeat(32) as `0x${string}`,
 );
@@ -154,6 +155,7 @@ async function loadFlowHelpers(): Promise<void> {
     ["../../src/services/recipient-history.ts", () => ({
       ...realRecipientHistory,
       loadKnownRecipientHistory: loadKnownRecipientHistoryMock,
+      loadRecipientHistoryEntries: loadRecipientHistoryEntriesMock,
     })],
     ["../../src/services/wallet.ts", () => ({
       ...realWallet,
@@ -206,6 +208,7 @@ describe("flow command helpers", () => {
     saveWorkflowSnapshotIfChangedWithLockMock.mockClear();
     stepWorkflowMock.mockClear();
     loadKnownRecipientHistoryMock.mockClear();
+    loadRecipientHistoryEntriesMock.mockClear();
     loadPrivateKeyMock.mockClear();
     getSignerAddressMock.mockClear();
     confirmActionWithSeverityMock.mockClear();
@@ -216,6 +219,7 @@ describe("flow command helpers", () => {
     resolveOptionalFlowPrivacyDelayProfileMock.mockImplementation((profile?: string) =>
       profile ?? null
     );
+    loadRecipientHistoryEntriesMock.mockImplementation(() => []);
     await loadFlowHelpers();
   });
 

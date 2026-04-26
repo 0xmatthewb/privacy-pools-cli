@@ -132,6 +132,7 @@ const resolvePoolMock = mock(async () => ({
   maxRelayFeeBPS: 100n,
 }));
 const loadKnownRecipientHistoryMock = mock((): string[] => []);
+const loadRecipientHistoryEntriesMock = mock(() => []);
 const loadPrivateKeyMock = mock(() => {
   throw new realErrors.CLIError("No signer key found.", "INPUT", "Set a signer key.");
 });
@@ -205,6 +206,7 @@ async function loadFlowHandlers(): Promise<void> {
     ["../../src/services/recipient-history.ts", () => ({
       ...realRecipientHistory,
       loadKnownRecipientHistory: loadKnownRecipientHistoryMock,
+      loadRecipientHistoryEntries: loadRecipientHistoryEntriesMock,
     })],
     ["../../src/services/wallet.ts", () => ({
       ...realWalletService,
@@ -340,6 +342,7 @@ describe("flow command handlers", () => {
     clearMockCalls(loadConfigMock);
     clearMockCalls(resolvePoolMock);
     clearMockCalls(loadKnownRecipientHistoryMock);
+    clearMockCalls(loadRecipientHistoryEntriesMock);
     clearMockCalls(loadPrivateKeyMock);
     clearMockCalls(getSignerAddressMock);
     clearMockCalls(infoMock);
@@ -382,6 +385,7 @@ describe("flow command handlers", () => {
       maxRelayFeeBPS: 100n,
     }));
     loadKnownRecipientHistoryMock.mockImplementation(() => []);
+    loadRecipientHistoryEntriesMock.mockImplementation(() => []);
     loadPrivateKeyMock.mockImplementation(() => {
       throw new realErrors.CLIError("No signer key found.", "INPUT", "Set a signer key.");
     });
