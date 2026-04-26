@@ -6,7 +6,6 @@ import { createLazyAction } from "../utils/lazy-command.js";
 export function createRagequitCommand(): Command {
   const metadata = getCommandMetadata("ragequit");
   return new Command("ragequit")
-    .alias("exit")
     .configureHelp({
       commandUsage: () => "privacy-pools ragequit [options] [asset]",
     })
@@ -60,6 +59,7 @@ export function createRagequitCommand(): Command {
             "--yes",
             "--agent",
             "--help-brief",
+            "--help-full",
           ],
         },
       ]),

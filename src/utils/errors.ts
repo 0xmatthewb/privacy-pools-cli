@@ -6,6 +6,7 @@ import { printJsonError } from "./json.js";
 import { isTransientNetworkError } from "./network.js";
 import {
   isPromptCancellationError,
+  isPromptInteractionUnavailableError,
   PROMPT_CANCELLATION_MESSAGE,
 } from "./prompt-cancellation.js";
 import {
@@ -310,9 +311,13 @@ function defaultErrorPresentation(category: ErrorCategory): ErrorPresentation {
   switch (category) {
     case "INPUT":
     case "SETUP":
-    case "RPC":
     case "ASP":
       return "inline";
+    case "RPC":
+    case "RELAYER":
+    case "PROOF":
+    case "CONTRACT":
+      return "boxed";
     default:
       return "boxed";
   }
@@ -330,9 +335,8 @@ function renderBoxedError(error: CLIError): string {
   const topRight = supportsUnicodeOutput() ? "╮" : "+";
   const bottomLeft = supportsUnicodeOutput() ? "╰" : "+";
   const bottomRight = supportsUnicodeOutput() ? "╯" : "+";
-  const heading = chalk.bold(
-    `${dangerTone(`Error [${error.category}]`)}: ${error.message}`,
-  );
+  const title = ` Error [${error.category}] `;
+  const heading = chalk.bold(error.message);
   const body = [
     ...wrapDisplayText(heading, width),
     ...(error.hint
@@ -349,12 +353,15 @@ function renderBoxedError(error: CLIError): string {
       : []),
   ];
   const contentWidth = Math.max(...body.map((line) => visibleWidth(line)), 24);
-  const top = `${topLeft}${horizontal.repeat(contentWidth + 2)}${topRight}`;
-  const bottom = `${bottomLeft}${horizontal.repeat(contentWidth + 2)}${bottomRight}`;
+  const titleWidth = visibleWidth(title);
+  const borderWidth = Math.max(contentWidth + 2, titleWidth + 2);
+  const titleRemainder = Math.max(0, borderWidth - titleWidth - 1);
+  const top = `${topLeft}${horizontal}${dangerTone(title)}${horizontal.repeat(titleRemainder)}${topRight}`;
+  const bottom = `${bottomLeft}${horizontal.repeat(borderWidth)}${bottomRight}`;
   const middle = body
-    .map((line) => `${vertical} ${padDisplay(line, contentWidth)} ${vertical}`)
+    .map((line) => `${vertical} ${padDisplay(line, borderWidth - 2)} ${vertical}`)
     .join("\n");
-  return `\n${top}\n${middle}\n${bottom}\n`;
+  return `\n${dangerTone(top)}\n${middle}\n${dangerTone(bottom)}\n`;
 }
 
 function lookupRegisteredError(code: RegisteredErrorCode) {
@@ -598,6 +605,15 @@ export function classifyError(error: unknown): CLIError {
 
   if (isPromptCancellationError(error)) {
     return promptCancelledError();
+  }
+
+  if (isPromptInteractionUnavailableError(error)) {
+    return new CLIError(
+      error.message,
+      "INPUT",
+      error.hint,
+      "INPUT_MISSING_ARGUMENT",
+    );
   }
 
   const rawMessage =

@@ -75,7 +75,7 @@ defineScenarioSuite("transaction inputs acceptance", [
     ...assertInputJsonFailure("No asset specified"),
     runCliStep(["--json", "withdraw", "0.1", "--yes"], { timeoutMs: 10_000 }),
     ...assertInputJsonFailure("Relayed withdrawals require --to"),
-    runCliStep(["--json", "exit", "--yes"], { timeoutMs: 10_000 }),
+    runCliStep(["--json", "ragequit", "--yes"], { timeoutMs: 10_000 }),
     ...assertInputJsonFailure("No asset specified"),
   ]),
   defineScenario("unsigned transaction commands keep specific input error codes", [
@@ -115,7 +115,7 @@ defineScenarioSuite("transaction inputs acceptance", [
       expect(json.error.category).toBe("INPUT");
       expect(json.error.message).toContain("No asset specified");
     }),
-    runCliStep(["--json", "exit"], { timeoutMs: 10_000 }),
+    runCliStep(["--json", "ragequit"], { timeoutMs: 10_000 }),
     assertExit(2),
     assertStderr((stderr) => {
       expect(stderr).not.toContain("Select asset pool for ragequit");

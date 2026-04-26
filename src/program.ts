@@ -39,9 +39,7 @@ const ROOT_COMMAND_NAMES = [
 
 type RootCommandName = (typeof ROOT_COMMAND_NAMES)[number];
 
-const ROOT_COMMAND_ALIASES: Record<string, RootCommandName> = {
-  exit: "ragequit",
-};
+const ROOT_COMMAND_ALIASES: Record<string, RootCommandName> = {};
 
 const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
   init: async () => (await import("./command-shells/init.js")).createInitCommand(),
@@ -174,6 +172,10 @@ export async function createRootProgram(
     .option(
       "--help-brief",
       rootGlobalFlagDescription("--help-brief"),
+    )
+    .option(
+      "--help-full",
+      rootGlobalFlagDescription("--help-full"),
     );
 
   // Registration order here determines the flag order in `--help` output.

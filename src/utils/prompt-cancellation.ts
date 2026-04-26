@@ -1,10 +1,31 @@
 export const PROMPT_CANCELLATION_MESSAGE = "Operation cancelled.";
+export const PROMPT_INTERACTION_UNAVAILABLE_MESSAGE =
+  "Interactive input is required, but no terminal is available.";
+export const PROMPT_INTERACTION_UNAVAILABLE_HINT =
+  "Provide the required arguments or flags, or re-run from an interactive terminal.";
+
+const PROMPT_INTERACTION_UNAVAILABLE_ERROR_NAME =
+  "PromptInteractionUnavailableError";
 
 const PROMPT_CANCELLATION_ERROR_NAMES = new Set([
   "ExitPromptError",
   "CancelPromptError",
   "AbortPromptError",
 ]);
+
+export class PromptInteractionUnavailableError extends Error {
+  readonly code = "INPUT_MISSING_ARGUMENT";
+  readonly hint: string;
+
+  constructor(
+    message: string = PROMPT_INTERACTION_UNAVAILABLE_MESSAGE,
+    hint: string = PROMPT_INTERACTION_UNAVAILABLE_HINT,
+  ) {
+    super(message);
+    this.name = PROMPT_INTERACTION_UNAVAILABLE_ERROR_NAME;
+    this.hint = hint;
+  }
+}
 
 export function isPromptCancellationError(error: unknown): boolean {
   if (typeof error === "string") {
@@ -37,6 +58,21 @@ export function isPromptCancellationError(error: unknown): boolean {
   );
 }
 
+export function isPromptInteractionUnavailableError(
+  error: unknown,
+): error is PromptInteractionUnavailableError {
+  return (
+    error instanceof PromptInteractionUnavailableError ||
+    (
+      typeof error === "object" &&
+      error !== null &&
+      "name" in error &&
+      (error as { name?: unknown }).name ===
+        PROMPT_INTERACTION_UNAVAILABLE_ERROR_NAME
+    )
+  );
+}
+
 export function canPrompt(): boolean {
   if (process.env.PP_FORCE_TTY === "1" || process.env.PP_FORCE_TTY === "true") {
     return true;
@@ -46,7 +82,5 @@ export function canPrompt(): boolean {
 
 export function ensurePromptInteractionAvailable(): void {
   if (canPrompt()) return;
-  const error = new Error(PROMPT_CANCELLATION_MESSAGE) as Error & { name: string };
-  error.name = "AbortPromptError";
-  throw error;
+  throw new PromptInteractionUnavailableError();
 }
