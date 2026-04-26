@@ -19,4 +19,10 @@ privacy-pools help modes
 privacy-pools guide --agent
 ```
 
+| Flag | Description |
+|------|-------------|
+| `--topics` | List available guide topics |
+| `--pager` | Open guide output in $PAGER |
+| `--no-pager` | Print guide output directly |
+
 **JSON output:** `{ mode: "help", topic?, topics: [{ name, description }], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

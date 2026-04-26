@@ -9,6 +9,8 @@ export interface ErrorCodeRegistryEntry {
 export const ERROR_CODE_REGISTRY = {
   INPUT_ERROR: { category: "INPUT", retryable: false },
   PROMPT_CANCELLED: { category: "INPUT", retryable: false },
+  INPUT_RECIPIENT_RETRY_LIMIT: { category: "INPUT", retryable: false },
+  INPUT_RECIPIENT_BURN_ADDRESS: { category: "INPUT", retryable: false },
   RPC_ERROR: { category: "RPC", retryable: false },
   RPC_NETWORK_ERROR: { category: "RPC", retryable: true },
   RPC_RATE_LIMITED: { category: "RPC", retryable: true },

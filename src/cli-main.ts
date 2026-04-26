@@ -231,6 +231,7 @@ export async function runCli(
             welcomeScreen({
               version: pkg.version,
               readinessLabel: welcomeState.readinessLabel,
+              bannerHint: welcomeState.bannerHint,
               actions: welcomeState.screenActions,
             }) + "\n",
           );

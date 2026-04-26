@@ -48,7 +48,10 @@ type BannerArt = "koi" | "merkle";
 
 function bannerMarkerVersionSuffix(version: string | undefined): string {
   const trimmed = version?.trim();
-  return sanitizeForFilename(`v${trimmed && trimmed.length > 0 ? trimmed : "unknown"}`);
+  const normalized = trimmed && trimmed.length > 0
+    ? trimmed.replace(/^v/i, "")
+    : "unknown";
+  return sanitizeForFilename(`v${normalized}`);
 }
 
 function bannerMarkerPath(version: string | undefined): string {

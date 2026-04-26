@@ -168,6 +168,56 @@ Withdraw privately from a pool
 .br
 Usage: \fBprivacy\-pools withdraw [amount] [asset] [options]\fR
 .TP
+.B recipients
+Manage remembered withdrawal recipients
+.br
+Usage: \fBprivacy\-pools recipients [options]\fR
+.TP
+.B recipients list
+List remembered withdrawal recipients
+.br
+Usage: \fBprivacy\-pools recipients list [options]\fR
+.TP
+.B recipients add
+Add a recipient to the local withdrawal address book
+.br
+Usage: \fBprivacy\-pools recipients add <address\-or\-ens> [label] [options]\fR
+.TP
+.B recipients remove
+Remove a recipient from the local withdrawal address book
+.br
+Usage: \fBprivacy\-pools recipients remove <address\-or\-ens> [options]\fR
+.TP
+.B recipients clear
+Clear all remembered withdrawal recipients
+.br
+Usage: \fBprivacy\-pools recipients clear [options]\fR
+.TP
+.B withdraw recipients
+List remembered withdrawal recipients
+.br
+Usage: \fBprivacy\-pools withdraw recipients [options]\fR
+.TP
+.B withdraw recipients list
+List remembered withdrawal recipients
+.br
+Usage: \fBprivacy\-pools withdraw recipients list [options]\fR
+.TP
+.B withdraw recipients add
+Add a recipient to the local withdrawal address book
+.br
+Usage: \fBprivacy\-pools withdraw recipients add <address\-or\-ens> [label] [options]\fR
+.TP
+.B withdraw recipients remove
+Remove a recipient from the local withdrawal address book
+.br
+Usage: \fBprivacy\-pools withdraw recipients remove <address\-or\-ens> [options]\fR
+.TP
+.B withdraw recipients clear
+Clear all remembered withdrawal recipients
+.br
+Usage: \fBprivacy\-pools withdraw recipients clear [options]\fR
+.TP
 .B withdraw quote
 Request relayer quote and limits without generating a proof
 .br
@@ -243,7 +293,10 @@ Skip confirmation prompts
 Open the primary explorer or portal link in your browser when available
 .TP
 .B \-\-help\-brief
-Show condensed command help without the extended guide appendix
+Show condensed command help (default)
+.TP
+.B \-\-help\-full
+Show full command help with examples, safety notes, and JSON fields
 .TP
 .B \-r, \-\-rpc\-url <url>
 Override RPC URL

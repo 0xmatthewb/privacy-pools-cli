@@ -175,6 +175,31 @@ function recipientPayload(entry: RecipientHistoryEntry): Record<string, unknown>
   };
 }
 
+function resolveStoredRecipientForRemoval(
+  addressOrEns: string,
+): RecipientHistoryEntry | null {
+  const trimmed = addressOrEns.trim();
+  if (trimmed.length === 0) return null;
+
+  const entries = loadRecipientHistoryEntries();
+  const index = Number.parseInt(trimmed, 10);
+  if (
+    /^\d+$/.test(trimmed) &&
+    Number.isInteger(index) &&
+    index >= 1 &&
+    index <= entries.length
+  ) {
+    return entries[index - 1] ?? null;
+  }
+
+  const normalized = trimmed.toLowerCase();
+  return entries.find((entry) =>
+    entry.address.toLowerCase() === normalized ||
+    entry.ensName?.toLowerCase() === normalized ||
+    entry.label?.toLowerCase() === normalized
+  ) ?? null;
+}
+
 function renderRecipientList(
   entries: readonly RecipientHistoryEntry[],
   cmd: Command,
@@ -279,10 +304,10 @@ export async function handleWithdrawRecipientsRemoveCommand(
   const ctx = createOutputContext(mode);
   try {
     guardCsvUnsupported(ctx, recipientCommandPath(cmd, "remove"));
-    const resolved = await resolveSafeRecipientAddressOrEns(
-      addressOrEns,
-      "Recipient",
-    );
+    const stored = resolveStoredRecipientForRemoval(addressOrEns);
+    const resolved = stored
+      ? { address: stored.address }
+      : await resolveSafeRecipientAddressOrEns(addressOrEns, "Recipient");
     const removed = removeRecipientHistoryEntry(resolved.address);
 
     if (mode.isJson) {

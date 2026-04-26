@@ -45,6 +45,7 @@ export function welcomeScreen(
     packageRoot?: string;
     version?: string;
     readinessLabel?: string;
+    bannerHint?: string;
     actions?: readonly WelcomeAction[];
   } = {},
 ): string {
@@ -61,6 +62,7 @@ export function welcomeScreen(
     brand("PRIVACY POOLS"),
     muted("A compliant way to transact privately on Ethereum."),
     versionLine,
+    ...(options.bannerHint ? [muted(options.bannerHint)] : []),
     "",
     ...actionLines,
   ];
@@ -617,12 +619,20 @@ export const helpTestInternals = {
 };
 
 export function commandHelpText(config: CommandHelpConfig): string {
-  if (!isFullHelpRequested()) {
-    return "\nTip: add --help-full for examples, safety notes, and JSON fields.";
-  }
-
   const lines: string[] = [];
   const showAgentAppendix = detectAgentEnvironment();
+  if (!isFullHelpRequested()) {
+    lines.push("", "Tip: add --help-full for examples, safety notes, and JSON fields.");
+    if (
+      showAgentAppendix
+      && config.agentWorkflowNotes
+      && config.agentWorkflowNotes.length > 0
+    ) {
+      lines.push("", "Agent guidance:");
+      lines.push("  Use --agent for --json --yes --quiet when you need a runnable machine contract.");
+    }
+    return lines.join("\n");
+  }
 
   if (config.overview && config.overview.length > 0) {
     lines.push("", ...config.overview);

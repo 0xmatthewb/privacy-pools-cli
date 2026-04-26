@@ -279,6 +279,8 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `PRIVACY_POOLS_CLI_BINARY` | Advanced maintainer override for the launcher target; point it at an explicit native shell binary path |
 | `PRIVACY_POOLS_CLI_JS_WORKER` | Advanced maintainer override for the JS worker entrypoint; it must point at a real packaged JS worker file |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
+| `PRIVACY_POOLS_BANNER` | Set to `merkle` to use the alternate Merkle-tree welcome banner |
+| `PRIVACY_POOLS_BANNER_ART` | Alias for `PRIVACY_POOLS_BANNER` |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
 | `PRIVACY_POOLS_CIRCUITS_DIR` | Override the circuit artifact directory. By default the CLI uses bundled packaged artifacts. Set this only if you already have a trusted pre-provisioned directory |
 

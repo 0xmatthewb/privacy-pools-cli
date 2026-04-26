@@ -49,14 +49,16 @@ export async function runStaticDiscoveryCommand(
   setModeArgv(argv);
   let parsed: ParsedStaticCommand | null = null;
   try {
+    const firstToken = parsedRootArgv?.firstCommandToken ?? argv[0];
+    const secondToken = parsedRootArgv?.nonOptionTokens[1] ?? argv[1];
     const guideTopic =
-      parsedRootArgv?.firstCommandToken === "help"
-        ? resolveGuideTopic(parsedRootArgv.nonOptionTokens[1])
-        : resolveGuideTopic(argv[1]);
+      firstToken === "help" || firstToken === "guide"
+        ? resolveGuideTopic(secondToken)
+        : null;
     const helpTarget =
-      parsedRootArgv?.firstCommandToken === "help"
-        ? parsedRootArgv.nonOptionTokens[1]
-        : argv[1];
+      firstToken === "help"
+        ? secondToken
+        : undefined;
     const isKnownHelpTarget = Boolean(
       helpTarget &&
         (GENERATED_COMMAND_PATHS.some(

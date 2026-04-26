@@ -6191,6 +6191,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Disable colored output, matching --no-color."
     },
     {
+      "name": "PRIVACY_POOLS_BANNER",
+      "aliases": [
+        "PRIVACY_POOLS_BANNER_ART"
+      ],
+      "description": "Choose the welcome illustration. Set to merkle for the alternate Merkle tree banner."
+    },
+    {
       "name": "PP_NO_UPDATE_CHECK",
       "description": "Set to 1 to disable the update-available notification."
     },

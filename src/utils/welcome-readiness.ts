@@ -71,10 +71,6 @@ const WELCOME_ACTIONS: Record<string, WelcomeAction> = {
     cliCommand: "accounts",
     description: "view balances",
   },
-  "accounts --pending-only": {
-    cliCommand: "accounts --pending-only",
-    description: "check ASP review",
-  },
   "flow status latest": {
     cliCommand: "flow status latest",
     description: "check saved workflow",
@@ -157,10 +153,6 @@ export function getWelcomeState(): WelcomeState {
     const hasDeposits = hasSavedDeposits();
 
     if (activeWorkflowPhase) {
-      const pendingCommand =
-        activeWorkflowPhase === "awaiting_asp"
-          ? "accounts --pending-only"
-          : "accounts";
       return buildWelcomeState(
         "workflow_active",
         "workflow: active",
@@ -168,7 +160,7 @@ export function getWelcomeState(): WelcomeState {
         [
           "flow status latest",
           "flow watch latest",
-          pendingCommand,
+          "accounts",
           "guide",
           "--help",
         ],
@@ -187,6 +179,7 @@ export function getWelcomeState(): WelcomeState {
           "guide",
           "--help",
         ],
+        "Privacy Pools: deposit publicly, withdraw privately.",
       );
     }
 

@@ -1590,7 +1590,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-async function sleepWithWorkflowPrivacyDelayCountdown(params: {
+export async function sleepWithWorkflowPrivacyDelayCountdown(params: {
   sleepMs: number;
   privacyDelayUntilMs: number;
   silent: boolean;

@@ -45,6 +45,7 @@ export {
 } from "./review.js";
 export {
   createNarrativeSteps,
+  createNarrativeProgressWriter,
   renderNarrativeSteps,
   renderFlowRail,
   renderOutcomeDirection,

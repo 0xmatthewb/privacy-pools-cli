@@ -9,8 +9,6 @@
 import chalk from "chalk";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { CHAINS } from "../config/chains.js";
-import { loadAccount } from "../services/account-storage.js";
 import {
   configExists,
   getSubmissionsDir,
@@ -194,7 +192,7 @@ export function createNextAction(
 export const DRY_RUN_FOOTER_COPY =
   "Dry-run: validation succeeded. Re-run without --dry-run to submit.";
 
-interface UrgentRecommendationContext {
+export interface UrgentRecommendationContext {
   mode?: ResolvedGlobalMode;
   commandPath?: string;
   suppressUrgentRecommendations?: boolean;
@@ -408,63 +406,6 @@ function listStoredSubmissionStates(): StoredSubmissionRecommendationState[] {
   });
 }
 
-function hasExplicitPendingReviewState(value: unknown, seen = new Set<object>()): boolean {
-  if (!isNonNullRecord(value)) {
-    return false;
-  }
-  if (seen.has(value)) return false;
-  seen.add(value);
-
-  for (const [key, nested] of Object.entries(value)) {
-    if ((key === "status" || key === "aspStatus") && nested === "pending") {
-      return true;
-    }
-    if (isNonNullRecord(nested) && hasExplicitPendingReviewState(nested, seen)) {
-      return true;
-    }
-    if (Array.isArray(nested)) {
-      for (const item of nested) {
-        if (hasExplicitPendingReviewState(item, seen)) return true;
-      }
-    }
-  }
-
-  if (value instanceof Map) {
-    for (const nested of value.values()) {
-      if (hasExplicitPendingReviewState(nested, seen)) return true;
-    }
-  }
-
-  return false;
-}
-
-function getPendingApprovalChains(): string[] {
-  const chains: string[] = [];
-  for (const chain of Object.values(CHAINS)) {
-    try {
-      const account = loadAccount(chain.id);
-      if (account && hasExplicitPendingReviewState(account)) {
-        chains.push(chain.name);
-      }
-    } catch {
-      // Urgent recommendations are best-effort; strict commands still own errors.
-    }
-  }
-  return chains;
-}
-
-function scopedAccountsOptions(chains: readonly string[]): Record<string, NextActionOptionValue> {
-  const options: Record<string, NextActionOptionValue> = { agent: true, pendingOnly: true };
-  if (chains.length === 1 && chains[0]) {
-    options.chain = chains[0];
-    return options;
-  }
-  if (chains.some((chain) => CHAINS[chain]?.isTestnet)) {
-    options.includeTestnets = true;
-  }
-  return options;
-}
-
 function syncRecommendationFor(
   source: { chain?: string | null; asset?: string | null },
   reason: string,
@@ -532,16 +473,23 @@ export function getUrgentRecommendations(
     );
   }
 
-  const pendingApprovalChains = getPendingApprovalChains();
-  if (pendingApprovalChains.length > 0) {
+  const publicRecoveryWorkflow = workflows.find(
+    (workflow) => workflow.phase === "completed_public_recovery",
+  );
+  if (!activeWorkflow && publicRecoveryWorkflow) {
     actions.push(
       createNextAction(
         "accounts",
-        pendingApprovalChains.length === 1
-          ? `A Pool Account on ${pendingApprovalChains[0]} is still under ASP review; poll pending approvals before withdrawing.`
-          : "Pool Accounts on saved chains are still under ASP review; poll pending approvals before withdrawing.",
-        "has_pending",
-        { options: scopedAccountsOptions(pendingApprovalChains) },
+        `Saved workflow ${publicRecoveryWorkflow.workflowId} recovered publicly; review local account state before starting another action.`,
+        "after_ragequit",
+        {
+          options: {
+            agent: true,
+            ...(publicRecoveryWorkflow.chain
+              ? { chain: publicRecoveryWorkflow.chain }
+              : {}),
+          },
+        },
       ),
     );
   }
@@ -620,13 +568,6 @@ function urgentActionCoveredByExisting(
   if (urgent.command === "init") {
     return existing.some((action) => action.command === "init");
   }
-  if (urgent.command === "accounts" && urgent.options?.pendingOnly === true) {
-    return existing.some(
-      (action) =>
-        action.command === "accounts" &&
-        action.options?.pendingOnly === true,
-    );
-  }
   return false;
 }
 
@@ -634,12 +575,12 @@ function urgentRecommendationLabel(action: NextAction): string {
   switch (action.when) {
     case "flow_resume":
       return "pending workflow";
-    case "has_pending":
-      return "pending approval";
     case "after_submit":
       return "interrupted tx";
     case "after_sync":
       return "needs sync";
+    case "after_ragequit":
+      return "public recovery";
     case "status_not_ready":
       return "needs init";
     default:
@@ -651,19 +592,29 @@ function mergeUrgentRecommendations(
   ctx: UrgentRecommendationContext | undefined,
   nextActions: NextAction[] | undefined,
   payload?: Record<string, unknown>,
+  urgentRecommendations?: NextAction[],
 ): NextAction[] | undefined {
+  if (payload?.externalGuidance !== undefined) {
+    return nextActions;
+  }
   if (shouldSuppressUrgentRecommendations(ctx, payload)) {
     return nextActions;
   }
 
-  const urgent = getUrgentRecommendations(ctx);
+  const urgent = urgentRecommendations ?? getUrgentRecommendations(ctx);
   if (urgent.length === 0) return nextActions;
 
   const seen = new Set<string>();
   const merged: NextAction[] = [];
   const existing = nextActions ?? [];
+  const filteredUrgent = urgent.filter((action) => {
+    if (action.command === "init" && existing.length > 0) {
+      return false;
+    }
+    return !urgentActionCoveredByExisting(action, existing);
+  });
   for (const action of [
-    ...urgent.filter((action) => !urgentActionCoveredByExisting(action, existing)),
+    ...filteredUrgent,
     ...existing,
   ]) {
     const key = nextActionDedupeKey(action);
@@ -807,9 +758,17 @@ function withCliCommand(action: NextAction, includeAgent: boolean = false): Next
 export function renderNextSteps(
   ctx: OutputContext,
   nextActions: NextAction[] | undefined,
+  options: UrgentRecommendationContext = {},
 ): void {
   if (isSilent(ctx)) return;
-  const mergedNextActions = mergeUrgentRecommendations(ctx, nextActions);
+  const recommendationContext = { ...ctx, ...options };
+  const urgentRecommendations = getUrgentRecommendations(recommendationContext);
+  const mergedNextActions = mergeUrgentRecommendations(
+    recommendationContext,
+    nextActions,
+    undefined,
+    urgentRecommendations,
+  );
   if (!mergedNextActions || mergedNextActions.length === 0) return;
 
   // Only show fully-specified commands to humans.  Template actions
@@ -818,7 +777,7 @@ export function renderNextSteps(
   const runnable = mergedNextActions.filter((a) => a.runnable !== false);
   if (runnable.length === 0) return;
   const urgentKeys = new Set(
-    getUrgentRecommendations(ctx).map((action) => nextActionDedupeKey(action)),
+    urgentRecommendations.map((action) => nextActionDedupeKey(action)),
   );
 
   process.stderr.write(`\n${chalk.bold("Next steps:")}\n`);

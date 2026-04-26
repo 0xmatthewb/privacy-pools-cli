@@ -352,7 +352,7 @@ function recentRecipientDescription(entry: RecipientHistoryEntry): string {
   ].filter(Boolean).join(" - ");
 }
 
-async function promptRecentRecipientAddressOrEns(): Promise<{
+export async function promptRecentRecipientAddressOrEns(): Promise<{
   address: Address;
   ensName?: string;
 } | null> {

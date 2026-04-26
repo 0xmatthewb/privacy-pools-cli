@@ -745,6 +745,8 @@ Inline `--recovery-phrase` and `--private-key` are still supported as a last res
 
 Proof commands use bundled checksum-verified circuit artifacts shipped with the CLI. Set `PRIVACY_POOLS_CIRCUITS_DIR` only when you already have a trusted pre-provisioned directory that you want the CLI to use instead.
 
+Set `PRIVACY_POOLS_BANNER=merkle` or `PRIVACY_POOLS_BANNER_ART=merkle` to use the alternate Merkle-tree welcome banner.
+
 #### `flow`
 
 Persisted easy-path workflow that compresses the normal deposit -> ASP review -> relayed private withdrawal journey without changing any manual commands.
@@ -1183,6 +1185,8 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | --- | --- | --- | --- |
 | `INPUT_ERROR` | INPUT | No | Invalid flag, missing argument, or bad input value |
 | `PROMPT_CANCELLED` | INPUT | No | User cancelled an interactive prompt |
+| `INPUT_RECIPIENT_RETRY_LIMIT` | INPUT | No | Interactive recipient entry failed repeatedly |
+| `INPUT_RECIPIENT_BURN_ADDRESS` | INPUT | No | Recipient is an obvious burn or dead address |
 | `RPC_ERROR` | RPC | No | RPC call failure (non-transient) |
 | `RPC_NETWORK_ERROR` | RPC | Yes | Network connectivity issue, DNS failure, or timeout |
 | `RPC_RATE_LIMITED` | RPC | Yes | RPC provider rate limit (HTTP 429); switch to dedicated RPC with `--rpc-url` |

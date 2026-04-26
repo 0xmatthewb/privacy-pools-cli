@@ -18,6 +18,7 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 - [`simulate`](reference/simulate.md) - Preview deposit, withdraw, and ragequit without submitting
 - [`deposit`](reference/deposit.md) - Deposit ETH or ERC-20 tokens into a pool
 - [`withdraw`](reference/withdraw.md) - Withdraw privately from a pool
+- [`recipients`](reference/recipients.md) - Manage remembered withdrawal recipients
 - [`ragequit`](reference/ragequit.md) - Recover funds publicly to your deposit address
 - [`broadcast`](reference/broadcast.md) - Broadcast a signed envelope or relayer request built elsewhere
 
@@ -51,7 +52,8 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 | `-o, --output <format>` | Output format: table (default), csv, json, yaml, wide, name |
 | `-y, --yes` | Skip confirmation prompts |
 | `--web` | Open the primary explorer or portal link in your browser when available |
-| `--help-brief` | Show condensed command help without the extended guide appendix |
+| `--help-brief` | Show condensed command help (default) |
+| `--help-full` | Show full command help with examples, safety notes, and JSON fields |
 | `-r, --rpc-url <url>` | Override RPC URL |
 | `--agent` | Machine-friendly mode (alias for --json --yes --quiet) |
 | `-q, --quiet` | Suppress human-oriented stderr output |

@@ -69,6 +69,78 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 - `--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]`
 - `--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }`
 
+## `withdraw recipients`
+
+List remembered withdrawal recipients
+
+Shows the local withdrawal recipient history. Successful withdrawals are remembered automatically, and you can add labels manually for repeated recipients.
+
+```bash
+privacy-pools withdraw recipients
+privacy-pools withdraw recipients add 0xRecipient... treasury
+privacy-pools withdraw recipients remove 0xRecipient...
+```
+
+**Safety:** Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.
+
+**JSON output:** `{ mode: "recipient-history", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }`
+
+## `withdraw recipients list`
+
+List remembered withdrawal recipients
+
+```bash
+privacy-pools withdraw recipients list
+privacy-pools withdraw recents
+```
+
+**JSON output:** `{ mode: "recipient-history", operation: "list", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }`
+
+## `withdraw recipients add`
+
+Add a recipient to the local withdrawal address book
+
+**Usage:** `privacy-pools withdraw recipients add <address-or-ens> [label] [options]`
+
+```bash
+privacy-pools withdraw recipients add 0xRecipient... treasury
+privacy-pools withdraw recipients add vitalik.eth --label donations
+```
+
+| Flag | Description |
+|------|-------------|
+| `--label <label>` | Optional display label |
+
+**Safety:** Adding a recipient does not authorize a withdrawal. The withdrawal command still performs recipient review before submission.
+
+**JSON output:** `{ mode: "recipient-history", operation: "add", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }`
+
+## `withdraw recipients remove`
+
+Remove a recipient from the local withdrawal address book
+
+**Usage:** `privacy-pools withdraw recipients remove <address-or-ens> [options]`
+
+```bash
+privacy-pools withdraw recipients remove 0xRecipient...
+privacy-pools withdraw recipients rm treasury.eth
+```
+
+**JSON output:** `{ mode: "recipient-history", operation: "remove", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }`
+
+## `withdraw recipients clear`
+
+Clear all remembered withdrawal recipients
+
+```bash
+privacy-pools withdraw recipients clear
+privacy-pools withdraw recipients clear --yes
+```
+
+**Safety:** This only clears local recipient metadata. It does not affect accounts, workflows, or onchain state.
+
+**JSON output:** `{ mode: "recipient-history", operation: "clear", removedCount }`
+
 ## `withdraw quote`
 
 Request relayer quote and limits without generating a proof
