@@ -572,9 +572,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--force",
         "--show-recovery-phrase",
         "--staged",
+        "--pending",
         "--dry-run"
       ],
-      "agentFlags": "--agent [--staged] --default-chain <chain> (--show-recovery-phrase | --backup-file <path>)",
+      "agentFlags": "--agent [--staged] --default-chain <chain> (--show-recovery-phrase | --backup-file <path>); or --pending --agent --default-chain <chain>",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1295,6 +1296,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--force",
         "--show-recovery-phrase",
         "--staged",
+        "--pending",
         "--dry-run"
       ],
       "globalFlags": [
@@ -1342,7 +1344,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "commands": [
             "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
             "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
-            "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
+            "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+            "privacy-pools init --pending --agent --default-chain mainnet"
           ]
         },
         {
@@ -1397,6 +1400,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
         },
         {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools init --pending --agent --default-chain mainnet"
+        },
+        {
           "description": "Load existing account",
           "category": "Load existing account",
           "command": "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt"
@@ -1417,9 +1425,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
         }
       ],
-      "jsonFields": "success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }",
+      "jsonFields": "success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }; --pending: { mode: \"init-pending\", operation: \"init\", status: \"pending_human_action\", effectiveChain, configExists, recoveryPhraseSet, signerKeyFileSet, replacementRequested, secretTransferRequired, humanCommand, agentResumeCommand, rpcUrl?, nextStep, nextActions?: [...] }",
       "jsonVariants": [
-        "--staged: JSONL stages with mode: \"init-staged\", operation: \"init\", stage: \"preflight\"|\"recovery\"|\"backup\"|\"signer\"|\"chain\"|\"write\"|\"discovery\"|\"complete\""
+        "--staged: JSONL stages with mode: \"init-staged\", operation: \"init\", stage: \"preflight\"|\"recovery\"|\"backup\"|\"signer\"|\"chain\"|\"write\"|\"discovery\"|\"complete\"",
+        "--pending: single JSON envelope with mode: \"init-pending\" that tells agents which local human command to request and which status command to run after the human completes init"
       ],
       "safetyNotes": [
         "The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.",

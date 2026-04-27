@@ -27,6 +27,7 @@ privacy-pools upgrade --agent --check
 
 # Easy workflow
 privacy-pools status --agent
+privacy-pools init --pending --agent --default-chain mainnet  # human-local handoff; no secrets in JSON
 privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
 privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
 privacy-pools flow start 0.1 ETH --to 0xRecipient --agent
@@ -190,6 +191,23 @@ Every JSON response wraps command-specific data in a standard envelope:
   "restoreDiscovery": "{ status, chainsChecked, foundAccountChains? } | absent",
   "warning": "string | absent",
   "nextActions": [...]
+}
+```
+
+**`init --pending`** returns an agent-safe handoff plan instead of reading or writing secrets:
+
+```json
+{
+  "schemaVersion": "2.0.0",
+  "success": true,
+  "mode": "init-pending",
+  "operation": "init",
+  "status": "pending_human_action",
+  "effectiveChain": "mainnet",
+  "secretTransferRequired": false,
+  "humanCommand": "privacy-pools init --default-chain mainnet",
+  "agentResumeCommand": "privacy-pools status --agent --chain mainnet",
+  "nextStep": "Ask the human operator to run the local init command..."
 }
 ```
 

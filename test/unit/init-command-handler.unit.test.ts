@@ -146,6 +146,65 @@ afterEach(() => {
 });
 
 describe("init command handler", () => {
+  test("emits an agent-safe pending handoff without reading or writing secrets", async () => {
+    const home = useIsolatedHome();
+    const missingSecretFile = join(home, "missing-recovery.txt");
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleInitCommand(
+        {
+          pending: true,
+          defaultChain: "ethereum",
+          rpcUrl: "https://rpc.example",
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("init-pending");
+    expect(json.status).toBe("pending_human_action");
+    expect(json.effectiveChain).toBe("mainnet");
+    expect(json.secretTransferRequired).toBe(false);
+    expect(json.humanCommand).toBe(
+      "privacy-pools init --default-chain mainnet --rpc-url https://rpc.example",
+    );
+    expect(json.agentResumeCommand).toBe(
+      "privacy-pools status --agent --chain mainnet --rpc-url https://rpc.example",
+    );
+    expect(json.recoveryPhrase).toBeUndefined();
+    expect(json.nextActions?.[0]?.command).toBe("status");
+    expect(json.nextActions?.[0]?.cliCommand).toBe(
+      "privacy-pools status --agent --chain mainnet --rpc-url https://rpc.example",
+    );
+    expect(stderr).toBe("");
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+    expect(existsSync(join(home, ".signer"))).toBe(false);
+    expect(existsSync(missingSecretFile)).toBe(false);
+  });
+
+  test("rejects pending init when secret sources are supplied", async () => {
+    const home = useIsolatedHome();
+    const missingSecretFile = join(home, "missing-recovery.txt");
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleInitCommand(
+        {
+          pending: true,
+          recoveryPhraseFile: missingSecretFile,
+          defaultChain: "mainnet",
+        },
+        fakeCommand({ json: true }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_INVALID_VALUE");
+    expect(json.error.message).toContain("--pending cannot be combined");
+    expect(exitCode).toBe(2);
+    expect(existsSync(join(home, ".mnemonic"))).toBe(false);
+  });
+
   test("generates and returns a new mnemonic in JSON mode when --show-recovery-phrase is set", async () => {
     const home = useIsolatedHome();
 

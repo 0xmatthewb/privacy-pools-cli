@@ -50,6 +50,7 @@ import {
   renderInitGoalReview,
   renderInitLoadRecoveryReview,
   renderInitOverwriteReview,
+  renderInitPending,
   renderInitRecoveryVerificationReview,
   renderInitResult,
   renderInitSignerKeyReview,
@@ -106,6 +107,7 @@ interface InitCommandOptions {
   force?: boolean;
   dryRun?: boolean;
   staged?: boolean;
+  pending?: boolean;
 }
 
 interface InitFileSnapshot {
@@ -416,6 +418,92 @@ export function describeSignerKeySource(
   if (options.privateKey) return "save inline";
   if (process.env.PRIVACY_POOLS_PRIVATE_KEY?.trim()) return "use environment only";
   return "prompt or skip";
+}
+
+function shellCommand(parts: string[]): string {
+  return parts
+    .map((part) =>
+      /^[A-Za-z0-9_./:=@-]+$/.test(part)
+        ? part
+        : `'${part.replace(/'/g, "'\\''")}'`,
+    )
+    .join(" ");
+}
+
+function resolvePendingEffectiveChain(defaultChainOverride: string | undefined): string {
+  const existingConfig = configExists() ? loadConfig() : null;
+  return resolveChain(defaultChainOverride ?? existingConfig?.defaultChain ?? "mainnet").name;
+}
+
+function renderPendingInitHandoff(params: {
+  opts: InitCommandOptions;
+  mode: ReturnType<typeof resolveGlobalMode>;
+}): void {
+  const disallowed = [
+    { name: "--recovery-phrase", value: params.opts.recoveryPhrase },
+    { name: "--recovery-phrase-file", value: params.opts.recoveryPhraseFile },
+    { name: "--recovery-phrase-stdin", value: params.opts.recoveryPhraseStdin },
+    { name: "--show-recovery-phrase", value: params.opts.showRecoveryPhrase },
+    { name: "--backup-file", value: params.opts.backupFile },
+    { name: "--private-key", value: params.opts.privateKey },
+    { name: "--private-key-file", value: params.opts.privateKeyFile },
+    { name: "--private-key-stdin", value: params.opts.privateKeyStdin },
+    { name: "--signer-only", value: params.opts.signerOnly },
+    { name: "--dry-run", value: params.opts.dryRun },
+    { name: "--staged", value: params.opts.staged },
+  ].filter(({ value }) => {
+    if (value === undefined || value === null) return false;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return value.length > 0;
+    return true;
+  });
+
+  if (disallowed.length > 0) {
+    throw new CLIError(
+      `--pending cannot be combined with ${disallowed.map(({ name }) => name).join(", ")}.`,
+      "INPUT",
+      "Run --pending by itself with optional --default-chain, --rpc-url, or --force so no secrets are read by the agent process.",
+      "INPUT_INVALID_VALUE",
+    );
+  }
+
+  const effectiveChain = resolvePendingEffectiveChain(params.opts.defaultChain);
+  const humanCommandParts = ["privacy-pools", "init", "--default-chain", effectiveChain];
+  const agentResumeParts = [
+    "privacy-pools",
+    "status",
+    "--agent",
+    "--chain",
+    effectiveChain,
+  ];
+
+  if (params.opts.rpcUrl) {
+    humanCommandParts.push("--rpc-url", params.opts.rpcUrl);
+    agentResumeParts.push("--rpc-url", params.opts.rpcUrl);
+  }
+  if (params.opts.force) {
+    humanCommandParts.push("--force");
+  }
+
+  const ctx = createOutputContext(params.mode, false, {
+    suppressUrgentRecommendations: true,
+  });
+  renderInitPending(ctx, {
+    mode: "init-pending",
+    operation: "init",
+    status: "pending_human_action",
+    effectiveChain,
+    configExists: configExists(),
+    recoveryPhraseSet: mnemonicExists(),
+    signerKeyFileSet: existsSync(getSignerFilePath()),
+    replacementRequested: params.opts.force === true,
+    secretTransferRequired: false,
+    humanCommand: shellCommand(humanCommandParts),
+    agentResumeCommand: shellCommand(agentResumeParts),
+    rpcUrl: params.opts.rpcUrl,
+    nextStep:
+      "Ask the human operator to run the local init command in their own terminal, then resume with the status command.",
+  });
 }
 
 export function normalizePrivateKeyOrThrow(privateKey: string): string {
@@ -1139,6 +1227,14 @@ export async function handleInitCommand(
         "INPUT",
         "Use --signer-only only when you want to keep the current recovery phrase and change the signer key.",
       );
+    }
+
+    if (opts.pending) {
+      renderPendingInitHandoff({
+        opts: { ...opts, rpcUrl: opts.rpcUrl ?? globalOpts?.rpcUrl },
+        mode,
+      });
+      return;
     }
 
     let mnemonicSource: string | undefined;

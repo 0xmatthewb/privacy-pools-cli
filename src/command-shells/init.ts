@@ -52,6 +52,10 @@ export function createInitCommand(): Command {
       "--staged",
       `Emit onboarding progress as JSONL envelopes in --json/--agent mode (${INIT_STAGED_STEP_NAMES.join(", ")})`,
     )
+    .option(
+      "--pending",
+      "Emit an agent-safe human handoff plan without reading or writing secrets",
+    )
     .addHelpText(
       "after",
       "\nUse only one secret stdin source per run: either --recovery-phrase-stdin or --private-key-stdin.\n",
@@ -66,6 +70,7 @@ export function createInitCommand(): Command {
             "--force",
             "--dry-run",
             "--staged",
+            "--pending",
           ],
         },
         {

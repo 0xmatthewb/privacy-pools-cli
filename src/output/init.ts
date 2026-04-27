@@ -68,6 +68,22 @@ export interface InitDryRunResult {
   writeTargets: string[];
 }
 
+export interface InitPendingResult {
+  mode: "init-pending";
+  operation: "init";
+  status: "pending_human_action";
+  effectiveChain: string;
+  configExists: boolean;
+  recoveryPhraseSet: boolean;
+  signerKeyFileSet: boolean;
+  replacementRequested: boolean;
+  secretTransferRequired: false;
+  humanCommand: string;
+  agentResumeCommand: string;
+  rpcUrl?: string;
+  nextStep: string;
+}
+
 export function renderInitStage(
   stage: string,
   payload: Record<string, unknown> = {},
@@ -616,6 +632,100 @@ export function renderInitDryRun(
       },
     }),
   );
+}
+
+export function renderInitPending(
+  ctx: OutputContext,
+  result: InitPendingResult,
+): void {
+  guardCsvUnsupported(ctx, "init --pending");
+
+  const statusOptions: Record<string, NextActionOptionValue> = {
+    agent: true,
+    chain: result.effectiveChain,
+  };
+  if (result.rpcUrl) {
+    statusOptions.rpcUrl = result.rpcUrl;
+  }
+
+  const resumeAction = createNextAction(
+    "status",
+    "After the human completes local init, verify readiness before transacting.",
+    "after_init",
+    { options: statusOptions },
+  );
+  resumeAction.cliCommand = result.agentResumeCommand;
+  const nextActions = [resumeAction];
+
+  if (ctx.mode.isJson) {
+    printJsonSuccess(
+      appendNextActions(
+        {
+          mode: result.mode,
+          operation: result.operation,
+          status: result.status,
+          effectiveChain: result.effectiveChain,
+          configExists: result.configExists,
+          recoveryPhraseSet: result.recoveryPhraseSet,
+          signerKeyFileSet: result.signerKeyFileSet,
+          replacementRequested: result.replacementRequested,
+          secretTransferRequired: result.secretTransferRequired,
+          humanCommand: result.humanCommand,
+          agentResumeCommand: result.agentResumeCommand,
+          ...(result.rpcUrl ? { rpcUrl: result.rpcUrl } : {}),
+          nextStep: result.nextStep,
+        },
+        nextActions,
+        ctx,
+      ),
+      false,
+    );
+    return;
+  }
+
+  const silent = isSilent(ctx);
+  if (!silent) process.stderr.write("\n");
+  success("Init handoff ready.", silent);
+  if (silent) return;
+
+  process.stderr.write(
+    formatReviewSurface({
+      title: "Human handoff",
+      summaryRows: [
+        { label: "Effective chain", value: result.effectiveChain },
+        {
+          label: "Existing setup",
+          value: result.configExists ? "present" : "not found",
+          valueTone: result.configExists ? "warning" : "muted",
+        },
+        {
+          label: "Recovery phrase",
+          value: result.recoveryPhraseSet ? "already stored" : "human will provide",
+          valueTone: result.recoveryPhraseSet ? "success" : "warning",
+        },
+        {
+          label: "Signer key file",
+          value: result.signerKeyFileSet ? "present" : "not found",
+          valueTone: result.signerKeyFileSet ? "success" : "warning",
+        },
+        {
+          label: "Secrets in JSON",
+          value: "none",
+          valueTone: "success",
+        },
+      ],
+      primaryCallout: {
+        kind: "read-only",
+        lines: [
+          result.nextStep,
+          `Human command: ${result.humanCommand}`,
+          `Agent resume: ${result.agentResumeCommand}`,
+        ],
+      },
+    }),
+  );
+
+  renderNextSteps(ctx, nextActions);
 }
 
 /**

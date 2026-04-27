@@ -8,7 +8,7 @@ Detailed reference for the `privacy-pools init` command family. Back to the [ind
 
 Create, load, or finish setting up your Privacy Pools account
 
-Guided setup for the local Privacy Pools account under ~/.privacy-pools/. Use it to create a new account, load an existing account from a recovery phrase, or finish setup by adding or replacing the signer key. The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key. When you generate a fresh account, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files. If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download). Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file. Interactive generated setup defaults to a private .txt backup and only asks for word verification when you choose manual copy. Use only one secret stdin source per run: either --recovery-phrase-stdin or --private-key-stdin. Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
+Guided setup for the local Privacy Pools account under ~/.privacy-pools/. Use it to create a new account, load an existing account from a recovery phrase, or finish setup by adding or replacing the signer key. The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key. When you generate a fresh account, the CLI uses a 24-word recovery phrase. Imported recovery phrases may be either 12 or 24 words. Back up the recovery phrase immediately: without it, deposited funds cannot be restored. Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files. If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download). Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file. Interactive generated setup defaults to a private .txt backup and only asks for word verification when you choose manual copy. Use --pending in agent-assisted onboarding when a human should run interactive init locally; the agent receives only a handoff plan and no secret material. Use only one secret stdin source per run: either --recovery-phrase-stdin or --private-key-stdin. Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.
 
 **Basic:**
 
@@ -26,6 +26,7 @@ privacy-pools init --force --yes --default-chain mainnet
 privacy-pools init --agent --default-chain mainnet --show-recovery-phrase
 privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
 privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
+privacy-pools init --pending --agent --default-chain mainnet
 ```
 
 **Load existing account:**
@@ -54,12 +55,14 @@ printf '%s\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-ph
 | `--force` | Overwrite existing configuration without prompting |
 | `--dry-run` | Preview the init changes without writing files or generating a live recovery phrase |
 | `--staged` | Emit onboarding progress as JSONL envelopes in --json/--agent mode (preflight, recovery, backup, signer, chain, write, discovery, complete) |
+| `--pending` | Emit an agent-safe human handoff plan without reading or writing secrets |
 
 **Safety:** The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.
 **Safety:** Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.
 **Safety:** Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can safely restore them.
 
-**JSON output:** `success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: "init", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }`
+**JSON output:** `success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: "init", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }; --pending: { mode: "init-pending", operation: "init", status: "pending_human_action", effectiveChain, configExists, recoveryPhraseSet, signerKeyFileSet, replacementRequested, secretTransferRequired, humanCommand, agentResumeCommand, rpcUrl?, nextStep, nextActions?: [...] }`
 
 **JSON variants:**
 - `--staged: JSONL stages with mode: "init-staged", operation: "init", stage: "preflight"|"recovery"|"backup"|"signer"|"chain"|"write"|"discovery"|"complete"`
+- `--pending: single JSON envelope with mode: "init-pending" that tells agents which local human command to request and which status command to run after the human completes init`

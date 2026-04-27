@@ -116,6 +116,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Use --dry-run to preview the effective chain, secret sources, overwrite behavior, and write targets without generating a live recovery phrase or changing files.",
         "If you are moving from the website to the CLI, the smoothest load path is 'privacy-pools init --recovery-phrase-file <downloaded-file>' (or '--recovery-phrase-stdin' when piping the download).",
         "Machine-mode account creation fails closed unless you capture the generated recovery phrase with --show-recovery-phrase or --backup-file. Interactive generated setup defaults to a private .txt backup and only asks for word verification when you choose manual copy.",
+        "Use --pending in agent-assisted onboarding when a human should run interactive init locally; the agent receives only a handoff plan and no secret material.",
         "Use only one secret stdin source per run: either --recovery-phrase-stdin or --private-key-stdin.",
         "Zero-knowledge proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI package. Set PRIVACY_POOLS_CIRCUITS_DIR only when you intentionally want to override that packaged directory with a pre-provisioned one.",
       ],
@@ -131,6 +132,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
           "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
           "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
           "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+          "privacy-pools init --pending --agent --default-chain mainnet",
         ]},
         { category: "Load existing account", commands: [
           "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
@@ -140,9 +142,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         ]},
       ],
       jsonFields:
-        "success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }",
+        "success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }; --pending: { mode: \"init-pending\", operation: \"init\", status: \"pending_human_action\", effectiveChain, configExists, recoveryPhraseSet, signerKeyFileSet, replacementRequested, secretTransferRequired, humanCommand, agentResumeCommand, rpcUrl?, nextStep, nextActions?: [...] }",
       jsonVariants: [
         "--staged: JSONL stages with mode: \"init-staged\", operation: \"init\", stage: \"preflight\"|\"recovery\"|\"backup\"|\"signer\"|\"chain\"|\"write\"|\"discovery\"|\"complete\"",
+        "--pending: single JSON envelope with mode: \"init-pending\" that tells agents which local human command to request and which status command to run after the human completes init",
       ],
       supportsDryRun: true,
       safetyNotes: [
@@ -170,9 +173,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--force",
         "--show-recovery-phrase",
         "--staged",
+        "--pending",
         "--dry-run",
       ],
-      agentFlags: "--agent [--staged] --default-chain <chain> (--show-recovery-phrase | --backup-file <path>)",
+      agentFlags: "--agent [--staged] --default-chain <chain> (--show-recovery-phrase | --backup-file <path>); or --pending --agent --default-chain <chain>",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
