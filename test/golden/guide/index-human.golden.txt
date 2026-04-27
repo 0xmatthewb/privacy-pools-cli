@@ -3,22 +3,23 @@
 Privacy Pools: Quick Guide
 
 Available Topics:
-  quickstart    Install, setup, and first deposit
-  keys          Two-key model (recovery phrase + signer key)
-  workflow      Step-by-step workflow for deposits and withdrawals
-  flow-states   Flow state machine and transitions
-  ragequit      Public recovery to the deposit address
-  automation    Global flags, env vars, and agent/CI integration
-  env-vars      Environment variable fallbacks and overrides
-  next-actions  How nextActions guide agent follow-up
-  profiles      Named profiles and wallet/config separation
-  pool-accounts Pool Account states, approval, and recovery
-  agents        Agent mode, discovery, and machine workflows
-  json          JSON envelope, field selection, and JMESPath filtering
-  modes         Confirmation, dry-run, unsigned, and agent modes
-  quiet         Quiet mode and low-noise automation output
-  troubleshootingCommon issues and fixes
-  exit-codes    CLI exit codes by category
+  quickstart        Install, setup, and first deposit
+  keys              Two-key model (recovery phrase + signer key)
+  workflow          Step-by-step workflow for deposits and withdrawals
+  flow-states       Flow state machine and transitions
+  ragequit          Public recovery to the deposit address
+  automation        Global flags, env vars, and agent/CI integration
+  env-vars          Environment variable fallbacks and overrides
+  next-actions      How nextActions guide agent follow-up
+  profiles          Named profiles and wallet/config separation
+  pool-accounts     Pool Account states, approval, and recovery
+  agents            Agent mode, discovery, and machine workflows
+  json              JSON envelope, field selection, and JMESPath filtering
+  formatting        Output formats, command names, and flag conventions
+  modes             Confirmation, dry-run, unsigned, and agent modes
+  quiet             Quiet mode and low-noise automation output
+  troubleshooting   Common issues and fixes
+  exit-codes        CLI exit codes by category
 
   Run privacy-pools guide <topic> to open one topic.
   Common shortcuts: guide flow, guide json, guide troubleshooting.
@@ -137,7 +138,7 @@ Global Options:
   --jq <expr>          Compatibility alias for --jmes (not jq syntax)
   --template <template> Render structured output through a lightweight {{path.to.value}} template
   --web                 Open the primary explorer or portal link in your browser when available
-  --no-banner           Disable ASCII banner
+  --no-banner           Disable welcome banner
   --profile <name>     Use a named profile (separate wallet identity and config)
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -157,6 +158,7 @@ Environment Variables:
   PRIVACY_POOLS_YES  Skip confirmation prompts by default, matching --yes.
   PRIVACY_POOLS_NO_PROGRESS  Suppress spinners/progress indicators by default, matching --no-progress.
   NO_COLOR  Disable colored output, matching --no-color.
+  FORCE_COLOR  Force colored output when supported by the terminal renderer.
   PRIVACY_POOLS_BANNER / PRIVACY_POOLS_BANNER_ART  Choose the welcome illustration. Set to merkle for the alternate Merkle tree banner.
   PP_NO_UPDATE_CHECK  Set to 1 to disable the update-available notification.
 
@@ -184,6 +186,7 @@ Environment Variable Fallbacks:
   PRIVACY_POOLS_YES  Skip confirmation prompts by default, matching --yes.
   PRIVACY_POOLS_NO_PROGRESS  Suppress spinners/progress indicators by default, matching --no-progress.
   NO_COLOR  Disable colored output, matching --no-color.
+  FORCE_COLOR  Force colored output when supported by the terminal renderer.
   PRIVACY_POOLS_BANNER / PRIVACY_POOLS_BANNER_ART  Choose the welcome illustration. Set to merkle for the alternate Merkle tree banner.
   PP_NO_UPDATE_CHECK  Set to 1 to disable the update-available notification.
 
@@ -313,6 +316,28 @@ Discovery:
   privacy-pools describe envelope.commands.status.successFields --agent Deep contract schema fragments.
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Output Formats:
+  --output table  Human-readable default.
+  --output wide   Human-readable wide tables on stdout for tabular list commands.
+  --output csv    CSV for supported read-only list/report commands.
+  --json          Structured envelopes on stdout.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Command Names:
+  Collection commands use plural root names: accounts, pools, recipients.
+  Detail views use positionals instead of singular aliases:
+  privacy-pools pools ETH      Pool detail
+  privacy-pools accounts --pool-account PA-1  Pool Account detail/filter
+  For discoverability, pools list and pools ls are accepted aliases for pools.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Short Flag Conventions:
+  -c chain, -r RPC URL, -j JSON, -o output format.
+  -y yes/confirm, -q quiet, -v verbose.
+  -p is page on paginated public reports; use --pool-account for Pool Account selection.
+  Prefer long flags in scripts when a flag controls funds or privacy posture.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Modes:
   --yes       Skip confirmation prompts. Use only after the command inputs are fully reviewed.
   --dry-run   Preview validation and generated outputs without signing or submitting.
@@ -367,6 +392,7 @@ Exit Codes:
   6  Proof generation error
   7  Contract revert
   8  ASP error
+  9  Prompt or confirmation cancelled
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Using CLI with an Existing Website Account:

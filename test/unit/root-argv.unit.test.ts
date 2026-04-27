@@ -161,4 +161,11 @@ describe("root argv parsing", () => {
     expect(prelude?.globalOpts.template).toBe("{{command}}");
     expect(prelude?.globalOpts.json).toBe(true);
   });
+
+  test("--stream-json implies structured output for command-level parse errors", () => {
+    const parsed = parseRootArgv(["deposit", "--stream-json"]);
+
+    expect(parsed.isStructuredOutputMode).toBe(true);
+    expect(parsed.isMachineMode).toBe(true);
+  });
 });

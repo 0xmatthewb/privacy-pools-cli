@@ -1,18 +1,16 @@
 // normalized: NONE
-Usage: privacy-pools withdraw quote [options] <amountOrAsset> [amount]
+Usage: privacy-pools withdraw quote [options] <amountOrAsset> [asset]
 
 Request relayer quote and limits without generating a proof
 
 Arguments:
-  amountOrAsset       Amount to withdraw (preferred first positional) or asset
-                      symbol
-  amount              Asset symbol (preferred second positional,
-                      case-insensitive) or amount when the asset is first
+  amountOrAsset       Amount to withdraw (canonical first positional)
+  asset               Asset symbol (canonical second positional,
+                      case-insensitive)
 
 Options:
   -t, --to <address>  Recipient address (recommended for an accurate fee quote)
   -h, --help          display help for command
-Preferred order: privacy-pools withdraw quote <amount> <asset>
-Also supported: privacy-pools withdraw quote <asset> <amount>
+Canonical order: privacy-pools withdraw quote <amount> <asset>
 
 Tip: add --help-full for examples, safety notes, and JSON fields.

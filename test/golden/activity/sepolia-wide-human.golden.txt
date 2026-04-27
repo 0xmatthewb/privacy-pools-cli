@@ -1,5 +1,4 @@
 // normalized: NONE
-Fetching public activity...
 
 Global activity (sepolia):
 

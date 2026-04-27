@@ -437,13 +437,13 @@ defineScenarioSuite("agent improvements acceptance", [
         expect(json.error.message).toContain(
           "distinctive committed amount",
         );
-        expect(json.error.hint).toContain("--ignore-unique-amount");
+        expect(json.error.hint).toContain("--allow-non-round-amounts");
         expect(json.error.hint).not.toContain("privacy-pools init");
       }),
     ],
   ),
   defineScenario(
-    "deposit ignore-unique-amount advances to the real wallet prerequisite",
+    "deposit allow-non-round-amounts advances to the real wallet prerequisite",
     [
       (ctx) =>
         runCliStep(
@@ -452,7 +452,7 @@ defineScenarioSuite("agent improvements acceptance", [
             "deposit",
             "1.276848",
             "ETH",
-            "--ignore-unique-amount",
+            "--allow-non-round-amounts",
             "--chain",
             "sepolia",
           ],

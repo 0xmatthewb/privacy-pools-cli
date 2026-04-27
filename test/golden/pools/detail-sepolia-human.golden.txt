@@ -5,10 +5,10 @@ ETH Pool on sepolia
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Pool summary:
-  Pool Balance:      -
-  Pending Funds:     -
-  All-Time Deposits: -
-  Total Deposits:    -
+  Pool Balance:      5 ETH
+  Pending Funds:     2 ETH
+  All-Time Deposits: 10 ETH
+  Total Deposits:    42
   Vetting Fee:       0.50%
   Min Deposit:       0.001 ETH
 

@@ -204,6 +204,9 @@ function sanitizeEnv(baseEnv = process.env) {
   }
   delete env.NO_COLOR;
   env.FORCE_COLOR = "1";
+  env.LANG = "en_US.UTF-8";
+  env.TERM = "xterm-256color";
+  env.COLUMNS = "120";
   env.PP_NO_UPDATE_CHECK = "1";
   env.PRIVACY_POOLS_CLI_DISABLE_NATIVE = "1";
   return env;

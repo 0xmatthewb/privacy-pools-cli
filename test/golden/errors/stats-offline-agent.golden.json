@@ -10,6 +10,14 @@
   },
   "errorCode": "RPC_NETWORK_ERROR",
   "errorMessage": "Network error: fetch failed",
+  "meta": {
+    "deprecated": [
+      "errorCode",
+      "errorMessage",
+      "helpTopic",
+      "nextActions"
+    ]
+  },
   "schemaVersion": "2.0.0",
   "success": false
 }

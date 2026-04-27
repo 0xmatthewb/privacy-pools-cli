@@ -23,6 +23,8 @@ const nativeManifestPath = join(
   "manifest.json",
 );
 const packageJsonPath = join(CLI_ROOT, "package.json");
+const versionTxtPath = join(CLI_ROOT, "version.txt");
+const cargoTomlPath = join(CLI_ROOT, "native", "shell", "Cargo.toml");
 
 function stripAnsi(text: string): string {
   return text.replace(/\x1B\[[0-9;]*m/g, "");
@@ -53,7 +55,12 @@ describe("native manifest conformance", () => {
     const pkg = JSON.parse(
       readFileSync(packageJsonPath, "utf8"),
     ) as { version: string };
+    const versionTxt = readFileSync(versionTxtPath, "utf8").trim();
+    const cargoToml = readFileSync(cargoTomlPath, "utf8");
+    const cargoVersion = cargoToml.match(/^version = "([^"]+)"$/m)?.[1];
 
+    expect(versionTxt).toBe(pkg.version);
+    expect(cargoVersion).toBe(pkg.version);
     expect(nativeManifest.manifestVersion).toBe(
       GENERATED_COMMAND_MANIFEST.manifestVersion,
     );
@@ -71,6 +78,12 @@ describe("native manifest conformance", () => {
     expect(nativeManifest.structuredRootHelp).toContain("Usage: privacy-pools");
     const liveGuide = runCli(["guide"], {
       home: createTempHome(),
+      env: {
+        LANG: "en_US.UTF-8",
+        TERM: "xterm-256color",
+        COLUMNS: "120",
+        NO_COLOR: undefined,
+      },
       timeoutMs: 20_000,
     });
     expect(liveGuide.status).toBe(0);

@@ -9,6 +9,14 @@
   },
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
+  "meta": {
+    "deprecated": [
+      "errorCode",
+      "errorMessage",
+      "helpTopic",
+      "nextActions"
+    ]
+  },
   "schemaVersion": "2.0.0",
   "success": false
 }

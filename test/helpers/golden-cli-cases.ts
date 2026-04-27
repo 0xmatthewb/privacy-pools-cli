@@ -82,7 +82,7 @@ export const GOLDEN_TEXT_CASES: readonly GoldenTextCase[] = [
     args: ["--output", "wide", "stats"],
     env: "fixture",
     format: "text",
-    stream: "stderr",
+    stream: "stdout",
     status: 0,
   },
   {
@@ -99,7 +99,7 @@ export const GOLDEN_TEXT_CASES: readonly GoldenTextCase[] = [
     args: ["--output", "wide", "--chain", "sepolia", "pools"],
     env: "fixture",
     format: "text",
-    stream: "stderr",
+    stream: "stdout",
     status: 0,
   },
   {
@@ -123,7 +123,7 @@ export const GOLDEN_TEXT_CASES: readonly GoldenTextCase[] = [
     args: ["--output", "wide", "--chain", "sepolia", "activity"],
     env: "fixture",
     format: "text",
-    stream: "stderr",
+    stream: "stdout",
     status: 0,
   },
   {

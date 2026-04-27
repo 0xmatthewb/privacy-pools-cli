@@ -1,5 +1,4 @@
 // normalized: NONE
-Fetching pools for sepolia...
 
 Pools on sepolia:
 

@@ -112,28 +112,49 @@
       "sideEffectClass": "local_cache_write",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools accounts",
-            "privacy-pools accounts --include-testnets",
-            "privacy-pools accounts --details"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools accounts",
+          "description": "Basic"
         },
         {
-          "name": "Compact modes",
-          "value": [
-            "privacy-pools accounts --summary",
-            "privacy-pools accounts --chain <name> --pending-only",
-            "privacy-pools accounts --chain <name> --status approved",
-            "privacy-pools accounts --chain <name> --pending-only --watch"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools accounts --include-testnets",
+          "description": "Basic"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools accounts --agent",
-            "privacy-pools accounts --no-sync --chain mainnet"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools accounts --details",
+          "description": "Basic"
+        },
+        {
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --summary",
+          "description": "Compact modes"
+        },
+        {
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --chain <name> --pending-only",
+          "description": "Compact modes"
+        },
+        {
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --chain <name> --status approved",
+          "description": "Compact modes"
+        },
+        {
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --chain <name> --pending-only --watch",
+          "description": "Compact modes"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools accounts --agent",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools accounts --no-sync --chain mainnet",
+          "description": "Agent / CI"
         }
       ],
       "supportsDryRun": false,
@@ -214,19 +235,29 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools activity",
-            "privacy-pools activity --page 2 --limit 20",
-            "privacy-pools activity --include-testnets",
-            "privacy-pools activity ETH"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools activity",
+          "description": "Basic"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools activity USDC --agent --chain mainnet"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools activity --page 2 --limit 20",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools activity --include-testnets",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools activity ETH",
+          "description": "Basic"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools activity USDC --agent --chain mainnet",
+          "description": "Agent / CI"
         }
       ],
       "supportsDryRun": false,
@@ -303,20 +334,20 @@
       "sideEffectClass": "fund_movement",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools broadcast ./signed-deposit-envelope.json"
+          "command": "privacy-pools broadcast ./signed-deposit-envelope.json",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent --no-wait"
+          "command": "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent --no-wait",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent --no-wait"
+          "command": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent --no-wait",
+          "description": "Example 3"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools broadcast ./signed-envelope.json --validate-only --agent"
+          "command": "privacy-pools broadcast ./signed-envelope.json --validate-only --agent",
+          "description": "Example 4"
         }
       ],
       "supportsDryRun": false,
@@ -377,12 +408,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools capabilities"
+          "command": "privacy-pools capabilities",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools capabilities --agent"
+          "command": "privacy-pools capabilities --agent",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -451,28 +482,28 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools completion --install"
+          "command": "privacy-pools completion --install",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools completion --install zsh"
+          "command": "privacy-pools completion --install zsh",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools"
+          "command": "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools",
+          "description": "Example 3"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools"
+          "command": "privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools",
+          "description": "Example 4"
         },
         {
-          "name": "Example 5",
-          "value": "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish"
+          "command": "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish",
+          "description": "Example 5"
         },
         {
-          "name": "Example 6",
-          "value": "privacy-pools completion powershell >> $PROFILE"
+          "command": "privacy-pools completion powershell >> $PROFILE",
+          "description": "Example 6"
         }
       ],
       "supportsDryRun": false,
@@ -541,24 +572,24 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config list"
+          "command": "privacy-pools config list",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config get default-chain"
+          "command": "privacy-pools config get default-chain",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config set default-chain arbitrum"
+          "command": "privacy-pools config set default-chain arbitrum",
+          "description": "Example 3"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools config unset rpc-override.mainnet"
+          "command": "privacy-pools config unset rpc-override.mainnet",
+          "description": "Example 4"
         },
         {
-          "name": "Example 5",
-          "value": "privacy-pools config path"
+          "command": "privacy-pools config path",
+          "description": "Example 5"
         }
       ],
       "supportsDryRun": false,
@@ -622,20 +653,20 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config get default-chain"
+          "command": "privacy-pools config get default-chain",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config get rpc-override.mainnet"
+          "command": "privacy-pools config get rpc-override.mainnet",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config get recovery-phrase --reveal"
+          "command": "privacy-pools config get recovery-phrase --reveal",
+          "description": "Example 3"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools config get signer-key --reveal"
+          "command": "privacy-pools config get signer-key --reveal",
+          "description": "Example 4"
         }
       ],
       "supportsDryRun": false,
@@ -695,12 +726,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config list"
+          "command": "privacy-pools config list",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config list --agent"
+          "command": "privacy-pools config list --agent",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -760,12 +791,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config path"
+          "command": "privacy-pools config path",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config path --agent"
+          "command": "privacy-pools config path --agent",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -826,16 +857,16 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile list"
+          "command": "privacy-pools config profile list",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile create trading"
+          "command": "privacy-pools config profile create trading",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config profile use trading"
+          "command": "privacy-pools config profile use trading",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -895,12 +926,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile active"
+          "command": "privacy-pools config profile active",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile active --agent"
+          "command": "privacy-pools config profile active --agent",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -960,12 +991,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile create trading"
+          "command": "privacy-pools config profile create trading",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile create ops --agent"
+          "command": "privacy-pools config profile create ops --agent",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -1025,12 +1056,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile list"
+          "command": "privacy-pools config profile list",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile list --agent"
+          "command": "privacy-pools config profile list --agent",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -1090,12 +1121,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile use trading"
+          "command": "privacy-pools config profile use trading",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile use default"
+          "command": "privacy-pools config profile use default",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -1162,20 +1193,20 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config set default-chain arbitrum"
+          "command": "privacy-pools config set default-chain arbitrum",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config set rpc-override.mainnet https://my-rpc.example.com"
+          "command": "privacy-pools config set rpc-override.mainnet https://my-rpc.example.com",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config set recovery-phrase --file ./phrase.txt"
+          "command": "privacy-pools config set recovery-phrase --file ./phrase.txt",
+          "description": "Example 3"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools init --signer-only --private-key-file ./signer-key.txt"
+          "command": "privacy-pools init --signer-only --private-key-file ./signer-key.txt",
+          "description": "Example 4"
         }
       ],
       "supportsDryRun": false,
@@ -1242,20 +1273,20 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config unset rpc-override.mainnet"
+          "command": "privacy-pools config unset rpc-override.mainnet",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config unset default-chain"
+          "command": "privacy-pools config unset default-chain",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config unset recovery-phrase"
+          "command": "privacy-pools config unset recovery-phrase",
+          "description": "Example 3"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools config remove signer-key"
+          "command": "privacy-pools config remove signer-key",
+          "description": "Example 4"
         }
       ],
       "supportsDryRun": false,
@@ -1306,7 +1337,8 @@
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
-        "--ignore-unique-amount"
+        "--stream-json",
+        "--allow-non-round-amounts"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -1335,7 +1367,8 @@
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
-        "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }"
+        "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }",
+        "--stream-json progress events: { mode: \"deposit-progress\", operation: \"deposit\", event: \"stage\", stage, chain?, asset?, txHash? }"
       ],
       "preferredSafeVariant": {
         "command": "pools",
@@ -1358,25 +1391,34 @@
       "sideEffectClass": "fund_movement",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools deposit 0.1 ETH",
-            "privacy-pools deposit 100 USDC"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools deposit 0.1 ETH",
+          "description": "Basic"
         },
         {
-          "name": "With options",
-          "value": [
-            "privacy-pools deposit 0.1 ETH --chain mainnet",
-            "privacy-pools deposit 0.1 ETH --dry-run"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools deposit 100 USDC",
+          "description": "Basic"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools deposit 0.05 ETH --agent",
-            "privacy-pools deposit 0.1 ETH --unsigned"
-          ]
+          "category": "With options",
+          "command": "privacy-pools deposit 0.1 ETH --chain mainnet",
+          "description": "With options"
+        },
+        {
+          "category": "With options",
+          "command": "privacy-pools deposit 0.1 ETH --dry-run",
+          "description": "With options"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools deposit 0.05 ETH --agent",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools deposit 0.1 ETH --unsigned",
+          "description": "Agent / CI"
         }
       ],
       "supportsDryRun": true,
@@ -1430,7 +1472,7 @@
         "--profile <name>"
       ],
       "group": "advanced",
-      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
+      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples: [{ description, command, category? }], jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
       "jsonVariants": [],
       "prerequisites": [],
       "requiresHumanReview": false,
@@ -1442,24 +1484,24 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools describe withdraw"
+          "command": "privacy-pools describe withdraw",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools describe withdraw quote --agent"
+          "command": "privacy-pools describe withdraw quote --agent",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools describe protocol-stats --agent"
+          "command": "privacy-pools describe protocol-stats --agent",
+          "description": "Example 3"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools describe envelope.nextActions --agent"
+          "command": "privacy-pools describe envelope.nextActions --agent",
+          "description": "Example 4"
         },
         {
-          "name": "Example 5",
-          "value": "privacy-pools describe envelope.commands.status.successFields --agent"
+          "command": "privacy-pools describe envelope.commands.status.successFields --agent",
+          "description": "Example 5"
         }
       ],
       "supportsDryRun": false,
@@ -1548,36 +1590,36 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient..."
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run"
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch"
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch",
+          "description": "Example 3"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
+          "command": "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
+          "description": "Example 4"
         },
         {
-          "name": "Example 5",
-          "value": "privacy-pools flow watch"
+          "command": "privacy-pools flow watch",
+          "description": "Example 5"
         },
         {
-          "name": "Example 6",
-          "value": "privacy-pools flow status latest"
+          "command": "privacy-pools flow status latest",
+          "description": "Example 6"
         },
         {
-          "name": "Example 7",
-          "value": "privacy-pools flow step latest"
+          "command": "privacy-pools flow step latest",
+          "description": "Example 7"
         },
         {
-          "name": "Example 8",
-          "value": "privacy-pools flow ragequit latest"
+          "command": "privacy-pools flow ragequit latest",
+          "description": "Example 8"
         }
       ],
       "supportsDryRun": false,
@@ -1654,16 +1696,16 @@
       "sideEffectClass": "fund_movement",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools flow ragequit"
+          "command": "privacy-pools flow ragequit",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools flow ragequit latest --agent"
+          "command": "privacy-pools flow ragequit latest --agent",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
+          "command": "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -1727,6 +1769,7 @@
         "--privacy-delay <profile>",
         "--dry-run",
         "--watch",
+        "--stream-json",
         "--new-wallet",
         "--export-new-wallet <path>"
       ],
@@ -1755,7 +1798,8 @@
       "group": "transaction",
       "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
-        "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }"
+        "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }",
+        "--stream-json progress events: { mode: \"flow-progress\", action: \"start\", event: \"stage\", stage, workflowId?, phase? }"
       ],
       "prerequisites": [
         "init"
@@ -1783,26 +1827,39 @@
       "sideEffectClass": "fund_movement",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
-            "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
+          "description": "Basic"
         },
         {
-          "name": "With options",
-          "value": [
-            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
-            "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet",
+          "description": "Basic"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent",
-            "privacy-pools flow status latest --agent",
-            "privacy-pools flow step latest --agent"
-          ]
+          "category": "With options",
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
+          "description": "With options"
+        },
+        {
+          "category": "With options",
+          "command": "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt",
+          "description": "With options"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools flow status latest --agent",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools flow step latest --agent",
+          "description": "Agent / CI"
         }
       ],
       "supportsDryRun": true,
@@ -1875,16 +1932,16 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools flow status"
+          "command": "privacy-pools flow status",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools flow status latest --agent"
+          "command": "privacy-pools flow status latest --agent",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000"
+          "command": "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -1957,16 +2014,16 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools flow step latest"
+          "command": "privacy-pools flow step latest",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools flow step latest --agent"
+          "command": "privacy-pools flow step latest --agent",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000"
+          "command": "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -2067,18 +2124,24 @@
       "sideEffectClass": "fund_movement",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools flow watch",
-            "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools flow watch",
+          "description": "Basic"
         },
         {
-          "name": "With options",
-          "value": [
-            "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
-            "privacy-pools flow watch latest --stream-json"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000",
+          "description": "Basic"
+        },
+        {
+          "category": "With options",
+          "command": "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
+          "description": "With options"
+        },
+        {
+          "category": "With options",
+          "command": "privacy-pools flow watch latest --stream-json",
+          "description": "With options"
         }
       ],
       "supportsDryRun": false,
@@ -2141,20 +2204,20 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools guide"
+          "command": "privacy-pools guide",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools guide json"
+          "command": "privacy-pools guide json",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools help modes"
+          "command": "privacy-pools help modes",
+          "description": "Example 3"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools guide --agent"
+          "command": "privacy-pools guide --agent",
+          "description": "Example 4"
         }
       ],
       "supportsDryRun": false,
@@ -2234,18 +2297,24 @@
       "sideEffectClass": "local_cache_write",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools history",
-            "privacy-pools history --limit 10"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools history",
+          "description": "Basic"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools history --agent",
-            "privacy-pools history --no-sync --chain mainnet"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools history --limit 10",
+          "description": "Basic"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools history --agent",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools history --no-sync --chain mainnet",
+          "description": "Agent / CI"
         }
       ],
       "supportsDryRun": false,
@@ -2352,31 +2421,64 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools init",
-            "privacy-pools init --dry-run",
-            "privacy-pools init --signer-only",
-            "privacy-pools init --yes --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
-            "privacy-pools init --force --yes --default-chain mainnet"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools init",
+          "description": "Basic"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
-            "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
-            "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools init --dry-run",
+          "description": "Basic"
         },
         {
-          "name": "Load existing account",
-          "value": [
-            "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
-            "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
-            "privacy-pools init --signer-only --private-key-file ./my-key.txt",
-            "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools init --signer-only",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools init --yes --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools init --force --yes --default-chain mainnet",
+          "description": "Basic"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Load existing account",
+          "command": "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
+          "description": "Load existing account"
+        },
+        {
+          "category": "Load existing account",
+          "command": "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
+          "description": "Load existing account"
+        },
+        {
+          "category": "Load existing account",
+          "command": "privacy-pools init --signer-only --private-key-file ./my-key.txt",
+          "description": "Load existing account"
+        },
+        {
+          "category": "Load existing account",
+          "command": "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet",
+          "description": "Load existing account"
         }
       ],
       "supportsDryRun": false,
@@ -2441,16 +2543,16 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools migrate status"
+          "command": "privacy-pools migrate status",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools migrate status --chain mainnet"
+          "command": "privacy-pools migrate status --chain mainnet",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools migrate status --include-testnets --agent"
+          "command": "privacy-pools migrate status --include-testnets --agent",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -2520,16 +2622,16 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools migrate status"
+          "command": "privacy-pools migrate status",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools migrate status --chain mainnet"
+          "command": "privacy-pools migrate status --chain mainnet",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools migrate status --include-testnets --agent"
+          "command": "privacy-pools migrate status --include-testnets --agent",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -2596,12 +2698,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools pool-stats ETH"
+          "command": "privacy-pools pool-stats ETH",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools pool-stats USDC --agent --chain mainnet"
+          "command": "privacy-pools pool-stats USDC --agent --chain mainnet",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -2694,25 +2796,34 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools pools",
-            "privacy-pools pools ETH",
-            "privacy-pools pools BOLD --chain mainnet"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools pools",
+          "description": "Basic"
         },
         {
-          "name": "Search and sort",
-          "value": [
-            "privacy-pools pools --include-testnets --sort tvl-desc",
-            "privacy-pools pools --search usdc --sort asset-asc"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools pools ETH",
+          "description": "Basic"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools pools --agent --chain mainnet"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools pools BOLD --chain mainnet",
+          "description": "Basic"
+        },
+        {
+          "category": "Search and sort",
+          "command": "privacy-pools pools --include-testnets --sort tvl-desc",
+          "description": "Search and sort"
+        },
+        {
+          "category": "Search and sort",
+          "command": "privacy-pools pools --search usdc --sort asset-asc",
+          "description": "Search and sort"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools pools --agent --chain mainnet",
+          "description": "Agent / CI"
         }
       ],
       "supportsDryRun": false,
@@ -2777,12 +2888,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools protocol-stats"
+          "command": "privacy-pools protocol-stats",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools protocol-stats --agent"
+          "command": "privacy-pools protocol-stats --agent",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -2868,25 +2979,31 @@
       "safeReadOnly": false,
       "safetyNotes": [
         "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.",
-        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.",
+        "Ragequit returns the full Pool Account balance, including any pending portion still under ASP review, to the original deposit address. You will not gain any privacy: this transaction publicly links your deposit to its withdrawal. This cannot be undone.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "sideEffectClass": "fund_movement",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools ragequit ETH --pool-account PA-1",
-            "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools ragequit ETH --pool-account PA-1",
+          "description": "Basic"
         },
         {
-          "name": "Advanced modes",
-          "value": [
-            "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
-            "privacy-pools ragequit ETH --dry-run --pool-account PA-1"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet",
+          "description": "Basic"
+        },
+        {
+          "category": "Advanced modes",
+          "command": "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
+          "description": "Advanced modes"
+        },
+        {
+          "category": "Advanced modes",
+          "command": "privacy-pools ragequit ETH --dry-run --pool-account PA-1",
+          "description": "Advanced modes"
         }
       ],
       "supportsDryRun": true,
@@ -2952,16 +3069,16 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients"
+          "command": "privacy-pools recipients",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recipients add 0xRecipient... treasury"
+          "command": "privacy-pools recipients add 0xRecipient... treasury",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools recipients remove 0xRecipient..."
+          "command": "privacy-pools recipients remove 0xRecipient...",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -3024,12 +3141,12 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients add 0xRecipient... treasury"
+          "command": "privacy-pools recipients add 0xRecipient... treasury",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recipients add vitalik.eth --label donations"
+          "command": "privacy-pools recipients add vitalik.eth --label donations",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -3090,12 +3207,12 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients clear"
+          "command": "privacy-pools recipients clear",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recipients clear --yes"
+          "command": "privacy-pools recipients clear --yes",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -3159,12 +3276,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients list"
+          "command": "privacy-pools recipients list",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recents"
+          "command": "privacy-pools recents",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -3226,12 +3343,12 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients remove 0xRecipient..."
+          "command": "privacy-pools recipients remove 0xRecipient...",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recipients rm treasury.eth"
+          "command": "privacy-pools recipients rm treasury.eth",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -3302,16 +3419,16 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools simulate deposit 0.1 ETH"
+          "command": "privacy-pools simulate deposit 0.1 ETH",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
+          "command": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient...",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1"
+          "command": "privacy-pools simulate ragequit ETH --pool-account PA-1",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -3341,7 +3458,7 @@
         "after_dry_run"
       ],
       "flags": [
-        "--ignore-unique-amount"
+        "--allow-non-round-amounts"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3382,12 +3499,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools simulate deposit 0.1 ETH"
+          "command": "privacy-pools simulate deposit 0.1 ETH",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools simulate deposit 100 USDC --agent --chain mainnet"
+          "command": "privacy-pools simulate deposit 100 USDC --agent --chain mainnet",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -3462,12 +3579,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1"
+          "command": "privacy-pools simulate ragequit ETH --pool-account PA-1",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet"
+          "command": "privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -3547,12 +3664,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
+          "command": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient...",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain mainnet"
+          "command": "privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain mainnet",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -3629,20 +3746,34 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools status",
-            "privacy-pools status --check",
-            "privacy-pools status --check asp",
-            "privacy-pools status --no-check"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools status",
+          "description": "Basic"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools status --agent --check rpc",
-            "privacy-pools status --chain mainnet --rpc-url https://..."
-          ]
+          "category": "Basic",
+          "command": "privacy-pools status --check",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools status --check asp",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools status --no-check",
+          "description": "Basic"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools status --agent --check rpc",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools status --chain mainnet --rpc-url https://...",
+          "description": "Agent / CI"
         }
       ],
       "supportsDryRun": false,
@@ -3713,16 +3844,16 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools sync"
+          "command": "privacy-pools sync",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools sync ETH --agent"
+          "command": "privacy-pools sync ETH --agent",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools sync --chain mainnet"
+          "command": "privacy-pools sync --chain mainnet",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -3785,12 +3916,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000"
+          "command": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent"
+          "command": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -3875,19 +4006,29 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools upgrade --check",
-            "privacy-pools upgrade",
-            "privacy-pools upgrade --yes"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools upgrade --check",
+          "description": "Basic"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools upgrade --agent --check",
-            "privacy-pools upgrade --agent --yes"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools upgrade",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools upgrade --yes",
+          "description": "Basic"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools upgrade --agent --check",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools upgrade --agent --yes",
+          "description": "Agent / CI"
         }
       ],
       "supportsDryRun": false,
@@ -3953,7 +4094,8 @@
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
         "--dry-run",
-        "--no-wait"
+        "--no-wait",
+        "--stream-json"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3984,7 +4126,8 @@
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary?: { quotedAt, quoteExpiresAt, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, relayerHost, extraGas } (relayed), ... } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
-        "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }"
+        "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
+        "--stream-json progress events: { mode: \"withdraw-progress\", operation: \"withdraw\", event: \"stage\", stage, withdrawMode, chain?, asset?, txHash? }"
       ],
       "preferredSafeVariant": {
         "command": "withdraw quote",
@@ -4008,31 +4151,39 @@
       "sideEffectClass": "fund_movement",
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
-            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2"
-          ]
+          "category": "Basic",
+          "command": "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
+          "description": "Basic"
         },
         {
-          "name": "Amount variants",
-          "value": [
-            "privacy-pools withdraw --all ETH --to 0xRecipient...",
-            "privacy-pools withdraw 50% ETH --to 0xRecipient..."
-          ]
+          "category": "Basic",
+          "command": "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2",
+          "description": "Basic"
         },
         {
-          "name": "With options",
-          "value": [
-            "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
-            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet"
-          ]
+          "category": "Amount variants",
+          "command": "privacy-pools withdraw --all ETH --to 0xRecipient...",
+          "description": "Amount variants"
         },
         {
-          "name": "Quote",
-          "value": [
-            "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
-          ]
+          "category": "Amount variants",
+          "command": "privacy-pools withdraw 50% ETH --to 0xRecipient...",
+          "description": "Amount variants"
+        },
+        {
+          "category": "With options",
+          "command": "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
+          "description": "With options"
+        },
+        {
+          "category": "With options",
+          "command": "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet",
+          "description": "With options"
+        },
+        {
+          "category": "Quote",
+          "command": "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
+          "description": "Quote"
         }
       ],
       "supportsDryRun": true,
@@ -4100,16 +4251,16 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
+          "command": "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw quote ETH 0.1 --to 0xRecipient..."
+          "command": "privacy-pools withdraw quote ETH 0.1 --to 0xRecipient...",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools withdraw quote 100 USDC --agent --chain mainnet"
+          "command": "privacy-pools withdraw quote 100 USDC --agent --chain mainnet",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -4175,16 +4326,16 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients"
+          "command": "privacy-pools withdraw recipients",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury",
+          "description": "Example 2"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools withdraw recipients remove 0xRecipient..."
+          "command": "privacy-pools withdraw recipients remove 0xRecipient...",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -4247,12 +4398,12 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recipients add vitalik.eth --label donations"
+          "command": "privacy-pools withdraw recipients add vitalik.eth --label donations",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -4313,12 +4464,12 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients clear"
+          "command": "privacy-pools withdraw recipients clear",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recipients clear --yes"
+          "command": "privacy-pools withdraw recipients clear --yes",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -4382,12 +4533,12 @@
       "sideEffectClass": "read_only",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients list"
+          "command": "privacy-pools withdraw recipients list",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recents"
+          "command": "privacy-pools withdraw recents",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -4449,12 +4600,12 @@
       "sideEffectClass": "local_state_write",
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients remove 0xRecipient..."
+          "command": "privacy-pools withdraw recipients remove 0xRecipient...",
+          "description": "Example 1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recipients rm treasury.eth"
+          "command": "privacy-pools withdraw recipients rm treasury.eth",
+          "description": "Example 2"
         }
       ],
       "supportsDryRun": false,
@@ -4641,7 +4792,7 @@
       "usage": "flow"
     },
     {
-      "agentFlags": "--agent [--privacy-delay <profile>] [--dry-run] [--new-wallet] [--export-new-wallet <path>]",
+      "agentFlags": "--agent [--privacy-delay <profile>] [--dry-run] [--stream-json] [--new-wallet] [--export-new-wallet <path>]",
       "description": "Deposit now and save a later private withdrawal workflow",
       "expectedLatencyClass": "slow",
       "flags": [
@@ -4649,6 +4800,7 @@
         "--privacy-delay <profile>",
         "--dry-run",
         "--watch",
+        "--stream-json",
         "--new-wallet",
         "--export-new-wallet <path>"
       ],
@@ -4727,7 +4879,7 @@
       "description": "Preview deposit validation without signing or submitting",
       "expectedLatencyClass": "slow",
       "flags": [
-        "--ignore-unique-amount"
+        "--allow-non-round-amounts"
       ],
       "group": "transaction",
       "name": "simulate deposit",
@@ -4859,14 +5011,15 @@
       "usage": "describe <command...>"
     },
     {
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--stream-json]",
       "description": "Deposit ETH or ERC-20 tokens into a pool",
       "expectedLatencyClass": "slow",
       "flags": [
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
-        "--ignore-unique-amount"
+        "--stream-json",
+        "--allow-non-round-amounts"
       ],
       "group": "transaction",
       "name": "deposit",
@@ -4874,7 +5027,7 @@
       "usage": "deposit <amount> [asset]"
     },
     {
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--stream-json]",
       "description": "Withdraw privately from a pool",
       "expectedLatencyClass": "slow",
       "flags": [
@@ -4887,7 +5040,8 @@
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
         "--dry-run",
-        "--no-wait"
+        "--no-wait",
+        "--stream-json"
       ],
       "group": "transaction",
       "name": "withdraw",
@@ -5188,6 +5342,10 @@
     {
       "description": "Disable colored output, matching --no-color.",
       "name": "NO_COLOR"
+    },
+    {
+      "description": "Force colored output when supported by the terminal renderer.",
+      "name": "FORCE_COLOR"
     },
     {
       "aliases": [
@@ -5627,8 +5785,14 @@
     {
       "category": "INPUT",
       "code": 2,
-      "description": "Invalid input, prompt cancellation in machine mode, or validation failure.",
+      "description": "Invalid input or validation failure.",
       "errorCode": "INPUT_ERROR"
+    },
+    {
+      "category": "CANCELLED",
+      "code": 9,
+      "description": "User cancelled an interactive prompt or confirmation.",
+      "errorCode": "PROMPT_CANCELLED"
     },
     {
       "category": "SETUP",
@@ -5713,7 +5877,7 @@
       "flag": "-q, --quiet"
     },
     {
-      "description": "Disable ASCII banner output",
+      "description": "Disable welcome banner output",
       "flag": "--no-banner"
     },
     {
