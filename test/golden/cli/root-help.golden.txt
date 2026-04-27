@@ -21,7 +21,7 @@ Privacy Pools: a compliant way to transact privately on Ethereum
                          elsewhere
 
   Monitoring
-  accounts               View balances, approval status, and pool accounts
+  accounts               View balances, approval status, and Pool Accounts
   pools                  Browse available pools
   history                View your deposit and withdrawal history
   activity               View recent deposits and withdrawals across pools
@@ -33,7 +33,7 @@ Privacy Pools: a compliant way to transact privately on Ethereum
   tx-status              Check async transaction submission status
 
   Advanced
-  migrate                Check migration status for legacy pool accounts
+  migrate                Check migration status for legacy Pool Accounts
   upgrade                Check for CLI updates
   config                 View and manage CLI configuration
   completion             Generate or install shell tab completion

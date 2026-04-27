@@ -1,6 +1,7 @@
 import jmespath from "jmespath";
 import type { NextAction } from "../types.js";
 import { CLIError } from "./errors.js";
+import { errorDocUrl } from "./error-code-registry.js";
 import { didYouMeanMany } from "./fuzzy.js";
 
 export const JSON_SCHEMA_VERSION = "2.0.0";
@@ -351,9 +352,10 @@ export function printJsonError(
 ): void {
   const { details, helpTopic, nextActions, ...errorPayload } = payload;
   const code = payload.code ?? "UNKNOWN_ERROR";
+  const docUrl = errorDocUrl(code);
   const errorObject = details
-    ? { ...errorPayload, code, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}), details, ...details }
-    : { ...errorPayload, code, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}) };
+    ? { ...errorPayload, code, docUrl, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}), details, ...details }
+    : { ...errorPayload, code, docUrl, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}) };
   // `error.code` and `error.message` are canonical. `errorCode` and
   // `errorMessage` remain v2 compatibility aliases and must match.
   const output: Record<string, unknown> = {

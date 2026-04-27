@@ -271,6 +271,13 @@ fn json_schema_version() -> &'static str {
     manifest().json_schema_version.as_str()
 }
 
+fn error_doc_url(code: &str) -> String {
+    format!(
+        "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#{}",
+        code.trim().to_ascii_lowercase().replace('_', "-")
+    )
+}
+
 pub fn print_json_success(payload: Value) {
     let source = payload.as_object().cloned().unwrap_or_default();
     let mut object = Map::new();
@@ -300,6 +307,10 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
         );
         error_payload.insert("retryable".to_string(), Value::Bool(error.retryable));
         error_payload.insert("code".to_string(), Value::String(error.code.to_string()));
+        error_payload.insert(
+            "docUrl".to_string(),
+            Value::String(error_doc_url(error.code.as_str())),
+        );
         if let Some(hint) = &error.hint {
             error_payload.insert("hint".to_string(), Value::String(hint.to_string()));
         }

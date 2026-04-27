@@ -124,7 +124,7 @@ export function loadConfig(): CLIConfig {
   }
 
   if (!existsSync(configFile)) {
-    return { defaultChain: "mainnet", rpcOverrides: {} };
+    return { defaultChain: "mainnet", rpcOverrides: {}, acknowledgedWarnings: {} };
   }
 
   let parsed: unknown;
@@ -150,7 +150,9 @@ export function loadConfig(): CLIConfig {
   const candidate = parsed as Record<string, unknown>;
   const defaultChain = candidate.defaultChain;
   const rpcOverridesRaw = candidate.rpcOverrides;
+  const acknowledgedWarningsRaw = candidate.acknowledgedWarnings;
   const rpcOverrides: Record<number, string> = {};
+  const acknowledgedWarnings: CLIConfig["acknowledgedWarnings"] = {};
 
   if (typeof defaultChain !== "string" || defaultChain.trim() === "") {
     throw new CLIError(
@@ -191,7 +193,20 @@ export function loadConfig(): CLIConfig {
     );
   }
 
-  _cachedConfig = { defaultChain, rpcOverrides };
+  if (typeof acknowledgedWarningsRaw === "object" && acknowledgedWarningsRaw !== null) {
+    const raw = acknowledgedWarningsRaw as Record<string, unknown>;
+    if (typeof raw.recoveryPhraseBackup === "boolean") {
+      acknowledgedWarnings.recoveryPhraseBackup = raw.recoveryPhraseBackup;
+    }
+  } else if (acknowledgedWarningsRaw !== undefined) {
+    throw new CLIError(
+      "Config acknowledgedWarnings must be an object.",
+      "INPUT",
+      `Fix or remove ${configFile}, then run 'privacy-pools init'.`
+    );
+  }
+
+  _cachedConfig = { defaultChain, rpcOverrides, acknowledgedWarnings };
   _cachedConfigPath = configFile;
   return _cachedConfig;
 }

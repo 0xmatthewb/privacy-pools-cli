@@ -29,7 +29,7 @@
       ],
       "aliases": [],
       "command": "accounts",
-      "description": "View balances, approval status, and pool accounts",
+      "description": "View balances, approval status, and Pool Accounts",
       "examples": [
         {
           "category": "Basic",
@@ -2490,7 +2490,7 @@
       "agentWorkflowNotes": [],
       "aliases": [],
       "command": "migrate",
-      "description": "Check migration status for legacy pool accounts",
+      "description": "Check migration status for legacy Pool Accounts",
       "examples": [
         "privacy-pools migrate status",
         "privacy-pools migrate status --chain mainnet",
@@ -2566,7 +2566,7 @@
       ],
       "aliases": [],
       "command": "migrate status",
-      "description": "Check migration status for legacy pool accounts",
+      "description": "Check migration status for legacy Pool Accounts",
       "examples": [
         "privacy-pools migrate status",
         "privacy-pools migrate status --chain mainnet",
@@ -5197,7 +5197,7 @@
     },
     {
       "agentFlags": "--agent",
-      "description": "View balances, approval status, and pool accounts",
+      "description": "View balances, approval status, and Pool Accounts",
       "expectedLatencyClass": "slow",
       "flags": [
         "--no-sync",
@@ -5215,7 +5215,7 @@
     },
     {
       "agentFlags": "status --agent [--include-testnets]",
-      "description": "Check migration status for legacy pool accounts",
+      "description": "Check migration status for legacy Pool Accounts",
       "expectedLatencyClass": "slow",
       "flags": [
         "status [--include-testnets]"
@@ -5227,7 +5227,7 @@
     },
     {
       "agentFlags": "--agent [--include-testnets]",
-      "description": "Check migration status for legacy pool accounts",
+      "description": "Check migration status for legacy Pool Accounts",
       "expectedLatencyClass": "slow",
       "flags": [
         "--include-testnets"

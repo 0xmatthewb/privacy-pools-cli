@@ -29,6 +29,7 @@ export const errorEnvelopeSchema = z.object({
     message: z.string(),
     hint: z.string().optional(),
     retryable: z.boolean().optional(),
+    docUrl: z.string().url().optional(),
     docsSlug: z.string().optional(),
     helpTopic: z.string().optional(),
     nextActions: z.array(nextActionSchema).optional(),

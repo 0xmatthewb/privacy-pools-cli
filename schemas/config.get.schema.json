@@ -1,0 +1,179 @@
+{
+  "$ref": "#/definitions/config get envelope",
+  "definitions": {
+    "config get envelope": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schemaVersion": {
+              "type": "string"
+            },
+            "success": {
+              "type": "boolean",
+              "const": true
+            },
+            "nextActions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "when": {
+                    "type": "string"
+                  },
+                  "cliCommand": {
+                    "type": "string"
+                  },
+                  "args": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "options": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "parameters": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "required": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "type"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "runnable": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "command",
+                  "reason",
+                  "when"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "success"
+          ],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "schemaVersion": {
+              "type": "string"
+            },
+            "success": {
+              "type": "boolean",
+              "const": false
+            },
+            "errorCode": {
+              "type": "string"
+            },
+            "errorMessage": {
+              "type": "string"
+            },
+            "meta": {
+              "type": "object",
+              "properties": {
+                "deprecated": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "deprecated"
+              ],
+              "additionalProperties": false
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                },
+                "docUrl": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "docsSlug": {
+                  "type": "string"
+                },
+                "helpTopic": {
+                  "type": "string"
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/config get envelope/anyOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "code",
+                "category",
+                "message"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "success",
+            "errorCode",
+            "errorMessage",
+            "error"
+          ],
+          "additionalProperties": true
+        }
+      ],
+      "description": "config get"
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

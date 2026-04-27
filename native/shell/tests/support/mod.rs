@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
+    Arc, Mutex, OnceLock,
 };
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -41,8 +41,17 @@ pub fn run_native(args: &[&str]) -> Output {
 }
 
 pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
+    let _guard = native_subprocess_lock()
+        .lock()
+        .expect("native subprocess test lock should not be poisoned");
     let mut command = Command::new(native_shell_bin_path());
     command.current_dir(env!("CARGO_MANIFEST_DIR"));
+    command.env_clear();
+    for (key, value) in std::env::vars_os() {
+        if should_inherit_env(&key) {
+            command.env(key, value);
+        }
+    }
     command.env("NO_COLOR", "1");
     command.env("TERM", "xterm-256color");
     command.env("PP_NO_UPDATE_CHECK", "1");
@@ -51,6 +60,30 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
     }
     command.args(args);
     command.output().expect("native shell should execute")
+}
+
+fn native_subprocess_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn should_inherit_env(key: &OsString) -> bool {
+    let Some(key) = key.to_str() else {
+        return true;
+    };
+    !key.starts_with("PRIVACY_POOLS_")
+        && !key.starts_with("PP_")
+        && !matches!(
+            key,
+            "CLICOLOR_FORCE"
+                | "COLORTERM"
+                | "COLUMNS"
+                | "FORCE_COLOR"
+                | "LANG"
+                | "LC_ALL"
+                | "NO_COLOR"
+                | "TERM"
+        )
 }
 
 fn native_shell_bin_path() -> PathBuf {

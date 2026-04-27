@@ -15,9 +15,11 @@
     "docs/contracts/README.md",
     "docs/contracts/cli-json-contract.current.json",
     "docs/contracts/cli-json-contract.v2.0.0.json",
+    "docs/errors.md",
     "docs/man/privacy-pools.1",
     "docs/reference.md",
     "docs/runtime-upgrades.md",
+    "schemas",
     "skills"
   ],
   "engines": {
@@ -51,6 +53,7 @@
     "test:conformance:all": "node scripts/run-test-profile.mjs conformance-all",
     "test:conformance:frontend": "npm run build && node scripts/run-conformance-suite.mjs frontend",
     "test:scripts": "node scripts/check-node-scripts.mjs",
+    "test:glossary": "node scripts/check-glossary.mjs",
     "test:runtime:boundary": "node scripts/run-test-suite.mjs ./test/unit/launcher-routing.unit.test.ts ./test/unit/launcher-runtime.unit.test.ts ./test/unit/native-runtime-advisory.unit.test.ts ./test/unit/worker-request.unit.test.ts ./test/unit/bootstrap-runtime.unit.test.ts ./test/unit/runtime-current.unit.test.ts ./test/unit/root-argv.unit.test.ts ./test/integration/cli-bun-runtime.integration.test.ts ./test/conformance/native-manifest.conformance.test.ts ./test/conformance/command-discovery-static.conformance.test.ts --timeout 240000",
     "test:fuzz": "node scripts/run-bun-tests.mjs ./test/fuzz --timeout 120000 --process-timeout-ms 600000",
     "test:stress": "node scripts/run-stress.mjs",
@@ -67,9 +70,11 @@
     "test:e2e:anvil": "node scripts/run-anvil-tests.mjs",
     "test:e2e:anvil:smoke": "node scripts/run-anvil-smoke.mjs",
     "discovery:generate": "npm run build && node scripts/generate-command-discovery-static.mjs",
-    "docs:generate": "npm run build && node scripts/generate-reference.mjs --write",
+    "schemas:generate": "npm run build && node scripts/generate-envelope-schemas.mjs --write",
+    "schemas:check": "npm run build && node scripts/generate-envelope-schemas.mjs --check",
+    "docs:generate": "npm run build && node scripts/generate-reference.mjs --write && node scripts/generate-envelope-schemas.mjs --write && node scripts/generate-error-docs.mjs --write",
     "docs:preview": "npm run build && node scripts/generate-reference.mjs",
-    "docs:check": "npm run build && node scripts/generate-reference.mjs --check",
+    "docs:check": "npm run build && node scripts/generate-reference.mjs --check && node scripts/generate-envelope-schemas.mjs --check && node scripts/generate-error-docs.mjs --check && node scripts/check-glossary.mjs",
     "test:preview:cli": "node --import tsx scripts/preview-cli-visuals.mjs",
     "test:preview:cli:tty": "node --import tsx scripts/preview-cli-visuals-tty.mjs",
     "test:preview:cli:smoke": "node --import tsx scripts/preview-cli-audit.mjs --smoke",
@@ -101,7 +106,8 @@
     "node-pty": "^1.1.0",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
   },
   "license": "Apache-2.0",
   "author": "matthewb",

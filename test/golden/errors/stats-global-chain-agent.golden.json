@@ -3,6 +3,7 @@
   "error": {
     "category": "INPUT",
     "code": "INPUT_ERROR",
+    "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-error",
     "hint": "For chain-specific data use: privacy-pools pool-stats <symbol> --chain <chain>",
     "message": "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
     "retryable": false

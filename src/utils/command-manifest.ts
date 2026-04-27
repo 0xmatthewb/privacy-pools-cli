@@ -173,12 +173,12 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "accounts",
     "aliases": [],
-    "description": "View balances, approval status, and pool accounts"
+    "description": "View balances, approval status, and Pool Accounts"
   },
   {
     "name": "migrate",
     "aliases": [],
-    "description": "Check migration status for legacy pool accounts"
+    "description": "Check migration status for legacy Pool Accounts"
   },
   {
     "name": "history",
@@ -1136,7 +1136,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "accounts",
-      "description": "View balances, approval status, and pool accounts",
+      "description": "View balances, approval status, and Pool Accounts",
       "group": "monitoring",
       "usage": "accounts",
       "flags": [
@@ -1154,7 +1154,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "migrate",
-      "description": "Check migration status for legacy pool accounts",
+      "description": "Check migration status for legacy Pool Accounts",
       "group": "advanced",
       "usage": "migrate",
       "flags": [
@@ -1166,7 +1166,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "migrate status",
-      "description": "Check migration status for legacy pool accounts",
+      "description": "Check migration status for legacy Pool Accounts",
       "group": "advanced",
       "usage": "migrate status",
       "flags": [
@@ -5288,7 +5288,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "accounts": {
       "command": "accounts",
-      "description": "View balances, approval status, and pool accounts",
+      "description": "View balances, approval status, and Pool Accounts",
       "group": "monitoring",
       "aliases": [],
       "execution": {
@@ -5429,7 +5429,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "migrate": {
       "command": "migrate",
-      "description": "Check migration status for legacy pool accounts",
+      "description": "Check migration status for legacy Pool Accounts",
       "group": "advanced",
       "aliases": [],
       "execution": {
@@ -5503,7 +5503,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "migrate status": {
       "command": "migrate status",
-      "description": "Check migration status for legacy pool accounts",
+      "description": "Check migration status for legacy Pool Accounts",
       "group": "advanced",
       "aliases": [],
       "execution": {

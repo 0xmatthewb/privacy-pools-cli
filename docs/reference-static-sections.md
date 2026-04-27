@@ -100,6 +100,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PRIVACY_POOLS_CLI_BINARY` | Advanced maintainer override for the launcher target; point it at an explicit native shell binary path |
 | `PRIVACY_POOLS_CLI_JS_WORKER` | Advanced maintainer override for the JS worker entrypoint; it must point at a real packaged JS worker file |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
+| `FORCE_COLOR` | Force colored output when supported by the terminal renderer |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
 
 ## RPC Fallback

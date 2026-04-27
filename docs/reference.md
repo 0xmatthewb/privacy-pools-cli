@@ -24,7 +24,7 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 
 ### Monitoring
 
-- [`accounts`](reference/accounts.md) - View balances, approval status, and pool accounts
+- [`accounts`](reference/accounts.md) - View balances, approval status, and Pool Accounts
 - [`pools`](reference/pools.md) - Browse available pools
 - [`history`](reference/history.md) - View your deposit and withdrawal history
 - [`activity`](reference/activity.md) - View recent deposits and withdrawals across pools
@@ -35,7 +35,7 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 
 ### Advanced
 
-- [`migrate`](reference/migrate.md) - Check migration status for legacy pool accounts
+- [`migrate`](reference/migrate.md) - Check migration status for legacy Pool Accounts
 - [`upgrade`](reference/upgrade.md) - Check for CLI updates
 - [`config`](reference/config.md) - View and manage CLI configuration
 - [`completion`](reference/completion.md) - Generate or install shell tab completion
@@ -184,6 +184,7 @@ Configuration is stored in `~/.privacy-pools/` by default. Override with `PRIVAC
 | `PRIVACY_POOLS_CLI_BINARY` | Advanced maintainer override for the launcher target; point it at an explicit native shell binary path |
 | `PRIVACY_POOLS_CLI_JS_WORKER` | Advanced maintainer override for the JS worker entrypoint; it must point at a real packaged JS worker file |
 | `NO_COLOR` | Disable colored output (same as `--no-color`) |
+| `FORCE_COLOR` | Force colored output when supported by the terminal renderer |
 | `PP_NO_UPDATE_CHECK` | Set to `1` to disable the update-available notification |
 
 ## RPC Fallback

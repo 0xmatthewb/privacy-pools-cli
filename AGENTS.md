@@ -74,7 +74,7 @@ without omitting optional dependencies.
 
 **Agent mode**: Pass `--agent` to any command. This is equivalent to `--json --yes --quiet`: machine-readable JSON on stdout, no interactive prompts, no banners or progress text.
 
-**Dual output**: Structured JSON always goes to **stdout**. Human-readable command output goes to **stderr**, except built-in help, welcome, and shell completion text, which write to **stdout**. In `--agent` mode, stderr is suppressed.
+**Dual output**: Structured JSON always goes to **stdout**. Human-readable command output goes to **stderr**, including the bare welcome banner. Built-in help and shell completion text write to **stdout**. In `--agent` mode, stderr is suppressed.
 
 **JSON envelope**: Every response follows the schema:
 
@@ -83,7 +83,7 @@ without omitting optional dependencies.
 { "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
 ```
 
-Parse `success` first. On failure, read `error.code` for programmatic handling and `error.hint` for remediation. `errorCode` and `errorMessage` remain v2 compatibility aliases and match `error.code` and `error.message`. Check `error.retryable` before deciding to retry.
+Parse `success` first. On failure, read `error.code` for programmatic handling and `error.hint` for remediation. `error.docUrl` points to the stable bundled error-code reference when a deeper explanation is needed. `errorCode` and `errorMessage` remain v2 compatibility aliases and match `error.code` and `error.message`. Check `error.retryable` before deciding to retry.
 
 Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
@@ -445,6 +445,7 @@ Every JSON response wraps command-specific data in a standard envelope:
     "category": "RPC",
     "message": "Network error: ...",
     "hint": "Check your RPC URL and network connectivity.",
+    "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-network-error",
     "retryable": true,
     "nextActions": "[{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] | absent"
   }
@@ -619,9 +620,9 @@ Machine-readable discovery manifest.
 privacy-pools capabilities --agent
 ```
 
-JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract } }`
+JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract, envelopeSchemas, errorCodes } }`
 
-`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata and action-discovery metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, `preferredSafeVariant?`, and `expectedNextActionWhen?`. The `sideEffectClass` values are:
+`schemas.nextActions` documents the shared canonical shape used by commands that emit machine follow-up guidance. `documentation.envelopeSchemas` points to generated per-command JSON Schema files under `schemas/`, and `documentation.errorCodes` points to the bundled error-code reference used by `error.docUrl`. `executionRoutes` is the canonical execution-ownership map. `commandDetails` now also exposes per-command risk metadata and action-discovery metadata: `sideEffectClass`, `touchesFunds`, `requiresHumanReview`, `preferredSafeVariant?`, and `expectedNextActionWhen?`. The `sideEffectClass` values are:
 
 - `read_only` -- Command only reads data, no side effects (e.g., `pools`, `accounts`, `status`)
 - `local_cache_write` -- Command refreshes or stores derived local cache/state without changing wallet intent (e.g., `accounts`, `history`)
@@ -629,7 +630,7 @@ JSON payload: `{ commands[], commandDetails{}, executionRoutes{}, globalFlags[],
 - `network_write` -- Command submits onchain transactions that do not directly move user funds
 - `fund_movement` -- Command may move funds via deposits, withdrawals, or public recoveries (e.g., `deposit`, `withdraw`, `ragequit`)
 
-`exitCodes[]` enumerates the CLI's success/error exit contract and `envVars[]` enumerates the supported environment variables and aliases that affect runtime behavior. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package. For a stable package path, use `docs/contracts/cli-json-contract.current.json`; `documentation.jsonContract` may still expose the exact versioned snapshot path for the active schema.
+`exitCodes[]` enumerates the CLI's success/error exit contract and `envVars[]` enumerates the supported environment variables and aliases that affect runtime behavior. `safeReadOnlyCommands` is separate: it only describes wallet-mutating safety, not whether a command runs in JS or native. `protocol` and `runtime` expose the current protocol profile plus bridge/storage compatibility versions for future upgrades. `documentation` points agents to the bundled reference docs and machine-contract artifacts shipped with the CLI package. For stable package paths, use `docs/contracts/cli-json-contract.current.json`, `schemas/index.json`, and `docs/errors.md`; `documentation.jsonContract` may still expose the exact versioned snapshot path for the active schema.
 
 #### `describe`
 

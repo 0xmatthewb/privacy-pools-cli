@@ -80,3 +80,14 @@ export const ERROR_CODE_REGISTRY = {
 } satisfies Record<string, ErrorCodeRegistryEntry>;
 
 export type RegisteredErrorCode = keyof typeof ERROR_CODE_REGISTRY;
+
+export const ERROR_DOCS_URL_BASE =
+  "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md";
+
+export function errorDocAnchor(code: string): string {
+  return code.trim().toLowerCase().replace(/_/g, "-");
+}
+
+export function errorDocUrl(code: string): string {
+  return `${ERROR_DOCS_URL_BASE}#${errorDocAnchor(code)}`;
+}

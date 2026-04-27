@@ -17,9 +17,10 @@
       "unknownFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
       "error": {
         "code": "string",
-        "category": "INPUT|RPC|SETUP|ASP|RELAYER|PROOF|CONTRACT|UNKNOWN",
+        "category": "INPUT|CANCELLED|RPC|SETUP|ASP|RELAYER|PROOF|CONTRACT|UNKNOWN",
         "message": "string",
         "hint": "string?",
+        "docUrl": "string? (stable documentation URL for error.code)",
         "retryable": "boolean?",
         "availableFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
         "unknownFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
@@ -776,6 +777,7 @@
         "jsonOutputContract": "string (descriptive contract summary)",
         "agentNotes": "Record<string, string>",
         "schemas": "object (includes nextActions metadata)",
+        "documentation": "object? (bundled reference, JSON contract, envelope schema index, and error-code reference paths)",
         "supportedChains": "Chain[]",
         "safeReadOnlyCommands": "string[]",
         "nextActions": "NextAction[]? (suggests describe for a concrete command path)"

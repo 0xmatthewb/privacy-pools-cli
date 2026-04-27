@@ -633,13 +633,15 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       .filter((path) => COMMAND_CATALOG[path].safeReadOnly)
       .map((path) => path),
     jsonOutputContract:
-      "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docsSlug?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+      "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docUrl?, docsSlug?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
     documentation: {
       reference: "docs/reference.md",
       agentGuide: "AGENTS.md",
       changelog: "CHANGELOG.md",
       runtimeUpgrades: "docs/runtime-upgrades.md",
       jsonContract: jsonContractDocRelativePath(),
+      envelopeSchemas: "schemas/index.json",
+      errorCodes: "docs/errors.md",
     },
   };
 }

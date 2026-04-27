@@ -175,6 +175,7 @@ interface HandleGeneratedRecoveryBackupParams {
   showPhrase: boolean;
   backupFile?: string;
   silent: boolean;
+  warningAcknowledged: boolean;
 }
 
 interface CollectSignerKeyParams {
@@ -808,7 +809,14 @@ export async function handleGeneratedRecoveryBackup(
   }
 
   initStageHeader(2, 4, "Secure recovery phrase", "create", params.silent);
-  process.stderr.write(renderInitBackupMethodReview());
+  if (!params.warningAcknowledged || params.showPhrase) {
+    process.stderr.write(renderInitBackupMethodReview());
+  } else {
+    info(
+      "Recovery phrase backup warning already acknowledged for this profile. You still need to choose a backup method for the new phrase.",
+      params.silent,
+    );
+  }
   if (await maybeRenderPreviewScenario("init backup method")) {
     throw new PreviewScenarioRenderedError();
   }
@@ -823,7 +831,9 @@ export async function handleGeneratedRecoveryBackup(
 
   if (backupChoice === "file") {
     const defaultPath = defaultRecoveryBackupPath();
-    process.stderr.write(renderInitBackupPathReview(defaultPath));
+    if (!params.warningAcknowledged || params.showPhrase) {
+      process.stderr.write(renderInitBackupPathReview(defaultPath));
+    }
     if (await maybeRenderPreviewScenario("init backup path")) {
       throw new PreviewScenarioRenderedError();
     }
@@ -1375,6 +1385,10 @@ export async function handleInitCommand(
         showPhrase: Boolean(showPhrase),
         backupFile: opts.backupFile,
         silent,
+        warningAcknowledged:
+          state.existingConfig?.acknowledgedWarnings?.recoveryPhraseBackup === true
+          && opts.force === true
+          && !showPhrase,
       });
       emitInitStage(staged, "backup", {
         backupFilePath,
@@ -1429,6 +1443,12 @@ export async function handleInitCommand(
 
     const config = loadConfig();
     config.defaultChain = defaultChain;
+    if (plan.workflow === "create") {
+      config.acknowledgedWarnings = {
+        ...(config.acknowledgedWarnings ?? {}),
+        recoveryPhraseBackup: true,
+      };
+    }
 
     const rpcUrl = opts.rpcUrl ?? globalOpts?.rpcUrl;
     if (rpcUrl) {

@@ -1,0 +1,221 @@
+{
+  "generatedFrom": "src/types/envelopes/commands.ts",
+  "commands": [
+    {
+      "command": "init",
+      "schema": "schemas/init.schema.json"
+    },
+    {
+      "command": "upgrade",
+      "schema": "schemas/upgrade.schema.json"
+    },
+    {
+      "command": "config",
+      "schema": "schemas/config.schema.json"
+    },
+    {
+      "command": "config list",
+      "schema": "schemas/config.list.schema.json"
+    },
+    {
+      "command": "config get",
+      "schema": "schemas/config.get.schema.json"
+    },
+    {
+      "command": "config set",
+      "schema": "schemas/config.set.schema.json"
+    },
+    {
+      "command": "config unset",
+      "schema": "schemas/config.unset.schema.json"
+    },
+    {
+      "command": "config path",
+      "schema": "schemas/config.path.schema.json"
+    },
+    {
+      "command": "config profile",
+      "schema": "schemas/config.profile.schema.json"
+    },
+    {
+      "command": "config profile list",
+      "schema": "schemas/config.profile.list.schema.json"
+    },
+    {
+      "command": "config profile create",
+      "schema": "schemas/config.profile.create.schema.json"
+    },
+    {
+      "command": "config profile active",
+      "schema": "schemas/config.profile.active.schema.json"
+    },
+    {
+      "command": "config profile use",
+      "schema": "schemas/config.profile.use.schema.json"
+    },
+    {
+      "command": "flow",
+      "schema": "schemas/flow.schema.json"
+    },
+    {
+      "command": "simulate",
+      "schema": "schemas/simulate.schema.json"
+    },
+    {
+      "command": "flow start",
+      "schema": "schemas/flow.start.schema.json"
+    },
+    {
+      "command": "flow watch",
+      "schema": "schemas/flow.watch.schema.json"
+    },
+    {
+      "command": "flow status",
+      "schema": "schemas/flow.status.schema.json"
+    },
+    {
+      "command": "flow step",
+      "schema": "schemas/flow.step.schema.json"
+    },
+    {
+      "command": "flow ragequit",
+      "schema": "schemas/flow.ragequit.schema.json"
+    },
+    {
+      "command": "pools",
+      "schema": "schemas/pools.schema.json"
+    },
+    {
+      "command": "activity",
+      "schema": "schemas/activity.schema.json"
+    },
+    {
+      "command": "stats",
+      "schema": "schemas/stats.schema.json"
+    },
+    {
+      "command": "protocol-stats",
+      "schema": "schemas/protocol-stats.schema.json"
+    },
+    {
+      "command": "pool-stats",
+      "schema": "schemas/pool-stats.schema.json"
+    },
+    {
+      "command": "status",
+      "schema": "schemas/status.schema.json"
+    },
+    {
+      "command": "tx-status",
+      "schema": "schemas/tx-status.schema.json"
+    },
+    {
+      "command": "capabilities",
+      "schema": "schemas/capabilities.schema.json"
+    },
+    {
+      "command": "describe",
+      "schema": "schemas/describe.schema.json"
+    },
+    {
+      "command": "guide",
+      "schema": "schemas/guide.schema.json"
+    },
+    {
+      "command": "deposit",
+      "schema": "schemas/deposit.schema.json"
+    },
+    {
+      "command": "withdraw",
+      "schema": "schemas/withdraw.schema.json"
+    },
+    {
+      "command": "withdraw quote",
+      "schema": "schemas/withdraw.quote.schema.json"
+    },
+    {
+      "command": "recipients",
+      "schema": "schemas/recipients.schema.json"
+    },
+    {
+      "command": "recipients list",
+      "schema": "schemas/recipients.list.schema.json"
+    },
+    {
+      "command": "recipients add",
+      "schema": "schemas/recipients.add.schema.json"
+    },
+    {
+      "command": "recipients remove",
+      "schema": "schemas/recipients.remove.schema.json"
+    },
+    {
+      "command": "recipients clear",
+      "schema": "schemas/recipients.clear.schema.json"
+    },
+    {
+      "command": "withdraw recipients",
+      "schema": "schemas/withdraw.recipients.schema.json"
+    },
+    {
+      "command": "withdraw recipients list",
+      "schema": "schemas/withdraw.recipients.list.schema.json"
+    },
+    {
+      "command": "withdraw recipients add",
+      "schema": "schemas/withdraw.recipients.add.schema.json"
+    },
+    {
+      "command": "withdraw recipients remove",
+      "schema": "schemas/withdraw.recipients.remove.schema.json"
+    },
+    {
+      "command": "withdraw recipients clear",
+      "schema": "schemas/withdraw.recipients.clear.schema.json"
+    },
+    {
+      "command": "ragequit",
+      "schema": "schemas/ragequit.schema.json"
+    },
+    {
+      "command": "simulate deposit",
+      "schema": "schemas/simulate.deposit.schema.json"
+    },
+    {
+      "command": "simulate withdraw",
+      "schema": "schemas/simulate.withdraw.schema.json"
+    },
+    {
+      "command": "simulate ragequit",
+      "schema": "schemas/simulate.ragequit.schema.json"
+    },
+    {
+      "command": "broadcast",
+      "schema": "schemas/broadcast.schema.json"
+    },
+    {
+      "command": "accounts",
+      "schema": "schemas/accounts.schema.json"
+    },
+    {
+      "command": "migrate",
+      "schema": "schemas/migrate.schema.json"
+    },
+    {
+      "command": "migrate status",
+      "schema": "schemas/migrate.status.schema.json"
+    },
+    {
+      "command": "history",
+      "schema": "schemas/history.schema.json"
+    },
+    {
+      "command": "sync",
+      "schema": "schemas/sync.schema.json"
+    },
+    {
+      "command": "completion",
+      "schema": "schemas/completion.schema.json"
+    }
+  ]
+}

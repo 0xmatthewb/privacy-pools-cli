@@ -3,6 +3,7 @@
   "error": {
     "category": "RPC",
     "code": "RPC_NETWORK_ERROR",
+    "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-network-error",
     "docsSlug": "guide/troubleshooting",
     "hint": "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable.",
     "message": "Network error: fetch failed",

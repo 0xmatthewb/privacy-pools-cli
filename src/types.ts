@@ -21,6 +21,9 @@ export interface ChainConfig {
 export interface CLIConfig {
   defaultChain: string;
   rpcOverrides: Record<number, string>;
+  acknowledgedWarnings?: {
+    recoveryPhraseBackup?: boolean;
+  };
 }
 
 export interface GlobalOptions {
@@ -320,6 +323,8 @@ export interface CapabilitiesPayload {
     changelog: string;
     runtimeUpgrades?: string;
     jsonContract?: string;
+    envelopeSchemas?: string;
+    errorCodes?: string;
   };
 }
 

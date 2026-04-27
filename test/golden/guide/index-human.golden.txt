@@ -191,6 +191,12 @@ Environment Variable Fallbacks:
   PP_NO_UPDATE_CHECK  Set to 1 to disable the update-available notification.
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+TTY Behavior:
+  Interactive init, flow, deposit, withdraw, ragequit, upgrade, and recipient prompts require stdin/stdout TTYs.
+  In non-TTY shells, provide the required flags or use --agent so the command fails closed with a machine-readable error instead of waiting for input.
+  PP_FORCE_TTY=1 is test-only escape hatch behavior for preview runners and should not be used in automation.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Configuration Overrides:
   PRIVACY_POOLS_HOME / PRIVACY_POOLS_CONFIG_DIR  Override the CLI config directory.
   XDG_CONFIG_HOME  Fallback config base. Used as $XDG_CONFIG_HOME/privacy-pools when no Privacy Pools override is set and no legacy ~/.privacy-pools directory exists.
