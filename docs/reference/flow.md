@@ -32,7 +32,7 @@ Deposit now and save a later private withdrawal workflow
 
 **Usage:** `privacy-pools flow start <amount> <asset> [options]`
 
-This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. With --new-wallet, the CLI generates a dedicated workflow wallet for that one flow. In --agent mode, flow start returns an awaiting_funding snapshot so you can fund the wallet and continue with flow status / flow step. Human runs stay attached and wait automatically. ETH flows require the full ETH target; ERC20 flows require the token amount plus native ETH gas reserve. The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.
+This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. With --new-wallet, the CLI generates a dedicated workflow wallet for that one flow. In --agent mode, flow start returns an awaiting_funding snapshot so you can fund the wallet and continue with flow status / flow step. Human runs stay attached and wait automatically. ETH flows require the full ETH target; ERC20 flows require the token amount plus native ETH gas reserve. The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits. Use --stream-json when a runner needs line-delimited progress events while the workflow is created or watched.
 
 **Basic:**
 
@@ -65,6 +65,7 @@ privacy-pools flow step latest --agent
 | `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
 | `--dry-run` | Validate the flow start inputs without saving a workflow or submitting a deposit |
 | `--watch` | Keep watching this workflow until it finishes or pauses |
+| `--stream-json` | Emit line-delimited JSON progress events and finish with the final flow envelope |
 
 **Safety:** Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.
 **Safety:** If --to is omitted in interactive mode, the CLI prompts for the recipient. When prompts are skipped, --to remains required.
@@ -85,6 +86,7 @@ privacy-pools flow step latest --agent
 
 **JSON variants:**
 - `--dry-run: { mode: "flow", action: "start", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }`
+- `--stream-json progress events: { mode: "flow-progress", action: "start", event: "stage", stage, workflowId?, phase? }`
 
 ## `flow watch`
 
@@ -174,7 +176,7 @@ privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 
 | Flag | Description |
 |------|-------------|
-| `--confirm-ragequit` | Deprecated compatibility flag for non-interactive flow ragequit commands that intentionally choose the public recovery path |
+| `--confirm-ragequit` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
 
 **Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.
 **Safety:** Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.

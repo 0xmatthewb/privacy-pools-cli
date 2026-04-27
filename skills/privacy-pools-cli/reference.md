@@ -667,7 +667,7 @@ privacy-pools deposit 0.1 --asset ETH --agent
 
 > **Minimum deposit:** Each pool enforces a `minimumDeposit` (in wei). Query `privacy-pools pools --agent` and check the `minimumDeposit` field for the target asset before depositing. Amounts below this threshold will fail with `INPUT_ERROR`.
 
-> **Privacy guard:** In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when you explicitly want to bypass that protection.
+> **Privacy guard:** In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--allow-non-round-amounts` only when you explicitly want to bypass that protection.
 
 **Success:**
 
@@ -1121,7 +1121,7 @@ All errors in JSON mode:
 | Code | Category | Retryable | Meaning |
 |------|----------|-----------|---------|
 | `INPUT_ERROR` | INPUT | No | Bad arguments, missing flags |
-| `PROMPT_CANCELLED` | INPUT | No | User cancelled an interactive prompt |
+| `PROMPT_CANCELLED` | CANCELLED | No | User cancelled an interactive prompt |
 | `INPUT_RECIPIENT_RETRY_LIMIT` | INPUT | No | Interactive recipient entry failed repeatedly |
 | `INPUT_RECIPIENT_BURN_ADDRESS` | INPUT | No | Recipient is an obvious burn or dead address |
 | `RPC_ERROR` | RPC | No | RPC call failure |
@@ -1178,6 +1178,7 @@ Successful commands exit with code `0`.
 | 6 | Proof |
 | 7 | Contract |
 | 8 | ASP |
+| 9 | Cancelled |
 
 ### Retry strategy
 

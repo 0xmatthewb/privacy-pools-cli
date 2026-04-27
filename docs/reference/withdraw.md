@@ -45,10 +45,11 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 | `-t, --to <address>` | Recipient address (required unless --direct; prompted interactively) |
 | `-p, --pool-account <PA-ID \| numeric-index>` | Withdraw from a specific Pool Account (examples: PA-2 or 2) |
 | `--direct` | WILL publicly link deposit and withdrawal addresses onchain. This cannot be undone. |
-| `--confirm-direct-withdraw` | Deprecated compatibility flag for non-interactive direct withdrawals that publicly link deposit and withdrawal addresses. |
+| `--confirm-direct-withdraw` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
 | `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
 | `--dry-run` | Generate and verify withdrawal artifacts without submitting |
 | `--no-wait` | Return after submission instead of waiting for confirmation |
+| `--stream-json` | Emit line-delimited JSON progress events and finish with the final withdrawal envelope |
 | `--all` | Withdraw entire Pool Account balance (requires asset: withdraw --all ETH) |
 | `--extra-gas` | For ERC20 withdrawals only: also receive native gas tokens. ERC20 withdrawals default to on; ETH withdrawals ignore this flag. |
 | `--no-extra-gas` | Disable extra gas for ERC20 withdrawals |
@@ -68,6 +69,7 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 - `--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary?: { quotedAt, quoteExpiresAt, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, relayerHost, extraGas } (relayed), ... } (envelope JSON)`
 - `--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]`
 - `--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }`
+- `--stream-json progress events: { mode: "withdraw-progress", operation: "withdraw", event: "stage", stage, withdrawMode, chain?, asset?, txHash? }`
 
 ## `withdraw recipients`
 
@@ -145,7 +147,7 @@ privacy-pools withdraw recipients clear --yes
 
 Request relayer quote and limits without generating a proof
 
-**Usage:** `privacy-pools withdraw quote <amountOrAsset> [amount] [options]`
+**Usage:** `privacy-pools withdraw quote <amountOrAsset> [asset] [options]`
 
 ```bash
 privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...

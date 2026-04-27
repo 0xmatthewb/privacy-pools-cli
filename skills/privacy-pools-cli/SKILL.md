@@ -350,7 +350,7 @@ New CLI-generated recovery phrases use 24 words by default. Imported recovery ph
 
 In machine mode, `init` returns different `nextActions` depending on the path: new-wallet init points to `status --agent --chain <defaultChain>`, while restore/import points to `migrate status --agent --include-testnets` first. Legacy pre-upgrade accounts may need website migration or website-based recovery before the CLI can restore them safely. `migrate status` is the read-only legacy readiness check on CLI-supported chains; the CLI does not submit migration transactions, and beta or website-only migration surfaces must still be reviewed in the website.
 
-In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--ignore-unique-amount` only when that tradeoff is intentional.
+In machine modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts, or pass `--allow-non-round-amounts` only when that tradeoff is intentional.
 
 ---
 
@@ -359,7 +359,7 @@ In machine modes, non-round deposit amounts are rejected by default because they
 See [reference.md](reference.md#error-format) for the full current error table and payload shape.
 
 Successful commands exit with code `0`.
-Exit codes: 1 (unknown), 2 (input), 3 (RPC), 4 (setup), 5 (relayer), 6 (proof), 7 (contract), 8 (ASP).
+Exit codes: 1 (unknown), 2 (input), 3 (RPC), 4 (setup), 5 (relayer), 6 (proof), 7 (contract), 8 (ASP), 9 (cancelled).
 
 Recommended retry strategy:
 - `RPC_NETWORK_ERROR` / `RPC_RATE_LIMITED` / `RPC_POOL_RESOLUTION_FAILED`: exponential backoff (1s, 2s, 4s), max 3 retries. For rate limits, consider switching to a dedicated RPC with `--rpc-url`.
@@ -393,7 +393,7 @@ Recommended retry strategy:
 | `-r, --rpc-url <url>` | Override RPC endpoint |
 | `-q, --quiet` | Suppress non-essential stderr |
 | `-v, --verbose` | Debug output |
-| `--no-banner` | Disable ASCII banner |
+| `--no-banner` | Disable welcome banner |
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
 | `--timeout <seconds>` | Network/transaction timeout (default: 30) |
 

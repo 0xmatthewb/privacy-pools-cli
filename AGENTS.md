@@ -491,7 +491,7 @@ When a human delegates CLI operations to an agent:
 | `-v, --verbose` | Enable verbose/debug output |
 | `--no-progress` | Suppress spinners/progress indicators (useful in CI) |
 | `--no-header` | Suppress header rows in CSV and wide/tabular output |
-| `--no-banner` | Disable ASCII banner output. For deterministic output in CI/container environments, use `--no-banner` or `--agent` (which implies `--quiet`, suppressing the banner). The banner uses a session marker in `/tmp` that may not persist across container restarts. |
+| `--no-banner` | Disable welcome banner output. For deterministic output in CI/container environments, use `--no-banner` or `--agent` (which implies `--quiet`, suppressing the banner). The banner uses a session marker in `/tmp` that may not persist across container restarts. |
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
 | `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |
 
@@ -897,7 +897,7 @@ When `status = "submitted"` (for example with `--no-wait`), use `submissionId` w
 
 Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). An ASP vetting fee is deducted from the deposit amount. Only approved deposits can use `withdraw` (relayed or direct). Declined deposits must `ragequit` publicly to the deposit address.
 
-**Privacy guard**: In machine modes (`--json`, `--agent`, `--yes`, `--dry-run`, `--unsigned`), non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts. Pass `--ignore-unique-amount` only when you intentionally want to bypass that protection.
+**Privacy guard**: In machine modes (`--json`, `--agent`, `--yes`, `--dry-run`, `--unsigned`), non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts. Pass `--allow-non-round-amounts` only when you intentionally want to bypass that protection.
 
 #### `withdraw`
 
@@ -1184,7 +1184,7 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | Error Code | Category | Retryable | Typical Cause |
 | --- | --- | --- | --- |
 | `INPUT_ERROR` | INPUT | No | Invalid flag, missing argument, or bad input value |
-| `PROMPT_CANCELLED` | INPUT | No | User cancelled an interactive prompt |
+| `PROMPT_CANCELLED` | CANCELLED | No | User cancelled an interactive prompt |
 | `INPUT_RECIPIENT_RETRY_LIMIT` | INPUT | No | Interactive recipient entry failed repeatedly |
 | `INPUT_RECIPIENT_BURN_ADDRESS` | INPUT | No | Recipient is an obvious burn or dead address |
 | `RPC_ERROR` | RPC | No | RPC call failure (non-transient) |
@@ -1241,6 +1241,7 @@ Successful commands exit with code `0`.
 | 6    | Proof    |
 | 7    | Contract |
 | 8    | ASP      |
+| 9    | Cancelled |
 
 ### Retry strategy
 

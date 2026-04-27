@@ -36,7 +36,7 @@ privacy-pools simulate deposit 100 USDC --agent --chain mainnet
 
 | Flag | Description |
 |------|-------------|
-| `--ignore-unique-amount` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
+| `--allow-non-round-amounts` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
 
 **Safety:** simulate deposit never signs or submits a transaction.
 **Safety:** Use 'deposit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.
@@ -61,7 +61,7 @@ privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain ma
 | `-t, --to <address>` | Recipient address (required unless --direct; prompted interactively) |
 | `-p, --pool-account <PA-ID \| numeric-index>` | Withdraw from a specific Pool Account (examples: PA-2 or 2) |
 | `--direct` | WILL publicly link deposit and withdrawal addresses onchain. This cannot be undone. |
-| `--confirm-direct-withdraw` | Deprecated compatibility flag for non-interactive direct withdrawals that publicly link deposit and withdrawal addresses. |
+| `--confirm-direct-withdraw` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
 | `--all` | Withdraw entire Pool Account balance (requires asset: simulate withdraw --all ETH) |
 | `--extra-gas` | For ERC20 withdrawals only: also receive native gas tokens. ERC20 withdrawals default to on; ETH withdrawals ignore this flag. |
 | `--no-extra-gas` | Disable extra gas for ERC20 withdrawals |
@@ -87,7 +87,7 @@ privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet
 | Flag | Description |
 |------|-------------|
 | `-p, --pool-account <PA-ID \| numeric-index>` | Ragequit a specific Pool Account (examples: PA-2 or 2) |
-| `--confirm-ragequit` | Deprecated compatibility flag for non-interactive ragequit commands that publicly recover funds to the original deposit address |
+| `--confirm-ragequit` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
 
 **Safety:** simulate ragequit never signs or submits a transaction.
 **Safety:** Use 'ragequit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.

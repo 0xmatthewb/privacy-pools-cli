@@ -57,7 +57,7 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 | `-r, --rpc-url <url>` | Override RPC URL |
 | `--agent` | Machine-friendly mode (alias for --json --yes --quiet) |
 | `-q, --quiet` | Suppress human-oriented stderr output |
-| `--no-banner` | Disable ASCII banner output |
+| `--no-banner` | Disable welcome banner output |
 | `-v, --verbose` | Enable verbose/debug output (-v info, -vv debug, -vvv trace) |
 | `--no-progress` | Suppress spinners/progress indicators (useful in CI) |
 | `--no-header` | Suppress header rows in CSV and wide/tabular table output |
@@ -73,7 +73,8 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 |------|----------|------------|---------|
 | 0 | SUCCESS | `SUCCESS` | Successful command completion. |
 | 1 | UNKNOWN | `UNKNOWN_ERROR` | Unknown or general runtime failure. |
-| 2 | INPUT | `INPUT_ERROR` | Invalid input, prompt cancellation in machine mode, or validation failure. |
+| 2 | INPUT | `INPUT_ERROR` | Invalid input or validation failure. |
+| 9 | CANCELLED | `PROMPT_CANCELLED` | User cancelled an interactive prompt or confirmation. |
 | 4 | SETUP | `SETUP_REQUIRED` | Local setup is incomplete or a signer/recovery phrase is required before the command can continue. |
 | 3 | RPC | `RPC_ERROR` | RPC, transport, or network connectivity failure. |
 | 8 | ASP | `ASP_ERROR` | ASP service failure or approval-state fetch issue. |

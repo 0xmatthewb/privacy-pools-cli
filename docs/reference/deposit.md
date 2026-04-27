@@ -39,7 +39,8 @@ privacy-pools deposit 0.1 ETH --unsigned
 | `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
 | `--dry-run` | Validate and preview the transaction without submitting |
 | `--no-wait` | Return after submission instead of waiting for confirmation |
-| `--ignore-unique-amount` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
+| `--stream-json` | Emit line-delimited JSON progress events and finish with the final deposit envelope |
+| `--allow-non-round-amounts` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
 
 **Safety:** Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
 **Safety:** An ASP vetting fee is deducted from the deposit amount.
@@ -53,3 +54,4 @@ privacy-pools deposit 0.1 ETH --unsigned
 - `--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)`
 - `--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]`
 - `--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }`
+- `--stream-json progress events: { mode: "deposit-progress", operation: "deposit", event: "stage", stage, chain?, asset?, txHash? }`
