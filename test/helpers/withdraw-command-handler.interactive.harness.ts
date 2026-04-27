@@ -862,10 +862,10 @@ export function registerWithdrawInteractiveCompletionTests(): void {
   test("refreshes the relayer quote again when it expires during human confirmation", async () => {
     useIsolatedHome({ withSigner: true });
     const originalNow = Date.now;
-    let nowCalls = 0;
     const initialNow = 1_700_000_000_000;
     const quoteExpiresAt = initialNow + 31_000;
     const expiredNow = quoteExpiresAt + 1_000;
+    let confirmationReturned = false;
     requestQuoteMock
       .mockImplementationOnce(async () =>
         buildRelayerQuote({ expiration: quoteExpiresAt }),
@@ -874,9 +874,12 @@ export function registerWithdrawInteractiveCompletionTests(): void {
         buildRelayerQuote({ expiration: initialNow + 100_000 }),
       );
     confirmPromptMock
-      .mockImplementationOnce(async () => true)
+      .mockImplementationOnce(async () => {
+        confirmationReturned = true;
+        return true;
+      })
       .mockImplementationOnce(async () => true);
-    Date.now = () => (++nowCalls <= 2 ? initialNow : expiredNow);
+    Date.now = () => (confirmationReturned ? expiredNow : initialNow);
 
     try {
       const { stderr } = await captureAsyncOutput(() =>
