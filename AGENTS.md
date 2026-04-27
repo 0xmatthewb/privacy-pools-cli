@@ -1184,49 +1184,120 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 
 | Error Code | Category | Retryable | Typical Cause |
 | --- | --- | --- | --- |
-| `INPUT_ERROR` | INPUT | No | Invalid flag, missing argument, or bad input value |
-| `PROMPT_CANCELLED` | CANCELLED | No | User cancelled an interactive prompt |
-| `INPUT_RECIPIENT_RETRY_LIMIT` | INPUT | No | Interactive recipient entry failed repeatedly |
-| `INPUT_RECIPIENT_BURN_ADDRESS` | INPUT | No | Recipient is an obvious burn or dead address |
-| `RPC_ERROR` | RPC | No | RPC call failure (non-transient) |
-| `RPC_NETWORK_ERROR` | RPC | Yes | Network connectivity issue, DNS failure, or timeout |
-| `RPC_RATE_LIMITED` | RPC | Yes | RPC provider rate limit (HTTP 429); switch to dedicated RPC with `--rpc-url` |
-| `RPC_POOL_RESOLUTION_FAILED` | RPC | Yes | Pool resolution failed because both ASP and RPC are unreachable |
-| `ASP_ERROR` | ASP | No | ASP (approval service) request failure |
-| `RELAYER_ERROR` | RELAYER | No | Relayer service request failure |
-| `PROOF_ERROR` | PROOF | No | Generic proof generation failure |
-| `PROOF_GENERATION_FAILED` | PROOF | No | ZK proof could not be generated; stale state or spent account |
-| `PROOF_MERKLE_ERROR` | PROOF | Yes | Pool Account commitment not found in Merkle tree; run `sync` first |
-| `PROOF_MALFORMED` | PROOF | No | Corrupt or invalid proof data |
-| `PROOF_VERIFICATION_FAILED` | PROOF | No | Proof verification failed before onchain submission |
-| `CONTRACT_NULLIFIER_ALREADY_SPENT` | CONTRACT | No | Pool Account has already been withdrawn |
-| `CONTRACT_INCORRECT_ASP_ROOT` | CONTRACT | Yes | Pool state changed since proof generation; regenerate proof |
-| `CONTRACT_UNKNOWN_STATE_ROOT` | CONTRACT | Yes | State root is outdated; run `sync` and retry |
-| `CONTRACT_SCOPE_MISMATCH` | CONTRACT | Yes | Proof scope does not match the selected privacy pool; refresh state and retry |
-| `CONTRACT_CONTEXT_MISMATCH` | CONTRACT | No | Proof context does not match the withdrawal parameters |
-| `CONTRACT_INVALID_PROOF` | CONTRACT | No | ZK proof verification failed onchain |
-| `CONTRACT_INVALID_PROCESSOOOR` | CONTRACT | No | Withdrawal type mismatch (e.g., used `--direct` when relayed was expected) |
-| `CONTRACT_INVALID_COMMITMENT` | CONTRACT | No | Selected Pool Account commitment is no longer in pool state |
-| `CONTRACT_PRECOMMITMENT_ALREADY_USED` | CONTRACT | No | Precommitment hash reused; run a new deposit |
-| `CONTRACT_ONLY_ORIGINAL_DEPOSITOR` | CONTRACT | No | Wrong signer address for ragequit; must use original depositor |
-| `CONTRACT_NOT_YET_RAGEQUITTEABLE` | CONTRACT | Yes | Deposit must be onchain for a minimum period before public recovery |
-| `CONTRACT_MAX_TREE_DEPTH_REACHED` | CONTRACT | No | Pool has reached maximum deposit capacity |
-| `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | Pool state not ready for withdrawals; wait for first state root |
-| `CONTRACT_MINIMUM_DEPOSIT_AMOUNT` | CONTRACT | No | Deposit amount is below the pool minimum |
-| `CONTRACT_INVALID_DEPOSIT_VALUE` | CONTRACT | No | Deposit amount is too large for this pool |
-| `CONTRACT_INVALID_WITHDRAWAL_AMOUNT` | CONTRACT | No | Withdrawal amount is invalid for the selected Pool Account |
-| `CONTRACT_POOL_NOT_FOUND` | CONTRACT | No | Requested pool is not available on this chain |
-| `CONTRACT_POOL_IS_DEAD` | CONTRACT | No | Pool is no longer accepting new activity |
-| `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` | CONTRACT | Yes | Relayer fee exceeds pool's configured maximum; request fresh quote |
-| `CONTRACT_INVALID_TREE_DEPTH` | CONTRACT | No | Proof inputs do not match pool tree configuration |
-| `CONTRACT_NATIVE_ASSET_TRANSFER_FAILED` | CONTRACT | No | Native ETH transfer to destination failed; recipient may not accept ETH |
-| `CONTRACT_INSUFFICIENT_FUNDS` | CONTRACT | No | Wallet lacks ETH for deposit amount plus gas fees |
-| `CONTRACT_NONCE_ERROR` | CONTRACT | Yes | Transaction nonce conflict; previous tx may be pending or stuck |
-| `ACCOUNT_MIGRATION_REQUIRED` | INPUT | No | Legacy pre-upgrade account must be migrated in the website first |
-| `ACCOUNT_WEBSITE_RECOVERY_REQUIRED` | INPUT | No | Legacy declined deposits require website-based recovery first |
-| `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | Legacy ASP review data is incomplete; retry when ASP is healthy |
-| `ACCOUNT_NOT_APPROVED` | INPUT | No | Deposit is not approved; may be pending, require PoA, or be declined |
-| `UNKNOWN_ERROR` | UNKNOWN | No | Unexpected error; try `sync` and retry, or report the issue |
+| `INPUT_ERROR` | INPUT | No | See `docs/errors.md#input-error` |
+| `INPUT_ADDRESS_CHECKSUM_INVALID` | INPUT | No | See `docs/errors.md#input-address-checksum-invalid` |
+| `INPUT_AGENT_ACCOUNTS_WATCH_UNSUPPORTED` | INPUT | No | See `docs/errors.md#input-agent-accounts-watch-unsupported` |
+| `INPUT_AGENT_FLOW_WATCH_UNSUPPORTED` | INPUT | No | See `docs/errors.md#input-agent-flow-watch-unsupported` |
+| `INPUT_APPROVAL_REQUIRED_NO_WAIT` | INPUT | No | See `docs/errors.md#input-approval-required-no-wait` |
+| `INPUT_APPROVED_POOL_ACCOUNT_RAGEQUIT_REQUIRES_OVERRIDE` | INPUT | No | See `docs/errors.md#input-approved-pool-account-ragequit-requires-override` |
+| `INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE` | INPUT | No | See `docs/errors.md#input-approved-workflow-ragequit-requires-override` |
+| `INPUT_BAD_ADDRESS` | INPUT | No | See `docs/errors.md#input-bad-address` |
+| `INPUT_BELOW_MINIMUM_DEPOSIT` | INPUT | No | See `docs/errors.md#input-below-minimum-deposit` |
+| `INPUT_BROADCAST_CHAIN_MISMATCH` | INPUT | No | See `docs/errors.md#input-broadcast-chain-mismatch` |
+| `INPUT_BROADCAST_CHAIN_OVERRIDE_MISMATCH` | INPUT | No | See `docs/errors.md#input-broadcast-chain-override-mismatch` |
+| `INPUT_BROADCAST_EMPTY_STDIN` | INPUT | No | See `docs/errors.md#input-broadcast-empty-stdin` |
+| `INPUT_BROADCAST_INLINE_JSON_UNSUPPORTED` | INPUT | No | See `docs/errors.md#input-broadcast-inline-json-unsupported` |
+| `INPUT_BROADCAST_INPUT_NOT_FOUND` | INPUT | No | See `docs/errors.md#input-broadcast-input-not-found` |
+| `INPUT_BROADCAST_INPUT_UNREADABLE` | INPUT | No | See `docs/errors.md#input-broadcast-input-unreadable` |
+| `INPUT_BROADCAST_INVALID_ENVELOPE` | INPUT | No | See `docs/errors.md#input-broadcast-invalid-envelope` |
+| `INPUT_BROADCAST_INVALID_JSON` | INPUT | No | See `docs/errors.md#input-broadcast-invalid-json` |
+| `INPUT_BROADCAST_INVALID_SIGNED_TRANSACTION` | INPUT | No | See `docs/errors.md#input-broadcast-invalid-signed-transaction` |
+| `INPUT_BROADCAST_MISSING_RELAYER_HOST` | INPUT | No | See `docs/errors.md#input-broadcast-missing-relayer-host` |
+| `INPUT_BROADCAST_MISSING_SIGNED_TRANSACTIONS` | INPUT | No | See `docs/errors.md#input-broadcast-missing-signed-transactions` |
+| `INPUT_BROADCAST_MIXED_SIGNERS` | INPUT | No | See `docs/errors.md#input-broadcast-mixed-signers` |
+| `INPUT_BROADCAST_RELAYER_REQUEST_MISMATCH` | INPUT | No | See `docs/errors.md#input-broadcast-relayer-request-mismatch` |
+| `INPUT_BROADCAST_REQUIRES_ENVELOPE` | INPUT | No | See `docs/errors.md#input-broadcast-requires-envelope` |
+| `INPUT_BROADCAST_SIGNED_TRANSACTION_COUNT_MISMATCH` | INPUT | No | See `docs/errors.md#input-broadcast-signed-transaction-count-mismatch` |
+| `INPUT_BROADCAST_SIGNED_TRANSACTION_MISMATCH` | INPUT | No | See `docs/errors.md#input-broadcast-signed-transaction-mismatch` |
+| `INPUT_BROADCAST_SIGNER_MISMATCH` | INPUT | No | See `docs/errors.md#input-broadcast-signer-mismatch` |
+| `INPUT_BROADCAST_STDIN_READ_FAILED` | INPUT | No | See `docs/errors.md#input-broadcast-stdin-read-failed` |
+| `INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH` | INPUT | No | See `docs/errors.md#input-direct-withdraw-recipient-mismatch` |
+| `INPUT_FLAG_CONFLICT` | INPUT | No | See `docs/errors.md#input-flag-conflict` |
+| `INPUT_FLOW_RECIPIENT_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-flow-recipient-retry-limit` |
+| `INPUT_INIT_GENERATE_REQUIRES_CAPTURE` | INPUT | No | See `docs/errors.md#input-init-generate-requires-capture` |
+| `INPUT_INIT_REQUIRED` | INPUT | No | See `docs/errors.md#input-init-required` |
+| `INPUT_INSUFFICIENT_BALANCE` | INPUT | No | See `docs/errors.md#input-insufficient-balance` |
+| `INPUT_INSUFFICIENT_GAS` | INPUT | No | See `docs/errors.md#input-insufficient-gas` |
+| `INPUT_INVALID_AMOUNT` | INPUT | No | See `docs/errors.md#input-invalid-amount` |
+| `INPUT_INVALID_ASSET` | INPUT | No | See `docs/errors.md#input-invalid-asset` |
+| `INPUT_INVALID_JQ` | INPUT | No | See `docs/errors.md#input-invalid-jq` |
+| `INPUT_INVALID_VALUE` | INPUT | No | See `docs/errors.md#input-invalid-value` |
+| `INPUT_MISSING_AMOUNT` | INPUT | No | See `docs/errors.md#input-missing-amount` |
+| `INPUT_MISSING_ARGUMENT` | INPUT | No | See `docs/errors.md#input-missing-argument` |
+| `INPUT_MISSING_ASSET` | INPUT | No | See `docs/errors.md#input-missing-asset` |
+| `INPUT_MISSING_FLOW_SUBCOMMAND` | INPUT | No | See `docs/errors.md#input-missing-flow-subcommand` |
+| `INPUT_MISSING_RECIPIENT` | INPUT | No | See `docs/errors.md#input-missing-recipient` |
+| `INPUT_MUTUALLY_EXCLUSIVE` | INPUT | No | See `docs/errors.md#input-mutually-exclusive` |
+| `INPUT_NONROUND_AMOUNT` | INPUT | No | See `docs/errors.md#input-nonround-amount` |
+| `INPUT_NO_GAS` | INPUT | No | See `docs/errors.md#input-no-gas` |
+| `INPUT_PARSE_ERROR` | INPUT | No | See `docs/errors.md#input-parse-error` |
+| `INPUT_RAGEQUIT_CONFIRMATION_REQUIRED` | INPUT | No | See `docs/errors.md#input-ragequit-confirmation-required` |
+| `PROMPT_CANCELLED` | CANCELLED | No | See `docs/errors.md#prompt-cancelled` |
+| `INPUT_RECIPIENT_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-recipient-retry-limit` |
+| `INPUT_RECIPIENT_BURN_ADDRESS` | INPUT | No | See `docs/errors.md#input-recipient-burn-address` |
+| `INPUT_RECOVERY_PHRASE_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-recovery-phrase-retry-limit` |
+| `INPUT_RECOVERY_VERIFICATION_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-recovery-verification-retry-limit` |
+| `INPUT_REMAINDER_BELOW_RELAYER_MINIMUM` | INPUT | No | See `docs/errors.md#input-remainder-below-relayer-minimum` |
+| `INPUT_SIMULATE_UNSIGNED_UNSUPPORTED` | INPUT | No | See `docs/errors.md#input-simulate-unsigned-unsupported` |
+| `INPUT_UNKNOWN_ASSET` | INPUT | No | See `docs/errors.md#input-unknown-asset` |
+| `INPUT_UNKNOWN_CHAIN` | INPUT | No | See `docs/errors.md#input-unknown-chain` |
+| `INPUT_UNKNOWN_COMMAND` | INPUT | No | See `docs/errors.md#input-unknown-command` |
+| `INPUT_UNKNOWN_JSON_FIELD` | INPUT | No | See `docs/errors.md#input-unknown-json-field` |
+| `INPUT_UNKNOWN_OPTION` | INPUT | No | See `docs/errors.md#input-unknown-option` |
+| `INPUT_UNKNOWN_SUBMISSION` | INPUT | No | See `docs/errors.md#input-unknown-submission` |
+| `SETUP_REQUIRED` | SETUP | No | See `docs/errors.md#setup-required` |
+| `SETUP_INVALID_RECOVERY_PHRASE` | SETUP | No | See `docs/errors.md#setup-invalid-recovery-phrase` |
+| `SETUP_INVALID_SIGNER_KEY` | SETUP | No | See `docs/errors.md#setup-invalid-signer-key` |
+| `SETUP_RECOVERY_PHRASE_MISSING` | SETUP | No | See `docs/errors.md#setup-recovery-phrase-missing` |
+| `SETUP_SIGNER_KEY_MISSING` | SETUP | No | See `docs/errors.md#setup-signer-key-missing` |
+| `RPC_ERROR` | RPC | No | See `docs/errors.md#rpc-error` |
+| `RPC_BROADCAST_CONFIRMATION_TIMEOUT` | RPC | Yes | See `docs/errors.md#rpc-broadcast-confirmation-timeout` |
+| `RPC_BROADCAST_SUBMISSION_FAILED` | RPC | Yes | See `docs/errors.md#rpc-broadcast-submission-failed` |
+| `RPC_NETWORK_ERROR` | RPC | Yes | See `docs/errors.md#rpc-network-error` |
+| `RPC_RATE_LIMITED` | RPC | Yes | See `docs/errors.md#rpc-rate-limited` |
+| `RPC_POOL_RESOLUTION_FAILED` | RPC | Yes | See `docs/errors.md#rpc-pool-resolution-failed` |
+| `ASP_ERROR` | ASP | No | See `docs/errors.md#asp-error` |
+| `RELAYER_ERROR` | RELAYER | No | See `docs/errors.md#relayer-error` |
+| `RELAYER_BROADCAST_QUOTE_EXPIRED` | RELAYER | Yes | See `docs/errors.md#relayer-broadcast-quote-expired` |
+| `RELAYER_BROADCAST_RELAYER_HOST_MISMATCH` | RELAYER | No | See `docs/errors.md#relayer-broadcast-relayer-host-mismatch` |
+| `RELAYER_BROADCAST_SUBMISSION_FAILED` | RELAYER | Yes | See `docs/errors.md#relayer-broadcast-submission-failed` |
+| `RELAYER_CONFIRMATION_RETRY_LIMIT` | RELAYER | Yes | See `docs/errors.md#relayer-confirmation-retry-limit` |
+| `PROOF_ERROR` | PROOF | No | See `docs/errors.md#proof-error` |
+| `PROOF_GENERATION_FAILED` | PROOF | No | See `docs/errors.md#proof-generation-failed` |
+| `PROOF_MERKLE_ERROR` | PROOF | Yes | See `docs/errors.md#proof-merkle-error` |
+| `PROOF_MALFORMED` | PROOF | No | See `docs/errors.md#proof-malformed` |
+| `PROOF_VERIFICATION_FAILED` | PROOF | No | See `docs/errors.md#proof-verification-failed` |
+| `CONTRACT_NULLIFIER_ALREADY_SPENT` | CONTRACT | No | See `docs/errors.md#contract-nullifier-already-spent` |
+| `CONTRACT_BROADCAST_REVERTED` | CONTRACT | No | See `docs/errors.md#contract-broadcast-reverted` |
+| `CONTRACT_ERROR` | CONTRACT | No | See `docs/errors.md#contract-error` |
+| `CONTRACT_INCORRECT_ASP_ROOT` | CONTRACT | Yes | See `docs/errors.md#contract-incorrect-asp-root` |
+| `CONTRACT_UNKNOWN_STATE_ROOT` | CONTRACT | Yes | See `docs/errors.md#contract-unknown-state-root` |
+| `CONTRACT_SCOPE_MISMATCH` | CONTRACT | Yes | See `docs/errors.md#contract-scope-mismatch` |
+| `CONTRACT_CONTEXT_MISMATCH` | CONTRACT | No | See `docs/errors.md#contract-context-mismatch` |
+| `CONTRACT_INVALID_PROOF` | CONTRACT | No | See `docs/errors.md#contract-invalid-proof` |
+| `CONTRACT_INVALID_PROCESSOOOR` | CONTRACT | No | See `docs/errors.md#contract-invalid-processooor` |
+| `CONTRACT_INVALID_COMMITMENT` | CONTRACT | No | See `docs/errors.md#contract-invalid-commitment` |
+| `CONTRACT_PRECOMMITMENT_ALREADY_USED` | CONTRACT | No | See `docs/errors.md#contract-precommitment-already-used` |
+| `CONTRACT_ONLY_ORIGINAL_DEPOSITOR` | CONTRACT | No | See `docs/errors.md#contract-only-original-depositor` |
+| `CONTRACT_NOT_YET_RAGEQUITTEABLE` | CONTRACT | Yes | See `docs/errors.md#contract-not-yet-ragequitteable` |
+| `CONTRACT_MAX_TREE_DEPTH_REACHED` | CONTRACT | No | See `docs/errors.md#contract-max-tree-depth-reached` |
+| `CONTRACT_NO_ROOTS_AVAILABLE` | CONTRACT | Yes | See `docs/errors.md#contract-no-roots-available` |
+| `CONTRACT_MINIMUM_DEPOSIT_AMOUNT` | CONTRACT | No | See `docs/errors.md#contract-minimum-deposit-amount` |
+| `CONTRACT_INVALID_DEPOSIT_VALUE` | CONTRACT | No | See `docs/errors.md#contract-invalid-deposit-value` |
+| `CONTRACT_INVALID_WITHDRAWAL_AMOUNT` | CONTRACT | No | See `docs/errors.md#contract-invalid-withdrawal-amount` |
+| `CONTRACT_POOL_NOT_FOUND` | CONTRACT | No | See `docs/errors.md#contract-pool-not-found` |
+| `CONTRACT_POOL_IS_DEAD` | CONTRACT | No | See `docs/errors.md#contract-pool-is-dead` |
+| `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` | CONTRACT | Yes | See `docs/errors.md#contract-relay-fee-greater-than-max` |
+| `CONTRACT_INVALID_TREE_DEPTH` | CONTRACT | No | See `docs/errors.md#contract-invalid-tree-depth` |
+| `CONTRACT_NATIVE_ASSET_TRANSFER_FAILED` | CONTRACT | No | See `docs/errors.md#contract-native-asset-transfer-failed` |
+| `CONTRACT_INSUFFICIENT_FUNDS` | CONTRACT | No | See `docs/errors.md#contract-insufficient-funds` |
+| `CONTRACT_NONCE_ERROR` | CONTRACT | Yes | See `docs/errors.md#contract-nonce-error` |
+| `ACCOUNT_MIGRATION_REQUIRED` | INPUT | No | See `docs/errors.md#account-migration-required` |
+| `ACCOUNT_NOT_FOUND` | INPUT | No | See `docs/errors.md#account-not-found` |
+| `ACCOUNT_WEBSITE_RECOVERY_REQUIRED` | INPUT | No | See `docs/errors.md#account-website-recovery-required` |
+| `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | See `docs/errors.md#account-migration-review-incomplete` |
+| `ACCOUNT_NOT_APPROVED` | INPUT | No | See `docs/errors.md#account-not-approved` |
+| `UNKNOWN_ERROR` | UNKNOWN | No | See `docs/errors.md#unknown-error` |
 
 ### Exit codes
 

@@ -1,6 +1,9 @@
 // normalized: ADDR, HASH, TS
 {
   "chain": "sepolia",
+  "chains": [
+    "sepolia"
+  ],
   "events": [
     {
       "amountFormatted": "1 ETH",

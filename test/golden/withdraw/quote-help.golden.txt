@@ -11,6 +11,7 @@ Arguments:
 Options:
   -t, --to <address>  Recipient address (recommended for an accurate fee quote)
   -h, --help          display help for command
+
 Canonical order: privacy-pools withdraw quote <amount> <asset>
 
 Tip: add --help-full for examples, safety notes, and JSON fields.

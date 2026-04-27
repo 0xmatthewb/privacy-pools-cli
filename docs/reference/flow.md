@@ -60,7 +60,7 @@ privacy-pools flow step latest --agent
 | Flag | Description |
 |------|-------------|
 | `-t, --to <address>` | Recipient address for private withdrawal (prompted interactively; required whenever prompts are skipped) |
-| `--privacy-delay <profile>` | Privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance. |
+| `--privacy-delay <profile>` | Privacy delay profile (off \| balanced \| strict; default: balanced) |
 | `--new-wallet` | Create and use a dedicated wallet for this workflow |
 | `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
 | `--dry-run` | Validate the flow start inputs without saving a workflow or submitting a deposit |
@@ -113,7 +113,7 @@ privacy-pools flow watch latest --stream-json
 
 | Flag | Description |
 |------|-------------|
-| `--privacy-delay <profile>` | Persist or override the saved privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance. |
+| `--privacy-delay <profile>` | Privacy delay profile (off \| balanced \| strict; default: balanced) |
 | `--stream-json` | Emit line-delimited JSON phase_change events plus the final snapshot |
 
 **Safety:** Paused states are successful workflow states, not CLI errors. Declined workflows surface flow ragequit as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with flow ragequit.

@@ -605,8 +605,8 @@
       "examples": [
         "privacy-pools config get default-chain",
         "privacy-pools config get rpc-override.mainnet",
-        "privacy-pools config get recovery-phrase --reveal",
-        "privacy-pools config get signer-key --reveal"
+        "privacy-pools config get recovery-phrase --show-secret",
+        "privacy-pools config get signer-key --show-secret"
       ],
       "execution": {
         "nativeModes": [
@@ -616,6 +616,8 @@
       },
       "expectedLatencyClass": "fast",
       "flags": [
+        "--show-secret",
+        "--unredacted",
         "--reveal"
       ],
       "globalFlags": [
@@ -661,11 +663,11 @@
           "description": "Example 2"
         },
         {
-          "command": "privacy-pools config get recovery-phrase --reveal",
+          "command": "privacy-pools config get recovery-phrase --show-secret",
           "description": "Example 3"
         },
         {
-          "command": "privacy-pools config get signer-key --reveal",
+          "command": "privacy-pools config get signer-key --show-secret",
           "description": "Example 4"
         }
       ],
@@ -1622,7 +1624,7 @@
           "description": "Example 8"
         }
       ],
-      "supportsDryRun": false,
+      "supportsDryRun": true,
       "supportsUnsigned": false,
       "touchesFunds": false,
       "usage": "flow"
@@ -2497,7 +2499,7 @@
           "description": "Load existing account"
         }
       ],
-      "supportsDryRun": false,
+      "supportsDryRun": true,
       "supportsUnsigned": false,
       "touchesFunds": false,
       "usage": "init"
@@ -4702,10 +4704,12 @@
       "usage": "config list"
     },
     {
-      "agentFlags": "--agent [--reveal]",
+      "agentFlags": "--agent [--show-secret|--unredacted|--reveal]",
       "description": "Read a single configuration key",
       "expectedLatencyClass": "fast",
       "flags": [
+        "--show-secret",
+        "--unredacted",
         "--reveal"
       ],
       "group": "advanced",
@@ -5459,6 +5463,692 @@
     {
       "description": "Advanced maintainer override for the packaged JS worker entrypoint.",
       "name": "PRIVACY_POOLS_CLI_JS_WORKER"
+    }
+  ],
+  "errorCodes": [
+    {
+      "category": "INPUT",
+      "code": "ACCOUNT_MIGRATION_REQUIRED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#account-migration-required",
+      "retryable": false
+    },
+    {
+      "category": "ASP",
+      "code": "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#account-migration-review-incomplete",
+      "retryable": true
+    },
+    {
+      "category": "INPUT",
+      "code": "ACCOUNT_NOT_APPROVED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#account-not-approved",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "ACCOUNT_NOT_FOUND",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#account-not-found",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "ACCOUNT_WEBSITE_RECOVERY_REQUIRED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#account-website-recovery-required",
+      "retryable": false
+    },
+    {
+      "category": "ASP",
+      "code": "ASP_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#asp-error",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_BROADCAST_REVERTED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-broadcast-reverted",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_CONTEXT_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-context-mismatch",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-error",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_INCORRECT_ASP_ROOT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-incorrect-asp-root",
+      "retryable": true
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_INSUFFICIENT_FUNDS",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-insufficient-funds",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_INVALID_COMMITMENT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-invalid-commitment",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_INVALID_DEPOSIT_VALUE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-invalid-deposit-value",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_INVALID_PROCESSOOOR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-invalid-processooor",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_INVALID_PROOF",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-invalid-proof",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_INVALID_TREE_DEPTH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-invalid-tree-depth",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_INVALID_WITHDRAWAL_AMOUNT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-invalid-withdrawal-amount",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_MAX_TREE_DEPTH_REACHED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-max-tree-depth-reached",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_MINIMUM_DEPOSIT_AMOUNT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-minimum-deposit-amount",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_NATIVE_ASSET_TRANSFER_FAILED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-native-asset-transfer-failed",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_NO_ROOTS_AVAILABLE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-no-roots-available",
+      "retryable": true
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_NONCE_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-nonce-error",
+      "retryable": true
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_NOT_YET_RAGEQUITTEABLE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-not-yet-ragequitteable",
+      "retryable": true
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_NULLIFIER_ALREADY_SPENT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-nullifier-already-spent",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_ONLY_ORIGINAL_DEPOSITOR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-only-original-depositor",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_POOL_IS_DEAD",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-pool-is-dead",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_POOL_NOT_FOUND",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-pool-not-found",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_PRECOMMITMENT_ALREADY_USED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-precommitment-already-used",
+      "retryable": false
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_RELAY_FEE_GREATER_THAN_MAX",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-relay-fee-greater-than-max",
+      "retryable": true
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_SCOPE_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-scope-mismatch",
+      "retryable": true
+    },
+    {
+      "category": "CONTRACT",
+      "code": "CONTRACT_UNKNOWN_STATE_ROOT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-unknown-state-root",
+      "retryable": true
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_ADDRESS_CHECKSUM_INVALID",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-address-checksum-invalid",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_AGENT_ACCOUNTS_WATCH_UNSUPPORTED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-agent-accounts-watch-unsupported",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_AGENT_FLOW_WATCH_UNSUPPORTED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-agent-flow-watch-unsupported",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_APPROVAL_REQUIRED_NO_WAIT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-approval-required-no-wait",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_APPROVED_POOL_ACCOUNT_RAGEQUIT_REQUIRES_OVERRIDE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-approved-pool-account-ragequit-requires-override",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-approved-workflow-ragequit-requires-override",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BAD_ADDRESS",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-bad-address",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BELOW_MINIMUM_DEPOSIT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-below-minimum-deposit",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_CHAIN_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-chain-mismatch",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_CHAIN_OVERRIDE_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-chain-override-mismatch",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_EMPTY_STDIN",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-empty-stdin",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_INLINE_JSON_UNSUPPORTED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-inline-json-unsupported",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_INPUT_NOT_FOUND",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-input-not-found",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_INPUT_UNREADABLE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-input-unreadable",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_INVALID_ENVELOPE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-invalid-envelope",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_INVALID_JSON",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-invalid-json",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_INVALID_SIGNED_TRANSACTION",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-invalid-signed-transaction",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_MISSING_RELAYER_HOST",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-missing-relayer-host",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_MISSING_SIGNED_TRANSACTIONS",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-missing-signed-transactions",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_MIXED_SIGNERS",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-mixed-signers",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_RELAYER_REQUEST_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-relayer-request-mismatch",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_REQUIRES_ENVELOPE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-requires-envelope",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_SIGNED_TRANSACTION_COUNT_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-signed-transaction-count-mismatch",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_SIGNED_TRANSACTION_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-signed-transaction-mismatch",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_SIGNER_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-signer-mismatch",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_BROADCAST_STDIN_READ_FAILED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-stdin-read-failed",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-recipient-mismatch",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-error",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_FLAG_CONFLICT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-flag-conflict",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_FLOW_RECIPIENT_RETRY_LIMIT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-flow-recipient-retry-limit",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_INIT_GENERATE_REQUIRES_CAPTURE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-init-generate-requires-capture",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_INIT_REQUIRED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-init-required",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_INSUFFICIENT_BALANCE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-insufficient-balance",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_INSUFFICIENT_GAS",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-insufficient-gas",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_INVALID_AMOUNT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-amount",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_INVALID_ASSET",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-asset",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_INVALID_JQ",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-jq",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_INVALID_VALUE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-value",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_MISSING_AMOUNT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-amount",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_MISSING_ARGUMENT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-argument",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_MISSING_ASSET",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-asset",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_MISSING_FLOW_SUBCOMMAND",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-flow-subcommand",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_MISSING_RECIPIENT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-recipient",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_MUTUALLY_EXCLUSIVE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-mutually-exclusive",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_NO_GAS",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-gas",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_NONROUND_AMOUNT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-nonround-amount",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_PARSE_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-parse-error",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_RAGEQUIT_CONFIRMATION_REQUIRED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-ragequit-confirmation-required",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_RECIPIENT_BURN_ADDRESS",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-recipient-burn-address",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_RECIPIENT_RETRY_LIMIT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-recipient-retry-limit",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_RECOVERY_PHRASE_RETRY_LIMIT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-recovery-phrase-retry-limit",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_RECOVERY_VERIFICATION_RETRY_LIMIT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-recovery-verification-retry-limit",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_REMAINDER_BELOW_RELAYER_MINIMUM",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-remainder-below-relayer-minimum",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_SIMULATE_UNSIGNED_UNSUPPORTED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-simulate-unsigned-unsupported",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_UNKNOWN_ASSET",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-asset",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_UNKNOWN_CHAIN",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-chain",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_UNKNOWN_COMMAND",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-command",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_UNKNOWN_JSON_FIELD",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-json-field",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_UNKNOWN_OPTION",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-option",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_UNKNOWN_SUBMISSION",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-submission",
+      "retryable": false
+    },
+    {
+      "category": "CANCELLED",
+      "code": "PROMPT_CANCELLED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#prompt-cancelled",
+      "retryable": false
+    },
+    {
+      "category": "PROOF",
+      "code": "PROOF_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-error",
+      "retryable": false
+    },
+    {
+      "category": "PROOF",
+      "code": "PROOF_GENERATION_FAILED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-generation-failed",
+      "retryable": false
+    },
+    {
+      "category": "PROOF",
+      "code": "PROOF_MALFORMED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-malformed",
+      "retryable": false
+    },
+    {
+      "category": "PROOF",
+      "code": "PROOF_MERKLE_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-merkle-error",
+      "retryable": true
+    },
+    {
+      "category": "PROOF",
+      "code": "PROOF_VERIFICATION_FAILED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-verification-failed",
+      "retryable": false
+    },
+    {
+      "category": "RELAYER",
+      "code": "RELAYER_BROADCAST_QUOTE_EXPIRED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-quote-expired",
+      "retryable": true
+    },
+    {
+      "category": "RELAYER",
+      "code": "RELAYER_BROADCAST_RELAYER_HOST_MISMATCH",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-relayer-host-mismatch",
+      "retryable": false
+    },
+    {
+      "category": "RELAYER",
+      "code": "RELAYER_BROADCAST_SUBMISSION_FAILED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-submission-failed",
+      "retryable": true
+    },
+    {
+      "category": "RELAYER",
+      "code": "RELAYER_CONFIRMATION_RETRY_LIMIT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-confirmation-retry-limit",
+      "retryable": true
+    },
+    {
+      "category": "RELAYER",
+      "code": "RELAYER_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-error",
+      "retryable": false
+    },
+    {
+      "category": "RPC",
+      "code": "RPC_BROADCAST_CONFIRMATION_TIMEOUT",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-confirmation-timeout",
+      "retryable": true
+    },
+    {
+      "category": "RPC",
+      "code": "RPC_BROADCAST_SUBMISSION_FAILED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-submission-failed",
+      "retryable": true
+    },
+    {
+      "category": "RPC",
+      "code": "RPC_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-error",
+      "retryable": false
+    },
+    {
+      "category": "RPC",
+      "code": "RPC_NETWORK_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-network-error",
+      "retryable": true
+    },
+    {
+      "category": "RPC",
+      "code": "RPC_POOL_RESOLUTION_FAILED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-pool-resolution-failed",
+      "retryable": true
+    },
+    {
+      "category": "RPC",
+      "code": "RPC_RATE_LIMITED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-rate-limited",
+      "retryable": true
+    },
+    {
+      "category": "SETUP",
+      "code": "SETUP_INVALID_RECOVERY_PHRASE",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#setup-invalid-recovery-phrase",
+      "retryable": false
+    },
+    {
+      "category": "SETUP",
+      "code": "SETUP_INVALID_SIGNER_KEY",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#setup-invalid-signer-key",
+      "retryable": false
+    },
+    {
+      "category": "SETUP",
+      "code": "SETUP_RECOVERY_PHRASE_MISSING",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#setup-recovery-phrase-missing",
+      "retryable": false
+    },
+    {
+      "category": "SETUP",
+      "code": "SETUP_REQUIRED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#setup-required",
+      "retryable": false
+    },
+    {
+      "category": "SETUP",
+      "code": "SETUP_SIGNER_KEY_MISSING",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#setup-signer-key-missing",
+      "retryable": false
+    },
+    {
+      "category": "UNKNOWN",
+      "code": "UNKNOWN_ERROR",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#unknown-error",
+      "retryable": false
     }
   ],
   "executionRoutes": {

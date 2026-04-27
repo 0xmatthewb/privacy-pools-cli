@@ -39,18 +39,20 @@ Read a single configuration key
 
 **Usage:** `privacy-pools config get <key> [options]`
 
-Valid keys: default-chain, rpc-override.<chain>, recovery-phrase, signer-key. Sensitive keys show [set] unless --reveal is passed.
+Valid keys: default-chain, rpc-override.<chain>, recovery-phrase, signer-key. Sensitive keys show [set] unless --show-secret, --unredacted, or --reveal is passed.
 
 ```bash
 privacy-pools config get default-chain
 privacy-pools config get rpc-override.mainnet
-privacy-pools config get recovery-phrase --reveal
-privacy-pools config get signer-key --reveal
+privacy-pools config get recovery-phrase --show-secret
+privacy-pools config get signer-key --show-secret
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--reveal` | Show the actual value of sensitive keys instead of [set] |
+| `--show-secret` | Clearer alias for --reveal |
+| `--unredacted` | Clearer alias for --reveal |
 
 **JSON output:** `{ key, value?, set, redacted?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 

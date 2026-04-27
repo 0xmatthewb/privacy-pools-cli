@@ -24,9 +24,9 @@ Your funds:
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Recent activity:
-  Type      Amount   Time       Status
-  ───────   ──────   ────────   ────────
-  Deposit   1 ETH    894d ago   Approved
+  Type      Amount   Time         Status
+  ───────   ──────   ──────────   ────────
+  Deposit   1 ETH    2023-11-14   Approved
 
 Next steps:
   → privacy-pools init  (needs init)

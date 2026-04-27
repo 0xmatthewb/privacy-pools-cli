@@ -40,6 +40,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_ADDRESS_CHECKSUM_INVALID`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-address-checksum-invalid) | INPUT | no |
 | [`INPUT_AGENT_ACCOUNTS_WATCH_UNSUPPORTED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-agent-accounts-watch-unsupported) | INPUT | no |
 | [`INPUT_AGENT_FLOW_WATCH_UNSUPPORTED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-agent-flow-watch-unsupported) | INPUT | no |
+| [`INPUT_APPROVAL_REQUIRED_NO_WAIT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-approval-required-no-wait) | INPUT | no |
 | [`INPUT_APPROVED_POOL_ACCOUNT_RAGEQUIT_REQUIRES_OVERRIDE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-approved-pool-account-ragequit-requires-override) | INPUT | no |
 | [`INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-approved-workflow-ragequit-requires-override) | INPUT | no |
 | [`INPUT_BAD_ADDRESS`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-bad-address) | INPUT | no |
@@ -102,14 +103,14 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`PROOF_MALFORMED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-malformed) | PROOF | no |
 | [`PROOF_MERKLE_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-merkle-error) | PROOF | yes |
 | [`PROOF_VERIFICATION_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-verification-failed) | PROOF | no |
-| [`RELAYER_BROADCAST_QUOTE_EXPIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-quote-expired) | RELAYER | no |
+| [`RELAYER_BROADCAST_QUOTE_EXPIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-quote-expired) | RELAYER | yes |
 | [`RELAYER_BROADCAST_RELAYER_HOST_MISMATCH`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-relayer-host-mismatch) | RELAYER | no |
-| [`RELAYER_BROADCAST_SUBMISSION_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-submission-failed) | RELAYER | no |
-| [`RELAYER_CONFIRMATION_RETRY_LIMIT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-confirmation-retry-limit) | RELAYER | no |
+| [`RELAYER_BROADCAST_SUBMISSION_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-submission-failed) | RELAYER | yes |
+| [`RELAYER_CONFIRMATION_RETRY_LIMIT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-confirmation-retry-limit) | RELAYER | yes |
 | [`RELAYER_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-error) | RELAYER | no |
 | [`RELAYER_HOST`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-host) | RELAYER | no |
-| [`RPC_BROADCAST_CONFIRMATION_TIMEOUT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-confirmation-timeout) | RPC | no |
-| [`RPC_BROADCAST_SUBMISSION_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-submission-failed) | RPC | no |
+| [`RPC_BROADCAST_CONFIRMATION_TIMEOUT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-confirmation-timeout) | RPC | yes |
+| [`RPC_BROADCAST_SUBMISSION_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-submission-failed) | RPC | yes |
 | [`RPC_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-error) | RPC | no |
 | [`RPC_NETWORK_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-network-error) | RPC | yes |
 | [`RPC_POOL_RESOLUTION_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-pool-resolution-failed) | RPC | yes |
@@ -336,6 +337,12 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Category: `INPUT`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-agent-flow-watch-unsupported
+
+## INPUT_APPROVAL_REQUIRED_NO_WAIT
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-approval-required-no-wait
 
 ## INPUT_APPROVED_POOL_ACCOUNT_RAGEQUIT_REQUIRES_OVERRIDE
 
@@ -712,7 +719,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 ## RELAYER_BROADCAST_QUOTE_EXPIRED
 
 - Category: `RELAYER`
-- Retryable: `false`
+- Retryable: `true`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-quote-expired
 
 ## RELAYER_BROADCAST_RELAYER_HOST_MISMATCH
@@ -724,13 +731,13 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 ## RELAYER_BROADCAST_SUBMISSION_FAILED
 
 - Category: `RELAYER`
-- Retryable: `false`
+- Retryable: `true`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-submission-failed
 
 ## RELAYER_CONFIRMATION_RETRY_LIMIT
 
 - Category: `RELAYER`
-- Retryable: `false`
+- Retryable: `true`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-confirmation-retry-limit
 
 ## RELAYER_ERROR
@@ -748,13 +755,13 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 ## RPC_BROADCAST_CONFIRMATION_TIMEOUT
 
 - Category: `RPC`
-- Retryable: `false`
+- Retryable: `true`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-confirmation-timeout
 
 ## RPC_BROADCAST_SUBMISSION_FAILED
 
 - Category: `RPC`
-- Retryable: `false`
+- Retryable: `true`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-submission-failed
 
 ## RPC_ERROR

@@ -1,4 +1,4 @@
-// normalized: NONE
+// normalized: ADDR
 
 Global activity (sepolia):
 
@@ -9,9 +9,9 @@ Summary:
   Page:         1
   Results:      1
   Total events: 13
-  Type      Pool           Amount   Status     Time       Tx                      Pool Address            Chain
-  ───────   ────────────   ──────   ────────   ────────   ─────────────────────   ─────────────────────   ────────
-  Deposit   ETH@11155111   1 ETH    Approved   894d ago   0xabc12300...00000001   0x12345678...12345678   11155111
+  Type      Pool           Amount   Status     Time         Tx                      Pool Address                                 Chain
+  ───────   ────────────   ──────   ────────   ──────────   ─────────────────────   ──────────────────────────────────────────   ────────
+  Deposit   ETH@11155111   1 ETH    Approved   2023-11-14   0xabc12300...00000001   <ADDR>   11155111
 
   Page 1 of 2 · 13 events
   privacy-pools activity --page 2

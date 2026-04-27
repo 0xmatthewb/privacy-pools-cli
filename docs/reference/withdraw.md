@@ -51,7 +51,8 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 | `--no-wait` | Return after submission instead of waiting for confirmation |
 | `--stream-json` | Emit line-delimited JSON progress events and finish with the final withdrawal envelope |
 | `--all` | Withdraw entire Pool Account balance (requires asset: withdraw --all ETH) |
-| `--extra-gas` | For ERC20 withdrawals only: also receive native gas tokens. ERC20 withdrawals default to on; ETH withdrawals ignore this flag. |
+| `--accept-all-funds-public` | Acknowledge that --all --direct in non-interactive mode publicly links the full Pool Account balance |
+| `--extra-gas` | For ERC20 withdrawals, ask the relayer to include a small native-token gas top-up from the withdrawn funds (slightly higher fee) |
 | `--no-extra-gas` | Disable extra gas for ERC20 withdrawals |
 
 **Safety:** Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.

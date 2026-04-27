@@ -1,4 +1,4 @@
-// normalized: NONE
+// normalized: ADDR
 
 Pools on sepolia:
 
@@ -7,9 +7,9 @@ Summary:
   Chain:         sepolia
   Matched pools: 1
   Sort:          tvl-desc
-  Asset   Total Deposits   Pool Balance   USD Value   Pending   Min Deposit   Vetting Fee   Pool Address            Scope
-  ─────   ──────────────   ────────────   ─────────   ───────   ───────────   ───────────   ─────────────────────   ─────
-  ETH     42               5 ETH          -           2 ETH     0.001 ETH     0.50%         0x12345678...12345678   12345
+  Asset   Total Deposits   Pool Balance   USD Value   Pending   Min Deposit   Vetting Fee   Pool Address                                 Scope
+  ─────   ──────────────   ────────────   ─────────   ───────   ───────────   ───────────   ──────────────────────────────────────────   ──────
+  ETH     42               5 ETH          -           2 ETH     0.001 ETH     0.50%         <ADDR>   0x3039
 
 Next steps:
   privacy-pools pools ETH --chain sepolia

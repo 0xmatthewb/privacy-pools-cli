@@ -63,7 +63,8 @@ privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain ma
 | `--direct` | WILL publicly link deposit and withdrawal addresses onchain. This cannot be undone. |
 | `--confirm-direct-withdraw` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
 | `--all` | Withdraw entire Pool Account balance (requires asset: simulate withdraw --all ETH) |
-| `--extra-gas` | For ERC20 withdrawals only: also receive native gas tokens. ERC20 withdrawals default to on; ETH withdrawals ignore this flag. |
+| `--accept-all-funds-public` | Acknowledge that --all --direct in non-interactive mode publicly links the full Pool Account balance |
+| `--extra-gas` | For ERC20 withdrawals, ask the relayer to include a small native-token gas top-up from the withdrawn funds (slightly higher fee) |
 | `--no-extra-gas` | Disable extra gas for ERC20 withdrawals |
 
 **Safety:** simulate withdraw never signs or submits a transaction.

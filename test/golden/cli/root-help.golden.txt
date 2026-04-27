@@ -3,42 +3,6 @@ Usage: privacy-pools [options] [command]
 
 Privacy Pools: a compliant way to transact privately on Ethereum
 
-  Getting started
-  init                   Create, load, or finish setting up your Privacy Pools
-                         account
-  status                 Check account setup and network status
-  guide                  Learn key concepts, workflows, and troubleshooting
-
-  Transactions
-  flow                   Deposit and privately withdraw in one guided workflow
-  simulate               Preview deposit, withdraw, and ragequit without
-                         submitting
-  deposit                Deposit ETH or ERC-20 tokens into a pool
-  withdraw               Withdraw privately from a pool
-  recipients|recents     Manage remembered withdrawal recipients
-  ragequit               Recover funds publicly to your deposit address
-  broadcast              Broadcast a signed envelope or relayer request built
-                         elsewhere
-
-  Monitoring
-  accounts               View balances, approval status, and Pool Accounts
-  pools                  Browse available pools
-  history                View your deposit and withdrawal history
-  activity               View recent deposits and withdrawals across pools
-  protocol-stats         View aggregate network statistics
-  pool-stats             View statistics for one pool
-  stats                  Deprecated compatibility alias for protocol-stats and
-                         pool-stats
-  sync                   Sync account state with the latest onchain data
-  tx-status              Check async transaction submission status
-
-  Advanced
-  migrate                Check migration status for legacy Pool Accounts
-  upgrade                Check for CLI updates
-  config                 View and manage CLI configuration
-  completion             Generate or install shell tab completion
-  capabilities           Describe CLI capabilities for agents
-  describe               Describe a command's flags, args, and output schema
 Options:
   -V, --version          output the version number
   -c, --chain <name>     Target chain (mainnet, arbitrum, optimism, ...)
@@ -75,6 +39,53 @@ Options:
   --profile <name>       Use a named profile (separate wallet identity and
                          config)
   -h, --help             display help for command
+
+  Getting started
+  init                   Create, load, or finish setting up your Privacy Pools
+                         account
+  status                 Check account setup and network status
+  guide                  Learn key concepts, workflows, and troubleshooting
+
+  Transactions
+  flow                   Deposit and privately withdraw in one guided workflow
+  simulate               Preview deposit, withdraw, and ragequit without
+                         submitting
+  deposit                Deposit ETH or ERC-20 tokens into a pool
+  withdraw               Withdraw privately from a pool
+  recipients|recents     Manage remembered withdrawal recipients
+  ragequit               Recover funds publicly to your deposit address
+  broadcast              Broadcast a signed envelope or relayer request built
+                         elsewhere
+
+  Monitoring
+  accounts               View balances, approval status, and Pool Accounts
+  pools                  Browse available pools
+  history                View your deposit and withdrawal history
+  activity               View recent deposits and withdrawals across pools
+  protocol-stats         View aggregate network statistics
+  pool-stats             View statistics for one pool
+  stats                  Deprecated compatibility alias for protocol-stats and
+                         pool-stats
+  sync                   Sync account state with the latest onchain data
+  tx-status              Check async transaction submission status
+
+  Advanced
+  migrate                Check migration status for legacy Pool Accounts
+  upgrade                Check for CLI updates
+  config                 View and manage CLI configuration
+  completion             Generate or install shell tab completion
+  capabilities           Describe CLI capabilities for agents
+  describe               Describe a command's flags, args, and output schema
+
+Common workflows:
+  Easy path         privacy-pools flow start 0.1 ETH --to <address>
+  Manual path       privacy-pools deposit 0.1 ETH
+  Watch review      privacy-pools accounts --chain mainnet --pending-only
+  Withdraw          privacy-pools withdraw --all ETH --to <address>
+
+Help topics:
+  topics, quickstart, keys, workflow, flow-states, ragequit, automation, env-vars, next-actions, profiles, pool-accounts, agents, json, formatting, modes, quiet, troubleshooting, exit-codes
+  privacy-pools help <topic>
 
   Get started:      privacy-pools init
   Full guide:       privacy-pools guide

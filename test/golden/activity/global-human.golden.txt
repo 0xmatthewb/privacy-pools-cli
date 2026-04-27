@@ -10,9 +10,9 @@ Summary:
   Page:         1
   Results:      1
   Total events: 13
-  Type      Pool           Amount   Status     Time       Tx
-  ───────   ────────────   ──────   ────────   ────────   ─────────────────────
-  Deposit   ETH@11155111   1 ETH    Approved   894d ago   0xabc12300...00000001
+  Type      Pool           Amount   Status     Time         Tx
+  ───────   ────────────   ──────   ────────   ──────────   ─────────────────────
+  Deposit   ETH@11155111   1 ETH    Approved   2023-11-14   0xabc12300...00000001
 
   Page 1 of 2 · 13 events
   privacy-pools activity --page 2

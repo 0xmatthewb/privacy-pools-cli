@@ -15,8 +15,7 @@
     "deprecated": [
       "errorCode",
       "errorMessage",
-      "helpTopic",
-      "nextActions"
+      "helpTopic"
     ]
   },
   "schemaVersion": "2.0.0",
