@@ -15,14 +15,16 @@ export const nextActionSchema = z.object({
   runnable: z.boolean().optional(),
 });
 
+export const envelopeMetaSchema = z.object({
+  deprecated: z.array(z.string()).optional(),
+}).passthrough();
+
 export const errorEnvelopeSchema = z.object({
   schemaVersion: z.string(),
   success: z.literal(false),
   errorCode: z.string(),
   errorMessage: z.string(),
-  meta: z.object({
-    deprecated: z.array(z.string()),
-  }).optional(),
+  meta: envelopeMetaSchema.optional(),
   error: z.object({
     code: z.string(),
     category: z.string(),
@@ -39,6 +41,7 @@ export const errorEnvelopeSchema = z.object({
 export const successEnvelopeSchema = z.object({
   schemaVersion: z.string(),
   success: z.literal(true),
+  meta: envelopeMetaSchema.optional(),
   nextActions: z.array(nextActionSchema).optional(),
 }).passthrough();
 

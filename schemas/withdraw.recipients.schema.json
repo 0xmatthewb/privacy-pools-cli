@@ -4,89 +4,110 @@
     "withdraw recipients envelope": {
       "anyOf": [
         {
-          "type": "object",
-          "properties": {
-            "schemaVersion": {
-              "type": "string"
-            },
-            "success": {
-              "type": "boolean",
-              "const": true
-            },
-            "nextActions": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "command": {
-                    "type": "string"
-                  },
-                  "reason": {
-                    "type": "string"
-                  },
-                  "when": {
-                    "type": "string"
-                  },
-                  "cliCommand": {
-                    "type": "string"
-                  },
-                  "args": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+          "allOf": [
+            {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "type": "string"
+                },
+                "success": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "deprecated": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
-                  "options": {
+                  "additionalProperties": true
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
                     "type": "object",
-                    "additionalProperties": {
-                      "type": [
-                        "string",
-                        "number",
-                        "boolean",
-                        "null"
-                      ]
-                    }
-                  },
-                  "parameters": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "name": {
+                    "properties": {
+                      "command": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      },
+                      "when": {
+                        "type": "string"
+                      },
+                      "cliCommand": {
+                        "type": "string"
+                      },
+                      "args": {
+                        "type": "array",
+                        "items": {
                           "type": "string"
-                        },
-                        "type": {
-                          "type": "string"
-                        },
-                        "required": {
-                          "type": "boolean"
                         }
                       },
-                      "required": [
-                        "name",
-                        "type"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "runnable": {
-                    "type": "boolean"
+                      "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      },
+                      "parameters": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            },
+                            "required": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "runnable": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "command",
+                      "reason",
+                      "when"
+                    ],
+                    "additionalProperties": false
                   }
-                },
-                "required": [
-                  "command",
-                  "reason",
-                  "when"
-                ],
-                "additionalProperties": false
-              }
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "success"
+              ],
+              "additionalProperties": true
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": true
             }
-          },
-          "required": [
-            "schemaVersion",
-            "success"
-          ],
-          "additionalProperties": true
+          ]
         },
         {
           "type": "object",
@@ -105,19 +126,7 @@
               "type": "string"
             },
             "meta": {
-              "type": "object",
-              "properties": {
-                "deprecated": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "required": [
-                "deprecated"
-              ],
-              "additionalProperties": false
+              "$ref": "#/definitions/withdraw recipients envelope/anyOf/0/allOf/0/properties/meta"
             },
             "error": {
               "type": "object",
@@ -150,7 +159,7 @@
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/withdraw recipients envelope/anyOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/withdraw recipients envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 }
               },

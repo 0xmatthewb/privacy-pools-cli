@@ -4,89 +4,247 @@
     "capabilities envelope": {
       "anyOf": [
         {
-          "type": "object",
-          "properties": {
-            "schemaVersion": {
-              "type": "string"
+          "allOf": [
+            {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "type": "string"
+                },
+                "success": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "deprecated": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "command": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      },
+                      "when": {
+                        "type": "string"
+                      },
+                      "cliCommand": {
+                        "type": "string"
+                      },
+                      "args": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      },
+                      "parameters": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            },
+                            "required": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "runnable": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "command",
+                      "reason",
+                      "when"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "success"
+              ],
+              "additionalProperties": true
             },
-            "success": {
-              "type": "boolean",
-              "const": true
-            },
-            "nextActions": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "command": {
+            {
+              "type": "object",
+              "properties": {
+                "commands": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "commandDetails": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "executionRoutes": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "globalFlags": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "exitCodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "envVars": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "agentWorkflow": {
+                  "type": "array",
+                  "items": {
                     "type": "string"
-                  },
-                  "reason": {
+                  }
+                },
+                "agentNotes": {
+                  "type": "object",
+                  "additionalProperties": {
                     "type": "string"
-                  },
-                  "when": {
+                  }
+                },
+                "schemas": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "supportedChains": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "protocol": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "runtime": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "safeReadOnlyCommands": {
+                  "type": "array",
+                  "items": {
                     "type": "string"
-                  },
-                  "cliCommand": {
-                    "type": "string"
-                  },
-                  "args": {
-                    "type": "array",
-                    "items": {
+                  }
+                },
+                "jsonOutputContract": {
+                  "type": "string"
+                },
+                "documentation": {
+                  "type": "object",
+                  "properties": {
+                    "reference": {
+                      "type": "string"
+                    },
+                    "agentGuide": {
+                      "type": "string"
+                    },
+                    "changelog": {
+                      "type": "string"
+                    },
+                    "runtimeUpgrades": {
+                      "type": "string"
+                    },
+                    "jsonContract": {
+                      "type": "string"
+                    },
+                    "envelopeSchemas": {
+                      "type": "string"
+                    },
+                    "errorCodes": {
                       "type": "string"
                     }
                   },
-                  "options": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": [
-                        "string",
-                        "number",
-                        "boolean",
-                        "null"
-                      ]
-                    }
-                  },
-                  "parameters": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "name": {
-                          "type": "string"
-                        },
-                        "type": {
-                          "type": "string"
-                        },
-                        "required": {
-                          "type": "boolean"
-                        }
-                      },
-                      "required": [
-                        "name",
-                        "type"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "runnable": {
-                    "type": "boolean"
-                  }
+                  "required": [
+                    "reference",
+                    "agentGuide",
+                    "changelog"
+                  ],
+                  "additionalProperties": true
                 },
-                "required": [
-                  "command",
-                  "reason",
-                  "when"
-                ],
-                "additionalProperties": false
-              }
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/capabilities envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "commands",
+                "commandDetails",
+                "executionRoutes",
+                "globalFlags",
+                "exitCodes",
+                "envVars",
+                "agentWorkflow",
+                "agentNotes",
+                "schemas",
+                "supportedChains",
+                "protocol",
+                "runtime",
+                "safeReadOnlyCommands",
+                "jsonOutputContract"
+              ],
+              "additionalProperties": true
             }
-          },
-          "required": [
-            "schemaVersion",
-            "success"
-          ],
-          "additionalProperties": true
+          ]
         },
         {
           "type": "object",
@@ -105,19 +263,7 @@
               "type": "string"
             },
             "meta": {
-              "type": "object",
-              "properties": {
-                "deprecated": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "required": [
-                "deprecated"
-              ],
-              "additionalProperties": false
+              "$ref": "#/definitions/capabilities envelope/anyOf/0/allOf/0/properties/meta"
             },
             "error": {
               "type": "object",
@@ -150,7 +296,7 @@
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/capabilities envelope/anyOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/capabilities envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 }
               },

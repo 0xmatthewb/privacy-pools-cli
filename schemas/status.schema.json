@@ -4,89 +4,214 @@
     "status envelope": {
       "anyOf": [
         {
-          "type": "object",
-          "properties": {
-            "schemaVersion": {
-              "type": "string"
-            },
-            "success": {
-              "type": "boolean",
-              "const": true
-            },
-            "nextActions": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "command": {
-                    "type": "string"
-                  },
-                  "reason": {
-                    "type": "string"
-                  },
-                  "when": {
-                    "type": "string"
-                  },
-                  "cliCommand": {
-                    "type": "string"
-                  },
-                  "args": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+          "allOf": [
+            {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "type": "string"
+                },
+                "success": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "deprecated": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
-                  "options": {
+                  "additionalProperties": true
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
                     "type": "object",
-                    "additionalProperties": {
-                      "type": [
-                        "string",
-                        "number",
-                        "boolean",
-                        "null"
-                      ]
-                    }
-                  },
-                  "parameters": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "name": {
+                    "properties": {
+                      "command": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      },
+                      "when": {
+                        "type": "string"
+                      },
+                      "cliCommand": {
+                        "type": "string"
+                      },
+                      "args": {
+                        "type": "array",
+                        "items": {
                           "type": "string"
-                        },
-                        "type": {
-                          "type": "string"
-                        },
-                        "required": {
-                          "type": "boolean"
                         }
                       },
-                      "required": [
-                        "name",
-                        "type"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "runnable": {
-                    "type": "boolean"
+                      "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      },
+                      "parameters": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            },
+                            "required": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "runnable": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "command",
+                      "reason",
+                      "when"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "success"
+              ],
+              "additionalProperties": true
+            },
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "configExists": {
+                  "type": "boolean"
+                },
+                "configDir": {
+                  "type": "string"
+                },
+                "defaultChain": {
+                  "type": "string"
+                },
+                "selectedChain": {
+                  "type": "string"
+                },
+                "rpcUrl": {
+                  "type": "string"
+                },
+                "rpcIsCustom": {
+                  "type": "boolean"
+                },
+                "recoveryPhraseSet": {
+                  "type": "boolean"
+                },
+                "signerKeySet": {
+                  "type": "boolean"
+                },
+                "signerKeyValid": {
+                  "type": "boolean"
+                },
+                "signerAddress": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "entrypoint": {
+                  "type": "string"
+                },
+                "aspHost": {
+                  "type": "string"
+                },
+                "accountFiles": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
                   }
                 },
-                "required": [
-                  "command",
-                  "reason",
-                  "when"
-                ],
-                "additionalProperties": false
-              }
+                "readyForDeposit": {
+                  "type": "boolean"
+                },
+                "readyForWithdraw": {
+                  "type": "boolean"
+                },
+                "readyForUnsigned": {
+                  "type": "boolean"
+                },
+                "recommendedMode": {
+                  "type": "string"
+                },
+                "blockingIssues": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/status envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                },
+                "aspLive": {
+                  "type": "boolean"
+                },
+                "rpcLive": {
+                  "type": "boolean"
+                },
+                "rpcBlockNumber": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "configExists",
+                "configDir",
+                "defaultChain",
+                "selectedChain",
+                "recoveryPhraseSet",
+                "signerKeySet",
+                "signerKeyValid",
+                "readyForDeposit",
+                "readyForWithdraw",
+                "readyForUnsigned",
+                "recommendedMode"
+              ],
+              "additionalProperties": true
             }
-          },
-          "required": [
-            "schemaVersion",
-            "success"
-          ],
-          "additionalProperties": true
+          ]
         },
         {
           "type": "object",
@@ -105,19 +230,7 @@
               "type": "string"
             },
             "meta": {
-              "type": "object",
-              "properties": {
-                "deprecated": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "required": [
-                "deprecated"
-              ],
-              "additionalProperties": false
+              "$ref": "#/definitions/status envelope/anyOf/0/allOf/0/properties/meta"
             },
             "error": {
               "type": "object",
@@ -150,7 +263,7 @@
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/status envelope/anyOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/status envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 }
               },

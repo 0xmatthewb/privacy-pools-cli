@@ -4,89 +4,297 @@
     "pools envelope": {
       "anyOf": [
         {
-          "type": "object",
-          "properties": {
-            "schemaVersion": {
-              "type": "string"
-            },
-            "success": {
-              "type": "boolean",
-              "const": true
-            },
-            "nextActions": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "command": {
-                    "type": "string"
-                  },
-                  "reason": {
-                    "type": "string"
-                  },
-                  "when": {
-                    "type": "string"
-                  },
-                  "cliCommand": {
-                    "type": "string"
-                  },
-                  "args": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+          "allOf": [
+            {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "type": "string"
+                },
+                "success": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "deprecated": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   },
-                  "options": {
+                  "additionalProperties": true
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
                     "type": "object",
-                    "additionalProperties": {
-                      "type": [
-                        "string",
-                        "number",
-                        "boolean",
-                        "null"
-                      ]
-                    }
-                  },
-                  "parameters": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "name": {
+                    "properties": {
+                      "command": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      },
+                      "when": {
+                        "type": "string"
+                      },
+                      "cliCommand": {
+                        "type": "string"
+                      },
+                      "args": {
+                        "type": "array",
+                        "items": {
                           "type": "string"
-                        },
-                        "type": {
-                          "type": "string"
-                        },
-                        "required": {
-                          "type": "boolean"
                         }
                       },
-                      "required": [
-                        "name",
-                        "type"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "runnable": {
-                    "type": "boolean"
+                      "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      },
+                      "parameters": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            },
+                            "required": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "runnable": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "command",
+                      "reason",
+                      "when"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "success"
+              ],
+              "additionalProperties": true
+            },
+            {
+              "type": "object",
+              "properties": {
+                "chain": {
+                  "type": "string"
+                },
+                "requestedChain": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "chainSummaries": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chain": {
+                        "type": "string"
+                      },
+                      "pools": {
+                        "type": "number"
+                      },
+                      "error": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "chain",
+                      "pools",
+                      "error"
+                    ],
+                    "additionalProperties": true
                   }
                 },
-                "required": [
-                  "command",
-                  "reason",
-                  "when"
-                ],
-                "additionalProperties": false
-              }
+                "search": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sort": {
+                  "type": "string"
+                },
+                "pools": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "asset": {
+                        "type": "string"
+                      },
+                      "tokenAddress": {
+                        "type": "string"
+                      },
+                      "pool": {
+                        "type": "string"
+                      },
+                      "scope": {
+                        "type": "string"
+                      },
+                      "decimals": {
+                        "type": "number"
+                      },
+                      "minimumDeposit": {
+                        "type": "string"
+                      },
+                      "vettingFeeBPS": {
+                        "type": "string"
+                      },
+                      "maxRelayFeeBPS": {
+                        "type": "string"
+                      },
+                      "totalInPoolValue": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "totalInPoolValueUsd": {
+                        "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValue"
+                      },
+                      "totalDepositsValue": {
+                        "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "totalDepositsValueUsd": {
+                        "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "acceptedDepositsValue": {
+                        "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "acceptedDepositsValueUsd": {
+                        "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "pendingDepositsValue": {
+                        "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "pendingDepositsValueUsd": {
+                        "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "totalDepositsCount": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "acceptedDepositsCount": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "pendingDepositsCount": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "growth24h": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "pendingGrowth24h": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "myPoolAccountsCount": {
+                        "type": "number"
+                      },
+                      "chain": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "asset",
+                      "tokenAddress",
+                      "pool",
+                      "scope",
+                      "decimals",
+                      "minimumDeposit",
+                      "vettingFeeBPS",
+                      "maxRelayFeeBPS",
+                      "totalInPoolValue",
+                      "totalDepositsCount",
+                      "pendingDepositsCount"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/pools envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "chain",
+                "search",
+                "sort",
+                "pools"
+              ],
+              "additionalProperties": true
             }
-          },
-          "required": [
-            "schemaVersion",
-            "success"
-          ],
-          "additionalProperties": true
+          ]
         },
         {
           "type": "object",
@@ -105,19 +313,7 @@
               "type": "string"
             },
             "meta": {
-              "type": "object",
-              "properties": {
-                "deprecated": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "required": [
-                "deprecated"
-              ],
-              "additionalProperties": false
+              "$ref": "#/definitions/pools envelope/anyOf/0/allOf/0/properties/meta"
             },
             "error": {
               "type": "object",
@@ -150,7 +346,7 @@
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/pools envelope/anyOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/pools envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 }
               },

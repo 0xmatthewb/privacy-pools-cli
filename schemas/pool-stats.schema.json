@@ -4,89 +4,246 @@
     "pool-stats envelope": {
       "anyOf": [
         {
-          "type": "object",
-          "properties": {
-            "schemaVersion": {
-              "type": "string"
+          "allOf": [
+            {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "type": "string"
+                },
+                "success": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "deprecated": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "command": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      },
+                      "when": {
+                        "type": "string"
+                      },
+                      "cliCommand": {
+                        "type": "string"
+                      },
+                      "args": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      },
+                      "parameters": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            },
+                            "required": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "runnable": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "command",
+                      "reason",
+                      "when"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "success"
+              ],
+              "additionalProperties": true
             },
-            "success": {
-              "type": "boolean",
-              "const": true
-            },
-            "nextActions": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "command": {
-                    "type": "string"
-                  },
-                  "reason": {
-                    "type": "string"
-                  },
-                  "when": {
-                    "type": "string"
-                  },
-                  "cliCommand": {
-                    "type": "string"
-                  },
-                  "args": {
-                    "type": "array",
-                    "items": {
+            {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "const": "pool-stats"
+                },
+                "command": {
+                  "type": "string"
+                },
+                "invokedAs": {
+                  "type": "string"
+                },
+                "deprecationWarning": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "replacementCommand": {
                       "type": "string"
                     }
                   },
-                  "options": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": [
-                        "string",
-                        "number",
-                        "boolean",
-                        "null"
-                      ]
-                    }
-                  },
-                  "parameters": {
-                    "type": "array",
-                    "items": {
+                  "required": [
+                    "code",
+                    "message",
+                    "replacementCommand"
+                  ],
+                  "additionalProperties": true
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "asset": {
+                  "type": "string"
+                },
+                "pool": {
+                  "type": "string"
+                },
+                "scope": {
+                  "type": "string"
+                },
+                "cacheTimestamp": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "allTime": {
+                  "anyOf": [
+                    {
                       "type": "object",
                       "properties": {
-                        "name": {
-                          "type": "string"
+                        "tvl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
-                        "type": {
-                          "type": "string"
+                        "tvlUsd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
-                        "required": {
-                          "type": "boolean"
+                        "avgDepositSizeUsd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalDepositsCount": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "totalWithdrawalsCount": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "totalDepositsValue": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalWithdrawalsValue": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalDepositsValueUsd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalWithdrawalsValueUsd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         }
                       },
-                      "required": [
-                        "name",
-                        "type"
-                      ],
-                      "additionalProperties": false
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
                     }
-                  },
-                  "runnable": {
-                    "type": "boolean"
-                  }
+                  ]
                 },
-                "required": [
-                  "command",
-                  "reason",
-                  "when"
-                ],
-                "additionalProperties": false
-              }
+                "last24h": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "mode",
+                "command",
+                "chain",
+                "asset",
+                "pool",
+                "scope",
+                "allTime",
+                "last24h"
+              ],
+              "additionalProperties": true
             }
-          },
-          "required": [
-            "schemaVersion",
-            "success"
-          ],
-          "additionalProperties": true
+          ]
         },
         {
           "type": "object",
@@ -105,19 +262,7 @@
               "type": "string"
             },
             "meta": {
-              "type": "object",
-              "properties": {
-                "deprecated": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              },
-              "required": [
-                "deprecated"
-              ],
-              "additionalProperties": false
+              "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/0/properties/meta"
             },
             "error": {
               "type": "object",
@@ -150,7 +295,7 @@
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/pool-stats envelope/anyOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 }
               },
