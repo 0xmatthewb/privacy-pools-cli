@@ -35,6 +35,10 @@ describe("formatTimeAgo", () => {
   test("future timestamp clamps to 0s ago", () => {
     expect(formatTimeAgo(FIXED_NOW + 60_000)).toBe("0s ago");
   });
+
+  test("older than a year falls back to ISO date", () => {
+    expect(formatTimeAgo(FIXED_NOW - 366 * 24 * 60 * 60_000)).toBe("2024-06-14");
+  });
 });
 
 describe("formatApproxBlockTimeAgo", () => {

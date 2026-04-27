@@ -19,6 +19,27 @@ const COMMAND_GROUPS = ROOT_COMMAND_GROUPS.map(
   (group) => [group.heading, group.commands.join(", ")] as const,
 );
 
+const HELP_TOPICS = [
+  "topics",
+  "quickstart",
+  "keys",
+  "workflow",
+  "flow-states",
+  "ragequit",
+  "automation",
+  "env-vars",
+  "next-actions",
+  "profiles",
+  "pool-accounts",
+  "agents",
+  "json",
+  "formatting",
+  "modes",
+  "quiet",
+  "troubleshooting",
+  "exit-codes",
+].join(", ");
+
 export function rootHelpFooterPlain(): string {
   return [
     "",
@@ -26,6 +47,10 @@ export function rootHelpFooterPlain(): string {
     ...COMMON_WORKFLOWS.map(
       ([label, command]) => `  ${label.padEnd(18)}${command}`,
     ),
+    "",
+    "Help topics:",
+    `  ${HELP_TOPICS}`,
+    "  privacy-pools help <topic>",
     "",
     ...ROOT_HELP_FOOTER_ENTRIES.map(
       ([label, command]) => `  ${label.padEnd(18)}${command}`,
@@ -49,6 +74,10 @@ export async function rootHelpFooterStyled(): Promise<string> {
     ...COMMON_WORKFLOWS.map(
       ([label, command]) => `  ${muted(label.padEnd(18))}${accent(command)}`,
     ),
+    "",
+    chalk.bold("Help topics:"),
+    `  ${muted(HELP_TOPICS)}`,
+    `  ${accent("privacy-pools help <topic>")}`,
     "",
     ...ROOT_HELP_FOOTER_ENTRIES.map(
       ([label, command]) => `  ${label.padEnd(18)}${accent(command)}`,

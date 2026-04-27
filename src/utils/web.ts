@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { warn } from "./format.js";
 import type { ResolvedGlobalMode } from "./mode.js";
 import type { GlobalOptions } from "../types.js";
+import { markWebOpened, markWebRequested } from "./web-output-status.js";
 
 export interface BrowserLaunchCommand {
   command: string;
@@ -60,6 +61,9 @@ export function maybeLaunchBrowser(params: BrowserLaunchParams): boolean {
     platform = process.platform,
     spawnImpl = spawn,
   } = params;
+  if (globalOpts?.web) {
+    markWebRequested();
+  }
   if (globalOpts?.web && !mode.isAgent && !mode.isJson) {
     webRequestedThisRun = true;
   }
@@ -67,6 +71,7 @@ export function maybeLaunchBrowser(params: BrowserLaunchParams): boolean {
     return false;
   }
   browserLaunchAttemptedThisRun = true;
+  markWebOpened();
 
   const { command, args } = getBrowserLaunchCommand(url, platform);
   try {

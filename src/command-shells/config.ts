@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
+import { showCommandHelpAction } from "../utils/command-help-action.js";
 
 export function createConfigCommand(): Command {
   const metadata = getCommandMetadata("config");
@@ -15,6 +16,7 @@ export function createConfigCommand(): Command {
   const command = new Command("config")
     .description(metadata.description)
     .addHelpText("after", commandHelpText(metadata.help ?? {}));
+  command.action(showCommandHelpAction(command));
 
   command
     .command("list")
@@ -32,6 +34,8 @@ export function createConfigCommand(): Command {
     .description(getMetadata.description)
     .argument("<key>", "Configuration key (e.g. default-chain, rpc-override.mainnet, recovery-phrase, signer-key)")
     .option("--reveal", "Show the actual value of sensitive keys instead of [set]")
+    .option("--show-secret", "Clearer alias for --reveal")
+    .option("--unredacted", "Clearer alias for --reveal")
     .addHelpText("after", commandHelpText(getMetadata.help ?? {}))
     .action(
       createLazyAction(
@@ -88,6 +92,7 @@ export function createConfigCommand(): Command {
     .command("profile")
     .description(profileMetadata.description)
     .addHelpText("after", commandHelpText(profileMetadata.help ?? {}));
+  profile.action(showCommandHelpAction(profile));
 
   profile
     .command("list")

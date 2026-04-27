@@ -55,7 +55,7 @@ export { createMigrateCommand } from "../command-shells/migrate.js";
 function createCoverageLimitationWarning(rootChain: string): MigrationWarning {
   return {
     chain: rootChain,
-    category: "COVERAGE",
+    category: "INPUT",
     message:
       "This command only checks chains currently supported by the CLI. Review beta or other website-only legacy migration surfaces in the Privacy Pools website.",
   };

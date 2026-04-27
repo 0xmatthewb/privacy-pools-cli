@@ -103,6 +103,7 @@ const CSV_SUPPORTED_COMMANDS = [
   "pools",
   "accounts",
   "activity",
+  "recipients",
   "protocol-stats",
   "pool-stats",
   "stats",

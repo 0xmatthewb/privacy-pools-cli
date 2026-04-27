@@ -100,6 +100,10 @@ function formatActivityStatusPlain(type: string, reviewStatus: string | null): s
   return normalized;
 }
 
+function formatActivityStatusCsv(type: string, reviewStatus: string | null): string {
+  return normalizePublicEventReviewStatus(type, reviewStatus).toLowerCase();
+}
+
 function renderActivityType(type: string): string {
   const normalized = type.trim().toLowerCase();
   if (normalized.includes("deposit")) {
@@ -153,7 +157,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     const payload: Record<string, unknown> = {
       mode: data.mode,
       chain: data.chain,
-      ...(data.chains ? { chains: data.chains } : {}),
+      chains: data.chains ?? [data.chain],
       page: data.page,
       perPage: data.perPage,
       total: data.total,
@@ -196,7 +200,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
         renderActivityType(e.type),
         eventPoolLabel(e),
         e.amountFormatted,
-        formatActivityStatusPlain(e.type, e.reviewStatus),
+        formatActivityStatusCsv(e.type, e.reviewStatus),
         e.timeLabel,
         e.txHash ? formatAddress(e.txHash, 8) : "-",
       ]),

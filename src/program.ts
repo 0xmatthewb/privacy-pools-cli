@@ -9,6 +9,7 @@ import {
 } from "./utils/root-global-flags.js";
 import { allNonOptionTokens } from "./utils/root-argv.js";
 import { isGuideTopic } from "./utils/help.js";
+import { setCommandAliasDeprecationWarning } from "./utils/root-alias-metadata.js";
 
 const ROOT_COMMAND_NAMES = [
   "init",
@@ -93,6 +94,11 @@ class CommandRegistry {
     return this.byName.has(token as RootCommandName)
       ? (token as RootCommandName)
       : null;
+  }
+
+  alias(token: string | undefined): AliasSpec | null {
+    if (!token) return null;
+    return this.aliases.get(token) ?? null;
   }
 
   loader(name: RootCommandName): () => Promise<Command> {
@@ -190,6 +196,12 @@ for (const name of ROOT_COMMAND_NAMES) {
 ROOT_COMMAND_REGISTRY.registerAlias({
   name: "recents",
   aliasOf: "recipients",
+  deprecationWarning: {
+    code: "COMMAND_ALIAS_DEPRECATED",
+    message:
+      "Command alias 'recents' is deprecated and will be removed in v3.x. Use 'recipients' instead.",
+    replacementCommand: "privacy-pools recipients",
+  },
 });
 
 function resolveRootCommandName(token: string | undefined): RootCommandName | null {
@@ -218,11 +230,15 @@ function resolveRootCommandsForInvocation(argv: string[] | undefined): RootComma
 async function addRootCommands(
   program: Command,
   commandNames: readonly RootCommandName[],
+  aliasSpec: AliasSpec | null = null,
 ): Promise<void> {
   const commands = await Promise.all(
     commandNames.map((name) => ROOT_COMMAND_REGISTRY.loader(name)()),
   );
   for (const command of commands) {
+    if (command.name() === aliasSpec?.aliasOf) {
+      setCommandAliasDeprecationWarning(command, aliasSpec.deprecationWarning);
+    }
     program.addCommand(command);
   }
 }
@@ -377,7 +393,13 @@ export async function createRootProgram(
   const commandNames = loadAllCommands
     ? ROOT_COMMAND_NAMES
     : resolveRootCommandsForInvocation(argv);
-  await addRootCommands(program, commandNames);
+  const [firstToken, secondToken] = allNonOptionTokens(argv ?? []);
+  const aliasToken = firstToken === "help" ? secondToken : firstToken;
+  await addRootCommands(
+    program,
+    commandNames,
+    ROOT_COMMAND_REGISTRY.alias(aliasToken),
+  );
   applyExitOverrideRecursively(program);
 
   return program;

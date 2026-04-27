@@ -225,7 +225,7 @@ function computeBannerLayout(welcomeText: readonly string[]): BannerLayout {
 
   // Below this width, the welcome text itself starts to feel cramped and
   // adding any illustration makes it worse. Drop to text-only fallback.
-  if (columns < 72) {
+  if (columns < 76) {
     return { mode: "narrow", columns, rows, art };
   }
 

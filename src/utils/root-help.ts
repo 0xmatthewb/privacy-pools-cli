@@ -143,7 +143,6 @@ export function styleCommanderHelp(raw: string): string {
   let isRootHelp = false;
   const result: string[] = [];
   let cmdBuffer: string[] = [];
-  let optBuffer: { header: string; lines: string[] } | null = null;
 
   function styleOptionLine(line: string): string {
     const m = line.match(/^(\s{2,})(-[^-].*?|--[a-zA-Z0-9][^ ]*(?: [^ ]+)?.*?)(\s{2,})(.+)$/);
@@ -194,20 +193,12 @@ export function styleCommanderHelp(raw: string): string {
     cmdBuffer = [];
   }
 
-  function flushDeferredOptions(): void {
-    if (!optBuffer) return;
-    result.push(optBuffer.header);
-    for (const line of optBuffer.lines) result.push(styleOptionLine(line));
-    optBuffer = null;
-  }
-
   for (const line of lines) {
     const trimmed = line.trim();
 
     if (trimmed === "") {
       if (section === "commands") {
         flushCommands();
-        flushDeferredOptions();
         section = null;
       }
       result.push(line);
@@ -224,10 +215,9 @@ export function styleCommanderHelp(raw: string): string {
 
     if (SECTION_HEADERS.has(trimmed)) {
       section = trimmed.replace(":", "").toLowerCase() as Section;
-      if (section === "options" && !optBuffer) {
-        optBuffer = { header: accentBold(trimmed), lines: [] };
-      } else if (section !== "commands" || !optBuffer) {
-        flushDeferredOptions();
+      if (section === "commands" && isRootHelp) {
+        continue;
+      } else {
         result.push(accentBold(trimmed));
       }
       continue;
@@ -235,7 +225,6 @@ export function styleCommanderHelp(raw: string): string {
 
     if (GENERIC_SECTION_HEADER_RE.test(trimmed)) {
       flushCommands();
-      flushDeferredOptions();
       section = null;
       result.push(accentBold(trimmed));
       continue;
@@ -243,11 +232,6 @@ export function styleCommanderHelp(raw: string): string {
 
     if (section === "commands") {
       cmdBuffer.push(line);
-      continue;
-    }
-
-    if (section === "options" && optBuffer) {
-      optBuffer.lines.push(line);
       continue;
     }
 
@@ -276,7 +260,6 @@ export function styleCommanderHelp(raw: string): string {
   }
 
   flushCommands();
-  flushDeferredOptions();
 
   return result.join("\n");
 }
@@ -290,12 +273,7 @@ export function rootHelpFooterPlain(): string {
 }
 
 export function rootHelpFooter(): string {
-  return [
-    "",
-    ...ROOT_HELP_FOOTER_ENTRIES.map(
-      ([label, command]) => `  ${label.padEnd(18)}${accent(command)}`,
-    ),
-  ].join("\n");
+  return rootHelpFooterPlainValue();
 }
 
 export function rootHelpText(): string {

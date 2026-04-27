@@ -1348,7 +1348,7 @@ describe("renderUpgradeResult nextActions", () => {
     expect(json.nextActions[0]).toMatchObject({
       command: "status",
       when: "after_upgrade",
-      cliCommand: "privacy-pools status --agent",
+      cliCommand: "privacy-pools status --agent --chain mainnet",
     });
   });
 

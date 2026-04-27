@@ -219,7 +219,7 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         let rows = data
             .filtered_pools
             .iter()
-            .map(|entry| pool_listing_row(entry, data.all_chains, false))
+            .map(|entry| pool_listing_csv_row(entry, data.all_chains))
             .collect::<Vec<_>>();
         print_csv(headers, rows);
         return;
@@ -446,63 +446,66 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
     }
 
     write_stderr_text(&format_command_heading(&format!(
-        "{} pool on {}:",
+        "{} Pool on {}",
         data.asset, data.chain_name
     )));
 
     write_stderr_text(&format_section_heading("Summary"));
+    let pool_balance = format_pool_stat_amount(
+        data.total_in_pool_value.as_deref(),
+        data.decimals,
+        &data.asset,
+    );
+    let pending_funds = format_pool_stat_amount(
+        data.pending_deposits_value.as_deref(),
+        data.decimals,
+        &data.asset,
+    );
+    let all_time_deposits = format_pool_stat_amount(
+        data.total_deposits_value.as_deref(),
+        data.decimals,
+        &data.asset,
+    );
     write_stderr_text(&format_key_value_rows(&[
         (
-            "Pool balance",
-            format_pool_stat_amount(
-                data.total_in_pool_value.as_deref(),
-                data.decimals,
-                &data.asset,
+            "Pool Balance",
+            format!(
+                "{} ({})",
+                pool_balance,
+                parse_usd_string(data.total_in_pool_value_usd.as_deref())
             ),
         ),
         (
-            "Pool balance USD",
-            parse_usd_string(data.total_in_pool_value_usd.as_deref()),
-        ),
-        (
-            "Pending funds",
-            format_pool_stat_amount(
-                data.pending_deposits_value.as_deref(),
-                data.decimals,
-                &data.asset,
+            "Pending Funds",
+            format!(
+                "{} ({})",
+                pending_funds,
+                parse_usd_string(data.pending_deposits_value_usd.as_deref())
             ),
         ),
         (
-            "Pending funds USD",
-            parse_usd_string(data.pending_deposits_value_usd.as_deref()),
-        ),
-        (
-            "All-time deposits",
-            format_pool_stat_amount(
-                data.total_deposits_value.as_deref(),
-                data.decimals,
-                &data.asset,
+            "All-Time Deposits",
+            format!(
+                "{} ({})",
+                all_time_deposits,
+                parse_usd_string(data.total_deposits_value_usd.as_deref())
             ),
         ),
         (
-            "All-time USD",
-            parse_usd_string(data.total_deposits_value_usd.as_deref()),
-        ),
-        (
-            "Total deposits",
+            "Total Deposits",
             data.total_deposits_count
                 .map(format_count_number)
                 .unwrap_or_else(|| "-".to_string()),
         ),
         (
-            "Minimum deposit",
+            "Min Deposit",
             parse_biguint(&data.minimum_deposit)
                 .map(|value| format_amount(&value, data.decimals, Some(&data.asset), Some(2)))
                 .unwrap_or_else(|| data.minimum_deposit.clone()),
         ),
-        ("Vetting fee", format_bps_value(&data.vetting_fee_bps)),
-        ("Max relay fee", format_bps_value(&data.max_relay_fee_bps)),
-        ("Pool address", format_address(&data.pool, 6)),
+        ("Vetting Fee", format_bps_value(&data.vetting_fee_bps)),
+        ("Max Relay Fee", format_bps_value(&data.max_relay_fee_bps)),
+        ("Pool Address", format_address(&data.pool, 6)),
         ("Token", format_address(&data.token_address, 6)),
         ("Scope", data.scope.clone()),
     ]));
@@ -680,7 +683,10 @@ fn pool_entry_to_json(entry: &PoolListingEntry, include_chain: bool) -> Value {
     insert_optional_string(
         &mut object,
         "totalInPoolValueUsd",
-        entry.total_in_pool_value_usd.clone(),
+        entry
+            .total_in_pool_value_usd
+            .as_deref()
+            .and_then(normalize_usd_json),
     );
     insert_optional_string(
         &mut object,
@@ -690,7 +696,10 @@ fn pool_entry_to_json(entry: &PoolListingEntry, include_chain: bool) -> Value {
     insert_optional_string(
         &mut object,
         "totalDepositsValueUsd",
-        entry.total_deposits_value_usd.clone(),
+        entry
+            .total_deposits_value_usd
+            .as_deref()
+            .and_then(normalize_usd_json),
     );
     insert_optional_string(
         &mut object,
@@ -700,7 +709,10 @@ fn pool_entry_to_json(entry: &PoolListingEntry, include_chain: bool) -> Value {
     insert_optional_string(
         &mut object,
         "acceptedDepositsValueUsd",
-        entry.accepted_deposits_value_usd.clone(),
+        entry
+            .accepted_deposits_value_usd
+            .as_deref()
+            .and_then(normalize_usd_json),
     );
     insert_optional_string(
         &mut object,
@@ -710,7 +722,10 @@ fn pool_entry_to_json(entry: &PoolListingEntry, include_chain: bool) -> Value {
     insert_optional_string(
         &mut object,
         "pendingDepositsValueUsd",
-        entry.pending_deposits_value_usd.clone(),
+        entry
+            .pending_deposits_value_usd
+            .as_deref()
+            .and_then(normalize_usd_json),
     );
     insert_optional_u64(
         &mut object,
@@ -785,6 +800,39 @@ fn pool_listing_row(entry: &PoolListingEntry, include_chain: bool, is_wide: bool
         row.push(format_address(&entry.pool, 8));
         row.push(entry.scope.clone());
     }
+    row
+}
+
+fn pool_listing_csv_row(entry: &PoolListingEntry, include_chain: bool) -> Vec<String> {
+    let mut row = Vec::new();
+    if include_chain {
+        row.push(entry.chain.clone());
+    }
+    row.push(entry.asset.clone());
+    row.push(
+        entry
+            .total_deposits_count
+            .map(|count| count.to_string())
+            .unwrap_or_default(),
+    );
+    row.push(
+        entry
+            .total_in_pool_value
+            .clone()
+            .or_else(|| entry.accepted_deposits_value.clone())
+            .unwrap_or_default(),
+    );
+    row.push(
+        entry
+            .total_in_pool_value_usd
+            .as_deref()
+            .or(entry.accepted_deposits_value_usd.as_deref())
+            .and_then(normalize_usd_json)
+            .unwrap_or_default(),
+    );
+    row.push(entry.pending_deposits_value.clone().unwrap_or_default());
+    row.push(entry.minimum_deposit.clone());
+    row.push(entry.vetting_fee_bps.clone());
     row
 }
 
@@ -873,6 +921,18 @@ fn parse_usd_string(value: Option<&str>) -> String {
             .unwrap_or_else(|| "-".to_string()),
         _ => "-".to_string(),
     }
+}
+
+fn normalize_usd_json(value: &str) -> Option<String> {
+    let normalized = value.trim().replace('$', "").replace(',', "");
+    if normalized.is_empty() {
+        return None;
+    }
+    normalized
+        .parse::<f64>()
+        .ok()
+        .filter(|parsed| parsed.is_finite())
+        .map(|_| normalized)
 }
 
 fn parse_biguint(value: &str) -> Option<num_bigint::BigUint> {

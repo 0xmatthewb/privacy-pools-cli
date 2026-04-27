@@ -141,7 +141,7 @@ export async function handleConfigListCommand(
 
 export async function handleConfigGetCommand(
   key: string,
-  opts: { reveal?: boolean },
+  opts: { reveal?: boolean; showSecret?: boolean; unredacted?: boolean },
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.parent?.opts() as GlobalOptions;
@@ -158,7 +158,7 @@ export async function handleConfigGetCommand(
     }
 
     const sensitive = isSensitiveKey(key);
-    const shouldRedact = sensitive && !opts.reveal;
+    const shouldRedact = sensitive && !(opts.reveal || opts.showSecret || opts.unredacted);
 
     let value: string | null = null;
 

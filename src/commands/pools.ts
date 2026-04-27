@@ -12,6 +12,7 @@ import { loadAccount } from "../services/account-storage.js";
 import { getDataService } from "../services/sdk.js";
 import {
   initializeAccountService,
+  loadSyncMeta,
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import {
@@ -389,6 +390,7 @@ export async function handlePoolsCommand(
       let walletState: "available" | "setup_required" | "load_failed" = "setup_required";
       let myPoolAccounts: PoolAccountRef[] | null = null;
       let myFundsWarning: string | null = null;
+      const lastSyncTime = loadSyncMeta(chainConfig.id)?.lastSyncTime ?? null;
       try {
         const mnemonic = loadMnemonic();
         const dataService = await getDataService(
@@ -469,7 +471,12 @@ export async function handlePoolsCommand(
           return {
             type: normalized.type,
             amount: normalized.amountFormatted,
+            amountRaw: normalized.amountRaw,
             timeLabel: normalized.timeLabel,
+            timestamp: normalized.timestampMs === null
+              ? null
+              : new Date(normalized.timestampMs).toISOString(),
+            txHash: normalized.txHash,
             status: normalized.reviewStatus,
           };
         });
@@ -489,6 +496,7 @@ export async function handlePoolsCommand(
         walletState,
         myPoolAccounts,
         myFundsWarning,
+        lastSyncTime,
         recentActivity,
         recentActivityUnavailable,
       });

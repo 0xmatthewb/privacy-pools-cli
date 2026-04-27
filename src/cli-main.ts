@@ -26,6 +26,10 @@ import { installOutputAnsiGuards } from "./utils/terminal.js";
 import { buildGuidePayload, guideText, resolveGuideTopic } from "./utils/help.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { setModeArgv } from "./utils/mode.js";
+import {
+  markWebRequested,
+  resetWebOutputStatus,
+} from "./utils/web-output-status.js";
 
 function normalizeHelpVerbosityArgv(argv: string[]): string[] {
   const requestsHelpVerbosity =
@@ -61,6 +65,7 @@ export async function runCli(
   );
   installOutputAnsiGuards();
   setModeArgv(normalizedArgv);
+  resetWebOutputStatus();
 
   // Activate --profile before any config loading.
   const profileValue = readLongOptionValue(normalizedArgv, "--profile");
@@ -81,6 +86,9 @@ export async function runCli(
     suppressBanner,
   } = parsedArgv;
   const shouldStyleHelp = !isStructuredOutputMode;
+  if (hasLongFlag(normalizedArgv, "--web")) {
+    markWebRequested();
+  }
   const captureMachineOutput =
     isStructuredOutputMode && (isHelpLike || isVersionLike);
   const machineOutput = { value: "" };
@@ -232,6 +240,7 @@ export async function runCli(
     ) {
       if (isWelcome) {
         if (isQuiet) {
+          process.stdout.write(`${program.helpInformation().trimEnd()}\n`);
           process.exitCode = 0;
           return;
         }
@@ -249,7 +258,7 @@ export async function runCli(
           });
           bannerIncludedWelcome = bannerResult.includedWelcomeText;
         }
-        if (!bannerIncludedWelcome && !suppressBanner) {
+        if (!bannerIncludedWelcome) {
           const { welcomeScreen } = await import("./utils/help.js");
           process.stderr.write(
             welcomeScreen({
@@ -280,7 +289,7 @@ export async function runCli(
       return;
     }
 
-    const mapped = mapCommanderError(err, { rootCommand: firstCommandToken });
+    const mapped = mapCommanderError(err, { rootCommand: firstCommandToken, program });
     if (mapped) {
       printError(mapped, isStructuredOutputMode);
       return;

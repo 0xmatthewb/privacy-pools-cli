@@ -9,7 +9,7 @@ import type { OutputContext } from "./common.js";
 import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn, isSilent, createNextAction, appendNextActions, renderNextSteps } from "./common.js";
 import { POA_PORTAL_URL } from "../config/chains.js";
 import { accentBold, muted } from "../utils/theme.js";
-import { formatAddress, formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue } from "../utils/format.js";
+import { formatAddress, formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue, rawUsdValue } from "../utils/format.js";
 import type { PoolStats } from "../types.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import {
@@ -104,6 +104,25 @@ function formatStatAmount(
   return formatAmount(value, decimals, symbol, displayDecimals(decimals));
 }
 
+function rawCsvAmount(value: bigint | undefined): string {
+  return value?.toString() ?? "";
+}
+
+function rawCsvCount(value: number | undefined): string {
+  return value === undefined ? "" : String(value);
+}
+
+function rawUsdString(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  const normalized = value.trim().replace(/\$/g, "").replace(/,/g, "");
+  if (normalized === "") return null;
+  return /^-?\d+(?:\.\d+)?$/.test(normalized) ? normalized : null;
+}
+
+function rawCsvUsd(value: string | null | undefined): string {
+  return rawUsdString(value) ?? "";
+}
+
 function formatDepositsCount(pool: PoolStats): string {
   if (pool.totalDepositsCount !== undefined) {
     return pool.totalDepositsCount.toLocaleString("en-US");
@@ -126,13 +145,13 @@ export function poolToJson(
     vettingFeeBPS: pool.vettingFeeBPS.toString(),
     maxRelayFeeBPS: pool.maxRelayFeeBPS.toString(),
     totalInPoolValue: pool.totalInPoolValue?.toString() ?? null,
-    totalInPoolValueUsd: pool.totalInPoolValueUsd ?? null,
+    totalInPoolValueUsd: rawUsdString(pool.totalInPoolValueUsd),
     totalDepositsValue: pool.totalDepositsValue?.toString() ?? null,
-    totalDepositsValueUsd: pool.totalDepositsValueUsd ?? null,
+    totalDepositsValueUsd: rawUsdString(pool.totalDepositsValueUsd),
     acceptedDepositsValue: pool.acceptedDepositsValue?.toString() ?? null,
-    acceptedDepositsValueUsd: pool.acceptedDepositsValueUsd ?? null,
+    acceptedDepositsValueUsd: rawUsdString(pool.acceptedDepositsValueUsd),
     pendingDepositsValue: pool.pendingDepositsValue?.toString() ?? null,
-    pendingDepositsValueUsd: pool.pendingDepositsValueUsd ?? null,
+    pendingDepositsValueUsd: rawUsdString(pool.pendingDepositsValueUsd),
     totalDepositsCount: pool.totalDepositsCount ?? null,
     acceptedDepositsCount: pool.acceptedDepositsCount ?? null,
     pendingDepositsCount: pool.pendingDepositsCount ?? null,
@@ -305,20 +324,15 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     printCsv(
       csvHeaders,
       filteredPools.map(({ chain, pool, myPoolAccountsCount }) => {
-        const dd = displayDecimals(pool.decimals);
         const baseRow = [
           pool.symbol,
           ...(showMyPoolAccounts ? [String(myPoolAccountsCount ?? 0)] : []),
-          formatDepositsCount(pool),
-          formatStatAmount(
-            pool.totalInPoolValue ?? pool.acceptedDepositsValue,
-            pool.decimals,
-            pool.symbol,
-          ),
-          parseUsd(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
-          formatStatAmount(pool.pendingDepositsValue, pool.decimals, pool.symbol),
-          formatAmount(pool.minimumDepositAmount, pool.decimals, pool.symbol, dd),
-          formatBPS(pool.vettingFeeBPS),
+          rawCsvCount(pool.totalDepositsCount),
+          rawCsvAmount(pool.totalInPoolValue ?? pool.acceptedDepositsValue),
+          rawCsvUsd(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
+          rawCsvAmount(pool.pendingDepositsValue),
+          pool.minimumDepositAmount.toString(),
+          pool.vettingFeeBPS.toString(),
         ];
         return allChains ? [chain, ...baseRow] : baseRow;
       }),
@@ -411,7 +425,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
         ];
         const row = allChains ? [chain, ...baseRow] : baseRow;
         if (isWideFormat) {
-          row.push(formatAddress(pool.pool, 8), pool.scope.toString());
+          row.push(formatAddress(pool.pool, 8), `0x${pool.scope.toString(16)}`);
         }
         return row;
       }),
@@ -480,7 +494,10 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
 export interface PoolDetailActivityEvent {
   type: string;
   amount: string | null;
+  amountRaw?: string | null;
   timeLabel: string;
+  timestamp?: string | null;
+  txHash?: string | null;
   status: string | null;
 }
 
@@ -492,6 +509,7 @@ export interface PoolDetailRenderData {
   walletState: "available" | "setup_required" | "load_failed";
   myPoolAccounts: PoolAccountRef[] | null;
   myFundsWarning?: string | null;
+  lastSyncTime?: number | null;
   recentActivity: PoolDetailActivityEvent[] | null;
   recentActivityUnavailable?: boolean;
 }
@@ -523,6 +541,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     walletState,
     myPoolAccounts,
     myFundsWarning,
+    lastSyncTime,
     recentActivity,
     recentActivityUnavailable,
   } = data;
@@ -631,7 +650,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
       const myTotal = active.reduce((sum, pa) => sum + pa.value, 0n);
       payload.myFunds = {
         balance: myTotal.toString(),
-        usdValue: hasUsd ? formatUsdValue(myTotal, pool.decimals, tokenPrice) : null,
+        usdValue: hasUsd ? rawUsdValue(myTotal, pool.decimals, tokenPrice) : null,
         poolAccounts: active.length,
         pendingCount: active.filter((pa) => pa.status === "pending").length,
         poaRequiredCount: active.filter((pa) => pa.status === "poa_required").length,
@@ -649,6 +668,9 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
 
     if (myFundsWarning) {
       payload.myFundsWarning = myFundsWarning;
+    }
+    if (lastSyncTime !== undefined && lastSyncTime !== null) {
+      payload.lastSyncTime = new Date(lastSyncTime).toISOString();
     }
 
     if (recentActivity !== null) {

@@ -3,6 +3,7 @@ import type { NextAction } from "../types.js";
 import { CLIError } from "./errors.js";
 import { errorDocUrl } from "./error-code-registry.js";
 import { didYouMeanMany } from "./fuzzy.js";
+import { peekWebOutputStatus } from "./web-output-status.js";
 
 export const JSON_SCHEMA_VERSION = "2.0.0";
 
@@ -302,6 +303,11 @@ export function printJsonSuccess(
     success: true,
     ...data,
   };
+  const webStatus = peekWebOutputStatus();
+  if (webStatus.requested && !("webOpened" in output)) {
+    output.webOpened = webStatus.opened;
+    output.webStatus = webStatus.opened ? "opened" : "not_opened";
+  }
 
   // Apply --json <fields> selection after the envelope is assembled so
   // schemaVersion/success can appear in the field catalog too.
@@ -364,7 +370,7 @@ export function printJsonError(
     errorCode: code,
     errorMessage: payload.message,
     meta: {
-      deprecated: ["errorCode", "errorMessage", "helpTopic", "nextActions"],
+      deprecated: ["errorCode", "errorMessage", "helpTopic"],
     },
     ...(helpTopic ? { helpTopic } : {}),
     ...(nextActions ? { nextActions } : {}),

@@ -809,14 +809,13 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       : ["PA", "Status", "ASP", "Asset", "Value", "Tx"];
     const csvRows: string[][] = [];
     for (const group of visibleGroups) {
-      const dd = displayDecimals(group.decimals);
       for (const pa of group.poolAccounts) {
         const row = [
           pa.paId,
           pa.status,
           pa.aspStatus ?? "",
           group.symbol,
-          formatAmount(pa.value, group.decimals, group.symbol, dd),
+          pa.value.toString(),
           pa.txHash,
         ];
         csvRows.push(includeChainFields ? [group.chain, ...row] : row);

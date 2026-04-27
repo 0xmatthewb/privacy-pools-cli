@@ -152,6 +152,18 @@ export function formatUsdValue(
   return usd < 0 ? `-$${absValue}` : `$${absValue}`;
 }
 
+export function rawUsdValue(
+  tokenAmount: bigint,
+  decimals: number,
+  price: number | null,
+): string | null {
+  if (price === null) return null;
+  const tokens = Number(formatUnits(tokenAmount, decimals));
+  const usd = tokens * price;
+  if (!Number.isFinite(usd)) return null;
+  return usd.toString();
+}
+
 /**
  * Returns true when the derived price suggests a USD-pegged stablecoin,
  * making a USD annotation redundant.
@@ -179,6 +191,7 @@ export function usdSuffix(
 // ── Address / hash helpers ──────────────────────────────────────────────────
 
 export function formatAddress(address: string, chars: number = 6): string {
+  if (/^0x[0-9a-fA-F]{40}$/.test(address)) return address;
   if (address.length <= chars * 2 + 2) return address;
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
 }
@@ -495,6 +508,9 @@ export function formatTimeAgo(timestampMs: number | null): string {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
+  if (days > 365) {
+    return new Date(timestampMs).toISOString().slice(0, 10);
+  }
   return `${days}d ago`;
 }
 

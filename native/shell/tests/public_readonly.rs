@@ -520,7 +520,7 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     assert!(stdout_string(&human_pool_detail).is_empty());
     let human_pool_detail_stderr = stderr_string(&human_pool_detail);
     assert!(
-        human_pool_detail_stderr.contains("Pool address"),
+        human_pool_detail_stderr.contains("Pool Address"),
         "detail stderr was:\n{}",
         human_pool_detail_stderr
     );

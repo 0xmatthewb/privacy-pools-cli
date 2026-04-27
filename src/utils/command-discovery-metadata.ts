@@ -15,6 +15,7 @@ import type {
 } from "../types.js";
 import { NEXT_ACTION_WHEN_VALUES } from "../types.js";
 import { EXIT_CODES, defaultErrorCode } from "./errors.js";
+import { ERROR_CODE_REGISTRY, errorDocUrl } from "./error-code-registry.js";
 import { jsonContractDocRelativePath } from "./json.js";
 import { visibleRootGlobalFlagMetadata } from "./root-global-flags.js";
 import { rootCommandGroupIdFor } from "./root-command-groups.js";
@@ -618,6 +619,14 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
     ),
     globalFlags: GLOBAL_FLAG_METADATA.map(({ flag, description }) => ({ flag, description })),
     exitCodes: CAPABILITY_EXIT_CODES,
+    errorCodes: Object.entries(ERROR_CODE_REGISTRY)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([code, entry]) => ({
+        code,
+        category: entry.category,
+        retryable: entry.retryable,
+        docUrl: errorDocUrl(code),
+      })),
     envVars: CAPABILITY_ENV_VARS,
     agentWorkflow: AGENT_WORKFLOW,
     agentNotes: AGENT_NOTES,

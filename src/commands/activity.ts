@@ -9,7 +9,8 @@ import {
 } from "../config/chains.js";
 import { resolvePool } from "../services/pools.js";
 import { fetchGlobalEvents, fetchPoolEvents } from "../services/asp.js";
-import { CLIError, printError } from "../utils/errors.js";
+import { printError } from "../utils/errors.js";
+import { inputError } from "../utils/errors/factories.js";
 import { spinner } from "../utils/format.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
@@ -40,9 +41,9 @@ export function parsePositiveInt(
   const fallback = fieldName === "page" ? 1 : 12;
   const parsed = Number(raw ?? fallback);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new CLIError(
+    throw inputError(
+      "INPUT_INVALID_VALUE",
       `Invalid --${fieldName} value: ${raw}.`,
-      "INPUT",
       `--${fieldName} must be a positive integer.`,
     );
   }

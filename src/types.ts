@@ -302,12 +302,20 @@ export interface CapabilityEnvVarDescriptor {
   aliases?: string[];
 }
 
+export interface CapabilityErrorCodeDescriptor {
+  code: string;
+  category: CapabilityExitCodeDescriptor["category"];
+  retryable: boolean;
+  docUrl: string;
+}
+
 export interface CapabilitiesPayload {
   commands: CapabilityCommandSummary[];
   commandDetails: Record<string, DetailedCommandDescriptor>;
   executionRoutes: Record<string, CommandExecutionDescriptor>;
   globalFlags: Array<{ flag: string; description: string }>;
   exitCodes: CapabilityExitCodeDescriptor[];
+  errorCodes?: CapabilityErrorCodeDescriptor[];
   envVars: CapabilityEnvVarDescriptor[];
   agentWorkflow: string[];
   agentNotes?: Record<string, string>;

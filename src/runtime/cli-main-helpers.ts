@@ -90,7 +90,7 @@ function isKnownCommanderHelpTarget(token: string | undefined): boolean {
 
 function commanderUnknownOptionHint(
   normalized: string,
-  context?: { rootCommand?: string },
+  context?: { rootCommand?: string; program?: Command },
 ): string {
   const unknownOptionMatch = normalized.match(/unknown option ['"]?(--[a-z0-9-]+)['"]?/i);
   const unknownOption = unknownOptionMatch?.[1]?.toLowerCase();
@@ -113,7 +113,29 @@ function commanderUnknownOptionHint(
     }
   }
 
+  if (unknownOption && context?.program) {
+    const availableOptions = collectLongOptions(context.program);
+    const suggestions = didYouMeanMany(unknownOption, availableOptions);
+    if (suggestions.length > 0) {
+      return `Did you mean ${suggestions.map((option) => `'${option}'`).join(", ")}? Use --help to see usage and examples.`;
+    }
+  }
+
   return "Use --help to see usage and examples.";
+}
+
+function collectLongOptions(command: Command): string[] {
+  const options = new Set<string>();
+  function visit(current: Command): void {
+    for (const option of current.options) {
+      for (const match of option.flags.matchAll(/--[a-z0-9-]+/gi)) {
+        options.add(match[0]);
+      }
+    }
+    for (const child of current.commands) visit(child);
+  }
+  visit(command);
+  return [...options].sort();
 }
 
 function commandSpecificMissingArgumentError(
@@ -168,7 +190,7 @@ function commandSpecificMissingArgumentError(
 
 function mapCommanderErrorWithContext(
   error: unknown,
-  context?: { rootCommand?: string },
+  context?: { rootCommand?: string; program?: Command },
 ): CLIError | null {
   if (
     typeof error !== "object" ||
@@ -210,6 +232,17 @@ function mapCommanderErrorWithContext(
       if (commandSpecific) return commandSpecific;
     }
 
+    const unknownOptionMatch = normalized.match(/unknown option ['"]?(--[a-z0-9-]+)['"]?/i);
+    const unknownOption = unknownOptionMatch?.[1]?.toLowerCase();
+    const availableOptions =
+      errorCode === "INPUT_UNKNOWN_OPTION" && context?.program
+        ? collectLongOptions(context.program)
+        : [];
+    const suggestions =
+      errorCode === "INPUT_UNKNOWN_OPTION" && unknownOption
+        ? didYouMeanMany(unknownOption, availableOptions)
+        : [];
+
     return new CLIError(
       normalized || "Invalid command input.",
       "INPUT",
@@ -217,6 +250,11 @@ function mapCommanderErrorWithContext(
         ? commanderUnknownOptionHint(normalized, context)
         : "Use --help to see usage and examples.",
       errorCode,
+      false,
+      "inline",
+      errorCode === "INPUT_UNKNOWN_OPTION"
+        ? { unknownOption, availableOptions, suggestions }
+        : undefined,
     );
   }
 

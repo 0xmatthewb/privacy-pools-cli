@@ -19,7 +19,8 @@ import {
 import { explorerTxUrl } from "../config/chains.js";
 import { spinner, verbose } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
-import { CLIError, printError } from "../utils/errors.js";
+import { printError } from "../utils/errors.js";
+import { inputError } from "../utils/errors/factories.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import { createOutputContext, isSilent } from "../output/common.js";
@@ -347,9 +348,9 @@ export async function handleHistoryCommand(
   const parsedPage = Number(opts.page ?? 1);
   if (!Number.isInteger(parsedLimit) || parsedLimit <= 0) {
     printError(
-      new CLIError(
+      inputError(
+        "INPUT_INVALID_VALUE",
         `Invalid --limit value: ${opts.limit}.`,
-        "INPUT",
         "--limit must be a positive integer.",
       ),
       mode.isJson,
@@ -358,9 +359,9 @@ export async function handleHistoryCommand(
   }
   if (!Number.isInteger(parsedPage) || parsedPage <= 0) {
     printError(
-      new CLIError(
+      inputError(
+        "INPUT_INVALID_VALUE",
         `Invalid --page value: ${opts.page}.`,
-        "INPUT",
         "--page must be a positive integer.",
       ),
       mode.isJson,

@@ -7,6 +7,7 @@ export function createProtocolStatsCommand(): Command {
   const metadata = getCommandMetadata("protocol-stats");
   return new Command("protocol-stats")
     .description(metadata.description)
+    .addHelpText("after", "\nNote: protocol-stats is always cross-chain; --chain is not supported. Use pool-stats <asset> --chain <chain> for a chain-scoped pool view.\n")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

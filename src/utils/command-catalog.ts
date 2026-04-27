@@ -144,6 +144,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       jsonVariants: [
         "--staged: JSONL stages with mode: \"init-staged\", operation: \"init\", stage: \"preflight\"|\"recovery\"|\"backup\"|\"signer\"|\"chain\"|\"write\"|\"discovery\"|\"complete\"",
       ],
+      supportsDryRun: true,
       safetyNotes: [
         "The recovery phrase restores this Privacy Pools account. The signer key submits transactions and may come from the same wallet or a separate key.",
         "Newly generated recovery phrases use 24 words for stronger security. Imported recovery phrases may still be 12 or 24 words.",
@@ -273,13 +274,13 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Valid keys: default-chain, rpc-override.<chain>, recovery-phrase, signer-key.",
-        "Sensitive keys show [set] unless --reveal is passed.",
+        "Sensitive keys show [set] unless --show-secret, --unredacted, or --reveal is passed.",
       ],
       examples: [
         "privacy-pools config get default-chain",
         "privacy-pools config get rpc-override.mainnet",
-        "privacy-pools config get recovery-phrase --reveal",
-        "privacy-pools config get signer-key --reveal",
+        "privacy-pools config get recovery-phrase --show-secret",
+        "privacy-pools config get signer-key --show-secret",
       ],
       jsonFields:
         "{ key, value?, set, redacted?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -287,8 +288,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "config get <key>",
-      flags: ["--reveal"],
-      agentFlags: "--agent [--reveal]",
+      flags: ["--show-secret", "--unredacted", "--reveal"],
+      agentFlags: "--agent [--show-secret|--unredacted|--reveal]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -503,6 +504,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       jsonVariants: [
         "flow start --dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }",
       ],
+      supportsDryRun: true,
       agentWorkflowNotes: [
         "Start with flow start <amount> <asset> --to <address> --agent, then poll with flow status <workflowId|latest> --agent and advance with flow step <workflowId|latest> --agent until the workflow completes or pauses.",
         "If flow status or flow step returns flow_declined or flow_public_recovery_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",

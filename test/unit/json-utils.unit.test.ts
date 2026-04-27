@@ -222,11 +222,15 @@ describe("json utilities", () => {
       success: false,
       errorCode: "UNKNOWN_ERROR",
       errorMessage: "Cannot reach ASP",
+      meta: {
+        deprecated: ["errorCode", "errorMessage", "helpTopic"],
+      },
       endpoint: "https://asp.example",
       error: {
         category: "ASP",
         message: "Cannot reach ASP",
         code: "UNKNOWN_ERROR",
+        docUrl: "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#unknown-error",
         details: { endpoint: "https://asp.example" },
         endpoint: "https://asp.example",
       },
