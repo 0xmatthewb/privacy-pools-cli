@@ -645,6 +645,7 @@ describe("deposit command handler", () => {
     expect(json.success).toBe(true);
     expect(json.operation).toBe("deposit");
     expect(json.txHash).toBe("0x" + "34".repeat(32));
+    expect(json.approvalTxHash).toBeNull();
     expect(json.committedValue).toBe("99000000000000000");
     expect(addPoolAccountMock).toHaveBeenCalledTimes(1);
     expect(saveAccountMock).toHaveBeenCalledTimes(1);
@@ -675,6 +676,7 @@ describe("deposit command handler", () => {
 
     expect(json.success).toBe(true);
     expect(json.asset).toBe("USDC");
+    expect(json.approvalTxHash).toBe("0x" + "12".repeat(32));
     expect(approveERC20Mock).toHaveBeenCalledTimes(1);
     expect(depositERC20Mock).toHaveBeenCalledTimes(1);
     expect(checkErc20BalanceMock).toHaveBeenCalledTimes(1);
@@ -703,6 +705,7 @@ describe("deposit command handler", () => {
     expect(typeof json.submissionId).toBe("string");
     expect(typeof json.workflowId).toBe("string");
     expect(json.txHash).toBe("0x" + "34".repeat(32));
+    expect(json.approvalTxHash).toBeNull();
     expect(saveAccountMock).not.toHaveBeenCalled();
     expect(saveSyncMetaMock).not.toHaveBeenCalled();
   });
@@ -844,8 +847,49 @@ describe("deposit command handler", () => {
       "Timed out waiting for approval confirmation",
     );
     expect(json.error.details.txHash).toBe(`0x${"12".repeat(32)}`);
+    expect(json.error.details.approvalTxHash).toBe(`0x${"12".repeat(32)}`);
     expect(depositERC20Mock).not.toHaveBeenCalled();
     expect(exitCode).toBe(3);
+  });
+
+  test("surfaces approval hash when ERC20 deposit reverts after approval", async () => {
+    useIsolatedHome({ withSigner: true });
+    resolvePoolMock.mockImplementation(async () => USDC_POOL);
+    getPublicClientMock.mockImplementation(() => ({
+      waitForTransactionReceipt: async ({ hash }: { hash: string }) => {
+        if (hash === "0x" + "12".repeat(32)) {
+          return {
+            status: "success",
+            blockNumber: 111n,
+            logs: [],
+          };
+        }
+        return {
+          status: "reverted",
+          blockNumber: 222n,
+          logs: [],
+        };
+      },
+    }));
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleDepositCommand(
+        "100",
+        "USDC",
+        {},
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("CONTRACT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Deposit transaction reverted",
+    );
+    expect(json.error.details.approvalTxHash).toBe(`0x${"12".repeat(32)}`);
+    expect(json.error.approvalTxHash).toBe(`0x${"12".repeat(32)}`);
+    expect(saveAccountMock).not.toHaveBeenCalled();
+    expect(exitCode).toBe(7);
   });
 
   test("fails closed when the deposit transaction reverts onchain", async () => {
@@ -872,6 +916,7 @@ describe("deposit command handler", () => {
     expect(json.error.message ?? json.errorMessage).toContain(
       "Deposit transaction reverted",
     );
+    expect(json.error.details.approvalTxHash).toBeNull();
     expect(saveAccountMock).not.toHaveBeenCalled();
     expect(exitCode).toBe(7);
   });

@@ -131,6 +131,7 @@ const commandPayloadSchemas: Partial<Record<CommandPath, z.ZodTypeAny>> = {
   deposit: transactionResultBaseSchema.extend({
     operation: z.literal("deposit"),
     workflowId: z.string().optional(),
+    approvalTxHash: z.string().nullable().optional(),
     committedValue: z.string().nullable().optional(),
     estimatedCommitted: z.string().nullable().optional(),
     vettingFeeBPS: z.string().optional(),

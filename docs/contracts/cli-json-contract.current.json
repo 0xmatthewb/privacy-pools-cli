@@ -323,6 +323,7 @@
       "successFields": {
         "operation": "\"deposit\"",
         "txHash": "0x-prefixed-hash",
+        "approvalTxHash": "0x-prefixed-hash|null (present when deposit auto-ran approve+deposit; null for native ETH or sufficient existing allowance)",
         "amount": "decimal-string-wei",
         "committedValue": "decimal-string-wei|null",
         "asset": "string",

@@ -256,8 +256,11 @@ describe("renderDepositDryRun parity", () => {
 
 // ── renderDepositSuccess parity ─────────────────────────────────────────────
 
+const APPROVAL_TX_HASH = "0x9988776655443322110099887766554433221100998877665544332211009988";
+
 const STUB_DEPOSIT_SUCCESS: DepositSuccessData = {
   txHash: "0xaabbccddee1234567890aabbccddee1234567890aabbccddee1234567890aabb",
+  approvalTxHash: null,
   amount: 100000000000000000n,
   committedValue: 99500000000000000n,
   asset: "ETH",
@@ -284,6 +287,7 @@ describe("renderDepositSuccess parity", () => {
     expect(json.success).toBe(true);
     expect(json.operation).toBe("deposit");
     expect(json.txHash).toBe(STUB_DEPOSIT_SUCCESS.txHash);
+    expect(json.approvalTxHash).toBeNull();
     expect(json.amount).toBe("100000000000000000");
     expect(json.committedValue).toBe("99500000000000000");
     expect(json.asset).toBe("ETH");
@@ -318,6 +322,20 @@ describe("renderDepositSuccess parity", () => {
       "privacy-pools ragequit ETH --agent --chain sepolia --pool-account PA-1",
     );
     expect(stderr).toBe("");
+  });
+
+  test("JSON mode: emits approvalTxHash when approval ran", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderDepositSuccess(ctx, {
+        ...STUB_DEPOSIT_SUCCESS,
+        asset: "USDC",
+        approvalTxHash: APPROVAL_TX_HASH,
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.approvalTxHash).toBe(APPROVAL_TX_HASH);
   });
 
   test("JSON mode: handles undefined committedValue and label", () => {
@@ -362,6 +380,7 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Net deposited");
     expect(stderr).toContain("after ASP vetting fee");
     expect(stderr).toContain("Tx:");
+    expect(stderr).not.toContain("Approve tx:");
     expect(stderr).toContain("Explorer:");
     expect(stderr).toContain("under Association Set Provider (ASP) review");
     expect(stderr).toContain("Association Set Provider (ASP)");
@@ -374,6 +393,21 @@ describe("renderDepositSuccess parity", () => {
     );
     expect(stderr).toContain("privacy-pools ragequit ETH --chain sepolia --pool-account PA-1");
     expect(stderr).toContain("Welcome to Privacy Pools");
+  });
+
+  test("human mode: shows approval tx when approval ran", () => {
+    const ctx = createOutputContext(makeMode());
+    const { stderr } = captureOutput(() =>
+      renderDepositSuccess(ctx, {
+        ...STUB_DEPOSIT_SUCCESS,
+        asset: "USDC",
+        approvalTxHash: APPROVAL_TX_HASH,
+      }),
+    );
+
+    expect(stderr).toContain("Tx:");
+    expect(stderr).toContain("Approve tx:");
+    expect(stderr).toContain("0x99887766...11009988");
   });
 
   test("human mode: omits first-deposit celebration when poolAccountNumber > 1", () => {
@@ -603,7 +637,7 @@ const STUB_WITHDRAW_DRY_RUN_RELAYED: WithdrawDryRunData = {
   selectedCommitmentValue: 500000000000000000n,
   proofPublicSignals: 7,
   feeBPS: "50",
-  quoteExpiresAt: "2025-06-01T00:00:00.000Z",
+  quoteExpiresAt: "2099-06-01T00:00:00.000Z",
 };
 
 describe("renderWithdrawDryRun parity", () => {
@@ -664,7 +698,7 @@ describe("renderWithdrawDryRun parity", () => {
     expect(json.mode).toBe("relayed");
     expect(json.dryRun).toBe(true);
     expect(json.feeBPS).toBe("50");
-    expect(json.quoteExpiresAt).toBe("2025-06-01T00:00:00.000Z");
+    expect(json.quoteExpiresAt).toBe("2099-06-01T00:00:00.000Z");
     expect(json.relayerHost).toBe("https://relayer.example");
     expect(json.quoteRefreshCount).toBe(2);
     expect(json.nextActions).toBeArrayOfSize(1);
@@ -1032,7 +1066,7 @@ const STUB_WITHDRAW_QUOTE: WithdrawQuoteData = {
   baseFeeBPS: "45",
   quoteFeeBPS: "50",
   feeCommitmentPresent: true,
-  quoteExpiresAt: "2025-06-01T00:00:00.000Z",
+  quoteExpiresAt: "2099-06-01T00:00:00.000Z",
   relayTxCost: { gas: "0", eth: "100000000000000" },
   tokenPrice: null,
 };
@@ -1062,7 +1096,7 @@ describe("renderWithdrawQuote parity", () => {
     expect(json.feeAmount).toBe("2500000000000000");
     expect(json.netAmount).toBe("497500000000000000");
     expect(json.feeCommitmentPresent).toBe(true);
-    expect(json.quoteExpiresAt).toBe("2025-06-01T00:00:00.000Z");
+    expect(json.quoteExpiresAt).toBe("2099-06-01T00:00:00.000Z");
     expect(json.relayerHost).toBe("https://relayer.example");
     expect(json.quoteRefreshCount).toBe(3);
     expect(json.nextActions).toBeArrayOfSize(1);

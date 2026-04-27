@@ -3949,7 +3949,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "privacy-pools deposit 0.1 ETH --unsigned"
         }
       ],
-      "jsonFields": "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, workflowId, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, workflowId, txHash, approvalTxHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",

@@ -187,6 +187,8 @@ export interface DepositSuccessData {
   submissionId?: string;
   workflowId?: string | null;
   txHash: string;
+  /** ERC20 approve tx hash from auto-run approval. Null for native ETH or sufficient existing allowance. */
+  approvalTxHash?: string | null;
   amount: bigint;
   committedValue: bigint | undefined;
   vettingFeeBPS?: bigint;
@@ -474,6 +476,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         submissionId: data.submissionId ?? null,
         workflowId: data.workflowId ?? null,
         txHash: data.txHash,
+        approvalTxHash: data.approvalTxHash ?? null,
         amount: data.amount.toString(),
         committedValue: data.committedValue?.toString() ?? null,
         vettingFeeBPS: data.vettingFeeBPS?.toString() ?? null,
@@ -549,6 +552,9 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         ? [{ label: "Submission", value: data.submissionId }]
         : []),
       { label: "Tx", value: formatTxHash(data.txHash) },
+      ...(data.approvalTxHash
+        ? [{ label: "Approve tx", value: formatTxHash(data.approvalTxHash) }]
+        : []),
       ...(data.explorerUrl
         ? [{ label: "Explorer", value: data.explorerUrl }]
         : []),

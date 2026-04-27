@@ -184,7 +184,7 @@ privacy-pools deposit 0.1 ETH --unsigned tx --agent
 
 Supported on: `deposit`, `withdraw`, `ragequit` .
 
-ERC-20 deposits produce two transactions (approve + deposit). Submit them in order.
+ERC-20 deposits produce two transactions (approve + deposit). Submit them in order. When the CLI auto-runs the sequence, the deposit response carries both `txHash` (deposit) and `approvalTxHash` (approve).
 
 ### Envelope extra fields by operation
 
@@ -229,6 +229,8 @@ If the signed bundle was a deposit and `tx-status` confirms it, then verify ASP 
 privacy-pools accounts --agent --chain <chain> --pending-only  # poll while the new Pool Account remains pending
 privacy-pools accounts --agent --chain <chain>                 # confirm approved vs declined vs poa_required
 ```
+
+If a CLI-run ERC-20 deposit reverts after approval, check `error.details.approvalTxHash`. A non-null hash means allowance may be dangling; inspect the approve transaction, then reset allowance or retry the deposit.
 
 ---
 

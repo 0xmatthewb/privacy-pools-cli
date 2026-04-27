@@ -33,11 +33,14 @@ function expectNextAction(
   expect(action?.cliCommand).toBe(cliCommand);
 }
 
+const APPROVAL_TX_HASH = "0x9988776655443322110099887766554433221100998877665544332211009988";
+
 const SUBMITTED_DEPOSIT: DepositSuccessData = {
   status: "submitted",
   submissionId: "sub-deposit-1",
   workflowId: "wf-deposit-review",
   txHash: "0xaabbccddee1234567890aabbccddee1234567890aabbccddee1234567890aabb",
+  approvalTxHash: null,
   amount: 100000000000000000n,
   committedValue: 99500000000000000n,
   asset: "ETH",
@@ -172,6 +175,7 @@ describe("submitted transactional renderers", () => {
     expect(json.status).toBe("submitted");
     expect(json.submissionId).toBe("sub-deposit-1");
     expect(json.workflowId).toBe("wf-deposit-review");
+    expect(json.approvalTxHash).toBeNull();
     expect(json.blockNumber).toBeNull();
     expect(json.nextActions).toBeArrayOfSize(2);
     expectNextAction(
@@ -193,6 +197,20 @@ describe("submitted transactional renderers", () => {
       "privacy-pools flow status wf-deposit-review --agent",
     );
     expect(stderr).toBe("");
+  });
+
+  test("deposit JSON includes approval tx hash when ERC20 approval ran", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderDepositSuccess(ctx, {
+        ...SUBMITTED_DEPOSIT,
+        asset: "USDC",
+        approvalTxHash: APPROVAL_TX_HASH,
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.approvalTxHash).toBe(APPROVAL_TX_HASH);
   });
 
   test("withdraw JSON includes submitted status and tx-status follow-up", () => {

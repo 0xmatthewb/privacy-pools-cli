@@ -187,6 +187,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Category: `CONTRACT`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-error
+- Note: For ERC-20 deposit failures, `error.details.approvalTxHash` may be non-null. That indicates the approval transaction may have succeeded while the deposit failed; inspect the approval transaction, then reset allowance or retry the deposit.
 
 ## CONTRACT_INCORRECT_ASP_ROOT
 

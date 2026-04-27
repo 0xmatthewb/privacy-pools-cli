@@ -19,6 +19,7 @@ import {
 import { explorerTxUrl, isNativePoolAsset } from "../config/chains.js";
 import {
   spinner,
+  warnSpinner,
   info,
   warn,
   verbose,
@@ -699,47 +700,52 @@ export async function handleDepositCommand(
                 "INPUT_APPROVAL_REQUIRED_NO_WAIT",
               );
             }
-          const approveTx = await approveERC20({
-            chainConfig,
-            tokenAddress: pool.asset,
-            spenderAddress: chainConfig.entrypoint,
-            amount,
-            rpcOverride: globalOpts?.rpcUrl,
-          });
-          approvalTxHash = approveTx.hash as Hex;
-          if (opts.noWait) {
-            spin.succeed("Token approval submitted.");
-          } else {
-          let approvalReceipt;
-          try {
-            const confirmationTimeoutMs = getConfirmationTimeoutMs();
-            approvalReceipt = await publicClient.waitForTransactionReceipt({
-              hash: approveTx.hash as `0x${string}`,
-              timeout: confirmationTimeoutMs,
+            const approveTx = await approveERC20({
+              chainConfig,
+              tokenAddress: pool.asset,
+              spenderAddress: chainConfig.entrypoint,
+              amount,
+              rpcOverride: globalOpts?.rpcUrl,
             });
-          } catch {
-            throw new CLIError(
-              "Timed out waiting for approval confirmation.",
-              "RPC",
-              `Tx ${approveTx.hash} may still confirm. Wait about ${Math.round(getConfirmationTimeoutMs() / 1000)}s or re-run with --timeout <seconds> to allow more time, then retry the deposit to check allowance.`,
-              "RPC_NETWORK_ERROR",
-              true,
-              undefined,
-              {
-                txHash: approveTx.hash,
-                explorerUrl: explorerTxUrl(chainConfig.id, approveTx.hash),
-              },
-            );
-          }
-          if (approvalReceipt.status !== "success") {
-            throw new CLIError(
-              `Approval transaction reverted: ${approveTx.hash}`,
-              "CONTRACT",
-              "Check the transaction on a block explorer for details.",
-            );
-          }
-          spin.succeed("Token approved.");
-          }
+            approvalTxHash = approveTx.hash as Hex;
+            if (opts.noWait) {
+              spin.succeed("Token approval submitted.");
+            } else {
+              let approvalReceipt;
+              try {
+                const confirmationTimeoutMs = getConfirmationTimeoutMs();
+                approvalReceipt = await publicClient.waitForTransactionReceipt({
+                  hash: approveTx.hash as `0x${string}`,
+                  timeout: confirmationTimeoutMs,
+                });
+              } catch {
+                throw new CLIError(
+                  "Timed out waiting for approval confirmation.",
+                  "RPC",
+                  `Tx ${approveTx.hash} may still confirm. Wait about ${Math.round(getConfirmationTimeoutMs() / 1000)}s or re-run with --timeout <seconds> to allow more time, then retry the deposit to check allowance.`,
+                  "RPC_NETWORK_ERROR",
+                  true,
+                  undefined,
+                  {
+                    txHash: approveTx.hash,
+                    approvalTxHash: approveTx.hash,
+                    explorerUrl: explorerTxUrl(chainConfig.id, approveTx.hash),
+                  },
+                );
+              }
+              if (approvalReceipt.status !== "success") {
+                throw new CLIError(
+                  `Approval transaction reverted: ${approveTx.hash}`,
+                  "CONTRACT",
+                  "Check the transaction on a block explorer for details.",
+                  "CONTRACT_ERROR",
+                  false,
+                  undefined,
+                  { approvalTxHash: approveTx.hash },
+                );
+              }
+              spin.succeed("Token approved.");
+            }
           }
         } catch (error) {
           spin.fail("Approval failed.");
@@ -827,6 +833,7 @@ export async function handleDepositCommand(
           submissionId: submission.submissionId,
           workflowId: workflowSnapshot.workflowId,
           txHash: tx.hash,
+          approvalTxHash,
           amount,
           committedValue: undefined,
           vettingFeeBPS: pool.vettingFeeBPS,
@@ -887,6 +894,7 @@ export async function handleDepositCommand(
           {
             txHash: tx.hash,
             explorerUrl: depositExplorer,
+            approvalTxHash: approvalTxHash ?? null,
           },
         );
       }
@@ -895,6 +903,14 @@ export async function handleDepositCommand(
           `Deposit transaction reverted: ${tx.hash}`,
           "CONTRACT",
           "Check the transaction on a block explorer for details.",
+          "CONTRACT_ERROR",
+          false,
+          undefined,
+          {
+            txHash: tx.hash,
+            explorerUrl: depositExplorer,
+            approvalTxHash: approvalTxHash ?? null,
+          },
         );
       }
       let label: bigint | undefined;
@@ -919,8 +935,10 @@ export async function handleDepositCommand(
       const missingReceiptCommitment =
         label === undefined || committedValue === undefined;
       if (missingReceiptCommitment) {
-        spin.warn(
+        warnSpinner(
+          spin,
           "Deposit confirmed onchain. Attempting automatic local reconciliation...",
+          silent,
         );
       }
 
@@ -963,7 +981,11 @@ export async function handleDepositCommand(
       });
 
       if (reconciliationRequired) {
-        spin.warn("Deposit confirmed onchain; local state needs reconciliation.");
+        warnSpinner(
+          spin,
+          "Deposit confirmed onchain; local state needs reconciliation.",
+          silent,
+        );
       } else {
         spin.succeed("Deposit confirmed");
       }
@@ -1003,6 +1025,7 @@ export async function handleDepositCommand(
         status: "confirmed",
         workflowId: workflowSnapshot.workflowId,
         txHash: tx.hash,
+        approvalTxHash,
         amount,
         committedValue,
         vettingFeeBPS: pool.vettingFeeBPS,

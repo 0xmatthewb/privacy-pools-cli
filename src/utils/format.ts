@@ -374,6 +374,14 @@ function createStaticSpinner(text: string, quiet: boolean): Ora {
       writeLine(currentText);
       return staticSpinner;
     },
+    warn(message?: string) {
+      if (typeof message === "string") {
+        currentText = message;
+      }
+      spinning = false;
+      writeLine(currentText);
+      return staticSpinner;
+    },
     render() {
       return staticSpinner;
     },
@@ -421,6 +429,18 @@ export function spinner(text: string, quiet: boolean = false) {
     isSilent: quiet,
     discardStdin: false,
   }));
+}
+
+export function warnSpinner(
+  spin: { warn?: (message?: string) => unknown },
+  message: string,
+  quiet: boolean = false,
+): void {
+  if (typeof spin.warn === "function") {
+    spin.warn(message);
+    return;
+  }
+  warn(message, quiet);
 }
 
 export function success(message: string, quiet: boolean = false): void {

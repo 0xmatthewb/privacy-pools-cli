@@ -52,6 +52,7 @@ const PROSE_WHITELIST = new Set([
   "CLIError",
   "NextActionWhen",
   "agent",
+  "approvalTxHash",
   "args",
   "asp",
   "check",
@@ -94,6 +95,7 @@ const PROSE_WHITELIST = new Set([
   "validated",
   "when",
   "yes",
+  "CONTRACT",
 
   // Command/status prose and mode values.
   "approved",

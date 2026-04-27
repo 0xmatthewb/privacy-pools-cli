@@ -243,6 +243,7 @@ Every JSON response wraps command-specific data in a standard envelope:
   "submissionId": "123e4567-e89b-12d3-a456-426614174000 | absent",
   "workflowId": "123e4567-e89b-12d3-a456-426614174001",
   "txHash": "0x...",
+  "approvalTxHash": "0x... | null",
   "amount": "100000000000000000",
   "committedValue": "99500000000000000 | null",
   "asset": "ETH",
@@ -906,15 +907,19 @@ Deposit ETH or ERC-20 tokens into a Privacy Pool.
 privacy-pools deposit 0.1 ETH --agent
 ```
 
-JSON payload: `{ operation: "deposit", status: "submitted" | "confirmed", submissionId?, workflowId, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS?, vettingFeeAmount?, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired, localStateSynced, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+JSON payload: `{ operation: "deposit", status: "submitted" | "confirmed", submissionId?, workflowId, txHash, approvalTxHash, amount, committedValue, estimatedCommitted, vettingFeeBPS?, vettingFeeAmount?, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired, localStateSynced, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 All numeric values are strings (wei). `committedValue`, `estimatedCommitted`, and `label` may be `null`.
+
+ERC-20 deposits may auto-run an approve transaction before the deposit. In that case `approvalTxHash` is the approve transaction hash; native ETH deposits and ERC-20 deposits that reused sufficient allowance report `null`.
 
 When `status = "submitted"` (for example with `--no-wait`), use `submissionId` with `tx-status` to poll the onchain confirmation separately. `workflowId` is always present and is the durable handle for the follow-on deposit-review workflow that `flow status` inspects through ASP approval, decline, or PoA follow-up.
 
 `nextActions` provides the canonical structured guidance. Submitted deposits point first to `tx-status` and the saved `flow status <workflowId>` handle. Confirmed deposits point at the same saved `workflowId` plus `accounts --agent --chain <chain> --pending-only` while the Pool Account remains pending, then `accounts --agent --chain <chain>` to confirm whether it was approved, declined, or `poa_required` before choosing `withdraw` or `ragequit`. Always preserve the same `--chain` scope for both polling and confirmation. Bare `accounts` only covers the mainnet chains, so testnet deposits would be invisible without `--chain`.
 
 Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). An ASP vetting fee is deducted from the deposit amount. Only approved deposits can use `withdraw` (relayed or direct). Declined deposits must `ragequit` publicly to the deposit address.
+
+If a deposit fails with a `CONTRACT` error and `error.details.approvalTxHash` is non-null, the ERC-20 approval may have succeeded while the deposit did not. Treat that as a dangling allowance: inspect the approval transaction, then reset allowance or retry the deposit. See [`docs/errors.md`](docs/errors.md) for the stable error-code reference.
 
 **Privacy guard**: In machine modes (`--json`, `--agent`, `--yes`, `--dry-run`, `--unsigned`), non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts. Pass `--allow-non-round-amounts` only when you intentionally want to bypass that protection.
 

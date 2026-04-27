@@ -6,6 +6,10 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 
 ## [2.0.0]
 
+### Added
+
+- Deposit success JSON now includes `approvalTxHash` so agents can correlate the ERC-20 approval transaction with the deposit transaction and recover cleanly when an approval succeeds but a later deposit fails.
+
 ### Removed
 
 - `explain` command. Use `describe <schema-path>` or `describe envelope.<path>` instead.

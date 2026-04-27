@@ -552,6 +552,7 @@ const STUB_INIT: InitRenderResult = {
 
   const STUB_DEPOSIT: DepositSuccessData = {
     txHash: "0x" + "ab".repeat(32),
+    approvalTxHash: null,
     amount: 100000000000000000n,
     committedValue: 90000000000000000n,
     asset: "ETH",

@@ -48,7 +48,7 @@ privacy-pools deposit 0.1 ETH --unsigned
 **Safety:** Deposit and simulate deposit amounts are human-readable token amounts, not wei. Asset symbols are normalized case-insensitively.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
-**JSON output:** `{ operation, status: "submitted"|"confirmed", submissionId?, workflowId, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+**JSON output:** `{ operation, status: "submitted"|"confirmed", submissionId?, workflowId, txHash, approvalTxHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
 **JSON variants:**
 - `--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)`

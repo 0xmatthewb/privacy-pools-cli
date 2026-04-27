@@ -218,6 +218,12 @@
                 "workflowId": {
                   "type": "string"
                 },
+                "approvalTxHash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "committedValue": {
                   "type": [
                     "string",

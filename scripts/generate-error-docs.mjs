@@ -64,6 +64,10 @@ function discoverSourceCodes() {
 }
 
 const errorCodes = discoverSourceCodes();
+const ERROR_CODE_NOTES = {
+  CONTRACT_ERROR:
+    "For ERC-20 deposit failures, `error.details.approvalTxHash` may be non-null. That indicates the approval transaction may have succeeded while the deposit failed; inspect the approval transaction, then reset allowance or retry the deposit.",
+};
 
 const lines = [
   "# Privacy Pools CLI Error Codes",
@@ -85,6 +89,9 @@ for (const code of errorCodes) {
   lines.push(`- Category: \`${inferCategory(code)}\``);
   lines.push(`- Retryable: \`${inferRetryable(code) ? "true" : "false"}\``);
   lines.push(`- Stable URL: ${errorDocUrl(code)}`);
+  if (ERROR_CODE_NOTES[code]) {
+    lines.push(`- Note: ${ERROR_CODE_NOTES[code]}`);
+  }
   lines.push("");
 }
 
