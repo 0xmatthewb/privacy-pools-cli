@@ -134,7 +134,7 @@ describe("renderInitResult parity", () => {
     expect(stdout).toBe("");
     // Init completion outputs next-step commands to stderr via shared renderer.
     // Human path shows only "pools" (not "status" — that's a diagnostic, not a workflow step).
-    expect(stderr).toContain("Setup complete!");
+    expect(stderr).toContain("Setup complete");
     expect(stderr).toContain("Next steps:");
     expect(stderr).not.toContain("privacy-pools status");
     expect(stderr).toContain("privacy-pools pools");
@@ -373,7 +373,7 @@ describe("renderDepositSuccess parity", () => {
       "When it disappears, re-run privacy-pools accounts --chain sepolia",
     );
     expect(stderr).toContain("privacy-pools ragequit ETH --chain sepolia --pool-account PA-1");
-    expect(stderr).toContain("Welcome to the pool.");
+    expect(stderr).toContain("Welcome to Privacy Pools");
   });
 
   test("human mode: omits first-deposit celebration when poolAccountNumber > 1", () => {

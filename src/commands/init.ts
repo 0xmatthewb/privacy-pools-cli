@@ -1443,7 +1443,7 @@ export async function handleInitCommand(
 
     const config = loadConfig();
     config.defaultChain = defaultChain;
-    if (plan.workflow === "create") {
+    if (plan.workflow !== "signer_only") {
       config.acknowledgedWarnings = {
         ...(config.acknowledgedWarnings ?? {}),
         recoveryPhraseBackup: true,

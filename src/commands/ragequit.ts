@@ -132,6 +132,24 @@ const CONFIRM_RAGEQUIT_DEPRECATION_WARNING = {
     "Remove --confirm-ragequit and confirm the public recovery interactively, or use --agent for explicit non-interactive consent.",
 };
 
+function withRagequitDeprecationWarning(
+  error: unknown,
+  warning: typeof CONFIRM_RAGEQUIT_DEPRECATION_WARNING | undefined,
+): unknown {
+  if (!warning || !(error instanceof CLIError)) return error;
+  return new CLIError(
+    error.message,
+    error.category,
+    error.hint,
+    error.code,
+    error.retryable,
+    error.presentation,
+    { ...(error.details ?? {}), deprecationWarning: warning },
+    error.docsSlug,
+    error.extra,
+  );
+}
+
 const LOCAL_STATE_RECONCILIATION_WARNING_CODE =
   "LOCAL_STATE_RECONCILIATION_REQUIRED";
 const RAGEQUIT_PRIVACY_WARNING_COPY =
@@ -1273,6 +1291,12 @@ export async function handleRagequitCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
+    printError(
+      withRagequitDeprecationWarning(
+        normalizeInitRequiredInputError(error),
+        confirmRagequitDeprecationWarning,
+      ),
+      isJson || isUnsigned,
+    );
   }
 }

@@ -209,6 +209,24 @@ const CONFIRM_DIRECT_WITHDRAW_DEPRECATION_WARNING = {
   replacementCommand: "Remove --confirm-direct-withdraw and confirm the direct withdrawal interactively, or use --agent for explicit non-interactive consent.",
 };
 
+function withDirectConfirmDeprecationWarning(
+  error: unknown,
+  warning: typeof CONFIRM_DIRECT_WITHDRAW_DEPRECATION_WARNING | undefined,
+): unknown {
+  if (!warning || !(error instanceof CLIError)) return error;
+  return new CLIError(
+    error.message,
+    error.category,
+    error.hint,
+    error.code,
+    error.retryable,
+    error.presentation,
+    { ...(error.details ?? {}), deprecationWarning: warning },
+    error.docsSlug,
+    error.extra,
+  );
+}
+
 type WithdrawReviewStatus = Exclude<AspApprovalStatus, "approved">;
 
 interface WithdrawCommandOptions {
@@ -796,6 +814,23 @@ export async function handleWithdrawCommand(
       if (await maybeRenderPreviewScenario("withdraw confirm")) {
         return;
       }
+    }
+
+    if ((opts.all ?? false) && !firstArg && skipPrompts) {
+      throw new CLIError(
+        "--all requires an asset. Use 'withdraw --all ETH --to <address>'.",
+        "INPUT",
+        "Run 'privacy-pools pools' to see available assets.",
+        "INPUT_MISSING_ASSET",
+      );
+    }
+    if (!(opts.all ?? false) && !firstArg && skipPrompts) {
+      throw new CLIError(
+        "Missing amount. Specify an amount or use --all.",
+        "INPUT",
+        "Example: privacy-pools withdraw 0.05 ETH --to 0x... or privacy-pools withdraw --all ETH --to 0x...",
+        "INPUT_MISSING_AMOUNT",
+      );
     }
 
     const config = loadConfig();
@@ -3206,7 +3241,13 @@ export async function handleWithdrawCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
+    printError(
+      withDirectConfirmDeprecationWarning(
+        normalizeInitRequiredInputError(error),
+        directConfirmDeprecationWarning,
+      ),
+      isJson || isUnsigned,
+    );
   }
 }
 

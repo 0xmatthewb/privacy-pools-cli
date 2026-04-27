@@ -214,10 +214,11 @@ export async function runCli(
       const { consumeBrowserLaunchTracking } = await import("./utils/web.js");
       const browserLaunch = consumeBrowserLaunchTracking();
       if (!browserLaunch.attempted) {
-        process.stderr.write(
-          muted!("Warning: --web was requested, but this command did not provide a browser link.") +
-            "\n",
-        );
+        const { formatCallout } = await import("./output/layout.js");
+        process.stderr.write(formatCallout(
+          "warning",
+          "--web was requested, but this command did not provide a browser link.",
+        ));
       }
     }
   } catch (err) {

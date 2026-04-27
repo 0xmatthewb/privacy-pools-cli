@@ -65,6 +65,7 @@ describe("cli output policy regressions", () => {
   test("missing positionals use command-specific error codes and hints", () => {
     const deposit = runCli(["deposit", "--agent"]);
     const flow = runCli(["flow", "start", "--agent"]);
+    const withdraw = runCli(["withdraw", "--agent"]);
     const poolStats = runCli(["pool-stats", "--agent"]);
 
     expect(parseJsonOutput<{ errorCode: string; error: { hint: string } }>(
@@ -78,8 +79,67 @@ describe("cli output policy regressions", () => {
     expect(parseJsonOutput<{ errorCode: string }>(flow.stdout).errorCode).toBe(
       "INPUT_MISSING_AMOUNT",
     );
+    expect(parseJsonOutput<{ errorCode: string; error: { hint: string } }>(
+      withdraw.stdout,
+    )).toEqual(expect.objectContaining({
+      errorCode: "INPUT_MISSING_AMOUNT",
+      error: expect.objectContaining({
+        hint: expect.stringContaining("privacy-pools withdraw 0.05 ETH"),
+      }),
+    }));
     expect(parseJsonOutput<{ errorCode: string }>(
       poolStats.stdout,
     ).errorCode).toBe("INPUT_MISSING_ASSET");
+  });
+
+  test("deprecated confirmation flags emit warnings on early failures", () => {
+    const withdraw = runCli([
+      "withdraw",
+      "0.01",
+      "ETH",
+      "--to",
+      "0x1111111111111111111111111111111111111111",
+      "--direct",
+      "--confirm-direct-withdraw",
+      "--agent",
+    ]);
+    const ragequit = runCli([
+      "ragequit",
+      "ETH",
+      "--pool-account",
+      "PA-1",
+      "--confirm-ragequit",
+      "--agent",
+    ]);
+
+    expect(parseJsonOutput<{
+      deprecationWarning?: { code: string; replacementCommand: string };
+    }>(withdraw.stdout).deprecationWarning).toEqual(
+      expect.objectContaining({
+        code: "FLAG_DEPRECATED",
+        replacementCommand: expect.stringContaining("--confirm-direct-withdraw"),
+      }),
+    );
+    expect(parseJsonOutput<{
+      deprecationWarning?: { code: string; replacementCommand: string };
+    }>(ragequit.stdout).deprecationWarning).toEqual(
+      expect.objectContaining({
+        code: "FLAG_DEPRECATED",
+        replacementCommand: expect.stringContaining("--confirm-ragequit"),
+      }),
+    );
+  });
+
+  test("--web no-op warning renders as a visible callout", () => {
+    const result = runCli(["status", "--no-check", "--web"], {
+      home: createTempHome(),
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("Warning:");
+    expect(result.stderr).toContain(
+      "--web was requested, but this command did not provide a browser link.",
+    );
   });
 });
