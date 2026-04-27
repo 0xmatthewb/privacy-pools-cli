@@ -1325,7 +1325,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     expect(selectPromptMock).toHaveBeenCalledTimes(2);
     expect(inputPromptMock).toHaveBeenCalledTimes(1);
     expect(stderr).toContain("Ragequit review");
-    expect(stderr).toContain("publicly recovers all funds to your deposit address");
+    expect(stderr).toContain("Ragequit returns the full Pool Account balance");
     expect(stderr).toContain("Ragequit cancelled.");
     expect(ragequitMock).not.toHaveBeenCalled();
   });
@@ -1478,7 +1478,7 @@ export function registerRagequitHumanConfirmationTests(): void {
     useIsolatedHome({ withSigner: true });
     selectPromptMock.mockImplementationOnce(async () => 1);
     selectPromptMock.mockImplementationOnce(async () => "ragequit");
-    inputPromptMock.mockImplementationOnce(async () => "ragequit");
+    inputPromptMock.mockImplementation(async () => "ragequit");
 
     const { stderr } = await captureAsyncOutput(() =>
       handleRagequitCommand(
@@ -1684,10 +1684,11 @@ export function registerRagequitHumanConfirmationTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("RPC_ERROR");
+    expect(json.errorCode).toBe("RPC_NETWORK_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
       "Timed out waiting for ragequit confirmation",
     );
+    expect(json.error.details.txHash).toBe(`0x${"12".repeat(32)}`);
     expect(exitCode).toBe(3);
   });
 

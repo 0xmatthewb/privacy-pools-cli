@@ -700,7 +700,7 @@ export async function handleFlowRootCommand(
   try {
     if (mode.isJson || !canPrompt()) {
       throw new CLIError(
-        "Use a flow subcommand in non-interactive mode: start, watch, status, step, or ragequit.",
+        "Use a flow subcommand: start, watch, status, step, or ragequit.",
         "INPUT",
         "Run 'privacy-pools flow start', 'privacy-pools flow watch', 'privacy-pools flow status', 'privacy-pools flow step', or 'privacy-pools flow ragequit'.",
         "INPUT_MISSING_FLOW_SUBCOMMAND",
@@ -714,7 +714,7 @@ export async function handleFlowRootCommand(
     const workflowChoiceSuffix = latestWorkflowId
       ? ` (${latestWorkflowId})`
       : "";
-    const action = await selectPrompt<"start" | "watch" | "status" | "ragequit" | "choose_saved">({
+    const action = await selectPrompt<"start" | "watch" | "status" | "step" | "ragequit" | "choose_saved">({
       message: "What would you like to do?",
       choices: [
         {
@@ -734,6 +734,11 @@ export async function handleFlowRootCommand(
                 name: `Check status for the latest saved flow${workflowChoiceSuffix}`,
                 value: "status",
                 description: "Show the saved flow snapshot without advancing it.",
+              },
+              {
+                name: `Step the latest saved flow${workflowChoiceSuffix}`,
+                value: "step",
+                description: "Advance the saved flow by one unit of work.",
               },
               {
                 name: `Ragequit the latest saved flow${workflowChoiceSuffix}`,
@@ -783,6 +788,11 @@ export async function handleFlowRootCommand(
       return;
     }
 
+    if (action === "step") {
+      await handleFlowStepCommand("latest", {}, cmd);
+      return;
+    }
+
     if (action === "ragequit") {
       await handleFlowRagequitCommand("latest", {}, cmd);
       return;
@@ -796,7 +806,7 @@ export async function handleFlowRootCommand(
           value: workflowId,
         })),
       });
-      const savedWorkflowAction = await selectPrompt<"watch" | "status" | "ragequit">({
+      const savedWorkflowAction = await selectPrompt<"watch" | "status" | "step" | "ragequit">({
         message: `What would you like to do with ${selectedWorkflowId}?`,
         choices: [
           {
@@ -809,6 +819,11 @@ export async function handleFlowRootCommand(
             name: "Check saved flow status",
             value: "status",
             description: "Show the saved flow snapshot without advancing it.",
+          },
+          {
+            name: "Step this saved flow",
+            value: "step",
+            description: "Advance the selected flow by one unit of work.",
           },
           {
             name: "Ragequit this saved flow",
@@ -825,6 +840,11 @@ export async function handleFlowRootCommand(
 
       if (savedWorkflowAction === "status") {
         await handleFlowStatusCommand(selectedWorkflowId, {}, cmd);
+        return;
+      }
+
+      if (savedWorkflowAction === "step") {
+        await handleFlowStepCommand(selectedWorkflowId, {}, cmd);
         return;
       }
 
@@ -929,6 +949,26 @@ export async function handleFlowStartCommand(
         "Missing required --to <address> in non-interactive mode.",
         "INPUT",
         "Use 'privacy-pools flow start <amount> <asset> --to 0xRecipient...' or re-run interactively to be prompted.",
+        "INPUT_MISSING_RECIPIENT",
+        false,
+        undefined,
+        undefined,
+        undefined,
+        {
+          nextActions: [
+            createNextAction(
+              "flow start",
+              "Provide the withdrawal recipient address before creating the saved flow.",
+              "flow_manual_followup",
+              {
+                args: [amount, asset],
+                options: { agent: true },
+                runnable: false,
+                parameters: [{ name: "to", type: "address", required: true }],
+              },
+            ),
+          ],
+        },
       );
     }
 
@@ -1071,7 +1111,40 @@ export async function handleFlowStartCommand(
       );
       return;
     }
-    await handleFlowCommandError(error, {
+    const actionableError =
+      error instanceof CLIError &&
+      (error.code === "INPUT_BAD_ADDRESS" || error.code === "INPUT_NONROUND_AMOUNT") &&
+      !error.extra.nextActions
+        ? new CLIError(
+            error.message,
+            error.category,
+            error.hint,
+            error.code,
+            error.retryable,
+            error.presentation,
+            error.details,
+            error.docsSlug,
+            {
+              ...error.extra,
+              nextActions: [
+                createNextAction(
+                  "flow start",
+                  "Correct the flow start inputs and retry.",
+                  "flow_manual_followup",
+                  {
+                    args: [amount, asset],
+                    options: { agent: true },
+                    runnable: false,
+                    parameters: error.code === "INPUT_BAD_ADDRESS"
+                      ? [{ name: "to", type: "address", required: true }]
+                      : [{ name: "amount", type: "round_token_amount", required: true }],
+                  },
+                ),
+              ],
+            },
+          )
+        : error;
+    await handleFlowCommandError(actionableError, {
       cmd,
       json: mode.isJson,
       silent: mode.isQuiet,

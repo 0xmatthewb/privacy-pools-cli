@@ -22,10 +22,7 @@ function buildPollingMetadata(record: SubmissionRecord): {
     maxSeconds: number;
     backoffFactor: number;
   };
-} | null {
-  if (record.status !== "submitted") {
-    return null;
-  }
+} {
 
   const avgBlockTimeSeconds = Math.max(
     1,
@@ -39,10 +36,10 @@ function buildPollingMetadata(record: SubmissionRecord): {
   const maxSeconds = Math.max(initialSeconds, Math.min(avgBlockTimeSeconds * 4, 60));
 
   return {
-    estimatedConfirmationSeconds: Math.min(
-      timeoutSeconds,
-      Math.max(avgBlockTimeSeconds * 2, 12),
-    ),
+    estimatedConfirmationSeconds:
+      record.status === "submitted"
+        ? Math.min(timeoutSeconds, Math.max(avgBlockTimeSeconds * 2, 12))
+        : 0,
     pollingRecommendation: {
       initialSeconds,
       maxSeconds,
@@ -201,7 +198,11 @@ export function renderTxStatus(
         warningCode: record.warningCode ?? null,
         lastError: record.lastError ?? null,
         transactions: record.transactions,
-        ...(pollingMetadata ?? {}),
+        pollingMetadata: {
+          status: record.status === "submitted" ? "continue" : "complete",
+          ...pollingMetadata,
+        },
+        ...(record.status === "submitted" ? pollingMetadata : {}),
       }, agentNextActions),
       false,
     );

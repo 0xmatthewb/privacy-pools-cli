@@ -123,6 +123,7 @@ import type { GlobalOptions } from "../types.js";
 import {
   formatFlowStartReview,
 } from "../output/flow.js";
+import { createNextAction } from "../output/common.js";
 import {
   renderWorkflowWalletBackupChoiceReview,
   renderWorkflowWalletBackupChoicePreview,
@@ -1433,6 +1434,29 @@ export function resolveLatestWorkflowId(): string {
       "No saved workflows found.",
       "INPUT",
       "Start one with 'privacy-pools flow start <amount> <asset> --to <address>'.",
+      "INPUT_MISSING_ARGUMENT",
+      false,
+      undefined,
+      undefined,
+      undefined,
+      {
+        nextActions: [
+          createNextAction(
+            "flow start",
+            "Create a saved workflow before requesting the latest workflow.",
+            "flow_manual_followup",
+            {
+              options: { agent: true },
+              runnable: false,
+              parameters: [
+                { name: "amount", type: "token_amount", required: true },
+                { name: "asset", type: "asset", required: true },
+                { name: "to", type: "address", required: true },
+              ],
+            },
+          ),
+        ],
+      },
     );
   }
 

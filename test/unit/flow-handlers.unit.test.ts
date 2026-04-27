@@ -431,7 +431,7 @@ describe("flow command handlers", () => {
       "INPUT_MISSING_FLOW_SUBCOMMAND",
     );
     expect((error as InstanceType<typeof realErrors.CLIError>).message).toBe(
-      "Use a flow subcommand in non-interactive mode: start, watch, status, step, or ragequit.",
+      "Use a flow subcommand: start, watch, status, step, or ragequit.",
     );
     expect(isJson).toBe(true);
     expect(selectPromptMock).not.toHaveBeenCalled();

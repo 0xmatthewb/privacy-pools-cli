@@ -34,7 +34,7 @@ export function createFlowCommand(): Command {
     .addOption(
       new Option(
         "--privacy-delay <profile>",
-        "Privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.",
+        "Privacy delay profile (off | balanced | strict; default: balanced)",
       ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .option("--new-wallet", "Create and use a dedicated wallet for this workflow")
@@ -51,16 +51,18 @@ export function createFlowCommand(): Command {
         {
           heading: "Setup mode",
           flags: [
+            "--new-wallet",
+            "--export-new-wallet <path>",
             "--dry-run",
             "--watch",
             "--stream-json",
           ],
         },
         {
-          heading: "Secret sources",
+          heading: "Recipient & Privacy",
           flags: [
-            "--new-wallet",
-            "--export-new-wallet <path>",
+            "--to <address>",
+            "--privacy-delay <profile>",
           ],
         },
         {
@@ -71,10 +73,8 @@ export function createFlowCommand(): Command {
           ],
         },
         {
-          heading: "Safety",
+          heading: "Output & Defaults",
           flags: [
-            "--to <address>",
-            "--privacy-delay <profile>",
             "--yes",
             "--agent",
             "--help-brief",
@@ -98,7 +98,7 @@ export function createFlowCommand(): Command {
     .addOption(
       new Option(
         "--privacy-delay <profile>",
-        "Persist or override the saved privacy delay profile: off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.",
+        "Privacy delay profile (off | balanced | strict; default: balanced)",
       ).choices([...FLOW_PRIVACY_DELAY_PROFILES]),
     )
     .option(

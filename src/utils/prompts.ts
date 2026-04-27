@@ -291,14 +291,21 @@ export async function confirmActionWithSeverity(params: {
   process.stderr.write(
     formatSeverityWarningBlock(params.highStakesWarning, params.highStakesToken),
   );
-  const typed = await inputPrompt({
-    message: `Type "${params.highStakesToken}" to confirm:`,
-  });
-  const matches = typed.trim() === params.highStakesToken;
-  if (!matches) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const typed = await inputPrompt({
+      message: `Type "${params.highStakesToken}" to confirm:`,
+    });
+    const normalized = typed.trim();
+    if (normalized === "") {
+      return false;
+    }
+    const matches = normalized === params.highStakesToken;
+    if (matches) {
+      return true;
+    }
     process.stderr.write(
       `${statusFailed(confirmationTokenMismatchMessage(params.highStakesToken))}\n`,
     );
   }
-  return matches;
+  return false;
 }

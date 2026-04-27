@@ -10,11 +10,11 @@ import type { Command } from "commander";
 import chalk from "chalk";
 import { Separator } from "@inquirer/select";
 import {
-  CHAIN_NAMES,
   CHAINS,
   MAINNET_CHAIN_NAMES,
   TESTNET_CHAIN_NAMES,
 } from "../config/chains.js";
+import { resolveChain } from "../utils/validation.js";
 import {
   configExists,
   ensureConfigDir,
@@ -34,7 +34,7 @@ import {
   validateMnemonic,
 } from "../services/wallet.js";
 import { stageHeader, info, success, warn, spinner } from "../utils/format.js";
-import { createOutputContext } from "../output/common.js";
+import { createNextAction, createOutputContext } from "../output/common.js";
 import {
   createNarrativeSteps,
   renderNarrativeSteps,
@@ -86,6 +86,10 @@ import type {
   InitSetupMode,
   RestoreDiscoverySummary,
 } from "../types.js";
+import {
+  guardCriticalSection,
+  releaseCriticalSection,
+} from "../utils/critical-section.js";
 
 interface InitCommandOptions {
   recoveryPhrase?: string;
@@ -367,25 +371,30 @@ export function restoreInitFileSnapshot(snapshot: InitFileSnapshot): void {
 }
 
 export function persistInitFilesAtomically(writes: InitPendingWrite[]): void {
+  guardCriticalSection();
   invalidateConfigCache();
-  const snapshots = new Map<string, InitFileSnapshot>(
-    writes.map((write) => [write.path, captureInitFileSnapshot(write.path)]),
-  );
-  const committedPaths: string[] = [];
-
   try {
-    for (const write of writes) {
-      writePrivateFileAtomic(write.path, write.content);
-      committedPaths.push(write.path);
-    }
-  } catch (error) {
-    for (const path of committedPaths.reverse()) {
-      const snapshot = snapshots.get(path);
-      if (snapshot) {
-        restoreInitFileSnapshot(snapshot);
+    const snapshots = new Map<string, InitFileSnapshot>(
+      writes.map((write) => [write.path, captureInitFileSnapshot(write.path)]),
+    );
+    const committedPaths: string[] = [];
+
+    try {
+      for (const write of writes) {
+        writePrivateFileAtomic(write.path, write.content);
+        committedPaths.push(write.path);
       }
+    } catch (error) {
+      for (const path of committedPaths.reverse()) {
+        const snapshot = snapshots.get(path);
+        if (snapshot) {
+          restoreInitFileSnapshot(snapshot);
+        }
+      }
+      throw error;
     }
-    throw error;
+  } finally {
+    releaseCriticalSection();
   }
 }
 
@@ -446,12 +455,8 @@ export function resolveExistingInitState(
   }
 
   const existingConfig = hasConfig ? loadConfig() : null;
-  if (defaultChainOverride && !CHAINS[defaultChainOverride.toLowerCase()]) {
-    throw new CLIError(
-      `Unknown chain: ${defaultChainOverride}`,
-      "INPUT",
-      `Available chains: ${CHAIN_NAMES.join(", ")}`,
-    );
+  if (defaultChainOverride) {
+    resolveChain(defaultChainOverride);
   }
 
   return {
@@ -640,8 +645,33 @@ export function resolveNonInteractivePlan(
     if (!params.hasSignerSource && !params.hasEnvironmentSigner) {
       throw new CLIError(
         "The signer-only path needs a signer key source in non-interactive mode.",
-        "INPUT",
+        "SETUP",
         "Pass --private-key-file, --private-key-stdin, --private-key, or set PRIVACY_POOLS_PRIVATE_KEY.",
+        "SETUP_SIGNER_KEY_MISSING",
+        false,
+        undefined,
+        undefined,
+        undefined,
+        {
+          nextActions: [
+            createNextAction(
+              "init",
+              "Provide a signer key source to finish signer-only setup.",
+              "status_unsigned_no_accounts",
+              {
+                options: { agent: true, signerOnly: true },
+                runnable: false,
+                parameters: [
+                  {
+                    name: "privateKeySource",
+                    type: "private_key_file_or_stdin_or_env",
+                    required: true,
+                  },
+                ],
+              },
+            ),
+          ],
+        },
       );
     }
     return {
@@ -1339,10 +1369,6 @@ export async function handleInitCommand(
     });
     if (!shouldContinue) {
       return;
-    }
-
-    if (state.hasExistingState && plan.replacingExisting && opts.force) {
-      warn("Replacing the current local setup.", silent);
     }
 
     ensureConfigDir();

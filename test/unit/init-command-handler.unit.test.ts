@@ -387,7 +387,7 @@ describe("init command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_UNKNOWN_CHAIN");
     expect(existsSync(join(home, ".mnemonic"))).toBe(false);
     expect(exitCode).toBe(2);
   });
@@ -659,11 +659,12 @@ describe("init command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("SETUP_SIGNER_KEY_MISSING");
     expect(json.error.message ?? json.errorMessage).toContain(
       "needs a signer key source",
     );
-    expect(exitCode).toBe(2);
+    expect(json.error.nextActions?.[0]?.command).toBe("init");
+    expect(exitCode).toBe(4);
   });
 
   test("treats an invalid persisted signer as a read-only setup that needs signer completion", async () => {

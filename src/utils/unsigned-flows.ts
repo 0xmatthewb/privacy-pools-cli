@@ -1,5 +1,6 @@
 import type { Address, Hex } from "viem";
 import { encodeFunctionData, parseAbi } from "viem";
+import type { NextAction } from "../types.js";
 import type {
   SolidityRagequitProof,
   SolidityWithdrawProof,
@@ -46,6 +47,7 @@ export interface UnsignedDepositOutput {
   amount: string;
   precommitment: string;
   warnings: Array<{ code: string; category: string; message: string }>;
+  nextActions?: NextAction[];
   transactions: UnsignedTransactionPayload[];
 }
 
@@ -54,6 +56,7 @@ export function buildUnsignedDepositOutput(params: UnsignedBase & {
   assetAddress: Address;
   precommitment: bigint;
   isNative: boolean;
+  nextActions?: NextAction[];
 }): UnsignedDepositOutput {
   const transactions: UnsignedTransactionPayload[] = [];
 
@@ -99,6 +102,7 @@ export function buildUnsignedDepositOutput(params: UnsignedBase & {
     amount: params.amount.toString(),
     precommitment: params.precommitment.toString(),
     warnings: unsignedPreviewWarnings(),
+    ...(params.nextActions ? { nextActions: params.nextActions } : {}),
     transactions,
   };
 }
@@ -115,6 +119,7 @@ export interface UnsignedDirectWithdrawOutput {
   selectedCommitmentValue: string;
   privacyCostManifest: Record<string, unknown>;
   warnings: Array<{ code: string; category: string; message: string }>;
+  nextActions?: NextAction[];
   transactions: UnsignedTransactionPayload[];
 }
 
@@ -126,6 +131,7 @@ export function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
   selectedCommitmentValue: bigint;
   withdrawal: WithdrawalCall;
   proof: SolidityWithdrawProof;
+  nextActions?: NextAction[];
 }): UnsignedDirectWithdrawOutput {
   const transaction: UnsignedTransactionPayload = {
     chainId: params.chainId,
@@ -163,6 +169,7 @@ export function buildUnsignedDirectWithdrawOutput(params: UnsignedBase & {
       recommendation: "Use the default relayed withdrawal path unless you intentionally accept this privacy loss.",
     },
     warnings: unsignedPreviewWarnings(),
+    ...(params.nextActions ? { nextActions: params.nextActions } : {}),
     transactions: [transaction],
   };
 }
@@ -190,6 +197,7 @@ export interface UnsignedRelayedWithdrawOutput {
     extraGas: boolean;
   };
   warnings: Array<{ code: string; category: string; message: string }>;
+  nextActions?: NextAction[];
   transactions: UnsignedTransactionPayload[];
   relayerRequest: unknown;
 }
@@ -209,6 +217,7 @@ export function buildUnsignedRelayedWithdrawOutput(params: UnsignedBase & {
   withdrawal: WithdrawalCall;
   proof: SolidityWithdrawProof;
   relayerRequest: unknown;
+  nextActions?: NextAction[];
 }): UnsignedRelayedWithdrawOutput {
   const feeAmount = (params.amount * BigInt(params.feeBPS)) / 10000n;
   const netAmount = params.amount - feeAmount;
@@ -248,6 +257,7 @@ export function buildUnsignedRelayedWithdrawOutput(params: UnsignedBase & {
       extraGas: params.extraGas,
     },
     warnings: unsignedPreviewWarnings(),
+    ...(params.nextActions ? { nextActions: params.nextActions } : {}),
     transactions: [transaction],
     relayerRequest: params.relayerRequest,
   };
@@ -263,6 +273,7 @@ export interface UnsignedRagequitOutput {
   selectedCommitmentValue: string;
   privacyCostManifest: Record<string, unknown>;
   warnings: Array<{ code: string; category: string; message: string }>;
+  nextActions?: NextAction[];
   transactions: UnsignedTransactionPayload[];
 }
 
@@ -272,6 +283,7 @@ export function buildUnsignedRagequitOutput(params: UnsignedBase & {
   selectedCommitmentLabel: bigint;
   selectedCommitmentValue: bigint;
   proof: SolidityRagequitProof;
+  nextActions?: NextAction[];
 }): UnsignedRagequitOutput {
   const transaction: UnsignedTransactionPayload = {
     chainId: params.chainId,
@@ -307,6 +319,7 @@ export function buildUnsignedRagequitOutput(params: UnsignedBase & {
       recommendation: "Prefer a relayed private withdrawal when the Pool Account is approved and above the relayer minimum.",
     },
     warnings: unsignedPreviewWarnings(),
+    ...(params.nextActions ? { nextActions: params.nextActions } : {}),
     transactions: [transaction],
   };
 }

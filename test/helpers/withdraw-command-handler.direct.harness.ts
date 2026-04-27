@@ -321,10 +321,11 @@ export function registerWithdrawDirectCompletionTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("RPC_ERROR");
+    expect(json.errorCode).toBe("RPC_NETWORK_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
       "Timed out waiting for withdrawal confirmation",
     );
+    expect(json.error.details.txHash).toBe(`0x${"56".repeat(32)}`);
     expect(exitCode).toBe(3);
   });
 

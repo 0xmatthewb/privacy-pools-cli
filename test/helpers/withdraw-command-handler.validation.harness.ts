@@ -455,7 +455,7 @@ export function registerWithdrawValidationPreludeTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_RECIPIENT");
     expect(json.error.message ?? json.errorMessage).toContain(
       "Relayed withdrawals require --to",
     );
@@ -1344,7 +1344,7 @@ export function registerWithdrawValidationPostQuoteTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_RECIPIENT");
     expect(json.error.message ?? json.errorMessage).toContain(
       "require --to",
     );

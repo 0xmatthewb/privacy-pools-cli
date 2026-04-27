@@ -48,8 +48,12 @@ export function createWithdrawCommand(): Command {
     )
     .option("--all", "Withdraw entire Pool Account balance (requires asset: withdraw --all ETH)")
     .option(
+      "--accept-all-funds-public",
+      "Acknowledge that --all --direct in non-interactive mode publicly links the full Pool Account balance",
+    )
+    .option(
       "--extra-gas",
-      "For ERC20 withdrawals only: also receive native gas tokens. ERC20 withdrawals default to on; ETH withdrawals ignore this flag.",
+      "For ERC20 withdrawals, ask the relayer to include a small native-token gas top-up from the withdrawn funds (slightly higher fee)",
     )
     .option("--no-extra-gas", "Disable extra gas for ERC20 withdrawals")
     .addHelpText(
@@ -62,6 +66,7 @@ export function createWithdrawCommand(): Command {
             "--dry-run",
             "--no-wait",
             "--all",
+            "--accept-all-funds-public",
             "--stream-json",
           ],
         },

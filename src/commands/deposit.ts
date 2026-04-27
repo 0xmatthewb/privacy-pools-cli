@@ -111,6 +111,14 @@ interface DepositCommandOptions {
 
 export { createDepositCommand } from "../command-shells/deposit.js";
 
+const IGNORE_UNIQUE_AMOUNT_DEPRECATION_WARNING = {
+  code: "FLAG_DEPRECATED",
+  message:
+    "--ignore-unique-amount is deprecated. Use --allow-non-round-amounts instead.",
+  replacementCommand:
+    "privacy-pools deposit <amount> <asset> --allow-non-round-amounts",
+};
+
 const DEPOSIT_GAS_ESTIMATE_NATIVE = 250_000n;
 const DEPOSIT_GAS_ESTIMATE_ERC20 = 375_000n;
 
@@ -192,6 +200,10 @@ export async function handleDepositCommand(
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
+  const ignoreUniqueAmountDeprecationWarning =
+    opts.ignoreUniqueAmount === true
+      ? IGNORE_UNIQUE_AMOUNT_DEPRECATION_WARNING
+      : undefined;
   try {
     emitStreamJsonEvent(streamJson, {
       mode: "deposit-progress",
@@ -227,6 +239,9 @@ export async function handleDepositCommand(
     if (!isQuiet && !isJson) {
       if (isDryRun) {
         info("Dry-run mode: previewing only; no transaction will be signed or submitted.", false);
+      }
+      if (ignoreUniqueAmountDeprecationWarning) {
+        warn(ignoreUniqueAmountDeprecationWarning.message, false);
       }
     }
 
@@ -396,6 +411,67 @@ export async function handleDepositCommand(
       pool.asset,
       globalOpts?.rpcUrl,
     );
+    const isNative = isNativePoolAsset(chainConfig.id, pool.asset);
+    let balanceSufficient: boolean | "unknown" = "unknown";
+    if (!isUnsigned && !isDryRun) {
+      const privateKey = loadPrivateKey();
+      const signerAddr = privateKeyToAccount(privateKey).address;
+      const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+
+      if (isNative) {
+        await checkNativeBalance(
+          publicClient,
+          signerAddr,
+          amount,
+          pool.symbol,
+        );
+      } else {
+        await checkErc20Balance(
+          publicClient,
+          pool.asset,
+          signerAddr,
+          amount,
+          pool.decimals,
+          pool.symbol,
+        );
+        await checkHasGas(publicClient, signerAddr, "ETH", 2);
+      }
+      balanceSufficient = true;
+    } else if (isDryRun && !isUnsigned) {
+      try {
+        const privateKey = loadPrivateKey();
+        const signerAddr = privateKeyToAccount(privateKey).address;
+        const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
+
+        if (isNative) {
+          await checkNativeBalance(
+            publicClient,
+            signerAddr,
+            amount,
+            pool.symbol,
+          );
+        } else {
+          await checkErc20Balance(
+            publicClient,
+            pool.asset,
+            signerAddr,
+            amount,
+            pool.decimals,
+            pool.symbol,
+          );
+          await checkHasGas(publicClient, signerAddr, "ETH", 2);
+        }
+        balanceSufficient = true;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "";
+        const isKeyError =
+          msg.includes("private key") ||
+          msg.includes("signer") ||
+          msg.includes("mnemonic") ||
+          msg.includes("ENOENT");
+        balanceSufficient = isKeyError ? "unknown" : false;
+      }
+    }
     const reviewSignerAddress = !skipPrompts
       ? privateKeyToAccount(loadPrivateKey()).address
       : null;
@@ -475,7 +551,6 @@ export async function handleDepositCommand(
     // Acquire process lock to prevent concurrent account mutations.
     const releaseLock = acquireProcessLock();
     try {
-      const isNative = isNativePoolAsset(chainConfig.id, pool.asset);
       emitStreamJsonEvent(streamJson, {
         mode: "deposit-progress",
         operation: "deposit",
@@ -488,68 +563,6 @@ export async function handleDepositCommand(
         chain: chainConfig.name,
         asset: pool.symbol,
       });
-
-      // Pre-flight balance check before mnemonic/account work for faster feedback.
-      let balanceSufficient: boolean | "unknown" = "unknown";
-      if (!isUnsigned && !isDryRun) {
-        const privateKey = loadPrivateKey();
-        const signerAddr = privateKeyToAccount(privateKey).address;
-        const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-
-        if (isNative) {
-          await checkNativeBalance(
-            publicClient,
-            signerAddr,
-            amount,
-            pool.symbol,
-          );
-        } else {
-          await checkErc20Balance(
-            publicClient,
-            pool.asset,
-            signerAddr,
-            amount,
-            pool.decimals,
-            pool.symbol,
-          );
-          await checkHasGas(publicClient, signerAddr, "ETH", 2);
-        }
-        balanceSufficient = true;
-      } else if (isDryRun && !isUnsigned) {
-        try {
-          const privateKey = loadPrivateKey();
-          const signerAddr = privateKeyToAccount(privateKey).address;
-          const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
-
-          if (isNative) {
-            await checkNativeBalance(
-              publicClient,
-              signerAddr,
-              amount,
-              pool.symbol,
-            );
-          } else {
-            await checkErc20Balance(
-              publicClient,
-              pool.asset,
-              signerAddr,
-              amount,
-              pool.decimals,
-              pool.symbol,
-            );
-            await checkHasGas(publicClient, signerAddr, "ETH", 2);
-          }
-          balanceSufficient = true;
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : "";
-          const isKeyError =
-            msg.includes("private key") ||
-            msg.includes("signer") ||
-            msg.includes("mnemonic") ||
-            msg.includes("ENOENT");
-          balanceSufficient = isKeyError ? "unknown" : false;
-        }
-      }
 
       // Load wallet/account state and generate deposit secrets.
       const mnemonic = loadMnemonic();
@@ -619,6 +632,7 @@ export async function handleDepositCommand(
           poolAccountId: nextPAId,
           precommitment: precommitment as unknown as bigint,
           balanceSufficient,
+          deprecationWarning: ignoreUniqueAmountDeprecationWarning,
         });
         return;
       }
@@ -677,6 +691,14 @@ export async function handleDepositCommand(
           if (allowanceStatus.sufficient) {
             spin.succeed("Existing token approval is already sufficient.");
           } else {
+            if (opts.noWait) {
+              throw new CLIError(
+                "Token approval is required before this ERC20 deposit can be submitted.",
+                "INPUT",
+                "Remove --no-wait so the CLI can wait for approval confirmation before submitting the deposit, then rerun the deposit command.",
+                "INPUT_APPROVAL_REQUIRED_NO_WAIT",
+              );
+            }
           const approveTx = await approveERC20({
             chainConfig,
             tokenAddress: pool.asset,
@@ -700,6 +722,13 @@ export async function handleDepositCommand(
               "Timed out waiting for approval confirmation.",
               "RPC",
               `Tx ${approveTx.hash} may still confirm. Wait about ${Math.round(getConfirmationTimeoutMs() / 1000)}s or re-run with --timeout <seconds> to allow more time, then retry the deposit to check allowance.`,
+              "RPC_NETWORK_ERROR",
+              true,
+              undefined,
+              {
+                txHash: approveTx.hash,
+                explorerUrl: explorerTxUrl(chainConfig.id, approveTx.hash),
+              },
             );
           }
           if (approvalReceipt.status !== "success") {
@@ -818,6 +847,7 @@ export async function handleDepositCommand(
           localStateSynced: false,
           warningCode: null,
           chainOverridden: !!globalOpts?.chain,
+          deprecationWarning: ignoreUniqueAmountDeprecationWarning,
         });
         maybeLaunchBrowser({
           globalOpts,
@@ -851,6 +881,13 @@ export async function handleDepositCommand(
           "Timed out waiting for deposit confirmation.",
           "RPC",
           `Tx ${tx.hash} may still confirm. Wait about ${Math.round(getConfirmationTimeoutMs() / 1000)}s or re-run with --timeout <seconds>, then run 'privacy-pools sync' to pick up the transaction.`,
+          "RPC_NETWORK_ERROR",
+          true,
+          undefined,
+          {
+            txHash: tx.hash,
+            explorerUrl: depositExplorer,
+          },
         );
       }
       if (receipt.status !== "success") {
@@ -986,6 +1023,7 @@ export async function handleDepositCommand(
         localStateSynced,
         warningCode,
         chainOverridden: !!globalOpts?.chain,
+        deprecationWarning: ignoreUniqueAmountDeprecationWarning,
       });
       maybeLaunchBrowser({
         globalOpts,

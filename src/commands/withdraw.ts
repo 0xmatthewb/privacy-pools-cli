@@ -238,6 +238,7 @@ interface WithdrawCommandOptions {
   dryRun?: boolean;
   noWait?: boolean;
   all?: boolean;
+  acceptAllFundsPublic?: boolean;
   extraGas?: boolean;
   streamJson?: boolean;
 }
@@ -887,6 +888,19 @@ export async function handleWithdrawCommand(
 
     // Resolve amount + asset. With --all, first arg is the asset (no amount).
     const isAllWithdrawal = opts.all ?? false;
+    if (
+      isAllWithdrawal &&
+      isDirect &&
+      skipPrompts &&
+      opts.acceptAllFundsPublic !== true
+    ) {
+      throw new CLIError(
+        "--all --direct requires explicit full-balance public-withdrawal acknowledgement in non-interactive mode.",
+        "INPUT",
+        "Re-run with --accept-all-funds-public only if you intentionally want to publicly link the entire selected Pool Account balance to the signer address.",
+        "INPUT_FLAG_CONFLICT",
+      );
+    }
     let amountStr: string;
     let positionalOrFlagAsset: string | undefined;
     let needsAmountPrompt = false;
@@ -980,6 +994,16 @@ export async function handleWithdrawCommand(
       );
     } else if (isDirect) {
       recipientAddress = signerAddress!;
+      recipientWarnings.push({
+        code: "DIRECT_WITHDRAW_AUTO_RECIPIENT",
+        category: "recipient",
+        message:
+          "No --to recipient was provided for --direct, so the signer address was used as the withdrawal recipient.",
+      });
+      warn(
+        "No --to recipient was provided for --direct, so the signer address will receive the withdrawal.",
+        advisorySilent,
+      );
     } else if (skipPrompts) {
       throw new CLIError(
         "Relayed withdrawals require --to <address>.",
@@ -1065,7 +1089,8 @@ export async function handleWithdrawCommand(
       isDirect &&
       !isDryRun &&
       (mode.skipPrompts || isUnsigned) &&
-      opts.confirmDirectWithdraw !== true
+      opts.confirmDirectWithdraw !== true &&
+      !(isAllWithdrawal && opts.acceptAllFundsPublic === true)
     ) {
       throw new CLIError(
         "Direct withdrawal requires explicit privacy-loss acknowledgement in non-interactive mode.",
@@ -2242,6 +2267,13 @@ export async function handleWithdrawCommand(
             "Timed out waiting for withdrawal confirmation.",
             "RPC",
             `Tx ${tx.hash} may still confirm. Wait about ${confirmationTimeoutSeconds}s or re-run with --timeout <seconds>, then run 'privacy-pools sync' to pick up the transaction.`,
+            "RPC_NETWORK_ERROR",
+            true,
+            undefined,
+            {
+              txHash: tx.hash,
+              explorerUrl: directExplorerUrl,
+            },
           );
         }
         if (receipt.status !== "success") {
@@ -3145,6 +3177,13 @@ export async function handleWithdrawCommand(
             "Timed out waiting for relayed withdrawal confirmation.",
             "RPC",
             `The relayer may have replaced or delayed the transaction. Wait about ${confirmationTimeoutSeconds}s or re-run with --timeout <seconds>, then check the explorer and run 'privacy-pools sync' to update local state.`,
+            "RPC_NETWORK_ERROR",
+            true,
+            undefined,
+            {
+              txHash: result.txHash,
+              explorerUrl: relayExplorerUrl,
+            },
           );
         }
 

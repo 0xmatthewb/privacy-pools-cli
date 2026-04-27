@@ -407,6 +407,7 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
       appendNextActions({
         operation: "ragequit",
         status: data.status ?? "confirmed",
+        pending: isSubmitted,
         submissionId: data.submissionId ?? null,
         txHash: data.txHash,
         amount: data.amount.toString(),

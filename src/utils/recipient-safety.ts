@@ -9,7 +9,7 @@ const BURN_RECIPIENTS = new Set([
 ]);
 
 export interface RecipientSafetyWarning {
-  code: "recipient_new_to_profile";
+  code: "recipient_new_to_profile" | "DIRECT_WITHDRAW_AUTO_RECIPIENT";
   category: "recipient";
   message: string;
 }

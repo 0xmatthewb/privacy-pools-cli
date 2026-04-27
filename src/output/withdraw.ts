@@ -784,6 +784,7 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     const payload: Record<string, unknown> = {
       operation: "withdraw",
       status: data.status ?? "confirmed",
+      pending: isSubmitted,
       submissionId: data.submissionId ?? null,
       mode: data.withdrawMode,
       txHash: data.txHash,

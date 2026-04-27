@@ -839,10 +839,11 @@ describe("deposit command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("RPC_ERROR");
+    expect(json.errorCode).toBe("RPC_NETWORK_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
       "Timed out waiting for approval confirmation",
     );
+    expect(json.error.details.txHash).toBe(`0x${"12".repeat(32)}`);
     expect(depositERC20Mock).not.toHaveBeenCalled();
     expect(exitCode).toBe(3);
   });

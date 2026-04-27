@@ -847,6 +847,27 @@ export async function handleRagequitCommand(
 
       const depositorAddress = await resolveDepositorAddress();
 
+      // Pre-flight gas/caller checks before asking the user to type RAGEQUIT.
+      if (!isUnsigned && !isDryRun) {
+        if (!depositorAddress) {
+          throw new CLIError(
+            "Unable to verify the original depositor for ragequit.",
+            "RPC",
+            "Ragequit transactions must be sent by the original deposit address. Retry when RPC access is available.",
+          );
+        }
+
+        await checkHasGas(publicClient, signerAddress!);
+
+        if (depositorAddress.toLowerCase() !== signerAddress!.toLowerCase()) {
+          throw new CLIError(
+            `Signer ${signerAddress} is not the original depositor (${depositorAddress}).`,
+            "INPUT",
+            "Only the original depositor can ragequit this Pool Account. Check your signer key.",
+          );
+        }
+      }
+
       // Always show the public recovery warning in human mode, even when --yes
       // skips the confirmation prompt.
       const advisory = getRagequitAdvisory(selectedPoolAccount);
@@ -977,7 +998,7 @@ export async function handleRagequitCommand(
             nextActions: [
               createNextAction(
                 "withdraw",
-                "Use the private withdrawal path first for an approved Pool Account.",
+                "Use the private withdrawal path first for an approved Pool Account; provide --to with the private recipient address.",
                 "after_dry_run",
                 {
                   args: [pool.symbol],
@@ -1007,28 +1028,6 @@ export async function handleRagequitCommand(
             ],
           },
         );
-      }
-
-      // Pre-flight gas check (skip for unsigned - relying on external signer)
-      if (!isUnsigned && !isDryRun) {
-        if (!depositorAddress) {
-          throw new CLIError(
-            "Unable to verify the original depositor for ragequit.",
-            "RPC",
-            "Ragequit transactions must be sent by the original deposit address. Retry when RPC access is available.",
-          );
-        }
-
-        await checkHasGas(publicClient, signerAddress!);
-
-        // Pre-check: verify signer is the original depositor (avoids wasting proof generation)
-        if (depositorAddress.toLowerCase() !== signerAddress!.toLowerCase()) {
-          throw new CLIError(
-            `Signer ${signerAddress} is not the original depositor (${depositorAddress}).`,
-            "INPUT",
-            "Only the original depositor can ragequit this Pool Account. Check your signer key.",
-          );
-        }
       }
 
       // Generate Pool Account proof
@@ -1247,6 +1246,13 @@ export async function handleRagequitCommand(
           "Timed out waiting for ragequit confirmation.",
           "RPC",
           `Tx ${tx.hash} may still confirm. Wait about ${confirmationTimeoutSeconds}s or re-run with --timeout <seconds>, then run 'privacy-pools sync' to pick up the transaction.`,
+          "RPC_NETWORK_ERROR",
+          true,
+          undefined,
+          {
+            txHash: tx.hash,
+            explorerUrl: ragequitExplorerUrl,
+          },
         );
       }
       if (receipt.status !== "success") {
