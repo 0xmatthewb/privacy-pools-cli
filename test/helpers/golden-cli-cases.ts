@@ -286,6 +286,7 @@ export function resolveGoldenCaseRunOptions(
 ): CliRunOptions {
   const textDefaults = {
     LANG: "en_US.UTF-8",
+    TERM: "xterm-256color",
     COLUMNS: "120",
   };
 

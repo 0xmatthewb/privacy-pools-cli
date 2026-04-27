@@ -4,13 +4,13 @@ Warning: Command 'stats pool' is deprecated and will be removed in the next mino
 
 Pool statistics for ETH on sepolia:
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Summary:
   Asset:           ETH
   Chain:           sepolia
   Cache timestamp: <TS>
   Metric              All Time   Last 24h
-  -----------------   --------   --------
+  ─────────────────   ────────   ────────
   Current TVL         $150,000   -
   Avg Deposit Size    -          -
   Total Deposits      100        5

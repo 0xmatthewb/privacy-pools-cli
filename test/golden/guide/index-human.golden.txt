@@ -23,7 +23,7 @@ Available Topics:
   Run privacy-pools guide <topic> to open one topic.
   Common shortcuts: guide flow, guide json, guide troubleshooting.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Install & Run:
   npm i -g privacy-pools-cli
   npm i -g github:0xmatthewb/privacy-pools-cli  (unreleased/source builds)
@@ -32,7 +32,7 @@ Install & Run:
   npm run dev -- status                        (from source, no global install)
   privacy-pools completion --help                  (shell autocomplete setup)
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Quick Start:
   privacy-pools init
   privacy-pools init --recovery-phrase-file <downloaded-file> (load an existing account from a website export)
@@ -58,7 +58,7 @@ Quick Start:
   'flow ragequit' as their canonical public recovery path, and operators can
   also choose it manually after the public deposit exists.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Recovery Phrase and Signer Key:
   Recovery phrase  restores this Privacy Pools account and enables private withdrawals
   Signer key       pays gas and sends transactions (can be set later with init --signer-only)
@@ -66,7 +66,7 @@ Recovery Phrase and Signer Key:
   Note: PRIVACY_POOLS_PRIVATE_KEY env var takes precedence over a saved key file.
   Exception: flow start --new-wallet creates and uses a dedicated per-workflow wallet instead of the configured signer.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Workflow:
   1. init           Set up your Privacy Pools account and config (run once)
   2. flow start     Easy path: deposit now and save a later private withdrawal
@@ -91,7 +91,7 @@ Workflow:
   In machine mode, this path requires '--export-new-wallet <path>' so the generated key is backed up first.
   Manual commands remain available for advanced control.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Flow States:
   awaiting_funding                    Workflow wallet needs ETH/tokens to proceed.
   depositing_publicly                 Deposit transaction submitted, awaiting onchain confirmation.
@@ -105,7 +105,7 @@ Flow States:
   paused_declined                     Deposit declined; use flow ragequit for public recovery.
   stopped_external                    Workflow stopped by external event.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Ragequit / Public Recovery:
   privacy-pools ragequit ETH --pool-account PA-1
   privacy-pools flow ragequit latest
@@ -119,7 +119,7 @@ Ragequit / Public Recovery:
   flow watch when the account can continue through the private relayed path.
   In the website this corresponds to the Exit path.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Global Options:
   -c, --chain <name>    Target chain (mainnet, arbitrum, optimism; testnets: sepolia, op-sepolia)
   -r, --rpc-url <url>   Override RPC URL
@@ -140,7 +140,7 @@ Global Options:
   --no-banner           Disable ASCII banner
   --profile <name>     Use a named profile (separate wallet identity and config)
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Environment Variables:
   PRIVACY_POOLS_HOME / PRIVACY_POOLS_CONFIG_DIR  Override the CLI config directory.
   XDG_CONFIG_HOME  Fallback config base. Used as $XDG_CONFIG_HOME/privacy-pools when no Privacy Pools override is set and no legacy ~/.privacy-pools directory exists.
@@ -160,13 +160,13 @@ Environment Variables:
   PRIVACY_POOLS_BANNER / PRIVACY_POOLS_BANNER_ART  Choose the welcome illustration. Set to merkle for the alternate Merkle tree banner.
   PP_NO_UPDATE_CHECK  Set to 1 to disable the update-available notification.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Interaction Modes:
   Human mode (default): interactive prompts + readable output.
   Agent mode: --agent for structured JSON output, no prompts, no banners.
   Equivalent to --json --yes --quiet.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Advanced Modes:
   Unsigned mode builds transaction payloads without signing or submitting.
   Requires init (recovery phrase) for deposit secret generation.
@@ -177,7 +177,7 @@ Advanced Modes:
              Raw format skips the envelope. Intended for direct piping to signing tools.
   --dry-run    Validate and generate proofs without submitting.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Environment Variable Fallbacks:
   PRIVACY_POOLS_AGENT  Enable agent mode by default (equivalent to --agent).
   PRIVACY_POOLS_QUIET  Suppress human-oriented stderr output by default, matching --quiet.
@@ -187,7 +187,7 @@ Environment Variable Fallbacks:
   PRIVACY_POOLS_BANNER / PRIVACY_POOLS_BANNER_ART  Choose the welcome illustration. Set to merkle for the alternate Merkle tree banner.
   PP_NO_UPDATE_CHECK  Set to 1 to disable the update-available notification.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Configuration Overrides:
   PRIVACY_POOLS_HOME / PRIVACY_POOLS_CONFIG_DIR  Override the CLI config directory.
   XDG_CONFIG_HOME  Fallback config base. Used as $XDG_CONFIG_HOME/privacy-pools when no Privacy Pools override is set and no legacy ~/.privacy-pools directory exists.
@@ -200,56 +200,56 @@ Configuration Overrides:
   PRIVACY_POOLS_ASP_HOST_<CHAIN> / PP_ASP_HOST_<CHAIN>  Override the ASP endpoint for one chain.
   PRIVACY_POOLS_RELAYER_HOST_<CHAIN> / PP_RELAYER_HOST_<CHAIN>  Override the relayer endpoint for one chain.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Runtime Overrides:
   PRIVACY_POOLS_CLI_DISABLE_NATIVE  Set to 1 to force the pure JS runtime path.
   PRIVACY_POOLS_CLI_BINARY  Advanced maintainer override for the launcher target native-shell binary path.
   PRIVACY_POOLS_CLI_JS_WORKER  Advanced maintainer override for the packaged JS worker entrypoint.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 nextActions:
   Success JSON responses may include nextActions[] when the CLI has a low-ambiguity follow-up to recommend.
   Each entry includes command, reason, when, cliCommand, args?, options?, and runnable?.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Runnable Semantics:
   runnable=true  The cliCommand is complete and can be executed as-is.
   runnable=false The action is a template; fill in missing user input first.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Ordering:
   The first matching action is the highest-priority recommendation.
   Private/resume paths come first, required public recovery comes before optional public recovery, and template deposit/withdraw actions come last.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Common Uses:
   privacy-pools deposit --agent         Emits the canonical pending-review polling command.
   privacy-pools status --agent          Emits the canonical init/pools/accounts follow-up.
   privacy-pools tx-status <submissionId> --agent  Polls async write confirmation after --no-wait.
   privacy-pools flow status --agent     Emits saved-workflow poll, step, or ragequit guidance.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Profiles:
   Profiles let one machine keep separate Privacy Pools config, wallet state, and signer setup under different names.
   Use --profile <name> on any command to select one profile for that invocation.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Commands:
   privacy-pools config profile list
   privacy-pools config profile create <name>
   privacy-pools config profile use <name>
   privacy-pools config profile active
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 When To Use Them:
   Use profiles when you need separate operator identities, separate test/main workflows, or isolated machine-runner state on one host.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Pool Accounts:
   A Pool Account (e.g. PA-1) is your onchain deposit.
   Approval, withdrawal, and ragequit happen per Pool Account, not per wallet.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Statuses:
   approved       Ready for private withdrawal
   pending        Still under ASP review
@@ -258,26 +258,26 @@ Statuses:
   spent          Already withdrawn
   exited         Ragequit completed
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Useful Commands:
   privacy-pools accounts --chain <chain>
   privacy-pools withdraw --pool-account PA-1 --to 0xRecipient
   privacy-pools ragequit --pool-account PA-1
   privacy-pools migrate status --agent --include-testnets  (legacy readiness only)
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Agent Mode:
   --agent is shorthand for --json --yes --quiet.
   Structured JSON stays on stdout. Human-oriented narration stays on stderr and is suppressed in agent mode.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Discovery:
   privacy-pools capabilities --agent      Full runtime capability manifest
   privacy-pools describe withdraw --agent Command-specific flags, risks, and JSON fields
   privacy-pools describe envelope.nextActions --agent Schema-path contract fields
   privacy-pools guide next-actions --agent Shared nextActions contract
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Recommended Flow:
   1. privacy-pools status --agent
   2. privacy-pools init --agent --default-chain <chain> --backup-file <path>
@@ -287,7 +287,7 @@ Recommended Flow:
   6. privacy-pools flow step [workflowId|latest] --agent
   7. privacy-pools tx-status <submissionId> --agent  (when using --no-wait on deposit/withdraw/ragequit/broadcast)
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 JSON Contract:
   Use --json for machine-readable output. Use --agent for --json --yes --quiet.
   Successful commands emit:
@@ -295,7 +295,7 @@ JSON Contract:
   Failed commands emit:
   { "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "error": { ... } }
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Filtering:
   --json <fields>       Select top-level fields by comma-separated name.
   --json=<fields>       Inline form for compact scripts and automation.
@@ -306,41 +306,41 @@ Filtering:
   Invalid JMESPath expressions fail before command output is emitted.
   --json <fields>, --jmes/--jq, and --template are mutually exclusive.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Discovery:
   privacy-pools capabilities --agent      Full command and schema manifest.
   privacy-pools describe withdraw --agent Command-specific fields and examples.
   privacy-pools describe envelope.commands.status.successFields --agent Deep contract schema fragments.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Modes:
   --yes       Skip confirmation prompts. Use only after the command inputs are fully reviewed.
   --dry-run   Preview validation and generated outputs without signing or submitting.
   --unsigned  Build transaction payloads without signing or submitting; implies --yes.
   --agent     Machine mode: --json --yes --quiet.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Safety Notes:
   --dry-run and --unsigned may use approximate validation because no transaction is submitted.
   Fund-moving commands still surface warnings and privacy-cost manifests where relevant.
   Prefer relayed withdrawals. withdraw --direct is a stronger privacy hazard than ragequit.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Quiet Mode:
   --quiet suppresses human-oriented stderr output while keeping machine-readable stdout intact.
   Use it in CI or scripts when you want less narration but do not want JSON mode.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Status Special Case:
   privacy-pools status --quiet prints one concise stdout summary line instead of going fully silent.
   That keeps automation-friendly logs from looking like a hung process.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Related Modes:
   --json keeps structured envelopes on stdout.
   --agent is shorthand for --json --yes --quiet.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Troubleshooting:
   Stale data?      Commands auto-sync; force a full re-sync with 'privacy-pools sync'.
   ASP unreachable?  Check 'privacy-pools status' (health checks run by default).
@@ -356,7 +356,7 @@ Troubleshooting:
   Custom RPC?       Pass --rpc-url on any command, or save per-chain overrides in
                    ~/.privacy-pools/config.json under "rpcOverrides": { "<chainId>": "https://..." }.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Exit Codes:
   0  Success
   1  Unknown/general error
@@ -368,7 +368,7 @@ Exit Codes:
   7  Contract revert
   8  ASP error
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Using CLI with an Existing Website Account:
   If you already use privacypools.com, you can access the same account from the CLI:
   1. Export your 12/24-word recovery phrase from the website.
@@ -377,7 +377,7 @@ Using CLI with an Existing Website Account:
   4. Run: privacy-pools accounts  (syncs onchain state automatically)
   If the website account was created before the 2024 security update, run privacy-pools migrate status to inspect legacy readiness on CLI-supported chains. Review beta or website-only legacy migration surfaces in the website.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Terminology:
   Recovery phrase          24-word mnemonic by default in the CLI; imports may be 12/24 words.
   Signer key               Private key that pays gas and sends transactions.
@@ -389,13 +389,13 @@ Terminology:
   Direct withdrawal        Non-private withdrawal; links deposit and withdrawal onchain.
   Ragequit    Self-custody guarantee. Public, irreversible recovery to original deposit address.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Agent Integration:
   For programmatic/agent use, run privacy-pools capabilities --agent to discover
   commands, schemas, supported chains, error codes, and the recommended workflow.
   Use privacy-pools describe <command...> --agent to inspect one command at runtime.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Further Reading:
   privacy-pools <command> --help  (command-specific details and examples)
   Package-relative docs (open from a source checkout or installed package root):

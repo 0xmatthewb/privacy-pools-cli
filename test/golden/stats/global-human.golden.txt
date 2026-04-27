@@ -4,12 +4,12 @@ Warning: Command 'stats global' is deprecated and will be removed in the next mi
 
 Global statistics (all-mainnets):
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Summary:
   Chain:           all-mainnets
   Cache timestamp: <TS>
   Metric              All Time   Last 24h
-  -----------------   --------   --------
+  ─────────────────   ────────   ────────
   Current TVL         $150,000   -
   Avg Deposit Size    -          -
   Total Deposits      100        5

@@ -3,7 +3,7 @@ Fetching ETH pool details on sepolia...
 
 ETH Pool on sepolia
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Pool summary:
   Pool Balance:      -
   Pending Funds:     -
@@ -12,20 +12,20 @@ Pool summary:
   Vetting Fee:       0.50%
   Min Deposit:       0.001 ETH
 
-  | Read-only note:
-  | Vetting fees are deducted on deposit. Pool balance includes accepted plus pending deposits.
+  │ Read-only note:
+  │ Vetting fees are deducted on deposit. Pool balance includes accepted plus pending deposits.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Your funds:
 
-  | Warning:
-  | Could not load your wallet state right now. Pool stats and recent activity are still available. Try again, or run
-  | 'privacy-pools status --check --chain sepolia'.
+  │ Warning:
+  │ Could not load your wallet state right now. Pool stats and recent activity are still available. Try again, or run
+  │ 'privacy-pools status --check --chain sepolia'.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Recent activity:
   Type      Amount   Time       Status
-  -------   ------   --------   --------
+  ───────   ──────   ────────   ────────
   Deposit   1 ETH    894d ago   Approved
 
 Next steps:
