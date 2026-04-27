@@ -3,7 +3,8 @@ import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
 import { resolvePool } from "../services/pools.js";
 import { fetchGlobalStatistics, fetchPoolStatistics } from "../services/asp.js";
-import { CLIError, printError } from "../utils/errors.js";
+import { printError } from "../utils/errors.js";
+import { inputError } from "../utils/errors/factories.js";
 import { spinner } from "../utils/format.js";
 import type {
   GlobalOptions,
@@ -84,9 +85,9 @@ async function renderGlobalStatsForInvocation(
     const silent = isJson || mode.isQuiet || mode.isWide;
 
     if (explicitChain) {
-      throw new CLIError(
+      throw inputError(
+        "INPUT_FLAG_CONFLICT",
         "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
-        "INPUT",
         "For chain-specific data use: privacy-pools pool-stats <symbol> --chain <chain>",
       );
     }
@@ -146,11 +147,10 @@ async function renderPoolStatsForInvocation(
 
   try {
     if (!asset) {
-      throw new CLIError(
-        "Missing asset argument.",
-        "INPUT",
-        "Example: privacy-pools pool-stats ETH",
+      throw inputError(
         "INPUT_MISSING_ASSET",
+        "Missing asset argument.",
+        "Example: privacy-pools pool-stats ETH",
       );
     }
 

@@ -27,6 +27,7 @@ import {
   verbose,
 } from "../utils/format.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
+import { inputError } from "../utils/errors/factories.js";
 import {
   buildPoolAccountRefs,
   collectActiveLabels,
@@ -79,9 +80,9 @@ function parseSortMode(raw: string | undefined): PoolsSortMode {
   if ((SUPPORTED_SORT_MODES as readonly string[]).includes(normalized)) {
     return normalized as PoolsSortMode;
   }
-  throw new CLIError(
+  throw inputError(
+    "INPUT_INVALID_VALUE",
     `Invalid --sort value: ${raw}.`,
-    "INPUT",
     `Use one of: ${SUPPORTED_SORT_MODES.join(", ")}.`,
   );
 }
@@ -504,9 +505,9 @@ export async function handlePoolsCommand(
     const isMultiChain = includeTestnets || !explicitChain;
 
     if (isMultiChain && globalOpts?.rpcUrl) {
-      throw new CLIError(
+      throw inputError(
+        "INPUT_FLAG_CONFLICT",
         "--rpc-url cannot be combined with multi-chain queries.",
-        "INPUT",
         "Use --chain <name> to target a single chain with --rpc-url.",
       );
     }
