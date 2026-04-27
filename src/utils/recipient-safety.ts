@@ -3,6 +3,7 @@ import { CLIError } from "./errors.js";
 import { resolveAddressOrEns, validateAddress } from "./validation.js";
 
 const BURN_RECIPIENTS = new Set([
+  "0x0000000000000000000000000000000000000000",
   "0x000000000000000000000000000000000000dead",
   "0xdead000000000000000000000000000000000000",
 ]);
@@ -17,13 +18,22 @@ export function assertSafeRecipientAddress(
   address: Address | `0x${string}`,
   label: string = "Recipient",
 ): Address {
+  const rawNormalized = address.toLowerCase();
+  if (BURN_RECIPIENTS.has(rawNormalized)) {
+    throw new CLIError(
+      `${label} appears to be a burn address.`,
+      "INPUT",
+      "Provide a recipient you control. Obvious zero, burn, or dead-address patterns would make funds unrecoverable.",
+      "INPUT_RECIPIENT_BURN_ADDRESS",
+    );
+  }
   const validated = validateAddress(address, label) as Address;
   const normalized = validated.toLowerCase();
   if (BURN_RECIPIENTS.has(normalized)) {
     throw new CLIError(
       `${label} appears to be a burn address.`,
       "INPUT",
-      "Provide a recipient you control. Obvious burn or dead-address patterns would make funds unrecoverable.",
+      "Provide a recipient you control. Obvious zero, burn, or dead-address patterns would make funds unrecoverable.",
       "INPUT_RECIPIENT_BURN_ADDRESS",
     );
   }

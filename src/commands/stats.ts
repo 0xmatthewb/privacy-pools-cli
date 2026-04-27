@@ -81,7 +81,7 @@ async function renderGlobalStatsForInvocation(
 
   try {
     const explicitChain = globalOpts?.chain;
-    const silent = isJson || mode.isQuiet;
+    const silent = isJson || mode.isQuiet || mode.isWide;
 
     if (explicitChain) {
       throw new CLIError(
@@ -141,7 +141,7 @@ async function renderPoolStatsForInvocation(
   const globalOpts = getRootGlobalOptions(subCmd);
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
-  const silent = mode.isQuiet || isJson;
+  const silent = mode.isQuiet || isJson || mode.isWide;
   const asset = positionalAsset;
 
   try {
@@ -150,6 +150,7 @@ async function renderPoolStatsForInvocation(
         "Missing asset argument.",
         "INPUT",
         "Example: privacy-pools pool-stats ETH",
+        "INPUT_MISSING_ASSET",
       );
     }
 

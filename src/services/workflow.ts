@@ -260,6 +260,13 @@ export class FlowCancelledError extends Error {
   }
 }
 
+export class FlowBackRequestedError extends Error {
+  constructor() {
+    super("Flow review returned to editable inputs.");
+    this.name = "FlowBackRequestedError";
+  }
+}
+
 function isPausedFlowPhase(phase: FlowPhase): boolean {
   return phase === "paused_declined" || phase === "paused_poa_required";
 }
@@ -1814,6 +1821,20 @@ async function confirmHumanFlowStartReview(
     throw new PreviewScenarioRenderedError();
   }
   ensurePromptInteractionAvailable();
+  const reviewChoice = await selectPrompt<"confirm" | "back" | "cancel">({
+    message: "Review flow start",
+    choices: [
+      { name: "Continue to confirmation", value: "confirm" as const },
+      { name: "Back: edit amount or recipient", value: "back" as const },
+      { name: "Cancel flow", value: "cancel" as const },
+    ],
+  });
+  if (reviewChoice === "back") {
+    throw new FlowBackRequestedError();
+  }
+  if (reviewChoice === "cancel") {
+    throw new FlowCancelledError();
+  }
   const ok = await confirmActionWithSeverity({
     severity,
     standardMessage: "Confirm flow start?",

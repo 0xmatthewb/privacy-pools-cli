@@ -1021,7 +1021,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
     if (showPendingOnly) {
       info("No pending Pool Accounts found.", silent);
       info(
-        "Re-run without --pending-only to confirm whether any recently reviewed Pool Accounts are now approved, declined, or POA Needed.",
+        `Re-run \`privacy-pools accounts --chain ${chain}\` to see whether each Pool Account was approved, declined, or needs Proof of Association.`,
         silent,
       );
     } else {

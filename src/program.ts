@@ -40,9 +40,69 @@ const ROOT_COMMAND_NAMES = [
 
 type RootCommandName = (typeof ROOT_COMMAND_NAMES)[number];
 
-const ROOT_COMMAND_ALIASES: Record<string, RootCommandName> = {
-  recents: "recipients",
+type CommandSpec = {
+  name: RootCommandName;
+  handlerId: string;
+  loader: () => Promise<Command>;
 };
+
+type AliasSpec = {
+  name: string;
+  aliasOf: RootCommandName;
+  deprecationWarning?: {
+    code: string;
+    message: string;
+    replacementCommand: string;
+  };
+};
+
+class CommandRegistry {
+  private readonly byName = new Map<RootCommandName, CommandSpec>();
+  private readonly byHandlerId = new Map<string, RootCommandName>();
+  private readonly aliases = new Map<string, AliasSpec>();
+
+  register(spec: CommandSpec): void {
+    if (this.byName.has(spec.name)) {
+      throw new Error(`Root command '${spec.name}' is already registered.`);
+    }
+    const existing = this.byHandlerId.get(spec.handlerId);
+    if (existing) {
+      throw new Error(
+        `Handler '${spec.handlerId}' is already registered as '${existing}'. ` +
+          "Use registerAlias() when a duplicate surface is intentional.",
+      );
+    }
+    this.byName.set(spec.name, spec);
+    this.byHandlerId.set(spec.handlerId, spec.name);
+  }
+
+  registerAlias(spec: AliasSpec): void {
+    if (this.byName.has(spec.name as RootCommandName) || this.aliases.has(spec.name)) {
+      throw new Error(`Root command alias '${spec.name}' is already registered.`);
+    }
+    if (!this.byName.has(spec.aliasOf)) {
+      throw new Error(`Root command alias '${spec.name}' targets unknown '${spec.aliasOf}'.`);
+    }
+    this.aliases.set(spec.name, spec);
+  }
+
+  resolve(token: string | undefined): RootCommandName | null {
+    if (!token) return null;
+    const alias = this.aliases.get(token);
+    if (alias) return alias.aliasOf;
+    return this.byName.has(token as RootCommandName)
+      ? (token as RootCommandName)
+      : null;
+  }
+
+  loader(name: RootCommandName): () => Promise<Command> {
+    const spec = this.byName.get(name);
+    if (!spec) {
+      throw new Error(`Root command '${name}' is not registered.`);
+    }
+    return spec.loader;
+  }
+}
 
 const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
   init: async () => (await import("./command-shells/init.js")).createInitCommand(),
@@ -91,14 +151,50 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
     (await import("./command-shells/completion.js")).createCompletionCommand(),
 };
 
+const ROOT_COMMAND_HANDLER_IDS: Record<RootCommandName, string> = {
+  init: "command-shells/init.js#createInitCommand",
+  upgrade: "command-shells/upgrade.js#createUpgradeCommand",
+  config: "command-shells/config.js#createConfigCommand",
+  flow: "command-shells/flow.js#createFlowCommand",
+  simulate: "command-shells/simulate.js#createSimulateCommand",
+  pools: "command-shells/pools.js#createPoolsCommand",
+  deposit: "command-shells/deposit.js#createDepositCommand",
+  accounts: "command-shells/accounts.js#createAccountsCommand",
+  migrate: "command-shells/migrate.js#createMigrateCommand",
+  withdraw: "command-shells/withdraw.js#createWithdrawCommand",
+  recipients: "command-shells/recipients.js#createRecipientsCommand",
+  ragequit: "command-shells/ragequit.js#createRagequitCommand",
+  broadcast: "command-shells/broadcast.js#createBroadcastCommand",
+  history: "command-shells/history.js#createHistoryCommand",
+  sync: "command-shells/sync.js#createSyncCommand",
+  "tx-status": "command-shells/tx-status.js#createTxStatusCommand",
+  status: "command-shells/status.js#createStatusCommand",
+  activity: "command-shells/activity.js#createActivityCommand",
+  "protocol-stats": "command-shells/stats.js#createProtocolStatsCommand",
+  "pool-stats": "command-shells/stats.js#createPoolStatsCommand",
+  stats: "command-shells/stats.js#createStatsCommand",
+  guide: "command-shells/guide.js#createGuideCommand",
+  capabilities: "command-shells/capabilities.js#createCapabilitiesCommand",
+  describe: "command-shells/describe.js#createDescribeCommand",
+  completion: "command-shells/completion.js#createCompletionCommand",
+};
+
+const ROOT_COMMAND_REGISTRY = new CommandRegistry();
+for (const name of ROOT_COMMAND_NAMES) {
+  ROOT_COMMAND_REGISTRY.register({
+    name,
+    handlerId: ROOT_COMMAND_HANDLER_IDS[name],
+    loader: ROOT_COMMAND_LOADERS[name],
+  });
+}
+ROOT_COMMAND_REGISTRY.registerAlias({
+  name: "recents",
+  aliasOf: "recipients",
+});
+
 function resolveRootCommandName(token: string | undefined): RootCommandName | null {
   if (!token) return null;
-  if (token in ROOT_COMMAND_ALIASES) {
-    return ROOT_COMMAND_ALIASES[token];
-  }
-  return ROOT_COMMAND_NAMES.includes(token as RootCommandName)
-    ? (token as RootCommandName)
-    : null;
+  return ROOT_COMMAND_REGISTRY.resolve(token);
 }
 
 function resolveRootCommandsForInvocation(argv: string[] | undefined): RootCommandName[] {
@@ -124,7 +220,7 @@ async function addRootCommands(
   commandNames: readonly RootCommandName[],
 ): Promise<void> {
   const commands = await Promise.all(
-    commandNames.map((name) => ROOT_COMMAND_LOADERS[name]()),
+    commandNames.map((name) => ROOT_COMMAND_REGISTRY.loader(name)()),
   );
   for (const command of commands) {
     program.addCommand(command);

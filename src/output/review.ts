@@ -25,6 +25,7 @@ export interface ReviewSurfaceData {
   secondaryCallout?: ReviewCallout | null;
   footerTitle?: string;
   footerRows?: KeyValueRow[];
+  helpCommand?: string;
 }
 
 function formatEmbeddedReviewCallout(callout: ReviewCallout): string {
@@ -67,6 +68,9 @@ export function formatReviewSurface(data: ReviewSurfaceData): string {
     }
     footerLines.push(formatKeyValueRows(data.footerRows).trimEnd());
     blocks.push(footerLines.join("\n"));
+  }
+  if (data.helpCommand) {
+    blocks.push(`Need help? ${data.helpCommand}`);
   }
 
   return formatBox(blocks.join("\n"), {

@@ -41,6 +41,10 @@ export function createFlowCommand(): Command {
     .option("--export-new-wallet <path>", "Export the generated workflow wallet backup before continuing (requires --new-wallet)")
     .option("--dry-run", "Validate the flow start inputs without saving a workflow or submitting a deposit")
     .option("--watch", "Keep watching this workflow until it finishes or pauses")
+    .option(
+      "--stream-json",
+      "Emit line-delimited JSON progress events and finish with the final flow envelope",
+    )
     .addHelpText(
       "after",
       groupedFlagGuideText([
@@ -49,6 +53,7 @@ export function createFlowCommand(): Command {
           flags: [
             "--dry-run",
             "--watch",
+            "--stream-json",
           ],
         },
         {
@@ -138,7 +143,7 @@ export function createFlowCommand(): Command {
     .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
     .option(
       "--confirm-ragequit",
-      "Deprecated compatibility flag for non-interactive flow ragequit commands that intentionally choose the public recovery path",
+      "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
     )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(

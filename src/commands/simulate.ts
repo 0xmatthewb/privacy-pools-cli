@@ -52,6 +52,7 @@ export async function handleSimulateDepositCommand(
   secondArg: string | undefined,
   opts: SimulateSharedOptions & {
     ignoreUniqueAmount?: boolean;
+    allowNonRoundAmounts?: boolean;
   },
   cmd: Command,
 ): Promise<void> {

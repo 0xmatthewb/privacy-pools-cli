@@ -160,6 +160,14 @@ export function resolveGlobalMode(
     hasJsonFieldsFlag ||
     hasTemplateFlag;
   const explicitFormat = normalizeOutputFormat(globalOpts?.output);
+  if (explicitFormat === "csv" && hasStructuredJsonFlag) {
+    throw new CLIError(
+      "Choose either JSON or CSV output, not both.",
+      "INPUT",
+      "Use --json/--agent for JSON, or remove JSON flags and use --output csv.",
+      "INPUT_FLAG_CONFLICT",
+    );
+  }
   const isWide = explicitFormat === "wide";
   const isYaml = explicitFormat === "yaml";
   const isName = explicitFormat === "name";

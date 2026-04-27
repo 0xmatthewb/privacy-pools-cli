@@ -43,8 +43,14 @@ export function createSimulateCommand(): Command {
     .addOption(unsignedCompatOption())
     .addOption(impliedDryRunOption())
     .option(
-      "--ignore-unique-amount",
+      "--allow-non-round-amounts",
       "Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint)",
+    )
+    .addOption(
+      new Option(
+        "--ignore-unique-amount",
+        "Deprecated alias for --allow-non-round-amounts",
+      ).hideHelp(),
     )
     .addHelpText("after", commandHelpText(depositMetadata.help ?? {}))
     .action(
@@ -80,7 +86,7 @@ export function createSimulateCommand(): Command {
     .addOption(
       new Option(
         "--confirm-direct-withdraw",
-        "Deprecated compatibility flag for non-interactive direct withdrawals that publicly link deposit and withdrawal addresses.",
+        "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
       ),
     )
     .addOption(unsignedCompatOption())
@@ -111,7 +117,7 @@ export function createSimulateCommand(): Command {
     .addOption(impliedDryRunOption())
     .option(
       "--confirm-ragequit",
-      "Deprecated compatibility flag for non-interactive ragequit commands that publicly recover funds to the original deposit address",
+      "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
     )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(

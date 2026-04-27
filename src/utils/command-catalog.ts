@@ -567,6 +567,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit.",
         "With --new-wallet, the CLI generates a dedicated workflow wallet for that one flow. In --agent mode, flow start returns an awaiting_funding snapshot so you can fund the wallet and continue with flow status / flow step. Human runs stay attached and wait automatically. ETH flows require the full ETH target; ERC20 flows require the token amount plus native ETH gas reserve.",
         "The saved workflow always spends the full remaining balance from the newly created Pool Account. The recipient receives the net amount after relayer fees and any ERC20 extra-gas funding, and the workflow never auto-ragequits.",
+        "Use --stream-json when a runner needs line-delimited progress events while the workflow is created or watched.",
       ],
       examples: [
         { category: "Basic", commands: [
@@ -588,6 +589,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "{ mode: \"flow\", action: \"start\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       jsonVariants: [
         "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }",
+        "--stream-json progress events: { mode: \"flow-progress\", action: \"start\", event: \"stage\", stage, workflowId?, phase? }",
       ],
       safetyNotes: [
         "Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.",
@@ -619,11 +621,12 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--privacy-delay <profile>",
         "--dry-run",
         "--watch",
+        "--stream-json",
         "--new-wallet",
         "--export-new-wallet <path>",
       ],
       agentFlags:
-        "--agent [--privacy-delay <profile>] [--dry-run] [--new-wallet] [--export-new-wallet <path>]",
+        "--agent [--privacy-delay <profile>] [--dry-run] [--stream-json] [--new-wallet] [--export-new-wallet <path>]",
       agentRequiredFlags: ["--to"],
       requiresInit: true,
       expectedLatencyClass: "slow",
@@ -1024,7 +1027,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools describe envelope.commands.status.successFields --agent",
       ],
       jsonFields:
-        "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
+        "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples: [{ description, command, category? }], jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
       seeAlso: ["capabilities","guide"],
     },
     capabilities: {
@@ -1096,6 +1099,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }",
+        "--stream-json progress events: { mode: \"deposit-progress\", operation: \"deposit\", event: \"stage\", stage, chain?, asset?, txHash? }",
       ],
       safetyNotes: [
         `Deposits are reviewed by the ASP before approval. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
@@ -1119,9 +1123,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
-        "--ignore-unique-amount",
+        "--stream-json",
+        "--allow-non-round-amounts",
       ],
-      agentFlags: "--agent",
+      agentFlags: "--agent [--stream-json]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -1172,6 +1177,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary?: { quotedAt, quoteExpiresAt, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, relayerHost, extraGas } (relayed), ... } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
+        "--stream-json progress events: { mode: \"withdraw-progress\", operation: \"withdraw\", event: \"stage\", stage, withdrawMode, chain?, asset?, txHash? }",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
@@ -1195,8 +1201,9 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
+        "--stream-json",
       ],
-      agentFlags: "--agent",
+      agentFlags: "--agent [--stream-json]",
       agentRequiredFlags: ["--to"],
       requiresInit: true,
       expectedLatencyClass: "slow",
@@ -1492,7 +1499,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       prerequisites: "init (account state should be synced)",
       safetyNotes: [
         "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.",
-        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.",
+        "Ragequit returns the full Pool Account balance, including any pending portion still under ASP review, to the original deposit address. You will not gain any privacy: this transaction publicly links your deposit to its withdrawal. This cannot be undone.",
         SIGNING_SOURCE_NOTE,
       ],
       jsonFields:
@@ -1552,7 +1559,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "simulate deposit <amount> [asset]",
-      flags: ["--ignore-unique-amount"],
+      flags: ["--allow-non-round-amounts"],
       agentFlags: "--agent",
       requiresInit: true,
       expectedLatencyClass: "slow",

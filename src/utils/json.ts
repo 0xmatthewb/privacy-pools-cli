@@ -361,6 +361,9 @@ export function printJsonError(
     success: false,
     errorCode: code,
     errorMessage: payload.message,
+    meta: {
+      deprecated: ["errorCode", "errorMessage", "helpTopic", "nextActions"],
+    },
     ...(helpTopic ? { helpTopic } : {}),
     ...(nextActions ? { nextActions } : {}),
     ...(details ?? {}),

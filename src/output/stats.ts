@@ -140,11 +140,22 @@ function renderStatsBlocks(
 function maybeRenderDeprecationNotice(
   warning: StatsDeprecationWarning | undefined,
   silent: boolean,
+  out: NodeJS.WriteStream = process.stderr,
 ): void {
   if (!warning || silent) {
     return;
   }
-  process.stderr.write(`Warning: ${warning.message}\n\n`);
+  out.write(`Warning: ${warning.message}\n\n`);
+}
+
+function normalizeCrossAssetStats(
+  stats: TimeBasedStatistics | null,
+): (Omit<TimeBasedStatistics, "tvl"> & { tvl?: string | null }) | null {
+  if (!stats) return null;
+  return {
+    ...stats,
+    ...(stats.tvl === "0" && stats.tvlUsd ? { tvl: null } : {}),
+  };
 }
 
 export function renderGlobalStats(
@@ -158,8 +169,8 @@ export function renderGlobalStats(
       chain: data.chain,
       ...(data.chains ? { chains: data.chains } : {}),
       cacheTimestamp: data.cacheTimestamp,
-      allTime: data.allTime,
-      last24h: data.last24h,
+      allTime: normalizeCrossAssetStats(data.allTime),
+      last24h: normalizeCrossAssetStats(data.last24h),
       ...(data.invokedAs ? { invokedAs: data.invokedAs } : {}),
       ...(data.deprecationWarning
         ? { deprecationWarning: data.deprecationWarning }
@@ -211,16 +222,17 @@ export function renderGlobalStats(
     return;
   }
 
-  maybeRenderDeprecationNotice(data.deprecationWarning, silent);
+  const out = ctx.mode.isWide ? process.stdout : process.stderr;
+  maybeRenderDeprecationNotice(data.deprecationWarning, silent, out);
   const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
 
   if (data.perChain && data.perChain.length > 0) {
     for (const entry of data.perChain) {
-      process.stderr.write(
+      out.write(
         `\n${accentBold(`Global statistics (${entry.chain}):`)}\n\n`,
       );
-      process.stderr.write(formatSectionHeading("Summary", { divider: true }));
-      process.stderr.write(
+      out.write(formatSectionHeading("Summary", { divider: true }));
+      out.write(
         formatKeyValueRows([
           { label: "Chain", value: entry.chain },
           ...(entry.cacheTimestamp
@@ -235,11 +247,11 @@ export function renderGlobalStats(
       }
     }
   } else {
-    process.stderr.write(
+    out.write(
       `\n${accentBold(`Global statistics (${data.chain}):`)}\n\n`,
     );
-    process.stderr.write(formatSectionHeading("Summary", { divider: true }));
-    process.stderr.write(
+    out.write(formatSectionHeading("Summary", { divider: true }));
+    out.write(
       formatKeyValueRows([
         { label: "Chain", value: data.chain },
         ...(data.cacheTimestamp
@@ -318,13 +330,14 @@ export function renderPoolStats(
     return;
   }
 
-  maybeRenderDeprecationNotice(data.deprecationWarning, silent);
+  const out = ctx.mode.isWide ? process.stdout : process.stderr;
+  maybeRenderDeprecationNotice(data.deprecationWarning, silent, out);
   const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
-  process.stderr.write(
+  out.write(
     `\n${accentBold(`Pool statistics for ${data.asset} on ${data.chain}:`)}\n\n`,
   );
-  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
-  process.stderr.write(
+  out.write(formatSectionHeading("Summary", { divider: true }));
+  out.write(
     formatKeyValueRows([
       { label: "Asset", value: data.asset },
       { label: "Chain", value: data.chain },

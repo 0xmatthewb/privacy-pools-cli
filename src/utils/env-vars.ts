@@ -37,6 +37,11 @@ export const ENV_VAR_REGISTRY: EnvVarRegistryEntry[] = [
     section: "interaction",
   },
   {
+    name: "FORCE_COLOR",
+    description: "Force colored output when supported by the terminal renderer.",
+    section: "interaction",
+  },
+  {
     name: "PRIVACY_POOLS_BANNER",
     aliases: ["PRIVACY_POOLS_BANNER_ART"],
     description: "Choose the welcome illustration. Set to merkle for the alternate Merkle tree banner.",

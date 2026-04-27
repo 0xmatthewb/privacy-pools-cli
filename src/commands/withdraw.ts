@@ -79,6 +79,7 @@ import {
   promptCancelledError,
 } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
+import { emitStreamJsonEvent } from "../utils/stream-json.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
 import {
   resolveAmountAndAssetInput,
@@ -112,6 +113,7 @@ import { resolveGlobalMode, getConfirmationTimeoutMs } from "../utils/mode.js";
 import { createNextAction, createOutputContext } from "../output/common.js";
 import {
   formatAnonymitySetCallout,
+  formatAnonymitySetValue,
   formatDirectWithdrawalReview,
   formatRelayedWithdrawalReview,
   type RelayedWithdrawalRemainderGuidance,
@@ -200,6 +202,12 @@ const entrypointLatestRootAbi = [
 const RELAYER_PROOF_REFRESH_BUDGET_SECONDS = 12;
 const LOCAL_STATE_RECONCILIATION_WARNING_CODE =
   "LOCAL_STATE_RECONCILIATION_REQUIRED";
+const CONFIRM_DIRECT_WITHDRAW_DEPRECATION_WARNING = {
+  code: "FLAG_DEPRECATED",
+  message:
+    "--confirm-direct-withdraw is deprecated. Replaced by interactive confirmation. Will be removed in v3.x.",
+  replacementCommand: "Remove --confirm-direct-withdraw and confirm the direct withdrawal interactively, or use --agent for explicit non-interactive consent.",
+};
 
 type WithdrawReviewStatus = Exclude<AspApprovalStatus, "approved">;
 
@@ -213,6 +221,7 @@ interface WithdrawCommandOptions {
   noWait?: boolean;
   all?: boolean;
   extraGas?: boolean;
+  streamJson?: boolean;
 }
 
 export function relayerHostLabel(relayerUrl: string | undefined): string | null {
@@ -261,6 +270,117 @@ export function writeWithdrawalAnonymitySetHint(
     return;
   }
   process.stderr.write(formatAnonymitySetCallout(anonymitySet));
+}
+
+function createAnonymitySetAmountTransformer(params: {
+  chainConfig: ChainConfig;
+  pool: PoolStats;
+  silent: boolean;
+}): (value: string, context: { isFinal: boolean }) => string {
+  let timer: NodeJS.Timeout | null = null;
+  let requestId = 0;
+  let lastRendered = "";
+
+  return (value, context) => {
+    if (params.silent || context.isFinal) {
+      return value;
+    }
+    const trimmed = value.trim();
+    if (trimmed.length === 0 || isPercentageAmount(trimmed)) {
+      return value;
+    }
+    if (timer) {
+      clearTimeout(timer);
+    }
+    const currentRequest = ++requestId;
+    timer = setTimeout(() => {
+      let parsed: bigint;
+      try {
+        parsed = parseAmount(trimmed, params.pool.decimals, {
+          allowNegative: true,
+        });
+        validatePositive(parsed, "Withdrawal amount");
+      } catch {
+        return;
+      }
+      void fetchWithdrawalAnonymitySet(params.chainConfig, params.pool, parsed)
+        .then((anonymitySet) => {
+          if (
+            currentRequest !== requestId ||
+            !anonymitySet ||
+            trimmed === lastRendered
+          ) {
+            return;
+          }
+          lastRendered = trimmed;
+          process.stderr.write(
+            `\nEstimated anonymity set: ${formatAnonymitySetValue(anonymitySet)}\n`,
+          );
+        })
+        .catch(() => undefined);
+    }, 500);
+    return value;
+  };
+}
+
+async function promptWithdrawalAmountEdit(params: {
+  message: string;
+  chainConfig: ChainConfig;
+  pool: PoolStats;
+  currentAmount?: bigint;
+  maxAmount: bigint;
+  minAmount?: bigint;
+  leaveAtLeast?: bigint;
+  poolAccountId: string;
+  silent: boolean;
+}): Promise<bigint> {
+  const input = await inputPrompt({
+    message: params.message,
+    default: params.currentAmount
+      ? formatUnits(params.currentAmount, params.pool.decimals)
+      : undefined,
+    transformer: createAnonymitySetAmountTransformer({
+      chainConfig: params.chainConfig,
+      pool: params.pool,
+      silent: params.silent,
+    }),
+    validate: (value) => {
+      try {
+        const parsed = parseAmount(value.trim(), params.pool.decimals, {
+          allowNegative: true,
+        });
+        validatePositive(parsed, "Withdrawal amount");
+        if (params.minAmount !== undefined && parsed < params.minAmount) {
+          return `Amount must be at least ${formatAmount(params.minAmount, params.pool.decimals, params.pool.symbol)}.`;
+        }
+        if (parsed > params.maxAmount) {
+          return `Amount exceeds ${params.poolAccountId} balance of ${formatAmount(params.maxAmount, params.pool.decimals, params.pool.symbol)}.`;
+        }
+        if (
+          params.leaveAtLeast !== undefined &&
+          params.maxAmount - parsed < params.leaveAtLeast
+        ) {
+          return `Amount must leave at least ${formatAmount(params.leaveAtLeast, params.pool.decimals, params.pool.symbol)} in ${params.poolAccountId}.`;
+        }
+        return true;
+      } catch (error) {
+        return error instanceof Error ? error.message : "Invalid amount.";
+      }
+    },
+  });
+  return parseAmount(input.trim(), params.pool.decimals, {
+    allowNegative: true,
+  });
+}
+
+function writeQuoteCountdown(expirationMs: number, silent: boolean): void {
+  if (silent) {
+    return;
+  }
+  const secondsLeft = Math.max(0, Math.floor((expirationMs - Date.now()) / 1000));
+  process.stderr.write(
+    `Relayer quote expires in ${secondsLeft}s. You can request a new quote from the review prompt.\n`,
+  );
 }
 
 export function buildDirectRecipientMismatchNextActions(params: {
@@ -366,7 +486,7 @@ export async function promptRecentRecipientAddressOrEns(): Promise<{
       ...entries.map((entry) => ({
         name: entry.label
           ? `${entry.label} (${formatAddress(entry.address)})`
-          : `Recent ${formatAddress(entry.address)}`,
+          : `${entry.source === "manual" ? "Saved" : "Recent"} ${formatAddress(entry.address)}`,
         value: entry.address,
         description: recentRecipientDescription(entry),
       })),
@@ -571,7 +691,11 @@ export async function handleWithdrawCommand(
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
-  const mode = resolveGlobalMode(globalOpts);
+  const streamJson = opts.streamJson === true;
+  const mode = resolveGlobalMode({
+    ...globalOpts,
+    ...(streamJson ? { json: true } : {}),
+  });
   const isJson = mode.isJson;
   const isQuiet = mode.isQuiet;
   const unsignedRaw = opts.unsigned;
@@ -585,6 +709,10 @@ export async function handleWithdrawCommand(
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
   const isDirect = opts.direct ?? false;
+  const directConfirmDeprecationWarning =
+    opts.confirmDirectWithdraw === true
+      ? CONFIRM_DIRECT_WITHDRAW_DEPRECATION_WARNING
+      : undefined;
   const confirmationTimeoutSeconds = Math.round(
     getConfirmationTimeoutMs() / 1000,
   );
@@ -609,6 +737,12 @@ export async function handleWithdrawCommand(
   };
 
   try {
+    emitStreamJsonEvent(streamJson, {
+      mode: "withdraw-progress",
+      operation: "withdraw",
+      event: "stage",
+      stage: "validating_input",
+    });
     if (fromPaRaw !== undefined && fromPaNumber === null) {
       throw new CLIError(
         `Invalid --pool-account value: ${fromPaRaw}.`,
@@ -666,6 +800,15 @@ export async function handleWithdrawCommand(
 
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+    const mnemonic = loadMnemonic();
+    emitStreamJsonEvent(streamJson, {
+      mode: "withdraw-progress",
+      operation: "withdraw",
+      event: "stage",
+      stage: "chain_resolved",
+      chain: chainConfig.name,
+      withdrawMode: isDirect ? "direct" : "relayed",
+    });
     verbose(
       `Chain: ${chainConfig.name} (${chainConfig.id})`,
       isVerbose,
@@ -877,12 +1020,27 @@ export async function handleWithdrawCommand(
       isVerbose,
       silent,
     );
+    emitStreamJsonEvent(streamJson, {
+      mode: "withdraw-progress",
+      operation: "withdraw",
+      event: "stage",
+      stage: "pool_resolved",
+      chain: chainConfig.name,
+      asset: pool.symbol,
+      poolAddress: pool.pool,
+      withdrawMode: isDirect ? "direct" : "relayed",
+    });
 
     if (needsAmountPrompt) {
       ensurePromptInteractionAvailable();
       amountStr = (
         await inputPrompt({
           message: `Withdrawal amount for ${pool.symbol} (e.g. 0.05, 50%, 100%):`,
+          transformer: createAnonymitySetAmountTransformer({
+            chainConfig,
+            pool,
+            silent,
+          }),
           validate: (value) => {
             const trimmed = value.trim();
             if (trimmed.length === 0) {
@@ -1084,7 +1242,6 @@ export async function handleWithdrawCommand(
     const releaseLock = acquireProcessLock();
     try {
       // Load account & sync
-      const mnemonic = loadMnemonic();
       const publicClient = getPublicClient(chainConfig, globalOpts?.rpcUrl);
 
       const dataService = await getDataService(
@@ -1479,31 +1636,18 @@ export async function handleWithdrawCommand(
               silent,
             );
             ensurePromptInteractionAvailable();
-            const newAmountStr = await withSuspendedSpinner(spin, async () =>
-              inputPrompt({
+            withdrawalAmount = await withSuspendedSpinner(spin, async () =>
+              promptWithdrawalAmountEdit({
                 message: `Enter a new amount (minimum ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}):`,
-                validate: (val) => {
-                  try {
-                    const parsed = parseAmount(val, pool.decimals, {
-                      allowNegative: true,
-                    });
-                    validatePositive(parsed, "Withdrawal amount");
-                    if (parsed > selectedPoolAccount.value) {
-                      return `Amount exceeds ${selectedPoolAccount.paId} balance of ${formatAmount(selectedPoolAccount.value, pool.decimals, pool.symbol)}.`;
-                    }
-                    if (parsed < minWithdraw) {
-                      return `Amount must be at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`;
-                    }
-                    return true;
-                  } catch (e) {
-                    return e instanceof Error ? e.message : "Invalid amount.";
-                  }
-                },
+                chainConfig,
+                pool,
+                currentAmount: withdrawalAmount,
+                maxAmount: selectedPoolAccount.value,
+                minAmount: minWithdraw,
+                poolAccountId: selectedPoolAccount.paId,
+                silent,
               })
             );
-            withdrawalAmount = parseAmount(newAmountStr, pool.decimals, {
-              allowNegative: true,
-            });
             withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
             info(
               `Updated withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
@@ -1564,33 +1708,21 @@ export async function handleWithdrawCommand(
                     silent,
                   );
                 } else if (remainderChoice === "less") {
-                  const newAmountStr = await withSuspendedSpinner(
+                  withdrawalAmount = await withSuspendedSpinner(
                     spin,
                     async () =>
-                      inputPrompt({
+                      promptWithdrawalAmountEdit({
                         message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
-                        validate: (val) => {
-                          try {
-                            const parsed = parseAmount(val, pool.decimals, {
-                              allowNegative: true,
-                            });
-                            validatePositive(parsed, "Withdrawal amount");
-                            if (parsed < minWithdraw) {
-                              return `Amount must be at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)}.`;
-                            }
-                            if (parsed > maxAmountLeavingWithdrawableRemainder) {
-                              return `Amount must leave at least ${formatAmount(minWithdraw, pool.decimals, pool.symbol)} in ${selectedPoolAccount.paId}.`;
-                            }
-                            return true;
-                          } catch (e) {
-                            return e instanceof Error ? e.message : "Invalid amount.";
-                          }
-                        },
+                        chainConfig,
+                        pool,
+                        currentAmount: withdrawalAmount,
+                        maxAmount: selectedPoolAccount.value,
+                        minAmount: minWithdraw,
+                        leaveAtLeast: minWithdraw,
+                        poolAccountId: selectedPoolAccount.paId,
+                        silent,
                       }),
                   );
-                  withdrawalAmount = parseAmount(newAmountStr, pool.decimals, {
-                    allowNegative: true,
-                  });
                   withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
                   info(
                     `Updated withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
@@ -1745,44 +1877,86 @@ export async function handleWithdrawCommand(
         verbose(`Proof context: ${context.toString()}`, isVerbose, silent);
 
         if (!skipPrompts) {
-          spin.stop();
-          process.stderr.write("\n");
-          process.stderr.write(
-            formatDirectWithdrawalReview({
-              poolAccountId: selectedPoolAccount.paId,
-              amount: withdrawalAmount,
-              asset: pool.symbol,
-              chain: chainConfig.name,
-              decimals: pool.decimals,
-              recipient: directAddress,
-              signerAddress,
-              recipientEnsName,
-              tokenPrice,
-            }),
-          );
-          if (
-            await maybeRenderPreviewScenario("withdraw direct confirm", {
-              timing: "after-prompts",
-            })
-          ) {
-            return;
+          while (true) {
+            spin.stop();
+            process.stderr.write("\n");
+            process.stderr.write(
+              formatDirectWithdrawalReview({
+                poolAccountId: selectedPoolAccount.paId,
+                amount: withdrawalAmount,
+                asset: pool.symbol,
+                chain: chainConfig.name,
+                decimals: pool.decimals,
+                recipient: directAddress,
+                signerAddress,
+                recipientEnsName,
+                tokenPrice,
+              }),
+            );
+            if (
+              await maybeRenderPreviewScenario("withdraw direct confirm", {
+                timing: "after-prompts",
+              })
+            ) {
+              return;
+            }
+            const reviewChoice = await selectPrompt<"confirm" | "back" | "cancel">({
+              message: "Review direct withdrawal",
+              choices: [
+                { name: "Continue to confirmation", value: "confirm" as const },
+                { name: "Back: edit amount", value: "back" as const },
+                { name: "Cancel withdrawal", value: "cancel" as const },
+              ],
+            });
+            if (reviewChoice === "cancel") {
+              info("Withdrawal cancelled.", silent);
+              return;
+            }
+            if (reviewChoice === "back") {
+              withdrawalAmount = await promptWithdrawalAmountEdit({
+                message: `Back: enter withdrawal amount for ${selectedPoolAccount.paId}:`,
+                chainConfig,
+                pool,
+                currentAmount: withdrawalAmount,
+                maxAmount: selectedPoolAccount.value,
+                poolAccountId: selectedPoolAccount.paId,
+                silent,
+              });
+              withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+              info(
+                `Updated withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+                silent,
+              );
+              continue;
+            }
+            const ok = await confirmActionWithSeverity({
+              severity: "high_stakes",
+              standardMessage: "Confirm direct withdrawal?",
+              highStakesToken: CONFIRMATION_TOKENS.directWithdrawal,
+              highStakesWarning:
+                `This direct withdrawal will publicly link your deposit and withdrawal addresses onchain. Recipient: ${directAddress}. This cannot be undone.`,
+              confirm: confirmPrompt,
+            });
+            if (!ok) {
+              info("Withdrawal cancelled.", silent);
+              return;
+            }
+            spin.start();
+            break;
           }
-          const ok = await confirmActionWithSeverity({
-            severity: "high_stakes",
-            standardMessage: "Confirm direct withdrawal?",
-            highStakesToken: CONFIRMATION_TOKENS.directWithdrawal,
-            highStakesWarning:
-              `This direct withdrawal will publicly link your deposit and withdrawal addresses onchain. Recipient: ${directAddress}. This cannot be undone.`,
-            confirm: confirmPrompt,
-          });
-          if (!ok) {
-            info("Withdrawal cancelled.", silent);
-            return;
-          }
-          spin.start();
         }
 
         // Re-verify parity right before proving
+        emitStreamJsonEvent(streamJson, {
+          mode: "withdraw-progress",
+          operation: "withdraw",
+          event: "stage",
+          stage: "generating_proof",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          withdrawMode: "direct",
+          poolAccountId: selectedPoolAccount.paId,
+        });
         writeWithdrawProgress(1, "Generating and locally verifying the direct withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
@@ -1852,6 +2026,9 @@ export async function handleWithdrawCommand(
                 poolAccountId: selectedPoolAccount.paId,
                 rootMatchedAtProofTime: true,
                 warnings: [...payload.warnings, ...recipientWarnings],
+                ...(directConfirmDeprecationWarning
+                  ? { deprecationWarning: directConfirmDeprecationWarning }
+                  : {}),
               },
               false,
             );
@@ -1877,6 +2054,7 @@ export async function handleWithdrawCommand(
             rootMatchedAtProofTime: true,
             anonymitySet,
             warnings: recipientWarnings,
+            deprecationWarning: directConfirmDeprecationWarning,
           });
           return;
         }
@@ -1886,6 +2064,16 @@ export async function handleWithdrawCommand(
           "Run 'privacy-pools sync' then retry the withdrawal.",
         );
 
+        emitStreamJsonEvent(streamJson, {
+          mode: "withdraw-progress",
+          operation: "withdraw",
+          event: "stage",
+          stage: "submitting_transaction",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          withdrawMode: "direct",
+          poolAccountId: selectedPoolAccount.paId,
+        });
         writeWithdrawProgress(2, "Simulating and submitting the direct withdrawal transaction.");
         const tx = await withdrawDirect(
           chainConfig,
@@ -1906,6 +2094,16 @@ export async function handleWithdrawCommand(
 
         const directExplorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
         if (opts.noWait) {
+          emitStreamJsonEvent(streamJson, {
+            mode: "withdraw-progress",
+            operation: "withdraw",
+            event: "stage",
+            stage: "submitted",
+            chain: chainConfig.name,
+            asset: pool.symbol,
+            withdrawMode: "direct",
+            txHash: tx.hash,
+          });
           spin.succeed("Direct withdrawal submitted.");
           const submission = createSubmissionRecord({
             operation: "withdraw",
@@ -1952,6 +2150,7 @@ export async function handleWithdrawCommand(
             warningCode: null,
             anonymitySet,
             warnings: recipientWarnings,
+            deprecationWarning: directConfirmDeprecationWarning,
           });
           maybeLaunchBrowser({
             globalOpts,
@@ -1964,6 +2163,16 @@ export async function handleWithdrawCommand(
         }
 
         spin.text = "Waiting for confirmation...";
+        emitStreamJsonEvent(streamJson, {
+          mode: "withdraw-progress",
+          operation: "withdraw",
+          event: "stage",
+          stage: "waiting_confirmation",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          withdrawMode: "direct",
+          txHash: tx.hash,
+        });
         let receipt;
         try {
           receipt = await publicClient.waitForTransactionReceipt({
@@ -2020,8 +2229,19 @@ export async function handleWithdrawCommand(
         if (reconciliationRequired) {
           spin.warn("Withdrawal confirmed onchain; local state needs reconciliation.");
         } else {
-          spin.succeed("Direct withdrawal confirmed!");
+          spin.succeed("Direct withdrawal confirmed");
         }
+        emitStreamJsonEvent(streamJson, {
+          mode: "withdraw-progress",
+          operation: "withdraw",
+          event: "stage",
+          stage: "confirmed",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          withdrawMode: "direct",
+          txHash: tx.hash,
+          blockNumber: receipt.blockNumber.toString(),
+        });
         rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
           ensName: recipientEnsName,
           chain: chainConfig.name,
@@ -2050,6 +2270,7 @@ export async function handleWithdrawCommand(
           warningCode,
           anonymitySet,
           warnings: recipientWarnings,
+          deprecationWarning: directConfirmDeprecationWarning,
         });
         maybeLaunchBrowser({
           globalOpts,
@@ -2071,19 +2292,20 @@ export async function handleWithdrawCommand(
           isVerbose,
           silent,
         );
+        const minWithdrawAmount = BigInt(details.minWithdrawAmount);
 
-        if (withdrawalAmount < BigInt(details.minWithdrawAmount)) {
+        if (withdrawalAmount < minWithdrawAmount) {
           throw new CLIError(
-            `Amount below relayer minimum of ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`,
+            `Amount below relayer minimum of ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)}.`,
             "RELAYER",
-            `Increase your withdrawal amount to at least ${formatAmount(BigInt(details.minWithdrawAmount), pool.decimals, pool.symbol)}.`,
+            `Increase your withdrawal amount to at least ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)}.`,
           );
         }
 
         let remainingBelowMinGuidance = getRelayedWithdrawalRemainderAdvisory(
           {
             remainingBalance: selectedPoolAccount.value - withdrawalAmount,
-            minWithdrawAmount: BigInt(details.minWithdrawAmount),
+            minWithdrawAmount,
             poolAccountId: selectedPoolAccount.paId,
             assetSymbol: pool.symbol,
             decimals: pool.decimals,
@@ -2098,7 +2320,6 @@ export async function handleWithdrawCommand(
           const remainingBalance = selectedPoolAccount.value - withdrawalAmount;
           warn(remainingBelowMinGuidance.summary, silent);
           ensurePromptInteractionAvailable();
-          const minWithdrawAmount = BigInt(details.minWithdrawAmount);
           const maxAmountLeavingWithdrawableRemainder =
             selectedPoolAccount.value - minWithdrawAmount;
           const remainderChoice = await withSuspendedSpinner(
@@ -2136,7 +2357,7 @@ export async function handleWithdrawCommand(
             // Recalculate advisory (should be null now since remainder is 0)
             remainingBelowMinGuidance = getRelayedWithdrawalRemainderAdvisory({
               remainingBalance: selectedPoolAccount.value - withdrawalAmount,
-              minWithdrawAmount: BigInt(details.minWithdrawAmount),
+              minWithdrawAmount,
               poolAccountId: selectedPoolAccount.paId,
               assetSymbol: pool.symbol,
               decimals: pool.decimals,
@@ -2151,33 +2372,21 @@ export async function handleWithdrawCommand(
             );
             writeWithdrawalAnonymitySetHint(anonymitySet, silent);
           } else if (remainderChoice === "less") {
-            const newAmountStr = await withSuspendedSpinner(
+            withdrawalAmount = await withSuspendedSpinner(
               spin,
               async () =>
-                inputPrompt({
+                promptWithdrawalAmountEdit({
                   message: `Enter amount up to ${formatAmount(maxAmountLeavingWithdrawableRemainder, pool.decimals, pool.symbol)}:`,
-                  validate: (val) => {
-                    try {
-                      const parsed = parseAmount(val, pool.decimals, {
-                        allowNegative: true,
-                      });
-                      validatePositive(parsed, "Withdrawal amount");
-                      if (parsed < minWithdrawAmount) {
-                        return `Amount must be at least ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)}.`;
-                      }
-                      if (parsed > maxAmountLeavingWithdrawableRemainder) {
-                        return `Amount must leave at least ${formatAmount(minWithdrawAmount, pool.decimals, pool.symbol)} in ${selectedPoolAccount.paId}.`;
-                      }
-                      return true;
-                    } catch (e) {
-                      return e instanceof Error ? e.message : "Invalid amount.";
-                    }
-                  },
+                  chainConfig,
+                  pool,
+                  currentAmount: withdrawalAmount,
+                  maxAmount: selectedPoolAccount.value,
+                  minAmount: minWithdrawAmount,
+                  leaveAtLeast: minWithdrawAmount,
+                  poolAccountId: selectedPoolAccount.paId,
+                  silent,
                 }),
             );
-            withdrawalAmount = parseAmount(newAmountStr, pool.decimals, {
-              allowNegative: true,
-            });
             withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
             info(
               `Adjusted withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
@@ -2224,13 +2433,23 @@ export async function handleWithdrawCommand(
                 recipient: resolvedRecipientAddress,
                 poolAccountId: selectedPoolAccount.paId,
                 poolAccountValue: selectedPoolAccount.value,
-                minWithdrawAmount: BigInt(details.minWithdrawAmount),
+                minWithdrawAmount,
                 signerAddress,
               }),
             },
           );
         }
 
+        emitStreamJsonEvent(streamJson, {
+          mode: "withdraw-progress",
+          operation: "withdraw",
+          event: "stage",
+          stage: "requesting_quote",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          withdrawMode: "relayed",
+          poolAccountId: selectedPoolAccount.paId,
+        });
         const initialQuoteResult = await requestQuoteWithExtraGasFallback(
           chainConfig,
           {
@@ -2352,6 +2571,25 @@ export async function handleWithdrawCommand(
 
         if (!skipPrompts) {
           let confirmedWithFreshQuote = false;
+          const refreshReviewStateForAmount = async (reason: string): Promise<void> => {
+            remainingBelowMinGuidance = getRelayedWithdrawalRemainderAdvisory({
+              remainingBalance: selectedPoolAccount.value - withdrawalAmount,
+              minWithdrawAmount,
+              poolAccountId: selectedPoolAccount.paId,
+              assetSymbol: pool.symbol,
+              decimals: pool.decimals,
+              poolAccountValue: selectedPoolAccount.value,
+              chainName: chainConfig.name,
+              recipient: resolvedRecipientAddress,
+            });
+            anonymitySet = await fetchWithdrawalAnonymitySet(
+              chainConfig,
+              pool,
+              withdrawalAmount,
+            );
+            writeWithdrawalAnonymitySetHint(anonymitySet, silent);
+            await fetchFreshQuote(reason);
+          };
           for (
             let reviewAttempt = 1;
             reviewAttempt <= MAX_WITHDRAW_CONFIRM_REVIEW_ATTEMPTS;
@@ -2370,13 +2608,27 @@ export async function handleWithdrawCommand(
                   "RELAYER_CONFIRMATION_RETRY_LIMIT",
                 );
               }
+              spin.stop();
+              const expiryChoice = await selectPrompt<"refresh" | "cancel">({
+                message: "Relayer quote expired before confirmation. What would you like to do?",
+                choices: [
+                  { name: "Request new quote", value: "refresh" as const },
+                  { name: "Cancel withdrawal", value: "cancel" as const },
+                ],
+              });
+              if (expiryChoice === "cancel") {
+                info("Withdrawal cancelled.", silent);
+                return;
+              }
+              spin.start();
               await fetchFreshQuote(
-                "Quote expired. Refreshing relayer quote before continuing...",
+                "Requesting a new relayer quote before continuing...",
               );
               continue;
             }
 
             spin.stop();
+            writeQuoteCountdown(expirationMs, silent);
             renderWithdrawalReview();
             if (
               await maybeRenderPreviewScenario("withdraw confirm", {
@@ -2384,6 +2636,44 @@ export async function handleWithdrawCommand(
               })
             ) {
               return;
+            }
+            const reviewChoice = await selectPrompt<"confirm" | "back" | "refresh" | "cancel">({
+              message: "Review withdrawal",
+              choices: [
+                { name: "Continue to confirmation", value: "confirm" as const },
+                { name: "Back: edit amount", value: "back" as const },
+                { name: "Request new quote", value: "refresh" as const },
+                { name: "Cancel withdrawal", value: "cancel" as const },
+              ],
+            });
+            if (reviewChoice === "cancel") {
+              info("Withdrawal cancelled.", silent);
+              return;
+            }
+            if (reviewChoice === "refresh") {
+              spin.start();
+              await fetchFreshQuote("Requesting a new relayer quote...");
+              continue;
+            }
+            if (reviewChoice === "back") {
+              withdrawalAmount = await promptWithdrawalAmountEdit({
+                message: `Back: enter withdrawal amount for ${selectedPoolAccount.paId}:`,
+                chainConfig,
+                pool,
+                currentAmount: withdrawalAmount,
+                maxAmount: selectedPoolAccount.value,
+                minAmount: minWithdrawAmount,
+                poolAccountId: selectedPoolAccount.paId,
+                silent,
+              });
+              withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+              info(
+                `Updated withdrawal amount: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
+                silent,
+              );
+              spin.start();
+              await refreshReviewStateForAmount("Requesting a quote for the updated amount...");
+              continue;
             }
 
             const withdrawalAmountLabel = formatAmount(
@@ -2497,6 +2787,16 @@ export async function handleWithdrawCommand(
         }
 
         // Re-verify parity right before proving
+        emitStreamJsonEvent(streamJson, {
+          mode: "withdraw-progress",
+          operation: "withdraw",
+          event: "stage",
+          stage: "generating_proof",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          withdrawMode: "relayed",
+          poolAccountId: selectedPoolAccount.paId,
+        });
         writeWithdrawProgress(2, "Generating and locally verifying the relayed withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
@@ -2666,6 +2966,16 @@ export async function handleWithdrawCommand(
           return;
         }
 
+        emitStreamJsonEvent(streamJson, {
+          mode: "withdraw-progress",
+          operation: "withdraw",
+          event: "stage",
+          stage: "submitting_relay_request",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          withdrawMode: "relayed",
+          poolAccountId: selectedPoolAccount.paId,
+        });
         writeWithdrawProgress(3, "Submitting the signed and verified request to the relayer.");
         spin.text = "Submitting to relayer...";
         const result = await submitRelayRequest(chainConfig, {
@@ -2679,6 +2989,16 @@ export async function handleWithdrawCommand(
 
         const relayExplorerUrl = explorerTxUrl(chainConfig.id, result.txHash);
         if (opts.noWait) {
+          emitStreamJsonEvent(streamJson, {
+            mode: "withdraw-progress",
+            operation: "withdraw",
+            event: "stage",
+            stage: "submitted",
+            chain: chainConfig.name,
+            asset: pool.symbol,
+            withdrawMode: "relayed",
+            txHash: result.txHash,
+          });
           spin.succeed("Relayed withdrawal submitted.");
           const submission = createSubmissionRecord({
             operation: "withdraw",
@@ -2746,6 +3066,16 @@ export async function handleWithdrawCommand(
 
         // Wait for onchain confirmation before updating state
         spin.text = "Waiting for relay transaction confirmation...";
+        emitStreamJsonEvent(streamJson, {
+          mode: "withdraw-progress",
+          operation: "withdraw",
+          event: "stage",
+          stage: "waiting_confirmation",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          withdrawMode: "relayed",
+          txHash: result.txHash,
+        });
         let receipt;
         try {
           receipt = await publicClient.waitForTransactionReceipt({
@@ -2802,8 +3132,19 @@ export async function handleWithdrawCommand(
         if (reconciliationRequired) {
           spin.warn("Withdrawal confirmed onchain; local state needs reconciliation.");
         } else {
-          spin.succeed("Relayed withdrawal confirmed!");
+          spin.succeed("Relayed withdrawal confirmed");
         }
+        emitStreamJsonEvent(streamJson, {
+          mode: "withdraw-progress",
+          operation: "withdraw",
+          event: "stage",
+          stage: "confirmed",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          withdrawMode: "relayed",
+          txHash: result.txHash,
+          blockNumber: receipt.blockNumber.toString(),
+        });
         rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
           ensName: recipientEnsName,
           chain: chainConfig.name,

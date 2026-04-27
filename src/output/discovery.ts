@@ -169,26 +169,40 @@ function writeParagraphSection(label: string, paragraphs: string[]): void {
 function writeStructuredExamplesSection(
   descriptor: DetailedCommandDescriptor,
 ): void {
-  const hasCategorizedExamples = descriptor.examples.some(
-    (example) => typeof example !== "string",
-  );
-  if (!hasCategorizedExamples || !descriptor.structuredExamples?.length) {
+  if (!descriptor.structuredExamples?.length) {
     writeListSection(
       "Examples",
       descriptor.examples.map((example) => {
         if (typeof example === "string") {
           return example;
         }
-        return `${example.category}: ${example.commands.join(" | ")}`;
+        if ("command" in example) {
+          return `${example.description}: ${example.command}`;
+        }
+        const commands = example.commands.map((command) =>
+          typeof command === "string" ? command : command.command,
+        );
+        return `${example.category}: ${commands.join(" | ")}`;
       }),
     );
     return;
   }
 
   process.stderr.write(formatSectionHeading("Structured examples", { divider: true }));
+  let previousDescription: string | null = null;
   for (const example of descriptor.structuredExamples) {
-    process.stderr.write(formatSectionHeading(example.name, { padTop: false }));
-    const commands = Array.isArray(example.value) ? example.value : [example.value];
+    const description = example.description ?? example.name ?? "Example";
+    const commands = example.command
+      ? [example.command]
+      : Array.isArray(example.value)
+        ? example.value
+        : example.value
+          ? [example.value]
+          : [];
+    if (description !== previousDescription) {
+      process.stderr.write(formatSectionHeading(description, { padTop: false }));
+      previousDescription = description;
+    }
     for (const command of commands) {
       process.stderr.write(`  ${command}\n`);
     }

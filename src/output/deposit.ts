@@ -41,6 +41,7 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
+import { FIRST_DEPOSIT_WELCOME } from "./copy.js";
 
 export interface DepositReviewData {
   amount: bigint;
@@ -130,6 +131,24 @@ export function formatDepositReview(data: DepositReviewData): string {
           lines: secondaryLines,
         }
       : null,
+    footerTitle: "Totals",
+    footerRows: [
+      {
+        label: "Total submitted",
+        value:
+          `${formatAmount(data.amount, data.decimals, data.asset)}` +
+          depositUsdSuffix(data.amount, data.decimals, data.tokenPrice),
+        valueTone: "accent",
+      },
+      {
+        label: "Net committed",
+        value:
+          `${formatAmount(data.estimatedCommitted, data.decimals, data.asset)}` +
+          depositUsdSuffix(data.estimatedCommitted, data.decimals, data.tokenPrice),
+        valueTone: "success",
+      },
+    ],
+    helpCommand: "privacy-pools guide workflow",
   });
 }
 
@@ -500,7 +519,10 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
     );
     const summaryRows = [
       ...(data.poolAccountNumber === 1
-        ? [{ label: "", value: muted("Welcome to the pool.") }]
+        ? [{
+            label: "",
+            value: muted(FIRST_DEPOSIT_WELCOME),
+          }]
         : []),
       { label: "Chain", value: data.chain },
       { label: "Pool Account", value: data.poolAccountId },

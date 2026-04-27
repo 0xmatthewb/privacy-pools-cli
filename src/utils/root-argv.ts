@@ -596,6 +596,7 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
   const hasJmes = hasLongFlag(normalizedArgv, "--jmes");
   const hasJsonFields = hasLongFlag(normalizedArgv, "--json-fields");
   const hasTemplate = hasLongFlag(normalizedArgv, "--template");
+  const hasStreamJson = hasLongFlag(normalizedArgv, "--stream-json");
   const isJson =
     hasLongFlag(normalizedArgv, "--json") ||
     hasShortFlag(normalizedArgv, "j") ||
@@ -604,7 +605,8 @@ export function parseRootArgv(argv: string[]): ParsedRootArgv {
     hasJq ||
     hasJmes ||
     hasJsonFields ||
-    hasTemplate;
+    hasTemplate ||
+    hasStreamJson;
   const isCsvMode = formatFlagValue === "csv" && !isJson;
   const isUnsigned = hasLongFlag(normalizedArgv, "--unsigned");
   const isMachineMode = isJson || isCsvMode || isUnsigned || isAgent;

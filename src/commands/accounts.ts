@@ -477,6 +477,14 @@ export async function handleAccountsCommand(
 
     const effectiveStatus = normalizedStatus ?? (opts.pendingOnly ? "pending" : undefined);
 
+    if (opts.watch && effectiveStatus !== "pending") {
+      throw new CLIError(
+        "--watch requires pending approvals.",
+        "INPUT",
+        "Use --pending-only or --status pending with --watch.",
+      );
+    }
+
     if (opts.watch && mode.isAgent) {
       throw new CLIError(
         "accounts --watch is not available in --agent mode.",
@@ -510,14 +518,6 @@ export async function handleAccountsCommand(
         "--watch is only available in interactive TTY terminals. Use privacy-pools accounts --no-sync for a single snapshot.",
         "INPUT",
         "Re-run without --json or --output csv, or use accounts --no-sync for one read.",
-      );
-    }
-
-    if (opts.watch && effectiveStatus !== "pending") {
-      throw new CLIError(
-        "--watch requires pending approvals.",
-        "INPUT",
-        "Use --pending-only or --status pending with --watch.",
       );
     }
 

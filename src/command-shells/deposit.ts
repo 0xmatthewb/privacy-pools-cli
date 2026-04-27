@@ -24,8 +24,18 @@ export function createDepositCommand(): Command {
       "Return after submission instead of waiting for confirmation",
     )
     .option(
-      "--ignore-unique-amount",
+      "--stream-json",
+      "Emit line-delimited JSON progress events and finish with the final deposit envelope",
+    )
+    .option(
+      "--allow-non-round-amounts",
       "Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint)",
+    )
+    .addOption(
+      new Option(
+        "--ignore-unique-amount",
+        "Deprecated alias for --allow-non-round-amounts",
+      ).hideHelp(),
     )
     .addHelpText(
       "after",
@@ -36,12 +46,13 @@ export function createDepositCommand(): Command {
             "--unsigned [format]",
             "--dry-run",
             "--no-wait",
+            "--stream-json",
           ],
         },
         {
           heading: "Privacy",
           flags: [
-            "--ignore-unique-amount",
+            "--allow-non-round-amounts",
           ],
         },
         {

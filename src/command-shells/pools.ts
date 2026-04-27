@@ -4,11 +4,8 @@ import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
 import { SUPPORTED_SORT_MODES } from "../utils/pools-sort.js";
 
-export function createPoolsCommand(): Command {
-  const metadata = getCommandMetadata("pools");
-  return new Command("pools")
-    .description(metadata.description)
-    .argument("[asset]", "Asset symbol for detail view (e.g. ETH, BOLD)")
+function addPoolsListOptions(command: Command): Command {
+  return command
     .option(
       "--include-testnets",
       "Include supported testnets (default: CLI-supported mainnet chains only)",
@@ -21,7 +18,16 @@ export function createPoolsCommand(): Command {
       )
         .choices([...SUPPORTED_SORT_MODES])
         .default("tvl-desc"),
-    )
+    );
+}
+
+export function createPoolsCommand(): Command {
+  const metadata = getCommandMetadata("pools");
+  const command = addPoolsListOptions(
+    new Command("pools")
+    .description(metadata.description)
+    .argument("[asset]", "Asset symbol for detail view (e.g. ETH, BOLD)"),
+  )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(
@@ -29,4 +35,19 @@ export function createPoolsCommand(): Command {
         "handlePoolsCommand",
       ),
     );
+
+  for (const name of ["list", "ls"]) {
+    addPoolsListOptions(
+      command
+        .command(name)
+        .description("List available pools"),
+    ).action(
+      createLazyAction(
+        () => import("../commands/pools.js"),
+        "handlePoolsListAliasCommand",
+      ),
+    );
+  }
+
+  return command;
 }

@@ -215,7 +215,8 @@ export function printTable(
     !_forceWideTables &&
     (widthClass === "narrow" || estimatedWidth > columns)
   ) {
-    process.stderr.write(formatStackedTable(headers, rows));
+    const stream = _forceWideTables ? process.stdout : process.stderr;
+    stream.write(formatStackedTable(headers, rows));
     return;
   }
 
@@ -238,7 +239,8 @@ export function printTable(
   }
 
   lines.push(...bodyRows);
-  process.stderr.write(lines.filter((line) => line.length > 0).join("\n") + "\n");
+  const stream = _forceWideTables ? process.stdout : process.stderr;
+  stream.write(lines.filter((line) => line.length > 0).join("\n") + "\n");
 }
 
 function formatStackedTable(headers: string[], rows: string[][]): string {
@@ -410,12 +412,14 @@ export function spinner(text: string, quiet: boolean = false) {
 
 export function success(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${successTone(`${glyph("success")} ${message}`)}\n`);
+  const stream = _forceWideTables ? process.stdout : process.stderr;
+  stream.write(`${successTone(`${glyph("success")} ${message}`)}\n`);
 }
 
 export function warn(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${notice(`${glyph("warning")} ${message}`)}\n`);
+  const stream = _forceWideTables ? process.stdout : process.stderr;
+  stream.write(`${notice(`${glyph("warning")} ${message}`)}\n`);
 }
 
 export function fail(message: string, quiet: boolean = false): void {
@@ -425,7 +429,8 @@ export function fail(message: string, quiet: boolean = false): void {
 
 export function info(message: string, quiet: boolean = false): void {
   if (quiet) return;
-  process.stderr.write(`${accent(`${glyph("active")} ${message}`)}\n`);
+  const stream = _forceWideTables ? process.stdout : process.stderr;
+  stream.write(`${accent(`${glyph("active")} ${message}`)}\n`);
 }
 
 export function verbose(

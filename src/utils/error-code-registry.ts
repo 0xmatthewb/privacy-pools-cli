@@ -8,7 +8,7 @@ export interface ErrorCodeRegistryEntry {
 // This registry intentionally tracks the agent-docs conformance surface.
 export const ERROR_CODE_REGISTRY = {
   INPUT_ERROR: { category: "INPUT", retryable: false },
-  PROMPT_CANCELLED: { category: "INPUT", retryable: false },
+  PROMPT_CANCELLED: { category: "CANCELLED", retryable: false },
   INPUT_RECIPIENT_RETRY_LIMIT: { category: "INPUT", retryable: false },
   INPUT_RECIPIENT_BURN_ADDRESS: { category: "INPUT", retryable: false },
   RPC_ERROR: { category: "RPC", retryable: false },

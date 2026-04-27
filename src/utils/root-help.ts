@@ -101,7 +101,7 @@ function buildRootHelpBaseLines(): string[] {
     "  --no-progress          Suppress spinners/progress indicators (useful in CI)",
     "  --no-header            Suppress header rows in CSV and wide/tabular table",
     "                         output",
-    "  --no-banner            Disable ASCII banner output",
+    "  --no-banner            Disable welcome banner output",
     "  --no-color             Disable colored output (also respects NO_COLOR env var)",
     "  --timeout <seconds>    Network/transaction timeout in seconds (default: 30)",
     "  --jmes <expression>    Filter JSON output with a JMESPath expression (implies",

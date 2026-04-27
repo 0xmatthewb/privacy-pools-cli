@@ -19,6 +19,7 @@ import {
   applyFlowPrivacyDelayPolicy,
   buildAmountPatternLinkabilityWarning,
   computeFlowWatchDelayMs,
+  FlowBackRequestedError,
   FlowCancelledError,
   FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE,
   type FlowSnapshot,
@@ -79,6 +80,7 @@ import {
   normalizeInitRequiredInputError,
 } from "../utils/setup-recovery.js";
 import { maybeLaunchBrowser } from "../utils/web.js";
+import { emitStreamJsonEvent } from "../utils/stream-json.js";
 
 interface FlowStartCommandOptions {
   to?: string;
@@ -87,6 +89,7 @@ interface FlowStartCommandOptions {
   newWallet?: boolean;
   exportNewWallet?: string;
   dryRun?: boolean;
+  streamJson?: boolean;
 }
 
 interface FlowWatchCommandOptions {
@@ -97,6 +100,14 @@ interface FlowWatchCommandOptions {
 interface FlowRagequitCommandOptions {
   confirmRagequit?: boolean;
 }
+
+const CONFIRM_RAGEQUIT_DEPRECATION_WARNING = {
+  code: "FLAG_DEPRECATED",
+  message:
+    "--confirm-ragequit is deprecated. Replaced by interactive confirmation. Will be removed in v3.x.",
+  replacementCommand:
+    "Remove --confirm-ragequit and confirm the public recovery interactively, or use --agent for explicit non-interactive consent.",
+};
 
 const MAX_FLOW_RECIPIENT_PROMPT_ATTEMPTS = 5;
 
@@ -831,11 +842,21 @@ export async function handleFlowStartCommand(
   cmd: Command,
 ): Promise<void> {
   const globalOpts = getRootGlobalOptions(cmd);
-  const mode = resolveGlobalMode(globalOpts);
+  const streamJson = opts.streamJson === true;
+  const mode = resolveGlobalMode({
+    ...globalOpts,
+    ...(streamJson ? { json: true } : {}),
+  });
   const isVerbose = globalOpts?.verbose ?? false;
   const ctx = createOutputContext(mode, isVerbose);
 
   try {
+    emitStreamJsonEvent(streamJson, {
+      mode: "flow-progress",
+      action: "start",
+      event: "stage",
+      stage: "validating_input",
+    });
     if (await maybeRenderPreviewScenario("flow start")) {
       return;
     }
@@ -943,6 +964,12 @@ export async function handleFlowStartCommand(
     });
 
     if (opts.dryRun) {
+      emitStreamJsonEvent(streamJson, {
+        mode: "flow-progress",
+        action: "start",
+        event: "stage",
+        stage: "building_dry_run",
+      });
       await renderFlowStartDryRunForInputs({
         amount,
         asset,
@@ -957,6 +984,13 @@ export async function handleFlowStartCommand(
     }
 
     const watchRequested = opts.watch ?? false;
+    emitStreamJsonEvent(streamJson, {
+      mode: "flow-progress",
+      action: "start",
+      event: "stage",
+      stage: "starting_workflow",
+      asset,
+    });
     let snapshot = await startWorkflow({
       amountInput: amount,
       assetInput: asset,
@@ -971,6 +1005,14 @@ export async function handleFlowStartCommand(
     });
 
     if (watchRequested) {
+      emitStreamJsonEvent(streamJson, {
+        mode: "flow-progress",
+        action: "start",
+        event: "stage",
+        stage: "watching_workflow",
+        workflowId: snapshot.workflowId,
+        phase: snapshot.phase,
+      });
       snapshot = await watchFlowWithStatusAndStep({
         workflowId: snapshot.workflowId,
         privacyDelayProfile: opts.privacyDelay,
@@ -979,6 +1021,14 @@ export async function handleFlowStartCommand(
         isVerbose,
       });
     }
+    emitStreamJsonEvent(streamJson, {
+      mode: "flow-progress",
+      action: watchRequested ? "watch" : "start",
+      event: "stage",
+      stage: "complete",
+      workflowId: snapshot.workflowId,
+      phase: snapshot.phase,
+    });
 
     renderFlowResult(ctx, {
       action: watchRequested ? "watch" : "start",
@@ -996,6 +1046,26 @@ export async function handleFlowStartCommand(
       });
     }
   } catch (error) {
+    if (error instanceof FlowBackRequestedError && !mode.skipPrompts) {
+      ensurePromptInteractionAvailable();
+      const amendedAmount = await inputPrompt({
+        message: "Back: deposit amount:",
+        default: amount,
+        validate: (value) =>
+          value.trim().length > 0 ? true : "Enter a deposit amount.",
+      });
+      const amendedRecipient = await promptFlowRecipientAddressOrEns(
+        inputPrompt,
+        mode.isQuiet || mode.isJson,
+      );
+      await handleFlowStartCommand(
+        amendedAmount.trim(),
+        asset,
+        { ...opts, to: amendedRecipient },
+        cmd,
+      );
+      return;
+    }
     await handleFlowCommandError(error, {
       cmd,
       json: mode.isJson,
@@ -1049,7 +1119,7 @@ export async function handleFlowRagequitCommand(
       throw new CLIError(
         `${snapshot.poolAccountId ?? "This workflow"} is approved for private withdrawal.`,
         "INPUT",
-        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy. Use flow status and flow step unless you intentionally prefer ragequit.",
+        "Ragequit returns the full Pool Account balance to the original deposit address and publicly links your deposit to its withdrawal. Use flow status and flow step unless you intentionally prefer public recovery.",
         "INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE",
         false,
         undefined,
@@ -1103,6 +1173,10 @@ export async function handleFlowRagequitCommand(
     renderFlowResult(ctx, {
       action: "ragequit",
       snapshot: resultSnapshot,
+      deprecationWarning:
+        opts.confirmRagequit === true
+          ? CONFIRM_RAGEQUIT_DEPRECATION_WARNING
+          : undefined,
     });
     const browserTarget = getFlowBrowserTarget(resultSnapshot);
     if (browserTarget) {

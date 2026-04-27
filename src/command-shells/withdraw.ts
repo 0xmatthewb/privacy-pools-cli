@@ -25,7 +25,7 @@ export function createWithdrawCommand(): Command {
     .addOption(
       new Option(
         "--confirm-direct-withdraw",
-        "Deprecated compatibility flag for non-interactive direct withdrawals that publicly link deposit and withdrawal addresses.",
+        "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
       ),
     )
     .addOption(
@@ -41,6 +41,10 @@ export function createWithdrawCommand(): Command {
     .option(
       "--no-wait",
       "Return after submission instead of waiting for confirmation",
+    )
+    .option(
+      "--stream-json",
+      "Emit line-delimited JSON progress events and finish with the final withdrawal envelope",
     )
     .option("--all", "Withdraw entire Pool Account balance (requires asset: withdraw --all ETH)")
     .option(
@@ -58,6 +62,7 @@ export function createWithdrawCommand(): Command {
             "--dry-run",
             "--no-wait",
             "--all",
+            "--stream-json",
           ],
         },
         {
@@ -161,16 +166,16 @@ export function createWithdrawCommand(): Command {
     .description(quoteMetadata.description)
     .argument(
       "<amountOrAsset>",
-      "Amount to withdraw (preferred first positional) or asset symbol",
+      "Amount to withdraw (canonical first positional)",
     )
-    .argument("[amount]", "Asset symbol (preferred second positional, case-insensitive) or amount when the asset is first")
+    .argument("[asset]", "Asset symbol (canonical second positional, case-insensitive)")
     .option(
       "-t, --to <address>",
       "Recipient address (recommended for an accurate fee quote)",
     )
     .addHelpText(
       "after",
-      "\nPreferred order: privacy-pools withdraw quote <amount> <asset>\nAlso supported: privacy-pools withdraw quote <asset> <amount>\n",
+      "\nCanonical order: privacy-pools withdraw quote <amount> <asset>\n",
     )
     .addHelpText("after", commandHelpText(quoteMetadata.help ?? {}))
     .action(

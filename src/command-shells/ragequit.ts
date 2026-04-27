@@ -28,7 +28,7 @@ export function createRagequitCommand(): Command {
     )
     .option(
       "--confirm-ragequit",
-      "Deprecated compatibility flag for non-interactive ragequit commands that publicly recover funds to the original deposit address",
+      "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
     )
     .addHelpText(
       "after",

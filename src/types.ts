@@ -179,8 +179,13 @@ export interface PreferredSafeVariant {
 }
 
 export interface StructuredExample {
-  name: string;
-  value: string | string[];
+  description?: string;
+  command?: string;
+  category?: string;
+  /** @deprecated use description */
+  name?: string;
+  /** @deprecated use command */
+  value?: string | string[];
 }
 
 export interface CapabilityCommandSummary {
@@ -212,7 +217,11 @@ export interface DetailedCommandDescriptor {
   requiresHumanReview: boolean;
   preferredSafeVariant?: PreferredSafeVariant;
   prerequisites: string[];
-  examples: Array<string | { category: string; commands: string[] }>;
+  examples: Array<
+    | string
+    | { description: string; command: string }
+    | { category: string; commands: Array<string | { description: string; command: string }> }
+  >;
   structuredExamples?: StructuredExample[];
   jsonFields: string | null;
   jsonVariants: string[];
@@ -271,6 +280,7 @@ export interface CapabilityExitCodeDescriptor {
   code: number;
   category:
     | "SUCCESS"
+    | "CANCELLED"
     | "INPUT"
     | "SETUP"
     | "RPC"

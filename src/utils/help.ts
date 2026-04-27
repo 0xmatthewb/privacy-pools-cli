@@ -101,6 +101,7 @@ export const GUIDE_TOPICS = [
   { name: "pool-accounts", description: "Pool Account states, approval, and recovery" },
   { name: "agents", description: "Agent mode, discovery, and machine workflows" },
   { name: "json", description: "JSON envelope, field selection, and JMESPath filtering" },
+  { name: "formatting", description: "Output formats, command names, and flag conventions" },
   { name: "modes", description: "Confirmation, dry-run, unsigned, and agent modes" },
   { name: "quiet", description: "Quiet mode and low-noise automation output" },
   { name: "troubleshooting", description: "Common issues and fixes" },
@@ -128,7 +129,9 @@ const GUIDE_TOPIC_ALIASES: Record<string, GuideTopic> = {
   "next-actions": "next-actions",
   nextaction: "next-actions",
   nextactions: "next-actions",
-  formatting: "json",
+  "error-codes": "exit-codes",
+  errorcodes: "exit-codes",
+  formatting: "formatting",
   unsigned: "modes",
   "privacy-delay": "flow-states",
   quiet: "quiet",
@@ -199,7 +202,7 @@ function guideTopicListLines(): string[] {
     chalk.bold("Available Topics"),
     ...GUIDE_TOPICS
       .filter((topic) => topic.name !== "topics")
-      .map((topic) => `  ${accent(topic.name.padEnd(14))}${muted(topic.description)}`),
+      .map((topic) => `  ${accent(topic.name.padEnd(18))}${muted(topic.description)}`),
     "",
     muted("  Run privacy-pools guide <topic> to open one topic."),
     muted("  Common shortcuts: guide flow, guide json, guide troubleshooting."),
@@ -329,7 +332,7 @@ const guideSections: Record<string, () => string[]> = {
     `  ${notice("--jq <expr>")}          Compatibility alias for --jmes (not jq syntax)`,
     `  ${notice("--template <template>")} Render structured output through a lightweight {{path.to.value}} template`,
     `  ${notice("--web")}                 Open the primary explorer or portal link in your browser when available`,
-    `  ${notice("--no-banner")}           Disable ASCII banner`,
+    `  ${notice("--no-banner")}           Disable welcome banner`,
     `  ${notice("--profile <name>")}     Use a named profile (separate wallet identity and config)`,
     "",
     chalk.bold("Environment Variables"),
@@ -465,6 +468,27 @@ const guideSections: Record<string, () => string[]> = {
     `  ${accent("privacy-pools describe envelope.commands.status.successFields --agent")} Deep contract schema fragments.`,
   ],
 
+  formatting: () => [
+    chalk.bold("Output Formats"),
+    `  ${notice("--output table")}  Human-readable default.`,
+    `  ${notice("--output wide")}   Human-readable wide tables on stdout for tabular list commands.`,
+    `  ${notice("--output csv")}    CSV for supported read-only list/report commands.`,
+    `  ${notice("--json")}          Structured envelopes on stdout.`,
+    "",
+    chalk.bold("Command Names"),
+    "  Collection commands use plural root names: accounts, pools, recipients.",
+    "  Detail views use positionals instead of singular aliases:",
+    `  ${accent("privacy-pools pools ETH")}      Pool detail`,
+    `  ${accent("privacy-pools accounts --pool-account PA-1")}  Pool Account detail/filter`,
+    "  For discoverability, pools list and pools ls are accepted aliases for pools.",
+    "",
+    chalk.bold("Short Flag Conventions"),
+    `  ${notice("-c")} chain, ${notice("-r")} RPC URL, ${notice("-j")} JSON, ${notice("-o")} output format.`,
+    `  ${notice("-y")} yes/confirm, ${notice("-q")} quiet, ${notice("-v")} verbose.`,
+    `  ${notice("-p")} is page on paginated public reports; use ${notice("--pool-account")} for Pool Account selection.`,
+    `  Prefer long flags in scripts when a flag controls funds or privacy posture.`,
+  ],
+
   modes: () => [
     chalk.bold("Modes"),
     `  ${notice("--yes")}       Skip confirmation prompts. Use only after the command inputs are fully reviewed.`,
@@ -520,6 +544,7 @@ const guideSections: Record<string, () => string[]> = {
     `  ${dangerTone("6")}  Proof generation error`,
     `  ${dangerTone("7")}  Contract revert`,
     `  ${dangerTone("8")}  ASP error`,
+    `  ${dangerTone("9")}  Prompt or confirmation cancelled`,
   ],
 };
 
@@ -593,7 +618,10 @@ export function guideText(topic?: string): string {
   return allLines.join("\n");
 }
 
-export type HelpExample = string | { category: string; commands: string[] };
+export type HelpExample =
+  | string
+  | { description: string; command: string }
+  | { category: string; commands: Array<string | { description: string; command: string }> };
 export interface HelpFlagGroup {
   heading: string;
   flags: string[];
@@ -640,16 +668,24 @@ export function commandHelpText(config: CommandHelpConfig): string {
 
   if (config.examples && config.examples.length > 0) {
     lines.push("", "Examples:");
-    for (const example of config.examples) {
+    config.examples.forEach((example, index) => {
       if (typeof example === "string") {
-        lines.push(`  ${example}`);
+        lines.push(`  Example ${index + 1}:`);
+        lines.push(`    ${example}`);
+      } else if ("command" in example) {
+        lines.push(`  ${example.description}:`);
+        lines.push(`    ${example.command}`);
       } else {
         lines.push(`  ${example.category}:`);
-        for (const cmd of example.commands) {
-          lines.push(`    ${cmd}`);
+        for (const command of example.commands) {
+          if (typeof command === "string") {
+            lines.push(`    ${command}`);
+          } else {
+            lines.push(`    ${command.description}: ${command.command}`);
+          }
         }
       }
-    }
+    });
   }
 
   if (config.prerequisites) {

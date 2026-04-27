@@ -740,10 +740,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--privacy-delay <profile>",
         "--dry-run",
         "--watch",
+        "--stream-json",
         "--new-wallet",
         "--export-new-wallet <path>"
       ],
-      "agentFlags": "--agent [--privacy-delay <profile>] [--dry-run] [--new-wallet] [--export-new-wallet <path>]",
+      "agentFlags": "--agent [--privacy-delay <profile>] [--dry-run] [--stream-json] [--new-wallet] [--export-new-wallet <path>]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -818,7 +819,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "group": "transaction",
       "usage": "simulate deposit <amount> [asset]",
       "flags": [
-        "--ignore-unique-amount"
+        "--allow-non-round-amounts"
       ],
       "agentFlags": "--agent",
       "requiresInit": true,
@@ -957,9 +958,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
-        "--ignore-unique-amount"
+        "--stream-json",
+        "--allow-non-round-amounts"
       ],
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--stream-json]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -978,9 +980,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
         "--dry-run",
-        "--no-wait"
+        "--no-wait",
+        "--stream-json"
       ],
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--stream-json]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1339,31 +1342,64 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools init",
-            "privacy-pools init --dry-run",
-            "privacy-pools init --signer-only",
-            "privacy-pools init --yes --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
-            "privacy-pools init --force --yes --default-chain mainnet"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools init"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase",
-            "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt",
-            "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools init --dry-run"
         },
         {
-          "name": "Load existing account",
-          "value": [
-            "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt",
-            "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet",
-            "privacy-pools init --signer-only --private-key-file ./my-key.txt",
-            "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools init --signer-only"
+        },
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools init --yes --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
+        },
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools init --force --yes --default-chain mainnet"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools init --agent --default-chain mainnet --show-recovery-phrase"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools init --agent --staged --default-chain mainnet --backup-file ./privacy-pools-recovery.txt"
+        },
+        {
+          "description": "Load existing account",
+          "category": "Load existing account",
+          "command": "privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-file ./my-key.txt"
+        },
+        {
+          "description": "Load existing account",
+          "category": "Load existing account",
+          "command": "cat phrase.txt | privacy-pools init --recovery-phrase-stdin --yes --default-chain mainnet"
+        },
+        {
+          "description": "Load existing account",
+          "category": "Load existing account",
+          "command": "privacy-pools init --signer-only --private-key-file ./my-key.txt"
+        },
+        {
+          "description": "Load existing account",
+          "category": "Load existing account",
+          "command": "printf '%s\\n' 0x... | privacy-pools init --recovery-phrase-file ./my-recovery-phrase.txt --private-key-stdin --yes --default-chain mainnet"
         }
       ],
       "jsonFields": "success: { setupMode, readiness, defaultChain, signerKeySet, mnemonicImported, recoveryPhraseRedacted? | recoveryPhrase?, backupFilePath?, restoreDiscovery?: { status, chainsChecked, foundAccountChains? }, warning?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }; --dry-run: { operation: \"init\", dryRun: true, effectiveChain, recoveryPhraseSource, signerKeySource, backupCaptureMode, backupFilePath?, backupFileWouldWrite, overwriteExisting, overwritePromptRequired, writeTargets[] }",
@@ -1450,19 +1486,29 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools upgrade --check",
-            "privacy-pools upgrade",
-            "privacy-pools upgrade --yes"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools upgrade --check"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools upgrade --agent --check",
-            "privacy-pools upgrade --agent --yes"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools upgrade"
+        },
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools upgrade --yes"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools upgrade --agent --check"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools upgrade --agent --yes"
         }
       ],
       "jsonFields": "{ mode: \"upgrade\", status, currentVersion, latestVersion, updateAvailable, performed, command|null, installContext: { kind, supportedAutoRun, reason }, installedVersion|null, releaseHighlights?: string[], externalGuidance?: { kind, message, command? }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -1537,24 +1583,24 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config list"
+          "description": "Example 1",
+          "command": "privacy-pools config list"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config get default-chain"
+          "description": "Example 2",
+          "command": "privacy-pools config get default-chain"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config set default-chain arbitrum"
+          "description": "Example 3",
+          "command": "privacy-pools config set default-chain arbitrum"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools config unset rpc-override.mainnet"
+          "description": "Example 4",
+          "command": "privacy-pools config unset rpc-override.mainnet"
         },
         {
-          "name": "Example 5",
-          "value": "privacy-pools config path"
+          "description": "Example 5",
+          "command": "privacy-pools config path"
         }
       ],
       "jsonFields": "{ mode: \"help\", command: \"config\", subcommands: [\"list\", \"get\", \"set\", \"unset\", \"path\", \"profile\"], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no subcommand is provided; otherwise each config subcommand returns its own structured payload.",
@@ -1614,12 +1660,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config list"
+          "description": "Example 1",
+          "command": "privacy-pools config list"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config list --agent"
+          "description": "Example 2",
+          "command": "privacy-pools config list --agent"
         }
       ],
       "jsonFields": "{ defaultChain, recoveryPhraseSet, signerKeySet, rpcOverrides: { <chainId>: <url> }, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -1683,20 +1729,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config get default-chain"
+          "description": "Example 1",
+          "command": "privacy-pools config get default-chain"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config get rpc-override.mainnet"
+          "description": "Example 2",
+          "command": "privacy-pools config get rpc-override.mainnet"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config get recovery-phrase --reveal"
+          "description": "Example 3",
+          "command": "privacy-pools config get recovery-phrase --reveal"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools config get signer-key --reveal"
+          "description": "Example 4",
+          "command": "privacy-pools config get signer-key --reveal"
         }
       ],
       "jsonFields": "{ key, value?, set, redacted?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -1761,20 +1807,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config set default-chain arbitrum"
+          "description": "Example 1",
+          "command": "privacy-pools config set default-chain arbitrum"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config set rpc-override.mainnet https://my-rpc.example.com"
+          "description": "Example 2",
+          "command": "privacy-pools config set rpc-override.mainnet https://my-rpc.example.com"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config set recovery-phrase --file ./phrase.txt"
+          "description": "Example 3",
+          "command": "privacy-pools config set recovery-phrase --file ./phrase.txt"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools init --signer-only --private-key-file ./signer-key.txt"
+          "description": "Example 4",
+          "command": "privacy-pools init --signer-only --private-key-file ./signer-key.txt"
         }
       ],
       "jsonFields": "{ key, updated, changed, removed, summary, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -1842,20 +1888,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config unset rpc-override.mainnet"
+          "description": "Example 1",
+          "command": "privacy-pools config unset rpc-override.mainnet"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config unset default-chain"
+          "description": "Example 2",
+          "command": "privacy-pools config unset default-chain"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config unset recovery-phrase"
+          "description": "Example 3",
+          "command": "privacy-pools config unset recovery-phrase"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools config remove signer-key"
+          "description": "Example 4",
+          "command": "privacy-pools config remove signer-key"
         }
       ],
       "jsonFields": null,
@@ -1916,12 +1962,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config path"
+          "description": "Example 1",
+          "command": "privacy-pools config path"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config path --agent"
+          "description": "Example 2",
+          "command": "privacy-pools config path --agent"
         }
       ],
       "jsonFields": "{ configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -1982,16 +2028,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile list"
+          "description": "Example 1",
+          "command": "privacy-pools config profile list"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile create trading"
+          "description": "Example 2",
+          "command": "privacy-pools config profile create trading"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools config profile use trading"
+          "description": "Example 3",
+          "command": "privacy-pools config profile use trading"
         }
       ],
       "jsonFields": null,
@@ -2051,12 +2097,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile list"
+          "description": "Example 1",
+          "command": "privacy-pools config profile list"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile list --agent"
+          "description": "Example 2",
+          "command": "privacy-pools config profile list --agent"
         }
       ],
       "jsonFields": "{ profiles, active, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -2116,12 +2162,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile create trading"
+          "description": "Example 1",
+          "command": "privacy-pools config profile create trading"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile create ops --agent"
+          "description": "Example 2",
+          "command": "privacy-pools config profile create ops --agent"
         }
       ],
       "jsonFields": "{ profile, created, profileDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -2181,12 +2227,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile active"
+          "description": "Example 1",
+          "command": "privacy-pools config profile active"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile active --agent"
+          "description": "Example 2",
+          "command": "privacy-pools config profile active --agent"
         }
       ],
       "jsonFields": "{ profile, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -2246,12 +2292,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools config profile use trading"
+          "description": "Example 1",
+          "command": "privacy-pools config profile use trading"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools config profile use default"
+          "description": "Example 2",
+          "command": "privacy-pools config profile use default"
         }
       ],
       "jsonFields": "{ profile, active, configDir, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -2325,36 +2371,36 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient..."
+          "description": "Example 1",
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient..."
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run"
+          "description": "Example 2",
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --dry-run"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch"
+          "description": "Example 3",
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --watch"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
+          "description": "Example 4",
+          "command": "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
         },
         {
-          "name": "Example 5",
-          "value": "privacy-pools flow watch"
+          "description": "Example 5",
+          "command": "privacy-pools flow watch"
         },
         {
-          "name": "Example 6",
-          "value": "privacy-pools flow status latest"
+          "description": "Example 6",
+          "command": "privacy-pools flow status latest"
         },
         {
-          "name": "Example 7",
-          "value": "privacy-pools flow step latest"
+          "description": "Example 7",
+          "command": "privacy-pools flow step latest"
         },
         {
-          "name": "Example 8",
-          "value": "privacy-pools flow ragequit latest"
+          "description": "Example 8",
+          "command": "privacy-pools flow ragequit latest"
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"start\"|\"watch\"|\"status\"|\"step\"|\"ragequit\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, chain, asset, depositAmount, recipient, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [...] }",
@@ -2436,16 +2482,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools simulate deposit 0.1 ETH"
+          "description": "Example 1",
+          "command": "privacy-pools simulate deposit 0.1 ETH"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
+          "description": "Example 2",
+          "command": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1"
+          "description": "Example 3",
+          "command": "privacy-pools simulate ragequit ETH --pool-account PA-1"
         }
       ],
       "jsonFields": "{ mode: \"help\", command: \"simulate\", subcommands: [\"deposit\", \"withdraw\", \"ragequit\"], help } when no subcommand is provided; otherwise each simulate subcommand returns the exact same payload as the corresponding command's --dry-run variant.",
@@ -2478,6 +2524,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--privacy-delay <profile>",
         "--dry-run",
         "--watch",
+        "--stream-json",
         "--new-wallet",
         "--export-new-wallet <path>"
       ],
@@ -2538,31 +2585,45 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools flow start 0.1 ETH --to 0xRecipient...",
-            "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient..."
         },
         {
-          "name": "With options",
-          "value": [
-            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off",
-            "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools flow start 100 USDC --to 0xRecipient... --chain mainnet"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent",
-            "privacy-pools flow status latest --agent",
-            "privacy-pools flow step latest --agent"
-          ]
+          "description": "With options",
+          "category": "With options",
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --privacy-delay off"
+        },
+        {
+          "description": "With options",
+          "category": "With options",
+          "command": "privacy-pools flow start 100 USDC --to 0xRecipient... --new-wallet --export-new-wallet ./flow-wallet.txt"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools flow start 0.1 ETH --to 0xRecipient... --agent"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools flow status latest --agent"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools flow step latest --agent"
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"start\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
-        "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }"
+        "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }",
+        "--stream-json progress events: { mode: \"flow-progress\", action: \"start\", event: \"stage\", stage, workflowId?, phase? }"
       ],
       "safetyNotes": [
         "Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.",
@@ -2670,18 +2731,24 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools flow watch",
-            "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools flow watch"
         },
         {
-          "name": "With options",
-          "value": [
-            "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy",
-            "privacy-pools flow watch latest --stream-json"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools flow watch 123e4567-e89b-12d3-a456-426614174000"
+        },
+        {
+          "description": "With options",
+          "category": "With options",
+          "command": "privacy-pools flow watch latest --privacy-delay off   # updates the saved privacy-delay policy"
+        },
+        {
+          "description": "With options",
+          "category": "With options",
+          "command": "privacy-pools flow watch latest --stream-json"
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"watch\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -2765,16 +2832,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools flow status"
+          "description": "Example 1",
+          "command": "privacy-pools flow status"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools flow status latest --agent"
+          "description": "Example 2",
+          "command": "privacy-pools flow status latest --agent"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000"
+          "description": "Example 3",
+          "command": "privacy-pools flow status 123e4567-e89b-12d3-a456-426614174000"
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"status\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -2847,16 +2914,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools flow step latest"
+          "description": "Example 1",
+          "command": "privacy-pools flow step latest"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools flow step latest --agent"
+          "description": "Example 2",
+          "command": "privacy-pools flow step latest --agent"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000"
+          "description": "Example 3",
+          "command": "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000"
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"step\", workflowId, workflowKind, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, nextPollAfter|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -2934,16 +3001,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools flow ragequit"
+          "description": "Example 1",
+          "command": "privacy-pools flow ragequit"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools flow ragequit latest --agent"
+          "description": "Example 2",
+          "command": "privacy-pools flow ragequit latest --agent"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
+          "description": "Example 3",
+          "command": "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -3037,25 +3104,34 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools pools",
-            "privacy-pools pools ETH",
-            "privacy-pools pools BOLD --chain mainnet"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools pools"
         },
         {
-          "name": "Search and sort",
-          "value": [
-            "privacy-pools pools --include-testnets --sort tvl-desc",
-            "privacy-pools pools --search usdc --sort asset-asc"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools pools ETH"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools pools --agent --chain mainnet"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools pools BOLD --chain mainnet"
+        },
+        {
+          "description": "Search and sort",
+          "category": "Search and sort",
+          "command": "privacy-pools pools --include-testnets --sort tvl-desc"
+        },
+        {
+          "description": "Search and sort",
+          "category": "Search and sort",
+          "command": "privacy-pools pools --search usdc --sort asset-asc"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools pools --agent --chain mainnet"
         }
       ],
       "jsonFields": "{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -3142,19 +3218,29 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools activity",
-            "privacy-pools activity --page 2 --limit 20",
-            "privacy-pools activity --include-testnets",
-            "privacy-pools activity ETH"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools activity"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools activity USDC --agent --chain mainnet"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools activity --page 2 --limit 20"
+        },
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools activity --include-testnets"
+        },
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools activity ETH"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools activity USDC --agent --chain mainnet"
         }
       ],
       "jsonFields": "{ mode, chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -3219,12 +3305,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools protocol-stats"
+          "description": "Example 1",
+          "command": "privacy-pools protocol-stats"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools protocol-stats --agent"
+          "description": "Example 2",
+          "command": "privacy-pools protocol-stats --agent"
         }
       ],
       "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
@@ -3291,12 +3377,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools pool-stats ETH"
+          "description": "Example 1",
+          "command": "privacy-pools pool-stats ETH"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools pool-stats USDC --agent --chain mainnet"
+          "description": "Example 2",
+          "command": "privacy-pools pool-stats USDC --agent --chain mainnet"
         }
       ],
       "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
@@ -3373,20 +3459,34 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools status",
-            "privacy-pools status --check",
-            "privacy-pools status --check asp",
-            "privacy-pools status --no-check"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools status"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools status --agent --check rpc",
-            "privacy-pools status --chain mainnet --rpc-url https://..."
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools status --check"
+        },
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools status --check asp"
+        },
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools status --no-check"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools status --agent --check rpc"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools status --chain mainnet --rpc-url https://..."
         }
       ],
       "jsonFields": "{ mode: \"cli-status\", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
@@ -3446,12 +3546,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000"
+          "description": "Example 1",
+          "command": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent"
+          "description": "Example 2",
+          "command": "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent"
         }
       ],
       "jsonFields": "{ operation: \"tx-status\", submissionId, sourceOperation, sourceCommand, chain, asset?, poolAccountId?, poolAccountNumber?, workflowId?, recipient?, broadcastMode?, broadcastSourceOperation?, createdAt, updatedAt, status: \"submitted\"|\"confirmed\"|\"reverted\", reconciliationRequired, localStateSynced, warningCode?, lastError?, estimatedConfirmationSeconds?, pollingRecommendation?: { initialSeconds, maxSeconds, backoffFactor }, transactions: [{ index, description, txHash, explorerUrl, blockNumber, status }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -3515,12 +3615,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools capabilities"
+          "description": "Example 1",
+          "command": "privacy-pools capabilities"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools capabilities --agent"
+          "description": "Example 2",
+          "command": "privacy-pools capabilities --agent"
         }
       ],
       "jsonFields": "{ commands[{ group, ... }], commandDetails{ ...group... }, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -3586,27 +3686,27 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools describe withdraw"
+          "description": "Example 1",
+          "command": "privacy-pools describe withdraw"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools describe withdraw quote --agent"
+          "description": "Example 2",
+          "command": "privacy-pools describe withdraw quote --agent"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools describe protocol-stats --agent"
+          "description": "Example 3",
+          "command": "privacy-pools describe protocol-stats --agent"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools describe envelope.nextActions --agent"
+          "description": "Example 4",
+          "command": "privacy-pools describe envelope.nextActions --agent"
         },
         {
-          "name": "Example 5",
-          "value": "privacy-pools describe envelope.commands.status.successFields --agent"
+          "description": "Example 5",
+          "command": "privacy-pools describe envelope.commands.status.successFields --agent"
         }
       ],
-      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
+      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples: [{ description, command, category? }], jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -3666,20 +3766,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools guide"
+          "description": "Example 1",
+          "command": "privacy-pools guide"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools guide json"
+          "description": "Example 2",
+          "command": "privacy-pools guide json"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools help modes"
+          "description": "Example 3",
+          "command": "privacy-pools help modes"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools guide --agent"
+          "description": "Example 4",
+          "command": "privacy-pools guide --agent"
         }
       ],
       "jsonFields": "{ mode: \"help\", topic?, topics: [{ name, description }], help, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -3707,7 +3807,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
-        "--ignore-unique-amount"
+        "--stream-json",
+        "--allow-non-round-amounts"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3769,32 +3870,42 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools deposit 0.1 ETH",
-            "privacy-pools deposit 100 USDC"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools deposit 0.1 ETH"
         },
         {
-          "name": "With options",
-          "value": [
-            "privacy-pools deposit 0.1 ETH --chain mainnet",
-            "privacy-pools deposit 0.1 ETH --dry-run"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools deposit 100 USDC"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools deposit 0.05 ETH --agent",
-            "privacy-pools deposit 0.1 ETH --unsigned"
-          ]
+          "description": "With options",
+          "category": "With options",
+          "command": "privacy-pools deposit 0.1 ETH --chain mainnet"
+        },
+        {
+          "description": "With options",
+          "category": "With options",
+          "command": "privacy-pools deposit 0.1 ETH --dry-run"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools deposit 0.05 ETH --agent"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools deposit 0.1 ETH --unsigned"
         }
       ],
       "jsonFields": "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, workflowId, txHash, amount, committedValue, estimatedCommitted, vettingFeeBPS, vettingFeeAmount, feesApply, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, label, blockNumber|null, explorerUrl, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, precommitment, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
-        "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }"
+        "--dry-run: { dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply }",
+        "--stream-json progress events: { mode: \"deposit-progress\", operation: \"deposit\", event: \"stage\", stage, chain?, asset?, txHash? }"
       ],
       "safetyNotes": [
         "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
@@ -3834,7 +3945,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
         "--dry-run",
-        "--no-wait"
+        "--no-wait",
+        "--stream-json"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3902,31 +4014,39 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
-            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools withdraw 0.05 ETH --to 0xRecipient..."
         },
         {
-          "name": "Amount variants",
-          "value": [
-            "privacy-pools withdraw --all ETH --to 0xRecipient...",
-            "privacy-pools withdraw 50% ETH --to 0xRecipient..."
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --pool-account PA-2"
         },
         {
-          "name": "With options",
-          "value": [
-            "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run",
-            "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet"
-          ]
+          "description": "Amount variants",
+          "category": "Amount variants",
+          "command": "privacy-pools withdraw --all ETH --to 0xRecipient..."
         },
         {
-          "name": "Quote",
-          "value": [
-            "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
-          ]
+          "description": "Amount variants",
+          "category": "Amount variants",
+          "command": "privacy-pools withdraw 50% ETH --to 0xRecipient..."
+        },
+        {
+          "description": "With options",
+          "category": "With options",
+          "command": "privacy-pools withdraw 0.1 ETH --to 0xRecipient... --dry-run"
+        },
+        {
+          "description": "With options",
+          "category": "With options",
+          "command": "privacy-pools withdraw 0.05 ETH --to 0xRecipient... --chain mainnet"
+        },
+        {
+          "description": "Quote",
+          "category": "Quote",
+          "command": "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
         }
       ],
       "jsonFields": "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, mode, txHash, blockNumber|null, amount, recipient, explorerUrl, poolAddress, scope, asset, chain, poolAccountNumber, poolAccountId, feeBPS, relayerHost?, quoteRefreshCount?, extraGas?, remainingBalance, rootMatchedAtProofTime?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -3935,7 +4055,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "quote: { mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, relayerHost?, quoteRefreshCount?, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
         "--unsigned: { mode, operation, withdrawMode, chain, transactions[], quoteSummary?: { quotedAt, quoteExpiresAt, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, relayerHost, extraGas } (relayed), ... } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
-        "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }"
+        "--dry-run: { operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage } }",
+        "--stream-json progress events: { mode: \"withdraw-progress\", operation: \"withdraw\", event: \"stage\", stage, withdrawMode, chain?, asset?, txHash? }"
       ],
       "safetyNotes": [
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
@@ -4010,16 +4131,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
+          "description": "Example 1",
+          "command": "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient..."
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw quote ETH 0.1 --to 0xRecipient..."
+          "description": "Example 2",
+          "command": "privacy-pools withdraw quote ETH 0.1 --to 0xRecipient..."
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools withdraw quote 100 USDC --agent --chain mainnet"
+          "description": "Example 3",
+          "command": "privacy-pools withdraw quote 100 USDC --agent --chain mainnet"
         }
       ],
       "jsonFields": "{ mode: \"relayed-quote\", chain, asset, amount, recipient, minWithdrawAmount, minWithdrawAmountFormatted, baseFeeBPS, quoteFeeBPS, feeAmount, netAmount, feeCommitmentPresent, quoteExpiresAt, relayTxCost, extraGas?, extraGasFundAmount?, extraGasTxCost?, isTestnet, anonymitySet?: { eligible, total, percentage }, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -4085,16 +4206,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients"
+          "description": "Example 1",
+          "command": "privacy-pools recipients"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recipients add 0xRecipient... treasury"
+          "description": "Example 2",
+          "command": "privacy-pools recipients add 0xRecipient... treasury"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools recipients remove 0xRecipient..."
+          "description": "Example 3",
+          "command": "privacy-pools recipients remove 0xRecipient..."
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
@@ -4159,12 +4280,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients list"
+          "description": "Example 1",
+          "command": "privacy-pools recipients list"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recents"
+          "description": "Example 2",
+          "command": "privacy-pools recents"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
@@ -4228,12 +4349,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients add 0xRecipient... treasury"
+          "description": "Example 1",
+          "command": "privacy-pools recipients add 0xRecipient... treasury"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recipients add vitalik.eth --label donations"
+          "description": "Example 2",
+          "command": "privacy-pools recipients add vitalik.eth --label donations"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
@@ -4296,12 +4417,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients remove 0xRecipient..."
+          "description": "Example 1",
+          "command": "privacy-pools recipients remove 0xRecipient..."
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recipients rm treasury.eth"
+          "description": "Example 2",
+          "command": "privacy-pools recipients rm treasury.eth"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
@@ -4361,12 +4482,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools recipients clear"
+          "description": "Example 1",
+          "command": "privacy-pools recipients clear"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools recipients clear --yes"
+          "description": "Example 2",
+          "command": "privacy-pools recipients clear --yes"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"clear\", removedCount }",
@@ -4430,16 +4551,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients"
+          "description": "Example 1",
+          "command": "privacy-pools withdraw recipients"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+          "description": "Example 2",
+          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools withdraw recipients remove 0xRecipient..."
+          "description": "Example 3",
+          "command": "privacy-pools withdraw recipients remove 0xRecipient..."
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
@@ -4504,12 +4625,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients list"
+          "description": "Example 1",
+          "command": "privacy-pools withdraw recipients list"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recents"
+          "description": "Example 2",
+          "command": "privacy-pools withdraw recents"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
@@ -4573,12 +4694,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+          "description": "Example 1",
+          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recipients add vitalik.eth --label donations"
+          "description": "Example 2",
+          "command": "privacy-pools withdraw recipients add vitalik.eth --label donations"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
@@ -4641,12 +4762,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients remove 0xRecipient..."
+          "description": "Example 1",
+          "command": "privacy-pools withdraw recipients remove 0xRecipient..."
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recipients rm treasury.eth"
+          "description": "Example 2",
+          "command": "privacy-pools withdraw recipients rm treasury.eth"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
@@ -4706,12 +4827,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools withdraw recipients clear"
+          "description": "Example 1",
+          "command": "privacy-pools withdraw recipients clear"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools withdraw recipients clear --yes"
+          "description": "Example 2",
+          "command": "privacy-pools withdraw recipients clear --yes"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"clear\", removedCount }",
@@ -4792,18 +4913,24 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools ragequit ETH --pool-account PA-1",
-            "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools ragequit ETH --pool-account PA-1"
         },
         {
-          "name": "Advanced modes",
-          "value": [
-            "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
-            "privacy-pools ragequit ETH --dry-run --pool-account PA-1"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools ragequit ETH --pool-account PA-1 --chain mainnet"
+        },
+        {
+          "description": "Advanced modes",
+          "category": "Advanced modes",
+          "command": "privacy-pools ragequit ETH --unsigned --pool-account PA-1"
+        },
+        {
+          "description": "Advanced modes",
+          "category": "Advanced modes",
+          "command": "privacy-pools ragequit ETH --dry-run --pool-account PA-1"
         }
       ],
       "jsonFields": "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber|null, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -4814,7 +4941,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "safetyNotes": [
         "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.",
-        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.",
+        "Ragequit returns the full Pool Account balance, including any pending portion still under ASP review, to the original deposit address. You will not gain any privacy: this transaction publicly links your deposit to its withdrawal. This cannot be undone.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
@@ -4841,7 +4968,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "simulate deposit <amount> [asset]",
       "flags": [
-        "--ignore-unique-amount"
+        "--allow-non-round-amounts"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -4880,12 +5007,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools simulate deposit 0.1 ETH"
+          "description": "Example 1",
+          "command": "privacy-pools simulate deposit 0.1 ETH"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools simulate deposit 100 USDC --agent --chain mainnet"
+          "description": "Example 2",
+          "command": "privacy-pools simulate deposit 100 USDC --agent --chain mainnet"
         }
       ],
       "jsonFields": "{ dryRun, operation, chain, asset, amount, poolAccountNumber, poolAccountId, precommitment, balanceSufficient, vettingFeeBPS, vettingFeeAmount, estimatedCommitted, feesApply, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -4962,12 +5089,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
+          "description": "Example 1",
+          "command": "privacy-pools simulate withdraw 0.05 ETH --to 0xRecipient..."
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain mainnet"
+          "description": "Example 2",
+          "command": "privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain mainnet"
         }
       ],
       "jsonFields": "{ operation, mode, dryRun, amount, asset, chain, recipient, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, feeBPS?, quoteExpiresAt?, relayerHost?, quoteRefreshCount?, extraGas?, anonymitySet?: { eligible, total, percentage }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -5042,12 +5169,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1"
+          "description": "Example 1",
+          "command": "privacy-pools simulate ragequit ETH --pool-account PA-1"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet"
+          "description": "Example 2",
+          "command": "privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet"
         }
       ],
       "jsonFields": "{ dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -5122,20 +5249,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools broadcast ./signed-deposit-envelope.json"
+          "description": "Example 1",
+          "command": "privacy-pools broadcast ./signed-deposit-envelope.json"
         },
         {
-          "name": "Example 2",
-          "value": "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent --no-wait"
+          "description": "Example 2",
+          "command": "cat ./signed-ragequit-envelope.json | privacy-pools broadcast - --agent --no-wait"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent --no-wait"
+          "description": "Example 3",
+          "command": "privacy-pools broadcast ./relayed-withdraw-envelope.json --agent --no-wait"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools broadcast ./signed-envelope.json --validate-only --agent"
+          "description": "Example 4",
+          "command": "privacy-pools broadcast ./signed-envelope.json --validate-only --agent"
         }
       ],
       "jsonFields": "{ mode: \"broadcast\", broadcastMode: \"onchain\"|\"relayed\", sourceOperation: \"deposit\"|\"withdraw\"|\"ragequit\", chain, validatedOnly?: boolean, submissionId?, submittedBy?, transactions: [{ index, description, txHash: string|null, blockNumber: string|null, explorerUrl: string|null, status: \"submitted\"|\"confirmed\"|\"validated\" }], localStateUpdated: false, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -5239,28 +5366,49 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools accounts",
-            "privacy-pools accounts --include-testnets",
-            "privacy-pools accounts --details"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools accounts"
         },
         {
-          "name": "Compact modes",
-          "value": [
-            "privacy-pools accounts --summary",
-            "privacy-pools accounts --chain <name> --pending-only",
-            "privacy-pools accounts --chain <name> --status approved",
-            "privacy-pools accounts --chain <name> --pending-only --watch"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools accounts --include-testnets"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools accounts --agent",
-            "privacy-pools accounts --no-sync --chain mainnet"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools accounts --details"
+        },
+        {
+          "description": "Compact modes",
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --summary"
+        },
+        {
+          "description": "Compact modes",
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --chain <name> --pending-only"
+        },
+        {
+          "description": "Compact modes",
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --chain <name> --status approved"
+        },
+        {
+          "description": "Compact modes",
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --chain <name> --pending-only --watch"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools accounts --agent"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools accounts --no-sync --chain mainnet"
         }
       ],
       "jsonFields": "{ chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -5332,16 +5480,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools migrate status"
+          "description": "Example 1",
+          "command": "privacy-pools migrate status"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools migrate status --chain mainnet"
+          "description": "Example 2",
+          "command": "privacy-pools migrate status --chain mainnet"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools migrate status --include-testnets --agent"
+          "description": "Example 3",
+          "command": "privacy-pools migrate status --include-testnets --agent"
         }
       ],
       "jsonFields": null,
@@ -5406,16 +5554,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools migrate status"
+          "description": "Example 1",
+          "command": "privacy-pools migrate status"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools migrate status --chain mainnet"
+          "description": "Example 2",
+          "command": "privacy-pools migrate status --chain mainnet"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools migrate status --include-testnets --agent"
+          "description": "Example 3",
+          "command": "privacy-pools migrate status --include-testnets --agent"
         }
       ],
       "jsonFields": "{ mode: \"migration-status\", chain, allChains?, chains?, warnings?, status, requiresMigration, requiresWebsiteRecovery, isFullyMigrated, readinessResolved, submissionSupported: false, requiredChainIds, migratedChainIds, missingChainIds, websiteRecoveryChainIds, unresolvedChainIds, chainReadiness: [{ chain, chainId, status, candidateLegacyCommitments, expectedLegacyCommitments, migratedCommitments, legacyMasterSeedNullifiedCount, hasPostMigrationCommitments, isMigrated, legacySpendableCommitments, upgradedSpendableCommitments, declinedLegacyCommitments, reviewStatusComplete, requiresMigration, requiresWebsiteRecovery, scopes }], externalGuidance?: { kind, message, url }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -5498,18 +5646,24 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Basic",
-          "value": [
-            "privacy-pools history",
-            "privacy-pools history --limit 10"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools history"
         },
         {
-          "name": "Agent / CI",
-          "value": [
-            "privacy-pools history --agent",
-            "privacy-pools history --no-sync --chain mainnet"
-          ]
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools history --limit 10"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools history --agent"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools history --no-sync --chain mainnet"
         }
       ],
       "jsonFields": "{ mode: \"private-history\", chain, page, perPage, total, totalPages, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -5577,16 +5731,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools sync"
+          "description": "Example 1",
+          "command": "privacy-pools sync"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools sync ETH --agent"
+          "description": "Example 2",
+          "command": "privacy-pools sync ETH --agent"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools sync --chain mainnet"
+          "description": "Example 3",
+          "command": "privacy-pools sync --chain mainnet"
         }
       ],
       "jsonFields": "{ isFinal: true, chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -5660,28 +5814,28 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "structuredExamples": [
         {
-          "name": "Example 1",
-          "value": "privacy-pools completion --install"
+          "description": "Example 1",
+          "command": "privacy-pools completion --install"
         },
         {
-          "name": "Example 2",
-          "value": "privacy-pools completion --install zsh"
+          "description": "Example 2",
+          "command": "privacy-pools completion --install zsh"
         },
         {
-          "name": "Example 3",
-          "value": "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools"
+          "description": "Example 3",
+          "command": "privacy-pools completion zsh > ~/.zsh/completions/_privacy-pools"
         },
         {
-          "name": "Example 4",
-          "value": "privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools"
+          "description": "Example 4",
+          "command": "privacy-pools completion bash > ~/.local/share/bash-completion/completions/privacy-pools"
         },
         {
-          "name": "Example 5",
-          "value": "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish"
+          "description": "Example 5",
+          "command": "privacy-pools completion fish > ~/.config/fish/completions/privacy-pools.fish"
         },
         {
-          "name": "Example 6",
-          "value": "privacy-pools completion powershell >> $PROFILE"
+          "description": "Example 6",
+          "command": "privacy-pools completion powershell >> $PROFILE"
         }
       ],
       "jsonFields": "{ mode, shell, completionScript? | scriptPath?, profilePath?, scriptCreated?, scriptUpdated?, profileCreated?, profileUpdated?, bootstrapProfilePath?, bootstrapProfileCreated?, bootstrapProfileUpdated?, reloadHint?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -6078,7 +6232,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "flag": "--no-banner",
-      "description": "Disable ASCII banner output"
+      "description": "Disable welcome banner output"
     },
     {
       "flag": "-v, --verbose",
@@ -6130,7 +6284,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "code": 2,
       "category": "INPUT",
       "errorCode": "INPUT_ERROR",
-      "description": "Invalid input, prompt cancellation in machine mode, or validation failure."
+      "description": "Invalid input or validation failure."
+    },
+    {
+      "code": 9,
+      "category": "CANCELLED",
+      "errorCode": "PROMPT_CANCELLED",
+      "description": "User cancelled an interactive prompt or confirmation."
     },
     {
       "code": 4,
@@ -6189,6 +6349,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "name": "NO_COLOR",
       "description": "Disable colored output, matching --no-color."
+    },
+    {
+      "name": "FORCE_COLOR",
+      "description": "Force colored output when supported by the terminal renderer."
     },
     {
       "name": "PRIVACY_POOLS_BANNER",

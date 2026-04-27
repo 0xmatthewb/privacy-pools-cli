@@ -90,7 +90,7 @@ export const ROOT_GLOBAL_FLAG_METADATA: readonly RootGlobalFlagEntry[] = [
   },
   {
     flag: "--no-banner",
-    description: "Disable ASCII banner output",
+    description: "Disable welcome banner output",
     takesValue: false,
     welcomeBoolean: true,
   },

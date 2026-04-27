@@ -47,9 +47,44 @@ export interface PoolWarning {
   message: string;
 }
 
+export interface PoolBaseFields {
+  asset: string;
+  tokenAddress: string;
+  pool: string;
+  scope: string;
+  decimals: number;
+  minimumDeposit: string;
+  vettingFeeBPS: string;
+  maxRelayFeeBPS: string;
+  totalInPoolValue: string | null;
+  totalInPoolValueUsd: string | null;
+  totalDepositsValue: string | null;
+  totalDepositsValueUsd: string | null;
+  acceptedDepositsValue: string | null;
+  acceptedDepositsValueUsd: string | null;
+  pendingDepositsValue: string | null;
+  pendingDepositsValueUsd: string | null;
+  totalDepositsCount: number | null;
+  acceptedDepositsCount: number | null;
+  pendingDepositsCount: number | null;
+  growth24h: number | null;
+  pendingGrowth24h: number | null;
+}
+
+export interface PoolListItem extends PoolBaseFields {
+  chain?: string;
+  myPoolAccountsCount?: number;
+}
+
+export interface PoolDetail extends PoolBaseFields {
+  chain: string;
+  requestedChain?: string | null;
+}
+
 export interface PoolsRenderData {
   allChains: boolean;
   chainName: string;
+  requestedChain?: string | null;
   multiChainLabel?: "all-mainnets" | "all-chains";
   search: string | null;
   sort: string;
@@ -80,8 +115,8 @@ export function poolToJson(
   pool: PoolStats,
   chain?: string,
   myPoolAccountsCount?: number,
-): Record<string, string | number | null> {
-  const payload: Record<string, string | number | null> = {
+): PoolListItem {
+  const payload: PoolListItem = {
     asset: pool.symbol,
     tokenAddress: pool.asset,
     pool: pool.pool,
@@ -126,6 +161,7 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
         appendNextActions(
           {
             chain: data.multiChainLabel ?? "all-mainnets",
+            ...(data.requestedChain ? { requestedChain: data.requestedChain } : {}),
             search: data.search,
             sort: data.sort,
             chainSummaries: data.chainSummaries ?? [],
@@ -135,7 +171,13 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
         ),
       );
     } else {
-      printJsonSuccess(appendNextActions({ chain: data.chainName, search: data.search, sort: data.sort, pools: [] }, emptyNextActions));
+      printJsonSuccess(appendNextActions({
+        chain: data.chainName,
+        ...(data.requestedChain ? { requestedChain: data.requestedChain } : {}),
+        search: data.search,
+        sort: data.sort,
+        pools: [],
+      }, emptyNextActions));
     }
     return;
   }
@@ -233,6 +275,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     if (allChains) {
       printJsonSuccess(appendNextActions({
         chain: data.multiChainLabel ?? "all-mainnets",
+        ...(data.requestedChain ? { requestedChain: data.requestedChain } : {}),
         search,
         sort,
         chainSummaries: chainSummaries ?? [],
@@ -244,6 +287,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     } else {
       printJsonSuccess(appendNextActions({
         chain: chainName,
+        ...(data.requestedChain ? { requestedChain: data.requestedChain } : {}),
         search,
         sort,
         pools: filteredPools.map((entry) =>
@@ -294,15 +338,16 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
 
   const silent = isSilent(ctx);
   if (silent) return;
+  const out = ctx.mode.isWide ? process.stdout : process.stderr;
 
   if (allChains) {
-    process.stderr.write(`\n${accentBold("Pools across supported chains:")}\n\n`);
+    out.write(`\n${accentBold("Pools across supported chains:")}\n\n`);
   } else {
-    process.stderr.write(`\n${accentBold(`Pools on ${chainName}:`)}\n\n`);
+    out.write(`\n${accentBold(`Pools on ${chainName}:`)}\n\n`);
   }
 
   if (warnings.length > 0) {
-    process.stderr.write(
+    out.write(
       formatCallout(
         "warning",
         warnings.map((warning) => `${warning.chain} (${warning.category}): ${warning.message}`),
@@ -319,8 +364,8 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     return;
   }
 
-  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
-  process.stderr.write(
+  out.write(formatSectionHeading("Summary", { divider: true }));
+  out.write(
     formatKeyValueRows([
       { label: "Chain", value: allChains ? "all supported chains" : chainName },
       { label: "Matched pools", value: String(filteredPools.length) },
@@ -374,13 +419,13 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   } else {
     for (const { chain, pool, myPoolAccountsCount } of filteredPools) {
       const dd = displayDecimals(pool.decimals);
-      process.stderr.write(
+      out.write(
         formatSectionHeading(
           allChains ? `${chain} · ${pool.symbol}` : pool.symbol,
           { divider: true },
         ),
       );
-      process.stderr.write(
+      out.write(
         formatStackedKeyValueRows([
           {
             label: "Pool Balance",
@@ -419,7 +464,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     }
   }
   if (ctx.mode.verboseLevel >= 1) {
-    process.stderr.write(
+    out.write(
       muted(
         "\nVetting fees are deducted on deposit.\n" +
         "Pool Balance: current total value in the pool (accepted + pending deposits).\n" +
@@ -441,6 +486,7 @@ export interface PoolDetailActivityEvent {
 
 export interface PoolDetailRenderData {
   chain: string;
+  requestedChain?: string | null;
   pool: PoolStats;
   tokenPrice: number | null;
   walletState: "available" | "setup_required" | "load_failed";
@@ -471,6 +517,7 @@ function formatReviewSummary(poolAccounts: PoolAccountRef[]): string {
 export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData): void {
   const {
     chain,
+    requestedChain,
     pool,
     tokenPrice,
     walletState,
@@ -575,6 +622,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
       chain,
+      ...(requestedChain ? { requestedChain } : {}),
       ...poolToJson(pool),
     };
 

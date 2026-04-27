@@ -912,35 +912,13 @@ export async function resolvePool(
       throw new CLIError(
         `No pool found for asset ${assetInput} on ${chainConfig.name}.`,
         "INPUT",
-        "Check the asset address and chain."
+        "Check the asset address and chain.",
+        "INPUT_UNKNOWN_ASSET",
       );
     }
   }
 
   const normalized = assetInput.toUpperCase();
-  const knownAddress = KNOWN_POOLS[chainConfig.id]?.[normalized];
-  if (knownAddress) {
-    try {
-      return await resolveKnownPoolAddress(
-        rpcSession,
-        chainConfig,
-        knownAddress,
-        assetInput,
-        rpcOverride,
-      );
-    } catch (error) {
-      emitRuntimeDiagnostic("pool-resolution", {
-        chain: chainConfig.name,
-        operation: "resolve",
-        mode: "known-pool",
-        asset: assetInput,
-        elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
-        outcome: "error",
-        errorCategory: error instanceof CLIError ? error.category : undefined,
-      });
-      throw error;
-    }
-  }
 
   // Resolve unknown symbols through the ASP-backed registry first so callers
   // receive aggregate TVL/deposit metrics and helpful suggestions when available.
@@ -979,6 +957,32 @@ export async function resolvePool(
     }
     // ASP unavailable — fall through to hardcoded fallback.
     aspLookupFailed = true;
+  }
+
+  const knownAddress = KNOWN_POOLS[chainConfig.id]?.[normalized];
+  if (knownAddress) {
+    try {
+      return await resolveKnownPoolAddress(
+        rpcSession,
+        chainConfig,
+        knownAddress,
+        assetInput,
+        rpcOverride,
+      );
+    } catch (error) {
+      emitRuntimeDiagnostic("pool-resolution", {
+        chain: chainConfig.name,
+        operation: "resolve",
+        mode: "known-pool",
+        asset: assetInput,
+        elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
+        outcome: "error",
+        errorCategory: error instanceof CLIError ? error.category : undefined,
+      });
+      if (!aspLookupFailed || !hasCustomRpc) {
+        throw error;
+      }
+    }
   }
 
   try {
@@ -1039,7 +1043,8 @@ export async function resolvePool(
     throw new CLIError(
       `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,
       "INPUT",
-      assetHint
+      assetHint,
+      "INPUT_UNKNOWN_ASSET",
     );
   }
 
@@ -1054,6 +1059,7 @@ export async function resolvePool(
   throw new CLIError(
     `No pool found for asset "${assetInput}" on ${chainConfig.name}.`,
     "INPUT",
-    "The ASP may be offline. Try using the token contract address as the positional asset (0x...)."
+    "The ASP may be offline. Try using the token contract address as the positional asset (0x...).",
+    "INPUT_UNKNOWN_ASSET",
   );
 }

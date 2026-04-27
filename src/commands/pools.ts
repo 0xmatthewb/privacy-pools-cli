@@ -86,6 +86,19 @@ function parseSortMode(raw: string | undefined): PoolsSortMode {
   );
 }
 
+function getRootGlobalOptions(cmd: Command): GlobalOptions {
+  const withGlobals = (cmd as Command & {
+    optsWithGlobals?: () => Record<string, unknown>;
+  }).optsWithGlobals;
+  if (typeof withGlobals === "function") {
+    return withGlobals.call(cmd) as GlobalOptions;
+  }
+
+  return (cmd.parent?.parent?.opts() ??
+    cmd.parent?.opts?.() ??
+    {}) as GlobalOptions;
+}
+
 function poolFundsMetric(pool: PoolStats): bigint {
   return pool.totalInPoolValue ?? pool.acceptedDepositsValue ?? 0n;
 }
@@ -338,10 +351,10 @@ export async function handlePoolsCommand(
   opts: PoolsCommandOptions,
   cmd: Command,
 ): Promise<void> {
-  const globalOpts = cmd.parent?.opts() as GlobalOptions;
+  const globalOpts = getRootGlobalOptions(cmd);
   const mode = resolveGlobalMode(globalOpts);
   const ctx = createOutputContext(mode);
-  const silent = isSilent(ctx);
+  const silent = isSilent(ctx) || mode.isWide;
   const isVerbose = globalOpts?.verbose ?? false;
 
   if (await maybeRenderPreviewScenario("pools")) {
@@ -467,6 +480,9 @@ export async function handlePoolsCommand(
 
       renderPoolDetail(ctx, {
         chain: chainConfig.name,
+        requestedChain: globalOpts?.chain && globalOpts.chain !== chainConfig.name
+          ? globalOpts.chain
+          : null,
         pool,
         tokenPrice,
         walletState,
@@ -562,6 +578,9 @@ export async function handlePoolsCommand(
     const renderData: PoolsRenderData = {
       allChains: isMultiChain,
       chainName: chainsToQuery[0].name,
+      requestedChain: explicitChain && explicitChain !== chainsToQuery[0].name
+        ? explicitChain
+        : null,
       multiChainLabel: chainResults.some((result) => result.chainConfig.isTestnet)
         ? "all-chains"
         : "all-mainnets",
@@ -600,4 +619,11 @@ export async function handlePoolsCommand(
   } catch (error) {
     printError(error, mode.isJson);
   }
+}
+
+export async function handlePoolsListAliasCommand(
+  opts: PoolsCommandOptions,
+  cmd: Command,
+): Promise<void> {
+  await handlePoolsCommand(undefined, opts, cmd);
 }

@@ -116,6 +116,56 @@ function commanderUnknownOptionHint(
   return "Use --help to see usage and examples.";
 }
 
+function commandSpecificMissingArgumentError(
+  normalized: string,
+  context?: { rootCommand?: string },
+): CLIError | null {
+  const missingMatch = normalized.match(
+    /missing (?:required )?argument ['"]?<?([^>'"]+)>?['"]?/i,
+  );
+  const missingName = missingMatch?.[1]?.toLowerCase();
+  if (!missingName) return null;
+
+  if (context?.rootCommand === "deposit" && missingName === "amount") {
+    return new CLIError(
+      "Missing amount. Specify an amount to deposit.",
+      "INPUT",
+      "Example: privacy-pools deposit 0.1 ETH",
+      "INPUT_MISSING_AMOUNT",
+    );
+  }
+
+  if (context?.rootCommand === "flow") {
+    if (missingName === "amount") {
+      return new CLIError(
+        "Missing amount. Specify an amount for the flow deposit.",
+        "INPUT",
+        "Example: privacy-pools flow start 0.1 ETH --to 0xRecipient",
+        "INPUT_MISSING_AMOUNT",
+      );
+    }
+    if (missingName === "asset") {
+      return new CLIError(
+        "Missing asset. Specify the pool asset for the flow deposit.",
+        "INPUT",
+        "Example: privacy-pools flow start 0.1 ETH --to 0xRecipient",
+        "INPUT_MISSING_ASSET",
+      );
+    }
+  }
+
+  if (context?.rootCommand === "pool-stats" && missingName === "asset") {
+    return new CLIError(
+      "Missing asset argument.",
+      "INPUT",
+      "Example: privacy-pools pool-stats ETH",
+      "INPUT_MISSING_ASSET",
+    );
+  }
+
+  return null;
+}
+
 function mapCommanderErrorWithContext(
   error: unknown,
   context?: { rootCommand?: string },
@@ -152,6 +202,14 @@ function mapCommanderErrorWithContext(
               /invalid argument|invalid value/i.test(normalized)
             ? "INPUT_INVALID_VALUE"
             : "INPUT_PARSE_ERROR";
+    if (errorCode === "INPUT_MISSING_ARGUMENT") {
+      const commandSpecific = commandSpecificMissingArgumentError(
+        normalized,
+        context,
+      );
+      if (commandSpecific) return commandSpecific;
+    }
+
     return new CLIError(
       normalized || "Invalid command input.",
       "INPUT",

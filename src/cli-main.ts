@@ -10,6 +10,7 @@ import { createRootProgram } from "./program.js";
 import {
   allNonOptionTokens,
   firstNonOptionToken,
+  hasLongFlag,
   hasShortFlag,
   isWelcomeFlagOnlyInvocation,
   isWelcomeShortFlagBundle,
@@ -25,6 +26,16 @@ import { installOutputAnsiGuards } from "./utils/terminal.js";
 import { buildGuidePayload, guideText, resolveGuideTopic } from "./utils/help.js";
 import { printJsonSuccess } from "./utils/json.js";
 import { setModeArgv } from "./utils/mode.js";
+
+function normalizeHelpVerbosityArgv(argv: string[]): string[] {
+  const requestsHelpVerbosity =
+    hasLongFlag(argv, "--help-brief") || hasLongFlag(argv, "--help-full");
+  const alreadyRequestsHelp = hasLongFlag(argv, "--help") || hasShortFlag(argv, "h");
+  if (!requestsHelpVerbosity || alreadyRequestsHelp) {
+    return argv;
+  }
+  return [...argv, "--help"];
+}
 
 const {
   normalizeRepositoryUrl,
@@ -45,7 +56,9 @@ export async function runCli(
   pkg: CliPackageInfo,
   argv: string[] = process.argv.slice(2),
 ): Promise<void> {
-  const normalizedArgv = normalizeJsonFieldSelectionArgv(argv);
+  const normalizedArgv = normalizeHelpVerbosityArgv(
+    normalizeJsonFieldSelectionArgv(argv),
+  );
   installOutputAnsiGuards();
   setModeArgv(normalizedArgv);
 
@@ -197,6 +210,16 @@ export async function runCli(
         process.stderr.write(muted!(notice) + "\n");
       }
     }
+    if (hasLongFlag(normalizedArgv, "--web") && !isMachineMode && !isQuiet) {
+      const { consumeBrowserLaunchTracking } = await import("./utils/web.js");
+      const browserLaunch = consumeBrowserLaunchTracking();
+      if (!browserLaunch.attempted) {
+        process.stderr.write(
+          muted!("Warning: --web was requested, but this command did not provide a browser link.") +
+            "\n",
+        );
+      }
+    }
   } catch (err) {
     if (
       typeof err === "object" &&
@@ -225,9 +248,9 @@ export async function runCli(
           });
           bannerIncludedWelcome = bannerResult.includedWelcomeText;
         }
-        if (!bannerIncludedWelcome) {
+        if (!bannerIncludedWelcome && !suppressBanner) {
           const { welcomeScreen } = await import("./utils/help.js");
-          process.stdout.write(
+          process.stderr.write(
             welcomeScreen({
               version: pkg.version,
               readinessLabel: welcomeState.readinessLabel,

@@ -24,6 +24,7 @@ import { readCliPackageInfo } from "../package-info.js";
 import type { NextAction } from "../types.js";
 
 export type ErrorCategory =
+  | "CANCELLED"
   | "INPUT"
   | "SETUP"
   | "RPC"
@@ -44,6 +45,7 @@ export const EXIT_CODES: Record<ErrorCategory, number> = {
   PROOF: 6,
   CONTRACT: 7,
   ASP: 8,
+  CANCELLED: 9,
 };
 
 export function exitCodeForCategory(category: ErrorCategory): number {
@@ -51,6 +53,7 @@ export function exitCodeForCategory(category: ErrorCategory): number {
 }
 
 const DEFAULT_CODE_BY_CATEGORY: Record<ErrorCategory, string> = {
+  CANCELLED: "PROMPT_CANCELLED",
   INPUT: "INPUT_ERROR",
   SETUP: "SETUP_REQUIRED",
   RPC: "RPC_ERROR",
@@ -772,7 +775,13 @@ export function printError(error: unknown, json: boolean = false, quiet?: boolea
       },
       false
     );
-  } else if (!(quiet ?? argvRequestsQuiet())) {
+  } else if (quiet ?? argvRequestsQuiet()) {
+    process.stderr.write(
+      dangerTone(
+        `Error [${classified.category}: ${classified.code}]: ${classified.message}`,
+      ) + "\n",
+    );
+  } else {
     if (classified.presentation === "boxed") {
       process.stderr.write(renderBoxedError(classified));
     } else {

@@ -82,7 +82,7 @@ export async function handleActivityCommand(
   const mode = resolveGlobalMode(globalOpts);
   const isJson = mode.isJson;
   const isQuiet = mode.isQuiet;
-  const silent = isQuiet || isJson;
+  const silent = isQuiet || isJson || mode.isWide;
 
   const resolvedAsset = positionalAsset;
   try {

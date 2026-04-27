@@ -52,6 +52,12 @@ export interface WithdrawUiWarning {
   message: string;
 }
 
+export interface DeprecationWarningPayload {
+  code: string;
+  message: string;
+  replacementCommand: string;
+}
+
 export interface RelayedWithdrawalRemainderGuidance {
   summary: string;
   choices: string[];
@@ -367,6 +373,7 @@ export function formatRelayedWithdrawalReview(
         valueTone: "success",
       },
     ],
+    helpCommand: "privacy-pools guide workflow",
   });
 }
 
@@ -414,6 +421,29 @@ export function formatDirectWithdrawalReview(
         "This cannot be undone. Use the default relayed mode unless you fully accept this privacy loss.",
       ],
     },
+    footerTitle: "Totals",
+    footerRows: [
+      {
+        label: "Total withdrawn",
+        value:
+          `${formatAmount(data.amount, data.decimals, data.asset)}` +
+          (amountUsd === "-" ? "" : ` (${amountUsd})`),
+        valueTone: "accent",
+      },
+      {
+        label: "Net received",
+        value:
+          `${formatAmount(data.amount, data.decimals, data.asset)}` +
+          (amountUsd === "-" ? "" : ` (${amountUsd})`),
+        valueTone: "success",
+      },
+      {
+        label: "Privacy outcome",
+        value: "no privacy gained",
+        valueTone: "danger",
+      },
+    ],
+    helpCommand: "privacy-pools guide workflow",
   });
 }
 
@@ -444,6 +474,7 @@ export interface WithdrawDryRunData {
   anonymitySet?: WithdrawAnonymitySet;
   remainingBelowMinGuidance?: RelayedWithdrawalRemainderGuidance | null;
   warnings?: WithdrawUiWarning[];
+  deprecationWarning?: DeprecationWarningPayload;
 }
 
 /**
@@ -523,6 +554,9 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
         },
         ...(data.warnings ?? []),
       ],
+      ...(data.deprecationWarning
+        ? { deprecationWarning: data.deprecationWarning }
+        : {}),
     };
     if (data.withdrawMode === "relayed") {
       payload.feeBPS = data.feeBPS;
@@ -661,6 +695,7 @@ export interface WithdrawSuccessData {
   localStateSynced?: boolean;
   warningCode?: string | null;
   warnings?: WithdrawUiWarning[];
+  deprecationWarning?: DeprecationWarningPayload;
 }
 
 /**
@@ -784,6 +819,9 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     if (warnings) {
       payload.warnings = warnings;
     }
+    if (data.deprecationWarning) {
+      payload.deprecationWarning = data.deprecationWarning;
+    }
     printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;
   }
@@ -822,6 +860,9 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     process.stderr.write(
       formatKeyValueRows([
         { label: "Mode", value: data.withdrawMode },
+        ...(data.withdrawMode === "direct"
+          ? [{ label: "Privacy outcome", value: "no privacy gained" }]
+          : []),
         { label: "Pool Account", value: data.poolAccountId },
         { label: "Recipient", value: data.recipient },
         {

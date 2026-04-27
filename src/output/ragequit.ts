@@ -36,6 +36,8 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
+import type { DeprecationWarningPayload } from "./withdraw.js";
+import { RAGEQUIT_PRIMARY_CALLOUT } from "./copy.js";
 
 export interface RagequitReviewData {
   poolAccountId: string;
@@ -50,7 +52,7 @@ export interface RagequitReviewData {
 }
 
 const RAGEQUIT_PRIVACY_WARNING_COPY =
-  "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.";
+  RAGEQUIT_PRIMARY_CALLOUT;
 
 export function buildRagequitPrivacyCostManifest(data: {
   poolAccountId: string;
@@ -117,6 +119,30 @@ export function formatRagequitReview(data: RagequitReviewData): string {
           lines: data.advisory,
         }
       : null,
+    footerTitle: "Totals",
+    footerRows: [
+      {
+        label: "Total recovered",
+        value:
+          formatAmount(
+            data.amount,
+            data.decimals,
+            data.asset,
+          ) + (amountUsd === "-" ? "" : ` (${amountUsd})`),
+        valueTone: "accent",
+      },
+      {
+        label: "Net recovered",
+        value:
+          formatAmount(
+            data.amount,
+            data.decimals,
+            data.asset,
+          ) + (amountUsd === "-" ? "" : ` (${amountUsd})`),
+        valueTone: "success",
+      },
+    ],
+    helpCommand: "privacy-pools guide ragequit",
   });
 }
 
@@ -134,6 +160,7 @@ export interface RagequitDryRunData {
   advisory?: string | null;
   approvedAlternative?: boolean;
   tokenPrice?: number | null;
+  deprecationWarning?: DeprecationWarningPayload;
 }
 
 export interface RagequitSuccessData {
@@ -157,6 +184,7 @@ export interface RagequitSuccessData {
   warningCode?: string | null;
   warnings?: Array<{ code: string; category: string; message: string }>;
   tokenPrice?: number | null;
+  deprecationWarning?: DeprecationWarningPayload;
 }
 
 /**
@@ -223,6 +251,9 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
           },
         ],
         ...(data.advisory ? { advisory: data.advisory } : {}),
+        ...(data.deprecationWarning
+          ? { deprecationWarning: data.deprecationWarning }
+          : {}),
         approvedAlternative: data.approvedAlternative ?? false,
       }, agentNextActions),
       false,
@@ -385,6 +416,9 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         localStateSynced: data.localStateSynced ?? true,
         warningCode: data.warningCode ?? null,
         ...(warnings ? { warnings } : {}),
+        ...(data.deprecationWarning
+          ? { deprecationWarning: data.deprecationWarning }
+          : {}),
         privacyCostManifest: buildRagequitPrivacyCostManifest(data),
         ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),

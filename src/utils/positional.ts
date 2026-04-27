@@ -17,9 +17,8 @@ export interface AmountAssetInput {
 }
 
 /**
- * Supports both:
- * - command <asset> <amount>
- * - command <amount> <asset>
+ * Canonical form is command <amount> <asset>. The inverse remains accepted
+ * as a compatibility convenience when it can be inferred unambiguously.
  */
 export function resolveAmountAndAssetInput(
   commandName: string,
@@ -38,13 +37,23 @@ export function resolveAmountAndAssetInput(
   }
 
   if (!firstIsAmount && secondIsAmount) {
+    if (
+      commandName === "withdraw quote" &&
+      !process.argv.includes("--agent") &&
+      !process.argv.includes("--json") &&
+      !process.argv.includes("--quiet")
+    ) {
+      process.stderr.write(
+        `Interpreting inverse positional order as: privacy-pools withdraw quote ${second} ${first}\n`,
+      );
+    }
     return { amount: second, asset: first };
   }
 
   throw new CLIError(
     `Could not infer amount/asset positional arguments for ${commandName}.`,
     "INPUT",
-    `Use "${commandName} <amount> <asset>" or "${commandName} <asset> <amount>".`,
+    `Use the canonical order: "${commandName} <amount> <asset>".`,
     "INPUT_INVALID_ASSET",
   );
 }

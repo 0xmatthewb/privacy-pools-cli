@@ -31,6 +31,7 @@ import {
   promptCancelledError,
 } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
+import { emitStreamJsonEvent } from "../utils/stream-json.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
 import {
@@ -104,6 +105,8 @@ interface DepositCommandOptions {
   dryRun?: boolean;
   noWait?: boolean;
   ignoreUniqueAmount?: boolean;
+  allowNonRoundAmounts?: boolean;
+  streamJson?: boolean;
 }
 
 export { createDepositCommand } from "../command-shells/deposit.js";
@@ -173,7 +176,11 @@ export async function handleDepositCommand(
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
-  const mode = resolveGlobalMode(globalOpts);
+  const streamJson = opts.streamJson === true;
+  const mode = resolveGlobalMode({
+    ...globalOpts,
+    ...(streamJson ? { json: true } : {}),
+  });
   const isJson = mode.isJson;
   const isQuiet = mode.isQuiet;
   const unsignedRaw = opts.unsigned;
@@ -186,6 +193,12 @@ export async function handleDepositCommand(
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
   try {
+    emitStreamJsonEvent(streamJson, {
+      mode: "deposit-progress",
+      operation: "deposit",
+      event: "stage",
+      stage: "validating_input",
+    });
     if (
       unsignedFormat &&
       unsignedFormat !== "envelope" &&
@@ -223,6 +236,13 @@ export async function handleDepositCommand(
 
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+    emitStreamJsonEvent(streamJson, {
+      mode: "deposit-progress",
+      operation: "deposit",
+      event: "stage",
+      stage: "resolving_pool",
+      chain: chainConfig.name,
+    });
     verbose(
       `Chain: ${chainConfig.name} (${chainConfig.id})`,
       isVerbose,
@@ -287,6 +307,15 @@ export async function handleDepositCommand(
       isVerbose,
       silent,
     );
+    emitStreamJsonEvent(streamJson, {
+      mode: "deposit-progress",
+      operation: "deposit",
+      event: "stage",
+      stage: "pool_resolved",
+      chain: chainConfig.name,
+      asset: pool.symbol,
+      poolAddress: pool.pool,
+    });
 
     // Parse and validate amount
     const amount = parseAmount(amountStr, pool.decimals, {
@@ -306,6 +335,7 @@ export async function handleDepositCommand(
 
     // Privacy guard: non-round amounts can fingerprint deposits
     if (
+      !opts.allowNonRoundAmounts &&
       !opts.ignoreUniqueAmount &&
       !isRoundAmount(amount, pool.decimals, pool.symbol)
     ) {
@@ -331,7 +361,7 @@ export async function handleDepositCommand(
         throw new CLIError(
           "This deposit would create a distinctive committed amount.",
           "INPUT",
-          `${message} Round committed balances are harder to fingerprint. Pass --ignore-unique-amount to proceed anyway.`,
+          `${message} Round committed balances are harder to fingerprint. Pass --allow-non-round-amounts to proceed anyway.`,
           "INPUT_NONROUND_AMOUNT",
         );
       } else {
@@ -446,6 +476,18 @@ export async function handleDepositCommand(
     const releaseLock = acquireProcessLock();
     try {
       const isNative = isNativePoolAsset(chainConfig.id, pool.asset);
+      emitStreamJsonEvent(streamJson, {
+        mode: "deposit-progress",
+        operation: "deposit",
+        event: "stage",
+        stage: isUnsigned
+          ? "building_unsigned_payload"
+          : isDryRun
+            ? "building_dry_run"
+            : "preflight",
+        chain: chainConfig.name,
+        asset: pool.symbol,
+      });
 
       // Pre-flight balance check before mnemonic/account work for faster feedback.
       let balanceSufficient: boolean | "unknown" = "unknown";
@@ -613,6 +655,14 @@ export async function handleDepositCommand(
 
       // ERC20 approval
       if (!isNative) {
+        emitStreamJsonEvent(streamJson, {
+          mode: "deposit-progress",
+          operation: "deposit",
+          event: "stage",
+          stage: "approving_token",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+        });
         writeDepositProgress(1, "Approval is only needed for ERC20 deposits.");
         const spin = spinner("Approving token spend...", silent);
         spin.start();
@@ -669,6 +719,14 @@ export async function handleDepositCommand(
       }
 
       // Deposit transaction
+      emitStreamJsonEvent(streamJson, {
+        mode: "deposit-progress",
+        operation: "deposit",
+        event: "stage",
+        stage: "submitting_transaction",
+        chain: chainConfig.name,
+        asset: pool.symbol,
+      });
       writeDepositProgress(2, "Submitting the public deposit.");
       const spin = spinner("Submitting deposit transaction...", silent);
       spin.start();
@@ -693,6 +751,15 @@ export async function handleDepositCommand(
 
       const depositExplorer = explorerTxUrl(chainConfig.id, tx.hash);
       if (opts.noWait) {
+        emitStreamJsonEvent(streamJson, {
+          mode: "deposit-progress",
+          operation: "deposit",
+          event: "stage",
+          stage: "submitted",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          txHash: tx.hash,
+        });
         spin.succeed("Deposit submitted.");
         const workflowSnapshot = saveWorkflowSnapshot(createInitialSnapshot({
           workflowKind: "deposit_review",
@@ -763,6 +830,15 @@ export async function handleDepositCommand(
       }
 
       spin.text = "Waiting for confirmation...";
+      emitStreamJsonEvent(streamJson, {
+        mode: "deposit-progress",
+        operation: "deposit",
+        event: "stage",
+        stage: "waiting_confirmation",
+        chain: chainConfig.name,
+        asset: pool.symbol,
+        txHash: tx.hash,
+      });
       let receipt;
       try {
         const confirmationTimeoutMs = getConfirmationTimeoutMs();
@@ -852,8 +928,18 @@ export async function handleDepositCommand(
       if (reconciliationRequired) {
         spin.warn("Deposit confirmed onchain; local state needs reconciliation.");
       } else {
-        spin.succeed("Deposit confirmed!");
+        spin.succeed("Deposit confirmed");
       }
+      emitStreamJsonEvent(streamJson, {
+        mode: "deposit-progress",
+        operation: "deposit",
+        event: "stage",
+        stage: "confirmed",
+        chain: chainConfig.name,
+        asset: pool.symbol,
+        txHash: tx.hash,
+        blockNumber: receipt.blockNumber.toString(),
+      });
 
       const workflowSnapshot = saveWorkflowSnapshot(createInitialSnapshot({
         workflowKind: "deposit_review",

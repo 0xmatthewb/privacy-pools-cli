@@ -37,6 +37,7 @@ import {
   printJsonSuccess,
   success,
   info,
+  warn,
 } from "../../output/common.js";
 import {
   formatKeyValueRows,
@@ -161,6 +162,23 @@ function recipientCommandPath(cmd: Command, suffix?: string): string {
   return [recipientCommandPrefix(cmd), suffix].filter(Boolean).join(" ");
 }
 
+function withdrawRecipientsDeprecationWarning(cmd: Command):
+  | {
+      code: string;
+      message: string;
+      replacementCommand: string;
+    }
+  | undefined {
+  const prefix = recipientCommandPrefix(cmd);
+  if (prefix !== "withdraw recipients") return undefined;
+  return {
+    code: "COMMAND_ALIAS_DEPRECATED",
+    message:
+      "Command 'withdraw recipients' is deprecated and will be removed in v3.x. Use 'recipients' instead.",
+    replacementCommand: "privacy-pools recipients",
+  };
+}
+
 function recipientPayload(entry: RecipientHistoryEntry): Record<string, unknown> {
   return {
     address: entry.address,
@@ -207,6 +225,7 @@ function renderRecipientList(
   const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
   const ctx = createOutputContext(mode);
   const commandPrefix = recipientCommandPrefix(cmd);
+  const deprecationWarning = withdrawRecipientsDeprecationWarning(cmd);
   try {
     guardCsvUnsupported(ctx, commandPrefix);
     if (mode.isJson) {
@@ -215,11 +234,15 @@ function renderRecipientList(
         operation: "list",
         count: entries.length,
         recipients: entries.map(recipientPayload),
+        ...(deprecationWarning ? { deprecationWarning } : {}),
       });
       return;
     }
 
     if (isSilent(ctx)) return;
+    if (deprecationWarning) {
+      warn(deprecationWarning.message, false);
+    }
     if (entries.length === 0) {
       info("No remembered withdrawal recipients yet.", false);
       info(`Successful withdrawals are added automatically; use '${commandPrefix} add <address>' to add one manually.`, false);
@@ -265,6 +288,7 @@ export async function handleWithdrawRecipientsAddCommand(
 ): Promise<void> {
   const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
   const ctx = createOutputContext(mode);
+  const deprecationWarning = withdrawRecipientsDeprecationWarning(cmd);
   try {
     guardCsvUnsupported(ctx, recipientCommandPath(cmd, "add"));
     const resolved = await resolveSafeRecipientAddressOrEns(
@@ -283,11 +307,15 @@ export async function handleWithdrawRecipientsAddCommand(
         mode: "recipient-history",
         operation: "add",
         recipient: recipientPayload(entry),
+        ...(deprecationWarning ? { deprecationWarning } : {}),
       });
       return;
     }
 
     if (!isSilent(ctx)) {
+      if (deprecationWarning) {
+        warn(deprecationWarning.message, false);
+      }
       success(`Remembered recipient ${formatAddress(entry.address)}.`, false);
     }
   } catch (error) {
@@ -302,6 +330,7 @@ export async function handleWithdrawRecipientsRemoveCommand(
 ): Promise<void> {
   const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
   const ctx = createOutputContext(mode);
+  const deprecationWarning = withdrawRecipientsDeprecationWarning(cmd);
   try {
     guardCsvUnsupported(ctx, recipientCommandPath(cmd, "remove"));
     const stored = resolveStoredRecipientForRemoval(addressOrEns);
@@ -316,11 +345,15 @@ export async function handleWithdrawRecipientsRemoveCommand(
         operation: "remove",
         address: resolved.address,
         removed,
+        ...(deprecationWarning ? { deprecationWarning } : {}),
       });
       return;
     }
 
     if (!isSilent(ctx)) {
+      if (deprecationWarning) {
+        warn(deprecationWarning.message, false);
+      }
       if (removed) {
         success(`Removed recipient ${formatAddress(resolved.address)}.`, false);
       } else {
@@ -338,6 +371,7 @@ export async function handleWithdrawRecipientsClearCommand(
 ): Promise<void> {
   const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
   const ctx = createOutputContext(mode);
+  const deprecationWarning = withdrawRecipientsDeprecationWarning(cmd);
   try {
     guardCsvUnsupported(ctx, recipientCommandPath(cmd, "clear"));
     const removedCount = clearRecipientHistory();
@@ -347,11 +381,15 @@ export async function handleWithdrawRecipientsClearCommand(
         mode: "recipient-history",
         operation: "clear",
         removedCount,
+        ...(deprecationWarning ? { deprecationWarning } : {}),
       });
       return;
     }
 
     if (!isSilent(ctx)) {
+      if (deprecationWarning) {
+        warn(deprecationWarning.message, false);
+      }
       success(`Cleared ${removedCount} remembered recipient(s).`, false);
     }
   } catch (error) {

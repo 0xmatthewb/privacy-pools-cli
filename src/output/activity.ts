@@ -216,16 +216,17 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
 
   const silent = isSilent(ctx);
   if (silent) return;
+  const out = ctx.mode.isWide ? process.stdout : process.stderr;
 
   const chainLabel = data.chains ? data.chains.join(", ") : data.chain;
   const header =
     data.mode === "pool-activity"
       ? accentBold(`Activity for ${data.asset} on ${data.chain}:`)
       : accentBold(`Global activity (${chainLabel}):`);
-  process.stderr.write(`\n${header}\n\n`);
+  out.write(`\n${header}\n\n`);
 
-  process.stderr.write(formatSectionHeading("Summary", { divider: true }));
-  process.stderr.write(
+  out.write(formatSectionHeading("Summary", { divider: true }));
+  out.write(
     formatKeyValueRows([
       { label: "Mode", value: data.mode },
       { label: "Chain", value: chainLabel },
@@ -239,9 +240,9 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
     const emptyMessage = data.mode === "pool-activity"
       ? `No activity found for ${data.asset} on ${data.chain}.`
       : `No activity found on ${chainLabel}.`;
-    process.stderr.write(`${emptyMessage}\n`);
+    out.write(`${emptyMessage}\n`);
     if (data.page > 1) {
-      process.stderr.write("You may have reached the end of the available results.\n");
+      out.write("You may have reached the end of the available results.\n");
     }
     renderNextSteps(ctx, humanNextActions);
     return;
@@ -250,12 +251,12 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   const renderTableLayout = ctx.mode.isWide || getOutputWidthClass() === "wide";
   if (!renderTableLayout) {
     for (const event of data.events) {
-      process.stderr.write(
+      out.write(
         formatSectionHeading(`${renderActivityType(event.type)} ${event.amountFormatted}`, {
           divider: true,
         }),
       );
-      process.stderr.write(
+      out.write(
         formatStackedKeyValueRows([
           { label: "Pool", value: eventPoolLabel(event) },
           {
@@ -268,14 +269,14 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       );
     }
     if (data.note) {
-      process.stderr.write(
+      out.write(
         formatCallout(
           "read-only",
           data.note,
         ),
       );
     } else if (data.chainFiltered) {
-      process.stderr.write(
+      out.write(
         formatCallout(
           "read-only",
           `Results are filtered to ${data.chain}. Some pages may be sparse.`,
@@ -313,7 +314,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
 
   // Pagination footer
   if (data.totalPages !== null && data.totalPages > 1) {
-    process.stderr.write(
+    out.write(
       `\n  ${muted(`Page ${data.page} of ${data.totalPages}`)}` +
         (data.total !== null ? muted(`${inlineSeparator()}${data.total} events`) : "") +
         (data.page < data.totalPages
@@ -324,14 +325,14 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   }
 
   if (data.note) {
-    process.stderr.write(
+    out.write(
       formatCallout(
         "read-only",
         data.note,
       ),
     );
   } else if (data.chainFiltered) {
-    process.stderr.write(
+    out.write(
       formatCallout(
         "read-only",
         `Results are filtered to ${data.chain}. Some pages may be sparse.`,

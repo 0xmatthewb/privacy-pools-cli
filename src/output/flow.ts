@@ -42,6 +42,7 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
+import type { DeprecationWarningPayload } from "./withdraw.js";
 import { formatReviewSurface } from "./review.js";
 import {
   renderFlowRail,
@@ -153,6 +154,7 @@ export interface FlowRenderData {
   action: "start" | "watch" | "status" | "step" | "ragequit";
   snapshot: FlowSnapshot;
   extraWarnings?: FlowJsonWarning[];
+  deprecationWarning?: DeprecationWarningPayload;
 }
 
 export function renderFlowPhaseChangeEvent(event: {
@@ -210,7 +212,7 @@ export function formatFlowRagequitReview(snapshot: FlowSnapshot): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.",
+        "Ragequit returns the full Pool Account balance to the original deposit address. You will not gain any privacy: this publicly links your deposit to its withdrawal.",
       ],
     },
     secondaryCallout: configuredSignerRecoverySuffix(snapshot)
@@ -891,6 +893,7 @@ function buildFlowJsonSnapshot(
   action: FlowRenderData["action"],
   snapshot: FlowSnapshot,
   extraWarnings: readonly FlowJsonWarning[] = [],
+  deprecationWarning?: DeprecationWarningPayload,
 ) {
   const baseWarnings =
     action === "ragequit"
@@ -968,6 +971,7 @@ function buildFlowJsonSnapshot(
         }
       : undefined,
     warnings,
+    ...(deprecationWarning ? { deprecationWarning } : {}),
   };
 }
 
@@ -1072,7 +1076,12 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
   if (ctx.mode.isJson) {
     printJsonSuccess(
       appendNextActions(
-        buildFlowJsonSnapshot(data.action, data.snapshot, data.extraWarnings),
+        buildFlowJsonSnapshot(
+          data.action,
+          data.snapshot,
+          data.extraWarnings,
+          data.deprecationWarning,
+        ),
         agentNextActions,
       ),
       false,

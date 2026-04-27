@@ -184,7 +184,13 @@ export const CAPABILITY_EXIT_CODES: CapabilityExitCodeDescriptor[] = [
     code: EXIT_CODES.INPUT,
     category: "INPUT",
     errorCode: defaultErrorCode("INPUT"),
-    description: "Invalid input, prompt cancellation in machine mode, or validation failure.",
+    description: "Invalid input or validation failure.",
+  },
+  {
+    code: EXIT_CODES.CANCELLED,
+    category: "CANCELLED",
+    errorCode: defaultErrorCode("CANCELLED"),
+    description: "User cancelled an interactive prompt or confirmation.",
   },
   {
     code: EXIT_CODES.SETUP,
@@ -484,19 +490,30 @@ function descriptorSeed(path: CommandPath) {
 }
 
 function structuredExamplesFromHelpExamples(
-  examples: Array<string | { category: string; commands: string[] }>,
+  examples: DetailedCommandDescriptor["examples"],
 ): StructuredExample[] {
-  return examples.map((example, index) => {
+  return examples.flatMap((example, index) => {
     if (typeof example === "string") {
-      return {
-        name: `Example ${index + 1}`,
-        value: example,
-      };
+      return [{ description: `Example ${index + 1}`, command: example }];
     }
-    return {
-      name: example.category,
-      value: example.commands,
-    };
+    if ("command" in example) {
+      return [{ description: example.description, command: example.command }];
+    }
+
+    return example.commands.map((command) => {
+      if (typeof command === "string") {
+        return {
+          description: example.category,
+          category: example.category,
+          command,
+        };
+      }
+      return {
+        description: command.description,
+        category: example.category,
+        command: command.command,
+      };
+    });
   });
 }
 

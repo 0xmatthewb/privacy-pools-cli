@@ -26,6 +26,9 @@ interface BrowserLaunchParams {
   ) => Pick<ChildProcess, "on" | "unref">;
 }
 
+let webRequestedThisRun = false;
+let browserLaunchAttemptedThisRun = false;
+
 export function getBrowserLaunchCommand(
   url: string,
   platform: NodeJS.Platform = process.platform,
@@ -57,9 +60,13 @@ export function maybeLaunchBrowser(params: BrowserLaunchParams): boolean {
     platform = process.platform,
     spawnImpl = spawn,
   } = params;
+  if (globalOpts?.web && !mode.isAgent && !mode.isJson) {
+    webRequestedThisRun = true;
+  }
   if (!shouldLaunchBrowser(globalOpts, mode, url)) {
     return false;
   }
+  browserLaunchAttemptedThisRun = true;
 
   const { command, args } = getBrowserLaunchCommand(url, platform);
   try {
@@ -83,4 +90,17 @@ export function maybeLaunchBrowser(params: BrowserLaunchParams): boolean {
     );
     return false;
   }
+}
+
+export function consumeBrowserLaunchTracking(): {
+  requested: boolean;
+  attempted: boolean;
+} {
+  const state = {
+    requested: webRequestedThisRun,
+    attempted: browserLaunchAttemptedThisRun,
+  };
+  webRequestedThisRun = false;
+  browserLaunchAttemptedThisRun = false;
+  return state;
 }

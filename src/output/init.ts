@@ -29,6 +29,11 @@ import {
 } from "./common.js";
 import { formatCallout, formatKeyValueRows, formatSectionHeading } from "./layout.js";
 import { formatReviewSurface } from "./review.js";
+import {
+  RECOVERY_PHRASE_NEVER_SHARE,
+  RECOVERY_PHRASE_OFFLINE_BACKUP,
+  RECOVERY_PHRASE_ONLY_RESTORE_PATH,
+} from "./copy.js";
 
 export interface InitRenderResult {
   setupMode: InitSetupMode;
@@ -111,7 +116,7 @@ function initSuccessHeadline(result: InitRenderResult): string {
   if (result.setupMode === "replace") {
     return "Setup replaced.";
   }
-  return "Setup complete!";
+  return "Setup complete";
 }
 
 function formatFoundChains(summary: RestoreDiscoverySummary): string {
@@ -424,13 +429,14 @@ export function renderGeneratedRecoveryPhraseReview(mnemonic: string): string {
     divider: true,
     padTop: false,
   })}${formatCallout("recovery", [
-    "This recovery phrase is the master key to your Privacy Pools account.",
+    RECOVERY_PHRASE_ONLY_RESTORE_PATH,
     "The signer key submits transactions and may come from the same wallet or a separate key.",
-    "Never share it.",
+    RECOVERY_PHRASE_NEVER_SHARE,
   ])}${gridLines.join("\n")}\n${formatCallout("danger", [
     "Save this recovery phrase now.",
     "This is the only time the CLI will display it.",
     "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
+    RECOVERY_PHRASE_OFFLINE_BACKUP,
     "If you copied it digitally, clear your clipboard and any temporary notes after you move it somewhere safe.",
   ])}`;
 }
@@ -465,8 +471,9 @@ export function renderInitBackupPathReview(defaultPath: string): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Anyone who can read this file can recover your deposited funds.",
-        "Move it to a secure location and delete the original after transfer.",
+        RECOVERY_PHRASE_ONLY_RESTORE_PATH,
+        RECOVERY_PHRASE_NEVER_SHARE,
+        RECOVERY_PHRASE_OFFLINE_BACKUP,
       ],
     },
   });
@@ -482,8 +489,8 @@ export function renderInitBackupSaved(backupPath: string): string {
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Never share this file.",
-        "Move this file to a secure location now, then delete the original copy.",
+        "Never paste this recovery phrase into a website or share it with anyone, including 0xBow support.",
+        RECOVERY_PHRASE_OFFLINE_BACKUP,
       ],
     },
   });
@@ -507,7 +514,8 @@ export function renderInitBackupConfirmationReview(
     primaryCallout: {
       kind: "danger",
       lines: [
-        "Do not continue unless this recovery phrase is stored somewhere you trust.",
+        "Do not continue unless this recovery phrase is stored somewhere offline that you trust.",
+        RECOVERY_PHRASE_NEVER_SHARE,
       ],
     },
   });

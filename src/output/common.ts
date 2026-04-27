@@ -422,15 +422,16 @@ export function renderNextSteps(
     urgentRecommendations.map((action) => nextActionDedupeKey(action)),
   );
 
-  process.stderr.write(`\n${chalk.bold("Next steps:")}\n`);
+  const out = ctx.mode.isWide ? process.stdout : process.stderr;
+  out.write(`\n${chalk.bold("Next steps:")}\n`);
   for (const action of runnable) {
     const cmd = formatNextActionCommand(action);
     const urgent = urgentKeys.has(nextActionDedupeKey(action));
-    process.stderr.write(
+    out.write(
       urgent
         ? `  ${accent("→")} ${chalk.bold(accent(cmd))}  ${muted(`(${urgentRecommendationLabel(action)})`)}\n`
         : `  ${accent(cmd)}\n`,
     );
-    process.stderr.write(`    ${muted(action.reason)}\n`);
+    out.write(`    ${muted(action.reason)}\n`);
   }
 }

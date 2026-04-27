@@ -190,7 +190,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
             options: [
               completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
               completionOption("--dry-run"),
-              completionOption("--ignore-unique-amount"),
+              completionOption("--allow-non-round-amounts"),
             ],
           }),
           completionCommand("withdraw", {
@@ -228,7 +228,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
           completionOption("--no-wait"),
-          completionOption("--ignore-unique-amount"),
+          completionOption("--allow-non-round-amounts"),
         ],
       }),
       completionCommand("accounts", {

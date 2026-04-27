@@ -9,6 +9,7 @@ import {
   renderChangelog,
 } from "../output/upgrade.js";
 import {
+  detectUpgradeInstallContext,
   inspectUpgrade,
   loadBundledReleaseHighlights,
   markUpgradeCancelled,
@@ -38,7 +39,7 @@ interface UpgradeCommandOptions {
 
 function handleUpgradeInspectFailure(params: {
   mode: ReturnType<typeof resolveGlobalMode>;
-  packageVersion: string;
+  packageInfo: ReturnType<typeof readCliPackageInfo>;
   error: Error;
 }): void {
   const message =
@@ -61,20 +62,26 @@ function handleUpgradeInspectFailure(params: {
   };
 
   if (params.mode.isJson) {
+    const installContext = detectUpgradeInstallContext(params.packageInfo);
+    const manualCommand =
+      installContext.kind === "local_project"
+        ? "npm install privacy-pools-cli@latest"
+        : "npm install -g privacy-pools-cli@latest";
     printJsonSuccess({
       mode: "upgrade",
       status: "manual",
-      currentVersion: params.packageVersion,
+      currentVersion: params.packageInfo.version,
       latestVersion: null,
       updateAvailable: null,
       performed: false,
-      command: null,
-      installContext: {
-        kind: "unknown",
-        supportedAutoRun: false,
-        reason: "npm release checks are temporarily unavailable.",
-      },
+      command: manualCommand,
+      installContext,
       installedVersion: null,
+      externalGuidance: {
+        kind: "manual_install",
+        message: installContext.reason,
+        command: manualCommand,
+      },
       warnings: [warning],
     });
     return;
@@ -193,7 +200,7 @@ export async function handleUpgradeCommand(
     } catch (error) {
       handleUpgradeInspectFailure({
         mode,
-        packageVersion: pkg.version,
+        packageInfo: pkg,
         error: error instanceof Error ? error : new Error(String(error)),
       });
       return;

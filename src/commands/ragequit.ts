@@ -124,10 +124,18 @@ interface RagequitCommandOptions {
   noWait?: boolean;
 }
 
+const CONFIRM_RAGEQUIT_DEPRECATION_WARNING = {
+  code: "FLAG_DEPRECATED",
+  message:
+    "--confirm-ragequit is deprecated. Replaced by interactive confirmation. Will be removed in v3.x.",
+  replacementCommand:
+    "Remove --confirm-ragequit and confirm the public recovery interactively, or use --agent for explicit non-interactive consent.",
+};
+
 const LOCAL_STATE_RECONCILIATION_WARNING_CODE =
   "LOCAL_STATE_RECONCILIATION_REQUIRED";
 const RAGEQUIT_PRIVACY_WARNING_COPY =
-  "Ragequit publicly recovers all funds to your deposit address. You will not gain any privacy.";
+  "Ragequit returns the full Pool Account balance, including any pending portion still under ASP review, to the original deposit address. You will not gain any privacy: this transaction publicly links your deposit to its withdrawal. This cannot be undone.";
 
 interface RagequitAccountLoadResult {
   accountService: AccountService;
@@ -328,6 +336,8 @@ export async function handleRagequitCommand(
     typeof unsignedRaw === "string" ? unsignedRaw.toLowerCase() : undefined;
   const wantsTxFormat = unsignedFormat === "tx";
   const isDryRun = opts.dryRun ?? false;
+  const confirmRagequitDeprecationWarning =
+    opts.confirmRagequit === true ? CONFIRM_RAGEQUIT_DEPRECATION_WARNING : undefined;
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
@@ -1011,6 +1021,7 @@ export async function handleRagequitCommand(
           proofPublicSignals: proof.publicSignals.length,
           advisory: advisory?.message ?? null,
           tokenPrice,
+          deprecationWarning: confirmRagequitDeprecationWarning,
         });
         return;
       }
@@ -1048,6 +1059,9 @@ export async function handleRagequitCommand(
               ...payload,
               poolAccountNumber: selectedPoolAccount.paNumber,
               poolAccountId: selectedPoolAccount.paId,
+              ...(confirmRagequitDeprecationWarning
+                ? { deprecationWarning: confirmRagequitDeprecationWarning }
+                : {}),
             },
             false,
           );
@@ -1116,6 +1130,7 @@ export async function handleRagequitCommand(
           localStateSynced: false,
           warningCode: null,
           tokenPrice,
+          deprecationWarning: confirmRagequitDeprecationWarning,
         });
         maybeLaunchBrowser({
           globalOpts,
@@ -1211,7 +1226,7 @@ export async function handleRagequitCommand(
       if (reconciliationRequired) {
         spin.warn("Ragequit confirmed onchain; local state needs reconciliation.");
       } else {
-        spin.succeed("Ragequit confirmed!");
+        spin.succeed("Ragequit confirmed");
       }
 
       const ctx = createOutputContext(mode);
@@ -1233,6 +1248,7 @@ export async function handleRagequitCommand(
         localStateSynced,
         warningCode,
         tokenPrice,
+        deprecationWarning: confirmRagequitDeprecationWarning,
       });
       maybeLaunchBrowser({
         globalOpts,
