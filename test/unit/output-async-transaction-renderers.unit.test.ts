@@ -213,6 +213,45 @@ describe("submitted transactional renderers", () => {
     expect(json.approvalTxHash).toBe(APPROVAL_TX_HASH);
   });
 
+  test("deposit confirmed JSON preserves approval tx hash", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const { stdout } = captureOutput(() =>
+      renderDepositSuccess(ctx, {
+        ...SUBMITTED_DEPOSIT,
+        status: "confirmed",
+        submissionId: undefined,
+        asset: "USDC",
+        approvalTxHash: APPROVAL_TX_HASH,
+        blockNumber: 12345n,
+      }),
+    );
+
+    const json = parseCapturedJson(stdout);
+    expect(json.status).toBe("confirmed");
+    expect(json.approvalTxHash).toBe(APPROVAL_TX_HASH);
+    expect(json.blockNumber).toBe("12345");
+  });
+
+  test("deposit human output shows approve tx only when approval ran", () => {
+    const ctx = createOutputContext(makeMode());
+    const withoutApproval = captureOutput(() =>
+      renderDepositSuccess(ctx, SUBMITTED_DEPOSIT),
+    );
+    const withApproval = captureOutput(() =>
+      renderDepositSuccess(ctx, {
+        ...SUBMITTED_DEPOSIT,
+        asset: "USDC",
+        approvalTxHash: APPROVAL_TX_HASH,
+      }),
+    );
+
+    expect(withoutApproval.stderr).toContain("Tx:");
+    expect(withoutApproval.stderr).not.toContain("Approve tx:");
+    expect(withApproval.stderr).toContain("Tx:");
+    expect(withApproval.stderr).toContain("Approve tx:");
+    expect(withApproval.stderr).toContain("0x99887766...11009988");
+  });
+
   test("withdraw JSON includes submitted status and tx-status follow-up", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout } = captureOutput(() =>
