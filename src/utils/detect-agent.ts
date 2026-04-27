@@ -1,4 +1,4 @@
-const AGENT_ENV_VAR_NAMES = [
+export const AGENT_ENV_VAR_NAMES = [
   "CLAUDECODE",
   "CLAUDE_CODE",
   "CURSOR_AGENT",

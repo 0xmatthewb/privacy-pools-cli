@@ -1,4 +1,7 @@
+import { AGENT_ENV_VAR_NAMES } from "../../src/utils/detect-agent.ts";
+
 const STRIPPED_PREFIXES = ["PRIVACY_POOLS_", "PP_"] as const;
+const STRIPPED_ENV_VARS = new Set<string>(AGENT_ENV_VAR_NAMES);
 
 export function buildChildProcessEnv(
   overrides: Record<string, string | undefined> = {},
@@ -8,6 +11,7 @@ export function buildChildProcessEnv(
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined) continue;
     if (STRIPPED_PREFIXES.some((prefix) => key.startsWith(prefix))) continue;
+    if (STRIPPED_ENV_VARS.has(key)) continue;
     env[key] = value;
   }
 
