@@ -66,6 +66,8 @@ describe("cli output policy regressions", () => {
     const deposit = runCli(["deposit", "--agent"]);
     const flow = runCli(["flow", "start", "--agent"]);
     const withdraw = runCli(["withdraw", "--agent"]);
+    const withdrawAmountOnly = runCli(["withdraw", "0.01", "--agent"]);
+    const withdrawNoRecipient = runCli(["withdraw", "0.01", "ETH", "--agent"]);
     const poolStats = runCli(["pool-stats", "--agent"]);
 
     expect(parseJsonOutput<{ errorCode: string; error: { hint: string } }>(
@@ -87,6 +89,12 @@ describe("cli output policy regressions", () => {
         hint: expect.stringContaining("privacy-pools withdraw 0.05 ETH"),
       }),
     }));
+    expect(parseJsonOutput<{ errorCode: string }>(
+      withdrawAmountOnly.stdout,
+    ).errorCode).toBe("INPUT_MISSING_ASSET");
+    expect(parseJsonOutput<{ errorCode: string }>(
+      withdrawNoRecipient.stdout,
+    ).errorCode).toBe("INPUT_MISSING_RECIPIENT");
     expect(parseJsonOutput<{ errorCode: string }>(
       poolStats.stdout,
     ).errorCode).toBe("INPUT_MISSING_ASSET");
@@ -128,6 +136,40 @@ describe("cli output policy regressions", () => {
         replacementCommand: expect.stringContaining("--confirm-ragequit"),
       }),
     );
+  });
+
+  test("deprecated confirmation flags render human warnings on errors", () => {
+    const withdraw = runCli([
+      "withdraw",
+      "0.01",
+      "ETH",
+      "--to",
+      "0x1111111111111111111111111111111111111111",
+      "--direct",
+      "--confirm-direct-withdraw",
+      "--yes",
+    ]);
+
+    expect(withdraw.status).not.toBe(0);
+    expect(withdraw.stdout).toBe("");
+    expect(withdraw.stderr).toContain("Warning:");
+    expect(withdraw.stderr).toContain("--confirm-direct-withdraw is deprecated");
+    expect(withdraw.stderr).toContain("Replacement:");
+  });
+
+  test("remaining long-running recovery commands expose stream-json", () => {
+    const helpChecks = [
+      ["flow", "step", "--help"],
+      ["flow", "ragequit", "--help"],
+      ["ragequit", "--help"],
+    ];
+
+    for (const args of helpChecks) {
+      const result = runCli(args);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("--stream-json");
+    }
   });
 
   test("--web no-op warning renders as a visible callout", () => {

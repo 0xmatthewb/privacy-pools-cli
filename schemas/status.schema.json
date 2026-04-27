@@ -112,16 +112,28 @@
                   "type": "boolean"
                 },
                 "configDir": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "defaultChain": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "selectedChain": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "rpcUrl": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "rpcIsCustom": {
                   "type": "boolean"
@@ -142,10 +154,16 @@
                   ]
                 },
                 "entrypoint": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aspHost": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "accountFiles": {
                   "type": "array",

@@ -31,7 +31,7 @@ pub fn resolve_chain(name: &str, manifest: &Manifest) -> Result<ChainDefinition,
             CliError::input_with_code(
                 format!("Unsupported chain: {name}."),
                 Some(format!(
-                    "Supported chains: {}",
+                    "Available chains: {}",
                     manifest.runtime_config.chain_names.join(", ")
                 )),
                 "INPUT_UNKNOWN_CHAIN",

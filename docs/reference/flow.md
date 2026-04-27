@@ -150,15 +150,23 @@ Advance a saved workflow by at most one unit of work
 
 **Usage:** `privacy-pools flow step [workflowId|latest] [options]`
 
-Runs one saved-workflow advancement attempt without keeping an internal watch loop alive. Use flow step together with flow status in --agent mode: status polls, step advances. When no action is currently available, flow step returns the current snapshot unchanged instead of waiting.
+Runs one saved-workflow advancement attempt without keeping an internal watch loop alive. Use flow step together with flow status in --agent mode: status polls, step advances. When no action is currently available, flow step returns the current snapshot unchanged instead of waiting. Use --stream-json when a runner needs line-delimited progress events while one step is attempted.
 
 ```bash
 privacy-pools flow step latest
 privacy-pools flow step latest --agent
+privacy-pools flow step latest --stream-json
 privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000
 ```
 
+| Flag | Description |
+|------|-------------|
+| `--stream-json` | Emit line-delimited JSON progress events and finish with the final flow envelope |
+
 **JSON output:** `{ mode: "flow", action: "step", workflowId, workflowKind, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, nextPollAfter|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: "privacy"|"recipient", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+**JSON variants:**
+- `--stream-json progress events: { mode: "flow-progress", action: "step", event: "stage", stage, workflowId?, phase? }`
 
 ## `flow ragequit`
 
@@ -166,20 +174,25 @@ Recover a saved workflow publicly via ragequit
 
 **Usage:** `privacy-pools flow ragequit [workflowId|latest] [options]`
 
-Uses the saved workflow context to perform the public recovery path without changing any manual commands. Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval. Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path. If a saved full-balance workflow can no longer satisfy the relayer minimum, flow ragequit becomes the required recovery path because the saved flow only supports relayed private withdrawal. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.
+Uses the saved workflow context to perform the public recovery path without changing any manual commands. Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval. Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path. If a saved full-balance workflow can no longer satisfy the relayer minimum, flow ragequit becomes the required recovery path because the saved flow only supports relayed private withdrawal. For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow. Use --stream-json when a runner needs line-delimited progress events while the public recovery is attempted.
 
 ```bash
 privacy-pools flow ragequit
 privacy-pools flow ragequit latest --agent
+privacy-pools flow ragequit latest --stream-json
 privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--confirm-ragequit` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
+| `--stream-json` | Emit line-delimited JSON progress events and finish with the final flow envelope |
 
 **Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.
 **Safety:** Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 
 **JSON output:** `{ mode: "flow", action: "ragequit", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+**JSON variants:**
+- `--stream-json progress events: { mode: "flow-progress", action: "ragequit", event: "stage", stage, workflowId?, phase? }`

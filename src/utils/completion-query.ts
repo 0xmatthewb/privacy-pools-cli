@@ -167,6 +167,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionOption("--privacy-delay <profile>", FLOW_PRIVACY_DELAY_PROFILES),
               completionOption("--dry-run"),
               completionOption("--watch"),
+              completionOption("--stream-json"),
               completionOption("--new-wallet"),
               completionOption("--export-new-wallet <path>"),
             ],
@@ -178,9 +179,14 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
             ],
           }),
           completionCommand("status"),
-          completionCommand("step"),
+          completionCommand("step", {
+            options: [completionOption("--stream-json")],
+          }),
           completionCommand("ragequit", {
-            options: [completionOption("--confirm-ragequit")],
+            options: [
+              completionOption("--confirm-ragequit"),
+              completionOption("--stream-json"),
+            ],
           }),
         ],
       }),
@@ -228,6 +234,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
           completionOption("--no-wait"),
+          completionOption("--stream-json"),
           completionOption("--allow-non-round-amounts"),
         ],
       }),
@@ -260,6 +267,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),
           completionOption("--no-wait"),
+          completionOption("--stream-json"),
           completionOption("--all"),
           completionOption("--extra-gas"),
           completionOption("--no-extra-gas"),
@@ -301,6 +309,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--dry-run"),
           completionOption("--no-wait"),
           completionOption("--confirm-ragequit"),
+          completionOption("--stream-json"),
         ],
       }),
       completionCommand("broadcast", {

@@ -722,21 +722,26 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Runs one saved-workflow advancement attempt without keeping an internal watch loop alive.",
         "Use flow step together with flow status in --agent mode: status polls, step advances.",
         "When no action is currently available, flow step returns the current snapshot unchanged instead of waiting.",
+        "Use --stream-json when a runner needs line-delimited progress events while one step is attempted.",
       ],
       examples: [
         "privacy-pools flow step latest",
         "privacy-pools flow step latest --agent",
+        "privacy-pools flow step latest --stream-json",
         "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000",
       ],
       prerequisites: "saved workflow (usually created after init)",
       jsonFields:
         "{ mode: \"flow\", action: \"step\", workflowId, workflowKind, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, nextPollAfter|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      jsonVariants: [
+        "--stream-json progress events: { mode: \"flow-progress\", action: \"step\", event: \"stage\", stage, workflowId?, phase? }",
+      ],
       seeAlso: ["flow status", "flow watch", "flow ragequit"],
     },
     capabilities: {
       usage: "flow step [workflowId|latest]",
-      flags: ["[workflowId|latest]"],
-      agentFlags: "--agent",
+      flags: ["[workflowId|latest]", "--stream-json"],
+      agentFlags: "--agent [--stream-json]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -752,15 +757,20 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Once the public deposit exists, flow ragequit remains available as an optional public recovery path until the workflow reaches a terminal state. Declined flows use it as the canonical recovery path.",
         "If a saved full-balance workflow can no longer satisfy the relayer minimum, flow ragequit becomes the required recovery path because the saved flow only supports relayed private withdrawal.",
         "For workflow wallets, this uses the stored per-workflow private key. For configured-wallet workflows, it must use the original depositor signer that created the saved flow.",
+        "Use --stream-json when a runner needs line-delimited progress events while the public recovery is attempted.",
       ],
       examples: [
         "privacy-pools flow ragequit",
         "privacy-pools flow ragequit latest --agent",
+        "privacy-pools flow ragequit latest --stream-json",
         "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000",
       ],
       prerequisites: "init",
       jsonFields:
         "{ mode: \"flow\", action: \"ragequit\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      jsonVariants: [
+        "--stream-json progress events: { mode: \"flow-progress\", action: \"ragequit\", event: \"stage\", stage, workflowId?, phase? }",
+      ],
       safetyNotes: [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
         "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
@@ -770,8 +780,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "flow ragequit [workflowId|latest]",
-      flags: ["[workflowId|latest]", "--confirm-ragequit (deprecated)"],
-      agentFlags: "--agent [--confirm-ragequit (deprecated)]",
+      flags: ["[workflowId|latest]", "--confirm-ragequit (deprecated)", "--stream-json"],
+      agentFlags: "--agent [--confirm-ragequit (deprecated)] [--stream-json]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -1485,6 +1495,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.",
         "Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval.",
         "In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped, --confirm-ragequit remains available as a deprecated compatibility flag for this release.",
+        "Use --stream-json when a runner needs line-delimited progress events while proof generation and public recovery submission run.",
       ],
       examples: [
         { category: "Basic", commands: [
@@ -1494,6 +1505,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         { category: "Advanced modes", commands: [
           "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
           "privacy-pools ragequit ETH --dry-run --pool-account PA-1",
+          "privacy-pools ragequit ETH --pool-account PA-1 --stream-json",
         ]},
       ],
       prerequisites: "init (account state should be synced)",
@@ -1508,6 +1520,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
         "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "--stream-json progress events: { mode: \"ragequit-progress\", operation: \"ragequit\", event: \"stage\", stage, chain?, asset?, poolAccountId?, txHash? }",
       ],
       supportsUnsigned: true,
       supportsDryRun: true,
@@ -1525,8 +1538,9 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
+        "--stream-json",
       ],
-      agentFlags: "--agent",
+      agentFlags: "--agent [--stream-json]",
       agentRequiredFlags: ["--pool-account"],
       requiresInit: true,
       expectedLatencyClass: "slow",

@@ -129,6 +129,10 @@ export function createFlowCommand(): Command {
     .command("step")
     .description(stepMetadata.description)
     .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
+    .option(
+      "--stream-json",
+      "Emit line-delimited JSON progress events and finish with the final flow envelope",
+    )
     .addHelpText("after", commandHelpText(stepMetadata.help ?? {}))
     .action(
       createLazyAction(
@@ -144,6 +148,10 @@ export function createFlowCommand(): Command {
     .option(
       "--confirm-ragequit",
       "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
+    )
+    .option(
+      "--stream-json",
+      "Emit line-delimited JSON progress events and finish with the final flow envelope",
     )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(

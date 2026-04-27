@@ -99,6 +99,11 @@ interface FlowWatchCommandOptions {
 
 interface FlowRagequitCommandOptions {
   confirmRagequit?: boolean;
+  streamJson?: boolean;
+}
+
+interface FlowStepCommandOptions {
+  streamJson?: boolean;
 }
 
 const CONFIRM_RAGEQUIT_DEPRECATION_WARNING = {
@@ -1080,16 +1085,35 @@ export async function handleFlowRagequitCommand(
   cmd: Command,
 ): Promise<void> {
   const globalOpts = getRootGlobalOptions(cmd);
-  const mode = resolveGlobalMode(globalOpts);
+  const streamJson = opts.streamJson === true;
+  const mode = resolveGlobalMode({
+    ...globalOpts,
+    ...(streamJson ? { json: true } : {}),
+  });
   const isVerbose = globalOpts?.verbose ?? false;
   const ctx = createOutputContext(mode, isVerbose);
 
   try {
+    emitStreamJsonEvent(streamJson, {
+      mode: "flow-progress",
+      action: "ragequit",
+      event: "stage",
+      stage: "loading_workflow",
+      workflowId: workflowId ?? "latest",
+    });
     if (await maybeRenderPreviewScenario("flow ragequit")) {
       return;
     }
 
     const snapshot = getWorkflowStatus({ workflowId });
+    emitStreamJsonEvent(streamJson, {
+      mode: "flow-progress",
+      action: "ragequit",
+      event: "stage",
+      stage: "workflow_loaded",
+      workflowId: snapshot.workflowId,
+      phase: snapshot.phase,
+    });
 
     if (!mode.skipPrompts) {
       process.stderr.write("\n");
@@ -1163,11 +1187,28 @@ export async function handleFlowRagequitCommand(
       );
     }
 
+    emitStreamJsonEvent(streamJson, {
+      mode: "flow-progress",
+      action: "ragequit",
+      event: "stage",
+      stage: "submitting_ragequit",
+      workflowId: snapshot.workflowId,
+      phase: snapshot.phase,
+    });
+
     const resultSnapshot = await ragequitWorkflow({
       workflowId,
       globalOpts,
       mode,
       isVerbose,
+    });
+    emitStreamJsonEvent(streamJson, {
+      mode: "flow-progress",
+      action: "ragequit",
+      event: "stage",
+      stage: "complete",
+      workflowId: resultSnapshot.workflowId,
+      phase: resultSnapshot.phase,
     });
 
     renderFlowResult(ctx, {
@@ -1373,15 +1414,26 @@ export async function handleFlowStatusCommand(
 
 export async function handleFlowStepCommand(
   workflowId: string | undefined,
-  _opts: unknown,
+  opts: FlowStepCommandOptions = {},
   cmd: Command,
 ): Promise<void> {
   const globalOpts = getRootGlobalOptions(cmd);
-  const mode = resolveGlobalMode(globalOpts);
+  const streamJson = opts.streamJson === true;
+  const mode = resolveGlobalMode({
+    ...globalOpts,
+    ...(streamJson ? { json: true } : {}),
+  });
   const isVerbose = globalOpts?.verbose ?? false;
   const ctx = createOutputContext(mode, isVerbose);
 
   try {
+    emitStreamJsonEvent(streamJson, {
+      mode: "flow-progress",
+      action: "step",
+      event: "stage",
+      stage: "stepping_workflow",
+      workflowId: workflowId ?? "latest",
+    });
     if (await maybeRenderPreviewScenario("flow step")) {
       return;
     }
@@ -1391,6 +1443,14 @@ export async function handleFlowStepCommand(
       globalOpts,
       mode,
       isVerbose,
+    });
+    emitStreamJsonEvent(streamJson, {
+      mode: "flow-progress",
+      action: "step",
+      event: "stage",
+      stage: "complete",
+      workflowId: snapshot.workflowId,
+      phase: snapshot.phase,
     });
     renderFlowResult(ctx, {
       action: "step",

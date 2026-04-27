@@ -78,6 +78,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_MISSING_ARGUMENT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-argument) | INPUT | no |
 | [`INPUT_MISSING_ASSET`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-asset) | INPUT | no |
 | [`INPUT_MISSING_FLOW_SUBCOMMAND`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-flow-subcommand) | INPUT | no |
+| [`INPUT_MISSING_RECIPIENT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-recipient) | INPUT | no |
 | [`INPUT_MUTUALLY_EXCLUSIVE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-mutually-exclusive) | INPUT | no |
 | [`INPUT_NO_GAS`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-gas) | INPUT | no |
 | [`INPUT_NONROUND_AMOUNT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-nonround-amount) | INPUT | no |
@@ -563,6 +564,12 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Category: `INPUT`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-flow-subcommand
+
+## INPUT_MISSING_RECIPIENT
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-recipient
 
 ## INPUT_MUTUALLY_EXCLUSIVE
 

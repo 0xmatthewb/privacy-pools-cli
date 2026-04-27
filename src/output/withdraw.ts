@@ -39,6 +39,10 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
+import {
+  formatDeprecationWarningCallout,
+  type DeprecationWarningPayload,
+} from "./deprecation.js";
 
 export interface WithdrawAnonymitySet {
   eligible: number;
@@ -50,12 +54,6 @@ export interface WithdrawUiWarning {
   code: string;
   category: string;
   message: string;
-}
-
-export interface DeprecationWarningPayload {
-  code: string;
-  message: string;
-  replacementCommand: string;
 }
 
 export interface RelayedWithdrawalRemainderGuidance {
@@ -652,6 +650,11 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
         formatRelayedWithdrawalRemainderHint(data.remainingBelowMinGuidance),
       );
     }
+    if (data.deprecationWarning) {
+      process.stderr.write(
+        formatDeprecationWarningCallout(data.deprecationWarning),
+      );
+    }
   }
   renderNextSteps(ctx, humanNextActions);
 }
@@ -913,6 +916,11 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
             }]),
       ]),
     );
+    if (data.deprecationWarning) {
+      process.stderr.write(
+        formatDeprecationWarningCallout(data.deprecationWarning),
+      );
+    }
     if (data.withdrawMode === "direct") {
       process.stderr.write(
         formatCallout(

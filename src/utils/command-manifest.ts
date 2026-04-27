@@ -780,9 +780,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "group": "transaction",
       "usage": "flow step [workflowId|latest]",
       "flags": [
-        "[workflowId|latest]"
+        "[workflowId|latest]",
+        "--stream-json"
       ],
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--stream-json]",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -793,9 +794,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
-        "--confirm-ragequit (deprecated)"
+        "--confirm-ragequit (deprecated)",
+        "--stream-json"
       ],
-      "agentFlags": "--agent [--confirm-ragequit (deprecated)]",
+      "agentFlags": "--agent [--confirm-ragequit (deprecated)] [--stream-json]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1213,9 +1215,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--confirm-ragequit (deprecated)",
         "--unsigned [envelope|tx]",
         "--dry-run",
-        "--no-wait"
+        "--no-wait",
+        "--stream-json"
       ],
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--stream-json]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -2874,7 +2877,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "flow step [workflowId|latest]",
       "flags": [
-        "[workflowId|latest]"
+        "[workflowId|latest]",
+        "--stream-json"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -2910,6 +2914,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "examples": [
         "privacy-pools flow step latest",
         "privacy-pools flow step latest --agent",
+        "privacy-pools flow step latest --stream-json",
         "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000"
       ],
       "structuredExamples": [
@@ -2923,11 +2928,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 3",
+          "command": "privacy-pools flow step latest --stream-json"
+        },
+        {
+          "description": "Example 4",
           "command": "privacy-pools flow step 123e4567-e89b-12d3-a456-426614174000"
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"step\", workflowId, workflowKind, phase, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, nextPollAfter|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      "jsonVariants": [],
+      "jsonVariants": [
+        "--stream-json progress events: { mode: \"flow-progress\", action: \"step\", event: \"stage\", stage, workflowId?, phase? }"
+      ],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
@@ -2957,7 +2968,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
-        "--confirm-ragequit (deprecated)"
+        "--confirm-ragequit (deprecated)",
+        "--stream-json"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -2997,6 +3009,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "examples": [
         "privacy-pools flow ragequit",
         "privacy-pools flow ragequit latest --agent",
+        "privacy-pools flow ragequit latest --stream-json",
         "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
       ],
       "structuredExamples": [
@@ -3010,11 +3023,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 3",
+          "command": "privacy-pools flow ragequit latest --stream-json"
+        },
+        {
+          "description": "Example 4",
           "command": "privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000"
         }
       ],
       "jsonFields": "{ mode: \"flow\", action: \"ragequit\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      "jsonVariants": [],
+      "jsonVariants": [
+        "--stream-json progress events: { mode: \"flow-progress\", action: \"ragequit\", event: \"stage\", stage, workflowId?, phase? }"
+      ],
       "safetyNotes": [
         "This is a public recovery path. It exits to the original deposit address and does not preserve privacy.",
         "Configured-wallet recovery only works when the current signer still matches the original depositor address saved with the workflow.",
@@ -3623,7 +3642,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "privacy-pools capabilities --agent"
         }
       ],
-      "jsonFields": "{ commands[{ group, ... }], commandDetails{ ...group... }, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ commands[{ group, ... }], commandDetails{ ...group... }, executionRoutes{}, globalFlags[], exitCodes[], envVars[], agentWorkflow[], agentNotes{}, schemas{}, supportedChains[], protocol{}, runtime{}, safeReadOnlyCommands[], jsonOutputContract, documentation?: { reference, agentGuide, changelog, runtimeUpgrades, jsonContract, envelopeSchemas, errorCodes }, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -4862,7 +4881,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--confirm-ragequit (deprecated)",
         "--unsigned [envelope|tx]",
         "--dry-run",
-        "--no-wait"
+        "--no-wait",
+        "--stream-json"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -4907,7 +4927,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "category": "Advanced modes",
           "commands": [
             "privacy-pools ragequit ETH --unsigned --pool-account PA-1",
-            "privacy-pools ragequit ETH --dry-run --pool-account PA-1"
+            "privacy-pools ragequit ETH --dry-run --pool-account PA-1",
+            "privacy-pools ragequit ETH --pool-account PA-1 --stream-json"
           ]
         }
       ],
@@ -4931,13 +4952,19 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "description": "Advanced modes",
           "category": "Advanced modes",
           "command": "privacy-pools ragequit ETH --dry-run --pool-account PA-1"
+        },
+        {
+          "description": "Advanced modes",
+          "category": "Advanced modes",
+          "command": "privacy-pools ragequit ETH --pool-account PA-1 --stream-json"
         }
       ],
       "jsonFields": "{ operation, status: \"submitted\"|\"confirmed\", submissionId?, txHash, amount, asset, chain, poolAccountNumber, poolAccountId, poolAddress, scope, blockNumber|null, explorerUrl, destinationAddress?, remainingBalance: \"0\", reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category, message }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [
         "--unsigned: { mode, operation, chain, asset, amount, transactions[] } (envelope JSON)",
         "--unsigned tx: [{ from, to, data, value, valueHex, chainId, description }]",
-        "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }"
+        "--dry-run: { dryRun, operation, chain, asset, amount, destinationAddress?, poolAccountNumber, poolAccountId, selectedCommitmentLabel, selectedCommitmentValue, proofPublicSignals, remainingBalance: \"0\", nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+        "--stream-json progress events: { mode: \"ragequit-progress\", operation: \"ragequit\", event: \"stage\", stage, chain?, asset?, poolAccountId?, txHash? }"
       ],
       "safetyNotes": [
         "Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.",
@@ -6664,13 +6691,15 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "migrate status",
     "history"
   ],
-  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docsSlug?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docUrl?, docsSlug?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "documentation": {
     "reference": "docs/reference.md",
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json"
+    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json",
+    "envelopeSchemas": "schemas/index.json",
+    "errorCodes": "docs/errors.md"
   }
 };
 

@@ -42,7 +42,10 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
-import type { DeprecationWarningPayload } from "./withdraw.js";
+import {
+  formatDeprecationWarningCallout,
+  type DeprecationWarningPayload,
+} from "./deprecation.js";
 import { formatReviewSurface } from "./review.js";
 import {
   renderFlowRail,
@@ -1176,6 +1179,12 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         ),
       );
     }
+  }
+
+  if (!silent && data.deprecationWarning) {
+    process.stderr.write(
+      formatDeprecationWarningCallout(data.deprecationWarning),
+    );
   }
 
   if (!silent) {

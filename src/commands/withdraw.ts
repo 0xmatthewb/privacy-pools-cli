@@ -832,6 +832,29 @@ export async function handleWithdrawCommand(
         "INPUT_MISSING_AMOUNT",
       );
     }
+    if (!(opts.all ?? false) && firstArg && skipPrompts) {
+      const resolvedInput = resolveAmountAndAssetInput(
+        "withdraw",
+        firstArg,
+        secondArg,
+      );
+      if (!resolvedInput.asset) {
+        throw new CLIError(
+          "No asset specified.",
+          "INPUT",
+          "Example: privacy-pools withdraw 0.05 ETH --to 0x... or privacy-pools withdraw --all ETH --to 0x...",
+          "INPUT_MISSING_ASSET",
+        );
+      }
+      if (!isDirect && !opts.to?.trim()) {
+        throw new CLIError(
+          "Missing recipient. Relayed withdrawals require --to <address>.",
+          "INPUT",
+          "Example: privacy-pools withdraw 0.05 ETH --to 0xRecipient...",
+          "INPUT_MISSING_RECIPIENT",
+        );
+      }
+    }
 
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);

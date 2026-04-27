@@ -30,6 +30,10 @@ export function createRagequitCommand(): Command {
       "--confirm-ragequit",
       "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
     )
+    .option(
+      "--stream-json",
+      "Emit line-delimited JSON progress events and finish with the final ragequit envelope",
+    )
     .addHelpText(
       "after",
       groupedFlagGuideText([
@@ -39,6 +43,7 @@ export function createRagequitCommand(): Command {
             "--unsigned [format]",
             "--dry-run",
             "--no-wait",
+            "--stream-json",
           ],
         },
         {

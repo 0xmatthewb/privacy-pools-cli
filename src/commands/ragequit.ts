@@ -100,6 +100,7 @@ import {
 import { maybeLaunchBrowser } from "../utils/web.js";
 import { persistWithReconciliation } from "../services/persist-with-reconciliation.js";
 import { createSubmissionRecord } from "../services/submissions.js";
+import { emitStreamJsonEvent } from "../utils/stream-json.js";
 
 const poolDepositorAbi = [
   {
@@ -122,6 +123,7 @@ interface RagequitCommandOptions {
   unsigned?: boolean | string;
   dryRun?: boolean;
   noWait?: boolean;
+  streamJson?: boolean;
 }
 
 const CONFIRM_RAGEQUIT_DEPRECATION_WARNING = {
@@ -345,7 +347,11 @@ export async function handleRagequitCommand(
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
-  const mode = resolveGlobalMode(globalOpts);
+  const streamJson = opts.streamJson === true;
+  const mode = resolveGlobalMode({
+    ...globalOpts,
+    ...(streamJson ? { json: true } : {}),
+  });
   const isJson = mode.isJson;
   const isQuiet = mode.isQuiet;
   const unsignedRaw = opts.unsigned;
@@ -400,6 +406,12 @@ export async function handleRagequitCommand(
   };
 
   try {
+    emitStreamJsonEvent(streamJson, {
+      mode: "ragequit-progress",
+      operation: "ragequit",
+      event: "stage",
+      stage: "validating_input",
+    });
     const legacyAssetFlag = (opts as { asset?: unknown }).asset;
     if (typeof legacyAssetFlag === "string" && legacyAssetFlag.length > 0) {
       throw new CLIError(
@@ -454,6 +466,13 @@ export async function handleRagequitCommand(
 
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+    emitStreamJsonEvent(streamJson, {
+      mode: "ragequit-progress",
+      operation: "ragequit",
+      event: "stage",
+      stage: "chain_resolved",
+      chain: chainConfig.name,
+    });
     verbose(
       `Chain: ${chainConfig.name} (${chainConfig.id})`,
       isVerbose,
@@ -515,6 +534,15 @@ export async function handleRagequitCommand(
       isVerbose,
       silent,
     );
+    emitStreamJsonEvent(streamJson, {
+      mode: "ragequit-progress",
+      operation: "ragequit",
+      event: "stage",
+      stage: "pool_resolved",
+      chain: chainConfig.name,
+      asset: pool.symbol,
+      poolAddress: pool.pool,
+    });
 
     if (
       await maybeRenderPreviewProgressStep("ragequit.load-account", {
@@ -1008,6 +1036,15 @@ export async function handleRagequitCommand(
         1,
         "Generating and locally verifying the Pool Account proof required for ragequit.",
       );
+      emitStreamJsonEvent(streamJson, {
+        mode: "ragequit-progress",
+        operation: "ragequit",
+        event: "stage",
+        stage: "generating_proof",
+        chain: chainConfig.name,
+        asset: pool.symbol,
+        poolAccountId: selectedPoolAccount.paId,
+      });
       spin.start();
 
       const proof = await withProofProgress(
@@ -1025,6 +1062,15 @@ export async function handleRagequitCommand(
 
       if (isDryRun) {
         spin.succeed("Dry-run completed (no transaction submitted).");
+        emitStreamJsonEvent(streamJson, {
+          mode: "ragequit-progress",
+          operation: "ragequit",
+          event: "stage",
+          stage: "complete",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          poolAccountId: selectedPoolAccount.paId,
+        });
         const ctx = createOutputContext(mode);
         renderRagequitDryRun(ctx, {
           chain: chainConfig.name,
@@ -1092,6 +1138,15 @@ export async function handleRagequitCommand(
         2,
         "Simulating and submitting the ragequit transaction.",
       );
+      emitStreamJsonEvent(streamJson, {
+        mode: "ragequit-progress",
+        operation: "ragequit",
+        event: "stage",
+        stage: "submitting_transaction",
+        chain: chainConfig.name,
+        asset: pool.symbol,
+        poolAccountId: selectedPoolAccount.paId,
+      });
       const solidityProof = toRagequitSolidityProof(proof);
       const tx = await submitRagequit(
         chainConfig,
@@ -1112,6 +1167,16 @@ export async function handleRagequitCommand(
       const ragequitExplorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
       if (opts.noWait) {
         spin.succeed("Ragequit submitted.");
+        emitStreamJsonEvent(streamJson, {
+          mode: "ragequit-progress",
+          operation: "ragequit",
+          event: "stage",
+          stage: "complete",
+          chain: chainConfig.name,
+          asset: pool.symbol,
+          poolAccountId: selectedPoolAccount.paId,
+          txHash: tx.hash,
+        });
         const submission = createSubmissionRecord({
           operation: "ragequit",
           sourceCommand: "ragequit",
@@ -1161,6 +1226,16 @@ export async function handleRagequitCommand(
       }
 
       spin.text = "Waiting for confirmation...";
+      emitStreamJsonEvent(streamJson, {
+        mode: "ragequit-progress",
+        operation: "ragequit",
+        event: "stage",
+        stage: "waiting_confirmation",
+        chain: chainConfig.name,
+        asset: pool.symbol,
+        poolAccountId: selectedPoolAccount.paId,
+        txHash: tx.hash,
+      });
       let receipt;
       try {
         receipt = await publicClient.waitForTransactionReceipt({
@@ -1248,6 +1323,16 @@ export async function handleRagequitCommand(
       }
 
       const ctx = createOutputContext(mode);
+      emitStreamJsonEvent(streamJson, {
+        mode: "ragequit-progress",
+        operation: "ragequit",
+        event: "stage",
+        stage: "complete",
+        chain: chainConfig.name,
+        asset: pool.symbol,
+        poolAccountId: selectedPoolAccount.paId,
+        txHash: tx.hash,
+      });
       renderRagequitSuccess(ctx, {
         txHash: tx.hash,
         amount: commitment.value,

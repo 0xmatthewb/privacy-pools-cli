@@ -36,7 +36,10 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
-import type { DeprecationWarningPayload } from "./withdraw.js";
+import {
+  formatDeprecationWarningCallout,
+  type DeprecationWarningPayload,
+} from "./deprecation.js";
 import { RAGEQUIT_PRIMARY_CALLOUT } from "./copy.js";
 
 export interface RagequitReviewData {
@@ -311,6 +314,11 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         },
       }),
     );
+    if (data.deprecationWarning) {
+      process.stderr.write(
+        formatDeprecationWarningCallout(data.deprecationWarning),
+      );
+    }
   }
   renderNextSteps(ctx, humanNextActions);
 }
@@ -504,6 +512,11 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
           : RAGEQUIT_PRIVACY_WARNING_COPY,
       ),
     );
+    if (data.deprecationWarning) {
+      process.stderr.write(
+        formatDeprecationWarningCallout(data.deprecationWarning),
+      );
+    }
   }
   renderNextSteps(ctx, humanNextActions);
 }

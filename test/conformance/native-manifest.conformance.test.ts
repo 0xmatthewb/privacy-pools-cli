@@ -131,10 +131,15 @@ describe("native manifest conformance", () => {
 
   nativeTest("native read-only input errors preserve JS error codes", () => {
     const nativeBinary = ensureNativeShellBinary();
-    const cases: Array<{ args: string[]; expectedCode: string }> = [
+    const cases: Array<{
+      args: string[];
+      expectedCode: string;
+      expectedHint?: string;
+    }> = [
       {
         args: ["--agent", "--chain", "fake-chain", "pools"],
         expectedCode: "INPUT_UNKNOWN_CHAIN",
+        expectedHint: "Available chains:",
       },
       {
         args: ["--agent", "pools", "--rpc-url", "http://127.0.0.1:1"],
@@ -150,20 +155,23 @@ describe("native manifest conformance", () => {
       },
     ];
 
-    for (const { args, expectedCode } of cases) {
+    for (const { args, expectedCode, expectedHint } of cases) {
       const result = runNativeBuiltCli(nativeBinary, args, {
         home: createTempHome(),
         timeoutMs: 20_000,
       });
       const payload = parseJsonOutput<{
         errorCode: string;
-        error: { code: string };
+        error: { code: string; hint?: string };
       }>(result.stdout);
 
       expect(result.status).toBe(2);
       expect(result.stderr).toBe("");
       expect(payload.errorCode).toBe(expectedCode);
       expect(payload.error.code).toBe(expectedCode);
+      if (expectedHint) {
+        expect(payload.error.hint).toContain(expectedHint);
+      }
     }
   });
 
