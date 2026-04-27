@@ -45,7 +45,7 @@ describe("CLI envelope schemas", () => {
       errorCode: "INPUT_FLAG_CONFLICT",
       errorMessage: "Choose either JSON or CSV output, not both.",
       meta: {
-        deprecated: ["errorCode", "errorMessage", "helpTopic", "nextActions"],
+        deprecated: ["errorCode", "errorMessage", "helpTopic"],
       },
       error: {
         code: "INPUT_FLAG_CONFLICT",
