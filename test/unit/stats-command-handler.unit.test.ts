@@ -187,7 +187,7 @@ describe("stats command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_FLAG_CONFLICT");
     expect(json.error.message ?? json.errorMessage).toContain(
       "The --chain flag is not supported",
     );
@@ -234,7 +234,7 @@ describe("stats command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
     expect(json.error.message ?? json.errorMessage).toContain(
       "Missing asset argument",
     );

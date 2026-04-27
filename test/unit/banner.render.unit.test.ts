@@ -86,7 +86,7 @@ describe("banner render layouts", () => {
     });
 
     expect(result).toEqual({ includedWelcomeText: true });
-    expectSemanticText(captured.stdout, {
+    expectSemanticText(captured.stderr, {
       includes: ["PRIVACY POOLS", "privacy-pools init", "privacy-pools guide"],
     });
     expect(existsSync(markerPath)).toBe(true);
@@ -108,7 +108,7 @@ describe("banner render layouts", () => {
     });
 
     expect(result).toEqual({ includedWelcomeText: true });
-    expectSemanticText(captured.stdout, {
+    expectSemanticText(captured.stderr, {
       includes: ["v2.2.0", "privacy-pools init", "privacy-pools --help"],
     });
     expect(existsSync(markerPath)).toBe(true);
@@ -131,7 +131,7 @@ describe("banner render layouts", () => {
       });
     });
 
-    expectSemanticText(captured.stdout, {
+    expectSemanticText(captured.stderr, {
       includes: ["Deposit publicly, then withdraw privately when ready."],
     });
 
@@ -151,10 +151,10 @@ describe("banner render layouts", () => {
       await printBanner({ version: "2.3.0" });
     });
 
-    expectSemanticText(captured.stdout, {
+    expectSemanticText(captured.stderr, {
       includes: ["PRIVACY POOLS", "privacy-pools init"],
     });
-    expect(captured.stdout).toContain("◉");
+    expect(captured.stderr).toContain("◉");
     expect(existsSync(markerPath)).toBe(true);
 
     rmSync(markerPath, { force: true });
@@ -174,10 +174,10 @@ describe("banner render layouts", () => {
       await printBanner({ version: "2.3.1" });
     });
 
-    expectSemanticText(captured.stdout, {
+    expectSemanticText(captured.stderr, {
       includes: ["PRIVACY POOLS", "privacy-pools init"],
     });
-    expect(captured.stdout).toContain("◉");
+    expect(captured.stderr).toContain("◉");
     expect(existsSync(markerPath)).toBe(true);
 
     rmSync(markerPath, { force: true });

@@ -17,10 +17,13 @@ const OFFLINE_ENV = {
 };
 
 defineScenarioSuite("output-mode acceptance", [
-  defineScenario("bare welcome stays silent in quiet mode", [
+  defineScenario("bare quiet invocation falls back to root help", [
     runCliStep(["--quiet"]),
     assertExit(0),
-    assertStdoutEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("Usage: privacy-pools [options] [command]");
+      expect(stdout).toContain("Commands:");
+    }),
     assertStderrEmpty(),
   ]),
   defineScenario("guide writes guide text to stderr in human mode", [

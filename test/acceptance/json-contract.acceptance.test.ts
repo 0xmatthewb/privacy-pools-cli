@@ -656,12 +656,12 @@ defineScenarioSuite("json-contract acceptance", [
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("INPUT_ERROR");
+      expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
       expect(json.errorMessage).toBe(
         "Missing asset argument.",
       );
       expect(json.error.category).toBe("INPUT");
-      expect(json.error.code).toBe("INPUT_ERROR");
+      expect(json.error.code).toBe("INPUT_MISSING_ASSET");
       expect(json.error.hint).toContain("pool-stats ETH");
     }),
   ]),

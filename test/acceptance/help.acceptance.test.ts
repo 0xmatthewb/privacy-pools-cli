@@ -166,24 +166,23 @@ defineScenarioSuite("help acceptance", [
     },
     runCliStep([]),
     assertExit(0),
-    assertStdout((stdout) => {
-      expect(
-        stdout.includes(BANNER_SENTINEL) || stdout.includes(COMPACT_BANNER_SENTINEL),
-      ).toBe(true);
-      expect(stdout).toContain("A compliant way to transact privately on Ethereum.");
-    }),
     assertStderr((stderr) => {
-      expect(stderr.trim()).toBe("");
+      expect(
+        stderr.includes(BANNER_SENTINEL) || stderr.includes(COMPACT_BANNER_SENTINEL),
+      ).toBe(true);
+      expect(stderr).toContain("A compliant way to transact privately on Ethereum.");
+    }),
+    assertStdout((stdout) => {
+      expect(stdout.trim()).toBe("");
     }),
     runCliStep([]),
     assertExit(0),
-    assertStdout((stdout) => {
-      // Second run: banner already shown, standalone welcome screen prints to stdout
-      expect(stdout).toContain("privacy-pools init");
-    }),
     assertStderr((stderr) => {
-      expect(stderr).not.toContain(BANNER_SENTINEL);
-      expect(stderr).not.toContain(COMPACT_BANNER_SENTINEL);
+      expect(stderr).not.toContain("~─~");
+      expect(stderr).toContain("privacy-pools init");
+    }),
+    assertStdout((stdout) => {
+      expect(stdout.trim()).toBe("");
     }),
   ]),
   defineScenario("unknown commands fail on stderr with the documented input exit code", [
@@ -202,7 +201,7 @@ defineScenarioSuite("help acceptance", [
     assertStdoutEmpty(),
     assertStderr((stderr) => {
       expect(stderr).toContain("Error [INPUT]");
-      expect(stderr).toContain("missing required argument 'amount'");
+      expect(stderr).toContain("Missing amount. Specify an amount to deposit.");
       expect(stderr).not.toContain("error: missing required argument");
     }),
   ]),

@@ -960,7 +960,7 @@ describe("pools service", () => {
     }
   });
 
-  test("resolvePool skips ASP listing for canonical known symbols on built-in default RPCs", async () => {
+  test("resolvePool checks ASP metrics before known-symbol fallback on built-in default RPCs", async () => {
     const chainId = CHAINS.sepolia.id;
     const ethPool = "0x00000000000000000000000000000000000000a1" as Address;
     const scope = 123456789n;
@@ -1057,13 +1057,13 @@ describe("pools service", () => {
       expect(pool.scope).toBe(scope);
       expect(typeof deploymentHint).toBe("bigint");
       expect(pool.deploymentBlock).toBe(chainConfig.startBlock);
-      expect(statsRequests).toBe(0);
+      expect(statsRequests).toBe(1);
     } finally {
       DEFAULT_RPC_URLS[chainId] = originalDefaultRpcUrls;
     }
   });
 
-  test("resolvePool uses the built-in fast path for canonical symbols on env-backed custom RPCs", async () => {
+  test("resolvePool prefers ASP metrics for canonical symbols on env-backed custom RPCs", async () => {
     const chainId = CHAINS.sepolia.id;
     const asset = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as Address;
     const pool = "0x00000000000000000000000000000000000000a1" as Address;
@@ -1168,7 +1168,7 @@ describe("pools service", () => {
     resetSdkServiceCachesForTests();
 
     const resolved = await resolvePool(chainConfig, "USDC");
-    expect(statsRequests).toBe(0);
+    expect(statsRequests).toBe(1);
     expect(resolved.symbol).toBe("USDC");
     expect(resolved.asset.toLowerCase()).toBe(asset.toLowerCase());
     expect(resolved.pool.toLowerCase()).toBe(pool.toLowerCase());

@@ -129,6 +129,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--force"),
           completionOption("--dry-run"),
           completionOption("--staged"),
+          completionOption("--pending"),
         ],
       }),
       completionCommand("upgrade", {
@@ -138,7 +139,11 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         subcommands: [
           completionCommand("list"),
           completionCommand("get", {
-            options: [completionOption("--reveal")],
+            options: [
+              completionOption("--reveal"),
+              completionOption("--show-secret"),
+              completionOption("--unredacted"),
+            ],
           }),
           completionCommand("set", {
             options: [
@@ -198,6 +203,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
               completionOption("--dry-run"),
               completionOption("--allow-non-round-amounts"),
+              completionOption("--ignore-unique-amount"),
             ],
           }),
           completionCommand("withdraw", {
@@ -205,6 +211,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionOption("-t, --to <address>"),
               completionOption("-p, --pool-account <PA-#|#>"),
               completionOption("--direct"),
+              completionOption("--accept-all-funds-public"),
               completionOption("--confirm-direct-withdraw"),
               completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
               completionOption("--dry-run"),
@@ -230,6 +237,24 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-n, --limit <n>"),
           completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
         ],
+        subcommands: [
+          completionCommand("list", {
+            options: [
+              completionOption("--include-testnets"),
+              completionOption("--search <query>"),
+              completionOption("-n, --limit <n>"),
+              completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
+            ],
+          }),
+          completionCommand("ls", {
+            options: [
+              completionOption("--include-testnets"),
+              completionOption("--search <query>"),
+              completionOption("-n, --limit <n>"),
+              completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
+            ],
+          }),
+        ],
       }),
       completionCommand("deposit", {
         options: [
@@ -238,6 +263,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--no-wait"),
           completionOption("--stream-json"),
           completionOption("--allow-non-round-amounts"),
+          completionOption("--ignore-unique-amount"),
         ],
       }),
       completionCommand("accounts", {
@@ -266,6 +292,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-t, --to <address>"),
           completionOption("-p, --pool-account <PA-#|#>"),
           completionOption("--direct"),
+          completionOption("--accept-all-funds-public"),
           completionOption("--confirm-direct-withdraw"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
           completionOption("--dry-run"),

@@ -91,20 +91,16 @@ describe("resolveGlobalMode", () => {
     expect(result.skipPrompts).toBe(true);
   });
 
-  test("--agent takes precedence over --output csv", () => {
-    const result = resolveGlobalMode({ agent: true, output: "csv" });
-    expect(result.isAgent).toBe(true);
-    expect(result.isJson).toBe(true);
-    expect(result.isCsv).toBe(false);
-    expect(result.format).toBe("json");
-    expect(result.isQuiet).toBe(true);
+  test("--agent conflicts with --output csv", () => {
+    expect(() => resolveGlobalMode({ agent: true, output: "csv" })).toThrow(
+      "Choose either JSON or CSV output, not both.",
+    );
   });
 
-  test("--json takes precedence over --output csv", () => {
-    const result = resolveGlobalMode({ json: true, output: "csv" });
-    expect(result.isJson).toBe(true);
-    expect(result.isCsv).toBe(false);
-    expect(result.format).toBe("json");
+  test("--json conflicts with --output csv", () => {
+    expect(() => resolveGlobalMode({ json: true, output: "csv" })).toThrow(
+      "Choose either JSON or CSV output, not both.",
+    );
   });
 
   test("--output json is equivalent to --json", () => {

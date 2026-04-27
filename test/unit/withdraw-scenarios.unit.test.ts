@@ -180,7 +180,7 @@ describe("withdraw scenarios", () => {
       });
 
     expect(result.json.success).toBe(false);
-    expect(result.json.errorCode).toBe("RPC_ERROR");
+    expect(result.json.errorCode).toBe("RPC_NETWORK_ERROR");
     expect(result.json.error.message ?? result.json.errorMessage).toContain(
       "Timed out waiting for relayed withdrawal confirmation",
     );

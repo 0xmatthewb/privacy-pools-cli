@@ -567,7 +567,7 @@ export function registerWithdrawRelayedFailureAndTimeoutTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("RPC_ERROR");
+    expect(json.errorCode).toBe("RPC_NETWORK_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain(
       "Timed out waiting for relayed withdrawal confirmation",
     );

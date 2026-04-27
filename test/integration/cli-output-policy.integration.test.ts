@@ -19,12 +19,14 @@ describe("cli output policy regressions", () => {
     expect(result.stderr).toContain("Privacy Pools");
   });
 
-  test("--no-banner suppresses both banner art and welcome text", () => {
+  test("--no-banner suppresses banner art but keeps compact welcome text", () => {
     const result = runCli(["--no-banner"], { home: createTempHome() });
 
     expect(result.status).toBe(0);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toBe("");
+    expect(result.stderr).not.toContain("~─~");
+    expect(result.stderr).toContain("PRIVACY POOLS");
+    expect(result.stderr).toContain("privacy-pools init");
   });
 
   test("--help-brief and --help-full are side-effect safe help aliases", () => {

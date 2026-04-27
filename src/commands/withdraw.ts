@@ -60,6 +60,7 @@ import {
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
 import {
   spinner,
+  warnSpinner,
   info,
   warn,
   verbose,
@@ -2355,7 +2356,11 @@ export async function handleWithdrawCommand(
           },
         });
         if (reconciliationRequired) {
-          spin.warn("Withdrawal confirmed onchain; local state needs reconciliation.");
+          warnSpinner(
+            spin,
+            "Withdrawal confirmed onchain; local state needs reconciliation.",
+            silent,
+          );
         } else {
           spin.succeed("Direct withdrawal confirmed");
         }
@@ -3265,7 +3270,11 @@ export async function handleWithdrawCommand(
           },
         });
         if (reconciliationRequired) {
-          spin.warn("Withdrawal confirmed onchain; local state needs reconciliation.");
+          warnSpinner(
+            spin,
+            "Withdrawal confirmed onchain; local state needs reconciliation.",
+            silent,
+          );
         } else {
           spin.succeed("Relayed withdrawal confirmed");
         }

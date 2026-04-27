@@ -104,7 +104,7 @@ defineScenarioSuite("stats acceptance", [
         PRIVACY_POOLS_RPC_URL_ETHEREUM: "http://127.0.0.1:9",
       },
     }),
-    assertExit(3),
+    assertExit(2),
     assertStderrEmpty(),
     assertJson<{
       schemaVersion: string;
@@ -120,13 +120,12 @@ defineScenarioSuite("stats acceptance", [
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(false);
-      expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-      expect(json.errorMessage).toContain(
-        'Built-in pool fallback also failed for "ETH" on mainnet.',
-      );
-      expect(json.error.category).toBe("RPC");
-      expect(json.error.hint).toContain("RPC URL");
-      expect(json.error.retryable).toBe(true);
+      expect(json.errorCode).toBe("INPUT_UNKNOWN_ASSET");
+      expect(json.errorMessage).toContain('No pool found for asset "ETH" on mainnet.');
+      expect(json.error.category).toBe("INPUT");
+      expect(json.error.code).toBe("INPUT_UNKNOWN_ASSET");
+      expect(json.error.hint).toContain("ASP may be offline");
+      expect(json.error.retryable).toBe(false);
     }),
   ]),
   defineScenario("stats human mode keeps stdout clean", [

@@ -34,6 +34,7 @@ import {
 import { explorerTxUrl, POA_PORTAL_URL } from "../config/chains.js";
 import {
   spinner,
+  warnSpinner,
   info,
   warn,
   verbose,
@@ -1323,7 +1324,11 @@ export async function handleRagequitCommand(
             },
       });
       if (reconciliationRequired) {
-        spin.warn("Ragequit confirmed onchain; local state needs reconciliation.");
+        warnSpinner(
+          spin,
+          "Ragequit confirmed onchain; local state needs reconciliation.",
+          silent,
+        );
       } else {
         spin.succeed("Ragequit confirmed");
       }

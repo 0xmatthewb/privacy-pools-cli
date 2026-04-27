@@ -9,6 +9,7 @@ import {
   assertJson,
   assertStderr,
   assertStderrEmpty,
+  assertStdout,
   assertStdoutEmpty,
   defineScenario,
   defineScenarioSuite,
@@ -100,10 +101,10 @@ defineScenarioSuite("read-only success acceptance", [
         env: fixtureEnv(),
       })(ctx),
     assertExit(0),
-    assertStdoutEmpty(),
-    assertStderr((stderr) => {
-      expect(stderr).toContain("Pool Address");
-      expect(stderr).toContain("Chain");
+    assertStderrEmpty(),
+    assertStdout((stdout) => {
+      expect(stdout).toContain("Pool Address");
+      expect(stdout).toContain("Chain");
     }),
   ]),
   defineScenario("stats returns valid global statistics against the fixture server", [

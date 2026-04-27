@@ -137,7 +137,7 @@ defineScenarioSuite("migrate status acceptance", [
         expect(json.warnings).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
-              category: "COVERAGE",
+              category: "INPUT",
               message: expect.stringContaining("supported by the CLI"),
             }),
           ]),

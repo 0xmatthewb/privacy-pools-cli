@@ -31,27 +31,24 @@ const OFFLINE_ENV = {
 };
 
 // Helper: assert the command accepted the provided flags and failed closed at
-// the symbol-resolution boundary when both ASP discovery and the user-defined
-// RPC are unavailable.
+// the symbol-resolution boundary when ASP discovery is unavailable.
 function expectPoolResolutionFailure(
   result: { status: number | null; stderr: string },
   json: {
     success: boolean;
     errorCode?: string;
     errorMessage?: string;
-    error?: { category: string; hint?: string; retryable?: boolean };
+    error?: { category: string; code?: string; hint?: string; retryable?: boolean };
   },
 ): void {
   expect(json.success).toBe(false);
-  expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-  expect(json.error?.code).toBe("RPC_POOL_RESOLUTION_FAILED");
-  expect(json.errorMessage).toContain(
-    'Built-in pool fallback also failed for "ETH" on sepolia.',
-  );
-  expect(json.error!.category).toBe("RPC");
-  expect(json.error!.hint).toContain("RPC URL");
-  expect(json.error!.retryable).toBe(true);
-  expect(result.status).toBe(3);
+  expect(json.errorCode).toBe("INPUT_UNKNOWN_ASSET");
+  expect(json.error?.code).toBe("INPUT_UNKNOWN_ASSET");
+  expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
+  expect(json.error!.category).toBe("INPUT");
+  expect(json.error!.hint).toContain("ASP may be offline");
+  expect(json.error!.retryable).toBe(false);
+  expect(result.status).toBe(2);
   expect(result.stderr.trim()).toBe("");
 }
 
@@ -60,7 +57,7 @@ function expectPoolResolutionFailure(
 describe("deposit command pipeline", () => {
   test("deposit --dry-run --json fails at ASP pool resolution", () => {
     const result = runCli(
-      ["--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--timeout", "1", "--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
@@ -69,7 +66,7 @@ describe("deposit command pipeline", () => {
 
   test("deposit --unsigned --json fails at ASP pool resolution", () => {
     const result = runCli(
-      ["--json", "deposit", "0.01", "ETH", "--unsigned", "--chain", "sepolia"],
+      ["--timeout", "1", "--json", "deposit", "0.01", "ETH", "--unsigned", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
@@ -113,7 +110,7 @@ describe("withdraw command pipeline", () => {
   test("withdraw --dry-run --direct fails at ASP pool resolution", () => {
     const result = runCli(
       [
-        "--json", "withdraw", "0.01",
+        "--timeout", "1", "--json", "withdraw", "0.01",
         "ETH", "--dry-run", "--direct",
         "--to", RECIPIENT, "--chain", "sepolia",
       ],
@@ -126,7 +123,7 @@ describe("withdraw command pipeline", () => {
   test("withdraw --unsigned --direct fails at ASP pool resolution", () => {
     const result = runCli(
       [
-        "--json", "withdraw", "0.01",
+        "--timeout", "1", "--json", "withdraw", "0.01",
         "ETH", "--unsigned", "--direct",
         "--to", RECIPIENT, "--chain", "sepolia",
       ],
@@ -172,7 +169,7 @@ describe("withdraw command pipeline", () => {
 describe("ragequit command pipeline", () => {
   test("ragequit --dry-run fails at ASP pool resolution", () => {
     const result = runCli(
-      ["--json", "ragequit", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--timeout", "1", "--json", "ragequit", "ETH", "--dry-run", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);
@@ -181,7 +178,7 @@ describe("ragequit command pipeline", () => {
 
   test("ragequit --unsigned fails at ASP pool resolution", () => {
     const result = runCli(
-      ["--json", "ragequit", "ETH", "--unsigned", "--chain", "sepolia"],
+      ["--timeout", "1", "--json", "ragequit", "ETH", "--unsigned", "--chain", "sepolia"],
       { home: createSeededHome("sepolia"), timeoutMs: 10_000, env: OFFLINE_ENV },
     );
     const json = parseJsonOutput<{ success: boolean; error?: { category: string } }>(result.stdout);

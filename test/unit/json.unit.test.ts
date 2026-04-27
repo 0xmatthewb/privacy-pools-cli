@@ -134,6 +134,7 @@ describe("JSON output helpers", () => {
         category: "INPUT",
         message: "Bad input",
         hint: "Check your args",
+        docUrl: "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid",
         retryable: false,
       });
     });

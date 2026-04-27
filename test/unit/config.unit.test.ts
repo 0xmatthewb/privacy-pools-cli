@@ -166,6 +166,7 @@ describe("config service", () => {
     rmSync(join(home, "config.json"), { force: true });
 
     expect(loadConfig()).toEqual({
+      acknowledgedWarnings: {},
       defaultChain: "mainnet",
       rpcOverrides: {},
     });
@@ -362,12 +363,14 @@ describe("loadConfig JSON validation errors", () => {
 
     writeTestConfig(homeA, JSON.stringify({ defaultChain: "mainnet", rpcOverrides: {} }));
     expect(loadConfig()).toEqual({
+      acknowledgedWarnings: {},
       defaultChain: "mainnet",
       rpcOverrides: {},
     });
 
     writeTestConfig(homeB, JSON.stringify({ defaultChain: "sepolia", rpcOverrides: {} }));
     expect(loadConfig()).toEqual({
+      acknowledgedWarnings: {},
       defaultChain: "sepolia",
       rpcOverrides: {},
     });

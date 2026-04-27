@@ -258,13 +258,13 @@ describe("classifyError - edge cases", () => {
     expect(err.category).toBe("UNKNOWN");
   });
 
-  test("inquirer prompt aborts map to INPUT instead of UNKNOWN", () => {
+  test("inquirer prompt aborts map to CANCELLED instead of UNKNOWN", () => {
     const error = new Error("prompt aborted") as Error & { name: string };
     error.name = "ExitPromptError";
 
     const err = classifyError(error);
 
-    expect(err.category).toBe("INPUT");
+    expect(err.category).toBe("CANCELLED");
     expect(err.code).toBe("PROMPT_CANCELLED");
     expect(err.message).toBe("Operation cancelled.");
   });

@@ -44,6 +44,17 @@ export {
   type ReviewSurfaceData,
 } from "./review.js";
 export {
+  FIRST_DEPOSIT_WELCOME,
+  RAGEQUIT_PRIMARY_CALLOUT,
+  RECOVERY_PHRASE_NEVER_SHARE,
+  RECOVERY_PHRASE_OFFLINE_BACKUP,
+  RECOVERY_PHRASE_ONLY_RESTORE_PATH,
+} from "./copy.js";
+export {
+  formatDeprecationWarningCallout,
+  type DeprecationWarningPayload,
+} from "./deprecation.js";
+export {
   createNarrativeSteps,
   createNarrativeProgressWriter,
   renderNarrativeSteps,
@@ -103,6 +114,9 @@ export {
   type PoolWithChain,
   type ChainSummary,
   type PoolWarning,
+  type PoolBaseFields,
+  type PoolListItem,
+  type PoolDetail,
   type PoolsRenderData,
   type PoolDetailRenderData,
   type PoolDetailActivityEvent,
@@ -142,8 +156,10 @@ export {
   renderInitBackupConfirmationReview,
   renderInitRecoveryVerificationReview,
   renderInitSignerKeyReview,
+  renderInitPending,
   renderInitResult,
   type InitDryRunResult,
+  type InitPendingResult,
   type InitRenderResult,
 } from "./init.js";
 export {

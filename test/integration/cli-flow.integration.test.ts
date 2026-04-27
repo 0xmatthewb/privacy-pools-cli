@@ -332,7 +332,7 @@ describe("flow command", () => {
     }>(result.stdout);
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_RECIPIENT");
     expect(json.errorMessage).toBe(
       "Missing required --to <address> in non-interactive mode.",
     );
@@ -462,7 +462,7 @@ describe("flow command", () => {
     }>(result.stdout);
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_ARGUMENT");
     expect(json.errorMessage).toContain("No saved workflows found");
   });
 
@@ -480,7 +480,7 @@ describe("flow command", () => {
     }>(result.stdout);
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_MISSING_ARGUMENT");
     expect(json.errorMessage).toContain("No saved workflows found");
   });
 
@@ -1052,6 +1052,7 @@ describe("flow command", () => {
       "--privacy-delay <profile>",
       "--dry-run",
       "--watch",
+      "--stream-json",
       "--new-wallet",
       "--export-new-wallet <path>",
     ]);

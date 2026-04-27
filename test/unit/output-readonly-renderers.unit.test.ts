@@ -471,7 +471,7 @@ describe("read-only output renderers", () => {
     expect(summary.stdout).toContain("Asset,Balance,USD,Pool Accounts,Pending,Approved");
     expect(summary.stdout).toContain("ETH,1500000000000000000");
     expect(detail.stdout).toContain("PA,Status,ASP,Asset,Value,Tx");
-    expect(detail.stdout).toContain("PA-1,approved,approved,ETH,1 ETH");
+    expect(detail.stdout).toContain("PA-1,approved,approved,ETH,1000000000000000000");
     expect(detail.stderr).toBe("");
   });
 

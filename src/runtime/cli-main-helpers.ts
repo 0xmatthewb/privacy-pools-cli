@@ -127,12 +127,12 @@ function commanderUnknownOptionHint(
 function collectLongOptions(command: Command): string[] {
   const options = new Set<string>();
   function visit(current: Command): void {
-    for (const option of current.options) {
+    for (const option of current.options ?? []) {
       for (const match of option.flags.matchAll(/--[a-z0-9-]+/gi)) {
         options.add(match[0]);
       }
     }
-    for (const child of current.commands) visit(child);
+    for (const child of current.commands ?? []) visit(child);
   }
   visit(command);
   return [...options].sort();

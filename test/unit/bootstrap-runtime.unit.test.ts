@@ -272,8 +272,8 @@ describe("bootstrap runtime coverage", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("privacy-pools flow start 0.1 ETH");
-    expect(stderr).toBe("");
+    expect(stdout).toBe("");
+    expect(stderr).toContain("privacy-pools flow start 0.1 ETH");
     expect(printBannerMock).toHaveBeenCalledWith(
       expect.objectContaining({
         version: "1.2.3",
@@ -375,8 +375,8 @@ describe("bootstrap runtime coverage", () => {
         welcomeExitCode = process.exitCode;
       });
       expect(welcomeExitCode).toBe(0);
-      expect(welcomeResult.stdout).toContain("privacy-pools flow start 0.1 ETH");
-      expect(welcomeResult.stderr).toBe("");
+      expect(welcomeResult.stdout).toBe("");
+      expect(welcomeResult.stderr).toContain("privacy-pools flow start 0.1 ETH");
 
       const versionProgram = makeProgram((configuredProgram) => async () => {
         configuredProgram.configuredOutput.writeOut?.("9.9.9");
@@ -509,7 +509,7 @@ describe("bootstrap runtime coverage", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(stdout).toBe("");
+    expect(stdout).toContain("stub help");
     expect(stderr).toBe("");
   });
 
@@ -526,7 +526,7 @@ describe("bootstrap runtime coverage", () => {
     }));
     mock.module("../../src/utils/help.ts", () => ({
       ...realHelp,
-        welcomeScreen: () => "welcome body",
+      welcomeScreen: () => "welcome body",
     }));
 
     const { runCli } = await import("../../src/cli-main.ts?no-banner-welcome-runtime");
@@ -535,8 +535,8 @@ describe("bootstrap runtime coverage", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("welcome body");
-    expect(stderr).toBe("");
+    expect(stdout).toBe("");
+    expect(stderr).toContain("welcome body");
     expect(printBannerMock).not.toHaveBeenCalled();
   });
 
@@ -871,7 +871,8 @@ describe("bootstrap runtime coverage", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("welcome body");
+    expect(stdout).toBe("");
+    expect(stderr).toContain("welcome body");
     expect(stderr).toContain("new version available");
     expect(printBannerMock).toHaveBeenCalledTimes(1);
     expect(checkForUpdateInBackgroundMock).toHaveBeenCalledTimes(1);
@@ -887,7 +888,7 @@ describe("bootstrap runtime coverage", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(stdout).toBe("");
+    expect(stdout).toContain("Usage: privacy-pools [options] [command]");
     expect(stderr).toBe("");
   });
 

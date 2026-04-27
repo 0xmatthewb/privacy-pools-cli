@@ -74,7 +74,7 @@ defineScenarioSuite("transaction inputs acceptance", [
     runCliStep(["--json", "deposit", "0.1", "--yes"], { timeoutMs: 10_000 }),
     ...assertInputJsonFailure("No asset specified"),
     runCliStep(["--json", "withdraw", "0.1", "--yes"], { timeoutMs: 10_000 }),
-    ...assertInputJsonFailure("Relayed withdrawals require --to"),
+    ...assertInputJsonFailure("No asset specified"),
     runCliStep(["--json", "ragequit", "--yes"], { timeoutMs: 10_000 }),
     ...assertInputJsonFailure("No asset specified"),
   ]),
@@ -83,7 +83,7 @@ defineScenarioSuite("transaction inputs acceptance", [
     runCliStep(["deposit", "0.1", "--unsigned"], { timeoutMs: 10_000 }),
     ...assertInputErrorEnvelope("INPUT_MISSING_ASSET"),
     runCliStep(["withdraw", "0.1", "--unsigned"], { timeoutMs: 10_000 }),
-    ...assertInputErrorEnvelope("INPUT_ERROR"),
+    ...assertInputErrorEnvelope("INPUT_MISSING_ASSET"),
   ]),
   defineScenario("machine mode fails fast without prompting for a missing asset", [
     seedHome("sepolia"),

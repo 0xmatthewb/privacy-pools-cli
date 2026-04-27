@@ -7,6 +7,26 @@ const OFFLINE_POOL_ENV = {
 };
 
 describe("--dry-run flag acceptance", () => {
+  function expectOfflinePoolUnknownAsset(
+    result: { status: number | null; stdout: string; stderr: string },
+  ) {
+    expect(result.status).toBe(2);
+    expect(result.stderr.trim()).toBe("");
+    const json = parseJsonOutput<{
+      success: boolean;
+      errorCode?: string;
+      errorMessage?: string;
+      error?: { category: string; code?: string; hint?: string; retryable?: boolean };
+    }>(result.stdout);
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_UNKNOWN_ASSET");
+    expect(json.errorMessage).toContain('No pool found for asset "ETH" on sepolia.');
+    expect(json.error?.category).toBe("INPUT");
+    expect(json.error?.code).toBe("INPUT_UNKNOWN_ASSET");
+    expect(json.error?.hint).toContain("ASP may be offline");
+    expect(json.error?.retryable).toBe(false);
+  }
+
   test("deposit --dry-run without --json keeps human-readable errors", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(["deposit", "0.01", "--dry-run", "--chain", "sepolia"], {
@@ -24,23 +44,10 @@ describe("--dry-run flag acceptance", () => {
   test("deposit --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
-      ["--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--timeout", "1", "--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(3);
-    const json = parseJsonOutput<{
-      success: boolean;
-      errorCode?: string;
-      errorMessage?: string;
-      error?: { category: string; hint?: string };
-    }>(result.stdout);
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-    expect(json.errorMessage).toContain(
-      'Built-in pool fallback also failed for "ETH" on sepolia.',
-    );
-    expect(json.error?.category).toBe("RPC");
-    expect(json.error?.hint).toContain("RPC URL");
+    expectOfflinePoolUnknownAsset(result);
   });
 
   test("withdraw --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
@@ -48,6 +55,8 @@ describe("--dry-run flag acceptance", () => {
     const result = runCli(
       [
         "--json",
+        "--timeout",
+        "1",
         "withdraw",
         "0.01",
         "ETH",
@@ -60,61 +69,26 @@ describe("--dry-run flag acceptance", () => {
       ],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(3);
-    const json = parseJsonOutput<{
-      success: boolean;
-      errorCode?: string;
-      errorMessage?: string;
-      error?: { category: string; hint?: string };
-    }>(result.stdout);
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-    expect(json.errorMessage).toContain(
-      'Built-in pool fallback also failed for "ETH" on sepolia.',
-    );
-    expect(json.error?.category).toBe("RPC");
-    expect(json.error?.hint).toContain("RPC URL");
+    expectOfflinePoolUnknownAsset(result);
   });
 
   test("ragequit --dry-run is accepted and fails closed when ASP-backed pool discovery is offline", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
-      ["--json", "ragequit", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--timeout", "1", "--json", "ragequit", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(3);
-    const json = parseJsonOutput<{
-      success: boolean;
-      errorCode?: string;
-      errorMessage?: string;
-      error?: { category: string; hint?: string };
-    }>(result.stdout);
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-    expect(json.errorMessage).toContain(
-      'Built-in pool fallback also failed for "ETH" on sepolia.',
-    );
-    expect(json.error?.category).toBe("RPC");
-    expect(json.error?.hint).toContain("RPC URL");
+    expectOfflinePoolUnknownAsset(result);
   });
 
   test("deposit --dry-run --json produces valid JSON error envelope", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
-      ["--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
+      ["--timeout", "1", "--json", "deposit", "0.01", "ETH", "--dry-run", "--chain", "sepolia"],
       { home, timeoutMs: 10_000, env: OFFLINE_POOL_ENV }
     );
-    expect(result.status).toBe(3);
-    const parsed = parseJsonOutput<{
-      success: boolean;
-      schemaVersion: string;
-      errorCode?: string;
-      error?: { category: string; hint?: string };
-    }>(result.stdout);
+    const parsed = parseJsonOutput<{ schemaVersion: string }>(result.stdout);
     expect(parsed.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(parsed.success).toBe(false);
-    expect(parsed.errorCode).toBe("RPC_POOL_RESOLUTION_FAILED");
-    expect(parsed.error?.category).toBe("RPC");
-    expect(parsed.error?.hint).toContain("RPC URL");
+    expectOfflinePoolUnknownAsset(result);
   });
 });

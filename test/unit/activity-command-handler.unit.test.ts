@@ -358,7 +358,7 @@ describe("activity command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_INVALID_VALUE");
     expect(json.error.message ?? json.errorMessage).toContain(
       "Invalid --page value",
     );

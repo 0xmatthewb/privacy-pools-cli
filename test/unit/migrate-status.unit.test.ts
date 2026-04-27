@@ -162,7 +162,7 @@ describe("migrate command internal helpers", () => {
     ).toEqual(
       expect.objectContaining({
         chain: "mainnet",
-        category: "COVERAGE",
+        category: "INPUT",
       }),
     );
     expect(

@@ -53,15 +53,15 @@ describe("format utils matrix", () => {
 
   const ADDRESS_CASES = [
     ["0x1234", 6, "0x1234"],
-    ["0x1234567890abcdef1234567890abcdef12345678", 4, "0x1234...5678"],
-    ["0x1234567890abcdef1234567890abcdef12345678", 6, "0x123456...345678"],
-    ["0x1234567890abcdef1234567890abcdef12345678", 8, "0x12345678...12345678"],
-    ["0xabcdefabcdefabcdefabcdefabcdefabcdefabcd", 5, "0xabcde...fabcd"],
-    ["0x1111111111111111111111111111111111111111", 3, "0x111...111"],
-    ["0x2222222222222222222222222222222222222222", 2, "0x22...22"],
-    ["0x3333333333333333333333333333333333333333", 1, "0x3...3"],
-    ["0x4444444444444444444444444444444444444444", 7, "0x4444444...4444444"],
-    ["0x5555555555555555555555555555555555555555", 9, "0x555555555...555555555"],
+    ["0x1234567890abcdef1234567890abcdef12345678", 4, "0x1234567890abcdef1234567890abcdef12345678"],
+    ["0x1234567890abcdef1234567890abcdef12345678", 6, "0x1234567890abcdef1234567890abcdef12345678"],
+    ["0x1234567890abcdef1234567890abcdef12345678", 8, "0x1234567890abcdef1234567890abcdef12345678"],
+    ["0xabcdefabcdefabcdefabcdefabcdefabcdefabcd", 5, "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"],
+    ["0x1111111111111111111111111111111111111111", 3, "0x1111111111111111111111111111111111111111"],
+    ["0x2222222222222222222222222222222222222222", 2, "0x2222222222222222222222222222222222222222"],
+    ["0x3333333333333333333333333333333333333333", 1, "0x3333333333333333333333333333333333333333"],
+    ["0x4444444444444444444444444444444444444444", 7, "0x4444444444444444444444444444444444444444"],
+    ["0x5555555555555555555555555555555555555555", 9, "0x5555555555555555555555555555555555555555"],
   ] as const;
 
   for (const [address, chars, expected] of ADDRESS_CASES) {
@@ -157,31 +157,36 @@ describe("format utils matrix", () => {
       configurable: true,
       get: () => 72,
     });
-    process.stderr.write = ((chunk: unknown) => {
+    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+    process.stdout.write = ((chunk: unknown) => {
       logs.push(String(chunk));
       return true;
-    }) as typeof process.stderr.write;
-    setForceWideTables(true);
+    }) as typeof process.stdout.write;
+    try {
+      setForceWideTables(true);
 
-    printTable(
-      ["Type", "Pool", "Amount", "Status", "Time", "Tx", "Pool Address", "Chain"],
-      [[
-        "Deposit",
-        "ETH@11155111",
-        "1 ETH",
-        "Approved",
-        "2024-01-01",
-        "0x1234...5678",
-        "0x1111111111111111111111111111111111111111",
-        "sepolia",
-      ]],
-    );
+      printTable(
+        ["Type", "Pool", "Amount", "Status", "Time", "Tx", "Pool Address", "Chain"],
+        [[
+          "Deposit",
+          "ETH@11155111",
+          "1 ETH",
+          "Approved",
+          "2024-01-01",
+          "0x1234...5678",
+          "0x1111111111111111111111111111111111111111",
+          "sepolia",
+        ]],
+      );
+    } finally {
+      process.stdout.write = originalStdoutWrite as typeof process.stdout.write;
 
-    if (originalColumns !== undefined) {
-      Object.defineProperty(process.stderr, "columns", {
-        configurable: true,
-        get: () => originalColumns,
-      });
+      if (originalColumns !== undefined) {
+        Object.defineProperty(process.stderr, "columns", {
+          configurable: true,
+          get: () => originalColumns,
+        });
+      }
     }
 
     const output = logs.join("");

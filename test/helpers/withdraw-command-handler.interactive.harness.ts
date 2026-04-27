@@ -351,7 +351,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
       ),
     );
 
-    expect(selectPromptMock).toHaveBeenCalledTimes(1);
+    expect(selectPromptMock).toHaveBeenCalledTimes(2);
     expect(stderr).toContain("PA-3");
   });
 
@@ -680,7 +680,7 @@ export function registerWithdrawInteractiveAssetSelectionTests(): void {
     );
 
     expect(listPoolsMock).toHaveBeenCalledTimes(1);
-    expect(selectPromptMock).toHaveBeenCalledTimes(1);
+    expect(selectPromptMock).toHaveBeenCalledTimes(2);
     expect(stderr).toContain("Selected PA-1");
   });
 
