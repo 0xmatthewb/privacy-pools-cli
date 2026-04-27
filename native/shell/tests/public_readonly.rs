@@ -612,7 +612,7 @@ fn invalid_native_read_only_flag_combinations_fail_cleanly() {
     assert_eq!(stats_global_payload["success"], Value::Bool(false));
     assert_eq!(
         stats_global_payload["errorCode"],
-        Value::String("INPUT_ERROR".to_string())
+        Value::String("INPUT_FLAG_CONFLICT".to_string())
     );
     assert!(stats_global_payload["errorMessage"]
         .as_str()
@@ -631,7 +631,7 @@ fn invalid_native_read_only_flag_combinations_fail_cleanly() {
     assert_eq!(pools_payload["success"], Value::Bool(false));
     assert_eq!(
         pools_payload["errorCode"],
-        Value::String("INPUT_ERROR".to_string())
+        Value::String("INPUT_FLAG_CONFLICT".to_string())
     );
     assert!(pools_payload["errorMessage"]
         .as_str()
@@ -641,6 +641,23 @@ fn invalid_native_read_only_flag_combinations_fail_cleanly() {
         .as_str()
         .unwrap_or_default()
         .contains("Use --chain <name> to target a single chain with --rpc-url"),);
+
+    let unknown_chain = run_native_with_env(
+        &["--agent", "--chain", "fake-chain", "pools"],
+        &[("PRIVACY_POOLS_ASP_HOST", fixture.base_url())],
+    );
+    assert_eq!(unknown_chain.status.code(), Some(2));
+    assert!(stderr_string(&unknown_chain).trim().is_empty());
+    let unknown_chain_payload = parse_stdout_json(&unknown_chain);
+    assert_eq!(unknown_chain_payload["success"], Value::Bool(false));
+    assert_eq!(
+        unknown_chain_payload["errorCode"],
+        Value::String("INPUT_UNKNOWN_CHAIN".to_string())
+    );
+    assert_eq!(
+        unknown_chain_payload["error"]["code"],
+        Value::String("INPUT_UNKNOWN_CHAIN".to_string())
+    );
 }
 
 #[test]

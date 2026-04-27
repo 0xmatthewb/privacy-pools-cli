@@ -6,7 +6,12 @@ import {
   CHAIN_NAMES,
   MAINNET_CHAIN_NAMES,
 } from "../../src/config/chains.ts";
-import { createTempHome, runCli } from "../helpers/cli.ts";
+import { createTempHome, parseJsonOutput, runCli } from "../helpers/cli.ts";
+import {
+  ensureNativeShellBinary,
+  nativeTest,
+  runNativeBuiltCli,
+} from "../helpers/native-shell.ts";
 import {
   GENERATED_COMMAND_ALIAS_MAP,
   GENERATED_COMMAND_MANIFEST,
@@ -122,6 +127,44 @@ describe("native manifest conformance", () => {
     expect(summaryVariant).toContain("cliCommand");
     expect(pendingOnlyVariant).toContain("nextActions");
     expect(pendingOnlyVariant).toContain("cliCommand");
+  });
+
+  nativeTest("native read-only input errors preserve JS error codes", () => {
+    const nativeBinary = ensureNativeShellBinary();
+    const cases: Array<{ args: string[]; expectedCode: string }> = [
+      {
+        args: ["--agent", "--chain", "fake-chain", "pools"],
+        expectedCode: "INPUT_UNKNOWN_CHAIN",
+      },
+      {
+        args: ["--agent", "pools", "--rpc-url", "http://127.0.0.1:1"],
+        expectedCode: "INPUT_FLAG_CONFLICT",
+      },
+      {
+        args: ["--agent", "protocol-stats", "--chain", "mainnet"],
+        expectedCode: "INPUT_FLAG_CONFLICT",
+      },
+      {
+        args: ["--agent", "pool-stats"],
+        expectedCode: "INPUT_MISSING_ASSET",
+      },
+    ];
+
+    for (const { args, expectedCode } of cases) {
+      const result = runNativeBuiltCli(nativeBinary, args, {
+        home: createTempHome(),
+        timeoutMs: 20_000,
+      });
+      const payload = parseJsonOutput<{
+        errorCode: string;
+        error: { code: string };
+      }>(result.stdout);
+
+      expect(result.status).toBe(2);
+      expect(result.stderr).toBe("");
+      expect(payload.errorCode).toBe(expectedCode);
+      expect(payload.error.code).toBe(expectedCode);
+    }
   });
 
   test(

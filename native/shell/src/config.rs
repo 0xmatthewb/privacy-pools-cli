@@ -28,12 +28,13 @@ pub fn resolve_chain(name: &str, manifest: &Manifest) -> Result<ChainDefinition,
         .get(resolved)
         .cloned()
         .ok_or_else(|| {
-            CliError::input(
+            CliError::input_with_code(
                 format!("Unsupported chain: {name}."),
                 Some(format!(
                     "Supported chains: {}",
                     manifest.runtime_config.chain_names.join(", ")
                 )),
+                "INPUT_UNKNOWN_CHAIN",
             )
         })?;
 
@@ -606,7 +607,7 @@ mod tests {
         assert_eq!(chain.id, 1);
 
         let error = resolve_chain("unknown", &manifest).expect_err("unknown chain should fail");
-        assert_eq!(error.code, "INPUT_ERROR");
+        assert_eq!(error.code, "INPUT_UNKNOWN_CHAIN");
         assert!(error.message.contains("Unsupported chain"));
     }
 }

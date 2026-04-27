@@ -140,12 +140,13 @@ pub fn handle_stats_native(
         }
 
         if parsed.global_chain().is_some() {
-            return Err(CliError::input(
+            return Err(CliError::input_with_code(
                 "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
                 Some(
                     "For chain-specific data use: privacy-pools pool-stats <symbol> --chain <chain>"
                         .to_string(),
                 ),
+                "INPUT_FLAG_CONFLICT",
             ));
         }
 

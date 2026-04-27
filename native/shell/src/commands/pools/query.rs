@@ -42,9 +42,10 @@ pub(crate) fn handle_pools_native(
         let is_multi_chain = opts.all_chains || explicit_chain.is_none();
 
         if is_multi_chain && rpc_override.is_some() {
-            return Err(CliError::input(
+            return Err(CliError::input_with_code(
                 "--rpc-url cannot be combined with multi-chain queries.",
                 Some("Use --chain <name> to target a single chain with --rpc-url.".to_string()),
+                "INPUT_FLAG_CONFLICT",
             ));
         }
 
@@ -702,7 +703,7 @@ mod tests {
         let parsed = parse_root_argv(&argv);
         let error = handle_pools_native(&argv, &parsed, manifest())
             .expect_err("multi-chain custom rpc should fail");
-        assert_eq!(error.code, "INPUT_ERROR");
+        assert_eq!(error.code, "INPUT_FLAG_CONFLICT");
         assert!(error.message.contains("--rpc-url"));
     }
 
