@@ -13,6 +13,7 @@ import {
   assertSupportedOutputFormat,
   fallbackJsonModeFromArgv,
   isQuietMode,
+  preferStaticMachineOutput,
   staticGlobalOptsFromParsedRootArgv,
 } from "./static-discovery/guards.js";
 import {
@@ -70,11 +71,11 @@ export async function runStaticDiscoveryCommand(
       const globalOpts = parsedRootArgv
         ? staticGlobalOptsFromParsedRootArgv(parsedRootArgv, prelude?.globalOpts)
         : prelude?.globalOpts ?? {};
-      const mode = resolveGlobalMode(globalOpts);
+      const mode = resolveGlobalMode(preferStaticMachineOutput(globalOpts));
       const help = guideText(guideTopic);
       if (mode.isJson) {
         printJsonSuccess(buildGuidePayload(guideTopic));
-      } else if (!isQuietMode(globalOpts)) {
+      } else if (!isQuietMode(preferStaticMachineOutput(globalOpts))) {
         process.stdout.write(`${help}\n`);
       }
       return true;
@@ -88,11 +89,11 @@ export async function runStaticDiscoveryCommand(
       const globalOpts = parsedRootArgv
         ? staticGlobalOptsFromParsedRootArgv(parsedRootArgv, prelude?.globalOpts)
         : prelude?.globalOpts ?? {};
-      const mode = resolveGlobalMode(globalOpts);
+      const mode = resolveGlobalMode(preferStaticMachineOutput(globalOpts));
       const help = guideText(helpTarget);
       if (mode.isJson) {
         printJsonSuccess(buildGuidePayload(helpTarget));
-      } else if (!isQuietMode(globalOpts)) {
+      } else if (!isQuietMode(preferStaticMachineOutput(globalOpts))) {
         const { renderHumanGuideText } = await import("./output/discovery.js");
         renderHumanGuideText(help);
       }
@@ -107,6 +108,7 @@ export async function runStaticDiscoveryCommand(
       ? parseStaticCommandFromRootArgv(parsedRootArgv, prelude?.globalOpts)
       : parseStaticCommand(argv);
     if (!parsed) return false;
+    parsed.globalOpts = preferStaticMachineOutput(parsed.globalOpts);
     assertSupportedOutputFormat(parsed.globalOpts);
 
     switch (parsed.command) {
@@ -124,7 +126,7 @@ export async function runStaticDiscoveryCommand(
     printError(
       error,
       parsed
-        ? resolveGlobalMode(parsed.globalOpts).isJson
+        ? resolveGlobalMode(preferStaticMachineOutput(parsed.globalOpts)).isJson
         : parsedRootArgv?.isJson ?? fallbackJsonModeFromArgv(argv),
     );
     return true;
@@ -139,6 +141,7 @@ export async function runStaticCompletionQuery(
   try {
     parsed = parseCompletionQuery(argv);
     if (!parsed) return false;
+    parsed.globalOpts = preferStaticMachineOutput(parsed.globalOpts);
     assertSupportedOutputFormat(parsed.globalOpts);
 
     const mode = resolveGlobalMode(parsed.globalOpts);
@@ -181,7 +184,9 @@ export async function runStaticCompletionQuery(
   } catch (error) {
     printError(
       error,
-      parsed ? resolveGlobalMode(parsed.globalOpts).isJson : fallbackJsonModeFromArgv(argv),
+      parsed
+        ? resolveGlobalMode(preferStaticMachineOutput(parsed.globalOpts)).isJson
+        : fallbackJsonModeFromArgv(argv),
     );
     return true;
   }

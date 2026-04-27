@@ -28,6 +28,30 @@ export function fallbackJsonModeFromArgv(argv: string[]): boolean {
   return parseRootArgv(argv).isStructuredOutputMode;
 }
 
+function hasStructuredJsonMode(globalOpts: GlobalOptions): boolean {
+  return Boolean(
+    globalOpts.json ||
+      globalOpts.agent ||
+      globalOpts.jsonFields ||
+      globalOpts.jq ||
+      globalOpts.jmes ||
+      globalOpts.template,
+  );
+}
+
+export function preferStaticMachineOutput(
+  globalOpts: GlobalOptions,
+): GlobalOptions {
+  if (
+    typeof globalOpts.output === "string" &&
+    globalOpts.output.toLowerCase() === "csv" &&
+    hasStructuredJsonMode(globalOpts)
+  ) {
+    return { ...globalOpts, output: "json" };
+  }
+  return globalOpts;
+}
+
 export function isQuietMode(globalOpts: GlobalOptions): boolean {
   const mode = resolveGlobalMode(globalOpts);
   return mode.isQuiet || mode.isJson || mode.isCsv;
