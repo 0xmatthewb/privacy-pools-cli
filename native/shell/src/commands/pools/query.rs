@@ -281,7 +281,7 @@ fn detail_asset_from_argv(argv: &[String]) -> Option<String> {
         index += 1;
     }
 
-    if positional.len() == 1 {
+    if positional.len() == 1 && !matches!(positional[0].as_str(), "list" | "ls") {
         return positional.into_iter().next();
     }
     None
@@ -549,7 +549,7 @@ fn pool_not_found_error(
     asp_lookup_failed: bool,
     available_assets_hint: Option<String>,
 ) -> CliError {
-    CliError::input(
+    CliError::input_with_code(
         format!("No pool found for asset \"{asset}\" on {}.", chain.name),
         Some(if asp_lookup_failed {
             "The ASP may be offline. Try using the token contract address as the positional asset (0x...)."
@@ -560,6 +560,7 @@ fn pool_not_found_error(
             "No pools found. Try using the token contract address as the positional asset."
                 .to_string()
         }),
+        "INPUT_UNKNOWN_ASSET",
     )
 }
 
@@ -582,6 +583,10 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
         }
         if token == "--include-testnets" {
             all_chains = true;
+            index += 1;
+            continue;
+        }
+        if (token == "list" || token == "ls") && unexpected_args == 0 {
             index += 1;
             continue;
         }
@@ -835,7 +840,7 @@ mod tests {
         )
         .expect_err("asp lookup failure should surface an input hint");
 
-        assert_eq!(error.code, "INPUT_ERROR");
+        assert_eq!(error.code, "INPUT_UNKNOWN_ASSET");
         assert!(error
             .hint
             .as_deref()

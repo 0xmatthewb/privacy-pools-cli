@@ -33,6 +33,7 @@ use routing::{
 use std::env;
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
+const CLI_VERSION: &str = env!("CLI_VERSION");
 const CSV_SUPPORTED_COMMANDS: [&str; 7] = [
     "pools",
     "accounts",
@@ -89,6 +90,16 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         ));
     }
 
+    if manifest.cli_version != CLI_VERSION {
+        return Err(CliError::unknown(
+            format!(
+                "Native shell CLI version mismatch: expected {}, got {}.",
+                CLI_VERSION, manifest.cli_version
+            ),
+            Some("Regenerate the native manifest and rebuild the native shell.".to_string()),
+        ));
+    }
+
     if let Some(format_value) = parsed.format_flag_value.as_deref() {
         if parsed.has_invalid_output_format() {
             return Err(CliError::input(
@@ -100,10 +111,20 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
                 Some("Use --help to see usage and examples.".to_string()),
             ));
         }
+        if format_value == "csv" && parsed.is_structured_output_mode {
+            return Err(CliError::input_with_code(
+                "Choose either JSON or CSV output, not both.",
+                Some(
+                    "Use --json/--agent for JSON, or remove JSON flags and use --output csv."
+                        .to_string(),
+                ),
+                "INPUT_FLAG_CONFLICT",
+            ));
+        }
     }
 
     if parsed.is_version_like && parsed.first_command_token.is_none() {
-        emit_version(&manifest.cli_version, parsed.is_structured_output_mode);
+        emit_version(CLI_VERSION, parsed.is_structured_output_mode);
         return Ok(0);
     }
 

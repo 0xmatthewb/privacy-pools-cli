@@ -28,7 +28,7 @@ pub(super) fn query_pools_for_chain(
             error: None,
         },
         Err(error) => {
-            let message = error.message.clone();
+            let message = error.message.to_string();
             PoolsChainQueryResult {
                 entries: vec![],
                 warning: Some(PoolWarning {
@@ -74,12 +74,12 @@ pub(super) fn pools_worker_join_failure(chain_name: &str) -> PoolsChainQueryResu
         warning: Some(PoolWarning {
             chain: chain_name.to_string(),
             category: error.category.as_str().to_string(),
-            message: error.message.clone(),
+            message: error.message.to_string(),
         }),
         summary: ChainSummary {
             chain: chain_name.to_string(),
             pools: 0,
-            error: Some(error.message.clone()),
+            error: Some(error.message.to_string()),
         },
         error: Some(error),
     }

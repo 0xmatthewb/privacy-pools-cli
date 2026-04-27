@@ -98,7 +98,10 @@ fn retryable_native_read_only_errors_include_next_actions() {
 
     let payload = parse_stdout_json(&output);
     assert_eq!(payload["success"], Value::Bool(false));
-    assert_eq!(payload["error"]["category"], Value::String("RPC".to_string()));
+    assert_eq!(
+        payload["error"]["category"],
+        Value::String("RPC".to_string())
+    );
     assert_eq!(payload["error"]["retryable"], Value::Bool(true));
     assert_eq!(
         payload["error"]["nextActions"][0]["command"],
@@ -344,10 +347,7 @@ fn multi_chain_pools_queries_stay_deterministic_against_the_rust_fixture() {
 
     let payload = parse_stdout_json(&pools);
     assert_eq!(payload["success"], Value::Bool(true));
-    assert_eq!(
-        payload["chain"],
-        Value::String("all-mainnets".to_string())
-    );
+    assert_eq!(payload["chain"], Value::String("all-mainnets".to_string()));
     assert!(payload["warnings"].is_null());
 
     let chains = payload["chainSummaries"]
@@ -472,10 +472,7 @@ fn multi_chain_pools_queries_keep_partial_failure_warnings_stable() {
 
     let payload = parse_stdout_json(&pools);
     assert_eq!(payload["success"], Value::Bool(true));
-    assert_eq!(
-        payload["chain"],
-        Value::String("all-mainnets".to_string())
-    );
+    assert_eq!(payload["chain"], Value::String("all-mainnets".to_string()));
     let warnings = payload["warnings"]
         .as_array()
         .expect("partial failures should produce warnings");

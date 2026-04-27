@@ -354,11 +354,19 @@ fn native_human_outputs_match_shared_goldens() {
 
         match case.stream {
             StreamKind::Stdout => {
-                assert!(stderr_string(&output).is_empty(), "stderr should be empty for {}", case.name);
+                assert!(
+                    stderr_string(&output).is_empty(),
+                    "stderr should be empty for {}",
+                    case.name
+                );
                 expect_text_golden(case.name, &stdout_string(&output));
             }
             StreamKind::Stderr => {
-                assert!(stdout_string(&output).is_empty(), "stdout should be empty for {}", case.name);
+                assert!(
+                    stdout_string(&output).is_empty(),
+                    "stdout should be empty for {}",
+                    case.name
+                );
                 expect_text_golden(case.name, &stderr_string(&output));
             }
         }

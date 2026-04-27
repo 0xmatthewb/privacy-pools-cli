@@ -14,11 +14,11 @@ use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_events, fetch_pool_events};
 use crate::root_argv::ParsedRootArgv;
 use crate::routing::resolve_mode;
-use serde_json::{Map, Value};
 use model::ActivityRenderData;
 use normalize::normalize_activity_events;
 use options::parse_activity_options;
 use render::render_activity_output;
+use serde_json::{Map, Value};
 
 fn normalize_asp_page(raw_page: Option<u64>, requested_page: u64) -> u64 {
     match raw_page {
@@ -81,8 +81,11 @@ pub fn handle_activity_native(
             let page = normalize_asp_page(parse_json_u64(response.get("page")), opts.page);
             let per_page = parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page);
             let total = parse_json_u64(response.get("total"));
-            let total_pages =
-                derive_known_total_pages(total, per_page, parse_json_u64(response.get("totalPages")));
+            let total_pages = derive_known_total_pages(
+                total,
+                per_page,
+                parse_json_u64(response.get("totalPages")),
+            );
             if let Some(spinner) = loading.as_mut() {
                 spinner.stop();
             }
@@ -175,14 +178,14 @@ pub fn handle_activity_native(
                         .map(|chain| chain.name.clone())
                         .collect::<Vec<_>>(),
                 ),
-                    page: normalize_asp_page(parse_json_u64(response.get("page")), opts.page),
-                    per_page: parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
-                    total: parse_json_u64(response.get("total")),
-                    total_pages: derive_known_total_pages(
-                        parse_json_u64(response.get("total")),
-                        parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
-                        parse_json_u64(response.get("totalPages")),
-                    ),
+                page: normalize_asp_page(parse_json_u64(response.get("page")), opts.page),
+                per_page: parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
+                total: parse_json_u64(response.get("total")),
+                total_pages: derive_known_total_pages(
+                    parse_json_u64(response.get("total")),
+                    parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
+                    parse_json_u64(response.get("totalPages")),
+                ),
                 events,
                 asset: None,
                 pool: None,
@@ -207,7 +210,7 @@ pub fn handle_activity_native(
             }
 
             let asset_args = opts.asset.as_deref().map(|asset| [asset]);
-            error.next_actions.push(crate::output::build_next_action(
+            error.push_next_action(crate::output::build_next_action(
                 "activity",
                 "Retry the public activity query.",
                 "after_activity",

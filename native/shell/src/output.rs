@@ -20,12 +20,6 @@ const UNICODE_SPINNER_FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "
 static SUPPRESS_HEADERS: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SectionTone {
-    Accent,
-    Muted,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OutputWidthClass {
     Wide,
     Compact,
@@ -183,15 +177,13 @@ pub fn set_suppress_headers(value: bool) {
 }
 
 pub fn format_section_heading(title: &str) -> String {
-    format_section_heading_with_tone(title, SectionTone::Accent)
+    let divider = styled_dim(&section_divider_line());
+    let heading = styled_accent_bold(&format!("{title}:"));
+    format!("\n{divider}\n{heading}\n")
 }
 
 pub fn format_command_heading(title: &str) -> String {
     format!("\n{}\n\n", styled_accent_bold(title))
-}
-
-pub fn format_muted_section_heading(title: &str) -> String {
-    format_section_heading_with_tone(title, SectionTone::Muted)
 }
 
 pub fn format_muted_text(text: &str) -> String {
@@ -275,15 +267,6 @@ pub fn format_callout(kind: CalloutKind, lines: &[String]) -> String {
     output
 }
 
-fn format_section_heading_with_tone(title: &str, tone: SectionTone) -> String {
-    let divider = styled_dim(&section_divider_line());
-    let heading = match tone {
-        SectionTone::Accent => styled_accent_bold(&format!("{title}:")),
-        SectionTone::Muted => styled_dim(&format!("{title}:")),
-    };
-    format!("\n{divider}\n{heading}\n")
-}
-
 fn json_schema_version() -> &'static str {
     manifest().json_schema_version.as_str()
 }
@@ -311,34 +294,51 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
             "category".to_string(),
             Value::String(error.category.as_str().to_string()),
         );
-        error_payload.insert("message".to_string(), Value::String(error.message.clone()));
+        error_payload.insert(
+            "message".to_string(),
+            Value::String(error.message.to_string()),
+        );
         error_payload.insert("retryable".to_string(), Value::Bool(error.retryable));
-        error_payload.insert("code".to_string(), Value::String(error.code.clone()));
+        error_payload.insert("code".to_string(), Value::String(error.code.to_string()));
         if let Some(hint) = &error.hint {
-            error_payload.insert("hint".to_string(), Value::String(hint.clone()));
+            error_payload.insert("hint".to_string(), Value::String(hint.to_string()));
         }
         if let Some(docs_slug) = &error.docs_slug {
-            error_payload.insert("docsSlug".to_string(), Value::String(docs_slug.clone()));
+            error_payload.insert("docsSlug".to_string(), Value::String(docs_slug.to_string()));
         }
         if let Some(help_topic) = &error.help_topic {
-            error_payload.insert("helpTopic".to_string(), Value::String(help_topic.clone()));
+            error_payload.insert(
+                "helpTopic".to_string(),
+                Value::String(help_topic.to_string()),
+            );
         }
-        if !error.next_actions.is_empty() {
+        let next_actions = error.next_actions();
+        if !next_actions.is_empty() {
             error_payload.insert(
                 "nextActions".to_string(),
-                Value::Array(error.next_actions.clone()),
+                Value::Array(next_actions.to_vec()),
             );
         }
 
         let payload = json!({
             "schemaVersion": json_schema_version(),
             "success": false,
-            "errorCode": error.code,
-            "errorMessage": error.message,
+            "errorCode": error.code.as_str(),
+            "errorMessage": error.message.as_str(),
+            "meta": {
+                "deprecated": ["errorCode", "errorMessage", "helpTopic", "nextActions"]
+            },
             "error": error_payload,
         });
         write_stdout_text(&serde_json::to_string(&payload).expect("json error must serialize"));
-    } else if !quiet {
+    } else if quiet {
+        write_stderr_text(&styled_danger(&format!(
+            "Error [{}: {}]: {}",
+            error.category.as_str(),
+            error.code,
+            error.message
+        )));
+    } else {
         match error.presentation {
             ErrorPresentation::Inline => {
                 write_stderr_text(&styled_danger(&format!(
@@ -594,7 +594,7 @@ pub fn render_next_steps(actions: &[Value]) {
         return;
     }
 
-    write_stderr_text(&format_muted_section_heading("Next steps"));
+    write_stderr_text(&format!("\n{}", styled_bold("Next steps:")));
     for (command, reason) in runnable.into_iter() {
         write_stderr_text(&format!("  {}", styled_accent(&command)));
         write_stderr_text(&format!("    {}", styled_dim(&reason)));
@@ -1082,13 +1082,13 @@ fn format_boxed_error(error: &CliError) -> String {
 mod tests {
     use super::{
         emit_help, emit_version, format_activity_direction_label, format_address, format_callout,
-        format_command_heading, format_danger_text, format_key_value_rows,
-        format_muted_section_heading, format_muted_text, format_notice_text,
-        format_section_heading, format_success_text, format_time_ago, insert_optional_f64,
-        insert_optional_string, insert_optional_u64, print_csv, print_json_success, print_table,
-        set_suppress_headers, start_spinner, stream_supports_style, write_info,
-        write_stderr_block_text, write_stderr_human_block_text, write_stderr_human_text,
-        write_stderr_text, write_stdout_human_text, write_stdout_text, CalloutKind, Spinner,
+        format_command_heading, format_danger_text, format_key_value_rows, format_muted_text,
+        format_notice_text, format_section_heading, format_success_text, format_time_ago,
+        insert_optional_f64, insert_optional_string, insert_optional_u64, print_csv,
+        print_json_success, print_table, set_suppress_headers, start_spinner,
+        stream_supports_style, write_info, write_stderr_block_text, write_stderr_human_block_text,
+        write_stderr_human_text, write_stderr_text, write_stdout_human_text, write_stdout_text,
+        CalloutKind, Spinner,
     };
     use crate::test_env::env_lock;
     use serde_json::{Map, Value};
@@ -1209,7 +1209,6 @@ mod tests {
         joined_spinner.stop();
 
         assert!(format_command_heading("Overview").contains("Overview"));
-        assert!(format_muted_section_heading("Muted").contains("Muted"));
         assert!(format_muted_text("muted").contains("muted"));
         assert!(format_notice_text("notice").contains("notice"));
         assert!(format_success_text("success").contains("success"));

@@ -82,7 +82,7 @@
   },
   {
     "flag": "--no-banner",
-    "description": "Disable ASCII banner output",
+    "description": "Disable welcome banner output",
     "takesValue": false,
     "welcomeBoolean": true
   },

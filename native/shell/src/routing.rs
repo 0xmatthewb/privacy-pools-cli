@@ -490,7 +490,7 @@ mod tests {
         let unknown_help = parse_root_argv(&argv(&["help", "status"]));
         assert_eq!(resolve_help_path(&unknown_help, &manifest), None);
 
-        let ragequit_help = parse_root_argv(&argv(&["help", "exit"]));
+        let ragequit_help = parse_root_argv(&argv(&["help", "ragequit"]));
         assert_eq!(
             resolve_help_path(&ragequit_help, &manifest),
             Some("ragequit".to_string())
@@ -501,9 +501,10 @@ mod tests {
             Some("protocol-stats".to_string())
         );
         assert_eq!(
-            resolve_command_path(&argv(&["exit"]), &manifest),
+            resolve_command_path(&argv(&["ragequit"]), &manifest),
             Some("ragequit".to_string())
         );
+        assert_eq!(resolve_command_path(&argv(&["exit"]), &manifest), None);
         assert_eq!(resolve_command_path(&argv(&["status"]), &manifest), None);
     }
 
@@ -512,7 +513,7 @@ mod tests {
         let manifest = test_manifest();
 
         assert!(is_known_root_command("pools", &manifest));
-        assert!(is_known_root_command("exit", &manifest));
+        assert!(!is_known_root_command("exit", &manifest));
         assert!(!is_known_root_command("status", &manifest));
 
         assert!(manifest_allows_native_mode(

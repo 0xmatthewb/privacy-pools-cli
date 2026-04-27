@@ -78,9 +78,10 @@ pub fn handle_stats_native(
 
         if stats_invocation.is_pool() {
             let asset = stats_asset_token(parsed).cloned().ok_or_else(|| {
-                CliError::input(
+                CliError::input_with_code(
                     "Missing asset argument.",
                     Some("Example: privacy-pools pool-stats ETH".to_string()),
+                    "INPUT_MISSING_ASSET",
                 )
             })?;
             let mut loading = (!mode.is_json() && !mode.is_quiet)
@@ -155,8 +156,8 @@ pub fn handle_stats_native(
                 Some("Regenerate the native command manifest.".to_string()),
             )
         })?;
-        let mut loading =
-            (!mode.is_json() && !mode.is_quiet).then(|| start_spinner("Fetching global statistics..."));
+        let mut loading = (!mode.is_json() && !mode.is_quiet)
+            .then(|| start_spinner("Fetching global statistics..."));
         let response = fetch_global_statistics(representative_chain, parse_timeout_ms(argv))?;
 
         if let Some(spinner) = loading.as_mut() {
@@ -201,7 +202,7 @@ fn resolve_stats_invocation(parsed: &ParsedRootArgv) -> StatsInvocation {
     }
 }
 
-fn stats_asset_token<'a>(parsed: &'a ParsedRootArgv) -> Option<&'a String> {
+fn stats_asset_token(parsed: &ParsedRootArgv) -> Option<&String> {
     match parsed.non_option_tokens.first().map(String::as_str) {
         Some("pool-stats") => parsed.non_option_tokens.get(1),
         Some("stats") => parsed.non_option_tokens.get(2),
@@ -221,6 +222,21 @@ fn deprecated_stats_warning(invoked_as: &str, replacement_command: &str) -> Valu
     })
 }
 
+fn normalize_cross_asset_stats(mut stats: Value) -> Value {
+    let should_null_tvl = stats
+        .as_object()
+        .map(|object| {
+            object.get("tvl").and_then(Value::as_str) == Some("0") && object.get("tvlUsd").is_some()
+        })
+        .unwrap_or(false);
+    if should_null_tvl {
+        if let Some(object) = stats.as_object_mut() {
+            object.insert("tvl".to_string(), Value::Null);
+        }
+    }
+    stats
+}
+
 fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
     if mode.is_json() {
         let mut options = Map::new();
@@ -231,8 +247,8 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
             "chain": data.chain,
             "chains": data.chains,
             "cacheTimestamp": data.cache_timestamp,
-            "allTime": data.all_time,
-            "last24h": data.last_24h,
+            "allTime": normalize_cross_asset_stats(data.all_time),
+            "last24h": normalize_cross_asset_stats(data.last_24h),
             "nextActions": [build_next_action(
                 "pools",
                 "Browse live pool balances and minimum deposits.",

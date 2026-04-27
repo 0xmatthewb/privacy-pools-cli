@@ -25,6 +25,7 @@
   },
   "scripts": {
     "clean": "node scripts/clean-dist.mjs",
+    "version": "node scripts/sync-version.mjs",
     "build": "node scripts/clean-dist.mjs && tsc --project tsconfig.json",
     "native:build": "cargo build --manifest-path native/shell/Cargo.toml",
     "native:build:release": "cargo build --manifest-path native/shell/Cargo.toml --release",

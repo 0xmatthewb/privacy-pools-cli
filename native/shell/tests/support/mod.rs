@@ -44,6 +44,7 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
     let mut command = Command::new(native_shell_bin_path());
     command.current_dir(env!("CARGO_MANIFEST_DIR"));
     command.env("NO_COLOR", "1");
+    command.env("TERM", "xterm-256color");
     command.env("PP_NO_UPDATE_CHECK", "1");
     for (key, value) in env {
         command.env(key, value);

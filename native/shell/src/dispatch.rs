@@ -9,8 +9,8 @@ use crate::completion::{
 use crate::contract::{CompletionCommandSpec, CompletionOptionSpec, Manifest};
 use crate::error::CliError;
 use crate::output::{
-    print_json_success, render_next_steps, write_stderr_human_block_text,
-    write_stderr_human_text, write_stdout_text,
+    print_json_success, render_next_steps, write_stderr_human_block_text, write_stderr_human_text,
+    write_stdout_text,
 };
 use crate::root_argv::ParsedRootArgv;
 use crate::routing::{is_static_quiet_mode, resolve_command_path};

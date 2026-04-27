@@ -1,4 +1,6 @@
 use serde_json::Value;
+use std::fmt;
+use std::ops::Deref;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 // Keep the full CLI error taxonomy mirrored here even though the current
@@ -19,6 +21,47 @@ pub enum ErrorCategory {
 pub enum ErrorPresentation {
     Inline,
     Boxed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct ErrorText(Box<str>);
+
+impl ErrorText {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for ErrorText {
+    fn from(value: String) -> Self {
+        Self(value.into_boxed_str())
+    }
+}
+
+impl From<&str> for ErrorText {
+    fn from(value: &str) -> Self {
+        Self(value.into())
+    }
+}
+
+impl Deref for ErrorText {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for ErrorText {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<&str> for ErrorText {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
 }
 
 impl ErrorCategory {
@@ -65,13 +108,13 @@ impl ErrorCategory {
 #[derive(Clone, Debug)]
 pub struct CliError {
     pub category: ErrorCategory,
-    pub code: String,
-    pub message: String,
-    pub hint: Option<String>,
+    pub code: ErrorText,
+    pub message: ErrorText,
+    pub hint: Option<Box<str>>,
     pub retryable: bool,
-    pub next_actions: Vec<Value>,
-    pub docs_slug: Option<String>,
-    pub help_topic: Option<String>,
+    pub next_actions: Option<Box<[Value]>>,
+    pub docs_slug: Option<Box<str>>,
+    pub help_topic: Option<Box<str>>,
     pub presentation: ErrorPresentation,
 }
 
@@ -83,14 +126,13 @@ impl CliError {
         code: Option<&str>,
         retryable: bool,
     ) -> Self {
-        let category_code = category.default_code().to_string();
         Self {
             category,
-            code: code.unwrap_or(&category_code).to_string(),
-            message: message.into(),
-            hint,
+            code: ErrorText::from(code.unwrap_or_else(|| category.default_code())),
+            message: ErrorText::from(message.into()),
+            hint: hint.map(String::into_boxed_str),
             retryable,
-            next_actions: Vec::new(),
+            next_actions: None,
             docs_slug: None,
             help_topic: None,
             presentation: default_error_presentation(category),
@@ -99,6 +141,20 @@ impl CliError {
 
     pub fn input(message: impl Into<String>, hint: impl Into<Option<String>>) -> Self {
         Self::new(ErrorCategory::Input, message, hint.into(), None, false)
+    }
+
+    pub fn input_with_code(
+        message: impl Into<String>,
+        hint: impl Into<Option<String>>,
+        code: &str,
+    ) -> Self {
+        Self::new(
+            ErrorCategory::Input,
+            message,
+            hint.into(),
+            Some(code),
+            false,
+        )
     }
 
     pub fn rpc(
@@ -131,10 +187,19 @@ impl CliError {
     }
 
     pub fn with_docs_slug(mut self, docs_slug: impl Into<String>) -> Self {
-        self.docs_slug = Some(docs_slug.into());
+        self.docs_slug = Some(docs_slug.into().into_boxed_str());
         self
     }
 
+    pub fn next_actions(&self) -> &[Value] {
+        self.next_actions.as_deref().unwrap_or(&[])
+    }
+
+    pub fn push_next_action(&mut self, value: Value) {
+        let mut actions = self.next_actions.take().map(Vec::from).unwrap_or_default();
+        actions.push(value);
+        self.next_actions = Some(actions.into_boxed_slice());
+    }
 }
 
 fn default_error_presentation(category: ErrorCategory) -> ErrorPresentation {
