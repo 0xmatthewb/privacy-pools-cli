@@ -809,6 +809,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         { category: "Search and sort", commands: [
           "privacy-pools pools --include-testnets --sort tvl-desc",
           "privacy-pools pools --search usdc --sort asset-asc",
+          "privacy-pools pools --limit 10",
         ]},
         { category: "Agent / CI", commands: [
           "privacy-pools pools --agent --chain mainnet",
@@ -826,8 +827,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["deposit","protocol-stats","activity"],
     },
       capabilities: {
-      flags: ["--include-testnets", "--search <query>", "--sort <mode>"],
-      agentFlags: "--agent [--include-testnets] [--search <query>] [--sort <mode>]",
+      flags: ["--include-testnets", "--search <query>", "--sort <mode>", "--limit <n>"],
+      agentFlags: "--agent [--include-testnets] [--search <query>] [--sort <mode>] [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
@@ -1259,6 +1260,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       examples: [
         "privacy-pools recipients",
+        "privacy-pools recipients --limit 10",
         "privacy-pools recipients add 0xRecipient... treasury",
         "privacy-pools recipients remove 0xRecipient...",
       ],
@@ -1274,8 +1276,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "recipients",
-      flags: [],
-      agentFlags: "--agent",
+      flags: ["--limit <n>"],
+      agentFlags: "--agent [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -1287,6 +1289,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools recipients list",
+        "privacy-pools recipients list --limit 10",
         "privacy-pools recents",
       ],
       jsonFields:
@@ -1298,8 +1301,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "recipients list",
-      flags: [],
-      agentFlags: "--agent",
+      flags: ["--limit <n>"],
+      agentFlags: "--agent [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -1378,6 +1381,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       ],
       examples: [
         "privacy-pools withdraw recipients",
+        "privacy-pools withdraw recipients --limit 10",
         "privacy-pools withdraw recipients add 0xRecipient... treasury",
         "privacy-pools withdraw recipients remove 0xRecipient...",
       ],
@@ -1393,8 +1397,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "withdraw recipients",
-      flags: [],
-      agentFlags: "--agent",
+      flags: ["--limit <n>"],
+      agentFlags: "--agent [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -1406,6 +1410,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       examples: [
         "privacy-pools withdraw recipients list",
+        "privacy-pools withdraw recipients list --limit 10",
         "privacy-pools withdraw recents",
       ],
       jsonFields:
@@ -1417,8 +1422,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "withdraw recipients list",
-      flags: [],
-      agentFlags: "--agent",
+      flags: ["--limit <n>"],
+      agentFlags: "--agent [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -1726,6 +1731,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
           "privacy-pools accounts --chain <name> --pending-only",
           "privacy-pools accounts --chain <name> --status approved",
           "privacy-pools accounts --chain <name> --pending-only --watch",
+          "privacy-pools accounts --limit 10",
         ]},
         { category: "Agent / CI", commands: [
           "privacy-pools accounts --agent",
@@ -1747,8 +1753,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["sync","withdraw","ragequit","history"],
     },
     capabilities: {
-      flags: ["--no-sync", "--include-testnets", "--details", "--summary", "--pending-only", "--status <status>", "--watch"],
-      agentFlags: "--agent",
+      flags: ["--no-sync", "--include-testnets", "--details", "--summary", "--pending-only", "--status <status>", "--watch", "--limit <n>"],
+      agentFlags: "--agent [--limit <n>]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },

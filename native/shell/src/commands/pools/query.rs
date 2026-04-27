@@ -10,7 +10,7 @@ use super::query_execution::{
 use super::query_resolution::list_pools_native;
 use super::render::{render_pool_detail_output, render_pools_empty_output, render_pools_output};
 use crate::bridge::capture_js_worker_stdout;
-use crate::config::{get_rpc_urls, load_config, resolve_chain, CliConfig};
+use crate::config::{get_rpc_urls, load_config, resolve_chain, resolve_rpc_env_var, CliConfig};
 use crate::contract::{ChainDefinition, Manifest};
 use crate::dispatch::{commander_too_many_arguments_error, commander_unknown_option_error};
 use crate::error::{CliError, ErrorCategory};
@@ -184,6 +184,9 @@ pub(crate) fn handle_pools_native(
 
         let mut filtered = apply_pool_search(entries, opts.search.as_deref());
         sort_pools(&mut filtered, &opts.sort);
+        if let Some(limit) = opts.limit {
+            filtered.truncate(limit);
+        }
 
         if let Some(spinner) = loading.as_mut() {
             spinner.stop();
@@ -472,39 +475,6 @@ pub(crate) fn resolve_pool_native(
     let mut available_assets_hint: Option<String> = None;
     let mut asp_lookup_failed = false;
 
-    if let Some(known_asset_address) = manifest
-        .runtime_config
-        .known_pools
-        .get(&chain.id)
-        .and_then(|pools| pools.get(&normalized))
-        .cloned()
-    {
-        match super::rpc::resolve_pool_from_asset_address_native(
-            chain,
-            &known_asset_address,
-            &rpc_urls,
-            &manifest.runtime_config.native_asset_address,
-            timeout_ms,
-        ) {
-            Ok(resolution) => return Ok(resolution),
-            Err(error) => {
-                if matches!(error.category, ErrorCategory::Rpc) {
-                    return Err(CliError::rpc_retryable(
-                        format!(
-                            "Built-in pool fallback also failed for \"{asset}\" on {}.",
-                            chain.name
-                        ),
-                        Some(
-                            "Check your RPC URL and network connectivity, then retry.".to_string(),
-                        ),
-                        Some("RPC_POOL_RESOLUTION_FAILED"),
-                    ));
-                }
-                return Err(error);
-            }
-        }
-    }
-
     match list_pools_native(
         chain,
         rpc_override.clone(),
@@ -536,12 +506,65 @@ pub(crate) fn resolve_pool_native(
         }
     }
 
+    if let Some(known_asset_address) = manifest
+        .runtime_config
+        .known_pools
+        .get(&chain.id)
+        .and_then(|pools| pools.get(&normalized))
+        .cloned()
+    {
+        match super::rpc::resolve_pool_from_asset_address_native(
+            chain,
+            &known_asset_address,
+            &rpc_urls,
+            &manifest.runtime_config.native_asset_address,
+            timeout_ms,
+        ) {
+            Ok(resolution) => return Ok(resolution),
+            Err(error) => {
+                if asp_lookup_failed
+                    && has_custom_rpc_override(chain.id, rpc_override.as_deref(), config, manifest)
+                {
+                    // Match the JS launcher: when both ASP lookup and a custom RPC fallback
+                    // fail for a symbol, keep the actionable "unknown asset / ASP may be
+                    // offline" guidance instead of surfacing the lower-level RPC failure.
+                } else if matches!(error.category, ErrorCategory::Rpc) {
+                    return Err(CliError::rpc_retryable(
+                        format!(
+                            "Built-in pool fallback also failed for \"{asset}\" on {}.",
+                            chain.name
+                        ),
+                        Some(
+                            "Check your RPC URL and network connectivity, then retry.".to_string(),
+                        ),
+                        Some("RPC_POOL_RESOLUTION_FAILED"),
+                    ));
+                } else {
+                    return Err(error);
+                }
+            }
+        }
+    }
+
     Err(pool_not_found_error(
         chain,
         asset,
         asp_lookup_failed,
         available_assets_hint,
     ))
+}
+
+fn has_custom_rpc_override(
+    chain_id: u64,
+    rpc_override: Option<&str>,
+    config: &CliConfig,
+    manifest: &Manifest,
+) -> bool {
+    rpc_override
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false)
+        || resolve_rpc_env_var(chain_id, &manifest.runtime_config).is_some()
+        || config.rpc_overrides.contains_key(&chain_id)
 }
 
 fn pool_not_found_error(
@@ -567,6 +590,7 @@ fn pool_not_found_error(
 
 fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError> {
     let mut all_chains = false;
+    let mut limit = None;
     let mut search = None;
     let mut sort = None;
     let mut unexpected_args = 0;
@@ -608,6 +632,16 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
         }
         if let Some(value) = token.strip_prefix("--sort=") {
             sort = Some(value.to_string());
+            index += 1;
+            continue;
+        }
+        if token == "--limit" {
+            limit = argv.get(index + 1).cloned();
+            index += 2;
+            continue;
+        }
+        if let Some(value) = token.strip_prefix("--limit=") {
+            limit = Some(value.to_string());
             index += 1;
             continue;
         }
@@ -653,9 +687,23 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
             Some(format!("Use one of: {}.", supported.join(", "))),
         ));
     }
+    let parsed_limit = match limit {
+        Some(raw) => match raw.parse::<usize>() {
+            Ok(value) if value > 0 => Some(value),
+            _ => {
+                return Err(CliError::input_with_code(
+                    format!("Invalid --limit value: {raw}."),
+                    Some("--limit must be a positive integer.".to_string()),
+                    "INPUT_INVALID_VALUE",
+                ));
+            }
+        },
+        None => None,
+    };
 
     Ok(PoolsCommandOptions {
         all_chains,
+        limit: parsed_limit,
         search: search
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty()),

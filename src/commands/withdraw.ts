@@ -299,6 +299,7 @@ function createAnonymitySetAmountTransformer(params: {
   let timer: NodeJS.Timeout | null = null;
   let requestId = 0;
   let lastRendered = "";
+  let hasRenderedHint = false;
 
   return (value, context) => {
     if (params.silent || context.isFinal) {
@@ -332,12 +333,18 @@ function createAnonymitySetAmountTransformer(params: {
             return;
           }
           lastRendered = trimmed;
-          process.stderr.write(
-            `\nEstimated anonymity set: ${formatAnonymitySetValue(anonymitySet)}\n`,
-          );
+          const line =
+            `Estimated anonymity set: ${formatAnonymitySetValue(anonymitySet)}`;
+          if (hasRenderedHint && process.stderr.isTTY) {
+            process.stderr.write("\x1b[1A\x1b[2K");
+          } else {
+            process.stderr.write("\n");
+          }
+          process.stderr.write(`${line}\n`);
+          hasRenderedHint = true;
         })
         .catch(() => undefined);
-    }, 500);
+    }, 1500);
     return value;
   };
 }
@@ -499,6 +506,7 @@ export async function promptRecentRecipientAddressOrEns(): Promise<{
   if (entries.length === 0) return null;
 
   const newRecipientValue = "__privacy_pools_new_recipient__";
+  const manageRecipientsValue = "__privacy_pools_manage_recipients__";
   const selected = await selectPrompt<string>({
     message: "Recipient:",
     choices: [
@@ -514,10 +522,19 @@ export async function promptRecentRecipientAddressOrEns(): Promise<{
         value: newRecipientValue,
         description: "Type an address or ENS name.",
       },
+      {
+        name: "Manage saved recipients...",
+        value: manageRecipientsValue,
+        description: "Exit this flow and open the recipients command.",
+      },
     ],
   });
 
   if (selected === newRecipientValue) return null;
+  if (selected === manageRecipientsValue) {
+    info("Manage saved recipients with 'privacy-pools recipients'.", false);
+    throw promptCancelledError();
+  }
   const entry = entries.find(
     (candidate) => candidate.address.toLowerCase() === selected.toLowerCase(),
   );
@@ -1983,11 +2000,16 @@ export async function handleWithdrawCommand(
             ) {
               return;
             }
-            const reviewChoice = await selectPrompt<"confirm" | "back" | "cancel">({
+            const reviewChoice = await selectPrompt<"confirm" | "back" | "switch" | "cancel">({
               message: "Review direct withdrawal",
               choices: [
                 { name: "Continue to confirmation", value: "confirm" as const },
                 { name: "Back: edit amount", value: "back" as const },
+                {
+                  name: "Switch to relayed withdrawal",
+                  value: "switch" as const,
+                  description: "Exit and rerun without --direct to preserve withdrawal privacy.",
+                },
                 { name: "Cancel withdrawal", value: "cancel" as const },
               ],
             });
@@ -2011,6 +2033,22 @@ export async function handleWithdrawCommand(
                 silent,
               );
               continue;
+            }
+            if (reviewChoice === "switch") {
+              const rerunCommand = [
+                "privacy-pools withdraw",
+                formatUnits(withdrawalAmount, pool.decimals),
+                pool.symbol,
+                "--to",
+                directAddress,
+                "--chain",
+                chainConfig.name,
+              ].join(" ");
+              info(
+                `Direct withdrawal cancelled. To use the relayed private path, run: ${rerunCommand}`,
+                silent,
+              );
+              return;
             }
             const ok = await confirmActionWithSeverity({
               severity: "high_stakes",

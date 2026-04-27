@@ -6,6 +6,7 @@ import { FLOW_PRIVACY_DELAY_PROFILES } from "./flow-privacy-delay.js";
 import { SUPPORTED_SORT_MODES } from "./pools-sort.js";
 import { resolveBaseConfigHome, resolveConfigHome } from "../runtime/config-paths.js";
 import { loadAccount } from "../services/account-storage.js";
+import { loadRecipientHistoryEntries } from "../services/recipient-history.js";
 import { listSavedWorkflowIds } from "../services/workflow.js";
 import {
   COMMAND_CATALOG,
@@ -226,6 +227,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("--include-testnets"),
           completionOption("--search <query>"),
+          completionOption("-n, --limit <n>"),
           completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
         ],
       }),
@@ -247,6 +249,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--pending-only"),
           completionOption("--status <status>", POOL_ACCOUNT_STATUSES),
           completionOption("--watch"),
+          completionOption("-n, --limit <n>"),
         ],
       }),
       completionCommand("migrate", {
@@ -280,8 +283,12 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           }),
           completionCommand("recipients", {
             aliases: ["recents"],
+            options: [completionOption("-n, --limit <n>")],
             subcommands: [
-              completionCommand("list", { aliases: ["ls"] }),
+              completionCommand("list", {
+                aliases: ["ls"],
+                options: [completionOption("-n, --limit <n>")],
+              }),
               completionCommand("add", {
                 options: [completionOption("--label <label>")],
               }),
@@ -293,8 +300,12 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       }),
       completionCommand("recipients", {
         aliases: ["recents"],
+        options: [completionOption("-n, --limit <n>")],
         subcommands: [
-          completionCommand("list", { aliases: ["ls"] }),
+          completionCommand("list", {
+            aliases: ["ls"],
+            options: [completionOption("-n, --limit <n>")],
+          }),
           completionCommand("add", {
             options: [completionOption("--label <label>")],
           }),
@@ -549,6 +560,10 @@ function isPoolAccountOption(option: CompletionOptionSpec): boolean {
   return option.names.some((n) => n === "--pool-account" || n === "-p");
 }
 
+function isRecipientOption(option: CompletionOptionSpec): boolean {
+  return option.names.some((n) => n === "--to" || n === "-t");
+}
+
 function isProfileOption(option: CompletionOptionSpec): boolean {
   return option.names.some((n) => n === "--profile");
 }
@@ -733,6 +748,19 @@ function dynamicPoolAccountCandidates(words: string[]): string[] {
   }
 }
 
+function dynamicRecipientCandidates(): string[] {
+  try {
+    const candidates = new Set<string>();
+    for (const entry of loadRecipientHistoryEntries()) {
+      candidates.add(entry.address);
+      if (entry.ensName) candidates.add(entry.ensName);
+    }
+    return uniqueSorted([...candidates]);
+  } catch {
+    return [];
+  }
+}
+
 function dynamicProfileCandidates(): string[] {
   try {
     const baseConfigHome = resolveBaseConfigHome();
@@ -851,6 +879,8 @@ export function queryCompletionCandidates(
       }
       const values = isPoolAccountOption(option)
         ? dynamicPoolAccountCandidates(words)
+        : isRecipientOption(option)
+          ? dynamicRecipientCandidates()
         : option.values;
       if (values.length > 0) {
         return filterByPrefix(values, valuePrefix).map(
@@ -863,6 +893,12 @@ export function queryCompletionCandidates(
   if (expectingValueFor) {
     if (isPoolAccountOption(expectingValueFor)) {
       const dynamicValues = dynamicPoolAccountCandidates(words);
+      if (dynamicValues.length > 0) {
+        return filterByPrefix(dynamicValues, currentToken);
+      }
+    }
+    if (isRecipientOption(expectingValueFor)) {
+      const dynamicValues = dynamicRecipientCandidates();
       if (dynamicValues.length > 0) {
         return filterByPrefix(dynamicValues, currentToken);
       }

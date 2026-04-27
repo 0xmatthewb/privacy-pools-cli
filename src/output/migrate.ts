@@ -6,6 +6,7 @@ import {
   isSilent,
   printJsonSuccess,
   printTable,
+  renderNextSteps,
   warn,
 } from "./common.js";
 import {
@@ -276,4 +277,6 @@ export function renderMigrationStatus(
       ),
     );
   }
+
+  renderNextSteps(ctx, migrationNextActions(result));
 }

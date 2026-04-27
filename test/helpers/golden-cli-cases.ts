@@ -76,6 +76,7 @@ export const GOLDEN_TEXT_CASES: readonly GoldenTextCase[] = [
     format: "text",
     stream: "stderr",
     status: 0,
+    sharedNative: true,
   },
   {
     name: "stats/global-wide-human",
@@ -109,6 +110,7 @@ export const GOLDEN_TEXT_CASES: readonly GoldenTextCase[] = [
     format: "text",
     stream: "stderr",
     status: 0,
+    sharedNative: true,
   },
   {
     name: "activity/sepolia-human",
@@ -117,6 +119,7 @@ export const GOLDEN_TEXT_CASES: readonly GoldenTextCase[] = [
     format: "text",
     stream: "stderr",
     status: 0,
+    sharedNative: true,
   },
   {
     name: "activity/sepolia-wide-human",
@@ -133,6 +136,7 @@ export const GOLDEN_TEXT_CASES: readonly GoldenTextCase[] = [
     format: "text",
     stream: "stderr",
     status: 0,
+    sharedNative: true,
   },
   {
     name: "pools/detail-sepolia-human",
@@ -141,6 +145,16 @@ export const GOLDEN_TEXT_CASES: readonly GoldenTextCase[] = [
     format: "text",
     stream: "stderr",
     status: 0,
+    sharedNative: true,
+  },
+  {
+    name: "pools/no-results-sepolia-human",
+    args: ["--chain", "sepolia", "pools", "--search", "NOPE"],
+    env: "fixture",
+    format: "text",
+    stream: "stderr",
+    status: 0,
+    sharedNative: true,
   },
 ] as const;
 
@@ -206,6 +220,7 @@ export const GOLDEN_JSON_CASES: readonly GoldenJsonCase[] = [
     env: "fixture",
     format: "json",
     status: 0,
+    sharedNative: true,
   },
   {
     name: "stats/global-alias-agent",
@@ -235,6 +250,7 @@ export const GOLDEN_JSON_CASES: readonly GoldenJsonCase[] = [
     env: "fixture",
     format: "json",
     status: 0,
+    sharedNative: true,
   },
   {
     name: "activity/sepolia-agent",
@@ -242,6 +258,7 @@ export const GOLDEN_JSON_CASES: readonly GoldenJsonCase[] = [
     env: "fixture",
     format: "json",
     status: 0,
+    sharedNative: true,
   },
   {
     name: "stats/pool-sepolia-agent",
@@ -249,6 +266,23 @@ export const GOLDEN_JSON_CASES: readonly GoldenJsonCase[] = [
     env: "fixture",
     format: "json",
     status: 0,
+    sharedNative: true,
+  },
+  {
+    name: "pools/detail-sepolia-agent",
+    args: ["--agent", "--chain", "sepolia", "pools", "ETH"],
+    env: "fixture",
+    format: "json",
+    status: 0,
+    sharedNative: true,
+  },
+  {
+    name: "pools/no-results-sepolia-agent",
+    args: ["--agent", "--chain", "sepolia", "pools", "--search", "NOPE"],
+    env: "fixture",
+    format: "json",
+    status: 0,
+    sharedNative: true,
   },
   {
     name: "errors/pools-multichain-rpc-url-agent",

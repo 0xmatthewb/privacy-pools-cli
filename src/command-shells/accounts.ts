@@ -26,6 +26,7 @@ export function createAccountsCommand(): Command {
       "--watch",
       "Re-render pending approvals every 15s until none remain (human mode only; requires pending filter)",
     )
+    .option("-n, --limit <n>", "Limit Pool Account rows returned")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

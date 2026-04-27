@@ -20,6 +20,7 @@ import {
 } from "../../utils/recipient-safety.js";
 import { getCommandAliasDeprecationWarning } from "../../utils/root-alias-metadata.js";
 import { promptCancelledError } from "../../utils/errors.js";
+import { inputError } from "../../utils/errors/factories.js";
 import {
   CONFIRMATION_TOKENS,
   confirmActionWithSeverity,
@@ -142,6 +143,11 @@ export function rememberSuccessfulWithdrawalRecipient(
 
 interface RecipientCommandOptions {
   label?: string;
+  limit?: string;
+}
+
+interface RecipientListCommandOptions {
+  limit?: string;
 }
 
 function rootOptionsForCommand(cmd: Command): GlobalOptions {
@@ -228,6 +234,19 @@ function recipientPayload(entry: RecipientHistoryEntry): Record<string, unknown>
     lastUsedAt: entry.lastUsedAt,
     updatedAt: entry.updatedAt,
   };
+}
+
+function parseOptionalLimit(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw inputError(
+      "INPUT_INVALID_VALUE",
+      `Invalid --limit value: ${raw}.`,
+      "--limit must be a positive integer.",
+    );
+  }
+  return parsed;
 }
 
 function resolveStoredRecipientForRemoval(
@@ -347,10 +366,12 @@ function renderRecipientList(
 }
 
 export async function handleWithdrawRecipientsListCommand(
-  _opts: unknown,
+  opts: RecipientListCommandOptions,
   cmd: Command,
 ): Promise<void> {
-  renderRecipientList(loadRecipientHistoryEntries(), cmd);
+  const limit = parseOptionalLimit(opts.limit);
+  const entries = loadRecipientHistoryEntries();
+  renderRecipientList(limit === undefined ? entries : entries.slice(0, limit), cmd);
 }
 
 export async function handleWithdrawRecipientsAddCommand(

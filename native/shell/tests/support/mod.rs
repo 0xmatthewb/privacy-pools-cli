@@ -367,16 +367,19 @@ fn route_request(request: &str, behavior: &FixtureBehavior) -> (&'static str, St
                 .get("global")
                 .and_then(Value::as_array)
                 .map(|events| events.len() as u64)
-                .unwrap_or(1),
+                .unwrap_or(13),
             "totalPages": 1,
         }),
         ("GET", "/global/public/statistics") => json!({
             "allTime": {
+                "tvl": "50000000000000000000",
                 "tvlUsd": "150000",
                 "totalDepositsCount": 100,
                 "totalDepositsValue": "200000000000000000000",
+                "totalDepositsValueUsd": "600000",
                 "totalWithdrawalsCount": 50,
-                "totalWithdrawalsValue": "100000000000000000000"
+                "totalWithdrawalsValue": "100000000000000000000",
+                "totalWithdrawalsValueUsd": "300000"
             },
             "last24h": {
                 "totalDepositsCount": 5,
@@ -422,11 +425,14 @@ fn route_request(request: &str, behavior: &FixtureBehavior) -> (&'static str, St
                 "tokenAddress": FIXTURE_ASSET,
                 "tokenDecimals": 18,
                 "allTime": {
+                    "tvl": "50000000000000000000",
                     "tvlUsd": "150000",
                     "totalDepositsCount": 100,
                     "totalDepositsValue": "200000000000000000000",
+                    "totalDepositsValueUsd": "600000",
                     "totalWithdrawalsCount": 50,
-                    "totalWithdrawalsValue": "100000000000000000000"
+                    "totalWithdrawalsValue": "100000000000000000000",
+                    "totalWithdrawalsValueUsd": "300000"
                 },
                 "last24h": {
                     "totalDepositsCount": 5,

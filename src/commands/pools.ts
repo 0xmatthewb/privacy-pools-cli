@@ -64,6 +64,7 @@ import type {
 
 interface PoolsCommandOptions {
   includeTestnets?: boolean;
+  limit?: string;
   search?: string;
   sort?: string;
 }
@@ -86,6 +87,19 @@ function parseSortMode(raw: string | undefined): PoolsSortMode {
     `Invalid --sort value: ${raw}.`,
     `Use one of: ${SUPPORTED_SORT_MODES.join(", ")}.`,
   );
+}
+
+function parseOptionalLimit(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw inputError(
+      "INPUT_INVALID_VALUE",
+      `Invalid --limit value: ${raw}.`,
+      "--limit must be a positive integer.",
+    );
+  }
+  return parsed;
 }
 
 function getRootGlobalOptions(cmd: Command): GlobalOptions {
@@ -522,6 +536,7 @@ export async function handlePoolsCommand(
 
     const config = loadConfig();
     const sortMode = parseSortMode(opts.sort);
+    const limit = parseOptionalLimit(opts.limit);
     const searchQuery = opts.search?.trim();
 
     let chainsToQuery: ChainConfig[];
@@ -619,10 +634,13 @@ export async function handlePoolsCommand(
       return;
     }
 
-    renderData.filteredPools = sortPools(
+    const filteredPools = sortPools(
       applySearch(rawPools, searchQuery),
       sortMode,
     );
+    renderData.filteredPools = limit === undefined
+      ? filteredPools
+      : filteredPools.slice(0, limit);
 
     renderPools(ctx, renderData);
   } catch (error) {

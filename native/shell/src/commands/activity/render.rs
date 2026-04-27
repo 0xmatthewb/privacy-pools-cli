@@ -271,16 +271,16 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
         if total_pages > 1 {
             let total_suffix = data
                 .total
-                .map(|total| format!(" ({total} events)"))
+                .map(|total| format!(" · {total} events"))
                 .unwrap_or_default();
-            let next_suffix = if data.page < total_pages {
-                format!(". Next: --page {}", data.page + 1)
+            let next_line = if data.page < total_pages {
+                format!("\n  privacy-pools activity --page {}", data.page + 1)
             } else {
                 String::new()
             };
             write_stderr_text(&format!(
                 "\n  Page {} of {}{}{}\n",
-                data.page, total_pages, total_suffix, next_suffix
+                data.page, total_pages, total_suffix, next_line
             ));
         }
         if data.page < total_pages {

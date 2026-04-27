@@ -123,6 +123,14 @@ pub fn handle_activity_native(
             .into_iter()
             .filter(|event| event.chain_id.is_none() || event.chain_id == Some(chain.id))
             .collect::<Vec<_>>();
+            let page = normalize_asp_page(parse_json_u64(response.get("page")), opts.page);
+            let per_page = parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page);
+            let total = parse_json_u64(response.get("total"));
+            let total_pages = derive_known_total_pages(
+                total,
+                per_page,
+                parse_json_u64(response.get("totalPages")),
+            );
             if let Some(spinner) = loading.as_mut() {
                 spinner.stop();
             }
@@ -130,17 +138,17 @@ pub fn handle_activity_native(
                 &mode,
                 ActivityRenderData {
                     mode: "global-activity",
-                    chain: chain.name,
-                    chains: None,
-                    page: normalize_asp_page(parse_json_u64(response.get("page")), opts.page),
-                    per_page: parse_json_u64(response.get("perPage")).unwrap_or(opts.per_page),
-                    total: None,
-                    total_pages: None,
+                    chain: chain.name.clone(),
+                    chains: Some(vec![chain.name]),
+                    page,
+                    per_page,
+                    total,
+                    total_pages,
                     events,
                     asset: None,
                     pool: None,
                     scope: None,
-                    chain_filtered: true,
+                    chain_filtered: false,
                 },
             );
             return Ok(0);

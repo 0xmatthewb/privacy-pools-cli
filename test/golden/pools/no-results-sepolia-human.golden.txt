@@ -1,0 +1,6 @@
+// normalized: NONE
+Fetching pools for sepolia...
+
+Pools on sepolia:
+
+● No pools matched search query "NOPE".

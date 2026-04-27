@@ -12,9 +12,14 @@ Shows the local withdrawal recipient history. Successful withdrawals are remembe
 
 ```bash
 privacy-pools recipients
+privacy-pools recipients --limit 10
 privacy-pools recipients add 0xRecipient... treasury
 privacy-pools recipients remove 0xRecipient...
 ```
+
+| Flag | Description |
+|------|-------------|
+| `-n, --limit <n>` | Limit recipients returned |
 
 **Safety:** Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.
 
@@ -26,8 +31,13 @@ List remembered withdrawal recipients
 
 ```bash
 privacy-pools recipients list
+privacy-pools recipients list --limit 10
 privacy-pools recents
 ```
+
+| Flag | Description |
+|------|-------------|
+| `-n, --limit <n>` | Limit recipients returned |
 
 **JSON output:** `{ mode: "recipient-history", operation: "list", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }`
 

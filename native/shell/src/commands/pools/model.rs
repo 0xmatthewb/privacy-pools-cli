@@ -6,6 +6,7 @@ pub(super) const POOL_RESOLUTION_MAX_WORKERS: usize = 4;
 #[derive(Debug, Clone)]
 pub(super) struct PoolsCommandOptions {
     pub(super) all_chains: bool,
+    pub(super) limit: Option<usize>,
     pub(super) search: Option<String>,
     pub(super) sort: String,
 }

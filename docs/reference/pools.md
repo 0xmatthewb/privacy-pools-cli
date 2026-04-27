@@ -25,6 +25,7 @@ privacy-pools pools BOLD --chain mainnet
 ```bash
 privacy-pools pools --include-testnets --sort tvl-desc
 privacy-pools pools --search usdc --sort asset-asc
+privacy-pools pools --limit 10
 ```
 
 **Agent / CI:**
@@ -38,6 +39,7 @@ privacy-pools pools --agent --chain mainnet
 |------|-------------|
 | `--include-testnets` | Include supported testnets (default: CLI-supported mainnet chains only) |
 | `--search <query>` | Filter by chain/symbol/address/scope |
+| `-n, --limit <n>` | Limit rows returned |
 | `--sort <mode>` | Sort mode (default, asset-asc, asset-desc, tvl-desc, tvl-asc, deposits-desc, deposits-asc, chain-asset) |
 
 **JSON output:** `{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

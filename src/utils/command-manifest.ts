@@ -868,9 +868,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "--include-testnets",
         "--search <query>",
-        "--sort <mode>"
+        "--sort <mode>",
+        "--limit <n>"
       ],
-      "agentFlags": "--agent [--include-testnets] [--search <query>] [--sort <mode>]",
+      "agentFlags": "--agent [--include-testnets] [--search <query>] [--sort <mode>] [--limit <n>]",
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -999,8 +1000,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "recents"
       ],
       "usage": "recipients",
-      "flags": [],
-      "agentFlags": "--agent",
+      "flags": [
+        "--limit <n>"
+      ],
+      "agentFlags": "--agent [--limit <n>]",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1012,8 +1015,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "ls"
       ],
       "usage": "recipients list",
-      "flags": [],
-      "agentFlags": "--agent",
+      "flags": [
+        "--limit <n>"
+      ],
+      "agentFlags": "--agent [--limit <n>]",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1060,8 +1065,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "recents"
       ],
       "usage": "withdraw recipients",
-      "flags": [],
-      "agentFlags": "--agent",
+      "flags": [
+        "--limit <n>"
+      ],
+      "agentFlags": "--agent [--limit <n>]",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1073,8 +1080,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "ls"
       ],
       "usage": "withdraw recipients list",
-      "flags": [],
-      "agentFlags": "--agent",
+      "flags": [
+        "--limit <n>"
+      ],
+      "agentFlags": "--agent [--limit <n>]",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1150,9 +1159,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--summary",
         "--pending-only",
         "--status <status>",
-        "--watch"
+        "--watch",
+        "--limit <n>"
       ],
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--limit <n>]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -3071,7 +3081,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "flags": [
         "--include-testnets",
         "--search <query>",
-        "--sort <mode>"
+        "--sort <mode>",
+        "--limit <n>"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3115,7 +3126,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "category": "Search and sort",
           "commands": [
             "privacy-pools pools --include-testnets --sort tvl-desc",
-            "privacy-pools pools --search usdc --sort asset-asc"
+            "privacy-pools pools --search usdc --sort asset-asc",
+            "privacy-pools pools --limit 10"
           ]
         },
         {
@@ -3150,6 +3162,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "description": "Search and sort",
           "category": "Search and sort",
           "command": "privacy-pools pools --search usdc --sort asset-asc"
+        },
+        {
+          "description": "Search and sort",
+          "category": "Search and sort",
+          "command": "privacy-pools pools --limit 10"
         },
         {
           "description": "Agent / CI",
@@ -4192,7 +4209,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         ]
       },
       "usage": "recipients",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -4224,6 +4243,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools recipients",
+        "privacy-pools recipients --limit 10",
         "privacy-pools recipients add 0xRecipient... treasury",
         "privacy-pools recipients remove 0xRecipient..."
       ],
@@ -4234,10 +4254,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 2",
-          "command": "privacy-pools recipients add 0xRecipient... treasury"
+          "command": "privacy-pools recipients --limit 10"
         },
         {
           "description": "Example 3",
+          "command": "privacy-pools recipients add 0xRecipient... treasury"
+        },
+        {
+          "description": "Example 4",
           "command": "privacy-pools recipients remove 0xRecipient..."
         }
       ],
@@ -4267,7 +4291,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         ]
       },
       "usage": "recipients list",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -4299,6 +4325,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools recipients list",
+        "privacy-pools recipients list --limit 10",
         "privacy-pools recents"
       ],
       "structuredExamples": [
@@ -4308,6 +4335,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 2",
+          "command": "privacy-pools recipients list --limit 10"
+        },
+        {
+          "description": "Example 3",
           "command": "privacy-pools recents"
         }
       ],
@@ -4537,7 +4568,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         ]
       },
       "usage": "withdraw recipients",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -4569,6 +4602,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools withdraw recipients",
+        "privacy-pools withdraw recipients --limit 10",
         "privacy-pools withdraw recipients add 0xRecipient... treasury",
         "privacy-pools withdraw recipients remove 0xRecipient..."
       ],
@@ -4579,10 +4613,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 2",
-          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+          "command": "privacy-pools withdraw recipients --limit 10"
         },
         {
           "description": "Example 3",
+          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury"
+        },
+        {
+          "description": "Example 4",
           "command": "privacy-pools withdraw recipients remove 0xRecipient..."
         }
       ],
@@ -4612,7 +4650,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         ]
       },
       "usage": "withdraw recipients list",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -4644,6 +4684,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools withdraw recipients list",
+        "privacy-pools withdraw recipients list --limit 10",
         "privacy-pools withdraw recents"
       ],
       "structuredExamples": [
@@ -4653,6 +4694,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 2",
+          "command": "privacy-pools withdraw recipients list --limit 10"
+        },
+        {
+          "description": "Example 3",
           "command": "privacy-pools withdraw recents"
         }
       ],
@@ -5336,7 +5381,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--summary",
         "--pending-only",
         "--status <status>",
-        "--watch"
+        "--watch",
+        "--limit <n>"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -5384,7 +5430,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
             "privacy-pools accounts --summary",
             "privacy-pools accounts --chain <name> --pending-only",
             "privacy-pools accounts --chain <name> --status approved",
-            "privacy-pools accounts --chain <name> --pending-only --watch"
+            "privacy-pools accounts --chain <name> --pending-only --watch",
+            "privacy-pools accounts --limit 10"
           ]
         },
         {
@@ -5430,6 +5477,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "description": "Compact modes",
           "category": "Compact modes",
           "command": "privacy-pools accounts --chain <name> --pending-only --watch"
+        },
+        {
+          "description": "Compact modes",
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --limit 10"
         },
         {
           "description": "Agent / CI",

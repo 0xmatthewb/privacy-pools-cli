@@ -270,6 +270,41 @@ fn text_cases() -> Vec<TextGoldenCase> {
             status: 0,
             stream: StreamKind::Stderr,
         },
+        TextGoldenCase {
+            name: "pools/no-results-sepolia-human",
+            args: &["--chain", "sepolia", "pools", "--search", "NOPE"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+            stream: StreamKind::Stderr,
+        },
+        TextGoldenCase {
+            name: "activity/global-human",
+            args: &["activity"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+            stream: StreamKind::Stderr,
+        },
+        TextGoldenCase {
+            name: "activity/sepolia-human",
+            args: &["--chain", "sepolia", "activity"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+            stream: StreamKind::Stderr,
+        },
+        TextGoldenCase {
+            name: "stats/global-human",
+            args: &["stats"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+            stream: StreamKind::Stderr,
+        },
+        TextGoldenCase {
+            name: "stats/pool-sepolia-human",
+            args: &["--chain", "sepolia", "stats", "pool", "ETH"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+            stream: StreamKind::Stderr,
+        },
     ]
 }
 
@@ -318,6 +353,36 @@ fn json_cases() -> Vec<JsonGoldenCase> {
         JsonGoldenCase {
             name: "pools/sepolia-agent",
             args: &["--agent", "--chain", "sepolia", "pools"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+        },
+        JsonGoldenCase {
+            name: "pools/no-results-sepolia-agent",
+            args: &["--agent", "--chain", "sepolia", "pools", "--search", "NOPE"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+        },
+        JsonGoldenCase {
+            name: "activity/global-agent",
+            args: &["--agent", "activity"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+        },
+        JsonGoldenCase {
+            name: "activity/sepolia-agent",
+            args: &["--agent", "--chain", "sepolia", "activity"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+        },
+        JsonGoldenCase {
+            name: "stats/global-agent",
+            args: &["--agent", "stats"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+        },
+        JsonGoldenCase {
+            name: "stats/pool-sepolia-agent",
+            args: &["--agent", "--chain", "sepolia", "stats", "pool", "ETH"],
             env_mode: EnvMode::Fixture,
             status: 0,
         },

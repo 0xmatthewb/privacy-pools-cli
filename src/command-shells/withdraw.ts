@@ -109,6 +109,7 @@ export function createWithdrawCommand(): Command {
     .command("recipients")
     .alias("recents")
     .description("List remembered withdrawal recipients")
+    .option("-n, --limit <n>", "Limit recipients returned")
     .addHelpText(
       "after",
       "\nSuccessful withdrawals are remembered automatically. Use add/remove to manage the local address book manually.\n",
@@ -124,6 +125,7 @@ export function createWithdrawCommand(): Command {
     .command("list")
     .alias("ls")
     .description("List remembered withdrawal recipients")
+    .option("-n, --limit <n>", "Limit recipients returned")
     .action(
       createLazyAction(
         () => import("../commands/withdraw/recipients.js"),

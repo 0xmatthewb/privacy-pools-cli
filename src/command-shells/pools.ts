@@ -11,6 +11,7 @@ function addPoolsListOptions(command: Command): Command {
       "Include supported testnets (default: CLI-supported mainnet chains only)",
     )
     .option("--search <query>", "Filter by chain/symbol/address/scope")
+    .option("-n, --limit <n>", "Limit rows returned")
     .addOption(
       new Option(
         "--sort <mode>",

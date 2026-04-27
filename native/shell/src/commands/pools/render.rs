@@ -1,6 +1,6 @@
 use super::model::{
-    ChainSummary, PoolDetailActivityEvent, PoolDetailRenderData, PoolListingEntry, PoolWarning,
-    PoolsRenderData,
+    ChainSummary, PoolDetailAccount, PoolDetailActivityEvent, PoolDetailRenderData,
+    PoolListingEntry, PoolWarning, PoolsRenderData,
 };
 use crate::output::{
     build_next_action, format_activity_direction_label, format_address, format_callout,
@@ -256,19 +256,6 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         if let Some(search) = data.search {
             if !search.is_empty() {
                 write_info(&format!("No pools matched search query \"{search}\"."));
-                let mut status_options = Map::new();
-                if !data.all_chains {
-                    status_options
-                        .insert("chain".to_string(), Value::String(data.chain_name.clone()));
-                }
-                render_next_steps(&[build_next_action(
-                    "status",
-                    "Check wallet and connection readiness.",
-                    "no_pools",
-                    None,
-                    (!status_options.is_empty()).then_some(&status_options),
-                    None,
-                )]);
                 return;
             }
         }
@@ -445,12 +432,16 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
         return;
     }
 
+    write_stderr_text(&format!(
+        "Fetching {} pool details on {}...",
+        data.asset, data.chain_name
+    ));
     write_stderr_text(&format_command_heading(&format!(
         "{} Pool on {}",
         data.asset, data.chain_name
     )));
 
-    write_stderr_text(&format_section_heading("Summary"));
+    write_stderr_text(&format_section_heading("Pool summary"));
     let pool_balance = format_pool_stat_amount(
         data.total_in_pool_value.as_deref(),
         data.decimals,
@@ -469,27 +460,15 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
     write_stderr_text(&format_key_value_rows(&[
         (
             "Pool Balance",
-            format!(
-                "{} ({})",
-                pool_balance,
-                parse_usd_string(data.total_in_pool_value_usd.as_deref())
-            ),
+            format_pool_stat_with_usd(&pool_balance, data.total_in_pool_value_usd.as_deref()),
         ),
         (
             "Pending Funds",
-            format!(
-                "{} ({})",
-                pending_funds,
-                parse_usd_string(data.pending_deposits_value_usd.as_deref())
-            ),
+            format_pool_stat_with_usd(&pending_funds, data.pending_deposits_value_usd.as_deref()),
         ),
         (
             "All-Time Deposits",
-            format!(
-                "{} ({})",
-                all_time_deposits,
-                parse_usd_string(data.total_deposits_value_usd.as_deref())
-            ),
+            format_pool_stat_with_usd(&all_time_deposits, data.total_deposits_value_usd.as_deref()),
         ),
         (
             "Total Deposits",
@@ -497,33 +476,47 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
                 .map(format_count_number)
                 .unwrap_or_else(|| "-".to_string()),
         ),
+        ("Vetting Fee", format_bps_value(&data.vetting_fee_bps)),
         (
             "Min Deposit",
             parse_biguint(&data.minimum_deposit)
                 .map(|value| format_amount(&value, data.decimals, Some(&data.asset), Some(2)))
                 .unwrap_or_else(|| data.minimum_deposit.clone()),
         ),
-        ("Vetting Fee", format_bps_value(&data.vetting_fee_bps)),
-        ("Max Relay Fee", format_bps_value(&data.max_relay_fee_bps)),
-        ("Pool Address", format_address(&data.pool, 6)),
-        ("Token", format_address(&data.token_address, 6)),
-        ("Scope", data.scope.clone()),
     ]));
 
-    write_stderr_text(&format_section_heading("My funds"));
+    write_stderr_text(&format_callout(
+        CalloutKind::ReadOnly,
+        &[String::from(
+            "Vetting fees are deducted on deposit. Pool balance includes accepted plus pending deposits.",
+        )],
+    ));
+
+    write_stderr_text(&format_section_heading("Your funds"));
     if let Some(my_funds) = data.my_funds.clone() {
-        let mut summary = vec![
+        let active_accounts = my_funds
+            .accounts
+            .iter()
+            .filter(|account| is_active_detail_account(account))
+            .cloned()
+            .collect::<Vec<_>>();
+        let summary = vec![
             (
-                "Balance",
-                parse_biguint(&my_funds.balance)
-                    .map(|value| format_amount(&value, data.decimals, Some(&data.asset), Some(2)))
-                    .unwrap_or_else(|| my_funds.balance.clone()),
+                "Available balance",
+                format_pool_stat_with_usd(
+                    &parse_biguint(&my_funds.balance)
+                        .map(|value| {
+                            format_amount(&value, data.decimals, Some(&data.asset), Some(2))
+                        })
+                        .unwrap_or_else(|| my_funds.balance.clone()),
+                    my_funds.usd_value.as_deref(),
+                ),
             ),
             (
-                "Pool Accounts",
+                "Active Pool Accounts",
                 format!(
                     "{}{}",
-                    format_count_number(my_funds.pool_accounts),
+                    format_count_number(active_accounts.len() as u64),
                     format_review_summary(
                         my_funds.pending_count,
                         my_funds.poa_required_count,
@@ -532,27 +525,10 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
                 ),
             ),
         ];
-        if let Some(usd_value) = my_funds.usd_value.clone() {
-            summary.push(("Balance USD", usd_value));
-        }
         write_stderr_text(&format_key_value_rows(&summary));
-        write_stderr_text(&format_callout(
-            CalloutKind::Success,
-            &[
-                if my_funds.pending_count == 0
-                    && my_funds.poa_required_count == 0
-                    && my_funds.declined_count == 0
-                {
-                    "Wallet funds loaded successfully. Approved Pool Accounts in this pool are ready for withdraw.".to_string()
-                } else {
-                    "Wallet funds loaded successfully. Review each Pool Account status below before choosing withdraw or ragequit.".to_string()
-                },
-            ],
-        ));
 
-        if !my_funds.accounts.is_empty() {
-            let rows = my_funds
-                .accounts
+        if !active_accounts.is_empty() {
+            let rows = active_accounts
                 .iter()
                 .map(|account| {
                     vec![
@@ -566,7 +542,7 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
                     ]
                 })
                 .collect::<Vec<_>>();
-            print_table(vec!["PA", "Amount", "Status"], rows);
+            print_table(vec!["Pool Account", "Balance", "Status"], rows);
         }
 
         if let Some(warning) = data.my_funds_warning.clone() {
@@ -574,9 +550,9 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
         }
         if my_funds.declined_count > 0 {
             write_stderr_text(&format_callout(
-                CalloutKind::Danger,
+                CalloutKind::Recovery,
                 &[String::from(
-                    "Declined Pool Accounts cannot use withdraw. Use ragequit for public recovery to the original deposit address.",
+                    "Declined Pool Accounts cannot use withdraw, including --direct. Use ragequit for public recovery to the deposit address.",
                 )],
             ));
         }
@@ -584,7 +560,7 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
             write_stderr_text(&format_callout(
                 CalloutKind::Recovery,
                 &[String::from(
-                    "PoA-needed Pool Accounts cannot use withdraw yet. Complete Proof of Association first, or recover publicly instead.",
+                    "Proof of Association is still required before these balances can withdraw privately. Complete it at https://app.privacypools.com/poa, or use ragequit if you prefer public recovery.",
                 )],
             ));
         }
@@ -594,7 +570,7 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
         write_stderr_text(&format_callout(
             CalloutKind::ReadOnly,
             &[String::from(
-                "Run privacy-pools init to load your wallet funds here.",
+                "Run 'privacy-pools init' to see your balances here.",
             )],
         ));
     }
@@ -608,46 +584,28 @@ pub(super) fn render_pool_detail_output(mode: &NativeMode, data: PoolDetailRende
         _ => {
             write_stderr_text(&format_callout(
                 CalloutKind::ReadOnly,
-                &[format!(
-                    "No recent public activity is available for {} on {} right now.",
-                    data.asset, data.chain_name
+                &[String::from(
+                    "No recent public activity was returned for this pool.",
                 )],
             ));
         }
     }
-    write_stderr_text(&format_callout(
-        CalloutKind::Privacy,
-        &[format!(
-            "Public activity is visible onchain. Private withdrawals still require an ASP-approved Pool Account on {}.",
-            data.chain_name
-        )],
-    ));
 
-    let mut next_actions = Vec::<Value>::new();
-    let mut activity_options = Map::new();
-    activity_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
-    activity_options.insert("asset".to_string(), Value::String(data.asset.clone()));
-    next_actions.push(build_next_action(
-        "activity",
-        "Review recent public activity for this pool.",
-        "after_pool_detail",
-        None,
-        Some(&activity_options),
-        None,
-    ));
-
-    let mut accounts_options = Map::new();
-    accounts_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
-    next_actions.push(build_next_action(
-        "accounts",
-        "Inspect your Pool Accounts on this chain.",
-        "after_pool_detail",
-        None,
-        Some(&accounts_options),
-        None,
-    ));
-
-    render_next_steps(&next_actions);
+    if data.my_funds.is_some() {
+        let mut accounts_options = Map::new();
+        accounts_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+        let next_actions = vec![build_next_action(
+            "accounts",
+            &format!("View your Pool Account balances on {}.", data.chain_name),
+            "after_pool_detail",
+            None,
+            Some(&accounts_options),
+            None,
+        )];
+        render_next_steps(&next_actions);
+    } else {
+        render_setup_required_next_step();
+    }
 }
 
 fn pool_entry_to_json(entry: &PoolListingEntry, include_chain: bool) -> Value {
@@ -783,12 +741,15 @@ fn pool_listing_row(entry: &PoolListingEntry, include_chain: bool, is_wide: bool
         entry.decimals,
         &entry.asset,
     ));
-    row.push(parse_usd_string(
-        entry
-            .total_in_pool_value_usd
-            .as_deref()
-            .or(entry.accepted_deposits_value_usd.as_deref()),
-    ));
+    row.push(
+        parse_usd_string(
+            entry
+                .total_in_pool_value_usd
+                .as_deref()
+                .or(entry.accepted_deposits_value_usd.as_deref()),
+        )
+        .unwrap_or_else(|| "-".to_string()),
+    );
     row.push(format_pool_stat_amount(
         entry.pending_deposits_value.as_deref(),
         entry.decimals,
@@ -798,7 +759,7 @@ fn pool_listing_row(entry: &PoolListingEntry, include_chain: bool, is_wide: bool
     row.push(format_bps_value(&entry.vetting_fee_bps));
     if is_wide {
         row.push(format_address(&entry.pool, 8));
-        row.push(entry.scope.clone());
+        row.push(format_scope_hex(&entry.scope));
     }
     row
 }
@@ -868,13 +829,20 @@ fn format_review_summary(
     }
 }
 
+fn is_active_detail_account(account: &PoolDetailAccount) -> bool {
+    let has_value = parse_biguint(&account.value)
+        .map(|value| value > num_bigint::BigUint::from(0u8))
+        .unwrap_or(true);
+    has_value && !matches!(account.status.as_str(), "spent" | "exited")
+}
+
 fn format_pool_account_status(status: &str) -> String {
     match status {
-        "approved" => crate::output::format_success_text("approved"),
-        "pending" => crate::output::format_notice_text("pending"),
-        "poa_required" | "poi_required" => crate::output::format_notice_text("PoA needed"),
-        "declined" => crate::output::format_danger_text("declined"),
-        "unknown" => crate::output::format_muted_text("unknown"),
+        "approved" => crate::output::format_success_text("Approved"),
+        "pending" => crate::output::format_notice_text("Pending"),
+        "poa_required" | "poi_required" => crate::output::format_notice_text("POA Needed"),
+        "declined" => crate::output::format_danger_text("Declined"),
+        "unknown" => crate::output::format_muted_text("Unknown"),
         other => other.to_string(),
     }
 }
@@ -895,10 +863,22 @@ fn format_pool_stat_amount(value: Option<&str>, decimals: u32, symbol: &str) -> 
         .unwrap_or_else(|| "-".to_string())
 }
 
+fn format_pool_stat_with_usd(amount: &str, usd_value: Option<&str>) -> String {
+    parse_usd_string(usd_value)
+        .map(|usd| format!("{amount} ({usd})"))
+        .unwrap_or_else(|| amount.to_string())
+}
+
 fn format_pool_minimum_deposit(entry: &PoolListingEntry) -> String {
     parse_biguint(&entry.minimum_deposit)
         .map(|value| format_amount(&value, entry.decimals, Some(&entry.asset), Some(2)))
         .unwrap_or_else(|| entry.minimum_deposit.clone())
+}
+
+fn format_scope_hex(scope: &str) -> String {
+    parse_biguint(scope)
+        .map(|value| format!("0x{}", value.to_str_radix(16)))
+        .unwrap_or_else(|| scope.to_string())
 }
 
 fn format_bps_value(value: &str) -> String {
@@ -910,17 +890,22 @@ fn format_bps_value(value: &str) -> String {
         .unwrap_or_else(|| value.to_string())
 }
 
-fn parse_usd_string(value: Option<&str>) -> String {
+fn parse_usd_string(value: Option<&str>) -> Option<String> {
     match value {
         Some(raw) if !raw.trim().is_empty() => raw
             .replace(',', "")
             .parse::<f64>()
             .ok()
             .filter(|parsed| parsed.is_finite())
-            .map(|parsed| format!("${}", format_count_number(parsed.trunc() as u64)))
-            .unwrap_or_else(|| "-".to_string()),
-        _ => "-".to_string(),
+            .map(|parsed| format!("${}", format_count_number(parsed.trunc() as u64))),
+        _ => None,
     }
+}
+
+fn render_setup_required_next_step() {
+    write_stderr_text("\nNext steps:");
+    write_stderr_text("  → privacy-pools init  (needs init)");
+    write_stderr_text("    Finish setup before submitting deposits or withdrawals.");
 }
 
 fn normalize_usd_json(value: &str) -> Option<String> {
@@ -1166,7 +1151,7 @@ mod extended_tests {
 
         let wide = pool_listing_row(&entry, false, true);
         assert_eq!(wide[7], "0x22222222...22222222");
-        assert_eq!(wide[8], "12345");
+        assert_eq!(wide[8], "0x3039");
     }
 
     #[test]
@@ -1186,9 +1171,9 @@ mod extended_tests {
         assert_eq!(format_pool_stat_amount(Some("bad"), 18, "ETH"), "-");
         assert_eq!(format_pool_minimum_deposit(&entry), "not-a-number");
         assert_eq!(format_bps_value(&entry.vetting_fee_bps), "oops");
-        assert_eq!(parse_usd_string(Some("bad")), "-");
-        assert_eq!(parse_usd_string(Some("  ")), "-");
-        assert_eq!(parse_usd_string(None), "-");
+        assert_eq!(parse_usd_string(Some("bad")), None);
+        assert_eq!(parse_usd_string(Some("  ")), None);
+        assert_eq!(parse_usd_string(None), None);
     }
 
     #[test]

@@ -337,7 +337,7 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
             "errorCode": error.code.as_str(),
             "errorMessage": error.message.as_str(),
             "meta": {
-                "deprecated": ["errorCode", "errorMessage", "helpTopic", "nextActions"]
+                "deprecated": ["errorCode", "errorMessage", "helpTopic"]
             },
             "error": error_payload,
         });
@@ -418,7 +418,32 @@ pub fn format_time_ago(timestamp_ms: Option<u64>) -> String {
         return format!("{hours}h ago");
     }
     let days = hours / 24;
+    if days > 365 {
+        return format_utc_date(timestamp_ms);
+    }
     format!("{days}d ago")
+}
+
+fn format_utc_date(timestamp_ms: u64) -> String {
+    let days_since_epoch = (timestamp_ms / 1000 / 86_400) as i64;
+    let (year, month, day) = civil_from_days(days_since_epoch);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn civil_from_days(days_since_epoch: i64) -> (i64, u32, u32) {
+    let z = days_since_epoch + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let mut year = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = mp + if mp < 10 { 3 } else { -9 };
+    if month <= 2 {
+        year += 1;
+    }
+    (year, month as u32, day as u32)
 }
 
 pub fn print_csv(headers: Vec<&str>, rows: Vec<Vec<String>>) {
@@ -859,9 +884,9 @@ fn section_divider_line() -> String {
 
 fn info_glyph() -> &'static str {
     if supports_unicode_output() {
-        "ℹ"
+        "●"
     } else {
-        "i"
+        "*"
     }
 }
 

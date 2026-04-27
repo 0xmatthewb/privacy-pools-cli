@@ -25,6 +25,7 @@ privacy-pools accounts --summary
 privacy-pools accounts --chain <name> --pending-only
 privacy-pools accounts --chain <name> --status approved
 privacy-pools accounts --chain <name> --pending-only --watch
+privacy-pools accounts --limit 10
 ```
 
 **Agent / CI:**
@@ -44,6 +45,7 @@ privacy-pools accounts --no-sync --chain mainnet
 | `--pending-only` | Show only pending ASP approvals |
 | `--status <status>` | Filter by Pool Account status (approved, pending, poa_required, declined, unknown, spent, exited) |
 | `--watch` | Re-render pending approvals every 15s until none remain (human mode only; requires pending filter) |
+| `-n, --limit <n>` | Limit Pool Account rows returned |
 
 **JSON output:** `{ chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 

@@ -45,7 +45,8 @@
             "privacy-pools accounts --summary",
             "privacy-pools accounts --chain <name> --pending-only",
             "privacy-pools accounts --chain <name> --status approved",
-            "privacy-pools accounts --chain <name> --pending-only --watch"
+            "privacy-pools accounts --chain <name> --pending-only --watch",
+            "privacy-pools accounts --limit 10"
           ]
         },
         {
@@ -70,7 +71,8 @@
         "--summary",
         "--pending-only",
         "--status <status>",
-        "--watch"
+        "--watch",
+        "--limit <n>"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -144,6 +146,11 @@
         {
           "category": "Compact modes",
           "command": "privacy-pools accounts --chain <name> --pending-only --watch",
+          "description": "Compact modes"
+        },
+        {
+          "category": "Compact modes",
+          "command": "privacy-pools accounts --limit 10",
           "description": "Compact modes"
         },
         {
@@ -2750,7 +2757,8 @@
           "category": "Search and sort",
           "commands": [
             "privacy-pools pools --include-testnets --sort tvl-desc",
-            "privacy-pools pools --search usdc --sort asset-asc"
+            "privacy-pools pools --search usdc --sort asset-asc",
+            "privacy-pools pools --limit 10"
           ]
         },
         {
@@ -2774,7 +2782,8 @@
       "flags": [
         "--include-testnets",
         "--search <query>",
-        "--sort <mode>"
+        "--sort <mode>",
+        "--limit <n>"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -2836,6 +2845,11 @@
         {
           "category": "Search and sort",
           "command": "privacy-pools pools --search usdc --sort asset-asc",
+          "description": "Search and sort"
+        },
+        {
+          "category": "Search and sort",
+          "command": "privacy-pools pools --limit 10",
           "description": "Search and sort"
         },
         {
@@ -3048,6 +3062,7 @@
       "description": "Manage remembered withdrawal recipients",
       "examples": [
         "privacy-pools recipients",
+        "privacy-pools recipients --limit 10",
         "privacy-pools recipients add 0xRecipient... treasury",
         "privacy-pools recipients remove 0xRecipient..."
       ],
@@ -3058,7 +3073,9 @@
         "owner": "js-runtime"
       },
       "expectedLatencyClass": "fast",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -3099,12 +3116,16 @@
           "description": "Example 1"
         },
         {
-          "command": "privacy-pools recipients add 0xRecipient... treasury",
+          "command": "privacy-pools recipients --limit 10",
           "description": "Example 2"
         },
         {
-          "command": "privacy-pools recipients remove 0xRecipient...",
+          "command": "privacy-pools recipients add 0xRecipient... treasury",
           "description": "Example 3"
+        },
+        {
+          "command": "privacy-pools recipients remove 0xRecipient...",
+          "description": "Example 4"
         }
       ],
       "supportsDryRun": false,
@@ -3257,6 +3278,7 @@
       "description": "List remembered withdrawal recipients",
       "examples": [
         "privacy-pools recipients list",
+        "privacy-pools recipients list --limit 10",
         "privacy-pools recents"
       ],
       "execution": {
@@ -3266,7 +3288,9 @@
         "owner": "js-runtime"
       },
       "expectedLatencyClass": "fast",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -3306,8 +3330,12 @@
           "description": "Example 1"
         },
         {
-          "command": "privacy-pools recents",
+          "command": "privacy-pools recipients list --limit 10",
           "description": "Example 2"
+        },
+        {
+          "command": "privacy-pools recents",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -4305,6 +4333,7 @@
       "description": "List remembered withdrawal recipients",
       "examples": [
         "privacy-pools withdraw recipients",
+        "privacy-pools withdraw recipients --limit 10",
         "privacy-pools withdraw recipients add 0xRecipient... treasury",
         "privacy-pools withdraw recipients remove 0xRecipient..."
       ],
@@ -4315,7 +4344,9 @@
         "owner": "js-runtime"
       },
       "expectedLatencyClass": "fast",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -4356,12 +4387,16 @@
           "description": "Example 1"
         },
         {
-          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury",
+          "command": "privacy-pools withdraw recipients --limit 10",
           "description": "Example 2"
         },
         {
-          "command": "privacy-pools withdraw recipients remove 0xRecipient...",
+          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury",
           "description": "Example 3"
+        },
+        {
+          "command": "privacy-pools withdraw recipients remove 0xRecipient...",
+          "description": "Example 4"
         }
       ],
       "supportsDryRun": false,
@@ -4514,6 +4549,7 @@
       "description": "List remembered withdrawal recipients",
       "examples": [
         "privacy-pools withdraw recipients list",
+        "privacy-pools withdraw recipients list --limit 10",
         "privacy-pools withdraw recents"
       ],
       "execution": {
@@ -4523,7 +4559,9 @@
         "owner": "js-runtime"
       },
       "expectedLatencyClass": "fast",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -4563,8 +4601,12 @@
           "description": "Example 1"
         },
         {
-          "command": "privacy-pools withdraw recents",
+          "command": "privacy-pools withdraw recipients list --limit 10",
           "description": "Example 2"
+        },
+        {
+          "command": "privacy-pools withdraw recents",
+          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -4948,13 +4990,14 @@
       "usage": "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>"
     },
     {
-      "agentFlags": "--agent [--include-testnets] [--search <query>] [--sort <mode>]",
+      "agentFlags": "--agent [--include-testnets] [--search <query>] [--sort <mode>] [--limit <n>]",
       "description": "Browse available pools",
       "expectedLatencyClass": "medium",
       "flags": [
         "--include-testnets",
         "--search <query>",
-        "--sort <mode>"
+        "--sort <mode>",
+        "--limit <n>"
       ],
       "group": "monitoring",
       "name": "pools",
@@ -5079,26 +5122,30 @@
       "usage": "withdraw [amount] [asset] --to <address>"
     },
     {
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--limit <n>]",
       "aliases": [
         "recents"
       ],
       "description": "Manage remembered withdrawal recipients",
       "expectedLatencyClass": "fast",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "group": "transaction",
       "name": "recipients",
       "requiresInit": false,
       "usage": "recipients"
     },
     {
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--limit <n>]",
       "aliases": [
         "ls"
       ],
       "description": "List remembered withdrawal recipients",
       "expectedLatencyClass": "fast",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "group": "transaction",
       "name": "recipients list",
       "requiresInit": false,
@@ -5140,26 +5187,30 @@
       "usage": "recipients clear"
     },
     {
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--limit <n>]",
       "aliases": [
         "recents"
       ],
       "description": "List remembered withdrawal recipients",
       "expectedLatencyClass": "fast",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "group": "transaction",
       "name": "withdraw recipients",
       "requiresInit": false,
       "usage": "withdraw recipients"
     },
     {
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--limit <n>]",
       "aliases": [
         "ls"
       ],
       "description": "List remembered withdrawal recipients",
       "expectedLatencyClass": "fast",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "group": "transaction",
       "name": "withdraw recipients list",
       "requiresInit": false,
@@ -5226,7 +5277,7 @@
       "usage": "broadcast <input>"
     },
     {
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--limit <n>]",
       "description": "View balances, approval status, and Pool Accounts",
       "expectedLatencyClass": "slow",
       "flags": [
@@ -5236,7 +5287,8 @@
         "--summary",
         "--pending-only",
         "--status <status>",
-        "--watch"
+        "--watch",
+        "--limit <n>"
       ],
       "group": "monitoring",
       "name": "accounts",

@@ -1,0 +1,70 @@
+// normalized: ADDR, HASH, TS, WEI
+{
+  "acceptedDepositsCount": 35,
+  "acceptedDepositsValue": "<WEI>",
+  "acceptedDepositsValueUsd": null,
+  "asset": "ETH",
+  "chain": "sepolia",
+  "decimals": 18,
+  "growth24h": 0.05,
+  "maxRelayFeeBPS": "250",
+  "minimumDeposit": "<WEI>",
+  "myFunds": null,
+  "myFundsWarning": "Could not load your wallet state right now. Pool stats and recent activity are still available. Try again, or run 'privacy-pools status --check --chain sepolia'.",
+  "nextActions": [
+    {
+      "cliCommand": "privacy-pools accounts --agent --chain sepolia",
+      "command": "accounts",
+      "options": {
+        "chain": "sepolia"
+      },
+      "reason": "View your Pool Account balances.",
+      "when": "after_pool_detail"
+    },
+    {
+      "args": [
+        "ETH"
+      ],
+      "command": "deposit",
+      "options": {
+        "chain": "sepolia"
+      },
+      "parameters": [
+        {
+          "name": "amount",
+          "required": true,
+          "type": "token_amount"
+        }
+      ],
+      "reason": "Deposit into the ETH pool.",
+      "runnable": false,
+      "when": "after_pool_detail"
+    }
+  ],
+  "pendingDepositsCount": 7,
+  "pendingDepositsValue": "<WEI>",
+  "pendingDepositsValueUsd": null,
+  "pendingGrowth24h": null,
+  "pool": "<ADDR>",
+  "recentActivity": [
+    {
+      "amount": "1 ETH",
+      "amountRaw": "1000000000000000000",
+      "status": "approved",
+      "timeLabel": "2023-11-14",
+      "timestamp": "<TS>",
+      "txHash": "<HASH>",
+      "type": "deposit"
+    }
+  ],
+  "schemaVersion": "2.0.0",
+  "scope": "12345",
+  "success": true,
+  "tokenAddress": "<ADDR>",
+  "totalDepositsCount": 42,
+  "totalDepositsValue": "<WEI>",
+  "totalDepositsValueUsd": null,
+  "totalInPoolValue": "<WEI>",
+  "totalInPoolValueUsd": null,
+  "vettingFeeBPS": "50"
+}

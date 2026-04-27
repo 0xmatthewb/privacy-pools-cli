@@ -8,6 +8,7 @@ export function createRecipientsCommand(): Command {
   const command = new Command("recipients")
     .alias("recents")
     .description(metadata.description)
+    .option("-n, --limit <n>", "Limit recipients returned")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(
@@ -20,6 +21,7 @@ export function createRecipientsCommand(): Command {
     .command("list")
     .alias("ls")
     .description("List remembered withdrawal recipients")
+    .option("-n, --limit <n>", "Limit recipients returned")
     .action(
       createLazyAction(
         () => import("../commands/withdraw/recipients.js"),

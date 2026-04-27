@@ -1,0 +1,32 @@
+// normalized: NONE
+{
+  "chain": "sepolia",
+  "nextActions": [
+    {
+      "command": "deposit",
+      "options": {
+        "chain": "sepolia"
+      },
+      "parameters": [
+        {
+          "name": "amount",
+          "required": true,
+          "type": "token_amount"
+        },
+        {
+          "name": "asset",
+          "required": true,
+          "type": "asset_symbol"
+        }
+      ],
+      "reason": "Deposit into a pool.",
+      "runnable": false,
+      "when": "after_pools"
+    }
+  ],
+  "pools": [],
+  "schemaVersion": "2.0.0",
+  "search": "NOPE",
+  "sort": "tvl-desc",
+  "success": true
+}

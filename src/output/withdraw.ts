@@ -1024,17 +1024,39 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     const val = formatUsdValue(amount, data.decimals, data.tokenPrice);
     return val === "-" ? "" : ` (${val})`;
   };
+  const quoteExpiryMs = data.quoteExpiresAt
+    ? new Date(data.quoteExpiresAt).getTime()
+    : null;
+  const quoteExpired =
+    quoteExpiryMs !== null &&
+    Number.isFinite(quoteExpiryMs) &&
+    quoteExpiryMs <= Date.now();
+  const quoteExpiryWarning: WithdrawUiWarning | null = quoteExpired
+    ? {
+        code: "WITHDRAW_QUOTE_EXPIRED",
+        category: "relayer",
+        message: "This relayer quote has expired. Request a fresh quote before submitting the withdrawal.",
+      }
+    : null;
+  const warnings = [
+    ...(data.warnings ?? []),
+    ...(quoteExpiryWarning ? [quoteExpiryWarning] : []),
+  ];
 
   // When the recipient is missing, the command is a template — not directly runnable.
   // Agents get the full action (with `to: null`) so they know to supply --to.
   // Humans never see non-runnable actions (renderNextSteps filters them out).
   const hasRecipient = data.recipient !== null && data.recipient !== undefined;
+  const followupCommand = quoteExpired ? "withdraw quote" : "withdraw";
+  const followupReason = quoteExpired
+    ? "Request a fresh relayer quote before submitting the withdrawal."
+    : hasRecipient
+      ? "Submit the withdrawal promptly if the quoted fee is acceptable."
+      : "Supply a --to address and submit the withdrawal.";
   const agentNextActions = [
     createNextAction(
-      "withdraw",
-      hasRecipient
-        ? "Submit the withdrawal promptly if the quoted fee is acceptable."
-        : "Supply a --to address and submit the withdrawal.",
+      followupCommand,
+      followupReason,
       "after_quote",
       {
         args: [formatUnits(data.amount, data.decimals), data.asset],
@@ -1050,11 +1072,13 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
   // Human: same real args; only include --chain when explicitly overridden.
   // Suppress entirely when the fee makes the withdrawal uneconomical or
   // when the recipient is missing (non-runnable commands are filtered out).
-  const humanNextActions = netAmount > 0n && hasRecipient
+  const humanNextActions = (quoteExpired || netAmount > 0n) && hasRecipient
     ? [
         createNextAction(
-          "withdraw",
-          "Submit the withdrawal promptly if the quoted fee is acceptable.",
+          followupCommand,
+          quoteExpired
+            ? "Request a fresh relayer quote before submitting the withdrawal."
+            : "Submit the withdrawal promptly if the quoted fee is acceptable.",
           "after_quote",
           {
             args: [formatUnits(data.amount, data.decimals), data.asset],
@@ -1098,8 +1122,8 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     if (data.anonymitySet) {
       payload.anonymitySet = data.anonymitySet;
     }
-    if (data.warnings && data.warnings.length > 0) {
-      payload.warnings = data.warnings;
+    if (warnings.length > 0) {
+      payload.warnings = warnings;
     }
     printJsonSuccess(
       payload,
@@ -1169,11 +1193,11 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
       }),
     );
     process.stderr.write(formatKeyValueRows(quoteRows));
-    if (data.warnings && data.warnings.length > 0) {
+    if (warnings.length > 0) {
       process.stderr.write(
         formatCallout(
           "warning",
-          data.warnings.map((warning) => warning.message),
+          warnings.map((warning) => warning.message),
         ),
       );
     }

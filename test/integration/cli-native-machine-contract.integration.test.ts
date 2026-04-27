@@ -261,7 +261,7 @@ describe("native machine contract parity", () => {
     for (const result of [jsResult, nativeResult]) {
       expectJsonErrorContract(result, {
         status: 2,
-        errorCode: "INPUT_ERROR",
+        errorCode: "INPUT_MISSING_ASSET",
         category: "INPUT",
         message: "asset",
       });

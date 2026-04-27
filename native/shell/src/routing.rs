@@ -1,5 +1,8 @@
 use crate::contract::Manifest;
-use crate::root_argv::{all_non_option_tokens, ParsedRootArgv};
+use crate::root_argv::{
+    all_non_option_tokens, is_command_global_boolean_option, is_command_global_inline_value_option,
+    is_command_global_value_option, ParsedRootArgv,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct NativeMode {
@@ -51,8 +54,45 @@ pub(crate) fn is_static_quiet_mode(parsed: &ParsedRootArgv) -> bool {
 }
 
 fn should_handle_native_pools(argv: &[String]) -> bool {
-    let non_option_tokens = all_non_option_tokens(argv);
+    let non_option_tokens = pools_non_option_tokens(argv);
     matches!(non_option_tokens.first().map(String::as_str), Some("pools"))
+}
+
+fn pools_non_option_tokens(argv: &[String]) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut index = 0;
+    while index < argv.len() {
+        let token = &argv[index];
+        if token == "--" {
+            tokens.extend(argv.iter().skip(index + 1).cloned());
+            break;
+        }
+        if token == "--search" || token == "--sort" || token == "--limit" {
+            index += 2;
+            continue;
+        }
+        if token.starts_with("--search=")
+            || token.starts_with("--sort=")
+            || token.starts_with("--limit=")
+            || token == "--include-testnets"
+            || is_command_global_inline_value_option(token)
+            || is_command_global_boolean_option(token)
+        {
+            index += 1;
+            continue;
+        }
+        if is_command_global_value_option(token) {
+            index += 2;
+            continue;
+        }
+        if token.starts_with('-') {
+            index += 1;
+            continue;
+        }
+        tokens.push(token.clone());
+        index += 1;
+    }
+    tokens
 }
 
 pub(crate) fn activity_native_mode(
@@ -80,7 +120,7 @@ pub(crate) fn pools_native_mode(
         return None;
     }
 
-    let non_option_tokens = all_non_option_tokens(argv);
+    let non_option_tokens = pools_non_option_tokens(argv);
     let mode = resolve_mode(parsed);
     let native_mode = match (mode.format, non_option_tokens.len()) {
         (OutputFormat::Table, 2) => "default-detail",

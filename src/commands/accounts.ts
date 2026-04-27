@@ -36,6 +36,7 @@ import {
 import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
+import { inputError } from "../utils/errors/factories.js";
 import type { ChainConfig, GlobalOptions } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
@@ -64,6 +65,7 @@ interface AccountsCommandOptions {
   pendingOnly?: boolean;
   status?: string;
   watch?: boolean;
+  limit?: string;
 }
 
 interface AccountScopeSource {
@@ -151,6 +153,38 @@ function normalizeStatusFilter(
   return POOL_ACCOUNT_STATUSES.includes(normalized as PoolAccountStatus)
     ? (normalized as PoolAccountStatus)
     : undefined;
+}
+
+function parseOptionalLimit(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw inputError(
+      "INPUT_INVALID_VALUE",
+      `Invalid --limit value: ${raw}.`,
+      "--limit must be a positive integer.",
+    );
+  }
+  return parsed;
+}
+
+function limitAccountGroups(
+  groups: AccountPoolGroup[],
+  limit: number | undefined,
+): AccountPoolGroup[] {
+  if (limit === undefined) return groups;
+
+  let remaining = limit;
+  const limited: AccountPoolGroup[] = [];
+  for (const group of groups) {
+    if (remaining <= 0) break;
+    const poolAccounts = group.poolAccounts.slice(0, remaining);
+    if (poolAccounts.length > 0) {
+      limited.push({ ...group, poolAccounts });
+      remaining -= poolAccounts.length;
+    }
+  }
+  return limited;
 }
 
 function filterGroupsByStatus(
@@ -476,6 +510,7 @@ export async function handleAccountsCommand(
     }
 
     const effectiveStatus = normalizedStatus ?? (opts.pendingOnly ? "pending" : undefined);
+    const limit = parseOptionalLimit(opts.limit);
 
     if (opts.watch && effectiveStatus !== "pending") {
       throw new CLIError(
@@ -662,10 +697,10 @@ export async function handleAccountsCommand(
         throw firstError;
       }
 
-      const groups = filterGroupsByStatus(
+      const groups = limitAccountGroups(filterGroupsByStatus(
         loadedResults.flatMap((result) => result.groups),
         effectiveStatus,
-      );
+      ), limit);
 
       const syncTimes = loadedResults
         .map((r) => loadSyncMeta(r.chainConfig.id)?.lastSyncTime)

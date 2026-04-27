@@ -232,21 +232,22 @@ fn explicit_chain_activity_keeps_filtered_json_and_human_notes_stable() {
     let payload = parse_stdout_json(&agent);
     assert_eq!(payload["success"], Value::Bool(true));
     assert_eq!(payload["chain"], Value::String("sepolia".to_string()));
-    assert_eq!(payload["chainFiltered"], Value::Bool(true));
-    assert_eq!(payload["total"], Value::Null);
-    assert_eq!(payload["totalPages"], Value::Null);
-    assert!(payload["note"]
-        .as_str()
-        .expect("chain-filtered note should be present")
-        .contains("Pagination totals are unavailable"),);
+    assert_eq!(
+        payload["chains"],
+        Value::Array(vec![Value::String("sepolia".to_string())])
+    );
+    assert_eq!(payload["chainFiltered"], Value::Null);
+    assert_eq!(payload["total"], Value::Number(13.into()));
+    assert_eq!(payload["totalPages"], Value::Number(2.into()));
+    assert_eq!(payload["note"], Value::Null);
 
     let human = run_native_with_env(&["--chain", "sepolia", "activity"], &env);
     assert!(human.status.success());
     assert!(stdout_string(&human).is_empty());
     let stderr = stderr_string(&human);
     assert!(stderr.contains("Global activity (sepolia):"));
-    assert!(stderr.contains("Read-only note:"));
-    assert!(stderr.contains("Results are filtered to sepolia. Some pages may be sparse."));
+    assert!(stderr.contains("Page 1 of 2"));
+    assert!(stderr.contains("privacy-pools activity --page 2"));
 }
 
 #[test]
@@ -520,13 +521,13 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     assert!(stdout_string(&human_pool_detail).is_empty());
     let human_pool_detail_stderr = stderr_string(&human_pool_detail);
     assert!(
-        human_pool_detail_stderr.contains("Pool Address"),
+        human_pool_detail_stderr.contains("Pool summary"),
         "detail stderr was:\n{}",
         human_pool_detail_stderr
     );
-    assert!(human_pool_detail_stderr.contains("My funds"));
+    assert!(human_pool_detail_stderr.contains("Your funds"));
     assert!(human_pool_detail_stderr.contains("Recent activity"));
-    assert!(human_pool_detail_stderr.contains("Privacy note:"));
+    assert!(human_pool_detail_stderr.contains("Read-only note:"));
 
     let csv_pools = run_native_with_env(&["--output", "csv", "--chain", "sepolia", "pools"], &env);
     assert!(csv_pools.status.success());
