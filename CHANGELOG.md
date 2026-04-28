@@ -4,15 +4,34 @@ All notable user-facing changes to this project are documented in this file.
 
 The format is inspired by Keep a Changelog and follows semantic versioning.
 
-## [2.0.0]
+## [2.0.0] - 2026-04-28
 
 ### Added
 
+- Native Rust shell for verified read-only and discovery paths, including `guide`, `capabilities`, `describe`, public pool/activity/stats views, and fixture-backed parity coverage against the JS runtime.
+- Versioned native bridge contract with `runtimeVersion`, `workerProtocolVersion`, `manifestVersion`, and `nativeBridgeVersion` checks before the launcher forwards work to the native shell.
+- Machine JSON schema `2.0.0` with structured `error.{code,message,hint,docUrl,retryable}` payloads while preserving `errorCode` and `errorMessage` compatibility aliases.
+- Canonical `nextActions.when` discriminator values so agents can route follow-up work without parsing prose.
+- Generated command discovery artifacts for root help, command metadata, native routing, envelope schemas, error references, and agent-facing capability manifests.
+- Runtime-contract docs and guardrails for native fallback, JS-owned sensitive flows, package verification, and native shell release validation.
 - Deposit success JSON now includes `approvalTxHash` so agents can correlate the ERC-20 approval transaction with the deposit transaction and recover cleanly when an approval succeeds but a later deposit fails.
+
+### Changed
+
+- `--agent` remains the primary machine mode and now consistently implies quiet structured JSON across the expanded v2 envelope contract.
+- Native acceleration is optional and fail-closed: signing, wallet initialization, account persistence, and all fund-moving protocol logic stay JS-owned.
+- Native binary launches require checksum and bridge-metadata verification before use; invalid or incompatible native runtimes fall back to the JS path.
+- Published root installs no longer declare unpublished host-native packages as optional dependencies, keeping `npm ci` and global installs deterministic until those packages are available on the registry.
 
 ### Removed
 
 - `explain` command. Use `describe <schema-path>` or `describe envelope.<path>` instead.
+
+### Migration
+
+- Agents upgrading from 1.5.x or 1.7.x should parse `schemaVersion: "2.0.0"` and prefer `error.code` plus `nextActions[].when`; keep `errorCode` and `errorMessage` only as compatibility aliases.
+- Operators who intentionally test a local native shell can set `PRIVACY_POOLS_CLI_BINARY` or use release artifacts that include a matching native package. The pure JS path remains fully supported when native acceleration is unavailable.
+- Do not use `npm install --omit=optional` as a native-runtime control knob for 2.0.0; use `PRIVACY_POOLS_CLI_DISABLE_NATIVE=1` to force the JS path.
 
 ## [1.7.0] - 2026-03-26
 
