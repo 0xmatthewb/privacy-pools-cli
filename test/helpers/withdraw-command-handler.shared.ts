@@ -73,6 +73,12 @@ const realSetupRecovery = captureModuleExports(
 const realValidation = captureModuleExports(
   await import("../../src/utils/validation.ts"),
 );
+const realRecipientHistory = captureModuleExports(
+  await import("../../src/services/recipient-history.ts"),
+);
+const realWorkflow = captureModuleExports(
+  await import("../../src/services/workflow.ts"),
+);
 const realSdkPackage = captureModuleExports(
   await import("@0xbow/privacy-pools-core-sdk"),
 );
@@ -96,6 +102,8 @@ const WITHDRAW_HANDLER_MODULE_RESTORES = [
   ["../../src/utils/prompt-cancellation.ts", realPromptCancellation],
   ["../../src/utils/setup-recovery.ts", realSetupRecovery],
   ["../../src/utils/validation.ts", realValidation],
+  ["../../src/services/recipient-history.ts", realRecipientHistory],
+  ["../../src/services/workflow.ts", realWorkflow],
   ["@0xbow/privacy-pools-core-sdk", realSdkPackage],
 ] as const;
 

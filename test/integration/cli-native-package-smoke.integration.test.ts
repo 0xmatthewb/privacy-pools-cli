@@ -49,7 +49,7 @@ const nativePackageSmokeTest =
   CARGO_AVAILABLE && currentTriplet && currentPackageName ? test : test.skip;
 const BANNER_SENTINEL =
   ",---. ,---. ,-.-.   .-.--.   ,--.-.   .-.   ,---.  .---.  .---. ,-.     .---.";
-const COMPACT_BANNER_SENTINEL = "PRIVACY POOLS";
+const KOI_BANNER_SENTINEL = "~─~";
 const PREPARED_CLI_TARBALL =
   process.env.PP_INSTALL_CLI_TARBALL?.trim() || null;
 const PREPARED_NATIVE_TARBALL =
@@ -247,7 +247,7 @@ describe("native package smoke", () => {
     expect(parseJsonOutput<{ success: boolean }>(statusResult.stdout).success).toBe(true);
   });
 
-  nativePackageSmokeTest("packaged launcher keeps bare welcome output on stdout and only prints the banner once per session", () => {
+  nativePackageSmokeTest("packaged launcher keeps bare welcome output on stderr and only prints the banner once per session", () => {
     const termSessionId = `pp-native-package-welcome-${Date.now()}`;
     const env = {
       TERM_SESSION_ID: termSessionId,
@@ -260,11 +260,11 @@ describe("native package smoke", () => {
 
     expect(firstResult.status).toBe(0);
     expect(
-      firstResult.stdout.includes(BANNER_SENTINEL) ||
-        firstResult.stdout.includes(COMPACT_BANNER_SENTINEL),
+      firstResult.stderr.includes(BANNER_SENTINEL) ||
+        firstResult.stderr.includes(KOI_BANNER_SENTINEL),
     ).toBe(true);
-    expect(firstResult.stderr.trim()).toBe("");
-    expectSemanticText(firstResult.stdout, {
+    expect(firstResult.stdout.trim()).toBe("");
+    expectSemanticText(firstResult.stderr, {
       includes: [
         "privacy-pools init",
         "privacy-pools guide",
@@ -279,12 +279,12 @@ describe("native package smoke", () => {
     });
 
     expect(secondResult.status).toBe(0);
-    expectSemanticText(secondResult.stdout, {
+    expectSemanticText(secondResult.stderr, {
       includes: ["privacy-pools status", "privacypools.com"],
     });
-    expect(secondResult.stdout).not.toContain(BANNER_SENTINEL);
-    expect(secondResult.stdout).not.toContain(COMPACT_BANNER_SENTINEL);
-    expect(secondResult.stderr.trim()).toBe("");
+    expect(secondResult.stderr).not.toContain(BANNER_SENTINEL);
+    expect(secondResult.stderr).not.toContain(KOI_BANNER_SENTINEL);
+    expect(secondResult.stdout.trim()).toBe("");
   });
 
   nativePackageSmokeTest("packaged native honors quiet mode for human capabilities output", () => {

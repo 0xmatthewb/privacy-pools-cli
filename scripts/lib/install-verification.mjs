@@ -570,14 +570,15 @@ export function assertInstalledLauncherBasics({
   }
 
   const welcomeResult = runInstalledCli(installRoot, homeDir, ["--no-banner"]);
+  const welcomeStderr = welcomeResult.stderr ?? "";
   if (
     welcomeResult.status !== 0 ||
-    !welcomeResult.stdout.includes("privacy-pools status") ||
-    !welcomeResult.stdout.includes("privacy-pools init") ||
-    !welcomeResult.stdout.includes("This CLI is experimental. Use at your own risk.") ||
-    !welcomeResult.stdout.includes("For large transactions, use privacypools.com.") ||
-    welcomeResult.stderr.trim() !== "" ||
-    welcomeResult.stdout.includes("Running from source?")
+    welcomeResult.stdout.trim() !== "" ||
+    !welcomeStderr.includes("privacy-pools status") ||
+    !welcomeStderr.includes("privacy-pools init") ||
+    !welcomeStderr.includes("This CLI is experimental. Use at your own risk.") ||
+    !welcomeStderr.includes("For large transactions, use privacypools.com.") ||
+    welcomeStderr.includes("Running from source?")
   ) {
     fail(
       `${label} bare welcome output failed:\n${formatResultDiagnostics(welcomeResult)}`,

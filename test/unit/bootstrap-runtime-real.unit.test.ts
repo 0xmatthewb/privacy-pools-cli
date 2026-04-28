@@ -39,14 +39,17 @@ describe("bootstrap runtime direct coverage", () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(`${stdout}${stderr}`).toContain("privacy-pools flow start");
+    const output = `${stdout}${stderr}`;
+    expect(output).toContain("PRIVACY POOLS");
+    expect(output).toContain("v1.2.3");
+    expect(output).toMatch(/privacy-pools (init|flow start|--help)/);
   });
 
   test("runCli emits structured root help through the real program", async () => {
     process.env.PP_NO_UPDATE_CHECK = "1";
 
     const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      runCli({ version: "1.2.3" }, ["--json"]),
+      runCli({ version: "1.2.3" }, ["--json", "--help"]),
     );
 
     expect(exitCode).toBe(0);

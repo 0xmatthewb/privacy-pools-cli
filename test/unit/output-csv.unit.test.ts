@@ -246,10 +246,11 @@ describe("accounts CSV", () => {
     );
     const lines = stdout.trim().split("\n");
     expect(lines.length).toBe(2); // header + 1 row
-    expect(lines[0]).toBe("PA,Status,ASP,Asset,Value,Tx");
+    expect(lines[0]).toBe("PA,Status,ASP,Asset,Value,Tx,Last Sync (ISO)");
     expect(lines[0]).not.toContain("Block");
     expect(lines[1]).toContain("PA-1");
     expect(lines[1]).toContain("approved");
+    expect(lines[1].split(",")).toHaveLength(7);
     expect(stderr).toBe("");
   });
 });

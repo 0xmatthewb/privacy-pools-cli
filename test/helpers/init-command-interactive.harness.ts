@@ -48,6 +48,7 @@ const maybeRenderPreviewScenarioMock = mock(async () => false);
 const maybeRenderPreviewProgressStepMock = mock(async () => false);
 
 let handleInitCommand: typeof import("../../src/commands/init.ts").handleInitCommand;
+let initCommandImportVersion = 0;
 
 const ORIGINAL_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_SIGNER = process.env.PRIVACY_POOLS_PRIVATE_KEY;
@@ -107,21 +108,21 @@ async function loadInitCommandHandler(): Promise<void> {
   }));
 
   ({ handleInitCommand } = await import(
-    "../../src/commands/init.ts"
+    `../../src/commands/init.ts?init-interactive-harness=${initCommandImportVersion++}`
   ));
 }
 
 export function registerInitCommandInteractiveHarness(): void {
   beforeEach(() => {
     mock.restore();
-    confirmPromptMock.mockClear();
-    inputPromptMock.mockClear();
-    passwordPromptMock.mockClear();
-    selectPromptMock.mockClear();
-    maybeRenderPreviewScenarioMock.mockClear();
-    maybeRenderPreviewProgressStepMock.mockClear();
-    discoverLoadedAccountsMock.mockClear();
-    generateMnemonicMock.mockClear();
+    confirmPromptMock.mockReset();
+    inputPromptMock.mockReset();
+    passwordPromptMock.mockReset();
+    selectPromptMock.mockReset();
+    maybeRenderPreviewScenarioMock.mockReset();
+    maybeRenderPreviewProgressStepMock.mockReset();
+    discoverLoadedAccountsMock.mockReset();
+    generateMnemonicMock.mockReset();
 
     confirmPromptMock.mockImplementation(async () => true);
     inputPromptMock.mockImplementation(async () => "");

@@ -235,8 +235,8 @@ Basic:
     const plain = stripAnsi(stderr);
 
     expect(stdout).toBe("");
-    expect(plain).toContain(
-      "config profile create Create a new named profile (Advanced)",
+    expect(plain).toMatch(
+      /config profile create\s+Create a new named profile \(Advanced\)/,
     );
     expect(plain).toContain(`Envelope schema roots:
   envelope

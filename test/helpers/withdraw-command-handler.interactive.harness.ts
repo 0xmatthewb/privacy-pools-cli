@@ -279,7 +279,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
       .mockImplementationOnce(async (options?: { validate?: (value: string) => true | string }) => {
         events.push("recipient");
         expect(options?.validate?.("not-an-address")).toContain(
-          "Invalid address or ENS name",
+          "Invalid Ethereum address",
         );
         return "0x4444444444444444444444444444444444444444";
       });
@@ -487,7 +487,7 @@ export function registerWithdrawInteractiveReviewTests(): void {
     useIsolatedHome({ withSigner: true });
     inputPromptMock.mockImplementationOnce(async (options?: { validate?: (value: string) => true | string }) => {
       expect(options?.validate?.("not-an-address")).toContain(
-        "Invalid address or ENS name",
+        "Invalid Ethereum address",
       );
       expect(options?.validate?.("0x4444444444444444444444444444444444444444")).toBe(true);
       return "0x4444444444444444444444444444444444444444";

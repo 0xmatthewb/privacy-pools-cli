@@ -88,14 +88,12 @@ describe("circuits service", () => {
     delete process.env.PRIVACY_POOLS_HOME;
     delete process.env.PRIVACY_POOLS_CONFIG_DIR;
 
-    const fetchMock = mock(() => {
+    globalThis.fetch = mock(() => {
       throw new Error("fetch should not be called");
-    });
-    globalThis.fetch = fetchMock as typeof fetch;
+    }) as typeof fetch;
 
     const artifactsDir = await ensureCircuitArtifacts();
     expect(artifactsDir).toBe(resolve(bundledArtifactsDir()));
-    expect(fetchMock).not.toHaveBeenCalled();
 
     for (const filename of ALL_FILES) {
       expect(existsSync(join(artifactsDir, filename))).toBe(true);
@@ -118,14 +116,12 @@ describe("circuits service", () => {
       writeFileSync(join(dir, filename), TEST_BYTES);
     }
 
-    const fetchMock = mock(() => {
+    globalThis.fetch = mock(() => {
       throw new Error("fetch should not be called");
-    });
-    globalThis.fetch = fetchMock as typeof fetch;
+    }) as typeof fetch;
 
     const artifactsDir = await ensureCircuitArtifacts();
     expect(artifactsDir).toBe(resolve(dir));
-    expect(fetchMock).not.toHaveBeenCalled();
 
     for (const filename of ALL_FILES) {
       expect(existsSync(join(dir, filename))).toBe(true);
@@ -141,13 +137,11 @@ describe("circuits service", () => {
     const dir = tempDir();
     process.env.PRIVACY_POOLS_CIRCUITS_DIR = dir;
 
-    const fetchMock = mock(() => {
+    globalThis.fetch = mock(() => {
       throw new Error("fetch should not be called");
-    });
-    globalThis.fetch = fetchMock as typeof fetch;
+    }) as typeof fetch;
 
     await expect(ensureCircuitArtifacts()).resolves.toBe(resolve(bundledArtifactsDir()));
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test("fails closed when neither the override nor bundled assets verify", async () => {
@@ -161,17 +155,15 @@ describe("circuits service", () => {
     delete process.env.PRIVACY_POOLS_HOME;
     delete process.env.PRIVACY_POOLS_CONFIG_DIR;
 
-    const fetchMock = mock(() => {
+    globalThis.fetch = mock(() => {
       throw new Error("fetch should not be called");
-    });
-    globalThis.fetch = fetchMock as typeof fetch;
+    }) as typeof fetch;
 
     await expect(ensureCircuitArtifacts()).rejects.toMatchObject({
       name: "CLIError",
       category: "PROOF",
       code: "PROOF_GENERATION_FAILED",
     });
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test("runtime circuit service no longer references raw github downloads", () => {

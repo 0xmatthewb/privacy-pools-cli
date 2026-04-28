@@ -53,7 +53,7 @@ describe("recipients command integration", () => {
     });
 
     const addSecond = runCli(
-      ["--agent", "recipients", "add", second, "--label", "vitalik.eth"],
+      ["--agent", "recipients", "add", second, "vitalik.eth"],
       { home },
     );
     expect(addSecond.status).toBe(0);

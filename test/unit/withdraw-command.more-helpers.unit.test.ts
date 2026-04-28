@@ -310,7 +310,14 @@ describe("withdraw command helper coverage", () => {
         summary: "PA-7 would keep too little.",
         choices: ["Withdraw less", "Use max"],
       }),
-    ).toBe("PA-7 would keep too little.\n- Withdraw less\n- Use max");
+    ).toBe(
+      [
+        "PA-7 would keep too little.",
+        "You can: (1) withdraw less, (2) withdraw the full balance with --all, or (3) plan a public recovery later via ragequit (compromises privacy for the remainder).",
+        "- Withdraw less",
+        "- Use max",
+      ].join("\n"),
+    );
   });
 
   test("validates recipient addresses and ENS inputs", () => {

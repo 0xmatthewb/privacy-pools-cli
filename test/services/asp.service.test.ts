@@ -16,6 +16,8 @@ import {
   createStrictStubRegistry,
   type StrictStubRegistry,
 } from "../helpers/strict-stubs.ts";
+import { setActiveProfile } from "../../src/runtime/config-paths.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
@@ -23,6 +25,7 @@ let strictFetchRegistry: StrictStubRegistry<
   [RequestInfo | URL, RequestInit | undefined],
   Promise<Response>
 > | null = null;
+let world: TestWorld | null = null;
 
 function installStrictFetch(
   name: string,
@@ -37,16 +40,22 @@ function installStrictFetch(
 
 describe("asp service", () => {
   beforeEach(() => {
+    world = createTestWorld({ prefix: "pp-asp-service-" });
+    world.useConfigHome();
+    setActiveProfile(undefined);
     overrideAspRetryWaitForTests(async () => {});
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     try {
       strictFetchRegistry?.assertConsumed();
     } finally {
       strictFetchRegistry?.reset();
       strictFetchRegistry = null;
       globalThis.fetch = originalFetch;
+      setActiveProfile(undefined);
+      await world?.teardown();
+      world = null;
       overrideAspRetryWaitForTests();
       mock.restore();
     }

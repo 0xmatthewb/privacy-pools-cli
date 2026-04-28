@@ -989,7 +989,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("ACCOUNT_NOT_FOUND");
     expect(json.error.message ?? json.errorMessage).toContain(
       "No Pool Account has enough balance",
     );
@@ -1013,7 +1013,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("ACCOUNT_NOT_FOUND");
     expect(json.error.message ?? json.errorMessage).toContain(
       "No Pool Account has enough balance",
     );
@@ -1046,7 +1046,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("ACCOUNT_NOT_FOUND");
     expect(json.error.message ?? json.errorMessage).toContain(
       "No Pool Account has enough balance",
     );
@@ -1192,7 +1192,7 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("ACCOUNT_NOT_FOUND");
     expect(json.error.message ?? json.errorMessage).toContain("PA-99 is not part of this pool");
     expect(json.error.hint).toContain("privacy-pools accounts");
     expect(exitCode).toBe(2);

@@ -164,7 +164,7 @@ export function registerWithdrawQuoteTests(): void {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_BAD_ADDRESS");
     expect(json.error.message ?? json.errorMessage).toContain(
-      "Invalid address or ENS name",
+      "Invalid Ethereum address",
     );
     expect(requestQuoteMock).not.toHaveBeenCalled();
     expect(exitCode).toBe(2);

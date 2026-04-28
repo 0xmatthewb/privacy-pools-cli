@@ -130,14 +130,15 @@ describe("preview cli catalog", () => {
       executionKind: "live-command",
     });
 
-    expect(findPreviewCase("accounts-empty")).toMatchObject({
+    const accountsEmptyCase = findPreviewCase("accounts-empty");
+    expect(accountsEmptyCase).toMatchObject({
       owner: "forwarded",
       runtime: "forwarded",
       surface: "accounts",
       source: "live-command",
       executionKind: "live-command",
-      syntheticReason: expect.any(String),
     });
+    expect(typeof accountsEmptyCase?.syntheticReason).toBe("string");
   });
 
   test("includes help coverage for every generated command path", () => {

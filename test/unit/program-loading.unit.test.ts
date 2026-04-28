@@ -25,11 +25,11 @@ describe("root program lazy loading", () => {
   test("loads the help target command when using help <command>", async () => {
     const program = await createRootProgram("0.0.0", {
       loadAllCommands: false,
-      argv: ["help", "withdraw"],
+      argv: ["help", "status"],
     });
 
     expect(program.commands.map((command) => command.name())).toEqual([
-      "withdraw",
+      "status",
     ]);
   });
 

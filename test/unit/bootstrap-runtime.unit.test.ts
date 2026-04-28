@@ -303,7 +303,7 @@ describe("bootstrap runtime coverage", () => {
     expect(stderr).toBe("");
   });
 
-  test("runCli returns machine-readable help for bare structured invocations", async () => {
+  test("runCli fails closed for bare structured invocations without a command", async () => {
     const program = makeProgram(() => async () => undefined);
     program.helpInformation = () => "root help body";
     mock.module("../../src/program.ts", () => ({
@@ -311,13 +311,13 @@ describe("bootstrap runtime coverage", () => {
     }));
 
     const { runCli } = await import("../../src/cli-main.ts?machine-root-help-runtime");
-    const { json, stderr } = await captureAsyncJsonOutput(() =>
+    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       runCli({ version: "1.2.3" }, ["--json"]),
     );
 
-    expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
-    expect(json.help).toBe("root help body");
+    expect(exitCode).toBe(2);
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_NO_COMMAND");
     expect(stderr).toBe("");
   });
 
@@ -416,7 +416,7 @@ describe("bootstrap runtime coverage", () => {
 
     const { runCli } = await import("../../src/cli-main.ts?machine-input-error-runtime");
     const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      runCli({ version: "1.2.3" }, ["--json", "--oops"]),
+      runCli({ version: "1.2.3" }, ["status", "--json", "--oops"]),
     );
 
     expect(exitCode).toBe(2);
@@ -942,10 +942,10 @@ describe("bootstrap runtime coverage", () => {
     expect(stderr).toBe("");
   });
 
-  test("runCli accepts both inline and split --output json for bare root help", async () => {
+  test("runCli accepts both inline and split --output json for explicit root help", async () => {
     const inlineCli = await import("../../src/cli-main.ts?format-inline-json-help");
     const inline = await captureAsyncJsonOutputAllowExit(() =>
-      inlineCli.runCli({ version: "1.2.3" }, ["--output=json"]),
+      inlineCli.runCli({ version: "1.2.3" }, ["--output=json", "--help"]),
     );
     expect(inline.exitCode).toBe(0);
     expect(inline.json.success).toBe(true);
@@ -954,7 +954,7 @@ describe("bootstrap runtime coverage", () => {
 
     const splitCli = await import("../../src/cli-main.ts?format-split-json-help");
     const split = await captureAsyncJsonOutputAllowExit(() =>
-      splitCli.runCli({ version: "1.2.3" }, ["--output", "json"]),
+      splitCli.runCli({ version: "1.2.3" }, ["--output", "json", "--help"]),
     );
     expect(split.exitCode).toBe(0);
     expect(split.json.success).toBe(true);

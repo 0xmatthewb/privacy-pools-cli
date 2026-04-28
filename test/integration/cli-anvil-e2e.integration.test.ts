@@ -129,6 +129,49 @@ function parseSuccessfulNativeAgentResult<T>(
   return parseJsonOutput<T>(result.stdout);
 }
 
+type AgentRunner = <T>(
+  home: string,
+  args: string[],
+  label: string,
+  timeoutMs?: number,
+) => T;
+
+type FlowSnapshotResult = {
+  success: boolean;
+  phase: string;
+  withdrawTxHash: string;
+};
+
+function completeFlowWithAgentSteps(
+  home: string,
+  runner: AgentRunner,
+  labelPrefix: string,
+): FlowSnapshotResult {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const status = runner<FlowSnapshotResult>(
+      home,
+      ["--agent", "flow", "status", "latest", "--chain", "sepolia"],
+      `${labelPrefix} status`,
+      300_000,
+    );
+    if (status.phase === "completed") {
+      return status;
+    }
+
+    const stepped = runner<FlowSnapshotResult>(
+      home,
+      ["--agent", "flow", "step", "latest", "--chain", "sepolia"],
+      `${labelPrefix} step`,
+      300_000,
+    );
+    if (stepped.phase === "completed") {
+      return stepped;
+    }
+  }
+
+  throw new Error(`${labelPrefix} did not complete after repeated agent steps`);
+}
+
 async function approveEthLabel(label: bigint): Promise<void> {
   await approveSharedLabels({
     env: requireSharedEnv(),
@@ -227,6 +270,7 @@ describe("Anvil E2E", () => {
         deposit.poolAccountId,
         "--chain",
         "sepolia",
+        "--confirm-ragequit",
       ],
       "ragequit",
     );
@@ -392,15 +436,10 @@ describe("Anvil E2E", () => {
     appendInsertedStateTreeLeaf(requireSharedEnv(), "eth", depositEvent.commitment);
     await approveEthLabel(depositEvent.label);
 
-    const watched = parseSuccessfulAgentResult<{
-      success: boolean;
-      phase: string;
-      withdrawTxHash: string;
-    }>(
+    const watched = completeFlowWithAgentSteps(
       home,
-      ["--agent", "flow", "watch", "latest", "--chain", "sepolia"],
-      "flow watch",
-      300_000,
+      parseSuccessfulAgentResult,
+      "flow",
     );
     expect(watched.success).toBe(true);
     expect(watched.phase).toBe("completed");
@@ -439,6 +478,7 @@ describe("Anvil E2E", () => {
         deposit.poolAccountId,
         "--chain",
         "sepolia",
+        "--confirm-ragequit",
       ],
       "native ragequit",
     );
@@ -604,15 +644,10 @@ describe("Anvil E2E", () => {
     appendInsertedStateTreeLeaf(requireSharedEnv(), "eth", depositEvent.commitment);
     await approveEthLabel(depositEvent.label);
 
-    const watched = parseSuccessfulNativeAgentResult<{
-      success: boolean;
-      phase: string;
-      withdrawTxHash: string;
-    }>(
+    const watched = completeFlowWithAgentSteps(
       home,
-      ["--agent", "flow", "watch", "latest", "--chain", "sepolia"],
-      "native flow watch",
-      300_000,
+      parseSuccessfulNativeAgentResult,
+      "native flow",
     );
     expect(watched.success).toBe(true);
     expect(watched.phase).toBe("completed");

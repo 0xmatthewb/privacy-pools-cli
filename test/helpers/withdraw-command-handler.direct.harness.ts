@@ -124,7 +124,7 @@ export function registerWithdrawDirectPreludeTests(): void {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED");
     expect(json.error.message ?? json.errorMessage).toContain(
       "Direct withdrawal requires explicit privacy-loss acknowledgement",
     );

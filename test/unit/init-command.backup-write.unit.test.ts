@@ -4,16 +4,23 @@ import {
   cleanupTrackedTempDirs,
   createTrackedTempDir,
 } from "../helpers/temp.ts";
+import {
+  captureModuleExports,
+  restoreModuleImplementations,
+} from "../helpers/module-mocks.ts";
+
+const realConfig = captureModuleExports(await import("../../src/services/config.ts"));
 
 describe("init command backup write isolation", () => {
   afterEach(() => {
-    mock.restore();
+    restoreModuleImplementations([
+      ["../../src/services/config.ts", realConfig],
+    ]);
     cleanupTrackedTempDirs();
   });
 
   test("writeRecoveryBackupFile rewraps non-Error write failures with the generic writable-parent hint", async () => {
     const home = createTrackedTempDir("pp-init-helpers-non-error-");
-    const realConfig = await import("../../src/services/config.ts");
 
     mock.module("../../src/services/config.ts", () => ({
       ...realConfig,

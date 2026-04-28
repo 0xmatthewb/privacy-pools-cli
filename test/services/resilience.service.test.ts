@@ -31,18 +31,27 @@ import {
   requestQuote,
   submitRelayRequest,
 } from "../../src/services/relayer.ts";
+import { setActiveProfile } from "../../src/runtime/config-paths.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 import { encodeRelayerWithdrawalData } from "../helpers/relayer-withdrawal-data.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 const chain = CHAINS.mainnet;
 const originalFetch = globalThis.fetch;
+let world: TestWorld | null = null;
 
 beforeEach(() => {
+  world = createTestWorld({ prefix: "pp-resilience-service-" });
+  world.useConfigHome();
+  setActiveProfile(undefined);
   overrideAspRetryWaitForTests(async () => {});
   overrideRelayerRetryWaitForTests(async () => {});
 });
 
-afterEach(() => {
+afterEach(async () => {
+  setActiveProfile(undefined);
+  await world?.teardown();
+  world = null;
   overrideAspRetryWaitForTests();
   overrideRelayerRetryWaitForTests();
 });

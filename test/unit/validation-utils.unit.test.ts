@@ -47,7 +47,7 @@ describe("validation utilities", () => {
 
     expect(() => validateAddress("not-an-address")).toThrow(
       new CLIError(
-        "Invalid address or ENS name.",
+        "Invalid Ethereum address.",
         "INPUT",
         "Provide a 0x-prefixed Ethereum address or an ENS name (for example: vitalik.eth).",
         "INPUT_BAD_ADDRESS",
@@ -57,7 +57,7 @@ describe("validation utilities", () => {
       validateAddress("0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb4"),
     ).toThrow(
       new CLIError(
-        "Invalid address or ENS name.",
+        "Invalid Ethereum address checksum.",
         "INPUT",
         "Provide an address with the correct EIP-55 checksum, or use the all-lowercase / all-uppercase form.",
         "INPUT_ADDRESS_CHECKSUM_INVALID",
@@ -184,7 +184,7 @@ describe("validation utilities", () => {
     });
     await expect(resolveAddressOrEns("missing.eth", "Recipient")).rejects.toThrow(
       new CLIError(
-        "Invalid address or ENS name.",
+        "Could not resolve ENS name: missing.eth.",
         "INPUT",
         "Verify the ENS name exists and try again. ENS resolution requires mainnet connectivity.",
         "INPUT_BAD_ADDRESS",

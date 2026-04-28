@@ -164,22 +164,24 @@ describe("json utilities", () => {
     expect(JSON.parse(stdout.trim())).toBe("tx-status");
 
     const originalSearch = jmespath.search;
-    jmespath.search = (() => {
-      throw new Error("search exploded");
-    }) as typeof jmespath.search;
+    try {
+      jmespath.search = (() => {
+        throw new Error("search exploded");
+      }) as typeof jmespath.search;
 
-    configureJsonOutput(null, "success");
-    expect(() =>
-      printJsonSuccess({ success: true }),
-    ).toThrow(
-      new CLIError(
-        "Invalid JMESPath expression: search exploded",
-        "INPUT",
-        "Provide a valid --jmes expression, for example: pools[0].asset or nextActions.",
-      ),
-    );
-
-    jmespath.search = originalSearch;
+      configureJsonOutput(null, "success");
+      expect(() =>
+        printJsonSuccess({ success: true }),
+      ).toThrow(
+        new CLIError(
+          "Invalid JMESPath expression: search exploded",
+          "INPUT",
+          "Provide a valid --jmes expression, for example: pools[0].asset or nextActions.",
+        ),
+      );
+    } finally {
+      jmespath.search = originalSearch;
+    }
   });
 
   test("renders error envelopes with canonical aliases, detail flattening, jq fallback, and reset behavior", () => {
@@ -208,34 +210,32 @@ describe("json utilities", () => {
     expect(JSON.parse(filteredStdout.trim())).toBe("INPUT_BAD_ADDRESS");
 
     const originalSearch = jmespath.search;
-    jmespath.search = (() => undefined) as typeof jmespath.search;
-    configureJsonOutput(null, "error.code");
-    const { stdout: fullStdout } = captureOutput(() =>
-      printJsonError({
-        category: "ASP",
-        message: "Cannot reach ASP",
-        details: { endpoint: "https://asp.example" },
-      }),
-    );
-    expect(parseCapturedJson(fullStdout)).toEqual({
-      schemaVersion: "2.0.0",
-      success: false,
-      errorCode: "UNKNOWN_ERROR",
-      errorMessage: "Cannot reach ASP",
-      meta: {
-        deprecated: ["errorCode", "errorMessage", "helpTopic"],
-      },
-      endpoint: "https://asp.example",
-      error: {
-        category: "ASP",
-        message: "Cannot reach ASP",
-        code: "UNKNOWN_ERROR",
-        docUrl: "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#unknown-error",
-        details: { endpoint: "https://asp.example" },
-        endpoint: "https://asp.example",
-      },
-    });
-    jmespath.search = originalSearch;
+    try {
+      jmespath.search = (() => undefined) as typeof jmespath.search;
+      configureJsonOutput(null, "error.code");
+      const { stdout: fullStdout } = captureOutput(() =>
+        printJsonError({
+          category: "ASP",
+          message: "Cannot reach ASP",
+          details: { endpoint: "https://asp.example" },
+        }),
+      );
+      expect(parseCapturedJson(fullStdout)).toEqual({
+        schemaVersion: "2.0.0",
+        success: false,
+        errorCode: "UNKNOWN_ERROR",
+        errorMessage: "Cannot reach ASP",
+        error: {
+          category: "ASP",
+          message: "Cannot reach ASP",
+          code: "UNKNOWN_ERROR",
+          docUrl: "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#unknown-error",
+          details: { endpoint: "https://asp.example" },
+        },
+      });
+    } finally {
+      jmespath.search = originalSearch;
+    }
 
     resetJsonOutputConfig();
     const { stdout: resetStdout } = captureOutput(() =>

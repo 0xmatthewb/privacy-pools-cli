@@ -2,8 +2,16 @@ import { afterEach, describe, expect, jest, mock, test } from "bun:test";
 import { captureAsyncOutput } from "../helpers/output.ts";
 
 const realFormat = await import("../../src/utils/format.ts");
+const PREVIEW_FIXTURES_MODULE_URL = new URL(
+  "../../scripts/lib/preview-cli-fixtures.mjs",
+  import.meta.url,
+).href;
 
 type PreviewRuntimeModule = typeof import("../../src/preview/runtime.ts");
+type PreviewFixtureMockModule = {
+  isPreviewScenarioCaseForCommand?: unknown;
+  renderPreviewFixture?: unknown;
+};
 
 type SpinnerRecord = {
   text: string;
@@ -15,6 +23,7 @@ type SpinnerRecord = {
 
 const stageHeaderCalls: Array<[number, number, string, boolean]> = [];
 const spinnerCalls: SpinnerRecord[] = [];
+let activePreviewFixtureModule: PreviewFixtureMockModule = {};
 
 const originalPreviewEnv = {
   scenario: process.env.PRIVACY_POOLS_CLI_PREVIEW_SCENARIO,
@@ -99,18 +108,34 @@ function spinnerMock(text: string, quiet: boolean = false) {
 }
 
 async function loadPreviewRuntime(
-  previewModule: Record<string, unknown> = {
+  previewModule: PreviewFixtureMockModule = {
     isPreviewScenarioCaseForCommand: () => true,
     renderPreviewFixture: async () => undefined,
   },
 ): Promise<PreviewRuntimeModule> {
   mock.restore();
+  activePreviewFixtureModule = previewModule;
   mock.module("../../src/utils/format.ts", () => ({
     ...realFormat,
     stageHeader: stageHeaderMock,
     spinner: spinnerMock,
   }));
-  mock.module("../../scripts/lib/preview-cli-fixtures.mjs", () => previewModule);
+  mock.module(PREVIEW_FIXTURES_MODULE_URL, () => ({
+    isPreviewScenarioCaseForCommand(commandKey: string, caseId: string) {
+      const matcher =
+        activePreviewFixtureModule.isPreviewScenarioCaseForCommand;
+      return typeof matcher === "function"
+        ? matcher(commandKey, caseId)
+        : true;
+    },
+    async renderPreviewFixture(caseId: string) {
+      const renderer = activePreviewFixtureModule.renderPreviewFixture;
+      if (typeof renderer !== "function") {
+        throw new Error("Preview fixture runtime is unavailable.");
+      }
+      return renderer(caseId);
+    },
+  }));
 
   return import(
     `../../src/preview/runtime.ts?preview-runtime-unit-${Date.now()}-${Math.random()}`
@@ -122,6 +147,7 @@ afterEach(() => {
   restoreColumns();
   stageHeaderCalls.length = 0;
   spinnerCalls.length = 0;
+  activePreviewFixtureModule = {};
   jest.useRealTimers();
   mock.restore();
 });

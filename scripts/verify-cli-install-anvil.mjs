@@ -637,7 +637,7 @@ try {
   const withdrawSyncResult = runInstalledCli(
     installRoot,
     homeDir,
-    ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+    ["--agent", "sync", "ETH", "--chain", "sepolia"],
     {
       env: anvilEnv,
     },
@@ -747,6 +747,7 @@ try {
       depositPayload.poolAccountId,
       "--chain",
       "sepolia",
+      "--confirm-ragequit",
     ],
     {
       env: anvilEnv,
@@ -769,7 +770,7 @@ try {
   const ragequitSyncResult = runInstalledCli(
     installRoot,
     homeDir,
-    ["--agent", "sync", "--asset", "ETH", "--chain", "sepolia"],
+    ["--agent", "sync", "ETH", "--chain", "sepolia"],
     {
       env: anvilEnv,
     },

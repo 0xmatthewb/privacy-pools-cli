@@ -9,24 +9,23 @@ describe("flow command shell", () => {
     expect(subcommands).toEqual(["start", "watch", "status", "step", "ragequit"]);
 
     const start = command.commands.find((subcommand) => subcommand.name() === "start");
-    expect(start?.options.map((option) => option.flags)).toEqual(
-      expect.arrayContaining([
-        "-t, --to <address>",
-        "--privacy-delay <profile>",
-        "--dry-run",
-        "--new-wallet",
-        "--export-new-wallet <path>",
-        "--watch",
-      ]),
-    );
+    const startFlags = start?.options.map((option) => option.flags) ?? [];
+    for (const flag of [
+      "-t, --to <address>",
+      "--privacy-delay <profile>",
+      "--dry-run [mode]",
+      "--new-wallet",
+      "--export-new-wallet <path>",
+      "--watch",
+    ]) {
+      expect(startFlags).toContain(flag);
+    }
     expect(
       start?.options.find((option) => option.long === "--privacy-delay")?.argChoices,
     ).toEqual(["off", "balanced", "strict"]);
 
     const watch = command.commands.find((subcommand) => subcommand.name() === "watch");
-    expect(watch?.options.map((option) => option.flags)).toEqual(
-      expect.arrayContaining(["--privacy-delay <profile>"]),
-    );
+    expect(watch?.options.map((option) => option.flags)).toContain("--privacy-delay <profile>");
     expect(
       watch?.options.find((option) => option.long === "--privacy-delay")?.argChoices,
     ).toEqual(["off", "balanced", "strict"]);
