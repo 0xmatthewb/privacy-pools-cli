@@ -1,30 +1,37 @@
 ---
-name: privacy-pools-cli
-version: 2.0.0
-description: >
-  Deposit, withdraw, and manage funds in Privacy Pools v1 across the CLI's
-  supported mainnet and testnet chains, including Ethereum, Arbitrum,
-  Optimism, Sepolia, and OP Sepolia. Use when the user or agent needs to
-  interact with Privacy Pools: browsing pools, running the easy-path flow,
-  depositing, withdrawing, checking accounts and balances, building unsigned
-  transaction payloads for external signers, or querying on-chain activity.
-author: matthewb
-permissions:
-  - filesystem:read
-  - filesystem:write
-  - shell:exec
-triggers:
-  - command: /privacy-pools
-  - pattern: privacy pools
-  - pattern: privacy pool deposit
-  - pattern: privacy pool withdraw
-  - pattern: privacy pool accounts
-  - pattern: privacy pool ragequit
-  - pattern: privacy pool exit
-  - pattern: privacy pool flow
-  - pattern: unsigned deposit
-  - pattern: unsigned withdraw
-  - pattern: compliant withdrawal
+name: privacy-pools
+description: 'Deposit, withdraw, and manage funds in Privacy Pools v1 across major EVM mainnets and testnets. Use when the user mentions privacy pools, privacy pool deposit, privacy pool withdraw, privacy pool accounts, privacy pool ragequit, privacy pool exit, privacy pool flow, unsigned deposit, unsigned withdraw, or compliant withdrawal -- including browsing pools, running the easy-path flow, depositing, withdrawing, checking accounts and balances, building unsigned transaction payloads for external signers (e.g. Bankr, multisigs, MPC wallets), or querying on-chain activity.'
+tags: [crypto, defi, privacy, ethereum, arbitrum, optimism, privacy-pools]
+visibility: public
+license: Apache-2.0
+compatibility: 'Skill invokes the privacy-pools CLI (npm package privacy-pools-cli) with Node >=22 <26. Local-CLI hosts (Claude Code, Cursor, Codex, OpenCode, Gemini CLI, OpenClaw): install with `npm i -g privacy-pools-cli`. Hosted-sandbox hosts (Bankr): agent installs the CLI inside its sandbox via execute_cli. Supports macOS, Linux, Windows.'
+metadata:
+  {
+    "version": "2.0.0",
+    "author": { "name": "matthewb", "url": "https://github.com/0xmatthewb" },
+    "homepage": "https://privacypools.com",
+    "openclaw":
+      {
+        "emoji": "🛡️",
+        "homepage": "https://privacypools.com",
+        "requires": { "bins": ["privacy-pools"] },
+        "install":
+          [
+            {
+              "id": "node-privacy-pools",
+              "kind": "node",
+              "package": "privacy-pools-cli",
+              "bins": ["privacy-pools"],
+              "label": "Install Privacy Pools CLI (npm)",
+            },
+          ],
+      },
+    "clawdbot":
+      {
+        "homepage": "https://privacypools.com",
+        "requires": { "bins": ["privacy-pools"] },
+      },
+  }
 ---
 
 # Privacy Pools CLI
@@ -358,7 +365,7 @@ In machine modes, non-round deposit amounts are rejected by default because they
 
 ## 9. Error handling
 
-See [reference.md](reference.md#error-format) for the full current error table and payload shape.
+See [reference.md](references/reference.md#error-format) for the full current error table and payload shape.
 
 Successful commands exit with code `0`.
 Exit codes: 1 (unknown), 2 (input), 3 (RPC), 4 (setup), 5 (relayer), 6 (proof), 7 (contract), 8 (ASP), 9 (cancelled).
@@ -401,8 +408,26 @@ Recommended retry strategy:
 
 ---
 
-## 12. Additional resources
+## 12. Install on supported agent hosts
 
-For the full command reference with JSON payload shapes, see [reference.md](reference.md).
+- Bankr: ask Bankr to install the skill at `https://github.com/<owner>/<repo>/tree/<branch>/skills/privacy-pools`; the agent installs the CLI inside its sandbox with `execute_cli`.
+- OpenClaw: run `npx skills add <repo-url> -a openclaw --skill privacy-pools`; `metadata.openclaw.requires.bins` gates CLI availability and the install affordance uses `npm i -g privacy-pools-cli`.
+- Claude Code: add or copy this skill directory to `.claude/skills/privacy-pools/`.
+- Codex: add or copy this skill directory to `.agents/skills/privacy-pools/`.
+- ChatGPT: zip `skills/privacy-pools/` and upload it through Settings → Skills.
+
+---
+
+## 13. Notes for hosted-sandbox hosts (Bankr)
+
+- Bankr's signer rails currently cover mainnet and Arbitrum only. For Optimism, Sepolia, and OP-Sepolia, use `--unsigned` envelopes with an external signer or another host.
+- `--unsigned` envelope `transactions[]` map directly to Bankr's `/wallet/submit`: forward `{ to, chainId, value, data }` per call. Bankr does not batch, so orchestrate sequentially keyed on `status: "success"`.
+- Never write privacy-pool secrets to `/.memory/user_*.md`; those files auto-load into every LLM turn.
+
+---
+
+## 14. Additional resources
+
+For the full command reference with JSON payload shapes, see [reference.md](references/reference.md).
 
 For runtime discovery, call `privacy-pools capabilities --agent` to receive a machine-readable manifest, then `privacy-pools describe <command...> --agent` when you need the detailed runtime contract for one command path. Use `privacy-pools describe envelope.<schema-path> --agent` when you want bundled contract fields, and keep `privacy-pools guide` for narrative walkthroughs instead of contract inspection.

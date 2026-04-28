@@ -256,6 +256,7 @@ const PROSE_WHITELIST = new Set([
   "availablePoolAccounts",
   "balanceSufficient",
   "documentation",
+  "execute_cli",
   "npx",
   "performed",
   "phase_change",

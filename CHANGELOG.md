@@ -22,6 +22,7 @@ The format is inspired by Keep a Changelog and follows semantic versioning.
 - Native acceleration is optional and fail-closed: signing, wallet initialization, account persistence, and all fund-moving protocol logic stay JS-owned.
 - Native binary launches require checksum and bridge-metadata verification before use; invalid or incompatible native runtimes fall back to the JS path.
 - Published root installs no longer declare unpublished host-native packages as optional dependencies, keeping `npm ci` and global installs deterministic until those packages are available on the registry.
+- Renamed skill from `skills/privacy-pools-cli/` to `skills/privacy-pools/` and reorganized companion docs into `references/` to align with the open agentskills.io spec consumed by Bankr, OpenClaw, Claude Code, Cursor, Codex, OpenCode, Gemini CLI, and ChatGPT. Frontmatter modernized: `triggers`, `permissions`, top-level `author`, top-level `version` removed; `tags`, `visibility`, `license`, `compatibility`, `metadata.openclaw.*`, and `metadata.clawdbot.*` added. Consumers pinning the old skill path must update.
 
 ### Removed
 
