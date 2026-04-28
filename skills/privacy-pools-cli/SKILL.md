@@ -31,7 +31,7 @@ triggers:
 
 SDK-powered CLI for [Privacy Pools v1](https://privacypools.com). Compliant, private transactions across the CLI's supported mainnet and testnet chains, including Ethereum, Arbitrum, Optimism, Sepolia, and OP Sepolia.
 
-Install: `npm i -g privacy-pools-cli`. Keep optional dependencies enabled so supported hosts can use the native shell automatically; avoid `--omit=optional` and configs like `npm_config_omit=optional`. For unreleased or source builds, use `npm i -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`. For native runtime troubleshooting or fallback controls, see `docs/runtime-upgrades.md`. If a supported published install falls back to JS because the optional native package is missing or invalid, `status --agent` includes `native_acceleration_unavailable`.
+Install: `npm i -g privacy-pools-cli`. The root package installs cleanly without unpublished native package dependencies; supported hosts use native acceleration when a release includes the host package or `PRIVACY_POOLS_CLI_BINARY` points to a verified native shell. For unreleased or source builds, use `npm i -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`. For native runtime troubleshooting or fallback controls, see `docs/runtime-upgrades.md`. If a supported published install falls back to JS because the native shell is missing or invalid, `status --agent` includes `native_acceleration_unavailable`.
 
 ## Quick reference
 
@@ -85,7 +85,7 @@ All commands also accept `--json`, `--yes`, and `--quiet` individually.
 
 ---
 
-## 2. JSON output contract (v2.1.0)
+## 2. JSON output contract (v2.0.0)
 
 Every response when `--json` or `--agent` is set:
 

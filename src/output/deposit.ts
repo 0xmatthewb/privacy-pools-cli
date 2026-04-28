@@ -26,7 +26,6 @@ import {
   formatDenseOutcomeLine,
   formatTxHash,
 } from "../utils/format.js";
-import { muted } from "../utils/theme.js";
 import { inlineSeparator } from "../utils/terminal.js";
 import { isTestnetChain, POA_PORTAL_URL } from "../config/chains.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
@@ -529,13 +528,10 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         url: data.explorerUrl,
       }),
     );
+    if (data.poolAccountNumber === 1) {
+      process.stderr.write(formatCallout("success", [FIRST_DEPOSIT_WELCOME]));
+    }
     const summaryRows = [
-      ...(data.poolAccountNumber === 1
-        ? [{
-            label: "",
-            value: muted(FIRST_DEPOSIT_WELCOME),
-          }]
-        : []),
       { label: "Chain", value: data.chain },
       { label: "Pool Account", value: data.poolAccountId },
       {

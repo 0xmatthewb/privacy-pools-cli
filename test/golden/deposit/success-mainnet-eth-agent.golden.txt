@@ -3,9 +3,11 @@
   Deposited 0.1 ETH -> mainnet ETH pool - PA-1 - Block 19000000
     https://etherscan.io/tx/0xaabb
 
+  | Success:
+  | Welcome to Privacy Pools — this is your first deposit on this chain. Your Pool Account is now under ASP review.
+
 ------------------------------------------------------------------------------------------------------------------------
 Summary:
-  :              Welcome to Privacy Pools — this is your first deposit on this chain. Your Pool Account is now under ASP review.
   Chain:         mainnet
   Pool Account:  PA-1
   Amount:        0.1 ETH

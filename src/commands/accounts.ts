@@ -681,14 +681,6 @@ export async function handleAccountsCommand(
       );
     }
 
-    if (opts.watch && effectiveStatus !== "pending") {
-      throw new CLIError(
-        "--watch requires pending approvals.",
-        "INPUT",
-        "Use --pending-only or --status pending with --watch.",
-      );
-    }
-
     if (opts.watch && mode.isAgent) {
       throw new CLIError(
         "accounts --watch is not available in --agent mode.",
@@ -714,6 +706,14 @@ export async function handleAccountsCommand(
             ),
           ],
         },
+      );
+    }
+
+    if (opts.watch && effectiveStatus !== "pending") {
+      throw new CLIError(
+        "--watch requires pending approvals.",
+        "INPUT",
+        "Use --pending-only or --status pending with --watch.",
       );
     }
 
