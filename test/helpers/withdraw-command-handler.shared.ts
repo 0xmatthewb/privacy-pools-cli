@@ -791,6 +791,7 @@ export {
   inputPromptMock,
   isPromptCancellationErrorMock,
   listPoolsMock,
+  loadRecipientHistoryEntriesMock,
   maybeRecoverMissingWalletSetupMock,
   lookupEnsNameForAddressMock,
   maybeRenderPreviewProgressStepMock,

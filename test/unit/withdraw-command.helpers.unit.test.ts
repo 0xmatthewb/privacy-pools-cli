@@ -1,14 +1,31 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import type { PoolAccountRef } from "../../src/utils/pool-accounts.ts";
 import {
+  buildDirectRecipientMismatchNextActions,
+  buildRemainderBelowMinNextActions,
+  buildWithdrawQuoteWarnings,
+  confirmRecipientIfNew,
+  collectKnownWithdrawalRecipients,
   formatApprovalResolutionHint,
   getEligibleUnapprovedStatuses,
   getRelayedWithdrawalRemainderAdvisory,
+  getSuspiciousTestnetMinWithdrawFloor,
+  relayerHostLabel,
+  rememberSuccessfulWithdrawalRecipient,
   normalizeRelayerQuoteExpirationMs,
   refreshExpiredRelayerQuoteForWithdrawal,
   resolveRequestedWithdrawalPoolAccountOrThrow,
+  validateRecipientAddressOrEnsInput,
   validateRelayerQuoteForWithdrawal,
+  withSuspendedSpinner,
+  writeWithdrawalAnonymitySetHint,
 } from "../../src/commands/withdraw.ts";
+import { captureOutput } from "../helpers/output.ts";
+import {
+  cleanupTrackedTempDirs,
+  createTrackedTempDir,
+} from "../helpers/temp.ts";
+import { loadRecipientHistoryEntries } from "../../src/services/recipient-history.ts";
 
 function makePoolAccountRef(
   status: PoolAccountRef["status"],
@@ -65,7 +82,215 @@ function makeQuote(
   };
 }
 
+const originalPrivacyPoolsHome = process.env.PRIVACY_POOLS_HOME;
+
 describe("withdraw command helpers", () => {
+  afterEach(() => {
+    cleanupTrackedTempDirs();
+    if (originalPrivacyPoolsHome === undefined) {
+      delete process.env.PRIVACY_POOLS_HOME;
+    } else {
+      process.env.PRIVACY_POOLS_HOME = originalPrivacyPoolsHome;
+    }
+  });
+
+  test("formats relayer host labels and suspicious testnet minimum floors", () => {
+    expect(relayerHostLabel(undefined)).toBeNull();
+    expect(relayerHostLabel("https://relayer.example/path")).toBe(
+      "relayer.example",
+    );
+    expect(relayerHostLabel("not a url")).toBe("not a url");
+
+    expect(getSuspiciousTestnetMinWithdrawFloor(18)).toBe(1_000_000_000_000n);
+    expect(getSuspiciousTestnetMinWithdrawFloor(6)).toBe(1n);
+    expect(getSuspiciousTestnetMinWithdrawFloor(2)).toBe(1n);
+  });
+
+  test("buildWithdrawQuoteWarnings only warns for unusually low testnet floors", () => {
+    expect(
+      buildWithdrawQuoteWarnings({
+        chainIsTestnet: false,
+        assetSymbol: "ETH",
+        minWithdrawAmount: 1n,
+        decimals: 18,
+      }),
+    ).toEqual([]);
+    expect(
+      buildWithdrawQuoteWarnings({
+        chainIsTestnet: true,
+        assetSymbol: "USDC",
+        minWithdrawAmount: 1n,
+        decimals: 6,
+      }),
+    ).toEqual([]);
+
+    const warnings = buildWithdrawQuoteWarnings({
+      chainIsTestnet: true,
+      assetSymbol: "ETH",
+      minWithdrawAmount: 1n,
+      decimals: 18,
+    });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.code).toBe("TESTNET_MIN_WITHDRAW_AMOUNT_UNUSUALLY_LOW");
+    expect(warnings[0]?.message).toContain("testnet quote");
+  });
+
+  test("writeWithdrawalAnonymitySetHint respects silent mode", () => {
+    const silent = captureOutput(() =>
+      writeWithdrawalAnonymitySetHint(
+        { eligible: 4, total: 10, percentage: 40 },
+        true,
+      ),
+    );
+    expect(silent.stderr).toBe("");
+
+    const visible = captureOutput(() =>
+      writeWithdrawalAnonymitySetHint(
+        { eligible: 4, total: 10, percentage: 40 },
+        false,
+      ),
+    );
+    expect(visible.stderr).toContain("Estimated anonymity set");
+    expect(visible.stderr).toContain("4 of 10 deposits");
+  });
+
+  test("buildDirectRecipientMismatchNextActions covers asset and template variants", () => {
+    const recipient = "0x1111111111111111111111111111111111111111";
+    const signer = "0x2222222222222222222222222222222222222222";
+
+    const withAsset = buildDirectRecipientMismatchNextActions({
+      amountInput: "0.5",
+      assetInput: "ETH",
+      chainName: "mainnet",
+      recipientAddress: recipient,
+      signerAddress: signer,
+    });
+    expect(withAsset).toHaveLength(2);
+    expect(withAsset[0]?.cliCommand).toContain("privacy-pools withdraw 0.5 ETH");
+    expect(withAsset[0]?.cliCommand).toContain("--to 0x1111111111111111111111111111111111111111");
+    expect(withAsset[1]?.cliCommand).toContain("--direct");
+    expect(withAsset[1]?.cliCommand).not.toContain("--to");
+
+    const template = buildDirectRecipientMismatchNextActions({
+      amountInput: "0.5",
+      assetInput: null,
+      chainName: "mainnet",
+      recipientAddress: recipient,
+      signerAddress: signer,
+    });
+    expect(template).toHaveLength(2);
+    expect(template[0]?.runnable).toBe(false);
+    expect(template[0]?.parameters?.[0]).toMatchObject({
+      name: "asset",
+      required: true,
+    });
+  });
+
+  test("buildRemainderBelowMinNextActions adds safer relayed and direct alternatives when available", () => {
+    const recipient = "0x3333333333333333333333333333333333333333";
+
+    const actions = buildRemainderBelowMinNextActions({
+      chainName: "mainnet",
+      asset: "ETH",
+      decimals: 18,
+      recipient,
+      poolAccountId: "PA-4",
+      poolAccountValue: 3000000000000000000n,
+      minWithdrawAmount: 1000000000000000000n,
+      signerAddress: recipient,
+    });
+
+    expect(actions.map((action) => action.command)).toEqual([
+      "withdraw",
+      "withdraw",
+      "ragequit",
+      "withdraw",
+    ]);
+    expect(actions[1]?.cliCommand).toContain("2 ETH");
+    expect(actions[3]?.cliCommand).toContain("--direct");
+  });
+
+  test("recipient helpers validate inputs, warn on new recipients, and persist successful recipients", async () => {
+    const home = createTrackedTempDir("pp-withdraw-helpers-");
+    process.env.PRIVACY_POOLS_HOME = home;
+    const signer = "0x4444444444444444444444444444444444444444";
+    const recipient = "0x5555555555555555555555555555555555555555";
+
+    expect(validateRecipientAddressOrEnsInput(recipient)).toBe(true);
+    expect(validateRecipientAddressOrEnsInput("vitalik.eth")).toBe(true);
+    expect(validateRecipientAddressOrEnsInput("definitely not valid")).toContain(
+      "Invalid",
+    );
+
+    await expect(
+      confirmRecipientIfNew({
+        address: signer,
+        knownRecipients: [signer],
+        skipPrompts: false,
+        silent: true,
+      }),
+    ).resolves.toEqual([]);
+
+    const warnings = await confirmRecipientIfNew({
+      address: recipient,
+      knownRecipients: [signer],
+      skipPrompts: true,
+      silent: true,
+    });
+    expect(warnings[0]?.code).toBe("RECIPIENT_NEW_TO_PROFILE");
+
+    expect(collectKnownWithdrawalRecipients(signer, "mainnet")).toContain(
+      signer,
+    );
+    rememberSuccessfulWithdrawalRecipient(recipient, {
+      ensName: "receiver.eth",
+      chain: "mainnet",
+      label: "receiver",
+    });
+    expect(loadRecipientHistoryEntries({ chain: "mainnet" })[0]).toMatchObject({
+      address: recipient,
+      ensName: "receiver.eth",
+      label: "receiver",
+      source: "withdrawal",
+      useCount: 1,
+    });
+    expect(collectKnownWithdrawalRecipients(null, "mainnet")).toContain(
+      recipient,
+    );
+  });
+
+  test("withSuspendedSpinner stops and restarts active spinners around async work", async () => {
+    const calls: string[] = [];
+    const spin = {
+      isSpinning: true,
+      stop: () => {
+        calls.push("stop");
+      },
+      start: () => {
+        calls.push("start");
+      },
+    } as Parameters<typeof withSuspendedSpinner>[0];
+
+    await expect(
+      withSuspendedSpinner(spin, async () => {
+        calls.push("task");
+        return "done";
+      }),
+    ).resolves.toBe("done");
+    expect(calls).toEqual(["stop", "task", "start"]);
+
+    const idleSpin = {
+      isSpinning: false,
+      stop: () => calls.push("idle-stop"),
+      start: () => calls.push("idle-start"),
+    } as Parameters<typeof withSuspendedSpinner>[0];
+    await expect(
+      withSuspendedSpinner(idleSpin, async () => "idle"),
+    ).resolves.toBe("idle");
+    expect(calls).not.toContain("idle-stop");
+    expect(calls).not.toContain("idle-start");
+  });
+
   test("returns an empty list when no Pool Accounts are eligible", () => {
     expect(getEligibleUnapprovedStatuses([], 1n)).toEqual([]);
   });

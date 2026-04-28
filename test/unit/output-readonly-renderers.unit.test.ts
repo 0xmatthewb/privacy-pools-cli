@@ -475,6 +475,123 @@ describe("read-only output renderers", () => {
     expect(detail.stderr).toBe("");
   });
 
+  test("renderAccounts name mode emits compact identifiers for accounts and balances", () => {
+    const accountCtx = createOutputContext(makeMode({ isName: true, format: "name" }));
+    const summaryCtx = createOutputContext(makeMode({ isName: true, format: "name" }));
+
+    const accounts = captureOutput(() =>
+      renderAccounts(accountCtx, {
+        chain: "all-mainnets",
+        chains: ["mainnet", "arbitrum"],
+        groups: ACCOUNT_GROUPS,
+        showDetails: false,
+        showSummary: false,
+        showPendingOnly: false,
+      }),
+    );
+    const summary = captureOutput(() =>
+      renderAccounts(summaryCtx, {
+        chain: "all-mainnets",
+        chains: ["mainnet", "arbitrum"],
+        groups: ACCOUNT_GROUPS,
+        showDetails: false,
+        showSummary: true,
+        showPendingOnly: false,
+      }),
+    );
+
+    expect(accounts.stdout.trim().split("\n")).toEqual([
+      "mainnet/PA-1",
+      "mainnet/PA-2",
+    ]);
+    expect(summary.stdout.trim()).toBe("mainnet/ETH");
+    expect(accounts.stderr).toBe("");
+    expect(summary.stderr).toBe("");
+  });
+
+  test("renderAccountsNoPools covers restore and other-chain empty guidance", () => {
+    const restoreCtx = createOutputContext(makeMode());
+    const otherChainCtx = createOutputContext(makeMode());
+
+    const restore = captureOutput(() =>
+      renderAccountsNoPools(restoreCtx, {
+        chain: "mainnet",
+        emptyReason: "restore_check_recommended",
+        pendingSubmissions: [
+          {
+            submissionId: "sub-123",
+            operation: "deposit",
+            chain: "mainnet",
+            asset: "ETH",
+            poolAccountId: "PA-9",
+          },
+        ],
+        reconciliationRequiredChains: ["mainnet"],
+      }),
+    );
+    expect(restore.stderr).toContain("refresh supported-chain discovery");
+    expect(restore.stderr).toContain("Local state is out of date");
+    expect(restore.stderr).toContain("Pending submissions:");
+    expect(restore.stderr).toContain("tx-status sub-123");
+    expect(restore.stderr).toContain("privacy-pools pools --chain mainnet");
+
+    const otherChain = captureOutput(() =>
+      renderAccountsNoPools(otherChainCtx, {
+        chain: "sepolia",
+        emptyReason: "other_chain_activity",
+        otherChains: ["mainnet"],
+      }),
+    );
+    expect(otherChain.stderr).toContain("saved deposit state exists on mainnet");
+    expect(otherChain.stderr).toContain("privacy-pools accounts --chain mainnet");
+  });
+
+  test("renderAccountsNoPools covers status-filtered JSON and CSV empty states", () => {
+    const jsonCtx = createOutputContext(makeMode({ isJson: true }));
+    const csvCtx = createOutputContext(makeMode({ isCsv: true, format: "csv" }));
+
+    const json = captureOutput(() =>
+      renderAccountsNoPools(jsonCtx, {
+        chain: "mainnet",
+        summary: true,
+        emptyReason: "status_filtered_empty",
+        statusFilter: "poa_required",
+        previouslyPendingPaIds: ["PA-1"],
+        recentlyResolved: [
+          {
+            poolAccountId: "PA-1",
+            chain: "mainnet",
+            asset: "ETH",
+            newStatus: "approved",
+          },
+        ],
+      }),
+    );
+    expect(parseCapturedJson(json.stdout)).toMatchObject({
+      success: true,
+      approvedCount: 0,
+      previouslyPendingPaIds: ["PA-1"],
+      recentlyResolved: [
+        {
+          poolAccountId: "PA-1",
+          newStatus: "approved",
+        },
+      ],
+    });
+
+    const csv = captureOutput(() =>
+      renderAccountsNoPools(csvCtx, {
+        chain: "all-mainnets",
+        chains: ["mainnet", "arbitrum"],
+        summary: true,
+        emptyReason: "first_deposit",
+      }),
+    );
+    expect(csv.stdout).toContain("Chain,Asset,Balance,USD,Pool Accounts");
+    expect(csv.stdout).toContain("Pending,Approved,POA Needed");
+    expect(csv.stderr).toBe("");
+  });
+
   test("renderStatus human output includes health checks and unsigned-only guidance", () => {
     const ctx = createOutputContext(makeMode(), true);
 

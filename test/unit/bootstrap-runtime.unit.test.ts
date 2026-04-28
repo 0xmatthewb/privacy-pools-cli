@@ -1092,6 +1092,91 @@ describe("bootstrap runtime coverage", () => {
     ).toBe(true);
   });
 
+  test("cliMain internals specialize commander parse errors by command context", async () => {
+    const { cliMainTestInternals } = realCliMain;
+    const programWithOptions = {
+      options: [{ flags: "-c, --chain <name>" }, { flags: "--check-rpc" }],
+      commands: [
+        {
+          options: [{ flags: "--check-asp" }],
+          commands: [],
+        },
+      ],
+    };
+
+    expect(
+      cliMainTestInternals.mapCommanderError(
+        {
+          code: "commander.missingArgument",
+          message: "error: missing required argument 'amount'",
+        },
+        { rootCommand: "deposit" },
+      )?.code,
+    ).toBe("INPUT_MISSING_AMOUNT");
+    expect(
+      cliMainTestInternals.mapCommanderError(
+        {
+          code: "commander.missingArgument",
+          message: "error: missing required argument 'asset'",
+        },
+        { rootCommand: "flow" },
+      )?.message,
+    ).toContain("Missing asset");
+    expect(
+      cliMainTestInternals.mapCommanderError(
+        {
+          code: "commander.missingArgument",
+          message: "error: missing argument '<asset>'",
+        },
+        { rootCommand: "pool-stats" },
+      )?.hint,
+    ).toContain("pool-stats ETH");
+
+    const poolFlag = cliMainTestInternals.mapCommanderError(
+      {
+        code: "commander.unknownOption",
+        message: "error: unknown option '--pool'",
+      },
+      { rootCommand: "deposit", program: programWithOptions as any },
+    );
+    expect(poolFlag?.hint).toContain("positional asset syntax");
+
+    const assetFlag = cliMainTestInternals.mapCommanderError(
+      {
+        code: "commander.unknownOption",
+        message: "error: unknown option '--asset'",
+      },
+      { rootCommand: "stats", program: programWithOptions as any },
+    );
+    expect(assetFlag?.hint).toContain("pool-stats <asset>");
+
+    const suggestedFlag = cliMainTestInternals.mapCommanderError(
+      {
+        code: "commander.unknownOption",
+        message: "error: unknown option '--chek-rpc'",
+      },
+      { rootCommand: "status", program: programWithOptions as any },
+    );
+    expect(suggestedFlag?.details?.suggestions).toContain("--check-rpc");
+    expect(suggestedFlag?.hint).toContain("--check-rpc");
+  });
+
+  test("cliMain internals classify known help targets and fallback unknown commands", async () => {
+    const { cliMainTestInternals } = realCliMain;
+
+    expect(cliMainTestInternals.isKnownCommanderHelpTarget(undefined)).toBe(false);
+    expect(cliMainTestInternals.isKnownCommanderHelpTarget("withdraw")).toBe(true);
+    expect(cliMainTestInternals.isKnownCommanderHelpTarget("recents")).toBe(true);
+
+    const unknown = cliMainTestInternals.buildUnknownCommandError("withraw");
+    expect(unknown.code).toBe("INPUT_UNKNOWN_COMMAND");
+    expect(unknown.details?.suggestions).toContain("withdraw");
+
+    const empty = cliMainTestInternals.buildUnknownCommandError("");
+    expect(empty.message).toBe("Unknown command.");
+    expect(empty.hint).toContain("--help");
+  });
+
   test("cliMain internals emit structured help and signal payloads", async () => {
     const { cliMainTestInternals } = realCliMain;
     const program = {
@@ -1137,6 +1222,32 @@ describe("bootstrap runtime coverage", () => {
     expect(structuredHelp.json.success).toBe(true);
     expect(structuredHelp.json.mode).toBe("help");
     expect(structuredHelp.json.help).toBe("root help body");
+
+    const capturedHelp = captureJsonOutput(() => {
+      cliMainTestInternals.emitCommanderSignalPayload(program as any, undefined, {
+        captureMachineOutput: true,
+        isStructuredOutputMode: true,
+        machineOutput: { value: "captured help\n" },
+        version: "1.2.3",
+      });
+    });
+    expect(capturedHelp.json.success).toBe(true);
+    expect(capturedHelp.json.help).toBe("captured help");
+
+    const structuredVersion = captureJsonOutput(() => {
+      cliMainTestInternals.emitCommanderSignalPayload(
+        program as any,
+        "commander.version",
+        {
+          captureMachineOutput: false,
+          isStructuredOutputMode: true,
+          machineOutput: { value: "" },
+          version: "1.2.3",
+        },
+      );
+    });
+    expect(structuredVersion.json.success).toBe(true);
+    expect(structuredVersion.json.version).toBe("1.2.3");
   });
 
   test("cliMain internals configure and recurse machine-mode output", async () => {
@@ -1211,6 +1322,112 @@ describe("bootstrap runtime coverage", () => {
 
     expect(captured.stdout).toBe("styled:help");
     expect(captured.stderr).toBe("");
+  });
+
+  test("cliMain internals capture commander output recursively and suppress welcome writes", async () => {
+    const { cliMainTestInternals } = realCliMain;
+    let parentOutput:
+      | {
+          writeOut: (value: string) => void;
+        }
+      | undefined;
+    let childOutput:
+      | {
+          writeOut: (value: string) => void;
+        }
+      | undefined;
+    const child = {
+      commands: [],
+      configureOutput: (output: typeof childOutput) => {
+        childOutput = output;
+      },
+    };
+    const program = {
+      commands: [child],
+      configureOutput: (output: typeof parentOutput) => {
+        parentOutput = output;
+      },
+    };
+    const machineOutput = { value: "" };
+
+    cliMainTestInternals.configureCommanderOutput(program as any, {
+      captureMachineOutput: true,
+      isWelcome: false,
+      isMachineMode: true,
+      styleCommanderHelp: (value: string) => `styled:${value}`,
+      dangerTone: null,
+      machineOutput,
+    });
+    parentOutput?.writeOut("root help");
+    childOutput?.writeOut(" child help");
+    expect(machineOutput.value).toBe("root help child help");
+
+    const welcomeProgram = {
+      commands: [],
+      configureOutput: (output: typeof parentOutput) => {
+        parentOutput = output;
+      },
+    };
+    cliMainTestInternals.configureCommanderOutput(welcomeProgram as any, {
+      captureMachineOutput: false,
+      isWelcome: true,
+      isMachineMode: false,
+      styleCommanderHelp: null,
+      dangerTone: null,
+      machineOutput: { value: "" },
+    });
+    const captured = captureOutput(() => {
+      parentOutput?.writeOut("hidden welcome help");
+    });
+    expect(captured.stdout).toBe("");
+  });
+
+  test("cliMain internals apply help styling while preserving existing error writers", async () => {
+    const { cliMainTestInternals } = realCliMain;
+    let configuredOutput:
+      | {
+          writeOut: (value: string) => void;
+          writeErr: (value: string) => void;
+          outputError: (value: string, write: (value: string) => void) => void;
+        }
+      | undefined;
+    const program = {
+      commands: [
+        {
+          commands: [],
+          configureOutput: (output?: typeof configuredOutput) => {
+            if (output) configuredOutput = output;
+            return {
+              writeErr: (value: string) => process.stderr.write(`child:${value}`),
+              outputError: (value: string, write: (value: string) => void) =>
+                write(`child-error:${value}`),
+            };
+          },
+        },
+      ],
+      configureOutput: (output?: typeof configuredOutput) => {
+        if (output) configuredOutput = output;
+        return {
+          writeErr: (value: string) => process.stderr.write(`err:${value}`),
+          outputError: (value: string, write: (value: string) => void) =>
+            write(`error:${value}`),
+        };
+      },
+    };
+
+    cliMainTestInternals.applyHelpStyling(
+      program as any,
+      (value: string) => `styled:${value}`,
+    );
+
+    const captured = captureOutput(() => {
+      configuredOutput?.writeOut("help");
+      configuredOutput?.writeErr("warn");
+      configuredOutput?.outputError("oops", (value) => process.stderr.write(value));
+    });
+    expect(captured.stdout).toBe("styled:help");
+    expect(captured.stderr).toContain("child:warn");
+    expect(captured.stderr).toContain("child-error:oops");
   });
 
   test("cliMain internals write styled machine help when not capturing", async () => {

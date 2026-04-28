@@ -442,6 +442,43 @@ export function registerWithdrawValidationPreludeTests(): void {
     expect(initializeAccountServiceMock).not.toHaveBeenCalled();
   });
 
+  test("rejects submit-only flags that conflict with preview modes", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const dryRunConflict = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          dryRun: true,
+          noWait: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(dryRunConflict.exitCode).toBe(2);
+    expect(dryRunConflict.json.errorCode).toBe("INPUT_FLAG_CONFLICT");
+    expect(dryRunConflict.json.error.message).toContain("--no-wait cannot be combined");
+
+    const unsignedConflict = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          unsigned: true,
+          noWait: true,
+          to: "0x4444444444444444444444444444444444444444",
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(unsignedConflict.exitCode).toBe(2);
+    expect(unsignedConflict.json.errorCode).toBe("INPUT_FLAG_CONFLICT");
+    expect(unsignedConflict.json.error.message).toContain("--no-wait cannot be combined");
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+  });
+
   test("fails closed in machine mode when relayed withdrawals omit --to", async () => {
     useIsolatedHome({ withSigner: true });
 
@@ -950,6 +987,27 @@ export function registerWithdrawValidationAccountSelectionTests(): void {
     expect(json.errorCode).toBe("INPUT_ERROR");
     expect(json.error.message ?? json.errorMessage).toContain("Direct withdrawal requires --to");
     expect(exitCode).toBe(2);
+  });
+
+  test("requires explicit full-balance acknowledgement for non-interactive direct --all", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "ETH",
+        undefined,
+        {
+          all: true,
+          direct: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(exitCode).toBe(2);
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_FLAG_CONFLICT");
+    expect(json.error.message ?? json.errorMessage).toContain("--all --direct requires");
   });
 
   test("rejects direct withdrawals whose recipient does not match the signer", async () => {

@@ -2,8 +2,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+  allNonOptionTokens,
+  firstNonOptionToken,
+  hasLongFlag,
+  hasShortFlag,
+  isWelcomeFlagOnlyInvocation,
+  isWelcomeShortFlagBundle,
+  normalizeJsonFieldSelectionArgv,
   parseRootArgv,
   parseValidatedRootPrelude,
+  readLongOptionValue,
+  readShortOptionValue,
   rootArgvSlice,
 } from "../../src/utils/root-argv.ts";
 
@@ -167,5 +176,70 @@ describe("root argv parsing", () => {
 
     expect(parsed.isStructuredOutputMode).toBe(true);
     expect(parsed.isMachineMode).toBe(true);
+  });
+
+  test("normalizes command-level JSON field selection without consuming root option values", () => {
+    expect(
+      normalizeJsonFieldSelectionArgv([
+        "--chain",
+        "mainnet",
+        "describe",
+        "withdraw",
+        "--json",
+        "structuredExamples",
+        "--",
+        "--json",
+        "literal",
+      ]),
+    ).toEqual([
+      "--chain",
+      "mainnet",
+      "describe",
+      "withdraw",
+      "--json-fields",
+      "structuredExamples",
+      "--",
+      "--json",
+      "literal",
+    ]);
+
+    const argv = ["-qv", "-o", "csv", "accounts", "--no-header"];
+    expect(rootArgvSlice(argv)).toEqual(argv);
+    expect(hasShortFlag(argv, "q")).toBe(true);
+    expect(hasShortFlag(argv, "v")).toBe(true);
+    expect(hasLongFlag(argv, "--no-header")).toBe(true);
+    expect(readShortOptionValue(argv, "-o")).toBe("csv");
+    expect(readLongOptionValue(["--timeout=9", "status"], "--timeout")).toBe("9");
+    expect(allNonOptionTokens(argv)).toEqual(["accounts"]);
+    expect(firstNonOptionToken(["--profile", "ops", "status"])).toBe("status");
+  });
+
+  test("welcome-only detection and env fallbacks cover quiet yes and progress modes", () => {
+    process.env.PRIVACY_POOLS_YES = "true";
+    process.env.PRIVACY_POOLS_NO_PROGRESS = "on";
+
+    expect(isWelcomeShortFlagBundle("-qvy")).toBe(true);
+    expect(isWelcomeShortFlagBundle("-qx")).toBe(false);
+    expect(isWelcomeFlagOnlyInvocation([])).toBe(true);
+    expect(isWelcomeFlagOnlyInvocation(["--no-banner", "--timeout", "5"])).toBe(true);
+    expect(isWelcomeFlagOnlyInvocation(["--timeout"])).toBe(false);
+
+    const prelude = parseValidatedRootPrelude([
+      "--no-progress",
+      "--no-header",
+      "--profile",
+      "ops",
+      "status",
+    ]);
+    expect(prelude?.globalOpts).toMatchObject({
+      yes: true,
+      noProgress: true,
+      noHeader: true,
+      profile: "ops",
+    });
+
+    const parsed = parseRootArgv(["-qvy"]);
+    expect(parsed.isQuiet).toBe(true);
+    expect(parsed.isWelcome).toBe(true);
   });
 });

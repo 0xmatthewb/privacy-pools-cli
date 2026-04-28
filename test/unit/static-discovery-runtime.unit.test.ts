@@ -413,6 +413,44 @@ describe("static discovery runtime", () => {
     expect(quietOutput.stderr).toBe("");
   });
 
+  test("static help topic aliases render through the guide fast path", async () => {
+    const parsed = parseRootArgv(["--json", "help", "agent"]);
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      runStaticDiscoveryCommand(["--json", "help", "agent"], parsed),
+    );
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("help");
+    expect(json.topic).toBe("agents");
+    expect(json.help).toContain("Privacy Pools: agents");
+    expect(stderr).toBe("");
+
+    const human = await captureAsyncOutput(async () => {
+      const quietParsed = parseRootArgv(["--quiet", "help", "quickstart"]);
+      const handled = await runStaticDiscoveryCommand([
+        "--quiet",
+        "help",
+        "quickstart",
+      ], quietParsed);
+      expect(handled).toBe(true);
+    });
+    expect(human.stdout).toBe("");
+    expect(human.stderr).toBe("");
+  });
+
+  test("unknown help targets fall back to human guide-topic guidance", async () => {
+    const { stdout, stderr } = await captureAsyncOutput(async () => {
+      const handled = await runStaticDiscoveryCommand([
+        "help",
+        "not-a-topic",
+      ]);
+      expect(handled).toBe(true);
+    });
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Unknown guide topic: not-a-topic");
+    expect(stderr).toContain("Available topics");
+  });
+
   test("renders describe output in human mode", async () => {
     const { stdout, stderr } = await captureAsyncOutput(async () => {
       const handled = await runStaticDiscoveryCommand(["describe", "withdraw", "quote"]);

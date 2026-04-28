@@ -4,7 +4,15 @@
 
 import { describe, expect, test } from "bun:test";
 import { createOutputContext } from "../../src/output/common.ts";
-import { renderInitResult, type InitRenderResult } from "../../src/output/init.ts";
+import {
+  renderInitDryRun,
+  renderInitPending,
+  renderInitResult,
+  renderInitStage,
+  type InitDryRunResult,
+  type InitPendingResult,
+  type InitRenderResult,
+} from "../../src/output/init.ts";
 import { renderDepositDryRun, renderDepositSuccess, type DepositDryRunData, type DepositSuccessData } from "../../src/output/deposit.ts";
 import { renderRagequitDryRun, renderRagequitSuccess, type RagequitDryRunData, type RagequitSuccessData } from "../../src/output/ragequit.ts";
 import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote, type WithdrawDryRunData, type WithdrawSuccessData, type WithdrawQuoteData } from "../../src/output/withdraw.ts";
@@ -196,6 +204,128 @@ describe("renderInitResult parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
+  });
+
+  test("renders staged, dry-run, and pending init machine envelopes", () => {
+    const stage = captureOutput(() =>
+      renderInitStage("preflight", { configExists: false }),
+    );
+    expect(parseCapturedJson(stage.stdout)).toMatchObject({
+      success: true,
+      mode: "init-staged",
+      operation: "init",
+      stage: "preflight",
+      configExists: false,
+    });
+
+    const dryRun: InitDryRunResult = {
+      operation: "init",
+      dryRun: true,
+      effectiveChain: "mainnet",
+      recoveryPhraseSource: "generate new phrase",
+      signerKeySource: "save from file",
+      backupCaptureMode: "file",
+      backupFilePath: "/tmp/recovery.txt",
+      backupFileWouldWrite: true,
+      overwriteExisting: true,
+      overwritePromptRequired: true,
+      writeTargets: [
+        "/tmp/privacy-pools/config.json",
+        "/tmp/privacy-pools/.mnemonic",
+      ],
+    };
+    const dryRunCtx = createOutputContext(makeMode({ isJson: true }));
+    const dryRunOutput = captureOutput(() =>
+      renderInitDryRun(dryRunCtx, dryRun),
+    );
+    expect(parseCapturedJson(dryRunOutput.stdout)).toMatchObject({
+      success: true,
+      operation: "init",
+      dryRun: true,
+      backupCaptureMode: "file",
+      backupFilePath: "/tmp/recovery.txt",
+      overwriteExisting: true,
+      writeTargets: dryRun.writeTargets,
+    });
+    expect(dryRunOutput.stderr).toBe("");
+
+    const pending: InitPendingResult = {
+      mode: "init-pending",
+      operation: "init",
+      status: "pending_human_action",
+      effectiveChain: "sepolia",
+      configExists: false,
+      recoveryPhraseSet: false,
+      signerKeyFileSet: false,
+      replacementRequested: false,
+      secretTransferRequired: false,
+      humanCommand: "privacy-pools init --default-chain sepolia",
+      agentResumeCommand: "privacy-pools status --agent --chain sepolia",
+      rpcUrl: "https://rpc.example",
+      nextStep: "Ask the human operator to run local init.",
+    };
+    const pendingCtx = createOutputContext(makeMode({ isJson: true }));
+    const pendingOutput = captureOutput(() =>
+      renderInitPending(pendingCtx, pending),
+    );
+    const pendingJson = parseCapturedJson(pendingOutput.stdout);
+    expect(pendingJson).toMatchObject({
+      success: true,
+      mode: "init-pending",
+      status: "pending_human_action",
+      effectiveChain: "sepolia",
+      rpcUrl: "https://rpc.example",
+    });
+    expect(pendingJson.nextActions[0].cliCommand).toBe(
+      "privacy-pools status --agent --chain sepolia",
+    );
+    expect(pendingOutput.stderr).toBe("");
+  });
+
+  test("renders dry-run and pending init human review surfaces", () => {
+    const dryRunCtx = createOutputContext(makeMode());
+    const dryRun = captureOutput(() =>
+      renderInitDryRun(dryRunCtx, {
+        operation: "init",
+        dryRun: true,
+        effectiveChain: "sepolia",
+        recoveryPhraseSource: "load from file",
+        signerKeySource: "prompt or skip",
+        backupCaptureMode: "none",
+        backupFilePath: null,
+        backupFileWouldWrite: false,
+        overwriteExisting: false,
+        overwritePromptRequired: false,
+        writeTargets: ["/tmp/privacy-pools/config.json"],
+      }),
+    );
+    expect(dryRun.stdout).toBe("");
+    expect(dryRun.stderr).toContain("Dry-run complete");
+    expect(dryRun.stderr).toContain("Init dry-run");
+    expect(dryRun.stderr).toContain("Would write:");
+
+    const pendingCtx = createOutputContext(makeMode());
+    const pending = captureOutput(() =>
+      renderInitPending(pendingCtx, {
+        mode: "init-pending",
+        operation: "init",
+        status: "pending_human_action",
+        effectiveChain: "mainnet",
+        configExists: true,
+        recoveryPhraseSet: true,
+        signerKeyFileSet: false,
+        replacementRequested: true,
+        secretTransferRequired: false,
+        humanCommand: "privacy-pools init",
+        agentResumeCommand: "privacy-pools status --agent --chain mainnet",
+        nextStep: "Ask the human operator to finish setup.",
+      }),
+    );
+    expect(pending.stdout).toBe("");
+    expect(pending.stderr).toContain("Init handoff ready");
+    expect(pending.stderr).toContain("Human handoff");
+    expect(pending.stderr).toContain("Secrets in JSON");
+    expect(pending.stderr).toContain("privacy-pools status --agent --chain mainnet");
   });
 });
 

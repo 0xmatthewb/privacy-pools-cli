@@ -6,6 +6,7 @@ import {
   collectSignerKey,
   deriveReadiness,
   describeRecoveryPhraseSource,
+  handleGeneratedRecoveryBackup,
   persistInitFilesAtomically,
   maybeConfirmReplacement,
   describeSignerKeySource,
@@ -14,6 +15,7 @@ import {
   restoreInitFileSnapshot,
   resolveDryRunPlan,
   resolveNonInteractivePlan,
+  verifyGeneratedRecoveryPhrase,
   withInitTestSentinel,
   writeRecoveryBackupFile,
 } from "../../src/commands/init.ts";
@@ -35,6 +37,7 @@ import {
   saveMnemonicToFile,
   saveSignerKey,
 } from "../../src/services/config.ts";
+import { captureAsyncOutput } from "../helpers/output.ts";
 
 const originalSentinelEnv = process.env.PRIVACY_POOLS_TEST_INIT_SENTINELS;
 const originalSignerEnv = process.env.PRIVACY_POOLS_PRIVATE_KEY;
@@ -115,6 +118,51 @@ describe("init command helpers", () => {
     } finally {
       chmodSync(lockedDir, 0o700);
     }
+  });
+
+  test("handleGeneratedRecoveryBackup writes explicit backup files and noninteractive guidance", async () => {
+    const home = createTrackedTempDir("pp-init-generated-backup-");
+    const backupPath = join(home, "recovery.txt");
+
+    const captured = await captureAsyncOutput(async () => {
+      await expect(
+        handleGeneratedRecoveryBackup({
+          mnemonic: "alpha beta gamma",
+          backupFile: backupPath,
+          skipPrompts: true,
+          isJson: true,
+          isQuiet: false,
+          showPhrase: false,
+          silent: true,
+          warningAcknowledged: false,
+        }),
+      ).resolves.toBe(backupPath);
+    });
+
+    expect(captured.stdout).toBe("");
+    expect(captured.stderr).toContain("Recovery phrase will be backed up");
+    expect(readFileSync(backupPath, "utf8")).toContain("alpha beta gamma");
+
+    const noBackup = await captureAsyncOutput(async () => {
+      await expect(
+        handleGeneratedRecoveryBackup({
+          mnemonic: "alpha beta gamma",
+          skipPrompts: true,
+          isJson: true,
+          isQuiet: false,
+          showPhrase: false,
+          silent: true,
+          warningAcknowledged: false,
+        }),
+      ).resolves.toBeNull();
+    });
+    expect(noBackup.stderr).toContain("Recovery phrase capture is required");
+  });
+
+  test("verifyGeneratedRecoveryPhrase rejects generated phrases with the wrong word count", async () => {
+    await expect(
+      verifyGeneratedRecoveryPhrase("alpha beta gamma", true),
+    ).rejects.toThrow("Generated recovery phrase has 3 words");
   });
 
   test("init file snapshots capture, restore, and roll back partial writes", () => {

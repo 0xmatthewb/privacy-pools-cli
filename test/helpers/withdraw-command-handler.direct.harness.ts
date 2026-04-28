@@ -16,6 +16,7 @@ import {
   maybeRenderPreviewScenarioMock,
   printRawTransactionsMock,
   saveAccountMock,
+  selectPromptMock,
   useIsolatedHome,
   withdrawDirectMock,
 } from "./withdraw-command-handler.shared.ts";
@@ -158,6 +159,30 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
     expect(withdrawDirectMock).not.toHaveBeenCalled();
   });
 
+  test("requires the extra agent privacy acknowledgement for direct withdrawals", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          confirmDirectWithdraw: true,
+        },
+        fakeCommand({ agent: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(exitCode).toBe(2);
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED");
+    expect(json.error.nextActions[0].cliCommand).toContain(
+      "--break-privacy-acknowledged",
+    );
+    expect(withdrawDirectMock).not.toHaveBeenCalled();
+  });
+
   test("submits a direct withdrawal to the signer address when requested", async () => {
     useIsolatedHome({ withSigner: true });
     const addWithdrawalCommitmentMock = mock(() => undefined);
@@ -208,6 +233,34 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
     expect(statusEvents).toEqual(["simulating", "broadcasting"]);
   });
 
+  test("submits a direct withdrawal without waiting when requested by an acknowledged agent", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+          confirmDirectWithdraw: true,
+          breakPrivacyAcknowledged: true,
+          noWait: true,
+        },
+        fakeCommand({ agent: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toBe("");
+    expect(json.success).toBe(true);
+    expect(json.operation).toBe("withdraw");
+    expect(json.mode).toBe("direct");
+    expect(json.status).toBe("submitted");
+    expect(typeof json.submissionId).toBe("string");
+    expect(json.localStateSynced).toBe(false);
+    expect(withdrawDirectMock).toHaveBeenCalledTimes(1);
+    expect(saveAccountMock).not.toHaveBeenCalled();
+  });
+
 }
 export function registerWithdrawDirectCompletionTests(): void {
   test("returns early when preview rendering takes over direct withdrawal confirmation", async () => {
@@ -230,6 +283,72 @@ export function registerWithdrawDirectCompletionTests(): void {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("publicly link your deposit and withdrawal addresses");
+    expect(withdrawDirectMock).not.toHaveBeenCalled();
+  });
+
+  test("cancels from the human direct withdrawal review prompt", async () => {
+    useIsolatedHome({ withSigner: true });
+    selectPromptMock.mockImplementationOnce(async () => "cancel");
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Direct withdrawal review");
+    expect(stderr).toContain("Withdrawal cancelled.");
+    expect(withdrawDirectMock).not.toHaveBeenCalled();
+  });
+
+  test("switches from the human direct review back to relayed guidance", async () => {
+    useIsolatedHome({ withSigner: true });
+    selectPromptMock.mockImplementationOnce(async () => "switch");
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("Direct withdrawal cancelled");
+    expect(stderr).toContain("privacy-pools withdraw 0.1 ETH");
+    expect(stderr).toContain("--to");
+    expect(withdrawDirectMock).not.toHaveBeenCalled();
+  });
+
+  test("lets humans edit a direct amount from review before cancelling", async () => {
+    useIsolatedHome({ withSigner: true });
+    selectPromptMock
+      .mockImplementationOnce(async () => "back")
+      .mockImplementationOnce(async () => "cancel");
+    inputPromptMock.mockImplementationOnce(async () => "0.2");
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleWithdrawCommand(
+        "0.1",
+        "ETH",
+        {
+          direct: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(inputPromptMock).toHaveBeenCalledTimes(1);
+    expect(stderr).toContain("Updated withdrawal amount: 0.2 ETH");
+    expect(stderr).toContain("Withdrawal cancelled.");
     expect(withdrawDirectMock).not.toHaveBeenCalled();
   });
 
