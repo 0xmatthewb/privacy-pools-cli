@@ -5,7 +5,9 @@ import { createLazyAction } from "../utils/lazy-command.js";
 
 export function createHistoryCommand(): Command {
   const metadata = getCommandMetadata("history");
-  return new Command("history")
+  const command = new Command("history");
+  (command as Command & { hidden: boolean }).hidden = true;
+  return command
     .description(metadata.description)
     .option("--no-sync", "Use cached data (faster, but may be stale)")
     .option("--page <n>", "Show page N of history results", "1")

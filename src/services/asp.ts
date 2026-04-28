@@ -6,6 +6,9 @@ import type {
   PoolStatisticsResponse,
   GlobalStatisticsResponse,
 } from "../types.js";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { getConfigDir } from "./config.js";
 import { CLIError } from "../utils/errors.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
 import {
@@ -25,6 +28,7 @@ import {
 
 const ASP_MAX_RETRIES = 3;
 const ASP_RETRY_BASE_DELAY_MS = 500;
+const POOLS_STATS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 class RetryableAspHttpError extends Error {
   constructor(public readonly status: number) {
@@ -281,14 +285,67 @@ export interface PoolStatsEntry {
   [key: string]: unknown;
 }
 
+type PoolsStatsResponse =
+  | PoolStatsEntry[]
+  | { pools?: PoolStatsEntry[]; [scope: string]: PoolStatsEntry | PoolStatsEntry[] | undefined };
+
+function poolsStatsCachePath(chainConfig: ChainConfig): string {
+  const cacheDir = join(getConfigDir(), "cache");
+  return join(
+    cacheDir,
+    `pools-stats-${chainConfig.id}-${encodeURIComponent(chainConfig.aspHost)}.json`,
+  );
+}
+
+function readCachedPoolsStats(chainConfig: ChainConfig): PoolsStatsResponse | null {
+  const filePath = poolsStatsCachePath(chainConfig);
+  if (!existsSync(filePath)) return null;
+
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, "utf8")) as {
+      fetchedAt?: unknown;
+      data?: unknown;
+    };
+    if (
+      typeof parsed.fetchedAt !== "number" ||
+      Date.now() - parsed.fetchedAt > POOLS_STATS_CACHE_TTL_MS
+    ) {
+      return null;
+    }
+    return parsed.data as PoolsStatsResponse;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedPoolsStats(
+  chainConfig: ChainConfig,
+  data: PoolsStatsResponse,
+): void {
+  const filePath = poolsStatsCachePath(chainConfig);
+  try {
+    mkdirSync(join(getConfigDir(), "cache"), { recursive: true, mode: 0o700 });
+    writeFileSync(
+      filePath,
+      JSON.stringify({ fetchedAt: Date.now(), data }),
+      { mode: 0o600 },
+    );
+  } catch {
+    // Best effort: cache misses should never block pool discovery.
+  }
+}
+
 export async function fetchPoolsStats(
   chainConfig: ChainConfig
-): Promise<
-  PoolStatsEntry[]
-  | { pools?: PoolStatsEntry[]; [scope: string]: PoolStatsEntry | PoolStatsEntry[] | undefined }
-> {
+): Promise<PoolsStatsResponse> {
+  const cached = readCachedPoolsStats(chainConfig);
+  if (cached) {
+    return cached;
+  }
   const res = await aspFetch(chainConfig, "/public/pools-stats");
-  return res.json();
+  const data = await res.json() as PoolsStatsResponse;
+  writeCachedPoolsStats(chainConfig, data);
+  return data;
 }
 
 export async function fetchDepositsLargerThan(

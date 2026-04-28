@@ -1,4 +1,6 @@
 import type { Command } from "commander";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Address } from "viem";
 import {
   CHAINS,
@@ -9,7 +11,7 @@ import {
   POA_PORTAL_URL,
 } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
-import { loadConfig } from "../services/config.js";
+import { getConfigDir, loadConfig } from "../services/config.js";
 import { loadMnemonic } from "../services/wallet.js";
 import { getDataService } from "../services/sdk.js";
 import {
@@ -23,6 +25,10 @@ import {
 import {
   accountHasDeposits,
 } from "../services/account-storage.js";
+import {
+  listSubmissionIds,
+  loadSubmissionRecord,
+} from "../services/submissions.js";
 import {
   listKnownPoolsFromRegistry,
   listPools,
@@ -59,12 +65,16 @@ import { maybeLaunchBrowser } from "../utils/web.js";
 
 interface AccountsCommandOptions {
   sync?: boolean;
+  refresh?: boolean;
   includeTestnets?: boolean;
   details?: boolean;
   summary?: boolean;
+  history?: boolean;
+  page?: string;
   pendingOnly?: boolean;
   status?: string;
   watch?: boolean;
+  watchInterval?: string;
   limit?: string;
 }
 
@@ -78,12 +88,113 @@ interface LoadedChainAccounts {
   warnings: AccountWarning[];
 }
 
+interface PendingSnapshotEntry {
+  poolAccountId: string;
+  chain: string;
+  asset: string;
+  status: string;
+}
+
+interface PendingResolutionSummary {
+  previouslyPendingPaIds: string[];
+  recentlyResolved: Array<{
+    poolAccountId: string;
+    chain: string;
+    asset: string;
+    newStatus: string;
+  }>;
+}
+
 type AccountsEmptyReason =
   | "first_deposit"
   | "other_chain_activity"
   | "no_pending_left"
   | "restore_check_recommended"
   | "status_filtered_empty";
+
+function accountsPendingCachePath(): string {
+  return join(getConfigDir(), "cache", "accounts-pending.json");
+}
+
+function pendingSnapshotKey(entry: Pick<PendingSnapshotEntry, "chain" | "asset" | "poolAccountId">): string {
+  return `${entry.chain}:${entry.asset}:${entry.poolAccountId}`;
+}
+
+function readPreviousPendingSnapshot(): Record<string, PendingSnapshotEntry> {
+  const filePath = accountsPendingCachePath();
+  if (!existsSync(filePath)) return {};
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, "utf8"));
+    return typeof parsed === "object" && parsed !== null
+      ? parsed as Record<string, PendingSnapshotEntry>
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePendingSnapshot(groups: AccountPoolGroup[]): void {
+  const snapshot: Record<string, PendingSnapshotEntry> = {};
+  for (const group of groups) {
+    for (const poolAccount of group.poolAccounts) {
+      if (poolAccount.status !== "pending") continue;
+      const entry: PendingSnapshotEntry = {
+        poolAccountId: poolAccount.paId,
+        chain: group.chain,
+        asset: group.symbol,
+        status: poolAccount.status,
+      };
+      snapshot[pendingSnapshotKey(entry)] = entry;
+    }
+  }
+
+  try {
+    const filePath = accountsPendingCachePath();
+    mkdirSync(join(getConfigDir(), "cache"), { recursive: true, mode: 0o700 });
+    writeFileSync(filePath, JSON.stringify(snapshot, null, 2), { mode: 0o600 });
+  } catch {
+    // Best effort only. Account rendering must not depend on this advisory cache.
+  }
+}
+
+function summarizePendingResolutions(
+  previous: Record<string, PendingSnapshotEntry>,
+  groups: AccountPoolGroup[],
+): PendingResolutionSummary {
+  const current = new Map<string, PendingSnapshotEntry>();
+  for (const group of groups) {
+    for (const poolAccount of group.poolAccounts) {
+      const entry: PendingSnapshotEntry = {
+        poolAccountId: poolAccount.paId,
+        chain: group.chain,
+        asset: group.symbol,
+        status: poolAccount.status,
+      };
+      current.set(pendingSnapshotKey(entry), entry);
+    }
+  }
+
+  const previouslyPending = Object.entries(previous).filter(
+    ([, entry]) => entry.status === "pending",
+  );
+  return {
+    previouslyPendingPaIds: previouslyPending.map(([, entry]) => entry.poolAccountId),
+    recentlyResolved: previouslyPending
+      .map(([key, entry]) => {
+        const currentEntry = current.get(key);
+        const newStatus = currentEntry?.status ?? "resolved";
+        return newStatus !== "pending"
+          ? {
+              poolAccountId: entry.poolAccountId,
+              chain: entry.chain,
+              asset: entry.asset,
+              newStatus,
+            }
+          : null;
+      })
+      .filter((entry): entry is PendingResolutionSummary["recentlyResolved"][number] => entry !== null),
+  };
+}
 
 export { createAccountsCommand } from "../command-shells/accounts.js";
 
@@ -202,6 +313,42 @@ function filterGroupsByStatus(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function summarizeLocalSubmissionState() {
+  const pendingSubmissions: Array<{
+    submissionId: string;
+    operation: string;
+    chain: string;
+    asset: string | null;
+    poolAccountId: string | null;
+  }> = [];
+  const reconciliationChains = new Set<string>();
+
+  for (const submissionId of listSubmissionIds()) {
+    try {
+      const record = loadSubmissionRecord(submissionId);
+      if (record.status === "submitted") {
+        pendingSubmissions.push({
+          submissionId: record.submissionId,
+          operation: record.operation,
+          chain: record.chain,
+          asset: record.asset ?? null,
+          poolAccountId: record.poolAccountId ?? null,
+        });
+      }
+      if (record.reconciliationRequired) {
+        reconciliationChains.add(record.chain);
+      }
+    } catch {
+      // tx-status remains strict; accounts only surfaces best-effort state.
+    }
+  }
+
+  return {
+    pendingSubmissions,
+    reconciliationRequiredChains: [...reconciliationChains].sort(),
+  };
 }
 
 /** Bundled context for loadAccountsForChain — avoids 8-param sprawl. */
@@ -328,7 +475,7 @@ async function loadAccountsForChain(
   const syncChain = () =>
     syncAccountEvents(accountService, poolInfos, pools, chainConfig.id, {
       skip: opts.sync === false || skipImmediateSync,
-      force: false,
+      force: opts.refresh === true,
       silent,
       isJson: mode.isJson,
       isVerbose,
@@ -484,6 +631,19 @@ export async function handleAccountsCommand(
       return;
     }
 
+    if (opts.history) {
+      const { handleHistoryCommand } = await import("./history.js");
+      await handleHistoryCommand(
+        {
+          sync: opts.sync,
+          limit: opts.limit,
+          page: opts.page,
+        },
+        cmd,
+      );
+      return;
+    }
+
     if (opts.summary && opts.pendingOnly) {
       throw new CLIError(
         "Cannot specify both --summary and --pending-only.",
@@ -511,6 +671,15 @@ export async function handleAccountsCommand(
 
     const effectiveStatus = normalizedStatus ?? (opts.pendingOnly ? "pending" : undefined);
     const limit = parseOptionalLimit(opts.limit);
+
+    if (opts.sync === false && opts.refresh === true) {
+      throw new CLIError(
+        "--refresh cannot be combined with --no-sync.",
+        "INPUT",
+        "Use --refresh to force a sync, or --no-sync to read cached state.",
+        "INPUT_FLAG_CONFLICT",
+      );
+    }
 
     if (opts.watch && effectiveStatus !== "pending") {
       throw new CLIError(
@@ -553,8 +722,14 @@ export async function handleAccountsCommand(
         "--watch is only available in interactive TTY terminals. Use privacy-pools accounts --no-sync for a single snapshot.",
         "INPUT",
         "Re-run without --json or --output csv, or use accounts --no-sync for one read.",
+        "INPUT_WATCH_REQUIRES_TTY",
       );
     }
+
+    const watchIntervalSeconds = Math.max(
+      1,
+      Number.parseInt(opts.watchInterval ?? "15", 10) || 15,
+    );
 
     if ((opts.summary || opts.pendingOnly) && opts.details) {
       throw new CLIError(
@@ -617,6 +792,7 @@ export async function handleAccountsCommand(
       const loadedResults: LoadedChainAccounts[] = [];
       const warnings: AccountWarning[] = [];
       let firstError: unknown;
+      const previousPendingSnapshot = readPreviousPendingSnapshot();
 
       if (useParallelChainLoading) {
         const totalChains = chainsToQuery.length;
@@ -697,8 +873,16 @@ export async function handleAccountsCommand(
         throw firstError;
       }
 
+      const allGroups = loadedResults.flatMap((result) => result.groups);
+      const pendingResolutionSummary = summarizePendingResolutions(
+        previousPendingSnapshot,
+        allGroups,
+      );
+      const submissionState = summarizeLocalSubmissionState();
+      writePendingSnapshot(allGroups);
+
       const groups = limitAccountGroups(filterGroupsByStatus(
-        loadedResults.flatMap((result) => result.groups),
+        allGroups,
         effectiveStatus,
       ), limit);
 
@@ -724,6 +908,8 @@ export async function handleAccountsCommand(
           statusFilter: effectiveStatus,
           lastSyncTime,
           syncSkipped: opts.sync === false,
+          ...submissionState,
+          ...pendingResolutionSummary,
           ...emptyState,
         });
         return 0;
@@ -741,6 +927,8 @@ export async function handleAccountsCommand(
         statusFilter: effectiveStatus,
         lastSyncTime,
         syncSkipped: opts.sync === false,
+        ...submissionState,
+        ...pendingResolutionSummary,
       });
       if (groups.some((group) => group.poolAccounts.some((poolAccount) => poolAccount.status === "poa_required"))) {
         maybeLaunchBrowser({
@@ -772,7 +960,7 @@ export async function handleAccountsCommand(
       }
 
       iteration += 1;
-      await sleep(15_000);
+      await sleep(watchIntervalSeconds * 1000);
     }
   } catch (error) {
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {

@@ -22,7 +22,10 @@ import { createOutputContext } from "../output/common.js";
 import { renderStatus } from "../output/status.js";
 import type { StatusCheckResult } from "../output/status.js";
 import { createCliPackageInfoResolver } from "../package-info.js";
-import { detectNativeRuntimeAdvisory } from "../native-runtime-advisory.js";
+import {
+  detectActiveRuntimeKind,
+  detectNativeRuntimeAdvisory,
+} from "../native-runtime-advisory.js";
 import {
   maybeRenderPreviewProgressStep,
   maybeRenderPreviewScenario,
@@ -104,6 +107,7 @@ export async function handleStatusCommand(
         : null,
       accountFiles: [],
       nativeRuntimeAdvisory: detectNativeRuntimeAdvisory(resolveCliPackageInfo()),
+      runtime: detectActiveRuntimeKind(),
     };
 
     // Health checks — run by default when a chain is selected.

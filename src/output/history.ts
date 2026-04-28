@@ -134,6 +134,20 @@ export function renderHistory(ctx: OutputContext, data: HistoryRenderData): void
     syncSkipped,
   } = data;
   const nextActions = [
+    ...(page > 1
+      ? [
+          createNextAction("accounts", "Load the previous history page.", "after_history", {
+            options: { chain, history: true, page: String(page - 1), limit: String(perPage) },
+          }),
+        ]
+      : []),
+    ...(page < totalPages
+      ? [
+          createNextAction("accounts", "Load the next history page.", "after_history", {
+            options: { chain, history: true, page: String(page + 1), limit: String(perPage) },
+          }),
+        ]
+      : []),
     createNextAction("accounts", "View current Pool Account balances and statuses.", "after_history", { options: { chain } }),
     createNextAction("pools", "Browse pools to make your first deposit.", "after_history", {
       options: { chain },

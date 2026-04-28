@@ -230,7 +230,22 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
   }
 
   if (ctx.mode.isCsv) {
-    printCsv(["Chain", "Asset", "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"], []);
+    printCsv([
+      "Chain",
+      "Asset",
+      "Total Deposits Count",
+      "Pool Balance (raw)",
+      "Pool Balance Decimals",
+      "Pool Balance Asset",
+      "Pool Balance USD",
+      "Pending (raw)",
+      "Pending Decimals",
+      "Pending Asset",
+      "Min Deposit (raw)",
+      "Min Deposit Decimals",
+      "Min Deposit Asset",
+      "Vetting Fee BPS",
+    ], []);
     return;
   }
 
@@ -360,8 +375,8 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
 
   if (ctx.mode.isCsv) {
     const csvHeaders = allChains
-      ? ["Chain", "Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"]
-      : ["Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits", "Pool Balance", "USD Value", "Pending", "Min Deposit", "Vetting Fee"];
+      ? ["Chain", "Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits Count", "Pool Balance (raw)", "Pool Balance Decimals", "Pool Balance Asset", "Pool Balance USD", "Pending (raw)", "Pending Decimals", "Pending Asset", "Min Deposit (raw)", "Min Deposit Decimals", "Min Deposit Asset", "Vetting Fee BPS"]
+      : ["Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits Count", "Pool Balance (raw)", "Pool Balance Decimals", "Pool Balance Asset", "Pool Balance USD", "Pending (raw)", "Pending Decimals", "Pending Asset", "Min Deposit (raw)", "Min Deposit Decimals", "Min Deposit Asset", "Vetting Fee BPS"];
     printCsv(
       csvHeaders,
       filteredPools.map(({ chain, pool, myPoolAccountsCount }) => {
@@ -370,9 +385,15 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
           ...(showMyPoolAccounts ? [String(myPoolAccountsCount ?? 0)] : []),
           rawCsvCount(pool.totalDepositsCount),
           rawCsvAmount(pool.totalInPoolValue ?? pool.acceptedDepositsValue),
+          String(pool.decimals),
+          pool.symbol,
           rawCsvUsd(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
           rawCsvAmount(pool.pendingDepositsValue),
+          String(pool.decimals),
+          pool.symbol,
           pool.minimumDepositAmount.toString(),
+          String(pool.decimals),
+          pool.symbol,
           pool.vettingFeeBPS.toString(),
         ];
         return allChains ? [chain, ...baseRow] : baseRow;

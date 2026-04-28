@@ -437,6 +437,7 @@ function resolvePendingEffectiveChain(defaultChainOverride: string | undefined):
 
 function renderPendingInitHandoff(params: {
   opts: InitCommandOptions;
+  globalOpts?: GlobalOptions;
   mode: ReturnType<typeof resolveGlobalMode>;
 }): void {
   const disallowed = [
@@ -480,6 +481,14 @@ function renderPendingInitHandoff(params: {
   if (params.opts.rpcUrl) {
     humanCommandParts.push("--rpc-url", params.opts.rpcUrl);
     agentResumeParts.push("--rpc-url", params.opts.rpcUrl);
+  }
+  if (params.globalOpts?.profile) {
+    humanCommandParts.push("--profile", params.globalOpts.profile);
+    agentResumeParts.push("--profile", params.globalOpts.profile);
+  }
+  if (params.globalOpts?.timeout) {
+    humanCommandParts.push("--timeout", params.globalOpts.timeout);
+    agentResumeParts.push("--timeout", params.globalOpts.timeout);
   }
   if (params.opts.force) {
     humanCommandParts.push("--force");
@@ -1257,6 +1266,7 @@ export async function handleInitCommand(
     if (opts.pending) {
       renderPendingInitHandoff({
         opts: { ...opts, rpcUrl: opts.rpcUrl ?? globalOpts?.rpcUrl },
+        globalOpts,
         mode,
       });
       return;

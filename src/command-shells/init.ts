@@ -98,6 +98,11 @@ export function createInitCommand(): Command {
           flags: [
             "--yes",
             "--agent",
+            "--quiet",
+            "--verbose",
+            "--no-progress",
+            "--no-banner",
+            "--no-color",
             "--help-brief",
             "--help-full",
           ],

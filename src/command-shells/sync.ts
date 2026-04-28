@@ -5,7 +5,9 @@ import { createLazyAction } from "../utils/lazy-command.js";
 
 export function createSyncCommand(): Command {
   const metadata = getCommandMetadata("sync");
-  return new Command("sync")
+  const command = new Command("sync");
+  (command as Command & { hidden: boolean }).hidden = true;
+  return command
     .description(metadata.description)
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
     .option(

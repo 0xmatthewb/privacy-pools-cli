@@ -93,7 +93,9 @@ function resolveActions(commands: readonly string[]): WelcomeAction[] {
 }
 
 export const DEFAULT_WELCOME_BANNER_ACTIONS = resolveActions([
+  "status",
   "init",
+  "init --recovery-phrase-file <downloaded-file>",
   "guide",
   "--help",
 ]);
@@ -133,6 +135,18 @@ interface StoredSubmissionRecommendationState {
   updatedAt?: string | null;
   reconciliationRequired?: boolean;
 }
+
+const WORKFLOW_RECOMMENDATION_COMMANDS = new Set([
+  "accounts",
+  "flow",
+  "history",
+  "status",
+]);
+
+const NON_ACTIONABLE_WORKFLOW_PHASES = new Set<string>([
+  "paused_declined",
+  "paused_poa_required",
+]);
 
 const KNOWN_ROOT_COMMANDS = new Set([
   "accounts",
@@ -308,7 +322,14 @@ function shouldSuppressUrgentRecommendations(
 
   const commandPath = resolveRecommendationCommandPath(ctx);
   if (!commandPath) return true;
-  return commandPath === "flow" || commandPath.startsWith("flow ");
+  return false;
+}
+
+function shouldRecommendWorkflowNudge(ctx?: UrgentRecommendationContext): boolean {
+  const commandPath = resolveRecommendationCommandPath(ctx);
+  if (!commandPath) return false;
+  const rootCommand = commandPath.split(/\s+/, 1)[0] ?? commandPath;
+  return WORKFLOW_RECOMMENDATION_COMMANDS.has(rootCommand);
 }
 
 function readJsonFile(filePath: string): unknown | null {
@@ -335,7 +356,12 @@ function listStoredWorkflowStates(): StoredWorkflowRecommendationState[] {
     const filePath = join(dir, entry);
     const parsed = readJsonFile(filePath);
     if (!isNonNullRecord(parsed)) continue;
-    if (typeof parsed.workflowId !== "string" || typeof parsed.phase !== "string") {
+    if (
+      typeof parsed.workflowId !== "string" ||
+      typeof parsed.phase !== "string" ||
+      typeof parsed.chain !== "string" ||
+      typeof parsed.asset !== "string"
+    ) {
       continue;
     }
 
@@ -456,9 +482,13 @@ export function getUrgentRecommendations(
 
   const actions: NextAction[] = [];
   const workflows = listStoredWorkflowStates();
-  const activeWorkflow = workflows.find(
-    (workflow) => !isTerminalFlowPhase(workflow.phase as FlowPhase),
-  );
+  const activeWorkflow = shouldRecommendWorkflowNudge(ctx)
+    ? workflows.find(
+        (workflow) =>
+          !isTerminalFlowPhase(workflow.phase as FlowPhase) &&
+          !NON_ACTIONABLE_WORKFLOW_PHASES.has(workflow.phase),
+      )
+    : undefined;
   if (activeWorkflow) {
     actions.push(
       createRecommendationAction(

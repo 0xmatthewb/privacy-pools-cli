@@ -63,6 +63,7 @@ export interface StatusCheckResult {
    */
   accountFiles: [string, number][];
   nativeRuntimeAdvisory?: StatusIssue | null;
+  runtime?: "native" | "js";
 }
 
 interface StatusPreflightGuidance {
@@ -453,6 +454,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       signerAddress: result.signerAddress,
       entrypoint: result.entrypoint,
       aspHost: result.aspHost,
+      runtime: result.runtime ?? "js",
       accountFiles: result.accountFiles.map(([name, chainId]) => ({ chain: name, chainId })),
     }, agentNextActions) as Record<string, unknown>;
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;

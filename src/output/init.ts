@@ -176,6 +176,33 @@ function buildAccountsActionOptions(
 }
 
 function buildAgentNextActions(result: InitRenderResult) {
+  if (result.readiness === "read_only") {
+    return [
+      createNextAction(
+        "init",
+        "Add a signer key so deposits, withdrawals, and public recoveries can submit transactions.",
+        "status_unsigned_no_accounts",
+        {
+          options: { agent: true, signerOnly: true },
+          runnable: false,
+          parameters: [
+            {
+              name: "privateKeySource",
+              type: "private_key_file_or_stdin_or_env",
+              required: true,
+            },
+          ],
+        },
+      ),
+      createNextAction(
+        "status",
+        "Verify wallet readiness and chain health after adding a signer key.",
+        "after_init",
+        { options: { agent: true, chain: result.defaultChain } },
+      ),
+    ];
+  }
+
   if (result.setupMode === "signer_only") {
     return [
       createNextAction(
@@ -441,7 +468,9 @@ export function renderGeneratedRecoveryPhraseReview(mnemonic: string): string {
     gridLines.push(`  ${rowCells.join("")}`.trimEnd());
   }
 
-  return `${formatSectionHeading("Recovery phrase", {
+  return `${formatCallout("danger", [
+    "Save this recovery phrase now. This is the only time the CLI will display it.",
+  ])}${formatSectionHeading("Recovery phrase", {
     divider: true,
     padTop: false,
   })}${formatCallout("recovery", [
@@ -449,8 +478,6 @@ export function renderGeneratedRecoveryPhraseReview(mnemonic: string): string {
     "The signer key submits transactions and may come from the same wallet or a separate key.",
     RECOVERY_PHRASE_NEVER_SHARE,
   ])}${gridLines.join("\n")}\n${formatCallout("danger", [
-    "Save this recovery phrase now.",
-    "This is the only time the CLI will display it.",
     "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
     RECOVERY_PHRASE_OFFLINE_BACKUP,
     "If you copied it digitally, clear your clipboard and any temporary notes after you move it somewhere safe.",

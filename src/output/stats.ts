@@ -25,6 +25,7 @@ import {
   formatStackedKeyValueRows,
   getOutputWidthClass,
 } from "./layout.js";
+import { formatDeprecationWarningCallout } from "./deprecation.js";
 
 export interface ChainStatsEntry {
   chain: string;
@@ -145,7 +146,7 @@ function maybeRenderDeprecationNotice(
   if (!warning || silent) {
     return;
   }
-  out.write(`Warning: ${warning.message}\n\n`);
+  out.write(formatDeprecationWarningCallout(warning));
 }
 
 function normalizeCrossAssetStats(

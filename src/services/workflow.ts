@@ -1319,6 +1319,10 @@ function parseWorkflowSnapshot(raw: string, filePath: string): FlowSnapshot {
       `Workflow file is corrupt or unreadable: ${filePath}`,
       "INPUT",
       "Remove the broken workflow file or resolve the JSON manually, then retry.",
+      "INPUT_WORKFLOW_INVALID_STRUCTURE",
+      false,
+      undefined,
+      { filePath },
     );
   }
 
@@ -1327,6 +1331,10 @@ function parseWorkflowSnapshot(raw: string, filePath: string): FlowSnapshot {
       `Workflow file has invalid structure: ${filePath}`,
       "INPUT",
       "Remove the broken workflow file or resolve the JSON manually, then retry.",
+      "INPUT_WORKFLOW_INVALID_STRUCTURE",
+      false,
+      undefined,
+      { filePath },
     );
   }
 
@@ -1341,6 +1349,10 @@ function parseWorkflowSnapshot(raw: string, filePath: string): FlowSnapshot {
       `Workflow file has invalid structure: ${filePath}`,
       "INPUT",
       "Remove the broken workflow file or resolve the JSON manually, then retry.",
+      "INPUT_WORKFLOW_INVALID_STRUCTURE",
+      false,
+      undefined,
+      { filePath },
     );
   }
 
@@ -1353,6 +1365,10 @@ function parseWorkflowSnapshot(raw: string, filePath: string): FlowSnapshot {
       `Workflow file uses an unsupported schema version: ${snapshot.schemaVersion}`,
       "INPUT",
       "Upgrade the CLI to a compatible version, or remove the outdated workflow file if you no longer need it.",
+      "INPUT_WORKFLOW_UNSUPPORTED_SCHEMA_VERSION",
+      false,
+      undefined,
+      { filePath, schemaVersion: snapshot.schemaVersion },
     );
   }
 
@@ -1366,6 +1382,10 @@ export function loadWorkflowSnapshot(workflowId: string): FlowSnapshot {
       `Unknown workflow: ${workflowId}`,
       "INPUT",
       "Run 'privacy-pools flow status latest' to inspect the most recent workflow, or start a new one with 'privacy-pools flow start <amount> <asset> --to <address>'.",
+      "INPUT_WORKFLOW_NOT_FOUND",
+      false,
+      undefined,
+      { workflowId },
     );
   }
 
@@ -1427,14 +1447,18 @@ export function resolveLatestWorkflowId(): string {
       throw new CLIError(
         "No readable saved workflows found.",
         "INPUT",
-        "Remove or fix corrupt workflow files, or start a new workflow with 'privacy-pools flow start <amount> <asset> --to <address>'.",
+        `Remove or fix corrupt workflow files (${invalidFiles.map(({ filePath }) => filePath).join(", ")}), or start a new workflow with 'privacy-pools flow start <amount> <asset> --to <address>'.`,
+        "INPUT_WORKFLOW_INVALID_STRUCTURE",
+        false,
+        undefined,
+        { invalidFiles: invalidFiles.map(({ filePath }) => filePath) },
       );
     }
     throw new CLIError(
       "No saved workflows found.",
       "INPUT",
       "Start one with 'privacy-pools flow start <amount> <asset> --to <address>'.",
-      "INPUT_MISSING_ARGUMENT",
+      "INPUT_NO_SAVED_WORKFLOWS",
       false,
       undefined,
       undefined,
@@ -1465,10 +1489,20 @@ export function resolveLatestWorkflowId(): string {
       !Number.isFinite(fileMtimeMs) || fileMtimeMs >= latest.fileMtimeMs,
   );
   if (hasUnreadablePotentiallyNewerWorkflow) {
+    const invalidFilePaths = invalidFiles
+      .filter(
+        ({ fileMtimeMs }) =>
+          !Number.isFinite(fileMtimeMs) || fileMtimeMs >= latest.fileMtimeMs,
+      )
+      .map(({ filePath }) => filePath);
     throw new CLIError(
       "Cannot resolve 'latest' because one or more saved workflow files are unreadable and could be newer than the latest readable workflow.",
       "INPUT",
-      "Fix or remove the unreadable workflow files, or pass an explicit workflow id instead of 'latest'.",
+      `Fix or remove the unreadable workflow files (${invalidFilePaths.join(", ")}), or pass an explicit workflow id instead of 'latest'.`,
+      "INPUT_WORKFLOW_LATEST_AMBIGUOUS_INVALID_FILES",
+      false,
+      undefined,
+      { invalidFiles: invalidFilePaths },
     );
   }
 

@@ -9,12 +9,15 @@ export function createAccountsCommand(): Command {
   return new Command("accounts")
     .description(metadata.description)
     .option("--no-sync", "Use cached data (faster, but may be stale)")
+    .option("--refresh", "Force a full account refresh even when cached state is fresh")
     .option(
       "--include-testnets",
       "Include supported testnets (default: CLI-supported mainnet chains only)",
     )
     .option("--details", "Show additional details per Pool Account")
     .option("--summary", "Show counts and balances only")
+    .option("--history", "Show private account history (replaces the history command)")
+    .option("--page <n>", "Show page N for --history", "1")
     .option("--pending-only", "Show only pending ASP approvals")
     .addOption(
       new Option(
@@ -24,8 +27,9 @@ export function createAccountsCommand(): Command {
     )
     .option(
       "--watch",
-      "Re-render pending approvals every 15s until none remain (human mode only; requires pending filter)",
+      "Re-render pending approvals until none remain (human TTY only; requires --pending-only or --status pending; not available in --agent/--json/--csv)",
     )
+    .option("--watch-interval <seconds>", "Seconds between --watch refreshes", "15")
     .option("-n, --limit <n>", "Limit Pool Account rows returned")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(

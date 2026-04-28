@@ -70,6 +70,21 @@ export interface AccountsRenderData {
   /** Epoch ms of the oldest sync across queried chains. Null if unknown. */
   lastSyncTime?: number | null;
   syncSkipped?: boolean;
+  previouslyPendingPaIds?: string[];
+  recentlyResolved?: Array<{
+    poolAccountId: string;
+    chain: string;
+    asset: string;
+    newStatus: string;
+  }>;
+  pendingSubmissions?: Array<{
+    submissionId: string;
+    operation: string;
+    chain: string;
+    asset: string | null;
+    poolAccountId: string | null;
+  }>;
+  reconciliationRequiredChains?: string[];
 }
 
 export interface AccountsEmptyRenderData {
@@ -89,6 +104,21 @@ export interface AccountsEmptyRenderData {
   statusFilter?: string;
   lastSyncTime?: number | null;
   syncSkipped?: boolean;
+  previouslyPendingPaIds?: string[];
+  recentlyResolved?: Array<{
+    poolAccountId: string;
+    chain: string;
+    asset: string;
+    newStatus: string;
+  }>;
+  pendingSubmissions?: Array<{
+    submissionId: string;
+    operation: string;
+    chain: string;
+    asset: string | null;
+    poolAccountId: string | null;
+  }>;
+  reconciliationRequiredChains?: string[];
 }
 
 interface JsonAccountRow {
@@ -115,6 +145,73 @@ interface JsonBalanceRow {
   poolAccounts: number;
   chain?: string;
   chainId?: number;
+}
+
+function pendingResolutionFields(data: {
+  previouslyPendingPaIds?: string[];
+  recentlyResolved?: Array<{
+    poolAccountId: string;
+    chain: string;
+    asset: string;
+    newStatus: string;
+  }>;
+}): Record<string, unknown> {
+  return {
+    previouslyPendingPaIds: data.previouslyPendingPaIds ?? [],
+    recentlyResolved: data.recentlyResolved ?? [],
+  };
+}
+
+function localSubmissionFields(data: {
+  pendingSubmissions?: AccountsRenderData["pendingSubmissions"];
+  reconciliationRequiredChains?: string[];
+}): Record<string, unknown> {
+  return {
+    pendingSubmissions: data.pendingSubmissions ?? [],
+    reconciliationRequiredChains: data.reconciliationRequiredChains ?? [],
+  };
+}
+
+function renderLocalStateAdvisories(
+  data: {
+    pendingSubmissions?: AccountsRenderData["pendingSubmissions"];
+    reconciliationRequiredChains?: string[];
+  },
+  silent: boolean,
+): void {
+  if (silent) return;
+  const reconciliationChains = data.reconciliationRequiredChains ?? [];
+  if (reconciliationChains.length > 0) {
+    warn(
+      `Local state is out of date. Run privacy-pools accounts --refresh --chain ${reconciliationChains[0]} before relying on balances.`,
+      false,
+    );
+  }
+  const pendingSubmissions = data.pendingSubmissions ?? [];
+  if (pendingSubmissions.length > 0) {
+    process.stderr.write("\nPending submissions:\n");
+    for (const submission of pendingSubmissions.slice(0, 5)) {
+      process.stderr.write(
+        `  ${submission.submissionId}  tx-status ${submission.submissionId}\n`,
+      );
+    }
+  }
+}
+
+const ACCOUNT_STALE_AFTER_SECONDS = 120;
+
+function accountFreshnessFields(lastSyncTime: number | null | undefined): {
+  lastSyncTime: string | null;
+  freshnessAgeSeconds: number | null;
+  staleAfterSeconds: number;
+} {
+  return {
+    lastSyncTime: lastSyncTime != null ? new Date(lastSyncTime).toISOString() : null,
+    freshnessAgeSeconds: lastSyncTime != null
+      ? Math.max(0, Math.floor((Date.now() - lastSyncTime) / 1000))
+      : null,
+    staleAfterSeconds: ACCOUNT_STALE_AFTER_SECONDS,
+  };
 }
 
 interface AccountsSummaryData {
@@ -442,10 +539,12 @@ function renderSummaryCsv(
   meta: AccountsRootMeta,
   summary: AccountsSummaryData,
   includeChainFields: boolean,
+  lastSyncTime?: number | null,
 ): void {
+  const lastSyncIso = lastSyncTime != null ? new Date(lastSyncTime).toISOString() : "";
   const headers = includeChainFields
-    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "POA Needed", "Declined", "Unknown", "Spent", "Exited"]
-    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "POA Needed", "Declined", "Unknown", "Spent", "Exited"];
+    ? ["Chain", "Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "POA Needed", "Declined", "Unknown", "Spent", "Exited", "Last Sync (ISO)"]
+    : ["Asset", "Balance", "USD", "Pool Accounts", "Pending", "Approved", "POA Needed", "Declined", "Unknown", "Spent", "Exited", "Last Sync (ISO)"];
   const sourceRows =
     summary.balances.length > 0
       ? summary.balances
@@ -471,6 +570,7 @@ function renderSummaryCsv(
       index === 0 ? String(summary.unknownCount) : "",
       index === 0 ? String(summary.spentCount) : "",
       index === 0 ? String(summary.exitedCount) : "",
+      index === 0 ? lastSyncIso : "",
     ];
     return includeChainFields ? [balance.chain ?? "", ...baseRow] : baseRow;
   });
@@ -678,10 +778,10 @@ export function renderAccountsNoPools(
               spentCount: 0,
               exitedCount: 0,
               balances: [],
-              ...(data.lastSyncTime != null
-                ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
-                : {}),
+              ...accountFreshnessFields(data.lastSyncTime),
               syncSkipped: data.syncSkipped ?? false,
+              ...pendingResolutionFields(data),
+              ...localSubmissionFields(data),
             },
             meta,
           ),
@@ -697,10 +797,10 @@ export function renderAccountsNoPools(
             {
               accounts: [],
               pendingCount: 0,
-              ...(data.lastSyncTime != null
-                ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
-                : {}),
+              ...accountFreshnessFields(data.lastSyncTime),
               syncSkipped: data.syncSkipped ?? false,
+              ...pendingResolutionFields(data),
+              ...localSubmissionFields(data),
             },
             meta,
           ),
@@ -716,10 +816,10 @@ export function renderAccountsNoPools(
             accounts: [],
             balances: [],
             pendingCount: 0,
-            ...(data.lastSyncTime != null
-              ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
-              : {}),
+            ...accountFreshnessFields(data.lastSyncTime),
             syncSkipped: data.syncSkipped ?? false,
+            ...pendingResolutionFields(data),
+            ...localSubmissionFields(data),
           },
           meta,
         ),
@@ -745,18 +845,20 @@ export function renderAccountsNoPools(
           exitedCount: 0,
         },
         includeChainFields,
+        data.lastSyncTime,
       );
       return;
     }
     const headers = includeChainFields
-      ? ["Chain", "PA", "Status", "ASP", "Asset", "Value", "Tx"]
-      : ["PA", "Status", "ASP", "Asset", "Value", "Tx"];
+      ? ["Chain", "PA", "Status", "ASP", "Asset", "Value", "Tx", "Last Sync (ISO)"]
+      : ["PA", "Status", "ASP", "Asset", "Value", "Tx", "Last Sync (ISO)"];
     printCsv(headers, []);
     return;
   }
 
   const silent = isSilent(ctx);
   renderWarnings(data.warnings, silent);
+  renderLocalStateAdvisories(data, silent);
   if (!silent) {
     const title = data.pendingOnly
       ? includeChainFields
@@ -770,6 +872,8 @@ export function renderAccountsNoPools(
       process.stderr.write(muted(`  Cached ${formatTimeAgo(data.lastSyncTime)}\n`));
     } else if (data.lastSyncTime != null) {
       process.stderr.write(muted(`  Updated ${formatTimeAgo(data.lastSyncTime)}\n`));
+    } else {
+      process.stderr.write(muted("  Never synced (auto-syncs on next account-aware command)\n"));
     }
     process.stderr.write(renderEmptyAccountsGuidance(data));
   }
@@ -800,14 +904,15 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
 
   if (ctx.mode.isCsv) {
     if (showSummary) {
-      renderSummaryCsv(meta, summary, includeChainFields);
+      renderSummaryCsv(meta, summary, includeChainFields, data.lastSyncTime);
       return;
     }
 
     const csvHeaders = includeChainFields
-      ? ["Chain", "PA", "Status", "ASP", "Asset", "Value", "Tx"]
-      : ["PA", "Status", "ASP", "Asset", "Value", "Tx"];
+      ? ["Chain", "PA", "Status", "ASP", "Asset", "Value", "Tx", "Last Sync (ISO)"]
+      : ["PA", "Status", "ASP", "Asset", "Value", "Tx", "Last Sync (ISO)"];
     const csvRows: string[][] = [];
+    const lastSyncIso = data.lastSyncTime != null ? new Date(data.lastSyncTime).toISOString() : "";
     for (const group of visibleGroups) {
       for (const pa of group.poolAccounts) {
         const row = [
@@ -817,6 +922,7 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
           group.symbol,
           pa.value.toString(),
           pa.txHash,
+          lastSyncIso,
         ];
         csvRows.push(includeChainFields ? [group.chain, ...row] : row);
       }
@@ -857,10 +963,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
               spentCount: summary.spentCount,
               exitedCount: summary.exitedCount,
               balances: summary.balances,
-              ...(data.lastSyncTime != null
-                ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
-                : {}),
+              ...accountFreshnessFields(data.lastSyncTime),
               syncSkipped: syncSkipped ?? false,
+              ...pendingResolutionFields(data),
+              ...localSubmissionFields(data),
             },
             meta,
           ),
@@ -877,10 +983,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             {
               accounts: summary.accounts,
               pendingCount: summary.pendingCount,
-              ...(data.lastSyncTime != null
-                ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() }
-                : {}),
+              ...accountFreshnessFields(data.lastSyncTime),
               syncSkipped: syncSkipped ?? false,
+              ...pendingResolutionFields(data),
+              ...localSubmissionFields(data),
             },
             meta,
           ),
@@ -897,8 +1003,10 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
             accounts: summary.accounts,
             balances: summary.balances,
             pendingCount: summary.pendingCount,
-            ...(data.lastSyncTime != null ? { lastSyncTime: new Date(data.lastSyncTime).toISOString() } : {}),
+            ...accountFreshnessFields(data.lastSyncTime),
             syncSkipped: syncSkipped ?? false,
+            ...pendingResolutionFields(data),
+            ...localSubmissionFields(data),
           },
           meta,
         ),
@@ -934,10 +1042,13 @@ export function renderAccounts(ctx: OutputContext, data: AccountsRenderData): vo
       process.stderr.write(muted(`  Cached ${formatTimeAgo(data.lastSyncTime)}\n`));
     } else if (data.lastSyncTime != null) {
       process.stderr.write(muted(`  Updated ${formatTimeAgo(data.lastSyncTime)}\n`));
+    } else {
+      process.stderr.write(muted("  Never synced (auto-syncs on next account-aware command)\n"));
     }
     process.stderr.write("\n");
   }
   renderWarnings(warnings, silent);
+  renderLocalStateAdvisories(data, silent);
 
   if (!silent && hasPendingApprovals) {
     info(
