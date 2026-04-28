@@ -125,7 +125,11 @@ const GUIDE_TOPIC_ALIASES: Record<string, GuideTopic> = {
   environment: "env-vars",
   "env-vars": "env-vars",
   envvars: "env-vars",
+  deposit: "workflow",
   flow: "workflow",
+  pools: "quickstart",
+  recipients: "workflow",
+  withdraw: "workflow",
   "next-actions": "next-actions",
   nextaction: "next-actions",
   nextactions: "next-actions",
@@ -655,7 +659,13 @@ export function commandHelpText(config: CommandHelpConfig): string {
   const lines: string[] = [];
   const showAgentAppendix = detectAgentEnvironment();
   if (!isFullHelpRequested()) {
-    lines.push("", "Tip: add --help-full for examples, safety notes, and JSON fields.");
+    const agentModeRequested =
+      process.argv.includes("--agent") ||
+      process.argv.includes("--json") ||
+      process.argv.some((arg) => arg.startsWith("--json="));
+    if (!agentModeRequested) {
+      lines.push("", "Tip: add --help-full for examples, safety notes, and JSON fields.");
+    }
     if (
       showAgentAppendix
       && config.agentWorkflowNotes

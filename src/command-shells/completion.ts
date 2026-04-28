@@ -11,7 +11,7 @@ export function createCompletionCommand(): Command {
     .addOption(
       new Option("-s, --shell <shell>", "Target shell").choices([
         ...SUPPORTED_COMPLETION_SHELLS,
-      ]),
+      ]).hideHelp(),
     )
     .addOption(new Option("--install", "Install shell completion for your current shell"))
     .addOption(new Option("--query", "Internal: query completion candidates").hideHelp())

@@ -45,6 +45,57 @@ export const GENERATED_COMMAND_PATHS = [
   "recipients add",
   "recipients remove",
   "recipients clear",
+  "ragequit",
+  "simulate deposit",
+  "simulate withdraw",
+  "simulate ragequit",
+  "broadcast",
+  "accounts",
+  "migrate",
+  "migrate status",
+  "completion"
+] as const;
+
+export type GeneratedCommandPath = (typeof GENERATED_COMMAND_PATHS)[number];
+
+export const GENERATED_ROUTE_COMMAND_PATHS = [
+  "init",
+  "upgrade",
+  "config",
+  "config list",
+  "config get",
+  "config set",
+  "config unset",
+  "config path",
+  "config profile",
+  "config profile list",
+  "config profile create",
+  "config profile active",
+  "config profile use",
+  "flow",
+  "simulate",
+  "flow start",
+  "flow watch",
+  "flow status",
+  "flow step",
+  "flow ragequit",
+  "pools",
+  "activity",
+  "protocol-stats",
+  "pool-stats",
+  "status",
+  "tx-status",
+  "capabilities",
+  "describe",
+  "guide",
+  "deposit",
+  "withdraw",
+  "withdraw quote",
+  "recipients",
+  "recipients list",
+  "recipients add",
+  "recipients remove",
+  "recipients clear",
   "withdraw recipients",
   "withdraw recipients list",
   "withdraw recipients add",
@@ -63,10 +114,10 @@ export const GENERATED_COMMAND_PATHS = [
   "completion"
 ] as const;
 
-export type GeneratedCommandPath = (typeof GENERATED_COMMAND_PATHS)[number];
+export type GeneratedRouteCommandPath = (typeof GENERATED_ROUTE_COMMAND_PATHS)[number];
 
 export interface GeneratedTokenizedCommandRoute {
-  route: GeneratedCommandPath;
+  route: GeneratedRouteCommandPath;
   tokens: readonly string[];
 }
 
@@ -87,7 +138,7 @@ export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> =
   "rm": "recipients remove"
 };
 
-export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = {
+export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, GeneratedCommandRoute> = {
   "init": {
     "owner": "js-runtime",
     "nativeModes": [

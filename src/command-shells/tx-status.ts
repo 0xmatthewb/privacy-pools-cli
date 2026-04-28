@@ -8,6 +8,7 @@ export function createTxStatusCommand(): Command {
   return new Command("tx-status")
     .description(metadata.description)
     .argument("<submissionId>", "Submission id returned by a previous --no-wait command")
+    .addHelpText("after", "\nAgent mode: add --agent for machine-readable JSON polling output.\n")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(

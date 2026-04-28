@@ -66,6 +66,39 @@ function buildDescribeCommandNextActions(
   ];
 }
 
+function extractAvailableJsonFields(jsonFields: string | undefined): string[] {
+  if (!jsonFields) return [];
+  const source = jsonFields.trim();
+  const start = source.indexOf("{");
+  const end = source.indexOf("}");
+  if (start === -1 || end === -1 || end <= start) return [];
+  const body = source.slice(start + 1, end);
+  const fields = new Set<string>();
+  let depth = 0;
+  let token = "";
+
+  const flushToken = () => {
+    const trimmed = token.trim();
+    token = "";
+    if (!trimmed || depth !== 0) return;
+    const match = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_?]*)/);
+    if (!match) return;
+    fields.add(match[1]!.replace(/\?$/, ""));
+  };
+
+  for (const char of body) {
+    if (char === "{" || char === "[") depth += 1;
+    if (char === "}" || char === "]") depth = Math.max(0, depth - 1);
+    if (char === "," && depth === 0) {
+      flushToken();
+      continue;
+    }
+    token += char;
+  }
+  flushToken();
+  return [...fields].sort();
+}
+
 export function renderCommandDescription(
   ctx: OutputContext,
   descriptor: DetailedCommandDescriptor,
@@ -75,7 +108,10 @@ export function renderCommandDescription(
   const humanNextActions = buildDescribeCommandNextActions(descriptor, false);
 
   if (ctx.mode.isJson) {
-    printJsonSuccess(appendNextActions({ ...descriptor }, agentNextActions));
+    printJsonSuccess(appendNextActions({
+      ...descriptor,
+      availableJsonFields: extractAvailableJsonFields(descriptor.jsonFields ?? undefined),
+    }, agentNextActions));
     return;
   }
 
@@ -134,10 +170,12 @@ export function renderCommandDescriptionIndex(
 
   process.stderr.write(`\n${accentBold("Describe: commands")}\n`);
   process.stderr.write(formatSectionHeading("Available command paths", { divider: true }));
+  const maxCommandWidth = Math.max(
+    20,
+    ...commands.map((command) => command.command.length),
+  );
   for (const command of commands) {
-    const commandLabel = command.command.length >= 20
-      ? `${command.command} `
-      : command.command.padEnd(20);
+    const commandLabel = command.command.padEnd(maxCommandWidth + 2);
     process.stderr.write(
       `  ${commandLabel}${command.description} ${command.group ? `(${formatGroupLabel(command.group)})` : ""}\n`,
     );

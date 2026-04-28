@@ -28,6 +28,10 @@ export const CLI_PROTOCOL_PROFILE = Object.freeze({
   ],
 });
 
+/**
+ * @param {string} cliVersion
+ * @returns {import("../types.js").RuntimeCompatibilityDescriptor}
+ */
 export function buildRuntimeCompatibilityDescriptor(cliVersion) {
   return {
     cliVersion,
@@ -36,6 +40,7 @@ export function buildRuntimeCompatibilityDescriptor(cliVersion) {
     workflowSnapshotVersion: WORKFLOW_SNAPSHOT_VERSION,
     workflowSecretVersion: WORKFLOW_SECRET_RECORD_VERSION,
     runtimeVersion: CURRENT_RUNTIME_DESCRIPTOR.runtimeVersion,
+    runtime: /** @type {"js"} */ ("js"),
     workerProtocolVersion: CURRENT_RUNTIME_DESCRIPTOR.workerProtocolVersion,
     manifestVersion: CURRENT_RUNTIME_DESCRIPTOR.manifestVersion,
     nativeBridgeVersion: CURRENT_RUNTIME_DESCRIPTOR.nativeBridgeVersion,

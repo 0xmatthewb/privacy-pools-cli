@@ -35,7 +35,16 @@ export { COMMAND_PATHS } from "./command-catalog.js";
 const CLI_PACKAGE_INFO = readCliPackageInfo(import.meta.url);
 const EXIT_CODES_GUIDE_NOTE =
   "Exit code categories are documented in 'privacy-pools guide exit-codes'.";
-const HIDDEN_DISCOVERY_COMMANDS = new Set<CommandPath>(["stats"]);
+const HIDDEN_DISCOVERY_COMMANDS = new Set<CommandPath>([
+  "stats",
+  "withdraw recipients",
+  "withdraw recipients list",
+  "withdraw recipients add",
+  "withdraw recipients remove",
+  "withdraw recipients clear",
+  "sync",
+  "history",
+]);
 
 export interface GlobalFlagMetadata {
   flag: string;
@@ -171,60 +180,70 @@ export const GLOBAL_FLAG_METADATA: GlobalFlagMetadata[] =
 export const CAPABILITY_EXIT_CODES: CapabilityExitCodeDescriptor[] = [
   {
     code: 0,
+    name: "SUCCESS",
     category: "SUCCESS",
     errorCode: "SUCCESS",
     description: "Successful command completion.",
   },
   {
     code: EXIT_CODES.UNKNOWN,
+    name: defaultErrorCode("UNKNOWN"),
     category: "UNKNOWN",
     errorCode: defaultErrorCode("UNKNOWN"),
     description: "Unknown or general runtime failure.",
   },
   {
     code: EXIT_CODES.INPUT,
+    name: defaultErrorCode("INPUT"),
     category: "INPUT",
     errorCode: defaultErrorCode("INPUT"),
     description: "Invalid input or validation failure.",
   },
   {
     code: EXIT_CODES.CANCELLED,
+    name: defaultErrorCode("CANCELLED"),
     category: "CANCELLED",
     errorCode: defaultErrorCode("CANCELLED"),
     description: "User cancelled an interactive prompt or confirmation.",
   },
   {
     code: EXIT_CODES.SETUP,
+    name: defaultErrorCode("SETUP"),
     category: "SETUP",
     errorCode: defaultErrorCode("SETUP"),
     description: "Local setup is incomplete or a signer/recovery phrase is required before the command can continue.",
   },
   {
     code: EXIT_CODES.RPC,
+    name: defaultErrorCode("RPC"),
     category: "RPC",
     errorCode: defaultErrorCode("RPC"),
     description: "RPC, transport, or network connectivity failure.",
   },
   {
     code: EXIT_CODES.ASP,
+    name: defaultErrorCode("ASP"),
     category: "ASP",
     errorCode: defaultErrorCode("ASP"),
     description: "ASP service failure or approval-state fetch issue.",
   },
   {
     code: EXIT_CODES.RELAYER,
+    name: defaultErrorCode("RELAYER"),
     category: "RELAYER",
     errorCode: defaultErrorCode("RELAYER"),
     description: "Relayer quote or submission failure.",
   },
   {
     code: EXIT_CODES.PROOF,
+    name: defaultErrorCode("PROOF"),
     category: "PROOF",
     errorCode: defaultErrorCode("PROOF"),
     description: "ZK proof generation or proof-input failure.",
   },
   {
     code: EXIT_CODES.CONTRACT,
+    name: defaultErrorCode("CONTRACT"),
     category: "CONTRACT",
     errorCode: defaultErrorCode("CONTRACT"),
     description: "Onchain simulation or contract revert failure.",
@@ -525,6 +544,7 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     description: seed.description,
     group: seed.group,
     aliases: seed.aliases,
+    ...(COMMAND_CATALOG[path].deprecated ? { deprecated: true } : {}),
     execution: getCommandExecutionMetadata(path),
     usage: seed.usage,
     flags: seed.flags,
@@ -596,7 +616,9 @@ export function getDocumentedAgentMarkers(): string[] {
 
 export function buildCapabilitiesPayload(): CapabilitiesPayload {
   return {
-    commands: CAPABILITIES_COMMAND_ORDER.map((path) => {
+    commands: CAPABILITIES_COMMAND_ORDER.filter(
+      (path) => !HIDDEN_DISCOVERY_COMMANDS.has(path),
+    ).map((path) => {
       const metadata = getCommandMetadata(path);
       const seed = descriptorSeed(path);
       return {
@@ -637,7 +659,9 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       testnet: CHAINS[name].isTestnet,
     })),
     protocol: CLI_PROTOCOL_PROFILE,
-    runtime: buildRuntimeCompatibilityDescriptor(CLI_PACKAGE_INFO.version),
+    runtime: {
+      ...buildRuntimeCompatibilityDescriptor(CLI_PACKAGE_INFO.version),
+    },
     safeReadOnlyCommands: listCommandPaths()
       .filter((path) => COMMAND_CATALOG[path].safeReadOnly)
       .map((path) => path),

@@ -77,6 +77,7 @@ export interface CommandCapabilityMetadata
 export interface CommandMetadata {
   description: string;
   aliases?: string[];
+  deprecated?: boolean;
   help?: CommandHelpConfig;
   capabilities?: CommandCapabilityMetadata;
   execution?: CommandExecutionDescriptor;
@@ -350,8 +351,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "config unset <key>",
-      flags: ["<key>"],
-      agentFlags: "--agent <key>",
+      flags: [],
+      agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -436,7 +437,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "config profile create <name>",
-      agentFlags: "--agent <name>",
+      agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -647,7 +648,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Human-only convenience wrapper that loops flow status plus flow step until the saved workflow changes or settles.",
         "It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation using the same saved-workflow state as the one-shot primitives.",
         "Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external.",
-        "The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus.",
+        "The saved workflow phase is reported in phase, while the deposit review state from the ASP (the Association Set Provider) remains available separately in aspStatus.",
         "When a saved workflow is using balanced or strict privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires.",
         "Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted.",
         "flow watch is intentionally unbounded and is rejected in --agent mode. Agents should use flow status and flow step externally instead.",
@@ -786,8 +787,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "flow ragequit [workflowId|latest]",
-      flags: ["[workflowId|latest]", "--confirm-ragequit (deprecated)", "--stream-json"],
-      agentFlags: "--agent [--confirm-ragequit (deprecated)] [--stream-json]",
+      flags: ["[workflowId|latest]", "--confirm-ragequit", "--stream-json"],
+      agentFlags: "--agent [--confirm-ragequit] [--stream-json]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },
@@ -827,6 +828,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       agentWorkflowNotes: [
         "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
         "Registry-backed aggregate fields may be null when upstream data is unavailable for that pool/chain: totalInPoolValue*, totalDeposits*, acceptedDeposits*, pendingDeposits*, *Count, growth24h, and pendingGrowth24h.",
+        "Human-readable output is written to stderr; only structured JSON (--json/--agent) writes machine payloads to stdout.",
       ],
       seeAlso: ["deposit","protocol-stats","activity"],
     },
@@ -1096,7 +1098,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit.",
         "Most proof-generation steps complete within a few seconds on typical hardware, although cold starts and slower machines can take longer.",
         "In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off.",
-        "Each deposit includes a one-time vetting fee reviewed by the Privacy Pools Approval Service (ASP). The exact amount is shown before you confirm.",
+        "Each deposit includes a one-time vetting fee reviewed by the Association Set Provider (ASP). The exact amount is shown before you confirm.",
         "The ASP vetting fee is deducted from the public deposit amount, so a round input can still become a non-round committed balance.",
       ],
       examples: [
@@ -1125,6 +1127,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       safetyNotes: [
         `Deposits are reviewed by the ASP before approval. ${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
         "An ASP vetting fee is deducted from the deposit amount.",
+        "Gas pricing uses the connected RPC's current fee suggestions. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.",
         `Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at ${POA_PORTAL_URL} before they can withdraw privately.`,
         "Deposit and simulate deposit amounts are human-readable token amounts, not wei. Asset symbols are normalized case-insensitively.",
         SIGNING_SOURCE_NOTE,
@@ -1161,7 +1164,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off.",
         "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit.",
         `Pool Accounts marked poa_required cannot withdraw privately until Proof of Association is completed at ${POA_PORTAL_URL}.`,
-        "Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off.",
+        "Withdrawals do not currently block non-round amounts because --all and percentages are common withdrawal paths, but unusual exact amounts can still reduce privacy. Prefer --all, 100%, or round amounts where practical.",
         "In interactive mode, omitting the amount prompts for it after the pool is selected. Relayer quotes are refreshed automatically before proof generation when they are close to expiry.",
       ],
       examples: [
@@ -1186,7 +1189,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
-        "When prompts are skipped, direct withdrawals still require an explicit acknowledgement. --confirm-direct-withdraw remains available as a deprecated compatibility flag for this release.",
+        "When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link.",
+        "Gas pricing uses the connected RPC's current fee suggestions for direct withdrawals and public recovery. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.",
         "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. ERC20 withdrawals default to this on unless --no-extra-gas is passed; ETH withdrawals ignore it.",
         SIGNING_SOURCE_NOTE,
       ],
@@ -1216,7 +1220,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw (deprecated)",
+        "--confirm-direct-withdraw",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -1383,6 +1387,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   "withdraw recipients": {
     description: "List remembered withdrawal recipients",
     aliases: ["recents"],
+    deprecated: true,
     help: {
       overview: [
         "Shows the local withdrawal recipient history. Successful withdrawals are remembered automatically, and you can add labels manually for repeated recipients.",
@@ -1415,6 +1420,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   "withdraw recipients list": {
     description: "List remembered withdrawal recipients",
     aliases: ["ls"],
+    deprecated: true,
     help: {
       examples: [
         "privacy-pools withdraw recipients list",
@@ -1439,6 +1445,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "withdraw recipients add": {
     description: "Add a recipient to the local withdrawal address book",
+    deprecated: true,
     help: {
       examples: [
         "privacy-pools withdraw recipients add 0xRecipient... treasury",
@@ -1462,6 +1469,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   "withdraw recipients remove": {
     description: "Remove a recipient from the local withdrawal address book",
     aliases: ["rm"],
+    deprecated: true,
     help: {
       examples: [
         "privacy-pools withdraw recipients remove 0xRecipient...",
@@ -1481,6 +1489,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "withdraw recipients clear": {
     description: "Clear all remembered withdrawal recipients",
+    deprecated: true,
     help: {
       examples: [
         "privacy-pools withdraw recipients clear",
@@ -1509,7 +1518,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit.",
         "Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools.",
         "Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval.",
-        "In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped, --confirm-ragequit remains available as a deprecated compatibility flag for this release.",
+        "In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped (--agent, --yes, or CI), use --confirm-ragequit to explicitly acknowledge public recovery to the original deposit address.",
         "Use --stream-json when a runner needs line-delimited progress events while proof generation and public recovery submission run.",
       ],
       examples: [
@@ -1549,7 +1558,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       usage: "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       flags: [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit (deprecated)",
+        "--confirm-ragequit",
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
@@ -1626,7 +1635,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw (deprecated)",
+        "--confirm-direct-withdraw",
         "--extra-gas",
         "--no-extra-gas",
       ],
@@ -1665,7 +1674,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       usage: "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>",
       flags: [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit (deprecated)",
+        "--confirm-ragequit",
       ],
       agentFlags: "--agent",
       agentRequiredFlags: ["--pool-account"],
@@ -1713,7 +1722,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     capabilities: {
       usage: "broadcast <input>",
       flags: ["--validate-only", "--no-wait"],
-      agentFlags: "--agent [--validate-only] [--no-wait] <input>",
+      agentFlags: "--agent [--validate-only] [--no-wait]",
       requiresInit: false,
       expectedLatencyClass: "slow",
     },
@@ -1783,12 +1792,12 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools migrate status --include-testnets --agent",
       ],
       prerequisites: "init",
-      seeAlso: ["migrate status","accounts"],
+      seeAlso: ["accounts"],
     },
     capabilities: {
       usage: "migrate",
-      flags: ["status [--include-testnets]"],
-      agentFlags: "status --agent [--include-testnets]",
+      flags: ["--include-testnets"],
+      agentFlags: "--agent [--include-testnets]",
       requiresInit: true,
       expectedLatencyClass: "slow",
     },

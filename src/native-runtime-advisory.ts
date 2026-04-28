@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { CliPackageInfo } from "./package-info.js";
+import { NATIVE_JS_BRIDGE_ENV } from "./runtime/current.js";
 import {
   ENV_CLI_BINARY,
   ENV_CLI_DISABLE_NATIVE,
@@ -8,6 +9,14 @@ import {
   resolveInstalledNativeBinary,
 } from "./runtime/native-resolution.js";
 import type { StatusIssue } from "./types.js";
+
+export type ActiveRuntimeKind = "native" | "js";
+
+export function detectActiveRuntimeKind(
+  env: NodeJS.ProcessEnv = process.env,
+): ActiveRuntimeKind {
+  return env[NATIVE_JS_BRIDGE_ENV]?.trim() ? "native" : "js";
+}
 
 export interface NativeRuntimeAdvisoryDependencies {
   env?: NodeJS.ProcessEnv;

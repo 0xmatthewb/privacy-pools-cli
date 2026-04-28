@@ -47,6 +47,57 @@ export const GENERATED_COMMAND_PATHS = [
   "recipients add",
   "recipients remove",
   "recipients clear",
+  "ragequit",
+  "simulate deposit",
+  "simulate withdraw",
+  "simulate ragequit",
+  "broadcast",
+  "accounts",
+  "migrate",
+  "migrate status",
+  "completion"
+] as const;
+
+export type GeneratedCommandPath = (typeof GENERATED_COMMAND_PATHS)[number];
+
+export const GENERATED_ROUTE_COMMAND_PATHS = [
+  "init",
+  "upgrade",
+  "config",
+  "config list",
+  "config get",
+  "config set",
+  "config unset",
+  "config path",
+  "config profile",
+  "config profile list",
+  "config profile create",
+  "config profile active",
+  "config profile use",
+  "flow",
+  "simulate",
+  "flow start",
+  "flow watch",
+  "flow status",
+  "flow step",
+  "flow ragequit",
+  "pools",
+  "activity",
+  "protocol-stats",
+  "pool-stats",
+  "status",
+  "tx-status",
+  "capabilities",
+  "describe",
+  "guide",
+  "deposit",
+  "withdraw",
+  "withdraw quote",
+  "recipients",
+  "recipients list",
+  "recipients add",
+  "recipients remove",
+  "recipients clear",
   "withdraw recipients",
   "withdraw recipients list",
   "withdraw recipients add",
@@ -65,7 +116,7 @@ export const GENERATED_COMMAND_PATHS = [
   "completion"
 ] as const;
 
-export type GeneratedCommandPath = (typeof GENERATED_COMMAND_PATHS)[number];
+export type GeneratedRouteCommandPath = (typeof GENERATED_ROUTE_COMMAND_PATHS)[number];
 
 export const GENERATED_ROOT_COMMANDS = [
   {
@@ -101,7 +152,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "activity",
     "aliases": [],
-    "description": "View recent deposits and withdrawals across pools"
+    "description": "Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol"
   },
   {
     "name": "protocol-stats",
@@ -173,22 +224,12 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "accounts",
     "aliases": [],
-    "description": "View balances, approval status, and Pool Accounts"
+    "description": "List your own pool accounts (deposits, balances, statuses)"
   },
   {
     "name": "migrate",
     "aliases": [],
     "description": "Check migration status for legacy Pool Accounts"
-  },
-  {
-    "name": "history",
-    "aliases": [],
-    "description": "View your deposit and withdrawal history"
-  },
-  {
-    "name": "sync",
-    "aliases": [],
-    "description": "Sync account state with the latest onchain data"
   },
   {
     "name": "completion",
@@ -214,7 +255,7 @@ export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> =
   "rm": "recipients remove"
 };
 
-export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = {
+export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, GeneratedCommandRoute> = {
   "init": {
     "owner": "js-runtime",
     "nativeModes": [
@@ -652,10 +693,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "remove"
       ],
       "usage": "config unset <key>",
-      "flags": [
-        "<key>"
-      ],
-      "agentFlags": "--agent <key>",
+      "flags": [],
+      "agentFlags": "--agent",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -694,7 +733,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "group": "advanced",
       "usage": "config profile create <name>",
       "flags": [],
-      "agentFlags": "--agent <name>",
+      "agentFlags": "--agent",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -797,10 +836,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
-        "--confirm-ragequit (deprecated)",
+        "--confirm-ragequit",
         "--stream-json"
       ],
-      "agentFlags": "--agent [--confirm-ragequit (deprecated)] [--stream-json]",
+      "agentFlags": "--agent [--confirm-ragequit] [--stream-json]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -840,7 +879,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw (deprecated)",
+        "--confirm-direct-withdraw",
         "--extra-gas",
         "--no-extra-gas"
       ],
@@ -855,7 +894,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit (deprecated)"
+        "--confirm-ragequit"
       ],
       "agentFlags": "--agent",
       "requiresInit": true,
@@ -901,7 +940,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "activity",
-      "description": "View recent deposits and withdrawals across pools",
+      "description": "Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol",
       "group": "monitoring",
       "usage": "activity",
       "flags": [
@@ -984,7 +1023,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw (deprecated)",
+        "--confirm-direct-withdraw",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -1062,71 +1101,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "expectedLatencyClass": "fast"
     },
     {
-      "name": "withdraw recipients",
-      "description": "List remembered withdrawal recipients",
-      "group": "transaction",
-      "aliases": [
-        "recents"
-      ],
-      "usage": "withdraw recipients",
-      "flags": [
-        "--limit <n>"
-      ],
-      "agentFlags": "--agent [--limit <n>]",
-      "requiresInit": false,
-      "expectedLatencyClass": "fast"
-    },
-    {
-      "name": "withdraw recipients list",
-      "description": "List remembered withdrawal recipients",
-      "group": "transaction",
-      "aliases": [
-        "ls"
-      ],
-      "usage": "withdraw recipients list",
-      "flags": [
-        "--limit <n>"
-      ],
-      "agentFlags": "--agent [--limit <n>]",
-      "requiresInit": false,
-      "expectedLatencyClass": "fast"
-    },
-    {
-      "name": "withdraw recipients add",
-      "description": "Add a recipient to the local withdrawal address book",
-      "group": "transaction",
-      "usage": "withdraw recipients add <address-or-ens> [label]",
-      "flags": [
-        "--label <label>"
-      ],
-      "agentFlags": "--agent",
-      "requiresInit": false,
-      "expectedLatencyClass": "fast"
-    },
-    {
-      "name": "withdraw recipients remove",
-      "description": "Remove a recipient from the local withdrawal address book",
-      "group": "transaction",
-      "aliases": [
-        "rm"
-      ],
-      "usage": "withdraw recipients remove <address-or-ens>",
-      "flags": [],
-      "agentFlags": "--agent",
-      "requiresInit": false,
-      "expectedLatencyClass": "fast"
-    },
-    {
-      "name": "withdraw recipients clear",
-      "description": "Clear all remembered withdrawal recipients",
-      "group": "transaction",
-      "usage": "withdraw recipients clear",
-      "flags": [],
-      "agentFlags": "--agent",
-      "requiresInit": false,
-      "expectedLatencyClass": "fast"
-    },
-    {
       "name": "withdraw quote",
       "description": "Request relayer quote and limits without generating a proof",
       "group": "transaction",
@@ -1147,13 +1121,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--validate-only",
         "--no-wait"
       ],
-      "agentFlags": "--agent [--validate-only] [--no-wait] <input>",
+      "agentFlags": "--agent [--validate-only] [--no-wait]",
       "requiresInit": false,
       "expectedLatencyClass": "slow"
     },
     {
       "name": "accounts",
-      "description": "View balances, approval status, and Pool Accounts",
+      "description": "List your own pool accounts (deposits, balances, statuses)",
       "group": "monitoring",
       "usage": "accounts",
       "flags": [
@@ -1176,9 +1150,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "group": "advanced",
       "usage": "migrate",
       "flags": [
-        "status [--include-testnets]"
+        "--include-testnets"
       ],
-      "agentFlags": "status --agent [--include-testnets]",
+      "agentFlags": "--agent [--include-testnets]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1195,40 +1169,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "expectedLatencyClass": "slow"
     },
     {
-      "name": "history",
-      "description": "View your deposit and withdrawal history",
-      "group": "monitoring",
-      "usage": "history",
-      "flags": [
-        "--no-sync",
-        "--page <n>",
-        "--limit <n>"
-      ],
-      "agentFlags": "--agent",
-      "requiresInit": true,
-      "expectedLatencyClass": "slow"
-    },
-    {
-      "name": "sync",
-      "description": "Sync account state with the latest onchain data",
-      "group": "monitoring",
-      "usage": "sync",
-      "flags": [
-        "[asset]",
-        "--stream-json"
-      ],
-      "agentFlags": "--agent [asset] [--stream-json]",
-      "requiresInit": true,
-      "expectedLatencyClass": "slow"
-    },
-    {
       "name": "ragequit",
       "description": "Recover funds publicly to your deposit address",
       "group": "transaction",
       "usage": "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit (deprecated)",
+        "--confirm-ragequit",
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
@@ -1883,9 +1830,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         ]
       },
       "usage": "config unset <key>",
-      "flags": [
-        "<key>"
-      ],
+      "flags": [],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -3013,7 +2958,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "flow ragequit [workflowId|latest]",
       "flags": [
         "[workflowId|latest]",
-        "--confirm-ragequit (deprecated)",
+        "--confirm-ragequit",
         "--stream-json"
       ],
       "globalFlags": [
@@ -3219,12 +3164,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": [
         "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
-        "Registry-backed aggregate fields may be null when upstream data is unavailable for that pool/chain: totalInPoolValue*, totalDeposits*, acceptedDeposits*, pendingDeposits*, *Count, growth24h, and pendingGrowth24h."
+        "Registry-backed aggregate fields may be null when upstream data is unavailable for that pool/chain: totalInPoolValue*, totalDeposits*, acceptedDeposits*, pendingDeposits*, *Count, growth24h, and pendingGrowth24h.",
+        "Human-readable output is written to stderr; only structured JSON (--json/--agent) writes machine payloads to stdout."
       ]
     },
     "activity": {
       "command": "activity",
-      "description": "View recent deposits and withdrawals across pools",
+      "description": "Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol",
       "group": "monitoring",
       "aliases": [],
       "execution": {
@@ -3995,6 +3941,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
         "An ASP vetting fee is deducted from the deposit amount.",
+        "Gas pricing uses the connected RPC's current fee suggestions. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.",
         "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at https://tornado.0xbow.io before they can withdraw privately.",
         "Deposit and simulate deposit amounts are human-readable token amounts, not wei. Asset symbols are normalized case-insensitively.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
@@ -4025,7 +3972,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw (deprecated)",
+        "--confirm-direct-withdraw",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -4148,7 +4095,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
-        "When prompts are skipped, direct withdrawals still require an explicit acknowledgement. --confirm-direct-withdraw remains available as a deprecated compatibility flag for this release.",
+        "When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link.",
+        "Gas pricing uses the connected RPC's current fee suggestions for direct withdrawals and public recovery. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.",
         "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. ERC20 withdrawals default to this on unless --no-extra-gas is passed; ETH withdrawals ignore it.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -4606,370 +4554,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": []
     },
-    "withdraw recipients": {
-      "command": "withdraw recipients",
-      "description": "List remembered withdrawal recipients",
-      "group": "transaction",
-      "aliases": [
-        "recents"
-      ],
-      "execution": {
-        "owner": "js-runtime",
-        "nativeModes": [
-          "help"
-        ]
-      },
-      "usage": "withdraw recipients",
-      "flags": [
-        "--limit <n>"
-      ],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "fast",
-      "safeReadOnly": true,
-      "sideEffectClass": "read_only",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [],
-      "examples": [
-        "privacy-pools withdraw recipients",
-        "privacy-pools withdraw recipients --limit 10",
-        "privacy-pools withdraw recipients add 0xRecipient... treasury",
-        "privacy-pools withdraw recipients remove 0xRecipient..."
-      ],
-      "structuredExamples": [
-        {
-          "description": "Example 1",
-          "command": "privacy-pools withdraw recipients"
-        },
-        {
-          "description": "Example 2",
-          "command": "privacy-pools withdraw recipients --limit 10"
-        },
-        {
-          "description": "Example 3",
-          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury"
-        },
-        {
-          "description": "Example 4",
-          "command": "privacy-pools withdraw recipients remove 0xRecipient..."
-        }
-      ],
-      "jsonFields": "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
-      "jsonVariants": [],
-      "safetyNotes": [
-        "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentWorkflowNotes": [
-        "Use this read-only list to offer previously used recipients before prompting for a new address."
-      ]
-    },
-    "withdraw recipients list": {
-      "command": "withdraw recipients list",
-      "description": "List remembered withdrawal recipients",
-      "group": "transaction",
-      "aliases": [
-        "ls"
-      ],
-      "execution": {
-        "owner": "js-runtime",
-        "nativeModes": [
-          "help"
-        ]
-      },
-      "usage": "withdraw recipients list",
-      "flags": [
-        "--limit <n>"
-      ],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "fast",
-      "safeReadOnly": true,
-      "sideEffectClass": "read_only",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [],
-      "examples": [
-        "privacy-pools withdraw recipients list",
-        "privacy-pools withdraw recipients list --limit 10",
-        "privacy-pools withdraw recents"
-      ],
-      "structuredExamples": [
-        {
-          "description": "Example 1",
-          "command": "privacy-pools withdraw recipients list"
-        },
-        {
-          "description": "Example 2",
-          "command": "privacy-pools withdraw recipients list --limit 10"
-        },
-        {
-          "description": "Example 3",
-          "command": "privacy-pools withdraw recents"
-        }
-      ],
-      "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
-      "jsonVariants": [],
-      "safetyNotes": [
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentWorkflowNotes": [
-        "Use this read-only list to offer previously used recipients before prompting for a new address."
-      ]
-    },
-    "withdraw recipients add": {
-      "command": "withdraw recipients add",
-      "description": "Add a recipient to the local withdrawal address book",
-      "group": "transaction",
-      "aliases": [],
-      "execution": {
-        "owner": "js-runtime",
-        "nativeModes": [
-          "help"
-        ]
-      },
-      "usage": "withdraw recipients add <address-or-ens> [label]",
-      "flags": [
-        "--label <label>"
-      ],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "fast",
-      "safeReadOnly": false,
-      "sideEffectClass": "local_state_write",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [],
-      "examples": [
-        "privacy-pools withdraw recipients add 0xRecipient... treasury",
-        "privacy-pools withdraw recipients add vitalik.eth --label donations"
-      ],
-      "structuredExamples": [
-        {
-          "description": "Example 1",
-          "command": "privacy-pools withdraw recipients add 0xRecipient... treasury"
-        },
-        {
-          "description": "Example 2",
-          "command": "privacy-pools withdraw recipients add vitalik.eth --label donations"
-        }
-      ],
-      "jsonFields": "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
-      "jsonVariants": [],
-      "safetyNotes": [
-        "Adding a recipient does not authorize a withdrawal. The withdrawal command still performs recipient review before submission.",
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentWorkflowNotes": []
-    },
-    "withdraw recipients remove": {
-      "command": "withdraw recipients remove",
-      "description": "Remove a recipient from the local withdrawal address book",
-      "group": "transaction",
-      "aliases": [
-        "rm"
-      ],
-      "execution": {
-        "owner": "js-runtime",
-        "nativeModes": [
-          "help"
-        ]
-      },
-      "usage": "withdraw recipients remove <address-or-ens>",
-      "flags": [],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "fast",
-      "safeReadOnly": false,
-      "sideEffectClass": "local_state_write",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [],
-      "examples": [
-        "privacy-pools withdraw recipients remove 0xRecipient...",
-        "privacy-pools withdraw recipients rm treasury.eth"
-      ],
-      "structuredExamples": [
-        {
-          "description": "Example 1",
-          "command": "privacy-pools withdraw recipients remove 0xRecipient..."
-        },
-        {
-          "description": "Example 2",
-          "command": "privacy-pools withdraw recipients rm treasury.eth"
-        }
-      ],
-      "jsonFields": "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
-      "jsonVariants": [],
-      "safetyNotes": [
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentWorkflowNotes": []
-    },
-    "withdraw recipients clear": {
-      "command": "withdraw recipients clear",
-      "description": "Clear all remembered withdrawal recipients",
-      "group": "transaction",
-      "aliases": [],
-      "execution": {
-        "owner": "js-runtime",
-        "nativeModes": [
-          "help"
-        ]
-      },
-      "usage": "withdraw recipients clear",
-      "flags": [],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "fast",
-      "safeReadOnly": false,
-      "sideEffectClass": "local_state_write",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [],
-      "examples": [
-        "privacy-pools withdraw recipients clear",
-        "privacy-pools withdraw recipients clear --yes"
-      ],
-      "structuredExamples": [
-        {
-          "description": "Example 1",
-          "command": "privacy-pools withdraw recipients clear"
-        },
-        {
-          "description": "Example 2",
-          "command": "privacy-pools withdraw recipients clear --yes"
-        }
-      ],
-      "jsonFields": "{ mode: \"recipient-history\", operation: \"clear\", removedCount }",
-      "jsonVariants": [],
-      "safetyNotes": [
-        "This only clears local recipient metadata. It does not affect accounts, workflows, or onchain state.",
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentWorkflowNotes": []
-    },
     "ragequit": {
       "command": "ragequit",
       "description": "Recover funds publicly to your deposit address",
@@ -4984,7 +4568,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit (deprecated)",
+        "--confirm-ragequit",
         "--unsigned [envelope|tx]",
         "--dry-run",
         "--no-wait",
@@ -5183,7 +4767,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--pool-account <PA-ID | numeric-index>",
         "--all",
         "--direct",
-        "--confirm-direct-withdraw (deprecated)",
+        "--confirm-direct-withdraw",
         "--extra-gas",
         "--no-extra-gas"
       ],
@@ -5266,7 +4850,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "simulate ragequit [asset] --pool-account <PA-ID | numeric-index>",
       "flags": [
         "--pool-account <PA-ID | numeric-index>",
-        "--confirm-ragequit (deprecated)"
+        "--confirm-ragequit"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -5426,7 +5010,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "accounts": {
       "command": "accounts",
-      "description": "View balances, approval status, and Pool Accounts",
+      "description": "List your own pool accounts (deposits, balances, statuses)",
       "group": "monitoring",
       "aliases": [],
       "execution": {
@@ -5586,7 +5170,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "migrate",
       "flags": [
-        "status [--include-testnets]"
+        "--include-testnets"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -5726,185 +5310,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": [
         "Use this after init/import when the CLI warns that a legacy pre-upgrade account may need website migration or website-based recovery."
-      ]
-    },
-    "history": {
-      "command": "history",
-      "description": "View your deposit and withdrawal history",
-      "group": "monitoring",
-      "aliases": [],
-      "execution": {
-        "owner": "js-runtime",
-        "nativeModes": [
-          "help"
-        ]
-      },
-      "usage": "history",
-      "flags": [
-        "--no-sync",
-        "--page <n>",
-        "--limit <n>"
-      ],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": true,
-      "expectedLatencyClass": "slow",
-      "safeReadOnly": true,
-      "sideEffectClass": "local_cache_write",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [
-        "init"
-      ],
-      "examples": [
-        {
-          "category": "Basic",
-          "commands": [
-            "privacy-pools history",
-            "privacy-pools history --limit 10"
-          ]
-        },
-        {
-          "category": "Agent / CI",
-          "commands": [
-            "privacy-pools history --agent",
-            "privacy-pools history --no-sync --chain mainnet"
-          ]
-        }
-      ],
-      "structuredExamples": [
-        {
-          "description": "Basic",
-          "category": "Basic",
-          "command": "privacy-pools history"
-        },
-        {
-          "description": "Basic",
-          "category": "Basic",
-          "command": "privacy-pools history --limit 10"
-        },
-        {
-          "description": "Agent / CI",
-          "category": "Agent / CI",
-          "command": "privacy-pools history --agent"
-        },
-        {
-          "description": "Agent / CI",
-          "category": "Agent / CI",
-          "command": "privacy-pools history --no-sync --chain mainnet"
-        }
-      ],
-      "jsonFields": "{ mode: \"private-history\", chain, page, perPage, total, totalPages, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      "jsonVariants": [
-        "--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true."
-      ],
-      "safetyNotes": [
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentWorkflowNotes": []
-    },
-    "sync": {
-      "command": "sync",
-      "description": "Sync account state with the latest onchain data",
-      "group": "monitoring",
-      "aliases": [],
-      "execution": {
-        "owner": "js-runtime",
-        "nativeModes": [
-          "help"
-        ]
-      },
-      "usage": "sync",
-      "flags": [
-        "[asset]",
-        "--stream-json"
-      ],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": true,
-      "expectedLatencyClass": "slow",
-      "safeReadOnly": false,
-      "sideEffectClass": "local_state_write",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [
-        "init"
-      ],
-      "examples": [
-        "privacy-pools sync",
-        "privacy-pools sync ETH --agent",
-        "privacy-pools sync --chain mainnet"
-      ],
-      "structuredExamples": [
-        {
-          "description": "Example 1",
-          "command": "privacy-pools sync"
-        },
-        {
-          "description": "Example 2",
-          "command": "privacy-pools sync ETH --agent"
-        },
-        {
-          "description": "Example 3",
-          "command": "privacy-pools sync --chain mainnet"
-        }
-      ],
-      "jsonFields": "{ isFinal: true, chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      "jsonVariants": [
-        "--stream-json progress events: { mode: \"sync-progress\", chain, event: \"stage\"|\"heartbeat\", stage, elapsedMs? }"
-      ],
-      "safetyNotes": [
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentWorkflowNotes": [
-        "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
-        "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs; the terminal result line includes isFinal = true."
       ]
     },
     "completion": {
@@ -6238,36 +5643,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
-    "withdraw recipients": {
-      "owner": "js-runtime",
-      "nativeModes": [
-        "help"
-      ]
-    },
-    "withdraw recipients list": {
-      "owner": "js-runtime",
-      "nativeModes": [
-        "help"
-      ]
-    },
-    "withdraw recipients add": {
-      "owner": "js-runtime",
-      "nativeModes": [
-        "help"
-      ]
-    },
-    "withdraw recipients remove": {
-      "owner": "js-runtime",
-      "nativeModes": [
-        "help"
-      ]
-    },
-    "withdraw recipients clear": {
-      "owner": "js-runtime",
-      "nativeModes": [
-        "help"
-      ]
-    },
     "ragequit": {
       "owner": "js-runtime",
       "nativeModes": [
@@ -6311,18 +5686,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ]
     },
     "migrate status": {
-      "owner": "js-runtime",
-      "nativeModes": [
-        "help"
-      ]
-    },
-    "history": {
-      "owner": "js-runtime",
-      "nativeModes": [
-        "help"
-      ]
-    },
-    "sync": {
       "owner": "js-runtime",
       "nativeModes": [
         "help"
@@ -6425,60 +5788,70 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   "exitCodes": [
     {
       "code": 0,
+      "name": "SUCCESS",
       "category": "SUCCESS",
       "errorCode": "SUCCESS",
       "description": "Successful command completion."
     },
     {
       "code": 1,
+      "name": "UNKNOWN_ERROR",
       "category": "UNKNOWN",
       "errorCode": "UNKNOWN_ERROR",
       "description": "Unknown or general runtime failure."
     },
     {
       "code": 2,
+      "name": "INPUT_ERROR",
       "category": "INPUT",
       "errorCode": "INPUT_ERROR",
       "description": "Invalid input or validation failure."
     },
     {
       "code": 9,
+      "name": "PROMPT_CANCELLED",
       "category": "CANCELLED",
       "errorCode": "PROMPT_CANCELLED",
       "description": "User cancelled an interactive prompt or confirmation."
     },
     {
       "code": 4,
+      "name": "SETUP_REQUIRED",
       "category": "SETUP",
       "errorCode": "SETUP_REQUIRED",
       "description": "Local setup is incomplete or a signer/recovery phrase is required before the command can continue."
     },
     {
       "code": 3,
+      "name": "RPC_ERROR",
       "category": "RPC",
       "errorCode": "RPC_ERROR",
       "description": "RPC, transport, or network connectivity failure."
     },
     {
       "code": 8,
+      "name": "ASP_ERROR",
       "category": "ASP",
       "errorCode": "ASP_ERROR",
       "description": "ASP service failure or approval-state fetch issue."
     },
     {
       "code": 5,
+      "name": "RELAYER_ERROR",
       "category": "RELAYER",
       "errorCode": "RELAYER_ERROR",
       "description": "Relayer quote or submission failure."
     },
     {
       "code": 6,
+      "name": "PROOF_ERROR",
       "category": "PROOF",
       "errorCode": "PROOF_ERROR",
       "description": "ZK proof generation or proof-input failure."
     },
     {
       "code": 7,
+      "name": "CONTRACT_ERROR",
       "category": "CONTRACT",
       "errorCode": "CONTRACT_ERROR",
       "description": "Onchain simulation or contract revert failure."
@@ -6828,6 +6201,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-stdin-read-failed"
     },
     {
+      "code": "INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-consent-required"
+    },
+    {
       "code": "INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH",
       "category": "INPUT",
       "retryable": false,
@@ -6900,6 +6279,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-jq"
     },
     {
+      "code": "INPUT_INVALID_OPTION",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-option"
+    },
+    {
       "code": "INPUT_INVALID_VALUE",
       "category": "INPUT",
       "retryable": false,
@@ -6948,10 +6333,22 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-mutually-exclusive"
     },
     {
+      "code": "INPUT_NO_COMMAND",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-command"
+    },
+    {
       "code": "INPUT_NO_GAS",
       "category": "INPUT",
       "retryable": false,
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-gas"
+    },
+    {
+      "code": "INPUT_NO_SAVED_WORKFLOWS",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-saved-workflows"
     },
     {
       "code": "INPUT_NONROUND_AMOUNT",
@@ -7044,10 +6441,52 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-submission"
     },
     {
+      "code": "INPUT_WATCH_REQUIRES_TTY",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-watch-requires-tty"
+    },
+    {
+      "code": "INPUT_WORKFLOW_INVALID_STRUCTURE",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-invalid-structure"
+    },
+    {
+      "code": "INPUT_WORKFLOW_LATEST_AMBIGUOUS_INVALID_FILES",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-latest-ambiguous-invalid-files"
+    },
+    {
+      "code": "INPUT_WORKFLOW_NOT_FOUND",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-not-found"
+    },
+    {
+      "code": "INPUT_WORKFLOW_UNSUPPORTED_SCHEMA_VERSION",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-unsupported-schema-version"
+    },
+    {
+      "code": "LOCK_HELD",
+      "category": "INPUT",
+      "retryable": true,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#lock-held"
+    },
+    {
       "code": "PROMPT_CANCELLED",
       "category": "CANCELLED",
       "retryable": false,
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#prompt-cancelled"
+    },
+    {
+      "code": "PROMPT_REQUIRED_NOT_INTERACTIVE",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#prompt-required-not-interactive"
     },
     {
       "code": "PROOF_ERROR",
@@ -7481,6 +6920,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1",
     "runtimeVersion": "v1",
+    "runtime": "js",
     "workerProtocolVersion": "1",
     "manifestVersion": "1",
     "nativeBridgeVersion": "1"
@@ -7507,15 +6947,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "guide",
     "recipients",
     "recipients list",
-    "withdraw recipients",
-    "withdraw recipients list",
     "simulate deposit",
     "simulate withdraw",
     "simulate ragequit",
     "accounts",
     "migrate",
-    "migrate status",
-    "history"
+    "migrate status"
   ],
   "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docUrl?, docsSlug?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "documentation": {

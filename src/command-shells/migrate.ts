@@ -2,7 +2,6 @@ import { Command } from "commander";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
-import { showCommandHelpAction } from "../utils/command-help-action.js";
 
 export function createMigrateCommand(): Command {
   const metadata = getCommandMetadata("migrate");
@@ -10,8 +9,17 @@ export function createMigrateCommand(): Command {
 
   const command = new Command("migrate")
     .description(metadata.description)
+    .option(
+      "--include-testnets",
+      "Include supported testnets (default: CLI-supported mainnet chains only)",
+    )
     .addHelpText("after", commandHelpText(metadata.help ?? {}));
-  command.action(showCommandHelpAction(command));
+  command.action(
+    createLazyAction(
+      () => import("../commands/migrate.js"),
+      "handleMigrateStatusCommand",
+    ),
+  );
 
   command
     .command("status")

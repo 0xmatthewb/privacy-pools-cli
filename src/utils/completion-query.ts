@@ -171,7 +171,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
             options: [
               completionOption("-t, --to <address>"),
               completionOption("--privacy-delay <profile>", FLOW_PRIVACY_DELAY_PROFILES),
-              completionOption("--dry-run"),
+              completionOption("--dry-run [mode]"),
               completionOption("--watch"),
               completionOption("--stream-json"),
               completionOption("--new-wallet"),
@@ -259,7 +259,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("deposit", {
         options: [
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
-          completionOption("--dry-run"),
+          completionOption("--dry-run [mode]"),
           completionOption("--no-wait"),
           completionOption("--stream-json"),
           completionOption("--allow-non-round-amounts"),
@@ -269,16 +269,23 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("accounts", {
         options: [
           completionOption("--no-sync"),
+          completionOption("--refresh"),
+          completionOption("--history"),
           completionOption("--include-testnets"),
           completionOption("--details"),
           completionOption("--summary"),
           completionOption("--pending-only"),
           completionOption("--status <status>", POOL_ACCOUNT_STATUSES),
           completionOption("--watch"),
+          completionOption("--watch-interval <seconds>"),
+          completionOption("--page <n>"),
           completionOption("-n, --limit <n>"),
         ],
       }),
       completionCommand("migrate", {
+        options: [
+          completionOption("--include-testnets"),
+        ],
         subcommands: [
           completionCommand("status", {
             options: [
@@ -295,7 +302,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--accept-all-funds-public"),
           completionOption("--confirm-direct-withdraw"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
-          completionOption("--dry-run"),
+          completionOption("--dry-run [mode]"),
           completionOption("--no-wait"),
           completionOption("--stream-json"),
           completionOption("--all"),
@@ -344,7 +351,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-p, --pool-account <PA-#|#>"),
           completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
-          completionOption("--dry-run"),
+          completionOption("--dry-run [mode]"),
           completionOption("--no-wait"),
           completionOption("--confirm-ragequit"),
           completionOption("--stream-json"),

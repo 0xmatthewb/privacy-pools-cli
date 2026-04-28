@@ -15,6 +15,11 @@ const COMMON_WORKFLOWS = [
   ["Withdraw", "privacy-pools withdraw --all ETH --to <address>"],
 ] as const;
 
+const COMMON_PAIRS = [
+  ["Your state", "privacy-pools accounts"],
+  ["Network state", "privacy-pools activity"],
+] as const;
+
 const COMMAND_GROUPS = ROOT_COMMAND_GROUPS.map(
   (group) => [group.heading, group.commands.join(", ")] as const,
 );
@@ -48,6 +53,11 @@ export function rootHelpFooterPlain(): string {
       ([label, command]) => `  ${label.padEnd(18)}${command}`,
     ),
     "",
+    "Common pairs:",
+    ...COMMON_PAIRS.map(
+      ([label, command]) => `  ${label.padEnd(18)}${command}`,
+    ),
+    "",
     "Help topics:",
     `  ${HELP_TOPICS}`,
     "  privacy-pools help <topic>",
@@ -72,6 +82,11 @@ export async function rootHelpFooterStyled(): Promise<string> {
     "",
     chalk.bold("Common workflows:"),
     ...COMMON_WORKFLOWS.map(
+      ([label, command]) => `  ${muted(label.padEnd(18))}${accent(command)}`,
+    ),
+    "",
+    chalk.bold("Common pairs:"),
+    ...COMMON_PAIRS.map(
       ([label, command]) => `  ${muted(label.padEnd(18))}${accent(command)}`,
     ),
     "",

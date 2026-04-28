@@ -49,7 +49,11 @@ pub fn handle_capabilities(parsed: &ParsedRootArgv, manifest: &Manifest) -> Resu
     }
 
     if parsed.is_structured_output_mode {
-        print_json_success(manifest.capabilities_payload.clone());
+        let mut payload = manifest.capabilities_payload.clone();
+        if let Some(runtime) = payload.get_mut("runtime").and_then(Value::as_object_mut) {
+            runtime.insert("runtime".to_string(), Value::String("native".to_string()));
+        }
+        print_json_success(payload);
         return Ok(0);
     }
 

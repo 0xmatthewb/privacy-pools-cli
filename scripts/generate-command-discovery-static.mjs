@@ -153,6 +153,7 @@ const {
 
 const capabilitiesPayload = buildCapabilitiesPayload();
 const documentedCommandPaths = listCommandPaths();
+const routingCommandPaths = COMMAND_PATHS.filter((path) => path !== "stats");
 const packageJson = JSON.parse(
   readFileSync(packageJsonPath, "utf8"),
 );
@@ -182,14 +183,14 @@ for (const [alias, path] of aliasEntries) {
 }
 const staticLocalCommands = ["guide", "capabilities", "describe", "completion"];
 const commandRoutes = Object.fromEntries(
-  documentedCommandPaths.map((path) => [path, getCommandExecutionMetadata(path)]),
+  routingCommandPaths.map((path) => [path, getCommandExecutionMetadata(path)]),
 );
-const tokenizedCommandRoutes = documentedCommandPaths.map((path) => ({
+const tokenizedCommandRoutes = routingCommandPaths.map((path) => ({
   route: path,
   tokens: path.split(" "),
 })).sort((left, right) => right.tokens.length - left.tokens.length);
 const directNativeCommands = new Set(
-  documentedCommandPaths.filter((path) => {
+  routingCommandPaths.filter((path) => {
     const route = commandRoutes[path];
     return route.owner === "native-shell" && route.nativeModes.includes("default");
   }),
@@ -389,8 +390,12 @@ export const GENERATED_COMMAND_PATHS = ${JSON.stringify(documentedCommandPaths, 
 
 export type GeneratedCommandPath = (typeof GENERATED_COMMAND_PATHS)[number];
 
+export const GENERATED_ROUTE_COMMAND_PATHS = ${JSON.stringify(routingCommandPaths, null, 2)} as const;
+
+export type GeneratedRouteCommandPath = (typeof GENERATED_ROUTE_COMMAND_PATHS)[number];
+
 export interface GeneratedTokenizedCommandRoute {
-  route: GeneratedCommandPath;
+  route: GeneratedRouteCommandPath;
   tokens: readonly string[];
 }
 
@@ -398,7 +403,7 @@ export const GENERATED_STATIC_LOCAL_COMMANDS = ${JSON.stringify(staticLocalComma
 
 export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = ${JSON.stringify(aliasMap, null, 2)};
 
-export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = ${JSON.stringify(commandRoutes, null, 2)};
+export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, GeneratedCommandRoute> = ${JSON.stringify(commandRoutes, null, 2)};
 
 export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedCommandRoute[] = ${JSON.stringify(tokenizedCommandRoutes, null, 2)} as const;
 `;
@@ -418,13 +423,17 @@ export const GENERATED_COMMAND_PATHS = ${JSON.stringify(documentedCommandPaths, 
 
 export type GeneratedCommandPath = (typeof GENERATED_COMMAND_PATHS)[number];
 
+export const GENERATED_ROUTE_COMMAND_PATHS = ${JSON.stringify(routingCommandPaths, null, 2)} as const;
+
+export type GeneratedRouteCommandPath = (typeof GENERATED_ROUTE_COMMAND_PATHS)[number];
+
 export const GENERATED_ROOT_COMMANDS = ${JSON.stringify(rootCommands, null, 2)} as const;
 
 export const GENERATED_STATIC_LOCAL_COMMANDS = ${JSON.stringify(staticLocalCommands, null, 2)} as const;
 
 export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = ${JSON.stringify(aliasMap, null, 2)};
 
-export const GENERATED_COMMAND_ROUTES: Record<GeneratedCommandPath, GeneratedCommandRoute> = ${JSON.stringify(commandRoutes, null, 2)};
+export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, GeneratedCommandRoute> = ${JSON.stringify(commandRoutes, null, 2)};
 
 export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = ${JSON.stringify(capabilitiesPayload, null, 2)};
 
