@@ -1,0 +1,37 @@
+[
+  {
+    "name": "agent flow watch rejects long-running loop",
+    "argv": ["flow", "watch", "latest", "--agent"],
+    "status": 2,
+    "stderr": "empty",
+    "json": { "success": false, "errorCode": "INPUT_AGENT_FLOW_WATCH_UNSUPPORTED" }
+  },
+  {
+    "name": "json conflicts with csv output",
+    "argv": ["pools", "--json", "--output", "csv"],
+    "status": 2,
+    "stderr": "empty",
+    "json": { "success": false, "errorCode": "INPUT_FLAG_CONFLICT" }
+  },
+  {
+    "name": "json keeps envelope when output format is wide",
+    "argv": ["status", "--json", "--output", "wide", "--no-check"],
+    "status": 0,
+    "stderr": "empty",
+    "json": { "success": true, "mode": "cli-status" }
+  },
+  {
+    "name": "agent web advisory stays in envelope",
+    "argv": ["status", "--agent", "--web", "--no-check"],
+    "status": 0,
+    "stderr": "empty",
+    "json": { "success": true, "webOpened": false, "webStatus": "not_opened" }
+  },
+  {
+    "name": "human web advisory stays on stderr",
+    "argv": ["status", "--web", "--no-check", "--no-banner"],
+    "status": 0,
+    "stdout": "empty",
+    "stderrContains": ["--web was requested"]
+  }
+]

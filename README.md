@@ -108,19 +108,25 @@ npm run start -- --help
 | `protocol-stats` | Aggregate cross-chain protocol statistics | |
 | `pool-stats` | Per-pool statistics for one asset | |
 | `status` | Configuration and connectivity health | |
+| `tx-status` | Check async transaction submission status | |
+| `config` | View and manage CLI configuration | |
 | `describe` | Describe one command or schema path (for agents or quick reference) | |
 | `capabilities` | Describe all CLI commands, flags, and workflows | |
 | `guide` | Print the full usage guide | |
 | `upgrade` | Check npm for updates or upgrade this CLI | |
 | `init` | Create, load, or finish setting up your account | |
 | `flow` | Guided deposit-to-private-withdrawal workflow | Yes |
+| `simulate` | Preview deposit, withdraw, and ragequit without submitting | |
 | `deposit` | Deposit funds into a Privacy Pool | Yes |
 | `withdraw` | Privately withdraw funds via relayer | Yes |
+| `recipients` | Manage remembered withdrawal recipients | |
 | `ragequit` | Public recovery to your deposit address (alias: `exit`) | Yes |
+| `broadcast` | Broadcast a signed envelope or relayer request built elsewhere | |
 | `accounts` | List Pool Accounts with balances and approval status | Yes |
 | `migrate` | Read-only legacy migration or recovery readiness on supported chains | Yes |
 | `history` | Chronological event log | Yes |
 | `sync` | Force-sync account state from onchain | Yes |
+| `stats` | Deprecated compatibility namespace for protocol and pool stats | |
 | `completion` | Generate shell completions (bash/zsh/fish/powershell) | |
 
 Most commands accept `--chain <name>` to override your default chain. `protocol-stats` is the exception because it is always cross-chain; use `pool-stats <symbol> --chain <chain>` for chain-specific stats. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).

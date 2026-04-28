@@ -231,6 +231,13 @@ for (const path of CAPABILITIES_COMMAND_ORDER) {
 
 const rootCommandNames = ROOT_COMMAND_GROUPS.flatMap((group) => group.commands)
   .filter((command) => commandPathsByRoot.has(command));
+const manCommandOrder = ROOT_COMMAND_GROUPS.flatMap((group) =>
+  group.commands.flatMap((command) => {
+    const commandPaths = commandPathsByRoot.get(command);
+    if (commandPaths?.length) return commandPaths;
+    return commandMap.has(command) && COMMAND_CATALOG[command] ? [command] : [];
+  }),
+);
 
 const lines = [];
 
@@ -343,7 +350,7 @@ function buildManPage() {
   man.push(".SH DESCRIPTION");
   man.push(inlineCodeToBold("Privacy Pools CLI provides public deposits, private relayed withdrawals, ragequit recovery, account sync, and agent-friendly JSON discovery."));
   man.push(".SH COMMANDS");
-  for (const path of CAPABILITIES_COMMAND_ORDER) {
+  for (const path of manCommandOrder) {
     const metadata = COMMAND_CATALOG[path];
     const cmd = commandMap.get(path);
     if (!metadata || !cmd) continue;

@@ -9,6 +9,7 @@ import { CLI_ROOT } from "../helpers/paths.ts";
 
 const CONTRACT_DOC_PATH = `${CLI_ROOT}/${jsonContractDocRelativePath()}`;
 const CURRENT_CONTRACT_DOC_PATH = `${CLI_ROOT}/docs/contracts/cli-json-contract.current.json`;
+const SCHEMA_VERSION_INTENT_PATH = `${CLI_ROOT}/docs/contracts/schema-version-intent.json`;
 
 interface ContractDoc {
   version: string;
@@ -22,6 +23,18 @@ interface ContractDoc {
 }
 
 describe("external JSON contract doc conformance", () => {
+  test("contract schema version follows the checked-in intent gate", () => {
+    const versionedDoc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const currentDoc = JSON.parse(readFileSync(CURRENT_CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const intent = JSON.parse(readFileSync(SCHEMA_VERSION_INTENT_PATH, "utf8")) as {
+      schemaVersion?: string;
+    };
+
+    expect(intent.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+    expect(versionedDoc.schemaVersion).toBe(intent.schemaVersion);
+    expect(currentDoc.schemaVersion).toBe(intent.schemaVersion);
+  });
+
   test("doc version is explicit and aligned with runtime schema version", () => {
     const doc = JSON.parse(readFileSync(CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
     expect(doc.version).toBe(JSON_SCHEMA_VERSION);

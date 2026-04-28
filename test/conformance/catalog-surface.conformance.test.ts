@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { Command } from "commander";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createRootProgram } from "../../src/program.ts";
+import { STATIC_COMMAND_PATHS } from "../../src/utils/command-discovery-static.ts";
 import {
   COMMAND_CATALOG,
   type CommandSurface,
@@ -17,6 +18,13 @@ const COMMAND_SURFACES = new Set<CommandSurface>([
   "doc-only",
   "native-local",
 ]);
+
+const NATIVE_MANIFEST = JSON.parse(
+  readFileSync(
+    join(CLI_ROOT, "native", "shell", "generated", "manifest.json"),
+    "utf8",
+  ),
+) as { commandPaths: string[] };
 
 function commandByPath(program: Command, path: string): Command | null {
   let current = program;
@@ -66,6 +74,24 @@ describe("catalog canonical surfaces", () => {
       if (metadata.surface === "alias") {
         const target = metadata.aliases?.[0];
         expect(target && catalogPaths.has(target)).toBe(true);
+      }
+    }
+  });
+
+  test("stable surfaces are present in static discovery and generated docs", () => {
+    const staticPaths = new Set<string>(STATIC_COMMAND_PATHS);
+    const nativeManifestPaths = new Set(NATIVE_MANIFEST.commandPaths);
+
+    for (const [path, metadata] of Object.entries(COMMAND_CATALOG)) {
+      if (metadata.surface === "root-command" || metadata.surface === "subcommand") {
+        expect(staticPaths.has(path), path).toBe(true);
+        expect(nativeManifestPaths.has(path), path).toBe(true);
+      }
+
+      if (metadata.surface === "root-command") {
+        expect(existsSync(join(CLI_ROOT, "docs", "reference", `${path}.md`)), path).toBe(
+          true,
+        );
       }
     }
   });

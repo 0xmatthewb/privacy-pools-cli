@@ -22,9 +22,27 @@ const NATIVE_MANIFEST_PATH = join(
 );
 const README_PATH = join(CLI_ROOT, "README.md");
 const AGENT_GUIDE_PATH = join(CLI_ROOT, "AGENTS.md");
+const MAN_PAGE_PATH = join(CLI_ROOT, "docs", "man", "privacy-pools.1");
 
 function stripAnsi(text: string): string {
   return text.replace(/\x1B\[[0-9;]*m/g, "");
+}
+
+function readmeRootCommands(): string[] {
+  const text = readFileSync(README_PATH, "utf8");
+  const section = text.match(/^## Commands\n([\s\S]*?)(?:\n## |\n$)/m)?.[1] ?? "";
+  return [...section.matchAll(/^\| `([^`]+)` \|/gm)]
+    .map((match) => match[1])
+    .sort();
+}
+
+function manRootCommands(): string[] {
+  const text = readFileSync(MAN_PAGE_PATH, "utf8");
+  const section = text.match(/^\.SH COMMANDS\n([\s\S]*?)^\.SH GLOBAL OPTIONS/m)?.[1] ?? "";
+  return [...section.matchAll(/^\.B (.+)$/gm)]
+    .map((match) => match[1].replace(/\\-/g, "-").trim())
+    .filter((command) => command && !command.includes(" "))
+    .sort();
 }
 
 describe("root help static conformance", () => {
@@ -60,6 +78,14 @@ describe("root help static conformance", () => {
     expect(styledRootHelp).toContain("  Transactions");
     expect(styledRootHelp).not.toContain("Getting startedinit");
     expect(styledRootHelp).not.toContain("Transactionsflow");
+  });
+
+  test("README and man page enumerate every runtime root command", async () => {
+    const program = await createRootProgram("0.0.0", { styledHelp: false });
+    const runtimeRootCommands = program.commands.map((command) => command.name()).sort();
+
+    expect(readmeRootCommands()).toEqual(runtimeRootCommands);
+    expect(manRootCommands()).toEqual(runtimeRootCommands);
   });
 
   test("runtime-facing docs and help stay free of Bun install or execution examples", () => {
