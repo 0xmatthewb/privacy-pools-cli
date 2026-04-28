@@ -10,6 +10,7 @@ import {
 import { allNonOptionTokens } from "./utils/root-argv.js";
 import { isGuideTopic } from "./utils/help.js";
 import { setCommandAliasDeprecationWarning } from "./utils/root-alias-metadata.js";
+import { deprecationWarningFor } from "./utils/deprecations.js";
 
 const ROOT_COMMAND_NAMES = [
   "init",
@@ -196,12 +197,7 @@ for (const name of ROOT_COMMAND_NAMES) {
 ROOT_COMMAND_REGISTRY.registerAlias({
   name: "recents",
   aliasOf: "recipients",
-  deprecationWarning: {
-    code: "COMMAND_ALIAS_DEPRECATED",
-    message:
-      "Command alias 'recents' is deprecated and will be removed in v3.x. Use 'recipients' instead.",
-    replacementCommand: "privacy-pools recipients",
-  },
+  deprecationWarning: deprecationWarningFor("root-recents"),
 });
 
 function resolveRootCommandName(token: string | undefined): RootCommandName | null {

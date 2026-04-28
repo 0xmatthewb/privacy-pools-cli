@@ -19,6 +19,7 @@ import {
   getDefaultReadOnlyChains,
   MULTI_CHAIN_SCOPE_ALL_MAINNETS,
 } from "../config/chains.js";
+import { deprecatedStatsAliasWarning } from "../utils/deprecations.js";
 
 interface PoolStatsCommandOptions {}
 
@@ -31,8 +32,6 @@ type PoolStatsInvocationMetadata = {
   command: "pool-stats";
   invokedAs?: "stats pool";
 };
-
-const STATS_ALIAS_WARNING_CODE = "COMMAND_ALIAS_DEPRECATED";
 
 /** @internal Exported for unit testing. */
 export { parseUsd, parseCount } from "../output/stats.js";
@@ -63,13 +62,7 @@ function buildDeprecatedAliasPayload(
   message: string;
   replacementCommand: string;
 } {
-  return {
-    code: STATS_ALIAS_WARNING_CODE,
-    message:
-      `Command '${invokedAs}' is deprecated and will be removed in the next minor release.` +
-      ` Use '${replacementCommand}' instead.`,
-    replacementCommand,
-  };
+  return deprecatedStatsAliasWarning(invokedAs, replacementCommand);
 }
 
 async function renderGlobalStatsForInvocation(

@@ -6,7 +6,7 @@ Detailed reference for the `privacy-pools accounts` command family. Back to the 
 
 ## `accounts`
 
-List your own pool accounts (deposits, balances, statuses)
+List your own Pool Accounts (deposits, balances, statuses)
 
 Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --include-testnets to include supported testnets. Compact modes like --summary and --pending-only are intended for agent polling loops so they do not have to parse the full account dataset on every check. --pending-only remains supported as shorthand for --status pending in polling loops. Use --status <status> to filter by approved/pending/poa_required/declined/unknown/spent/exited. Human-only --watch is a 15-second pending poll loop that stops when pending results reach zero or on Ctrl-C.
 

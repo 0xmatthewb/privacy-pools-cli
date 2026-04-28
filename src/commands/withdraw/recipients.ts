@@ -19,6 +19,7 @@ import {
   type RecipientSafetyWarning,
 } from "../../utils/recipient-safety.js";
 import { getCommandAliasDeprecationWarning } from "../../utils/root-alias-metadata.js";
+import { deprecationWarningFor } from "../../utils/deprecations.js";
 import { promptCancelledError } from "../../utils/errors.js";
 import { inputError } from "../../utils/errors/factories.js";
 import {
@@ -181,12 +182,7 @@ function withdrawRecipientsDeprecationWarning(cmd: Command):
   | undefined {
   const prefix = recipientCommandPrefix(cmd);
   if (prefix !== "withdraw recipients") return undefined;
-  return {
-    code: "COMMAND_ALIAS_DEPRECATED",
-    message:
-      "Command 'withdraw recipients' is deprecated and will be removed in v3.x. Use 'recipients' instead.",
-    replacementCommand: "privacy-pools recipients",
-  };
+  return deprecationWarningFor("withdraw-recipients");
 }
 
 function recentsDeprecationWarning(cmd: Command):
@@ -202,12 +198,9 @@ function recentsDeprecationWarning(cmd: Command):
     recipientCommandPrefix(cmd) === "withdraw recipients"
       ? "privacy-pools withdraw recipients"
       : "privacy-pools recipients";
-  return {
-    code: "COMMAND_ALIAS_DEPRECATED",
-    message:
-      "Command alias 'recents' is deprecated and will be removed in v3.x. Use 'recipients' instead.",
+  return deprecationWarningFor("root-recents", {
     replacementCommand: replacement,
-  };
+  });
 }
 
 function recipientDeprecationWarning(cmd: Command):

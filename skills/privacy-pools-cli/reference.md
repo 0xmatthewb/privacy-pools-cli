@@ -19,7 +19,7 @@ privacy-pools flow watch latest                        # human-only wrapper over
 privacy-pools flow watch latest --privacy-delay strict   # human-only saved privacy-delay update
 ```
 
-`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so use round amounts in agent/non-interactive runs, or switch to interactive mode if a human intentionally accepts that tradeoff. In interactive mode, omitting `--to` prompts for the saved recipient. A round input can still become a non-round committed balance after the ASP vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. New workflows default to a balanced post-approval privacy delay: `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `strict` randomizes the hold between 2 and 12 hours. Pass `--privacy-delay off|balanced|strict` to `flow start`, or later to human `flow watch`, to update the saved policy persistently. `off` clears any saved hold immediately, while switching between `balanced` and `strict` resamples from the override time. With `--new-wallet`, the CLI generates a dedicated workflow wallet and requires a backup before proceeding. In machine mode, `flow start` returns an `awaiting_funding` snapshot so the agent can fund that wallet and continue with `flow status` / `flow step`; human runs stay attached and wait automatically. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts. ETH flows require the full ETH target. ERC20 flows require both the token amount and a native ETH gas reserve in that same wallet. The generated workflow key is also stored locally under `~/.privacy-pools/workflow-secrets/` until the workflow completes, public-recovers, or is externally stopped, so `--export-new-wallet` is a backup copy rather than the only retained secret. Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty. The saved flow spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding. For agents, `flow status` is the read-only polling primitive and `flow step` is the one-shot advance primitive. `flow watch` remains a human-only wrapper over repeated `flow status` + `flow step`; `flow watch --agent` and `flow start --watch --agent` are rejected with machine-readable input errors that point agents back to `flow status` and `flow step`. Saved workflows use phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state from the ASP (the approval service). Paused states are still successful command results: declined workflows surface `flow ragequit` as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with `flow ragequit`. If the saved full-balance withdrawal falls below the relayer minimum, the workflow surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextAction` while the workflow is still progressing normally. `flow status` reads the persisted workflow snapshot without mutating it. When using `latest`, the CLI fails closed if unreadable saved workflow files could be newer than the latest readable workflow. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
+`flow start` performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account (the saved deposit lineage) to the saved recipient. In machine modes, it follows the same non-round amount privacy guard as `deposit`, so use round amounts in agent/non-interactive runs, or switch to interactive mode if a human intentionally accepts that tradeoff. In interactive mode, omitting `--to` prompts for the saved recipient. A round input can still become a non-round committed balance after the ASP vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. New workflows default to a balanced post-approval privacy delay: `off` means no added hold, `balanced` randomizes the hold between 15 and 90 minutes, and `strict` randomizes the hold between 2 and 12 hours. Pass `--privacy-delay off|balanced|strict` to `flow start`, or later to human `flow watch`, to update the saved policy persistently. `off` clears any saved hold immediately, while switching between `balanced` and `strict` resamples from the override time. With `--new-wallet`, the CLI generates a dedicated workflow wallet and requires a backup before proceeding. In machine mode, `flow start` returns an `awaiting_funding` snapshot so the agent can fund that wallet and continue with `flow status` / `flow step`; human runs stay attached and wait automatically. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts. ETH flows require the full ETH target. ERC20 flows require both the token amount and a native ETH gas reserve in that same wallet. The generated workflow key is also stored locally under `~/.privacy-pools/workflow-secrets/` until the workflow completes, public-recovers, or is externally stopped, so `--export-new-wallet` is a backup copy rather than the only retained secret. Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty. The saved flow spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding. For agents, `flow status` is the read-only polling primitive and `flow step` is the one-shot advance primitive. `flow watch` remains a human-only wrapper over repeated `flow status` + `flow step`; `flow watch --agent` and `flow start --watch --agent` are rejected with machine-readable input errors that point agents back to `flow status` and `flow step`. Saved workflows use phases such as `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`, while `aspStatus` continues to carry the deposit review state from the ASP. Paused states are still successful command results: declined workflows surface `flow ragequit` as the canonical public recovery path, and PoA-required workflows can either resume privately after the external Proof of Association step or recover publicly with `flow ragequit`. If the saved full-balance withdrawal falls below the relayer minimum, the workflow surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextAction` while the workflow is still progressing normally. `flow status` reads the persisted workflow snapshot without mutating it. When using `latest`, the CLI fails closed if unreadable saved workflow files could be newer than the latest readable workflow. `flow ragequit` performs the saved-workflow public recovery path and, for configured-wallet workflows, requires the original depositor signer.
 
 Flow JSON payloads share this shape:
 
@@ -258,7 +258,7 @@ All numeric token amounts are in wei (strings). USD values, counts, and growth r
 ### `activity`
 
 ```bash
-privacy-pools activity --agent [--asset <symbol>] [--limit <n>] [--page <n>]
+privacy-pools activity [symbol] --agent [--limit <n>] [--page <n>]
 ```
 
 Defaults to all CLI-supported mainnet chains when no `--chain` is specified.
@@ -291,9 +291,9 @@ Defaults to all CLI-supported mainnet chains when no `--chain` is specified.
 }
 ```
 
-When querying multiple chains (no `--chain` specified), `chain` is `"all-mainnets"` and `chains` lists the queried chain names. With a specific `--chain` but no `--asset`, events are filtered client-side: `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
+When querying multiple chains (no `--chain` specified), `chain` is `"all-mainnets"` and `chains` lists the queried chain names. With a specific `--chain` but no positional asset, events are filtered client-side: `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
 
-**Per-pool** (`--asset`): `mode` is `"pool-activity"` and root includes `asset`, `pool`, and `scope`. Pagination totals are accurate (server-side filtering).
+**Per-pool** (positional asset): `mode` is `"pool-activity"` and root includes `asset`, `pool`, and `scope`. Pagination totals are accurate (server-side filtering).
 
 `timestamp` is an ISO 8601 string or `null`. `total` and `totalPages` may be null (always null when `chainFiltered: true`).
 
@@ -662,7 +662,7 @@ Use only one stdin secret source per invocation: either `--recovery-phrase-stdin
 
 ```bash
 privacy-pools deposit 0.1 ETH --agent
-privacy-pools deposit 0.1 --asset ETH --agent
+privacy-pools deposit 0.1 ETH --agent
 ```
 
 > **Minimum deposit:** Each pool enforces a `minimumDeposit` (in wei). Query `privacy-pools pools --agent` and check the `minimumDeposit` field for the target asset before depositing. Amounts below this threshold will fail with `INPUT_ERROR`.
@@ -1152,6 +1152,7 @@ All errors in JSON mode:
 | `INPUT_FLAG_CONFLICT` | INPUT | No | See `docs/errors.md#input-flag-conflict` |
 | `INPUT_FLOW_RECIPIENT_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-flow-recipient-retry-limit` |
 | `INPUT_INIT_GENERATE_REQUIRES_CAPTURE` | INPUT | No | See `docs/errors.md#input-init-generate-requires-capture` |
+| `INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID` | INPUT | No | See `docs/errors.md#init-generated-recovery-word-count-invalid` |
 | `INPUT_INIT_REQUIRED` | INPUT | No | See `docs/errors.md#input-init-required` |
 | `INPUT_INIT_RECOVERY_PHRASE_REQUIRED` | INPUT | No | See `docs/errors.md#input-init-recovery-phrase-required` |
 | `INPUT_INSUFFICIENT_BALANCE` | INPUT | No | See `docs/errors.md#input-insufficient-balance` |
@@ -1210,6 +1211,7 @@ All errors in JSON mode:
 | `RELAYER_BROADCAST_RELAYER_HOST_MISMATCH` | RELAYER | No | See `docs/errors.md#relayer-broadcast-relayer-host-mismatch` |
 | `RELAYER_BROADCAST_SUBMISSION_FAILED` | RELAYER | Yes | See `docs/errors.md#relayer-broadcast-submission-failed` |
 | `RELAYER_CONFIRMATION_RETRY_LIMIT` | RELAYER | Yes | See `docs/errors.md#relayer-confirmation-retry-limit` |
+| `FLOW_RELAYER_MINIMUM_BLOCKED` | RELAYER | No | See `docs/errors.md#flow-relayer-minimum-blocked` |
 | `PROOF_ERROR` | PROOF | No | See `docs/errors.md#proof-error` |
 | `PROOF_GENERATION_FAILED` | PROOF | No | See `docs/errors.md#proof-generation-failed` |
 | `PROOF_MERKLE_ERROR` | PROOF | Yes | See `docs/errors.md#proof-merkle-error` |
@@ -1246,6 +1248,9 @@ All errors in JSON mode:
 | `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | See `docs/errors.md#account-migration-review-incomplete` |
 | `ACCOUNT_NOT_APPROVED` | INPUT | No | See `docs/errors.md#account-not-approved` |
 | `LOCK_HELD` | INPUT | Yes | See `docs/errors.md#lock-held` |
+| `UPGRADE_UNSUPPORTED_CONTEXT` | INPUT | No | See `docs/errors.md#upgrade-unsupported-context` |
+| `UPGRADE_CHECK_FAILED` | UNKNOWN | Yes | See `docs/errors.md#upgrade-check-failed` |
+| `UPGRADE_INSTALL_FAILED` | UNKNOWN | Yes | See `docs/errors.md#upgrade-install-failed` |
 | `UNKNOWN_ERROR` | UNKNOWN | No | See `docs/errors.md#unknown-error` |
 
 ### Exit codes

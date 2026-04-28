@@ -65,6 +65,14 @@ export type CommandPath =
   | "sync"
   | "completion";
 
+export type CommandSurface =
+  | "root-command"
+  | "subcommand"
+  | "alias"
+  | "deprecated-compat"
+  | "doc-only"
+  | "native-local";
+
 export type CapabilityEntry = CapabilitiesPayload["commands"][number];
 
 export interface CommandCapabilityMetadata
@@ -76,6 +84,7 @@ export interface CommandCapabilityMetadata
 
 export interface CommandMetadata {
   description: string;
+  surface: CommandSurface;
   aliases?: string[];
   deprecated?: boolean;
   help?: CommandHelpConfig;
@@ -109,6 +118,7 @@ const SIGNING_SOURCE_NOTE =
 export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   init: {
     description: ROOT_COMMAND_DESCRIPTIONS.init,
+    surface: "root-command",
     help: {
       overview: [
         "Guided setup for the local Privacy Pools account under ~/.privacy-pools/. Use it to create a new account, load an existing account from a recovery phrase, or finish setup by adding or replacing the signer key.",
@@ -171,6 +181,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--private-key-stdin",
         "--signer-only",
         "--default-chain <chain>",
+        "--rpc-url <url>",
         "--force",
         "--show-recovery-phrase",
         "--staged",
@@ -185,6 +196,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   upgrade: {
     description: ROOT_COMMAND_DESCRIPTIONS.upgrade,
+    surface: "root-command",
     help: {
       overview: [
         "Checks npm for the latest published privacy-pools-cli version and can upgrade a supported global npm install in place.",
@@ -216,7 +228,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["status"],
     },
     capabilities: {
-      flags: ["--check"],
+      flags: ["--check", "--changelog"],
       agentFlags: "--agent [--check] [--yes]",
       requiresInit: false,
       expectedLatencyClass: "medium",
@@ -226,6 +238,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   config: {
     description: ROOT_COMMAND_DESCRIPTIONS.config,
+    surface: "root-command",
     help: {
       overview: [
         "Inspect or modify the local CLI configuration without re-running init.",
@@ -254,6 +267,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config list": {
     description: "List all configuration keys and their current values",
+    surface: "subcommand",
     help: {
       overview: [
         "Shows all configuration keys with their current values. Sensitive keys (recovery-phrase, signer-key) show [set] or [not set] rather than the actual value.",
@@ -276,6 +290,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config get": {
     description: "Read a single configuration key",
+    surface: "subcommand",
     help: {
       overview: [
         "Valid keys: default-chain, rpc-override.<chain>, recovery-phrase, signer-key.",
@@ -302,6 +317,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config set": {
     description: "Write a single configuration key",
+    surface: "subcommand",
     help: {
       overview: [
         "Non-sensitive keys (default-chain, rpc-override.<chain>) accept the value as a positional argument.",
@@ -332,6 +348,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config unset": {
     description: "Clear a single configuration key",
+    surface: "subcommand",
     aliases: ["remove"],
     help: {
       overview: [
@@ -359,6 +376,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config path": {
     description: "Print the configuration directory path",
+    surface: "subcommand",
     help: {
       overview: [
         "Prints the resolved configuration home directory. Useful for scripting and diagnostics.",
@@ -381,6 +399,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config profile": {
     description: "Manage named profiles",
+    surface: "subcommand",
     help: {
       overview: [
         "Namespace for creating, listing, inspecting, and persisting named profiles.",
@@ -402,6 +421,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config profile list": {
     description: "List available profiles",
+    surface: "subcommand",
     help: {
       overview: ["Shows all named profiles and marks the currently active one."],
       examples: [
@@ -422,6 +442,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config profile create": {
     description: "Create a new named profile",
+    surface: "subcommand",
     help: {
       overview: [
         "Creates a new named profile with its own config directory.",
@@ -444,6 +465,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config profile active": {
     description: "Show the currently active profile",
+    surface: "subcommand",
     help: {
       overview: ["Displays the active profile name and its config directory path."],
       examples: [
@@ -464,6 +486,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "config profile use": {
     description: "Persist the active profile",
+    surface: "subcommand",
     help: {
       overview: [
         "Persists the default profile to use for future commands when --profile is not explicitly passed.",
@@ -486,6 +509,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   flow: {
     description: ROOT_COMMAND_DESCRIPTIONS.flow,
+    surface: "root-command",
     help: {
       overview: [
         "Top-level namespace for the persisted easy path on top of the same public deposit, ASP review, and relayed private withdrawal flow used by the website and manual CLI commands.",
@@ -530,6 +554,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   simulate: {
     description: ROOT_COMMAND_DESCRIPTIONS.simulate,
+    surface: "root-command",
     help: {
       overview: [
         "Preview-only namespace for deposit, withdraw, and ragequit. Each simulate subcommand is a thin alias for the matching command with --dry-run forced on.",
@@ -568,6 +593,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "flow start": {
     description: "Deposit now and save a later private withdrawal workflow",
+    surface: "subcommand",
     help: {
       overview: [
         "This is the compressed happy-path command: it performs the normal public deposit, saves a workflow locally, and targets a later relayed private withdrawal (the relayer submits the withdrawal onchain) from that same Pool Account to the saved recipient.",
@@ -644,6 +670,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   "flow watch": {
     description:
       "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
+    surface: "subcommand",
     help: {
       overview: [
         "Human-only convenience wrapper that loops flow status plus flow step until the saved workflow changes or settles.",
@@ -696,6 +723,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "flow status": {
     description: "Show the saved easy-path workflow state",
+    surface: "subcommand",
     help: {
       overview: [
         "Reads the persisted workflow snapshot and returns the current saved phase plus the canonical next action.",
@@ -725,6 +753,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "flow step": {
     description: "Advance a saved workflow by at most one unit of work",
+    surface: "subcommand",
     help: {
       overview: [
         "Runs one saved-workflow advancement attempt without keeping an internal watch loop alive.",
@@ -758,6 +787,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "flow ragequit": {
     description: "Recover a saved workflow publicly via ragequit",
+    surface: "subcommand",
     help: {
       overview: [
         "Uses the saved workflow context to perform the public recovery path without changing any manual commands.",
@@ -800,6 +830,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   pools: {
     description: ROOT_COMMAND_DESCRIPTIONS.pools,
+    surface: "root-command",
     help: {
       overview: [
         "Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --include-testnets to include supported testnets.",
@@ -845,6 +876,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   activity: {
     description: ROOT_COMMAND_DESCRIPTIONS.activity,
+    surface: "root-command",
     help: {
       overview: [
         "Shows the public onchain event feed across Privacy Pools, including deposits and withdrawals from all participants.",
@@ -878,6 +910,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   stats: {
     description: "Deprecated compatibility alias for protocol-stats and pool-stats",
+    surface: "deprecated-compat",
     help: {
       overview: [
         "Deprecated compatibility alias. Use 'protocol-stats' for aggregate network metrics or 'pool-stats <symbol>' for one pool.",
@@ -900,6 +933,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "protocol-stats": {
     description: ROOT_COMMAND_DESCRIPTIONS["protocol-stats"],
+    surface: "root-command",
     aliases: ["stats", "stats global"],
     help: {
       overview: [
@@ -927,6 +961,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "pool-stats": {
     description: ROOT_COMMAND_DESCRIPTIONS["pool-stats"],
+    surface: "root-command",
     aliases: ["stats pool"],
     help: {
       overview: [
@@ -953,6 +988,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   status: {
     description: ROOT_COMMAND_DESCRIPTIONS.status,
+    surface: "root-command",
     help: {
       overview: [
         "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit.",
@@ -989,6 +1025,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "tx-status": {
     description: ROOT_COMMAND_DESCRIPTIONS["tx-status"],
+    surface: "root-command",
     help: {
       overview: [
         "Read-only polling surface for commands that previously ran with --no-wait.",
@@ -1016,6 +1053,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   capabilities: {
     description: ROOT_COMMAND_DESCRIPTIONS.capabilities,
+    surface: "root-command",
     help: {
       examples: [
         "privacy-pools capabilities",
@@ -1037,6 +1075,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   describe: {
     description: ROOT_COMMAND_DESCRIPTIONS.describe,
+    surface: "root-command",
     help: {
       overview: [
         "Machine/runtime introspection surface for agents. Use spaced command paths such as `withdraw quote` or `protocol-stats` to inspect prerequisites, flags, risk metadata, and JSON field notes.",
@@ -1067,6 +1106,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   guide: {
     description: ROOT_COMMAND_DESCRIPTIONS.guide,
+    surface: "root-command",
     help: {
       overview: [
         "Human-facing walkthrough surface for concepts, workflows, troubleshooting, and output modes.",
@@ -1083,7 +1123,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["init","status"],
     },
     capabilities: {
-      flags: [],
+      usage: "guide [topic]",
+      flags: ["--topics", "--pager", "--no-pager"],
       agentFlags: "--agent",
       requiresInit: false,
       expectedLatencyClass: "fast",
@@ -1093,6 +1134,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   deposit: {
     description: ROOT_COMMAND_DESCRIPTIONS.deposit,
+    surface: "root-command",
     help: {
       overview: [
         "Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local Pool Account precomputation path, so there is no runtime download step when proofs are needed.",
@@ -1164,6 +1206,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   withdraw: {
     description: ROOT_COMMAND_DESCRIPTIONS.withdraw,
+    surface: "root-command",
     help: {
       overview: [
         "Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off.",
@@ -1226,6 +1269,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--accept-all-funds-public",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -1243,6 +1287,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "withdraw quote": {
     description: "Request relayer quote and limits without generating a proof",
+    surface: "subcommand",
     help: {
       examples: [
         "privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...",
@@ -1270,6 +1315,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   recipients: {
     description: ROOT_COMMAND_DESCRIPTIONS.recipients,
+    surface: "root-command",
     aliases: ["recents"],
     help: {
       overview: [
@@ -1302,6 +1348,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "recipients list": {
     description: "List remembered withdrawal recipients",
+    surface: "subcommand",
     aliases: ["ls"],
     help: {
       examples: [
@@ -1327,6 +1374,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "recipients add": {
     description: "Add a recipient to the local withdrawal address book",
+    surface: "subcommand",
     help: {
       examples: [
         "privacy-pools recipients add 0xRecipient... treasury",
@@ -1349,6 +1397,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "recipients remove": {
     description: "Remove a recipient from the local withdrawal address book",
+    surface: "subcommand",
     aliases: ["rm"],
     help: {
       examples: [
@@ -1369,6 +1418,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "recipients clear": {
     description: "Clear all remembered withdrawal recipients",
+    surface: "subcommand",
     help: {
       examples: [
         "privacy-pools recipients clear",
@@ -1391,6 +1441,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "withdraw recipients": {
     description: "List remembered withdrawal recipients",
+    surface: "deprecated-compat",
     aliases: ["recents"],
     deprecated: true,
     help: {
@@ -1424,6 +1475,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "withdraw recipients list": {
     description: "List remembered withdrawal recipients",
+    surface: "deprecated-compat",
     aliases: ["ls"],
     deprecated: true,
     help: {
@@ -1450,6 +1502,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "withdraw recipients add": {
     description: "Add a recipient to the local withdrawal address book",
+    surface: "deprecated-compat",
     deprecated: true,
     help: {
       examples: [
@@ -1473,6 +1526,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "withdraw recipients remove": {
     description: "Remove a recipient from the local withdrawal address book",
+    surface: "deprecated-compat",
     aliases: ["rm"],
     deprecated: true,
     help: {
@@ -1494,6 +1548,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "withdraw recipients clear": {
     description: "Clear all remembered withdrawal recipients",
+    surface: "deprecated-compat",
     deprecated: true,
     help: {
       examples: [
@@ -1517,6 +1572,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   ragequit: {
     description: ROOT_COMMAND_DESCRIPTIONS.ragequit,
+    surface: "root-command",
     help: {
       overview: [
         "Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved.",
@@ -1579,6 +1635,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "simulate deposit": {
     description: "Preview deposit validation without signing or submitting",
+    surface: "subcommand",
     help: {
       overview: [
         "Equivalent to 'deposit --dry-run' with the same validation, JSON payload, and after_dry_run nextActions.",
@@ -1612,6 +1669,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "simulate withdraw": {
     description: "Preview withdrawal validation without signing or submitting",
+    surface: "subcommand",
     help: {
       overview: [
         "Equivalent to 'withdraw --dry-run' with the same validation, JSON payload, and after_dry_run nextActions.",
@@ -1641,6 +1699,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--accept-all-funds-public",
         "--extra-gas",
         "--no-extra-gas",
       ],
@@ -1654,6 +1713,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "simulate ragequit": {
     description: "Preview ragequit validation without signing or submitting",
+    surface: "subcommand",
     help: {
       overview: [
         "Equivalent to 'ragequit --dry-run' with the same validation, JSON payload, and after_dry_run nextActions.",
@@ -1691,6 +1751,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   broadcast: {
     description: ROOT_COMMAND_DESCRIPTIONS.broadcast,
+    surface: "root-command",
     help: {
       overview: [
         "Submits a full unsigned envelope after signing has happened elsewhere, or re-submits a relayed withdrawal envelope back through the relayer.",
@@ -1735,6 +1796,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   accounts: {
     description: ROOT_COMMAND_DESCRIPTIONS.accounts,
+    surface: "root-command",
     help: {
       overview: [
         "Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --include-testnets to include supported testnets.",
@@ -1775,7 +1837,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       seeAlso: ["sync","withdraw","ragequit","history"],
     },
     capabilities: {
-      flags: ["--no-sync", "--include-testnets", "--details", "--summary", "--pending-only", "--status <status>", "--watch", "--limit <n>"],
+      flags: ["--no-sync", "--refresh", "--include-testnets", "--details", "--summary", "--history", "--page <n>", "--pending-only", "--status <status>", "--watch", "--watch-interval <seconds>", "--limit <n>"],
       agentFlags: "--agent [--limit <n>]",
       requiresInit: true,
       expectedLatencyClass: "slow",
@@ -1786,6 +1848,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   migrate: {
     description: ROOT_COMMAND_DESCRIPTIONS.migrate,
+    surface: "root-command",
     help: {
       overview: [
         "Read-only command for legacy pre-upgrade accounts on chains currently supported by the CLI. It rebuilds the legacy account view from the installed SDK plus current onchain events, then reports whether the Privacy Pools website migration flow or website-based recovery is needed.",
@@ -1810,6 +1873,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   "migrate status": {
     description: ROOT_COMMAND_DESCRIPTIONS.migrate,
+    surface: "subcommand",
     help: {
       overview: [
         "Reconstructs the legacy account view without persisting local account state, using the built-in CLI pool registry plus current onchain events for CLI-supported chains, then summarizes whether legacy Pool Accounts still need website migration, appear fully migrated already, or require website-based public recovery instead.",
@@ -1846,6 +1910,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   history: {
     description: ROOT_COMMAND_DESCRIPTIONS.history,
+    surface: "root-command",
     help: {
       examples: [
         { category: "Basic", commands: [
@@ -1880,6 +1945,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   sync: {
     description: ROOT_COMMAND_DESCRIPTIONS.sync,
+    surface: "root-command",
     help: {
       overview: [
         "Most wallet-aware commands already auto-sync with a 2-minute freshness window, so explicit sync is mainly a crash-recovery or reconciliation tool rather than a command you should need on every workflow step.",
@@ -1914,6 +1980,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   },
   completion: {
     description: ROOT_COMMAND_DESCRIPTIONS.completion,
+    surface: "root-command",
     help: {
       overview: [
         "Generates shell-specific completion scripts for the installed CLI. The default mode prints the raw script to stdout so you can inspect or redirect it manually.",

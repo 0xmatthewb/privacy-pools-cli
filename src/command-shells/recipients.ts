@@ -5,6 +5,10 @@ import { createLazyAction } from "../utils/lazy-command.js";
 
 export function createRecipientsCommand(): Command {
   const metadata = getCommandMetadata("recipients");
+  const listMetadata = getCommandMetadata("recipients list");
+  const addMetadata = getCommandMetadata("recipients add");
+  const removeMetadata = getCommandMetadata("recipients remove");
+  const clearMetadata = getCommandMetadata("recipients clear");
   const command = new Command("recipients")
     .alias("recents")
     .description(metadata.description)
@@ -20,8 +24,9 @@ export function createRecipientsCommand(): Command {
   command
     .command("list")
     .alias("ls")
-    .description("List remembered withdrawal recipients")
+    .description(listMetadata.description)
     .option("-n, --limit <n>", "Limit recipients returned")
+    .addHelpText("after", commandHelpText(listMetadata.help ?? {}))
     .action(
       createLazyAction(
         () => import("../commands/withdraw/recipients.js"),
@@ -31,9 +36,10 @@ export function createRecipientsCommand(): Command {
 
   command
     .command("add")
-    .description("Add a recipient to the local withdrawal address book")
+    .description(addMetadata.description)
     .argument("<address-or-ens>", "Recipient address or ENS name")
     .argument("[label]", "Optional display label")
+    .addHelpText("after", commandHelpText(addMetadata.help ?? {}))
     .action(
       createLazyAction(
         () => import("../commands/withdraw/recipients.js"),
@@ -44,8 +50,9 @@ export function createRecipientsCommand(): Command {
   command
     .command("remove")
     .alias("rm")
-    .description("Remove a recipient from the local withdrawal address book")
+    .description(removeMetadata.description)
     .argument("<address-or-ens>", "Recipient address or ENS name")
+    .addHelpText("after", commandHelpText(removeMetadata.help ?? {}))
     .action(
       createLazyAction(
         () => import("../commands/withdraw/recipients.js"),
@@ -55,7 +62,8 @@ export function createRecipientsCommand(): Command {
 
   command
     .command("clear")
-    .description("Clear all remembered withdrawal recipients")
+    .description(clearMetadata.description)
+    .addHelpText("after", commandHelpText(clearMetadata.help ?? {}))
     .action(
       createLazyAction(
         () => import("../commands/withdraw/recipients.js"),

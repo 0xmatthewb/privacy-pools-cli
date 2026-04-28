@@ -62,7 +62,7 @@ Options:
                           elsewhere
 
   Monitoring
-  accounts                List your own pool accounts (deposits, balances,
+  accounts                List your own Pool Accounts (deposits, balances,
                           statuses)
   pools                   Browse available pools
   history                 View your deposit and withdrawal history

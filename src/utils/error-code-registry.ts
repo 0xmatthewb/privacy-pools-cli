@@ -78,6 +78,10 @@ export const ERROR_CODE_REGISTRY = {
     category: "INPUT",
     retryable: false,
   },
+  INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID: {
+    category: "INPUT",
+    retryable: false,
+  },
   INPUT_INIT_REQUIRED: { category: "INPUT", retryable: false },
   INPUT_INIT_RECOVERY_PHRASE_REQUIRED: {
     category: "INPUT",
@@ -160,6 +164,7 @@ export const ERROR_CODE_REGISTRY = {
     retryable: true,
   },
   RELAYER_CONFIRMATION_RETRY_LIMIT: { category: "RELAYER", retryable: true },
+  FLOW_RELAYER_MINIMUM_BLOCKED: { category: "RELAYER", retryable: false },
   PROOF_ERROR: { category: "PROOF", retryable: false },
   PROOF_GENERATION_FAILED: { category: "PROOF", retryable: false },
   PROOF_MERKLE_ERROR: { category: "PROOF", retryable: true },
@@ -223,6 +228,9 @@ export const ERROR_CODE_REGISTRY = {
   },
   ACCOUNT_NOT_APPROVED: { category: "INPUT", retryable: false },
   LOCK_HELD: { category: "INPUT", retryable: true },
+  UPGRADE_UNSUPPORTED_CONTEXT: { category: "INPUT", retryable: false },
+  UPGRADE_CHECK_FAILED: { category: "UNKNOWN", retryable: true },
+  UPGRADE_INSTALL_FAILED: { category: "UNKNOWN", retryable: true },
   UNKNOWN_ERROR: { category: "UNKNOWN", retryable: false },
 } satisfies Record<string, ErrorCodeRegistryEntry>;
 

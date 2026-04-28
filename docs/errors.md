@@ -37,6 +37,8 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`CONTRACT_RELAY_FEE_GREATER_THAN_MAX`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-relay-fee-greater-than-max) | CONTRACT | yes |
 | [`CONTRACT_SCOPE_MISMATCH`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-scope-mismatch) | CONTRACT | yes |
 | [`CONTRACT_UNKNOWN_STATE_ROOT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-unknown-state-root) | CONTRACT | yes |
+| [`FLOW_RELAYER_MINIMUM_BLOCKED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#flow-relayer-minimum-blocked) | RELAYER | no |
+| [`INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#init-generated-recovery-word-count-invalid) | INPUT | no |
 | [`INPUT_ADDRESS_CHECKSUM_INVALID`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-address-checksum-invalid) | INPUT | no |
 | [`INPUT_AGENT_ACCOUNTS_WATCH_UNSUPPORTED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-agent-accounts-watch-unsupported) | INPUT | no |
 | [`INPUT_AGENT_FLOW_WATCH_UNSUPPORTED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-agent-flow-watch-unsupported) | INPUT | no |
@@ -134,6 +136,9 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`SETUP_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#setup-required) | SETUP | no |
 | [`SETUP_SIGNER_KEY_MISSING`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#setup-signer-key-missing) | SETUP | no |
 | [`UNKNOWN_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#unknown-error) | UNKNOWN | no |
+| [`UPGRADE_CHECK_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#upgrade-check-failed) | UNKNOWN | yes |
+| [`UPGRADE_INSTALL_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#upgrade-install-failed) | UNKNOWN | yes |
+| [`UPGRADE_UNSUPPORTED_CONTEXT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#upgrade-unsupported-context) | INPUT | no |
 
 ## ACCOUNT_MIGRATION_REQUIRED
 
@@ -333,6 +338,18 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Category: `CONTRACT`
 - Retryable: `true`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-unknown-state-root
+
+## FLOW_RELAYER_MINIMUM_BLOCKED
+
+- Category: `RELAYER`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#flow-relayer-minimum-blocked
+
+## INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#init-generated-recovery-word-count-invalid
 
 ## INPUT_ADDRESS_CHECKSUM_INVALID
 
@@ -915,3 +932,21 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Category: `UNKNOWN`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#unknown-error
+
+## UPGRADE_CHECK_FAILED
+
+- Category: `UNKNOWN`
+- Retryable: `true`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#upgrade-check-failed
+
+## UPGRADE_INSTALL_FAILED
+
+- Category: `UNKNOWN`
+- Retryable: `true`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#upgrade-install-failed
+
+## UPGRADE_UNSUPPORTED_CONTEXT
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#upgrade-unsupported-context

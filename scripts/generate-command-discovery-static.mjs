@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
+const mode = process.argv.includes("--check") ? "check" : "write";
 
 const distModulePath = join(
   repoRoot,
@@ -449,35 +450,58 @@ export const GENERATED_COMMAND_MANIFEST = {
 } as const;
 `;
 
-mkdirSync(dirname(routingModulePath), { recursive: true });
-writeFileSync(routingModulePath, routingFileContents, "utf8");
+const mismatches = [];
 
-mkdirSync(dirname(manifestModulePath), { recursive: true });
-writeFileSync(manifestModulePath, fileContents, "utf8");
+function writeOrCheck(path, content) {
+  if (mode === "write") {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, content, "utf8");
+    return;
+  }
 
-mkdirSync(dirname(nativeRuntimeContractPath), { recursive: true });
-writeFileSync(
+  let existing = "";
+  try {
+    existing = readFileSync(path, "utf8");
+  } catch {
+    mismatches.push(path);
+    return;
+  }
+  if (existing !== content) {
+    mismatches.push(path);
+  }
+}
+
+writeOrCheck(routingModulePath, routingFileContents);
+writeOrCheck(manifestModulePath, fileContents);
+writeOrCheck(
   nativeRuntimeContractPath,
   `${JSON.stringify(CURRENT_RUNTIME_DESCRIPTOR, null, 2)}\n`,
-  "utf8",
 );
-writeFileSync(
+writeOrCheck(
   nativeRootFlagsPath,
   `${JSON.stringify(ROOT_GLOBAL_FLAG_METADATA, null, 2)}\n`,
-  "utf8",
 );
-writeFileSync(
+writeOrCheck(
   nativeCompletionShellPath,
   `${JSON.stringify(COMPLETION_SHELL_CONTRACT, null, 2)}\n`,
-  "utf8",
 );
 
 const nativeShellManifest = await buildNativeShellManifest();
 if (nativeShellManifest) {
-  mkdirSync(dirname(nativeShellManifestPath), { recursive: true });
-  writeFileSync(
+  writeOrCheck(
     nativeShellManifestPath,
     `${JSON.stringify(nativeShellManifest, null, 2)}\n`,
-    "utf8",
   );
+} else if (mode === "check") {
+  mismatches.push(nativeShellManifestPath);
+}
+
+if (mode === "check") {
+  if (mismatches.length > 0) {
+    console.error(
+      `Command discovery artifacts are out of date:\n${mismatches.join("\n")}`,
+    );
+    process.exit(1);
+  }
+  console.log("Command discovery artifacts are up to date.");
 }

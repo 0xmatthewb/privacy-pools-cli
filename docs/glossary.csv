@@ -1,6 +1,8 @@
-term,type,replacement
-0xBow support,allowed,
-Privacy Pools,allowed,
-privacy pools,banned,Privacy Pools
-Privacy pools,banned,Privacy Pools
-pool account,banned,Pool Account
+term,type,replacement,match-style
+0xBow support,allowed,,exact
+Privacy Pools,allowed,,exact
+privacy pools,banned,Privacy Pools,exact
+Privacy pools,banned,Privacy Pools,exact
+pool account,banned,Pool Account,exact
+Approval Service,banned,ASP,word-boundary
+approval set,banned,association set,word-boundary

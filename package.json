@@ -70,6 +70,7 @@
     "test:e2e:anvil": "node scripts/run-anvil-tests.mjs",
     "test:e2e:anvil:smoke": "node scripts/run-anvil-smoke.mjs",
     "discovery:generate": "npm run build && node scripts/generate-command-discovery-static.mjs",
+    "discovery:check": "npm run build && node scripts/generate-command-discovery-static.mjs --check",
     "schemas:generate": "npm run build && node scripts/generate-envelope-schemas.mjs --write",
     "schemas:check": "npm run build && node scripts/generate-envelope-schemas.mjs --check",
     "docs:generate": "npm run build && node scripts/generate-reference.mjs --write && node scripts/generate-envelope-schemas.mjs --write && node scripts/generate-error-docs.mjs --write",

@@ -55,6 +55,8 @@ export const GENERATED_COMMAND_PATHS = [
   "accounts",
   "migrate",
   "migrate status",
+  "history",
+  "sync",
   "completion"
 ] as const;
 
@@ -224,12 +226,22 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "accounts",
     "aliases": [],
-    "description": "List your own pool accounts (deposits, balances, statuses)"
+    "description": "List your own Pool Accounts (deposits, balances, statuses)"
   },
   {
     "name": "migrate",
     "aliases": [],
     "description": "Check migration status for legacy Pool Accounts"
+  },
+  {
+    "name": "history",
+    "aliases": [],
+    "description": "View your deposit and withdrawal history"
+  },
+  {
+    "name": "sync",
+    "aliases": [],
+    "description": "Sync account state with the latest onchain data"
   },
   {
     "name": "completion",
@@ -610,6 +622,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--private-key-stdin",
         "--signer-only",
         "--default-chain <chain>",
+        "--rpc-url <url>",
         "--force",
         "--show-recovery-phrase",
         "--staged",
@@ -626,7 +639,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "group": "advanced",
       "usage": "upgrade",
       "flags": [
-        "--check"
+        "--check",
+        "--changelog"
       ],
       "agentFlags": "--agent [--check] [--yes]",
       "requiresInit": false,
@@ -879,6 +893,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--accept-all-funds-public",
         "--extra-gas",
         "--no-extra-gas"
       ],
@@ -1026,6 +1041,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--accept-all-funds-public",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -1127,17 +1143,21 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "accounts",
-      "description": "List your own pool accounts (deposits, balances, statuses)",
+      "description": "List your own Pool Accounts (deposits, balances, statuses)",
       "group": "monitoring",
       "usage": "accounts",
       "flags": [
         "--no-sync",
+        "--refresh",
         "--include-testnets",
         "--details",
         "--summary",
+        "--history",
+        "--page <n>",
         "--pending-only",
         "--status <status>",
         "--watch",
+        "--watch-interval <seconds>",
         "--limit <n>"
       ],
       "agentFlags": "--agent [--limit <n>]",
@@ -1169,6 +1189,33 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "expectedLatencyClass": "slow"
     },
     {
+      "name": "history",
+      "description": "View your deposit and withdrawal history",
+      "group": "monitoring",
+      "usage": "history",
+      "flags": [
+        "--no-sync",
+        "--page <n>",
+        "--limit <n>"
+      ],
+      "agentFlags": "--agent",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
+      "name": "sync",
+      "description": "Sync account state with the latest onchain data",
+      "group": "monitoring",
+      "usage": "sync",
+      "flags": [
+        "[asset]",
+        "--stream-json"
+      ],
+      "agentFlags": "--agent [asset] [--stream-json]",
+      "requiresInit": true,
+      "expectedLatencyClass": "slow"
+    },
+    {
       "name": "ragequit",
       "description": "Recover funds publicly to your deposit address",
       "group": "transaction",
@@ -1189,8 +1236,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "name": "guide",
       "description": "Learn key concepts, workflows, and troubleshooting",
       "group": "getting-started",
-      "usage": "guide",
-      "flags": [],
+      "usage": "guide [topic]",
+      "flags": [
+        "--topics",
+        "--pager",
+        "--no-pager"
+      ],
       "agentFlags": "--agent",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
@@ -1243,6 +1294,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--private-key-stdin",
         "--signer-only",
         "--default-chain <chain>",
+        "--rpc-url <url>",
         "--force",
         "--show-recovery-phrase",
         "--staged",
@@ -1407,7 +1459,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "upgrade",
       "flags": [
-        "--check"
+        "--check",
+        "--changelog"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3755,8 +3808,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "help"
         ]
       },
-      "usage": "guide",
-      "flags": [],
+      "usage": "guide [topic]",
+      "flags": [
+        "--topics",
+        "--pager",
+        "--no-pager"
+      ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -3981,6 +4038,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--accept-all-funds-public",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -4774,6 +4832,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--accept-all-funds-public",
         "--extra-gas",
         "--no-extra-gas"
       ],
@@ -5016,7 +5075,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "accounts": {
       "command": "accounts",
-      "description": "List your own pool accounts (deposits, balances, statuses)",
+      "description": "List your own Pool Accounts (deposits, balances, statuses)",
       "group": "monitoring",
       "aliases": [],
       "execution": {
@@ -5028,12 +5087,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "accounts",
       "flags": [
         "--no-sync",
+        "--refresh",
         "--include-testnets",
         "--details",
         "--summary",
+        "--history",
+        "--page <n>",
         "--pending-only",
         "--status <status>",
         "--watch",
+        "--watch-interval <seconds>",
         "--limit <n>"
       ],
       "globalFlags": [
@@ -5316,6 +5379,185 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentWorkflowNotes": [
         "Use this after init/import when the CLI warns that a legacy pre-upgrade account may need website migration or website-based recovery."
+      ]
+    },
+    "history": {
+      "command": "history",
+      "description": "View your deposit and withdrawal history",
+      "group": "monitoring",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "history",
+      "flags": [
+        "--no-sync",
+        "--page <n>",
+        "--limit <n>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": true,
+      "sideEffectClass": "local_cache_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools history",
+            "privacy-pools history --limit 10"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools history --agent",
+            "privacy-pools history --no-sync --chain mainnet"
+          ]
+        }
+      ],
+      "structuredExamples": [
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools history"
+        },
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools history --limit 10"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools history --agent"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools history --no-sync --chain mainnet"
+        }
+      ],
+      "jsonFields": "{ mode: \"private-history\", chain, page, perPage, total, totalPages, lastSyncTime?, syncSkipped, events: [{ type, asset, poolAddress, poolAccountNumber, poolAccountId, value, blockNumber, txHash, explorerUrl }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true."
+      ],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": []
+    },
+    "sync": {
+      "command": "sync",
+      "description": "Sync account state with the latest onchain data",
+      "group": "monitoring",
+      "aliases": [],
+      "execution": {
+        "owner": "js-runtime",
+        "nativeModes": [
+          "help"
+        ]
+      },
+      "usage": "sync",
+      "flags": [
+        "[asset]",
+        "--stream-json"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": true,
+      "expectedLatencyClass": "slow",
+      "safeReadOnly": false,
+      "sideEffectClass": "local_state_write",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [
+        "init"
+      ],
+      "examples": [
+        "privacy-pools sync",
+        "privacy-pools sync ETH --agent",
+        "privacy-pools sync --chain mainnet"
+      ],
+      "structuredExamples": [
+        {
+          "description": "Example 1",
+          "command": "privacy-pools sync"
+        },
+        {
+          "description": "Example 2",
+          "command": "privacy-pools sync ETH --agent"
+        },
+        {
+          "description": "Example 3",
+          "command": "privacy-pools sync --chain mainnet"
+        }
+      ],
+      "jsonFields": "{ isFinal: true, chain, syncedPools, availablePoolAccounts, syncedSymbols?, previousAvailablePoolAccounts?, durationMs?, scannedFromBlock?, scannedToBlock?, eventCounts?: { deposits, withdrawals, ragequits, migrations, total }, lastSyncTime?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonVariants": [
+        "--stream-json progress events: { mode: \"sync-progress\", chain, event: \"stage\"|\"heartbeat\", stage, elapsedMs? }"
+      ],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentWorkflowNotes": [
+        "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
+        "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs; the terminal result line includes isFinal = true."
       ]
     },
     "completion": {
@@ -5697,6 +5939,18 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
+    "history": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
+    "sync": {
+      "owner": "js-runtime",
+      "nativeModes": [
+        "help"
+      ]
+    },
     "completion": {
       "owner": "hybrid",
       "nativeModes": [
@@ -6049,6 +6303,18 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "category": "CONTRACT",
       "retryable": true,
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-unknown-state-root"
+    },
+    {
+      "code": "FLOW_RELAYER_MINIMUM_BLOCKED",
+      "category": "RELAYER",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#flow-relayer-minimum-blocked"
+    },
+    {
+      "code": "INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#init-generated-recovery-word-count-invalid"
     },
     {
       "code": "INPUT_ADDRESS_CHECKSUM_INVALID",
@@ -6625,6 +6891,24 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "category": "UNKNOWN",
       "retryable": false,
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#unknown-error"
+    },
+    {
+      "code": "UPGRADE_CHECK_FAILED",
+      "category": "UNKNOWN",
+      "retryable": true,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#upgrade-check-failed"
+    },
+    {
+      "code": "UPGRADE_INSTALL_FAILED",
+      "category": "UNKNOWN",
+      "retryable": true,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#upgrade-install-failed"
+    },
+    {
+      "code": "UPGRADE_UNSUPPORTED_CONTEXT",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#upgrade-unsupported-context"
     }
   ],
   "envVars": [
@@ -6958,7 +7242,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "simulate ragequit",
     "accounts",
     "migrate",
-    "migrate status"
+    "migrate status",
+    "history"
   ],
   "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docUrl?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "documentation": {

@@ -133,7 +133,7 @@ function composeSideBySide(
   const poolHeight = artLines.length;
   const textHeight = textLines.length;
   const totalHeight = Math.max(poolHeight, textHeight);
-  const textOffset = Math.floor((poolHeight - textHeight) / 2);
+  const textOffset = Math.max(0, Math.floor((poolHeight - textHeight) / 2));
 
   // Determine the maximum visible width across all art lines for consistent padding
   let maxPoolWidth = 0;

@@ -24,7 +24,7 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 
 ### Monitoring
 
-- [`accounts`](reference/accounts.md) - List your own pool accounts (deposits, balances, statuses)
+- [`accounts`](reference/accounts.md) - List your own Pool Accounts (deposits, balances, statuses)
 - [`pools`](reference/pools.md) - Browse available pools
 - [`history`](reference/history.md) - View your deposit and withdrawal history
 - [`activity`](reference/activity.md) - Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol

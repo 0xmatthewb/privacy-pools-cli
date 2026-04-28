@@ -41,7 +41,7 @@ export function createPoolsCommand(): Command {
     addPoolsListOptions(
       command
         .command(name)
-        .description("List available pools"),
+        .description(metadata.description),
     ).action(
       createLazyAction(
         () => import("../commands/pools.js"),

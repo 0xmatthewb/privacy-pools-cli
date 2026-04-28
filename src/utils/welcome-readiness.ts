@@ -138,6 +138,7 @@ interface StoredSubmissionRecommendationState {
 
 const WORKFLOW_RECOMMENDATION_COMMANDS = new Set([
   "accounts",
+  "deposit",
   "flow",
   "history",
   "status",

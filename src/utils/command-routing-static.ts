@@ -53,6 +53,8 @@ export const GENERATED_COMMAND_PATHS = [
   "accounts",
   "migrate",
   "migrate status",
+  "history",
+  "sync",
   "completion"
 ] as const;
 

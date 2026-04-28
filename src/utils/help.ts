@@ -645,7 +645,10 @@ export interface CommandHelpConfig {
   supportsUnsigned?: boolean;
   supportsDryRun?: boolean;
   safetyNotes?: string[];
+  agentFlags?: string;
+  agentRequiredFlags?: string[];
   agentWorkflowNotes?: string[];
+  agentsDocMarker?: string;
   seeAlso?: string[];
   flagGroups?: HelpFlagGroup[];
 }
@@ -719,9 +722,22 @@ export function commandHelpText(config: CommandHelpConfig): string {
     }
   }
 
-  if (config.agentWorkflowNotes && config.agentWorkflowNotes.length > 0) {
+  if (
+    config.agentFlags ||
+    config.agentsDocMarker ||
+    (config.agentWorkflowNotes && config.agentWorkflowNotes.length > 0)
+  ) {
     lines.push("", "Agent workflow:");
-    for (const note of config.agentWorkflowNotes) {
+    if (config.agentFlags) {
+      lines.push(`  Agent invocation: ${config.agentFlags}`);
+    }
+    if (config.agentRequiredFlags && config.agentRequiredFlags.length > 0) {
+      lines.push(`  Required for agents: ${config.agentRequiredFlags.join(", ")}`);
+    }
+    if (config.agentsDocMarker) {
+      lines.push(`  Agent docs marker: ${config.agentsDocMarker}`);
+    }
+    for (const note of config.agentWorkflowNotes ?? []) {
       lines.push(`  ${note}`);
     }
   }
@@ -743,12 +759,25 @@ export function commandHelpText(config: CommandHelpConfig): string {
 
   if (
     showAgentAppendix
-    && config.agentWorkflowNotes
-    && config.agentWorkflowNotes.length > 0
+    && (
+      config.agentFlags ||
+      (config.agentRequiredFlags && config.agentRequiredFlags.length > 0) ||
+      config.agentsDocMarker ||
+      (config.agentWorkflowNotes && config.agentWorkflowNotes.length > 0)
+    )
   ) {
     lines.push("", "Agent guidance:");
     lines.push("  Use --agent for --json --yes --quiet when you need a runnable machine contract.");
-    for (const note of config.agentWorkflowNotes) {
+    if (config.agentFlags) {
+      lines.push(`  Agent invocation: ${config.agentFlags}`);
+    }
+    if (config.agentRequiredFlags && config.agentRequiredFlags.length > 0) {
+      lines.push(`  Required for agents: ${config.agentRequiredFlags.join(", ")}`);
+    }
+    if (config.agentsDocMarker) {
+      lines.push(`  Agent docs marker: ${config.agentsDocMarker}`);
+    }
+    for (const note of config.agentWorkflowNotes ?? []) {
       lines.push(`  ${note}`);
     }
   }

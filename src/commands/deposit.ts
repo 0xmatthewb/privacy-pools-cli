@@ -102,6 +102,7 @@ import {
 } from "../services/workflow.js";
 import { createSubmissionRecord } from "../services/submissions.js";
 import { parseGasFeeOverrides } from "../utils/gas-fees.js";
+import { deprecationWarningFor } from "../utils/deprecations.js";
 
 interface DepositCommandOptions {
   unsigned?: boolean | string;
@@ -118,13 +119,9 @@ interface DepositCommandOptions {
 
 export { createDepositCommand } from "../command-shells/deposit.js";
 
-const IGNORE_UNIQUE_AMOUNT_DEPRECATION_WARNING = {
-  code: "FLAG_DEPRECATED",
-  message:
-    "--ignore-unique-amount is deprecated. Use --allow-non-round-amounts instead.",
-  replacementCommand:
-    "privacy-pools deposit <amount> <asset> --allow-non-round-amounts",
-};
+const IGNORE_UNIQUE_AMOUNT_DEPRECATION_WARNING = deprecationWarningFor(
+  "deposit-ignore-unique-amount",
+);
 
 const DEPOSIT_GAS_ESTIMATE_NATIVE = 250_000n;
 const DEPOSIT_GAS_ESTIMATE_ERC20 = 375_000n;

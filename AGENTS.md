@@ -810,7 +810,7 @@ For agents, the canonical primitives are:
 
 `flow watch` remains available for humans only. It is a thin wrapper over repeated `flow status` + `flow step`; `flow watch --agent` and `flow start --watch --agent` are rejected with machine-readable `CLIError`s pointing agents back to `flow status` and `flow step`.
 
-Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`. Deposit review state from the ASP (the approval service) remains available separately in `aspStatus`. When the Pool Account is approved, human `flow watch` either waits through the saved privacy-delay window or performs the relayed private withdrawal automatically after approval and any configured privacy delay. Passing human `flow watch --privacy-delay ...` updates the saved workflow policy persistently: `off` clears any saved hold immediately, and switching between `balanced` and `strict` resamples from the override time. Pass `--stream-json` to human `flow watch` to emit line-delimited `phase_change` events as the workflow advances, followed by the final snapshot as the last JSON line.
+Workflow `phase` values include `awaiting_funding`, `depositing_publicly`, `awaiting_asp`, `approved_waiting_privacy_delay`, `approved_ready_to_withdraw`, `withdrawing`, `completed`, `completed_public_recovery`, `paused_declined`, `paused_poa_required`, and `stopped_external`. Deposit review state from the ASP remains available separately in `aspStatus`. When the Pool Account is approved, human `flow watch` either waits through the saved privacy-delay window or performs the relayed private withdrawal automatically after approval and any configured privacy delay. Passing human `flow watch --privacy-delay ...` updates the saved workflow policy persistently: `off` clears any saved hold immediately, and switching between `balanced` and `strict` resamples from the override time. Pass `--stream-json` to human `flow watch` to emit line-delimited `phase_change` events as the workflow advances, followed by the final snapshot as the last JSON line.
 
 If the workflow is `declined`, it pauses and surfaces `flow ragequit` as the canonical public recovery path. If it is `poa_required`, complete Proof of Association externally to continue privately, or use `flow ragequit` to recover publicly instead. If the saved full-balance withdrawal falls below the relayer minimum, the workflow surfaces `flow ragequit` as the required recovery path because saved flows only support relayed private withdrawals. Once the public deposit exists, operators can also choose `flow ragequit` manually instead of waiting, but that remains a manual alternative rather than the default `nextActions` path while the workflow is still progressing normally.
 
@@ -1244,6 +1244,7 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `INPUT_FLAG_CONFLICT` | INPUT | No | See `docs/errors.md#input-flag-conflict` |
 | `INPUT_FLOW_RECIPIENT_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-flow-recipient-retry-limit` |
 | `INPUT_INIT_GENERATE_REQUIRES_CAPTURE` | INPUT | No | See `docs/errors.md#input-init-generate-requires-capture` |
+| `INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID` | INPUT | No | See `docs/errors.md#init-generated-recovery-word-count-invalid` |
 | `INPUT_INIT_REQUIRED` | INPUT | No | See `docs/errors.md#input-init-required` |
 | `INPUT_INIT_RECOVERY_PHRASE_REQUIRED` | INPUT | No | See `docs/errors.md#input-init-recovery-phrase-required` |
 | `INPUT_INSUFFICIENT_BALANCE` | INPUT | No | See `docs/errors.md#input-insufficient-balance` |
@@ -1302,6 +1303,7 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `RELAYER_BROADCAST_RELAYER_HOST_MISMATCH` | RELAYER | No | See `docs/errors.md#relayer-broadcast-relayer-host-mismatch` |
 | `RELAYER_BROADCAST_SUBMISSION_FAILED` | RELAYER | Yes | See `docs/errors.md#relayer-broadcast-submission-failed` |
 | `RELAYER_CONFIRMATION_RETRY_LIMIT` | RELAYER | Yes | See `docs/errors.md#relayer-confirmation-retry-limit` |
+| `FLOW_RELAYER_MINIMUM_BLOCKED` | RELAYER | No | See `docs/errors.md#flow-relayer-minimum-blocked` |
 | `PROOF_ERROR` | PROOF | No | See `docs/errors.md#proof-error` |
 | `PROOF_GENERATION_FAILED` | PROOF | No | See `docs/errors.md#proof-generation-failed` |
 | `PROOF_MERKLE_ERROR` | PROOF | Yes | See `docs/errors.md#proof-merkle-error` |
@@ -1338,6 +1340,9 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | See `docs/errors.md#account-migration-review-incomplete` |
 | `ACCOUNT_NOT_APPROVED` | INPUT | No | See `docs/errors.md#account-not-approved` |
 | `LOCK_HELD` | INPUT | Yes | See `docs/errors.md#lock-held` |
+| `UPGRADE_UNSUPPORTED_CONTEXT` | INPUT | No | See `docs/errors.md#upgrade-unsupported-context` |
+| `UPGRADE_CHECK_FAILED` | UNKNOWN | Yes | See `docs/errors.md#upgrade-check-failed` |
+| `UPGRADE_INSTALL_FAILED` | UNKNOWN | Yes | See `docs/errors.md#upgrade-install-failed` |
 | `UNKNOWN_ERROR` | UNKNOWN | No | See `docs/errors.md#unknown-error` |
 
 ### Exit codes

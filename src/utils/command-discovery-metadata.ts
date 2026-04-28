@@ -42,8 +42,6 @@ const HIDDEN_DISCOVERY_COMMANDS = new Set<CommandPath>([
   "withdraw recipients add",
   "withdraw recipients remove",
   "withdraw recipients clear",
-  "sync",
-  "history",
 ]);
 
 export interface GlobalFlagMetadata {
@@ -605,7 +603,22 @@ export function listCommandPaths(): CommandPath[] {
 }
 
 export function getCommandMetadata(path: CommandPath): CommandMetadata {
-  return COMMAND_CATALOG[path];
+  const metadata = COMMAND_CATALOG[path];
+  return {
+    ...metadata,
+    help: {
+      ...(metadata.help ?? {}),
+      ...(metadata.capabilities?.agentFlags
+        ? { agentFlags: metadata.capabilities.agentFlags }
+        : {}),
+      ...(metadata.capabilities?.agentRequiredFlags
+        ? { agentRequiredFlags: metadata.capabilities.agentRequiredFlags }
+        : {}),
+      ...(metadata.agentsDocMarker
+        ? { agentsDocMarker: metadata.agentsDocMarker }
+        : {}),
+    },
+  };
 }
 
 export function getDocumentedAgentMarkers(): string[] {

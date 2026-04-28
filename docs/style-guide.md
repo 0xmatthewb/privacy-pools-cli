@@ -108,11 +108,11 @@ Use these terms exactly.
 
 Avoid these substitutions:
 
-- Do not use `Approval Service`; use `Association Set Provider`.
+- Do not use the legacy approval-provider phrase; use `ASP` or `Association Set Provider`.
 - Do not use `exit` as the primary CLI verb for ragequit.
 - Do not use `recover` when the user can still withdraw privately.
 - Do not use `easy path` in JSON contracts; use `saved flow`.
-- Do not use `pool account` lowercase for the user-facing entity.
+- Do not lowercase the user-facing `Pool Account` entity name.
 
 ## 4. Punctuation And Formatting
 

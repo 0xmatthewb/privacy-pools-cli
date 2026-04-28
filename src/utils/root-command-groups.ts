@@ -45,7 +45,7 @@ export const ROOT_COMMAND_DESCRIPTIONS: Record<RootCommandName, string> = {
   recipients: "Manage remembered withdrawal recipients",
   ragequit: "Recover funds publicly to your deposit address",
   broadcast: "Broadcast a signed envelope or relayer request built elsewhere",
-  accounts: "List your own pool accounts (deposits, balances, statuses)",
+  accounts: "List your own Pool Accounts (deposits, balances, statuses)",
   pools: "Browse available pools",
   history: "View your deposit and withdrawal history",
   activity: "Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol",
