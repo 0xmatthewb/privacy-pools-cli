@@ -596,3 +596,34 @@ describe("agents docs symbolic parity", () => {
     expect(failures).toEqual([]);
   });
 });
+
+describe("SKILL.md body has required host-integration sections", () => {
+  const SKILL_BODY = readFileSync(`${CLI_ROOT}/skills/privacy-pools/SKILL.md`, "utf8");
+
+  test("contains 'Install on supported agent hosts' section", () => {
+    expect(SKILL_BODY).toMatch(/^## \d+\. Install on supported agent hosts$/m);
+  });
+
+  test("contains 'Notes for hosted-sandbox hosts' section", () => {
+    expect(SKILL_BODY).toMatch(/^## \d+\. Notes for hosted-sandbox hosts \(Bankr\)$/m);
+  });
+
+  test("install section names every supported host", () => {
+    const installSection = SKILL_BODY.match(/## \d+\. Install on supported agent hosts[\s\S]+?(?=^## )/m)?.[0] ?? "";
+    expect(installSection).toMatch(/Bankr/);
+    expect(installSection).toMatch(/OpenClaw/);
+    expect(installSection).toMatch(/Claude Code/);
+    expect(installSection).toMatch(/Codex/);
+    expect(installSection).toMatch(/ChatGPT/);
+  });
+
+  test("Bankr notes cover chain gap, unsigned envelope mapping, and memory hygiene", () => {
+    const bankrSection =
+      SKILL_BODY.match(/## \d+\. Notes for hosted-sandbox hosts \(Bankr\)[\s\S]+?(?=^## |\Z)/m)?.[0] ?? "";
+    expect(bankrSection).toMatch(/Optimism/);
+    expect(bankrSection).toMatch(/Sepolia/);
+    expect(bankrSection).toMatch(/--unsigned/);
+    expect(bankrSection).toMatch(/\/wallet\/submit/);
+    expect(bankrSection).toMatch(/\.memory/);
+  });
+});
