@@ -279,9 +279,22 @@ mod tests {
     use super::*;
     use crate::root_argv::parse_root_argv;
     use serde_json::json;
+    use std::env;
 
     fn argv(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| value.to_string()).collect()
+    }
+
+    fn with_agent_env_cleared<R>(run: impl FnOnce() -> R) -> R {
+        let _guard = crate::test_env::env_lock().lock().unwrap();
+        let previous = env::var("PRIVACY_POOLS_AGENT").ok();
+        env::remove_var("PRIVACY_POOLS_AGENT");
+        let result = run();
+        match previous {
+            Some(value) => env::set_var("PRIVACY_POOLS_AGENT", value),
+            None => env::remove_var("PRIVACY_POOLS_AGENT"),
+        }
+        result
     }
 
     fn test_manifest() -> Manifest {
@@ -419,59 +432,67 @@ mod tests {
 
     #[test]
     fn resolve_mode_defaults_to_table_for_humans() {
-        let parsed = parse_root_argv(&argv(&["guide"]));
-        let mode = resolve_mode(&parsed);
-        assert!(!mode.is_json());
-        assert!(!mode.is_csv());
-        assert!(!mode.is_wide());
-        assert!(!mode.is_quiet);
+        with_agent_env_cleared(|| {
+            let parsed = parse_root_argv(&argv(&["guide"]));
+            let mode = resolve_mode(&parsed);
+            assert!(!mode.is_json());
+            assert!(!mode.is_csv());
+            assert!(!mode.is_wide());
+            assert!(!mode.is_quiet);
+        });
     }
 
     #[test]
     fn resolve_mode_preserves_wide_format_for_human_output() {
-        let parsed = parse_root_argv(&argv(&["--output", "wide", "activity"]));
-        let mode = resolve_mode(&parsed);
-        assert!(!mode.is_json());
-        assert!(!mode.is_csv());
-        assert!(mode.is_wide());
-        assert!(!mode.is_quiet);
+        with_agent_env_cleared(|| {
+            let parsed = parse_root_argv(&argv(&["--output", "wide", "activity"]));
+            let mode = resolve_mode(&parsed);
+            assert!(!mode.is_json());
+            assert!(!mode.is_csv());
+            assert!(mode.is_wide());
+            assert!(!mode.is_quiet);
+        });
     }
 
     #[test]
     fn static_quiet_mode_treats_quiet_and_machine_modes_as_quiet() {
-        assert!(is_static_quiet_mode(&parse_root_argv(&argv(&[
-            "--quiet", "guide"
-        ]))));
-        assert!(is_static_quiet_mode(&parse_root_argv(&argv(&[
-            "--output", "csv", "guide",
-        ]))));
-        assert!(is_static_quiet_mode(&parse_root_argv(&argv(&[
-            "--json", "guide"
-        ]))));
-        assert!(!is_static_quiet_mode(&parse_root_argv(&argv(&["guide"]))));
+        with_agent_env_cleared(|| {
+            assert!(is_static_quiet_mode(&parse_root_argv(&argv(&[
+                "--quiet", "guide"
+            ]))));
+            assert!(is_static_quiet_mode(&parse_root_argv(&argv(&[
+                "--output", "csv", "guide",
+            ]))));
+            assert!(is_static_quiet_mode(&parse_root_argv(&argv(&[
+                "--json", "guide"
+            ]))));
+            assert!(!is_static_quiet_mode(&parse_root_argv(&argv(&["guide"]))));
+        });
     }
 
     #[test]
     fn activity_native_mode_handles_table_csv_and_help_cases() {
-        let manifest = test_manifest();
+        with_agent_env_cleared(|| {
+            let manifest = test_manifest();
 
-        let human = parse_root_argv(&argv(&["activity"]));
-        assert_eq!(
-            activity_native_mode(&argv(&["activity"]), &human, &manifest),
-            Some("default")
-        );
+            let human = parse_root_argv(&argv(&["activity"]));
+            assert_eq!(
+                activity_native_mode(&argv(&["activity"]), &human, &manifest),
+                Some("default")
+            );
 
-        let csv = parse_root_argv(&argv(&["--output", "csv", "activity"]));
-        assert_eq!(
-            activity_native_mode(&argv(&["--output", "csv", "activity"]), &csv, &manifest),
-            Some("csv")
-        );
+            let csv = parse_root_argv(&argv(&["--output", "csv", "activity"]));
+            assert_eq!(
+                activity_native_mode(&argv(&["--output", "csv", "activity"]), &csv, &manifest),
+                Some("csv")
+            );
 
-        let help = parse_root_argv(&argv(&["activity", "--help"]));
-        assert_eq!(
-            activity_native_mode(&argv(&["activity", "--help"]), &help, &manifest),
-            None
-        );
+            let help = parse_root_argv(&argv(&["activity", "--help"]));
+            assert_eq!(
+                activity_native_mode(&argv(&["activity", "--help"]), &help, &manifest),
+                None
+            );
+        });
     }
 
     #[test]

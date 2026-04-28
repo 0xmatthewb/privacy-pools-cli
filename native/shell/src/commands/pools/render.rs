@@ -947,7 +947,7 @@ fn render_setup_required_next_step() {
 }
 
 fn normalize_usd_json(value: &str) -> Option<String> {
-    let normalized = value.trim().replace('$', "").replace(',', "");
+    let normalized = value.trim().replace(['$', ','], "");
     if normalized.is_empty() {
         return None;
     }
@@ -972,7 +972,11 @@ fn normalize_usd_cents_csv(value: &str) -> Option<String> {
     cents.push(fraction_chars.next().unwrap_or('0'));
     cents.push(fraction_chars.next().unwrap_or('0'));
     let trimmed = cents.trim_start_matches('0');
-    Some(format!("{}{}", sign, if trimmed.is_empty() { "0" } else { trimmed }))
+    Some(format!(
+        "{}{}",
+        sign,
+        if trimmed.is_empty() { "0" } else { trimmed }
+    ))
 }
 
 fn parse_biguint(value: &str) -> Option<num_bigint::BigUint> {

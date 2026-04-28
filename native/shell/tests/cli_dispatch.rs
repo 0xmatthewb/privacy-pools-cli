@@ -38,23 +38,22 @@ fn quiet_capabilities_stays_silent() {
 #[test]
 fn machine_mode_beats_csv_for_native_discovery_commands() {
     let guide = run_native(&["--agent", "--output", "csv", "guide"]);
-    assert_eq!(guide.status.code(), Some(2));
+    assert!(guide.status.success());
     assert!(stderr_string(&guide).trim().is_empty());
     let guide_json = parse_stdout_json(&guide);
-    assert_eq!(guide_json["success"], Value::Bool(false));
-    assert_eq!(
-        guide_json["errorCode"],
-        Value::String("INPUT_FLAG_CONFLICT".to_string())
-    );
+    assert_eq!(guide_json["success"], Value::Bool(true));
+    assert_eq!(guide_json["mode"], Value::String("help".to_string()));
+    assert!(guide_json["topics"].is_array());
 
     let capabilities = run_native(&["--json", "--output", "csv", "capabilities"]);
-    assert_eq!(capabilities.status.code(), Some(2));
+    assert!(capabilities.status.success());
     assert!(stderr_string(&capabilities).trim().is_empty());
     let capabilities_json = parse_stdout_json(&capabilities);
-    assert_eq!(capabilities_json["success"], Value::Bool(false));
+    assert_eq!(capabilities_json["success"], Value::Bool(true));
+    assert!(capabilities_json["commands"].is_array());
     assert_eq!(
-        capabilities_json["errorCode"],
-        Value::String("INPUT_FLAG_CONFLICT".to_string())
+        capabilities_json["runtime"]["runtime"],
+        Value::String("native".to_string())
     );
 }
 

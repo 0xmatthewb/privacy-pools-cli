@@ -41,12 +41,12 @@ version literals.
 
 - update any new native package metadata through
   [`scripts/prepare-native-package.mjs`](../scripts/prepare-native-package.mjs)
-- verify [`package.json`](../package.json) optional native dependencies match the
-  root package version
+- do not add root optional native dependencies until every referenced package is
+  published for the release version; `npm ci` must not depend on unpublished
+  host packages
 - keep package naming human-facing (`macos`, `windows`, `linux`) even though npm
   `os` selectors must still use Node platform ids like `darwin` and `win32`
 - keep release triplets aligned across:
-  - [`package.json`](../package.json)
   - [`.github/workflows/release.yml`](../.github/workflows/release.yml)
   - [`.github/workflows/cross-platform.yml`](../.github/workflows/cross-platform.yml)
 
@@ -76,12 +76,11 @@ Also run a manual JS fallback drill:
 When a supported published npm install unexpectedly stays on the JS runtime,
 check the install path before changing launcher logic:
 
-- a normal `npm install` includes optional dependencies by default
-- avoid `--omit=optional` and configs such as `npm_config_omit=optional`
+- confirm the installed release includes the matching host native package or
+  configure `PRIVACY_POOLS_CLI_BINARY` for local native-runtime testing
 - unsupported hosts, including Linux musl/Alpine, intentionally stay on JS
 - `status --agent` now surfaces `native_acceleration_unavailable` when a
-  supported published install is missing or cannot validate its optional native
-  package
+  supported published install is missing or cannot validate its native runtime
 
 ## Release Checklist
 

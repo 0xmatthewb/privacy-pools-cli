@@ -271,14 +271,16 @@ describe("release workflow conformance", () => {
     );
   });
 
-  test("native triplets stay aligned across release, smoke workflows, and package metadata", () => {
+  test("native triplets stay aligned while root installs avoid unpublished optional dependencies", () => {
     const expectedTriplets = expectedNativeTriplets();
 
     expect(extractTriplets(releaseWorkflow)).toEqual(expectedTriplets);
     expect(extractLabels(crossPlatformWorkflow)).toEqual(expectedTriplets);
     expect(
-      Object.keys(packageJson.optionalDependencies ?? {}).sort(),
-    ).toEqual(expectedNativePackageNames());
+      Object.keys(packageJson.optionalDependencies ?? {}).filter((name) =>
+        expectedNativePackageNames().includes(name),
+      ),
+    ).toEqual([]);
   });
 
   test("native coverage workflow keeps the repo's native coverage gate", () => {

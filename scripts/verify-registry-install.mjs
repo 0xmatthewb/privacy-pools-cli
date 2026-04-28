@@ -226,6 +226,7 @@ try {
         private: true,
         dependencies: {
           [packageName]: expectedVersion,
+          [nativePackageName]: expectedVersion,
         },
       },
       null,
@@ -270,7 +271,7 @@ try {
   );
   if (!installedNativePath || !existsSync(installedNativePath)) {
     fail(
-      `Installed registry package did not resolve ${nativePackageName} through npm optional dependencies.`,
+      `Installed registry package did not resolve explicit native package ${nativePackageName}.`,
     );
   }
   assertInstalledPackageVersion(
@@ -344,6 +345,7 @@ try {
       "--prefix",
       globalPrefix,
       `${packageName}@${expectedVersion}`,
+      `${nativePackageName}@${expectedVersion}`,
       "--silent",
       "--ignore-scripts",
       "--no-audit",
@@ -376,7 +378,7 @@ try {
   );
   if (!globalNativePath || !existsSync(globalNativePath)) {
     fail(
-      `Global installed registry package did not resolve ${nativePackageName} through npm optional dependencies.`,
+      `Global installed registry package did not resolve explicit native package ${nativePackageName}.`,
     );
   }
 

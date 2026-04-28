@@ -245,6 +245,60 @@ pub fn resolve_rpc_env_var(chain_id: u64, runtime_config: &RuntimeConfig) -> Opt
     }
 }
 
+fn is_loopback_rpc_host(host: &str) -> bool {
+    let normalized = host
+        .trim()
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .to_ascii_lowercase();
+    normalized == "localhost" || normalized == "::1" || normalized.starts_with("127.")
+}
+
+fn rpc_url_host_after_scheme(value: &str, scheme: &str) -> Option<String> {
+    let without_scheme = value.strip_prefix(scheme)?;
+    let authority = without_scheme
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or_default();
+    let host = if let Some(bracketed) = authority.strip_prefix('[') {
+        bracketed
+            .split_once(']')
+            .map(|(host, _)| host.to_string())
+            .unwrap_or_else(|| bracketed.to_string())
+    } else {
+        authority
+            .rsplit_once('@')
+            .map_or(authority, |(_, host_port)| host_port)
+            .split(':')
+            .next()
+            .unwrap_or_default()
+            .to_string()
+    };
+    Some(host)
+}
+
+fn validate_rpc_url(value: &str) -> Result<String, CliError> {
+    let trimmed = value.trim();
+    if trimmed.starts_with("https://") {
+        return Ok(trimmed.to_string());
+    }
+
+    if let Some(host) = rpc_url_host_after_scheme(trimmed, "http://") {
+        if is_loopback_rpc_host(&host) {
+            return Ok(trimmed.to_string());
+        }
+    }
+
+    Err(CliError::input_with_code(
+        format!("Unsupported RPC URL scheme or host: {value}"),
+        Some(
+            "RPC URLs must use https:// unless they point to localhost, 127.0.0.1, or ::1 for local development."
+                .to_string(),
+        ),
+        "INPUT_INVALID_RPC_URL",
+    ))
+}
+
 pub fn get_rpc_urls(
     chain_id: u64,
     override_from_flag: Option<String>,
@@ -252,15 +306,15 @@ pub fn get_rpc_urls(
     runtime_config: &RuntimeConfig,
 ) -> Result<Vec<String>, CliError> {
     if let Some(value) = override_from_flag.filter(|value| !value.trim().is_empty()) {
-        return Ok(vec![value]);
+        return Ok(vec![validate_rpc_url(&value)?]);
     }
 
     if let Some(value) = resolve_rpc_env_var(chain_id, runtime_config) {
-        return Ok(vec![value]);
+        return Ok(vec![validate_rpc_url(&value)?]);
     }
 
     if let Some(value) = config.rpc_overrides.get(&chain_id) {
-        return Ok(vec![value.clone()]);
+        return Ok(vec![validate_rpc_url(value)?]);
     }
 
     runtime_config
@@ -579,6 +633,33 @@ mod tests {
             from_default,
             vec!["https://default-rpc.example".to_string()]
         );
+    }
+
+    #[test]
+    fn get_rpc_urls_rejects_cleartext_non_loopback_urls() {
+        let runtime_config = runtime_config_fixture();
+        let config = CliConfig {
+            default_chain: "mainnet".to_string(),
+            rpc_overrides: HashMap::new(),
+        };
+
+        let local = get_rpc_urls(
+            1,
+            Some("http://127.0.0.1:8545".to_string()),
+            &config,
+            &runtime_config,
+        )
+        .expect("loopback http should be allowed");
+        assert_eq!(local, vec!["http://127.0.0.1:8545".to_string()]);
+
+        let error = get_rpc_urls(
+            1,
+            Some("http://rpc.example".to_string()),
+            &config,
+            &runtime_config,
+        )
+        .expect_err("non-loopback http should fail");
+        assert_eq!(error.code, "INPUT_INVALID_RPC_URL");
     }
 
     #[test]

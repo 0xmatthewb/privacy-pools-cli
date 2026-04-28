@@ -18,6 +18,10 @@ import {
   GENERATED_COMMAND_PATHS,
   GENERATED_COMMAND_ROUTES,
 } from "../../src/utils/command-manifest.ts";
+import {
+  CHAIN_ID_ENV_SUFFIX,
+  DEFAULT_RPC_URLS,
+} from "../../src/services/config.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 
 const nativeManifestPath = join(
@@ -55,6 +59,8 @@ describe("native manifest conformance", () => {
       runtimeConfig: {
         chainNames: string[];
         mainnetChainNames: string[];
+        chainEnvSuffixes: Record<string, string>;
+        defaultRpcUrls: Record<string, string[]>;
       };
     };
     const pkg = JSON.parse(
@@ -99,6 +105,22 @@ describe("native manifest conformance", () => {
     expect(nativeManifest.runtimeConfig.chainNames).toEqual(CHAIN_NAMES);
     expect(nativeManifest.runtimeConfig.mainnetChainNames).toEqual(
       MAINNET_CHAIN_NAMES,
+    );
+    expect(nativeManifest.runtimeConfig.chainEnvSuffixes).toEqual(
+      Object.fromEntries(
+        Object.entries(CHAIN_ID_ENV_SUFFIX).map(([chainId, suffix]) => [
+          String(chainId),
+          suffix,
+        ]),
+      ),
+    );
+    expect(nativeManifest.runtimeConfig.defaultRpcUrls).toEqual(
+      Object.fromEntries(
+        Object.entries(DEFAULT_RPC_URLS).map(([chainId, urls]) => [
+          String(chainId),
+          urls,
+        ]),
+      ),
     );
   });
 

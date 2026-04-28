@@ -452,8 +452,6 @@ try {
       private: true,
       dependencies: {
         "privacy-pools-cli": `file:${cliTarball}`,
-      },
-      overrides: {
         [nativePackageName]: `file:${nativeTarball}`,
       },
     }),
@@ -488,7 +486,7 @@ try {
   );
   if (!installedNativePackagePath || !existsSync(installedNativePackagePath)) {
     fail(
-      `Installed CLI did not resolve ${nativePackageName} through npm optional dependencies.`,
+      `Installed CLI did not resolve explicit native package ${nativePackageName}.`,
     );
   }
 

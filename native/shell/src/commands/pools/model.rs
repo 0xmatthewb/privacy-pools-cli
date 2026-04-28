@@ -89,6 +89,7 @@ pub(super) struct PoolDetailAccount {
 pub(super) struct PoolDetailMyFunds {
     pub(super) balance: String,
     pub(super) usd_value: Option<String>,
+    #[allow(dead_code)]
     pub(super) pool_accounts: u64,
     pub(super) pending_count: u64,
     pub(super) poa_required_count: u64,
@@ -108,12 +109,16 @@ pub(super) struct PoolDetailActivityEvent {
 pub(super) struct PoolDetailRenderData {
     pub(super) chain_name: String,
     pub(super) asset: String,
+    #[allow(dead_code)]
     pub(super) token_address: String,
+    #[allow(dead_code)]
     pub(super) pool: String,
+    #[allow(dead_code)]
     pub(super) scope: String,
     pub(super) decimals: u32,
     pub(super) minimum_deposit: String,
     pub(super) vetting_fee_bps: String,
+    #[allow(dead_code)]
     pub(super) max_relay_fee_bps: String,
     pub(super) total_in_pool_value: Option<String>,
     pub(super) total_in_pool_value_usd: Option<String>,

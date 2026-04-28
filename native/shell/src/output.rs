@@ -29,11 +29,8 @@ enum OutputWidthClass {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CalloutKind {
-    Success,
     Warning,
-    Danger,
     Recovery,
-    Privacy,
     ReadOnly,
 }
 
@@ -240,11 +237,8 @@ pub fn format_callout(kind: CalloutKind, lines: &[String]) -> String {
         "|"
     };
     let heading = match kind {
-        CalloutKind::Success => styled_bold(&format!("{}:", styled_success("Success"))),
         CalloutKind::Warning => styled_bold(&format!("{}:", styled_notice("Warning"))),
-        CalloutKind::Danger => styled_bold(&format!("{}:", styled_danger("Danger"))),
         CalloutKind::Recovery => styled_bold(&format!("{}:", styled_accent("Recovery"))),
-        CalloutKind::Privacy => styled_bold(&format!("{}:", styled_notice("Privacy note"))),
         CalloutKind::ReadOnly => styled_bold(&format!("{}:", styled_accent("Read-only note"))),
     };
 
@@ -321,12 +315,9 @@ fn append_output_environment_warnings(object: &mut Map<String, Value>) {
         Some(value) => vec![value],
         None => Vec::new(),
     };
-    let already_present = warnings.iter().any(|value| {
-        value
-            .get("code")
-            .and_then(Value::as_str)
-            == Some("COLOR_ENV_CONFLICT")
-    });
+    let already_present = warnings
+        .iter()
+        .any(|value| value.get("code").and_then(Value::as_str) == Some("COLOR_ENV_CONFLICT"));
     if !already_present {
         warnings.push(warning);
     }
@@ -1169,23 +1160,21 @@ mod tests {
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
     #[test]
-    fn format_callout_supports_success_and_privacy_labels() {
-        let success = format_callout(
-            CalloutKind::Success,
-            &[String::from("Updated successfully.")],
+    fn format_callout_supports_read_only_and_warning_labels() {
+        let read_only = format_callout(
+            CalloutKind::ReadOnly,
+            &[String::from("Public discovery only.")],
         );
-        assert!(success.contains("Success:"));
-        assert!(success.contains("Updated successfully."));
-        assert!(success.contains("│") || success.contains("|"));
+        assert!(read_only.contains("Read-only note:"));
+        assert!(read_only.contains("Public discovery only."));
+        assert!(read_only.contains("│") || read_only.contains("|"));
 
-        let privacy = format_callout(
-            CalloutKind::Privacy,
-            &[String::from(
-                "Private withdrawals still require approved balances.",
-            )],
+        let warning = format_callout(
+            CalloutKind::Warning,
+            &[String::from("Review the selected chain.")],
         );
-        assert!(privacy.contains("Privacy note:"));
-        assert!(privacy.contains("approved balances"));
+        assert!(warning.contains("Warning:"));
+        assert!(warning.contains("selected chain"));
     }
 
     #[test]

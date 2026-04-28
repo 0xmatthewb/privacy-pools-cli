@@ -517,8 +517,8 @@ jobs:
 
   # -----------------------------------------------------------
   # Stage 6: Publish the root JS launcher package to npm
-  # This only runs after the native packages are live so installs can
-  # resolve the exact-version optional native package immediately.
+  # This only runs after the native packages are live so release
+  # verification can install the matching native package explicitly.
   # -----------------------------------------------------------
   publish-root:
     name: publish-root

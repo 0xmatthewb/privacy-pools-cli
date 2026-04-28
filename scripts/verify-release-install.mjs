@@ -467,8 +467,6 @@ function writeInstallProjectManifest(
       private: true,
       dependencies: {
         "privacy-pools-cli": `file:${cliTarballPath}`,
-      },
-      overrides: {
         [nativePackageName]: `file:${nativeTarballPath}`,
       },
     }),
@@ -556,7 +554,7 @@ async function main() {
   );
   if (!installedNativePackagePath || !existsSync(installedNativePackagePath)) {
     fail(
-      `Installed release CLI did not resolve ${nativePackageName} through npm optional dependencies.`,
+      `Installed release CLI did not resolve explicit native package ${nativePackageName}.`,
     );
   }
 
@@ -666,6 +664,7 @@ async function main() {
         "--prefix",
         globalPrefix,
         `${rootPackageJson.name}@${downgradedVersion}`,
+        `${nativePackageName}@${downgradedVersion}`,
       ],
       {
         cwd: installRoot,
@@ -750,6 +749,27 @@ async function main() {
         `Global installed CLI upgrade did not report a completed upgrade:\n${upgradeResult.stdout}`,
       );
     }
+
+    const nativeUpgradeResult = runNpmInstallWithRetry(
+      [
+        "install",
+        "-g",
+        "--prefix",
+        globalPrefix,
+        `${nativePackageName}@${expectedVersion}`,
+      ],
+      {
+        cwd: installRoot,
+        env: npmProcessEnv(globalPrefix, {
+          npm_config_registry: `${publishedRegistry.baseUrl}/`,
+        }),
+      },
+    );
+    if (nativeUpgradeResult.error || nativeUpgradeResult.status !== 0) {
+      fail(
+        `Failed to upgrade explicit global native package ${nativePackageName}:\n${nativeUpgradeResult.error?.message ?? ""}\n${nativeUpgradeResult.stderr}\n${nativeUpgradeResult.stdout}`,
+      );
+    }
   } finally {
     await publishedRegistry.close();
   }
@@ -765,9 +785,7 @@ async function main() {
     nativePackageName,
   );
   if (!upgradedGlobalNativePath || !existsSync(upgradedGlobalNativePath)) {
-    fail(
-      `Global installed CLI lost ${nativePackageName} after running privacy-pools upgrade.`,
-    );
+    fail(`Global installed CLI lost explicit native package ${nativePackageName}.`);
   }
 
   assertInstalledPackageVersion(
