@@ -141,8 +141,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionCommand("get", {
             options: [
               completionOption("--reveal"),
-              completionOption("--show-secret"),
-              completionOption("--unredacted"),
             ],
           }),
           completionCommand("set", {
@@ -174,6 +172,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionOption("--dry-run [mode]"),
               completionOption("--watch"),
               completionOption("--stream-json"),
+              completionOption("--allow-non-round-amounts"),
               completionOption("--new-wallet"),
               completionOption("--export-new-wallet <path>"),
             ],
@@ -263,6 +262,9 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--no-wait"),
           completionOption("--stream-json"),
           completionOption("--allow-non-round-amounts"),
+          completionOption("--gas-price <gwei>"),
+          completionOption("--max-fee-per-gas <gwei>"),
+          completionOption("--max-priority-fee-per-gas <gwei>"),
           completionOption("--ignore-unique-amount"),
         ],
       }),
@@ -323,9 +325,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
                 aliases: ["ls"],
                 options: [completionOption("-n, --limit <n>")],
               }),
-              completionCommand("add", {
-                options: [completionOption("--label <label>")],
-              }),
+              completionCommand("add"),
               completionCommand("remove", { aliases: ["rm"] }),
               completionCommand("clear"),
             ],
@@ -340,9 +340,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
             aliases: ["ls"],
             options: [completionOption("-n, --limit <n>")],
           }),
-          completionCommand("add", {
-            options: [completionOption("--label <label>")],
-          }),
+          completionCommand("add"),
           completionCommand("remove", { aliases: ["rm"] }),
           completionCommand("clear"),
         ],

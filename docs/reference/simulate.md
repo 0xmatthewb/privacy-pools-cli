@@ -36,7 +36,7 @@ privacy-pools simulate deposit 100 USDC --agent --chain mainnet
 
 | Flag | Description |
 |------|-------------|
-| `--allow-non-round-amounts` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
+| `--allow-non-round-amounts` | Allow non-round deposit amounts (non-interactive modes reject them by default; pass this to override) |
 
 **Safety:** simulate deposit never signs or submits a transaction.
 **Safety:** Use 'deposit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.

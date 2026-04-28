@@ -25,7 +25,6 @@ describe("CLI envelope schemas", () => {
         schemaVersion: "2.0.0",
         success: true,
         mode: "status",
-        meta: { deprecated: ["legacyField"] },
         nextActions: [
           {
             command: "status",
@@ -38,15 +37,12 @@ describe("CLI envelope schemas", () => {
     ).not.toThrow();
   });
 
-  test("accepts an error envelope with canonical and deprecated aliases", () => {
+  test("accepts an error envelope with canonical aliases", () => {
     const parsed = errorEnvelopeSchema.parse({
       schemaVersion: "2.0.0",
       success: false,
       errorCode: "INPUT_FLAG_CONFLICT",
       errorMessage: "Choose either JSON or CSV output, not both.",
-      meta: {
-        deprecated: ["errorCode", "errorMessage", "helpTopic"],
-      },
       error: {
         code: "INPUT_FLAG_CONFLICT",
         category: "INPUT",

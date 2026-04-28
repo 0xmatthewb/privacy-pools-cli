@@ -1932,6 +1932,7 @@ export async function handleWithdrawCommand(
           "Relayed withdrawals require --to <address>.",
           "INPUT",
           "Specify a recipient with --to. Direct withdrawal is available only if you fully accept that it publicly links your deposit and withdrawal addresses.",
+          "INPUT_MISSING_RECIPIENT",
         );
       }
       const resolvedRecipientAddress = recipientAddress;

@@ -48,6 +48,10 @@ export function createFlowCommand(): Command {
       "--stream-json",
       "Emit line-delimited JSON progress events and finish with the final flow envelope",
     )
+    .option(
+      "--allow-non-round-amounts",
+      "Allow non-round flow amounts (non-interactive modes reject them by default; pass this to override)",
+    )
     .addHelpText(
       "after",
       groupedFlagGuideText([
@@ -59,6 +63,7 @@ export function createFlowCommand(): Command {
             "--dry-run",
             "--watch",
             "--stream-json",
+            "--allow-non-round-amounts",
           ],
         },
         {

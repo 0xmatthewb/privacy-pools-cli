@@ -66,10 +66,11 @@ privacy-pools flow step latest --agent
 | `--dry-run [mode]` | Validate the flow start inputs without saving a workflow or submitting a deposit (modes: offline, rpc, relayer; bare flag = rpc) |
 | `--watch` | Keep watching this workflow until it finishes or pauses |
 | `--stream-json` | Emit line-delimited JSON progress events and finish with the final flow envelope |
+| `--allow-non-round-amounts` | Allow non-round flow amounts (non-interactive modes reject them by default; pass this to override) |
 
 **Safety:** Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.
 **Safety:** If --to is omitted in interactive mode, the CLI prompts for the recipient. When prompts are skipped, --to remains required.
-**Safety:** In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.
+**Safety:** In machine modes, non-round flow amounts are rejected by default. Use a round amount, or pass --allow-non-round-amounts if you intentionally accept that privacy tradeoff.
 **Safety:** New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.
 **Safety:** Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.
 **Safety:** flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.

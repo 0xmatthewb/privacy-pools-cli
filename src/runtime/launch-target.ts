@@ -92,7 +92,13 @@ function resolveJsWorkerLaunchConfig(
     if (sourceWorkerPath) {
       return {
         path: sourceWorkerPath,
-        args: ["--import", "tsx", sourceWorkerPath],
+        args: [
+          "--import",
+          "./src/runtime/color-env-bootstrap.ts",
+          "--import",
+          "tsx",
+          sourceWorkerPath,
+        ],
       };
     }
   }

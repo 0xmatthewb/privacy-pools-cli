@@ -49,12 +49,8 @@ Add a recipient to the local withdrawal address book
 
 ```bash
 privacy-pools recipients add 0xRecipient... treasury
-privacy-pools recipients add vitalik.eth --label donations
+privacy-pools recipients add vitalik.eth donations
 ```
-
-| Flag | Description |
-|------|-------------|
-| `--label <label>` | Optional display label |
 
 **Safety:** Adding a recipient does not authorize a withdrawal. The withdrawal command still performs recipient review before submission.
 

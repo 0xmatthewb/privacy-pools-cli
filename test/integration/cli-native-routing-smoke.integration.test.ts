@@ -181,12 +181,18 @@ describe("native routing smoke", () => {
       if (args.join(" ") === "--output csv --chain sepolia pools") {
         expectCsvHeaderColumns(result.stdout, [
           "Asset",
-          "Total Deposits",
-          "Pool Balance",
-          "USD Value",
-          "Pending",
-          "Min Deposit",
-          "Vetting Fee",
+          "Total Deposits Count",
+          "Pool Balance (raw)",
+          "Pool Balance Decimals",
+          "Pool Balance Asset",
+          "Pool Balance USD Cents",
+          "Pending (raw)",
+          "Pending Decimals",
+          "Pending Asset",
+          "Min Deposit (raw)",
+          "Min Deposit Decimals",
+          "Min Deposit Asset",
+          "Vetting Fee BPS",
         ]);
       } else if (expectedText) {
         expect(renderedOutput).toContain(expectedText);

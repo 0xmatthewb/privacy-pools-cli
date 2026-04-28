@@ -6,6 +6,7 @@ import { CLIError } from "../utils/errors.js";
 import {
   GENERATED_COMMAND_ALIAS_MAP,
   GENERATED_COMMAND_PATHS,
+  GENERATED_ROUTE_COMMAND_PATHS,
   GENERATED_STATIC_LOCAL_COMMANDS,
 } from "../utils/command-routing-static.js";
 import { didYouMeanMany } from "../utils/fuzzy.js";
@@ -83,7 +84,7 @@ function buildUnknownCommandError(unknownCommand: string): CLIError {
 
 function isKnownCommanderHelpTarget(token: string | undefined): boolean {
   if (!token) return false;
-  return GENERATED_COMMAND_PATHS.some(
+  return GENERATED_ROUTE_COMMAND_PATHS.some(
     (path) => path === token || path.startsWith(`${token} `),
   ) || token in GENERATED_COMMAND_ALIAS_MAP;
 }

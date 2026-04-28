@@ -27,6 +27,9 @@ export function createDepositCommand(): Command {
       "--stream-json",
       "Emit line-delimited JSON progress events and finish with the final deposit envelope",
     )
+    .option("--gas-price <gwei>", "Use a legacy gas price in gwei for approval and deposit transactions")
+    .option("--max-fee-per-gas <gwei>", "Use an EIP-1559 max fee cap in gwei for approval and deposit transactions")
+    .option("--max-priority-fee-per-gas <gwei>", "Use an EIP-1559 priority fee cap in gwei (requires --max-fee-per-gas)")
     .option(
       "--allow-non-round-amounts",
       "Allow non-round deposit amounts (non-interactive modes reject them by default; pass this to override)",
@@ -47,6 +50,9 @@ export function createDepositCommand(): Command {
             "--dry-run",
             "--no-wait",
             "--stream-json",
+            "--gas-price <gwei>",
+            "--max-fee-per-gas <gwei>",
+            "--max-priority-fee-per-gas <gwei>",
           ],
         },
         {

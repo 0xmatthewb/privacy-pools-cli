@@ -6,7 +6,13 @@ export function nodeExecutable(): string {
 }
 
 export function tsxEntrypointArgs(script: string): string[] {
-  return ["--import", "tsx", script];
+  return [
+    "--import",
+    "./src/runtime/color-env-bootstrap.ts",
+    "--import",
+    "tsx",
+    script,
+  ];
 }
 
 export function isDirectEntrypoint(moduleUrl: string): boolean {

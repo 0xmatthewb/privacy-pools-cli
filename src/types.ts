@@ -262,11 +262,33 @@ export interface RuntimeCompatibilityDescriptor {
   nativeBridgeVersion: string;
 }
 
+export const STATUS_RECOMMENDED_MODE_VALUES = [
+  // Legacy v2 JSON values are kebab-case. Keep new state enums snake_case and
+  // migrate this closed set in the next breaking schema revision.
+  "setup-required",
+  "read-only",
+  "unsigned-only",
+  "ready",
+] as const;
+
 export type StatusRecommendedMode =
-  | "setup-required"
-  | "read-only"
-  | "unsigned-only"
-  | "ready";
+  (typeof STATUS_RECOMMENDED_MODE_VALUES)[number];
+
+export const FLOW_PHASE_VALUES = [
+  "awaiting_funding",
+  "depositing_publicly",
+  "awaiting_asp",
+  "approved_waiting_privacy_delay",
+  "approved_ready_to_withdraw",
+  "withdrawing",
+  "completed",
+  "completed_public_recovery",
+  "paused_poa_required",
+  "paused_declined",
+  "stopped_external",
+] as const;
+
+export type FlowPhase = (typeof FLOW_PHASE_VALUES)[number];
 
 export type StatusIssueAffect =
   | "deposit"

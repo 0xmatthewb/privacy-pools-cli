@@ -44,7 +44,7 @@ export function createSimulateCommand(): Command {
     .addOption(impliedDryRunOption())
     .option(
       "--allow-non-round-amounts",
-      "Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint)",
+      "Allow non-round deposit amounts (non-interactive modes reject them by default; pass this to override)",
     )
     .addOption(
       new Option(

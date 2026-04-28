@@ -34,8 +34,12 @@ describe("package scripts conformance", () => {
   });
 
   test("runtime-facing scripts use node plus tsx rather than bun", () => {
-    expect(getScript("cli")).toBe("node --import tsx src/index.ts");
-    expect(getScript("dev")).toBe("node --import tsx src/index.ts");
+    expect(getScript("cli")).toBe(
+      "node --import ./src/runtime/color-env-bootstrap.ts --import tsx src/index.ts",
+    );
+    expect(getScript("dev")).toBe(
+      "node --import ./src/runtime/color-env-bootstrap.ts --import tsx src/index.ts",
+    );
     expectScriptContains("discovery:generate", [
       "npm run build",
       "node scripts/generate-command-discovery-static.mjs",

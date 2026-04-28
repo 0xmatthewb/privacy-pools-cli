@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { Option } from "commander";
 import { commandHelpText } from "../utils/help.js";
 import { getCommandMetadata } from "../utils/command-metadata.js";
 import { createLazyAction } from "../utils/lazy-command.js";
@@ -35,8 +34,6 @@ export function createConfigCommand(): Command {
     .description(getMetadata.description)
     .argument("<key>", "Configuration key (e.g. default-chain, rpc-override.mainnet, recovery-phrase, signer-key)")
     .option("--reveal", "Show the actual value of sensitive keys instead of [set]")
-    .addOption(new Option("--show-secret", "Alias for --reveal").hideHelp())
-    .addOption(new Option("--unredacted", "Alias for --reveal").hideHelp())
     .addHelpText("after", commandHelpText(getMetadata.help ?? {}))
     .action(
       createLazyAction(

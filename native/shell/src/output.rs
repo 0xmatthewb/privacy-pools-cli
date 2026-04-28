@@ -15,6 +15,7 @@ use crate::error::{CliError, ErrorPresentation};
 const MAX_RENDER_WIDTH: usize = 120;
 const MIN_RENDER_WIDTH: usize = 40;
 const SPINNER_INTERVAL_MS: u64 = 80;
+const COLOR_ENV_CONFLICT_FLAG: &str = "PRIVACY_POOLS_COLOR_ENV_CONFLICT";
 const ASCII_SPINNER_FRAMES: [&str; 4] = ["-", "\\", "|", "/"];
 const UNICODE_SPINNER_FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 static SUPPRESS_HEADERS: AtomicBool = AtomicBool::new(false);
@@ -289,9 +290,47 @@ pub fn print_json_success(payload: Value) {
     for (key, value) in source {
         object.insert(key, value);
     }
+    append_output_environment_warnings(&mut object);
     write_stdout_text(
         &serde_json::to_string(&Value::Object(object)).expect("json success must serialize"),
     );
+}
+
+fn consume_color_env_conflict_warning() -> Option<Value> {
+    if env::var_os(COLOR_ENV_CONFLICT_FLAG).as_deref() != Some(std::ffi::OsStr::new("1")) {
+        return None;
+    }
+
+    // Best effort only: removing the variable avoids double-emitting if the
+    // native shell bridges into the JS worker later in the same invocation.
+    env::remove_var(COLOR_ENV_CONFLICT_FLAG);
+    Some(json!({
+        "code": "COLOR_ENV_CONFLICT",
+        "category": "output",
+        "message": "NO_COLOR and FORCE_COLOR are both set. NO_COLOR takes precedence."
+    }))
+}
+
+fn append_output_environment_warnings(object: &mut Map<String, Value>) {
+    let Some(warning) = consume_color_env_conflict_warning() else {
+        return;
+    };
+
+    let mut warnings = match object.remove("warnings") {
+        Some(Value::Array(values)) => values,
+        Some(value) => vec![value],
+        None => Vec::new(),
+    };
+    let already_present = warnings.iter().any(|value| {
+        value
+            .get("code")
+            .and_then(Value::as_str)
+            == Some("COLOR_ENV_CONFLICT")
+    });
+    if !already_present {
+        warnings.push(warning);
+    }
+    object.insert("warnings".to_string(), Value::Array(warnings));
 }
 
 pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> ! {
@@ -314,9 +353,6 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
         if let Some(hint) = &error.hint {
             error_payload.insert("hint".to_string(), Value::String(hint.to_string()));
         }
-        if let Some(docs_slug) = &error.docs_slug {
-            error_payload.insert("docsSlug".to_string(), Value::String(docs_slug.to_string()));
-        }
         if let Some(help_topic) = &error.help_topic {
             error_payload.insert(
                 "helpTopic".to_string(),
@@ -336,9 +372,6 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
             "success": false,
             "errorCode": error.code.as_str(),
             "errorMessage": error.message.as_str(),
-            "meta": {
-                "deprecated": ["errorCode", "errorMessage", "helpTopic"]
-            },
             "error": error_payload,
         });
         write_stdout_text(&serde_json::to_string(&payload).expect("json error must serialize"));

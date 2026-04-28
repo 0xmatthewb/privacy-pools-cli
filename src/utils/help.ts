@@ -658,11 +658,11 @@ export const helpTestInternals = {
 export function commandHelpText(config: CommandHelpConfig): string {
   const lines: string[] = [];
   const showAgentAppendix = detectAgentEnvironment();
+  const agentModeRequested =
+    process.argv.includes("--agent") ||
+    process.argv.includes("--json") ||
+    process.argv.some((arg) => arg.startsWith("--json="));
   if (!isFullHelpRequested()) {
-    const agentModeRequested =
-      process.argv.includes("--agent") ||
-      process.argv.includes("--json") ||
-      process.argv.some((arg) => arg.startsWith("--json="));
     if (!agentModeRequested) {
       lines.push("", "Tip: add --help-full for examples, safety notes, and JSON fields.");
     }
@@ -675,6 +675,10 @@ export function commandHelpText(config: CommandHelpConfig): string {
       lines.push("  Use --agent for --json --yes --quiet when you need a runnable machine contract.");
     }
     return lines.join("\n");
+  }
+
+  if (!agentModeRequested) {
+    lines.push("", "Tip: omit --help-full for condensed command help.");
   }
 
   if (config.overview && config.overview.length > 0) {
@@ -767,8 +771,6 @@ export function commandHelpText(config: CommandHelpConfig): string {
       lines.push(`  privacy-pools ${ref}`);
     }
   }
-
-  lines.push("", "Tip: omit --help-full for condensed command help.");
 
   return lines.join("\n");
 }

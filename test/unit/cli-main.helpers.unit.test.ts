@@ -350,6 +350,8 @@ describe("cli main internal helpers", () => {
 
   test("known help target detection only matches commands and aliases", () => {
     expect(cliMainTestInternals.isKnownCommanderHelpTarget("withdraw")).toBe(true);
+    expect(cliMainTestInternals.isKnownCommanderHelpTarget("sync")).toBe(true);
+    expect(cliMainTestInternals.isKnownCommanderHelpTarget("history")).toBe(true);
     expect(cliMainTestInternals.isKnownCommanderHelpTarget("definitely-not-a-topic")).toBe(false);
   });
 

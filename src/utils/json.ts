@@ -443,7 +443,8 @@ export function printJsonError(
   },
   pretty: boolean = false,
 ): void {
-  const { details, helpTopic, nextActions, ...errorPayload } = payload;
+  const { details, docsSlug: _docsSlug, helpTopic, nextActions, ...errorPayload } = payload;
+  void _docsSlug;
   const code = payload.code ?? "UNKNOWN_ERROR";
   const docUrl = errorDocUrl(code);
   const errorObject = details

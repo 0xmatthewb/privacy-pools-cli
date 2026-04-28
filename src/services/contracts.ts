@@ -5,6 +5,7 @@ import type { ChainConfig } from "../types.js";
 import { loadPrivateKey } from "./wallet.js";
 import { getHealthyRpcUrl } from "./sdk.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
+import type { GasFeeOverrides } from "../utils/gas-fees.js";
 import {
   entrypointDepositErc20Abi,
   entrypointDepositNativeAbi,
@@ -35,6 +36,7 @@ type ApproveErc20Params = {
   amount: bigint;
   rpcOverride?: string;
   privateKeyOverride?: string;
+  gasFeeOverrides?: GasFeeOverrides;
   ownerAddress?: Address;
   publicClientOverride?: Pick<PublicClient, "readContract">;
 };
@@ -73,6 +75,7 @@ async function submitContractWrite(params: {
   functionName: string;
   args: readonly unknown[];
   value?: bigint;
+  gasFeeOverrides?: GasFeeOverrides;
   statusHooks?: ContractWriteStatusHooks;
 }): Promise<TransactionResponse> {
   const { account, publicClient, walletClient } = await createWriteClients(
@@ -94,6 +97,7 @@ async function submitContractWrite(params: {
   await params.statusHooks?.onBroadcasting?.();
   const hash = await walletClient.writeContract({
     ...request,
+    ...(params.gasFeeOverrides ?? {}),
     account,
   });
 
@@ -107,6 +111,7 @@ export async function approveERC20({
   amount,
   rpcOverride,
   privateKeyOverride,
+  gasFeeOverrides,
 }: ApproveErc20Params
 ): Promise<TransactionResponse> {
   return submitContractWrite({
@@ -117,6 +122,7 @@ export async function approveERC20({
     abi: erc20ApproveAbi,
     functionName: "approve",
     args: [spenderAddress, amount],
+    gasFeeOverrides,
   });
 }
 
@@ -157,7 +163,8 @@ export async function depositETH(
   amount: bigint,
   precommitment: bigint,
   rpcOverride?: string,
-  privateKeyOverride?: string
+  privateKeyOverride?: string,
+  gasFeeOverrides?: GasFeeOverrides,
 ): Promise<TransactionResponse> {
   return submitContractWrite({
     chainConfig,
@@ -168,6 +175,7 @@ export async function depositETH(
     functionName: "deposit",
     args: [precommitment],
     value: amount,
+    gasFeeOverrides,
   });
 }
 
@@ -177,7 +185,8 @@ export async function depositERC20(
   amount: bigint,
   precommitment: bigint,
   rpcOverride?: string,
-  privateKeyOverride?: string
+  privateKeyOverride?: string,
+  gasFeeOverrides?: GasFeeOverrides,
 ): Promise<TransactionResponse> {
   return submitContractWrite({
     chainConfig,
@@ -187,6 +196,7 @@ export async function depositERC20(
     abi: entrypointDepositErc20Abi,
     functionName: "deposit",
     args: [assetAddress, amount, precommitment],
+    gasFeeOverrides,
   });
 }
 

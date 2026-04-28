@@ -448,6 +448,38 @@ describe("flow command", () => {
     );
   });
 
+  test("flow start accepts non-round dry-run amounts with explicit override", () => {
+    const home = createSeededHome("mainnet");
+    const result = runCli(
+      [
+        "--json",
+        "flow",
+        "start",
+        "0.011",
+        "ETH",
+        "--to",
+        "0x4444444444444444444444444444444444444444",
+        "--dry-run",
+        "--allow-non-round-amounts",
+      ],
+      {
+        home,
+        timeoutMs: 20_000,
+      },
+    );
+
+    expect(result.status).toBe(0);
+    const json = parseJsonOutput<{
+      success: boolean;
+      dryRun: boolean;
+      warnings?: Array<{ code: string }>;
+    }>(result.stdout);
+
+    expect(json.success).toBe(true);
+    expect(json.dryRun).toBe(true);
+    expect(json.warnings?.some((warning) => warning.code === "amount_pattern_linkability")).toBe(true);
+  });
+
   test("flow status errors cleanly when no saved workflow exists", () => {
     const result = runCli(["--json", "flow", "status"], {
       home: createTempHome(),
@@ -462,7 +494,7 @@ describe("flow command", () => {
     }>(result.stdout);
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_MISSING_ARGUMENT");
+    expect(json.errorCode).toBe("INPUT_NO_SAVED_WORKFLOWS");
     expect(json.errorMessage).toContain("No saved workflows found");
   });
 
@@ -480,7 +512,7 @@ describe("flow command", () => {
     }>(result.stdout);
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_MISSING_ARGUMENT");
+    expect(json.errorCode).toBe("INPUT_NO_SAVED_WORKFLOWS");
     expect(json.errorMessage).toContain("No saved workflows found");
   });
 
@@ -748,7 +780,7 @@ describe("flow command", () => {
     }>(result.stdout);
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_WORKFLOW_LATEST_AMBIGUOUS_INVALID_FILES");
     expect(json.errorMessage).toContain("Cannot resolve 'latest'");
     expect(json.error.hint).toContain("explicit workflow id");
   });
@@ -1053,6 +1085,7 @@ describe("flow command", () => {
       "--dry-run",
       "--watch",
       "--stream-json",
+      "--allow-non-round-amounts",
       "--new-wallet",
       "--export-new-wallet <path>",
     ]);

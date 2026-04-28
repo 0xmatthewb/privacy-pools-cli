@@ -664,11 +664,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "group": "advanced",
       "usage": "config get <key>",
       "flags": [
-        "--show-secret",
-        "--unredacted",
         "--reveal"
       ],
-      "agentFlags": "--agent [--show-secret|--unredacted|--reveal]",
+      "agentFlags": "--agent [--reveal]",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -783,10 +781,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run",
         "--watch",
         "--stream-json",
+        "--allow-non-round-amounts",
         "--new-wallet",
         "--export-new-wallet <path>"
       ],
-      "agentFlags": "--agent [--privacy-delay <profile>] [--dry-run] [--stream-json] [--new-wallet] [--export-new-wallet <path>]",
+      "agentFlags": "--agent [--privacy-delay <profile>] [--dry-run] [--stream-json] [--allow-non-round-amounts] [--new-wallet] [--export-new-wallet <path>]",
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1007,7 +1006,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run",
         "--no-wait",
         "--stream-json",
-        "--allow-non-round-amounts"
+        "--allow-non-round-amounts",
+        "--gas-price <gwei>",
+        "--max-fee-per-gas <gwei>",
+        "--max-priority-fee-per-gas <gwei>"
       ],
       "agentFlags": "--agent [--stream-json]",
       "requiresInit": true,
@@ -1070,9 +1072,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "description": "Add a recipient to the local withdrawal address book",
       "group": "transaction",
       "usage": "recipients add <address-or-ens> [label]",
-      "flags": [
-        "--label <label>"
-      ],
+      "flags": [],
       "agentFlags": "--agent",
       "requiresInit": false,
       "expectedLatencyClass": "fast"
@@ -1668,8 +1668,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "config get <key>",
       "flags": [
-        "--show-secret",
-        "--unredacted",
         "--reveal"
       ],
       "globalFlags": [
@@ -1705,8 +1703,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "examples": [
         "privacy-pools config get default-chain",
         "privacy-pools config get rpc-override.mainnet",
-        "privacy-pools config get recovery-phrase --show-secret",
-        "privacy-pools config get signer-key --show-secret"
+        "privacy-pools config get recovery-phrase --reveal",
+        "privacy-pools config get signer-key --reveal"
       ],
       "structuredExamples": [
         {
@@ -1719,11 +1717,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 3",
-          "command": "privacy-pools config get recovery-phrase --show-secret"
+          "command": "privacy-pools config get recovery-phrase --reveal"
         },
         {
           "description": "Example 4",
-          "command": "privacy-pools config get signer-key --show-secret"
+          "command": "privacy-pools config get signer-key --reveal"
         }
       ],
       "jsonFields": "{ key, value?, set, redacted?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
@@ -2514,6 +2512,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run",
         "--watch",
         "--stream-json",
+        "--allow-non-round-amounts",
         "--new-wallet",
         "--export-new-wallet <path>"
       ],
@@ -2618,7 +2617,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "Deposits are always public onchain. The ASP reviews the deposit before private withdrawal is possible.",
         "If --to is omitted in interactive mode, the CLI prompts for the recipient. When prompts are skipped, --to remains required.",
-        "In machine modes, non-round flow amounts are rejected. Use a round amount in agent/non-interactive runs, or switch to interactive mode if you intentionally accept that tradeoff.",
+        "In machine modes, non-round flow amounts are rejected by default. Use a round amount, or pass --allow-non-round-amounts if you intentionally accept that privacy tradeoff.",
         "New workflows default to a balanced post-approval privacy delay before relayed withdrawal. off = withdraw immediately after ASP approval; weakest privacy. balanced = default; 15 to 90 minutes randomized; standard hygiene. strict = 2 to 12 hours randomized; strongest fingerprint resistance.",
         "Vetting fees can turn a round deposit input into a non-round committed balance, so flow start may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal.",
         "flow start surfaces advisory privacy warnings when the saved workflow is configured to auto-withdraw a full non-round balance, or when timing delay is explicitly disabled.",
@@ -3838,7 +3837,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run",
         "--no-wait",
         "--stream-json",
-        "--allow-non-round-amounts"
+        "--allow-non-round-amounts",
+        "--gas-price <gwei>",
+        "--max-fee-per-gas <gwei>",
+        "--max-priority-fee-per-gas <gwei>"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3888,7 +3890,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "category": "With options",
           "commands": [
             "privacy-pools deposit 0.1 ETH --chain mainnet",
-            "privacy-pools deposit 0.1 ETH --dry-run"
+            "privacy-pools deposit 0.1 ETH --dry-run",
+            "privacy-pools deposit 100 USDC --max-fee-per-gas 30 --max-priority-fee-per-gas 2"
           ]
         },
         {
@@ -3921,6 +3924,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "privacy-pools deposit 0.1 ETH --dry-run"
         },
         {
+          "description": "With options",
+          "category": "With options",
+          "command": "privacy-pools deposit 100 USDC --max-fee-per-gas 30 --max-priority-fee-per-gas 2"
+        },
+        {
           "description": "Agent / CI",
           "category": "Agent / CI",
           "command": "privacy-pools deposit 0.05 ETH --agent"
@@ -3941,7 +3949,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "safetyNotes": [
         "Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).",
         "An ASP vetting fee is deducted from the deposit amount.",
-        "Gas pricing uses the connected RPC's current fee suggestions. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.",
+        "Gas pricing uses the connected RPC's current fee suggestions by default. Use --gas-price for legacy gas pricing, or --max-fee-per-gas plus optional --max-priority-fee-per-gas for EIP-1559 fee caps.",
         "Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at https://tornado.0xbow.io before they can withdraw privately.",
         "Deposit and simulate deposit amounts are human-readable token amounts, not wei. Asset symbols are normalized case-insensitively.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
@@ -4362,9 +4370,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         ]
       },
       "usage": "recipients add <address-or-ens> [label]",
-      "flags": [
-        "--label <label>"
-      ],
+      "flags": [],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
@@ -4397,7 +4403,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools recipients add 0xRecipient... treasury",
-        "privacy-pools recipients add vitalik.eth --label donations"
+        "privacy-pools recipients add vitalik.eth donations"
       ],
       "structuredExamples": [
         {
@@ -4406,7 +4412,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 2",
-          "command": "privacy-pools recipients add vitalik.eth --label donations"
+          "command": "privacy-pools recipients add vitalik.eth donations"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
@@ -6954,7 +6960,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "migrate",
     "migrate status"
   ],
-  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docUrl?, docsSlug?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docUrl?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "documentation": {
     "reference": "docs/reference.md",
     "agentGuide": "AGENTS.md",

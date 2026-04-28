@@ -91,6 +91,7 @@ interface FlowStartCommandOptions {
   exportNewWallet?: string;
   dryRun?: boolean | string;
   streamJson?: boolean;
+  allowNonRoundAmounts?: boolean;
 }
 
 interface FlowWatchCommandOptions {
@@ -583,11 +584,11 @@ async function renderFlowStartDryRunForInputs(params: {
       `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy. ` +
       `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText}`;
     dryRunAmountPatternWarning = message;
-    if (params.mode.skipPrompts) {
+    if (params.mode.skipPrompts && !params.opts.allowNonRoundAmounts) {
       throw new CLIError(
         message,
         "INPUT",
-        suggestionText.trim() || "Use a round amount.",
+        suggestionText.trim() || "Use a round amount, or pass --allow-non-round-amounts if you intentionally accept the privacy trade-off.",
         "INPUT_NONROUND_AMOUNT",
       );
     }
@@ -1045,6 +1046,7 @@ export async function handleFlowStartCommand(
       privacyDelayProfile: opts.privacyDelay,
       newWallet: opts.newWallet ?? false,
       exportNewWallet: opts.exportNewWallet,
+      allowNonRoundAmounts: opts.allowNonRoundAmounts ?? false,
       globalOpts,
       mode,
       isVerbose,

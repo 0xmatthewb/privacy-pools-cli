@@ -404,7 +404,7 @@ describe("printError", () => {
     expect(assignedExitCode).toBe(2); // INPUT exit code
   });
 
-  test("JSON mode preserves docsSlug on structured errors", () => {
+  test("JSON mode keeps docUrl canonical and omits internal docsSlug", () => {
     const originalExitCode = process.exitCode;
     clearProcessExitCode();
 
@@ -425,7 +425,8 @@ describe("printError", () => {
         );
       });
       const parsed = JSON.parse(output.trim());
-      expect(parsed.error.docsSlug).toBe("reference/withdraw#withdraw");
+      expect(parsed.error.docsSlug).toBeUndefined();
+      expect(parsed.error.docUrl).toContain("#input-error");
     } finally {
       restoreProcessExitCode(originalExitCode);
     }

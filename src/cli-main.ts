@@ -1,3 +1,4 @@
+import "./runtime/color-env-bootstrap.js";
 import type { CliPackageInfo } from "./package-info.js";
 import {
   checkForUpdateInBackground,

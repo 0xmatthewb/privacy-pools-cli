@@ -15,18 +15,6 @@
                   "type": "boolean",
                   "const": true
                 },
-                "meta": {
-                  "type": "object",
-                  "properties": {
-                    "deprecated": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "additionalProperties": true
-                },
                 "nextActions": {
                   "type": "array",
                   "items": {
@@ -125,9 +113,6 @@
             "errorMessage": {
               "type": "string"
             },
-            "meta": {
-              "$ref": "#/definitions/config get envelope/anyOf/0/allOf/0/properties/meta"
-            },
             "error": {
               "type": "object",
               "properties": {
@@ -149,9 +134,6 @@
                 "docUrl": {
                   "type": "string",
                   "format": "uri"
-                },
-                "docsSlug": {
-                  "type": "string"
                 },
                 "helpTopic": {
                   "type": "string"

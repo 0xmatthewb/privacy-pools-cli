@@ -119,7 +119,11 @@ import {
   validateRelayerQuoteForWithdrawal,
 } from "../commands/withdraw.js";
 import { toRagequitSolidityProof } from "../utils/unsigned.js";
-import type { GlobalOptions } from "../types.js";
+import {
+  FLOW_PHASE_VALUES,
+  type FlowPhase,
+  type GlobalOptions,
+} from "../types.js";
 import {
   formatFlowStartReview,
 } from "../output/flow.js";
@@ -218,21 +222,7 @@ const SUPPORTED_WORKFLOW_SECRET_RECORD_VERSIONS = new Set<string>([
   ...LEGACY_WORKFLOW_SECRET_RECORD_VERSIONS,
 ]);
 
-export const FLOW_PHASE_VALUES = [
-  "awaiting_funding",
-  "depositing_publicly",
-  "awaiting_asp",
-  "approved_waiting_privacy_delay",
-  "approved_ready_to_withdraw",
-  "withdrawing",
-  "completed",
-  "completed_public_recovery",
-  "paused_poa_required",
-  "paused_declined",
-  "stopped_external",
-] as const;
-
-export type FlowPhase = (typeof FLOW_PHASE_VALUES)[number];
+export { FLOW_PHASE_VALUES, type FlowPhase };
 
 export type FlowWalletMode = "configured" | "new_wallet";
 export type FlowPendingSubmission = "withdraw" | "ragequit";
@@ -353,6 +343,7 @@ interface StartFlowParams {
   privacyDelayProfile?: string;
   newWallet?: boolean;
   exportNewWallet?: string;
+  allowNonRoundAmounts?: boolean;
   globalOpts?: GlobalOptions;
   mode: ResolvedGlobalMode;
   isVerbose: boolean;
@@ -4608,6 +4599,7 @@ export async function startWorkflow(
     privacyDelayProfile,
     newWallet = false,
     exportNewWallet,
+    allowNonRoundAmounts = false,
     globalOpts,
     mode,
     isVerbose,
@@ -4669,29 +4661,31 @@ export async function startWorkflow(
         ? ` Consider: ${suggestions.map((value) => `${formatAmountDecimal(value, pool.decimals)} ${pool.symbol}`).join(", ")}.`
         : "";
 
-    if (skipPrompts) {
+    if (skipPrompts && !allowNonRoundAmounts) {
       throw new CLIError(
         `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy.`,
         "INPUT",
-        `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText}`,
+        `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText} Pass --allow-non-round-amounts if you intentionally accept the privacy trade-off.`,
         "INPUT_NONROUND_AMOUNT",
       );
     }
 
-    process.stderr.write("\n");
-    warn(
-      `${humanAmount} ${pool.symbol} is a non-round amount that may reduce your privacy in the anonymity set.${suggestionText}`,
-      silent,
-    );
-    const proceed = await confirmActionWithSeverity({
-      severity: "standard",
-      standardMessage: "Proceed with this amount anyway?",
-      highStakesToken: CONFIRMATION_TOKENS.proceed,
-      highStakesWarning: "Amount review changed while waiting for confirmation.",
-      confirm: confirmPrompt,
-    });
-    if (!proceed) {
-      throw new FlowCancelledError();
+    if (!skipPrompts) {
+      process.stderr.write("\n");
+      warn(
+        `${humanAmount} ${pool.symbol} is a non-round amount that may reduce your privacy in the anonymity set.${suggestionText}`,
+        silent,
+      );
+      const proceed = await confirmActionWithSeverity({
+        severity: "standard",
+        standardMessage: "Proceed with this amount anyway?",
+        highStakesToken: CONFIRMATION_TOKENS.proceed,
+        highStakesWarning: "Amount review changed while waiting for confirmation.",
+        confirm: confirmPrompt,
+      });
+      if (!proceed) {
+        throw new FlowCancelledError();
+      }
     }
   }
 

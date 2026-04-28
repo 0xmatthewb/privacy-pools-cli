@@ -532,7 +532,7 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     let csv_pools = run_native_with_env(&["--output", "csv", "--chain", "sepolia", "pools"], &env);
     assert!(csv_pools.status.success());
     assert_csv_stderr_allows_progress(&csv_pools, "Fetching pools for sepolia...");
-    assert!(stdout_string(&csv_pools).contains("Asset,Total Deposits,Pool Balance"));
+    assert!(stdout_string(&csv_pools).contains("Asset,Total Deposits Count,Pool Balance (raw)"));
 
     let human_stats_pool =
         run_native_with_env(&["--chain", "sepolia", "stats", "pool", "ETH"], &env);

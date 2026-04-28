@@ -9,6 +9,31 @@
 import { describe, expect, test } from "bun:test";
 import { parseUsd, parseCount } from "../../src/commands/stats.ts";
 import { parsePositiveInt, parseNumberish } from "../../src/commands/activity.ts";
+import { parseGasFeeOverrides } from "../../src/utils/gas-fees.ts";
+import { CLIError } from "../../src/utils/errors.ts";
+
+// ── parseGasFeeOverrides ────────────────────────────────────────────────────
+
+describe("parseGasFeeOverrides", () => {
+  test("parses legacy and EIP-1559 gwei fee caps", () => {
+    expect(parseGasFeeOverrides({ gasPrice: "1.5" })).toEqual({
+      gasPrice: 1500000000n,
+    });
+    expect(parseGasFeeOverrides({
+      maxFeePerGas: "30",
+      maxPriorityFeePerGas: "2",
+    })).toEqual({
+      maxFeePerGas: 30000000000n,
+      maxPriorityFeePerGas: 2000000000n,
+    });
+  });
+
+  test("rejects conflicting gas fee modes", () => {
+    expect(() =>
+      parseGasFeeOverrides({ gasPrice: "1", maxFeePerGas: "2" }),
+    ).toThrow(CLIError);
+  });
+});
 
 // ── parseUsd ────────────────────────────────────────────────────────────────
 

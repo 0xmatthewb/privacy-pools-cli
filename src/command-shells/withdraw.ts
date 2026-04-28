@@ -138,7 +138,6 @@ export function createWithdrawCommand(): Command {
     .description("Add a recipient to the local withdrawal address book")
     .argument("<address-or-ens>", "Recipient address or ENS name")
     .argument("[label]", "Optional display label")
-    .addOption(new Option("--label <label>", "Optional display label").hideHelp())
     .action(
       createLazyAction(
         () => import("../commands/withdraw/recipients.js"),

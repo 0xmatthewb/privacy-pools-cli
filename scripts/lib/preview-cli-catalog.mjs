@@ -646,7 +646,14 @@ function buildLiveCommandInvocation(context, runtime, options) {
 
   return {
     command: NODE_BIN,
-    args: ["--import", "tsx", "src/index.ts", ...options.args],
+    args: [
+      "--import",
+      "./src/runtime/color-env-bootstrap.ts",
+      "--import",
+      "tsx",
+      "src/index.ts",
+      ...options.args,
+    ],
     displayCommand: options.displayCommand,
     env: buildChildEnv({
       ...launcherEnv,

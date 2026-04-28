@@ -119,8 +119,18 @@ function rawUsdString(value: string | null | undefined): string | null {
   return /^-?\d+(?:\.\d+)?$/.test(normalized) ? normalized : null;
 }
 
-function rawCsvUsd(value: string | null | undefined): string {
-  return rawUsdString(value) ?? "";
+function rawUsdCentsString(value: string | null | undefined): string | null {
+  const normalized = rawUsdString(value);
+  if (normalized === null) return null;
+  const sign = normalized.startsWith("-") ? "-" : "";
+  const unsigned = sign ? normalized.slice(1) : normalized;
+  const [whole = "0", fraction = ""] = unsigned.split(".");
+  const cents = `${whole}${fraction.padEnd(2, "0").slice(0, 2)}`.replace(/^0+(?=\d)/, "");
+  return `${sign}${cents || "0"}`;
+}
+
+function rawCsvUsdCents(value: string | null | undefined): string {
+  return rawUsdCentsString(value) ?? "";
 }
 
 function formatDepositsCount(pool: PoolStats): string {
@@ -237,7 +247,7 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
       "Pool Balance (raw)",
       "Pool Balance Decimals",
       "Pool Balance Asset",
-      "Pool Balance USD",
+      "Pool Balance USD Cents",
       "Pending (raw)",
       "Pending Decimals",
       "Pending Asset",
@@ -375,8 +385,8 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
 
   if (ctx.mode.isCsv) {
     const csvHeaders = allChains
-      ? ["Chain", "Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits Count", "Pool Balance (raw)", "Pool Balance Decimals", "Pool Balance Asset", "Pool Balance USD", "Pending (raw)", "Pending Decimals", "Pending Asset", "Min Deposit (raw)", "Min Deposit Decimals", "Min Deposit Asset", "Vetting Fee BPS"]
-      : ["Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits Count", "Pool Balance (raw)", "Pool Balance Decimals", "Pool Balance Asset", "Pool Balance USD", "Pending (raw)", "Pending Decimals", "Pending Asset", "Min Deposit (raw)", "Min Deposit Decimals", "Min Deposit Asset", "Vetting Fee BPS"];
+      ? ["Chain", "Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits Count", "Pool Balance (raw)", "Pool Balance Decimals", "Pool Balance Asset", "Pool Balance USD Cents", "Pending (raw)", "Pending Decimals", "Pending Asset", "Min Deposit (raw)", "Min Deposit Decimals", "Min Deposit Asset", "Vetting Fee BPS"]
+      : ["Asset", ...(showMyPoolAccounts ? ["Your PAs"] : []), "Total Deposits Count", "Pool Balance (raw)", "Pool Balance Decimals", "Pool Balance Asset", "Pool Balance USD Cents", "Pending (raw)", "Pending Decimals", "Pending Asset", "Min Deposit (raw)", "Min Deposit Decimals", "Min Deposit Asset", "Vetting Fee BPS"];
     printCsv(
       csvHeaders,
       filteredPools.map(({ chain, pool, myPoolAccountsCount }) => {
@@ -387,7 +397,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
           rawCsvAmount(pool.totalInPoolValue ?? pool.acceptedDepositsValue),
           String(pool.decimals),
           pool.symbol,
-          rawCsvUsd(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
+          rawCsvUsdCents(pool.totalInPoolValueUsd ?? pool.acceptedDepositsValueUsd),
           rawCsvAmount(pool.pendingDepositsValue),
           String(pool.decimals),
           pool.symbol,

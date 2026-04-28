@@ -273,7 +273,14 @@ export function runCli(args: string[], options: CliRunOptions = {}): CliRunResul
       ? {}
       : { PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1" };
 
-  const result = spawnSync(nodeBin(), ["--import", "tsx", "src/index.ts", ...args], {
+  const result = spawnSync(nodeBin(), [
+    "--import",
+    "./src/runtime/color-env-bootstrap.ts",
+    "--import",
+    "tsx",
+    "src/index.ts",
+    ...args,
+  ], {
     cwd,
     env: buildChildProcessEnv({
       PRIVACY_POOLS_HOME: join(home, ".privacy-pools"),

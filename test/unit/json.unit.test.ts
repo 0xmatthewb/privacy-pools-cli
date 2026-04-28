@@ -198,7 +198,7 @@ describe("JSON output helpers", () => {
       expect(parsed.error.code).toBe("UNKNOWN_ERROR");
     });
 
-    test("promotes error details to top level and preserves error.details", () => {
+    test("keeps error details in the canonical error.details location", () => {
       const output = captureStdout(() => {
         printJsonError({
           code: "INPUT_UNKNOWN_COMMAND",
@@ -209,8 +209,8 @@ describe("JSON output helpers", () => {
       });
 
       const parsed = JSON.parse(output.trim());
-      expect(parsed.suggestions).toEqual(["accounts", "activity"]);
-      expect(parsed.error.suggestions).toEqual(["accounts", "activity"]);
+      expect(parsed.suggestions).toBeUndefined();
+      expect(parsed.error.suggestions).toBeUndefined();
       expect(parsed.error.details).toEqual({ suggestions: ["accounts", "activity"] });
     });
 
@@ -241,7 +241,7 @@ describe("JSON output helpers", () => {
       expect(parsed.success).toBe(false);
     });
 
-    test("includes docsSlug in structured error output when provided", () => {
+    test("omits internal docsSlug from structured error output", () => {
       const output = captureStdout(() => {
         printJsonError({
           code: "RPC_TIMEOUT",
@@ -252,11 +252,12 @@ describe("JSON output helpers", () => {
       });
 
       const parsed = JSON.parse(output.trim());
-      expect(parsed.error.docsSlug).toBe("guide/troubleshooting#rpc");
+      expect(parsed.error.docsSlug).toBeUndefined();
+      expect(parsed.error.docUrl).toContain("#rpc-timeout");
     });
 
     test("renders lightweight template output from the final error envelope", () => {
-      configureJsonOutput(null, null, "{{success}} {{error.code}} {{error.docsSlug}}");
+      configureJsonOutput(null, null, "{{success}} {{error.code}} {{error.docUrl}}");
 
       const output = captureStdout(() => {
         printJsonError({
@@ -267,7 +268,8 @@ describe("JSON output helpers", () => {
         });
       });
 
-      expect(output).toBe("false RPC_TIMEOUT reference/status#status\n");
+      expect(output).toContain("false RPC_TIMEOUT ");
+      expect(output).toContain("#rpc-timeout");
     });
   });
 });

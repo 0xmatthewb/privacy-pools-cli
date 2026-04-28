@@ -101,6 +101,7 @@ import {
   saveWorkflowSnapshot,
 } from "../services/workflow.js";
 import { createSubmissionRecord } from "../services/submissions.js";
+import { parseGasFeeOverrides } from "../utils/gas-fees.js";
 
 interface DepositCommandOptions {
   unsigned?: boolean | string;
@@ -110,6 +111,9 @@ interface DepositCommandOptions {
   ignoreUniqueAmount?: boolean;
   allowNonRoundAmounts?: boolean;
   streamJson?: boolean;
+  gasPrice?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
 }
 
 export { createDepositCommand } from "../command-shells/deposit.js";
@@ -202,6 +206,7 @@ export async function handleDepositCommand(
   const dryRunMode: DryRunMode | null = normalizeDryRunMode(opts.dryRun);
   const isDryRun = dryRunMode !== null;
   const noWait = opts.wait === false || opts.noWait === true;
+  const gasFeeOverrides = parseGasFeeOverrides(opts);
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
@@ -721,6 +726,7 @@ export async function handleDepositCommand(
               spenderAddress: chainConfig.entrypoint,
               amount,
               rpcOverride: globalOpts?.rpcUrl,
+              gasFeeOverrides,
             });
             approvalTxHash = approveTx.hash as Hex;
             if (noWait) {
@@ -788,6 +794,8 @@ export async function handleDepositCommand(
           amount,
           precommitment as unknown as bigint,
           globalOpts?.rpcUrl,
+          undefined,
+          gasFeeOverrides,
         );
       } else {
         tx = await depositERC20(
@@ -796,6 +804,8 @@ export async function handleDepositCommand(
           amount,
           precommitment as unknown as bigint,
           globalOpts?.rpcUrl,
+          undefined,
+          gasFeeOverrides,
         );
       }
 

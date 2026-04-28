@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import "./runtime/color-env-bootstrap.js";
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";

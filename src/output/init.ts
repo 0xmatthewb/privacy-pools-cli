@@ -478,8 +478,8 @@ export function renderGeneratedRecoveryPhraseReview(mnemonic: string): string {
     "The signer key submits transactions and may come from the same wallet or a separate key.",
     RECOVERY_PHRASE_NEVER_SHARE,
   ])}${gridLines.join("\n")}\n${formatCallout("danger", [
-    "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
     RECOVERY_PHRASE_OFFLINE_BACKUP,
+    "Anyone with this phrase can control this Privacy Pools account and withdraw its deposits.",
     "If you copied it digitally, clear your clipboard and any temporary notes after you move it somewhere safe.",
   ])}`;
 }

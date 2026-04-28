@@ -24,6 +24,7 @@ privacy-pools deposit 100 USDC
 ```bash
 privacy-pools deposit 0.1 ETH --chain mainnet
 privacy-pools deposit 0.1 ETH --dry-run
+privacy-pools deposit 100 USDC --max-fee-per-gas 30 --max-priority-fee-per-gas 2
 ```
 
 **Agent / CI:**
@@ -40,11 +41,14 @@ privacy-pools deposit 0.1 ETH --unsigned
 | `--dry-run [mode]` | Validate and preview without submitting (modes: offline, rpc, relayer; bare flag = rpc) |
 | `--no-wait` | Return after submission instead of waiting for confirmation |
 | `--stream-json` | Emit line-delimited JSON progress events and finish with the final deposit envelope |
+| `--gas-price <gwei>` | Use a legacy gas price in gwei for approval and deposit transactions |
+| `--max-fee-per-gas <gwei>` | Use an EIP-1559 max fee cap in gwei for approval and deposit transactions |
+| `--max-priority-fee-per-gas <gwei>` | Use an EIP-1559 priority fee cap in gwei (requires --max-fee-per-gas) |
 | `--allow-non-round-amounts` | Allow non-round deposit amounts (non-interactive modes reject them by default; pass this to override) |
 
 **Safety:** Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
 **Safety:** An ASP vetting fee is deducted from the deposit amount.
-**Safety:** Gas pricing uses the connected RPC's current fee suggestions. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.
+**Safety:** Gas pricing uses the connected RPC's current fee suggestions by default. Use --gas-price for legacy gas pricing, or --max-fee-per-gas plus optional --max-priority-fee-per-gas for EIP-1559 fee caps.
 **Safety:** Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at https://tornado.0xbow.io before they can withdraw privately.
 **Safety:** Deposit and simulate deposit amounts are human-readable token amounts, not wei. Asset symbols are normalized case-insensitively.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.

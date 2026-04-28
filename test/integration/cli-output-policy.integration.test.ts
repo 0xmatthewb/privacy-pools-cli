@@ -41,6 +41,17 @@ describe("cli output policy regressions", () => {
     expect(full.stdout).toContain("Safety notes");
   });
 
+  test("hidden compatibility aliases still expose command help", () => {
+    for (const command of ["sync", "history"]) {
+      const result = runCli([command, "--help"]);
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain(`Usage: privacy-pools ${command}`);
+      expect(result.stdout).not.toContain("Unknown command");
+    }
+  });
+
   test("--json conflicts with --output csv instead of silently choosing JSON", () => {
     const result = runCli(["pools", "--json", "--output", "csv"]);
     const json = parseJsonOutput<{ errorCode: string; error: { hint: string } }>(

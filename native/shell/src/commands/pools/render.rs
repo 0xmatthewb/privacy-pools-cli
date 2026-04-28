@@ -71,12 +71,18 @@ pub(super) fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData
             vec![
                 "Chain",
                 "Asset",
-                "Total Deposits",
-                "Pool Balance",
-                "USD Value",
-                "Pending",
-                "Min Deposit",
-                "Vetting Fee",
+                "Total Deposits Count",
+                "Pool Balance (raw)",
+                "Pool Balance Decimals",
+                "Pool Balance Asset",
+                "Pool Balance USD Cents",
+                "Pending (raw)",
+                "Pending Decimals",
+                "Pending Asset",
+                "Min Deposit (raw)",
+                "Min Deposit Decimals",
+                "Min Deposit Asset",
+                "Vetting Fee BPS",
             ],
             vec![],
         );
@@ -212,22 +218,34 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
             vec![
                 "Chain",
                 "Asset",
-                "Total Deposits",
-                "Pool Balance",
-                "USD Value",
-                "Pending",
-                "Min Deposit",
-                "Vetting Fee",
+                "Total Deposits Count",
+                "Pool Balance (raw)",
+                "Pool Balance Decimals",
+                "Pool Balance Asset",
+                "Pool Balance USD Cents",
+                "Pending (raw)",
+                "Pending Decimals",
+                "Pending Asset",
+                "Min Deposit (raw)",
+                "Min Deposit Decimals",
+                "Min Deposit Asset",
+                "Vetting Fee BPS",
             ]
         } else {
             vec![
                 "Asset",
-                "Total Deposits",
-                "Pool Balance",
-                "USD Value",
-                "Pending",
-                "Min Deposit",
-                "Vetting Fee",
+                "Total Deposits Count",
+                "Pool Balance (raw)",
+                "Pool Balance Decimals",
+                "Pool Balance Asset",
+                "Pool Balance USD Cents",
+                "Pending (raw)",
+                "Pending Decimals",
+                "Pending Asset",
+                "Min Deposit (raw)",
+                "Min Deposit Decimals",
+                "Min Deposit Asset",
+                "Vetting Fee BPS",
             ]
         };
         let rows = data
@@ -797,16 +815,22 @@ fn pool_listing_csv_row(entry: &PoolListingEntry, include_chain: bool) -> Vec<St
             .or_else(|| entry.accepted_deposits_value.clone())
             .unwrap_or_default(),
     );
+    row.push(entry.decimals.to_string());
+    row.push(entry.asset.clone());
     row.push(
         entry
             .total_in_pool_value_usd
             .as_deref()
             .or(entry.accepted_deposits_value_usd.as_deref())
-            .and_then(normalize_usd_json)
+            .and_then(normalize_usd_cents_csv)
             .unwrap_or_default(),
     );
     row.push(entry.pending_deposits_value.clone().unwrap_or_default());
+    row.push(entry.decimals.to_string());
+    row.push(entry.asset.clone());
     row.push(entry.minimum_deposit.clone());
+    row.push(entry.decimals.to_string());
+    row.push(entry.asset.clone());
     row.push(entry.vetting_fee_bps.clone());
     row
 }
@@ -932,6 +956,23 @@ fn normalize_usd_json(value: &str) -> Option<String> {
         .ok()
         .filter(|parsed| parsed.is_finite())
         .map(|_| normalized)
+}
+
+fn normalize_usd_cents_csv(value: &str) -> Option<String> {
+    let normalized = normalize_usd_json(value)?;
+    let (sign, unsigned) = normalized
+        .strip_prefix('-')
+        .map_or(("", normalized.as_str()), |stripped| ("-", stripped));
+    let mut parts = unsigned.splitn(2, '.');
+    let whole = parts.next().unwrap_or("0");
+    let fraction = parts.next().unwrap_or("");
+    let mut cents = String::with_capacity(whole.len() + 2);
+    cents.push_str(whole);
+    let mut fraction_chars = fraction.chars();
+    cents.push(fraction_chars.next().unwrap_or('0'));
+    cents.push(fraction_chars.next().unwrap_or('0'));
+    let trimmed = cents.trim_start_matches('0');
+    Some(format!("{}{}", sign, if trimmed.is_empty() { "0" } else { trimmed }))
 }
 
 fn parse_biguint(value: &str) -> Option<num_bigint::BigUint> {

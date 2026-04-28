@@ -49,7 +49,13 @@ function expectDefaultWorkerLaunchArgs(args: string[]): void {
     return;
   }
 
-  expect(args).toEqual(["--import", "tsx", sourceWorker]);
+  expect(args).toEqual([
+    "--import",
+    "./src/runtime/color-env-bootstrap.ts",
+    "--import",
+    "tsx",
+    sourceWorker,
+  ]);
 }
 
 function writeNativePackageJson(

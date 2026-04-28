@@ -1,3 +1,4 @@
+import "./runtime/color-env-bootstrap.js";
 import { spawn } from "node:child_process";
 import type { CliPackageInfo } from "./package-info.js";
 import { createCurrentWorkerRequest } from "./runtime/current.js";

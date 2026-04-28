@@ -1,5 +1,12 @@
 import { CLIError, printError } from "./utils/errors.js";
-import { printJsonSuccess } from "./utils/json.js";
+import {
+  configureJsonEnvelopeWarnings,
+  printJsonSuccess,
+} from "./utils/json.js";
+import {
+  consumeOutputEnvironmentWarnings,
+  installOutputAnsiGuards,
+} from "./utils/terminal.js";
 import { buildGuidePayload, guideText, resolveGuideTopic } from "./utils/help.js";
 import {
   parseRootPreludeLongOption,
@@ -43,11 +50,20 @@ import {
 // ./utils/command-discovery-static.js
 // ./utils/root-help.js
 
+function configureStaticOutputWarnings(): void {
+  installOutputAnsiGuards();
+  const warnings = consumeOutputEnvironmentWarnings();
+  if (warnings.length > 0) {
+    configureJsonEnvelopeWarnings(warnings);
+  }
+}
+
 export async function runStaticDiscoveryCommand(
   argv: string[],
   parsedRootArgv?: ParsedRootArgv,
 ): Promise<boolean> {
   setModeArgv(argv);
+  configureStaticOutputWarnings();
   let parsed: ParsedStaticCommand | null = null;
   try {
     const firstToken = parsedRootArgv?.firstCommandToken ?? argv[0];
@@ -137,6 +153,7 @@ export async function runStaticCompletionQuery(
   argv: string[],
 ): Promise<boolean> {
   setModeArgv(argv);
+  configureStaticOutputWarnings();
   let parsed: ParsedStaticCompletionQuery | null = null;
   try {
     parsed = parseCompletionQuery(argv);
