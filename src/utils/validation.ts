@@ -3,8 +3,8 @@ import { CHAINS, CHAIN_NAMES, resolveChainOverrides } from "../config/chains.js"
 import type { ChainConfig } from "../types.js";
 import { CLIError } from "./errors.js";
 import { didYouMean } from "./fuzzy.js";
+import { ZERO_ADDRESS } from "./known-addresses.js";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const HEX_ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 
 export function resolveChain(

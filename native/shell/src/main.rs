@@ -7,6 +7,7 @@ mod dispatch;
 mod error;
 mod http_client;
 mod json;
+mod known_addresses;
 mod output;
 mod read_only_api;
 mod root_argv;

@@ -6,6 +6,7 @@ import type {
   RelayerRequestResponse,
 } from "../types.js";
 import { CLIError, sanitizeDiagnosticText } from "../utils/errors.js";
+import { ZERO_ADDRESS } from "../utils/known-addresses.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
 import {
   isTransientNetworkError,
@@ -18,7 +19,6 @@ const RELAYER_RETRY_DELAYS_MS = [250, 500] as const;
 const RELAYER_WITHDRAWAL_DATA_PARAMS = parseAbiParameters(
   "address recipient, address feeRecipient, uint256 relayFeeBPS",
 );
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 class RetryableRelayerHttpError extends Error {
   constructor(

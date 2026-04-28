@@ -7,13 +7,14 @@ import type { PublicClient, Address, Hex, HttpTransportConfig } from "viem";
 import type { ChainConfig } from "../types.js";
 import { getRpcUrl, getRpcUrls, hasCustomRpcOverride } from "./config.js";
 import { getNetworkTimeoutMs } from "../utils/mode.js";
+import { ZERO_ADDRESS } from "../utils/known-addresses.js";
 import { withSuppressedSdkStdout } from "./account.js";
 import {
   CANONICAL_DEPOSIT_EVENT,
   normalizeDepositEventArgs,
 } from "./deposit-events.js";
 
-const LOG_PROBE_ADDRESS = "0x0000000000000000000000000000000000000000";
+const LOG_PROBE_ADDRESS = ZERO_ADDRESS;
 const LOG_PROBE_RANGE = 1_024n;
 const READ_ONLY_LATEST_BLOCK_TTL_MS = 1_000;
 

@@ -1,12 +1,7 @@
 import type { Address } from "viem";
 import { CLIError } from "./errors.js";
+import { isBurnRecipientAddress } from "./known-addresses.js";
 import { resolveAddressOrEns, validateAddress } from "./validation.js";
-
-const BURN_RECIPIENTS = new Set([
-  "0x0000000000000000000000000000000000000000",
-  "0x000000000000000000000000000000000000dead",
-  "0xdead000000000000000000000000000000000000",
-]);
 
 export interface RecipientSafetyWarning {
   code:
@@ -21,7 +16,7 @@ export function assertSafeRecipientAddress(
   label: string = "Recipient",
 ): Address {
   const rawNormalized = address.toLowerCase();
-  if (BURN_RECIPIENTS.has(rawNormalized)) {
+  if (isBurnRecipientAddress(rawNormalized)) {
     throw new CLIError(
       `${label} appears to be a burn address.`,
       "INPUT",
@@ -31,7 +26,7 @@ export function assertSafeRecipientAddress(
   }
   const validated = validateAddress(address, label) as Address;
   const normalized = validated.toLowerCase();
-  if (BURN_RECIPIENTS.has(normalized)) {
+  if (isBurnRecipientAddress(normalized)) {
     throw new CLIError(
       `${label} appears to be a burn address.`,
       "INPUT",
