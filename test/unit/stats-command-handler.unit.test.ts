@@ -86,6 +86,8 @@ const maybeRenderPreviewProgressStepMock = mock(async () => false);
 
 let handleDeprecatedStatsDefaultAliasCommand:
   typeof import("../../src/commands/stats.ts").handleDeprecatedStatsDefaultAliasCommand;
+let handleDeprecatedStatsGlobalAliasCommand:
+  typeof import("../../src/commands/stats.ts").handleDeprecatedStatsGlobalAliasCommand;
 let handleDeprecatedStatsPoolAliasCommand:
   typeof import("../../src/commands/stats.ts").handleDeprecatedStatsPoolAliasCommand;
 let handlePoolStatsCommand:
@@ -136,6 +138,7 @@ async function loadStatsHandler(): Promise<void> {
 
   ({
     handleDeprecatedStatsDefaultAliasCommand,
+    handleDeprecatedStatsGlobalAliasCommand,
     handleDeprecatedStatsPoolAliasCommand,
     handlePoolStatsCommand,
     handleProtocolStatsCommand,
@@ -176,6 +179,21 @@ describe("stats command handler", () => {
     });
     expect(fetchGlobalStatisticsMock).toHaveBeenCalledTimes(1);
     expect(stderr).toBe("");
+
+    fetchGlobalStatisticsMock.mockClear();
+    const globalAlias = await captureAsyncJsonOutput(() =>
+      handleDeprecatedStatsGlobalAliasCommand(
+        {},
+        fakeCommand({ json: true }),
+      ),
+    );
+    expect(globalAlias.json.success).toBe(true);
+    expect(globalAlias.json.invokedAs).toBe("stats global");
+    expect(globalAlias.json.deprecationWarning).toMatchObject({
+      code: "COMMAND_ALIAS_DEPRECATED",
+      replacementCommand: "privacy-pools protocol-stats",
+    });
+    expect(fetchGlobalStatisticsMock).toHaveBeenCalledTimes(1);
   });
 
   test("fails closed when protocol-stats is given an explicit chain", async () => {
@@ -258,5 +276,24 @@ describe("stats command handler", () => {
     expect(stdout).toBe("");
     expect(stderr).toBe("");
     expect(fetchGlobalStatisticsMock).not.toHaveBeenCalled();
+  });
+
+  test("returns early when preview rendering takes over pool stats fetches", async () => {
+    maybeRenderPreviewProgressStepMock.mockImplementationOnce(
+      async (step: string) => step === "stats.pool.fetch",
+    );
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handlePoolStatsCommand(
+        "ETH",
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toBe("");
+    expect(resolvePoolMock).toHaveBeenCalledTimes(1);
+    expect(fetchPoolStatisticsMock).not.toHaveBeenCalled();
   });
 });

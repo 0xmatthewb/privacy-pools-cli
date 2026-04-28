@@ -233,6 +233,99 @@ describe("pools command handler", () => {
     ).toContain("stored recovery phrase");
   });
 
+  test("rejects invalid sort and limit values before querying pools", async () => {
+    useIsolatedHome("mainnet");
+
+    const invalidSort = await captureAsyncJsonOutputAllowExit(() =>
+      handlePoolsCommand(
+        undefined,
+        { sort: "random" },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(invalidSort.json.success).toBe(false);
+    expect(invalidSort.json.errorCode).toBe("INPUT_INVALID_VALUE");
+    expect(invalidSort.json.error.message ?? invalidSort.json.errorMessage).toContain(
+      "Invalid --sort value",
+    );
+    expect(invalidSort.exitCode).toBe(2);
+
+    const invalidLimit = await captureAsyncJsonOutputAllowExit(() =>
+      handlePoolsCommand(
+        undefined,
+        { limit: "0" },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(invalidLimit.json.success).toBe(false);
+    expect(invalidLimit.json.errorCode).toBe("INPUT_INVALID_VALUE");
+    expect(invalidLimit.json.error.message ?? invalidLimit.json.errorMessage).toContain(
+      "Invalid --limit value",
+    );
+    expect(invalidLimit.exitCode).toBe(2);
+    expect(listPoolsMock).not.toHaveBeenCalled();
+  });
+
+  test("sorts and limits pool listings by stable discovery metrics", async () => {
+    useIsolatedHome("mainnet");
+    const lowerUsdPool = {
+      ...POOL,
+      symbol: "DAI",
+      asset: "0x4444444444444444444444444444444444444444",
+      pool: "0x4444444444444444444444444444444444444444",
+      scope: 4n,
+      totalInPoolValue: 10_000000000000000000n,
+      totalInPoolValueUsd: "10",
+      totalDepositsCount: 7,
+    };
+    const higherUsdPool = {
+      ...USDC_POOL,
+      symbol: "USDC",
+      totalInPoolValue: 2_000_000n,
+      totalInPoolValueUsd: "2,000",
+      totalDepositsCount: 2,
+    };
+    const noUsdPool = {
+      ...POOL,
+      symbol: "WETH",
+      asset: "0x5555555555555555555555555555555555555555",
+      pool: "0x5555555555555555555555555555555555555555",
+      scope: 5n,
+      totalInPoolValue: 100000000000000000000n,
+      totalInPoolValueUsd: undefined,
+      totalDepositsCount: 12,
+    };
+    listPoolsMock.mockImplementation(async () => [
+      lowerUsdPool,
+      noUsdPool,
+      higherUsdPool,
+    ]);
+
+    const tvlDesc = await captureAsyncJsonOutput(() =>
+      handlePoolsCommand(
+        undefined,
+        { sort: "tvl-desc", limit: "2" },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(tvlDesc.json.success).toBe(true);
+    expect(tvlDesc.json.pools.map((pool: { asset: string }) => pool.asset)).toEqual([
+      "USDC",
+      "DAI",
+    ]);
+
+    const depositsAsc = await captureAsyncJsonOutput(() =>
+      handlePoolsCommand(
+        undefined,
+        { sort: "deposits-asc" },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(
+      depositsAsc.json.pools.map((pool: { asset: string }) => pool.asset),
+    ).toEqual(["USDC", "DAI", "WETH"]);
+  });
+
   test("rejects --rpc-url when the listing query spans multiple chains", async () => {
     useIsolatedHome();
 

@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
 import {
+  captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
 } from "../helpers/output.ts";
 import {
@@ -24,6 +25,7 @@ const handleWithdrawMock = mock(async () => undefined);
 const handleRagequitMock = mock(async () => undefined);
 
 let handleSimulateDepositCommand: typeof import("../../src/commands/simulate.ts").handleSimulateDepositCommand;
+let handleSimulateRootCommand: typeof import("../../src/commands/simulate.ts").handleSimulateRootCommand;
 let handleSimulateWithdrawCommand: typeof import("../../src/commands/simulate.ts").handleSimulateWithdrawCommand;
 let handleSimulateRagequitCommand: typeof import("../../src/commands/simulate.ts").handleSimulateRagequitCommand;
 
@@ -71,6 +73,7 @@ beforeAll(async () => {
 
   ({
     handleSimulateDepositCommand,
+    handleSimulateRootCommand,
     handleSimulateWithdrawCommand,
     handleSimulateRagequitCommand,
   } = await import("../../src/commands/simulate.ts?simulate-command-handler-tests"));
@@ -91,6 +94,28 @@ afterAll(() => {
 });
 
 describe("simulate command handler", () => {
+  test("simulate root returns stable JSON help without delegating", async () => {
+    const { json, stderr } = await captureAsyncJsonOutput(() =>
+      handleSimulateRootCommand(
+        {},
+        {
+          parent: fakeRoot({ json: true }),
+          helpInformation: () => "simulate help\n",
+        } as unknown as Command,
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.mode).toBe("help");
+    expect(json.command).toBe("simulate");
+    expect(json.subcommands).toEqual(["deposit", "withdraw", "ragequit"]);
+    expect(json.help).toBe("simulate help");
+    expect(stderr).toBe("");
+    expect(handleDepositMock).not.toHaveBeenCalled();
+    expect(handleWithdrawMock).not.toHaveBeenCalled();
+    expect(handleRagequitMock).not.toHaveBeenCalled();
+  });
+
   test("simulate deposit delegates to deposit with dryRun forced on", async () => {
     const cmd = fakeSimulateCommand({ json: true, chain: "mainnet" });
 

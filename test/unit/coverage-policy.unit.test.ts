@@ -26,7 +26,7 @@ describe("coverage policy", () => {
         expect.objectContaining({ label: "overall-src", min: 85 }),
         expect.objectContaining({ label: "services", min: 85 }),
         expect.objectContaining({ label: "workflow-engine", min: 85 }),
-        expect.objectContaining({ label: "commands", min: 85 }),
+        expect.objectContaining({ label: "commands", min: 90 }),
         expect.objectContaining({ label: "utils", min: 85 }),
         expect.objectContaining({ label: "output", min: 85 }),
         expect.objectContaining({ label: "command-shells", min: 85 }),
@@ -125,6 +125,63 @@ describe("coverage policy", () => {
       stats: {
         linesFound: 1,
         linesHit: 1,
+        percent: 100,
+      },
+    });
+  });
+
+  test("coverage thresholds ignore declaration and comment-only lines", () => {
+    const rootDir = createTrackedTempDir("pp-coverage-threshold-exec-");
+    const sourcePath = join(rootDir, "src", "commands", "deposit.ts");
+    mkdirSync(join(rootDir, "src", "commands"), { recursive: true });
+    writeFileSync(
+      sourcePath,
+      [
+        "interface CommandOptions {",
+        "  dryRun: boolean;",
+        "}",
+        "",
+        "// Human guidance copy.",
+        "export function command(mode: string) {",
+        "  if (mode === \"ok\") {",
+        "    return true;",
+        "  }",
+        "  return false;",
+        "}",
+      ].join("\n"),
+    );
+
+    const coverageMap = new Map([
+      [
+        normalizeCoveragePath(resolve(sourcePath)),
+        new Map([
+          [1, 0],
+          [2, 0],
+          [3, 0],
+          [4, 0],
+          [5, 0],
+          [6, 1],
+          [7, 1],
+          [8, 1],
+          [9, 0],
+          [10, 1],
+          [11, 0],
+        ]),
+      ],
+    ]);
+
+    const evaluation = evaluateCoveragePolicy({
+      rootDir,
+      coverageMap,
+      thresholds: [{ label: "commands", min: 100, matchers: ["src/commands/"] }],
+    });
+
+    expect(evaluation.thresholdResults[0]).toMatchObject({
+      label: "commands",
+      failure: null,
+      stats: {
+        linesFound: 4,
+        linesHit: 4,
         percent: 100,
       },
     });

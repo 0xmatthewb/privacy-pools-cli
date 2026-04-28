@@ -532,6 +532,47 @@ export function registerRagequitEntrySubmitTests(): void {
     expect(resolvePoolMock).not.toHaveBeenCalled();
   });
 
+  test("rejects no-wait preview conflicts before loading ragequit state", async () => {
+    useIsolatedHome();
+
+    const dryRunConflict = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          poolAccount: "PA-1",
+          noWait: true,
+          dryRun: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(dryRunConflict.json.success).toBe(false);
+    expect(dryRunConflict.json.errorCode).toBe("INPUT_FLAG_CONFLICT");
+    expect(dryRunConflict.json.error.message ?? dryRunConflict.json.errorMessage).toContain(
+      "--no-wait cannot be combined with --dry-run",
+    );
+
+    const unsignedConflict = await captureAsyncJsonOutputAllowExit(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          poolAccount: "PA-1",
+          noWait: true,
+          unsigned: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(unsignedConflict.json.success).toBe(false);
+    expect(unsignedConflict.json.errorCode).toBe("INPUT_FLAG_CONFLICT");
+    expect(unsignedConflict.json.error.message ?? unsignedConflict.json.errorMessage).toContain(
+      "--no-wait cannot be combined with --unsigned",
+    );
+    expect(resolvePoolMock).not.toHaveBeenCalled();
+    expect(proveCommitmentMock).not.toHaveBeenCalled();
+    expect(ragequitMock).not.toHaveBeenCalled();
+  });
+
   test("fails cleanly for humans when no pools are available to choose from", async () => {
     useIsolatedHome();
     listPoolsMock.mockImplementationOnce(async () => []);
@@ -1008,6 +1049,72 @@ export function registerRagequitEntrySubmitCompletionTests(): void {
     expect(json.operation).toBe("ragequit");
     expect(saveAccountMock).not.toHaveBeenCalled();
     expect(saveSyncMetaMock).not.toHaveBeenCalled();
+  });
+
+  test("returns submitted handles without waiting for ragequit confirmation", async () => {
+    useIsolatedHome({ withSigner: true });
+    getPublicClientMock.mockImplementationOnce(() => ({
+      readContract: async () => "0x19E7E376E7C213B7E7E7E46CC70A5DD086DAFF2A",
+      waitForTransactionReceipt: async () => {
+        throw new Error("waitForTransactionReceipt should not run in --no-wait mode");
+      },
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          poolAccount: "PA-1",
+          confirmRagequit: true,
+          noWait: true,
+        },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.operation).toBe("ragequit");
+    expect(json.status).toBe("submitted");
+    expect(typeof json.submissionId).toBe("string");
+    expect(json.txHash).toBe("0x" + "12".repeat(32));
+    expect(saveAccountMock).not.toHaveBeenCalled();
+    expect(saveSyncMetaMock).not.toHaveBeenCalled();
+  });
+
+  test("streams ragequit progress before the submitted no-wait envelope", async () => {
+    useIsolatedHome({ withSigner: true });
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleRagequitCommand(
+        "ETH",
+        {
+          poolAccount: "PA-1",
+          confirmRagequit: true,
+          noWait: true,
+          streamJson: true,
+        },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    const lines = stdout.trim().split("\n").map((line) => JSON.parse(line));
+    expect(lines.map((line) => line.stage).filter(Boolean)).toEqual(
+      expect.arrayContaining([
+        "validating_input",
+        "chain_resolved",
+        "pool_resolved",
+        "generating_proof",
+        "submitting_transaction",
+        "complete",
+      ]),
+    );
+    expect(lines.at(-1)).toMatchObject({
+      success: true,
+      operation: "ragequit",
+      status: "submitted",
+      poolAccountId: "PA-1",
+    });
+    expect(stderr).toBe("");
   });
 
 }

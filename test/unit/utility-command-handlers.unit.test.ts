@@ -434,6 +434,49 @@ Basic:
     expect(exitCode).toBe(2);
   });
 
+  test("completion rejects invalid query cursor values before returning candidates", async () => {
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleCompletionCommand(
+        undefined,
+        { query: true, shell: "bash", cword: "-1" },
+        fakeCommand({ json: true }, ["privacy-pools"]),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.error.message ?? json.errorMessage).toContain(
+      "Invalid --cword value",
+    );
+    expect(exitCode).toBe(2);
+  });
+
+  test("completion rejects ambiguous shell arguments before rendering scripts", async () => {
+    const tooMany = await captureAsyncJsonOutputAllowExit(() =>
+      handleCompletionCommand(
+        undefined,
+        {},
+        fakeCommand({ json: true }, ["bash", "zsh"]),
+      ),
+    );
+    expect(tooMany.json.success).toBe(false);
+    expect(tooMany.json.errorMessage).toContain("Too many arguments");
+    expect(tooMany.exitCode).toBe(2);
+
+    const conflictingShell = await captureAsyncJsonOutputAllowExit(() =>
+      handleCompletionCommand(
+        "bash",
+        { shell: "zsh" },
+        fakeCommand({ json: true }, ["bash"]),
+      ),
+    );
+    expect(conflictingShell.json.success).toBe(false);
+    expect(conflictingShell.json.errorMessage).toContain(
+      "Conflicting shell values",
+    );
+    expect(conflictingShell.exitCode).toBe(2);
+  });
+
   test("completion returns a structured INPUT error for an invalid shell", async () => {
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
       handleCompletionCommand(undefined, { shell: "csh" }, fakeCommand({ json: true })),

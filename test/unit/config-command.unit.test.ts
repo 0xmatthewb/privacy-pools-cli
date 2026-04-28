@@ -221,6 +221,78 @@ describe("config command handlers", () => {
     expect(positionalSensitive.json.errorMessage).toContain("Sensitive keys cannot be set");
   });
 
+  test("rejects unsafe or invalid config writes before persisting secrets", async () => {
+    const home = useIsolatedHome();
+    const shortPhraseFile = join(home, "short-phrase.txt");
+    writeFileSync(shortPhraseFile, "abandon abandon abandon\n", "utf8");
+
+    const missingSensitiveFile = await captureAsyncJsonOutputAllowExit(() =>
+      handleConfigSetCommand(
+        "recovery-phrase",
+        undefined,
+        { file: join(home, "missing.txt") },
+        fakeCommand({ json: true }, 2),
+      ),
+    );
+    expect(missingSensitiveFile.json.success).toBe(false);
+    expect(missingSensitiveFile.json.errorMessage).toContain("File not found");
+    expect(missingSensitiveFile.exitCode).toBe(2);
+    expect(loadMnemonicFromFile()).toBeNull();
+
+    const missingNonInteractiveSecret = await captureAsyncJsonOutputAllowExit(() =>
+      handleConfigSetCommand(
+        "recovery-phrase",
+        undefined,
+        {},
+        fakeCommand({ json: true }, 2),
+      ),
+    );
+    expect(missingNonInteractiveSecret.json.success).toBe(false);
+    expect(missingNonInteractiveSecret.json.errorMessage).toContain(
+      "Sensitive keys require --file",
+    );
+    expect(missingNonInteractiveSecret.exitCode).toBe(2);
+
+    const badPhrase = await captureAsyncJsonOutputAllowExit(() =>
+      handleConfigSetCommand(
+        "recovery-phrase",
+        undefined,
+        { file: shortPhraseFile },
+        fakeCommand({ json: true }, 2),
+      ),
+    );
+    expect(badPhrase.json.success).toBe(false);
+    expect(badPhrase.json.errorMessage).toContain(
+      "Recovery phrase must be 12 or 24 words",
+    );
+    expect(badPhrase.exitCode).toBe(2);
+    expect(loadMnemonicFromFile()).toBeNull();
+
+    const emptyValue = await captureAsyncJsonOutputAllowExit(() =>
+      handleConfigSetCommand(
+        "default-chain",
+        "",
+        {},
+        fakeCommand({ json: true }, 2),
+      ),
+    );
+    expect(emptyValue.json.success).toBe(false);
+    expect(emptyValue.json.errorMessage).toContain("Missing value");
+    expect(emptyValue.exitCode).toBe(2);
+
+    const unknownRpcChain = await captureAsyncJsonOutputAllowExit(() =>
+      handleConfigSetCommand(
+        "rpc-override.not-a-chain",
+        "https://rpc.example.test",
+        {},
+        fakeCommand({ json: true }, 2),
+      ),
+    );
+    expect(unknownRpcChain.json.success).toBe(false);
+    expect(unknownRpcChain.json.errorMessage).toContain("Unknown config key");
+    expect(unknownRpcChain.exitCode).toBe(2);
+  });
+
   test("unsets config keys and refuses to clear environment-provided signer keys", async () => {
     useIsolatedHome();
     saveConfig({
@@ -266,6 +338,30 @@ describe("config command handlers", () => {
     expect(unsetSigner.json.success).toBe(true);
     expect(unsetSigner.json.removed).toBe(true);
     expect(loadSignerKey()).toBeNull();
+  });
+
+  test("rejects unknown config unset keys without changing existing config", async () => {
+    useIsolatedHome();
+    saveConfig({
+      defaultChain: "sepolia",
+      rpcOverrides: { 1: "https://rpc.example.test" },
+    });
+
+    const unknown = await captureAsyncJsonOutputAllowExit(() =>
+      handleConfigUnsetCommand(
+        "rpc-override.not-a-chain",
+        {},
+        fakeCommand({ json: true }, 2),
+      ),
+    );
+
+    expect(unknown.json.success).toBe(false);
+    expect(unknown.json.errorMessage).toContain("Unknown config key");
+    expect(unknown.exitCode).toBe(2);
+    expect(loadConfig()).toMatchObject({
+      defaultChain: "sepolia",
+      rpcOverrides: { 1: "https://rpc.example.test" },
+    });
   });
 
   test("prints the resolved config path for scripting", async () => {
@@ -332,5 +428,33 @@ describe("config command handlers", () => {
     );
     expect(unknown.json.success).toBe(false);
     expect(unknown.json.errorMessage).toContain("Unknown profile");
+  });
+
+  test("rejects invalid reserved profile names before creating directories", async () => {
+    const home = useIsolatedHome();
+
+    const invalid = await captureAsyncJsonOutputAllowExit(() =>
+      handleConfigProfileCreateCommand(
+        "-bad",
+        {},
+        fakeCommand({ json: true }, 3),
+      ),
+    );
+    expect(invalid.json.success).toBe(false);
+    expect(invalid.json.errorMessage).toContain("Invalid profile name");
+    expect(invalid.exitCode).toBe(2);
+
+    const reserved = await captureAsyncJsonOutputAllowExit(() =>
+      handleConfigProfileCreateCommand(
+        "default",
+        {},
+        fakeCommand({ json: true }, 3),
+      ),
+    );
+    expect(reserved.json.success).toBe(false);
+    expect(reserved.json.errorMessage).toContain("Cannot create a profile named");
+    expect(reserved.exitCode).toBe(2);
+    expect(existsSync(join(home, "profiles", "-bad"))).toBe(false);
+    expect(existsSync(join(home, "profiles", "default"))).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { PoolAccountRef } from "../../src/utils/pool-accounts.ts";
 import {
   buildDirectRecipientMismatchNextActions,
@@ -21,10 +21,7 @@ import {
   writeWithdrawalAnonymitySetHint,
 } from "../../src/commands/withdraw.ts";
 import { captureOutput } from "../helpers/output.ts";
-import {
-  cleanupTrackedTempDirs,
-  createTrackedTempDir,
-} from "../helpers/temp.ts";
+import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 import { loadRecipientHistoryEntries } from "../../src/services/recipient-history.ts";
 
 function makePoolAccountRef(
@@ -82,16 +79,16 @@ function makeQuote(
   };
 }
 
-const originalPrivacyPoolsHome = process.env.PRIVACY_POOLS_HOME;
+let world: TestWorld;
 
 describe("withdraw command helpers", () => {
-  afterEach(() => {
-    cleanupTrackedTempDirs();
-    if (originalPrivacyPoolsHome === undefined) {
-      delete process.env.PRIVACY_POOLS_HOME;
-    } else {
-      process.env.PRIVACY_POOLS_HOME = originalPrivacyPoolsHome;
-    }
+  beforeEach(() => {
+    world = createTestWorld({ prefix: "pp-withdraw-helpers-" });
+    world.useConfigHome();
+  });
+
+  afterEach(async () => {
+    await world.teardown();
   });
 
   test("formats relayer host labels and suspicious testnet minimum floors", () => {
@@ -211,8 +208,6 @@ describe("withdraw command helpers", () => {
   });
 
   test("recipient helpers validate inputs, warn on new recipients, and persist successful recipients", async () => {
-    const home = createTrackedTempDir("pp-withdraw-helpers-");
-    process.env.PRIVACY_POOLS_HOME = home;
     const signer = "0x4444444444444444444444444444444444444444";
     const recipient = "0x5555555555555555555555555555555555555555";
 

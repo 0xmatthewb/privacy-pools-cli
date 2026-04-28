@@ -29,7 +29,7 @@ export const COVERAGE_THRESHOLDS = [
   { label: "overall-src", min: 85, matchers: ["src/"] },
   { label: "services", min: 85, matchers: ["src/services/"] },
   { label: "workflow-engine", min: 85, matchers: ["src/services/workflow.ts"] },
-  { label: "commands", min: 85, matchers: ["src/commands/"] },
+  { label: "commands", min: 90, matchers: ["src/commands/"] },
   { label: "utils", min: 85, matchers: ["src/utils/"] },
   { label: "output", min: 85, matchers: ["src/output/"] },
   { label: "command-shells", min: 85, matchers: ["src/command-shells/"] },
@@ -130,6 +130,7 @@ export function parseCoverageByMatchers(
   { excludedSources } = {},
 ) {
   const effectiveExcludedSources = excludedSources ?? new Set();
+  const executableLinesBySource = new Map();
   let linesFound = 0;
   let linesHit = 0;
 
@@ -141,8 +142,15 @@ export function parseCoverageByMatchers(
       continue;
     }
 
-    linesFound += lineHits.size;
-    for (const hits of lineHits.values()) {
+    let executableLines = executableLinesBySource.get(normalizedSource);
+    if (!executableLines) {
+      executableLines = collectExecutableCoverageLines(normalizedSource);
+      executableLinesBySource.set(normalizedSource, executableLines);
+    }
+
+    for (const [lineNumber, hits] of lineHits.entries()) {
+      if (!executableLines.has(lineNumber)) continue;
+      linesFound += 1;
       if (hits > 0) linesHit += 1;
     }
   }

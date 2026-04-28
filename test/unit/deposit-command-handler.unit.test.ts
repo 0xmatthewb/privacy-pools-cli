@@ -346,6 +346,64 @@ beforeEach(async () => {
 });
 
 describe("deposit command handler", () => {
+  test("rejects invalid async/preview mode combinations before pool resolution", async () => {
+    useIsolatedHome();
+
+    const cases: Array<{
+      name: string;
+      opts: Record<string, unknown>;
+      message: string;
+      code?: string;
+    }> = [
+      {
+        name: "unsupported unsigned format",
+        opts: { unsigned: "raw" },
+        message: 'Unsupported unsigned format: "raw".',
+      },
+      {
+        name: "no-wait with dry-run",
+        opts: { noWait: true, dryRun: true },
+        message: "--no-wait cannot be combined with --dry-run.",
+        code: "INPUT_FLAG_CONFLICT",
+      },
+      {
+        name: "no-wait with unsigned",
+        opts: { noWait: true, unsigned: true },
+        message: "--no-wait cannot be combined with --unsigned.",
+        code: "INPUT_FLAG_CONFLICT",
+      },
+      {
+        name: "unsigned with dry-run",
+        opts: { unsigned: true, dryRun: true },
+        message: "--unsigned cannot be combined with --dry-run.",
+        code: "INPUT_FLAG_CONFLICT",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+        handleDepositCommand(
+          "0.25",
+          "ETH",
+          testCase.opts,
+          fakeCommand({ json: true, chain: "mainnet" }),
+        ),
+      );
+
+      expect(json.success).toBe(false);
+      expect(json.error.message ?? json.errorMessage).toContain(testCase.message);
+      if (testCase.code) {
+        expect(json.errorCode).toBe(testCase.code);
+      }
+      expect(exitCode).toBe(2);
+    }
+
+    expect(resolvePoolMock).not.toHaveBeenCalled();
+    expect(initializeAccountServiceMock).not.toHaveBeenCalled();
+    expect(depositETHMock).not.toHaveBeenCalled();
+    expect(depositERC20Mock).not.toHaveBeenCalled();
+  });
+
   test("fails closed when no asset is provided in machine mode", async () => {
     useIsolatedHome();
 
@@ -814,6 +872,65 @@ describe("deposit command handler", () => {
       "Deposit cancelled",
     ]);
     expect(depositETHMock).not.toHaveBeenCalled();
+  });
+
+  test("requires the high-stakes deposit acknowledgement before submitting", async () => {
+    useIsolatedHome({ withSigner: true });
+    inputPromptMock.mockImplementationOnce(async () => "");
+
+    const { stderr } = await captureAsyncOutput(() =>
+      handleDepositCommand(
+        "1000",
+        "ETH",
+        {},
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    expect(stderr).toContain("High-risk confirmation");
+    expect(stderr).toContain("This mainnet deposit sends 1,000 ETH");
+    expect(stderr).toContain("Deposit cancelled");
+    expect(depositETHMock).not.toHaveBeenCalled();
+    expect(depositERC20Mock).not.toHaveBeenCalled();
+    expect(saveAccountMock).not.toHaveBeenCalled();
+  });
+
+  test("streams deposit progress before the submitted no-wait envelope", async () => {
+    useIsolatedHome({ withSigner: true });
+    getPublicClientMock.mockImplementation(() => ({
+      waitForTransactionReceipt: async () => {
+        throw new Error("waitForTransactionReceipt should not run in --no-wait mode");
+      },
+    }));
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleDepositCommand(
+        "0.1",
+        "ETH",
+        { noWait: true, streamJson: true },
+        fakeCommand({ chain: "mainnet" }),
+      ),
+    );
+
+    const lines = stdout.trim().split("\n").map((line) => JSON.parse(line));
+    expect(lines.map((line) => line.stage).filter(Boolean)).toEqual(
+      expect.arrayContaining([
+        "validating_input",
+        "resolving_pool",
+        "pool_resolved",
+        "preflight",
+        "submitting_transaction",
+        "submitted",
+      ]),
+    );
+    expect(lines.at(-1)).toMatchObject({
+      success: true,
+      operation: "deposit",
+      status: "submitted",
+    });
+    expect(stderr).toBe("");
+    expect(saveAccountMock).not.toHaveBeenCalled();
+    expect(saveSyncMetaMock).not.toHaveBeenCalled();
   });
 
   test("fails closed when ERC20 approval confirmation times out", async () => {
