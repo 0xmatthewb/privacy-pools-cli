@@ -638,7 +638,7 @@ export function classifyError(error: unknown): CLIError {
       error.message,
       "INPUT",
       error.hint,
-      "INPUT_MISSING_ARGUMENT",
+      error.code,
     );
   }
 

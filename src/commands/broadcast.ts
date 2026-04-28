@@ -65,11 +65,12 @@ function readBroadcastInput(inputRef: string): string {
 
 export async function handleBroadcastCommand(
   inputRef: string,
-  opts: { validateOnly?: boolean; noWait?: boolean },
+  opts: { validateOnly?: boolean; wait?: boolean; noWait?: boolean },
   cmd: Command,
 ): Promise<void> {
   const globalOpts = cmd.parent?.opts() as GlobalOptions;
   const mode = resolveGlobalMode(globalOpts);
+  const noWait = opts.wait === false || opts.noWait === true;
 
   try {
     const raw = readBroadcastInput(inputRef);
@@ -89,9 +90,9 @@ export async function handleBroadcastCommand(
       rpcOverride: globalOpts?.rpcUrl,
       expectedChain: globalOpts?.chain,
       validateOnly: opts.validateOnly === true,
-      noWait: opts.noWait === true,
+      noWait,
     });
-    const submission = opts.noWait === true && !result.validatedOnly
+    const submission = noWait && !result.validatedOnly
       ? createSubmissionRecord({
           operation: "broadcast",
           sourceCommand: "broadcast",

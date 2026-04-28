@@ -208,6 +208,7 @@ export interface DetailedCommandDescriptor {
   description: string;
   group: CommandGroup;
   aliases: string[];
+  deprecated?: boolean;
   execution: CommandExecutionDescriptor;
   usage: string;
   flags: string[];
@@ -255,6 +256,7 @@ export interface RuntimeCompatibilityDescriptor {
   workflowSnapshotVersion: string;
   workflowSecretVersion: string;
   runtimeVersion: string;
+  runtime?: "native" | "js";
   workerProtocolVersion: string;
   manifestVersion: string;
   nativeBridgeVersion: string;
@@ -281,6 +283,7 @@ export interface StatusIssue {
 
 export interface CapabilityExitCodeDescriptor {
   code: number;
+  name: string;
   category:
     | "SUCCESS"
     | "CANCELLED"

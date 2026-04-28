@@ -8,6 +8,7 @@
  */
 
 import type { OutputContext } from "./common.js";
+import type { DryRunMode } from "../utils/dry-run-mode.js";
 import {
   appendNextActions,
   createNextAction,
@@ -39,10 +40,6 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
-import {
-  formatDeprecationWarningCallout,
-  type DeprecationWarningPayload,
-} from "./deprecation.js";
 
 export interface WithdrawAnonymitySet {
   eligible: number;
@@ -141,7 +138,11 @@ function formatRelayedWithdrawalRemainderHint(
 ): string {
   return formatCallout(
     "warning",
-    [guidance.summary, ...guidance.choices.map((choice) => `- ${choice}`)].join("\n"),
+    [
+      guidance.summary,
+      "You can: (1) withdraw less, (2) withdraw the full balance with --all, or (3) plan a public recovery later via ragequit (compromises privacy for the remainder).",
+      ...guidance.choices.map((choice) => `- ${choice}`),
+    ].join("\n"),
   );
 }
 
@@ -193,7 +194,7 @@ function formatHumanQuoteExpiry(expirationMs: number, nowMs: number = Date.now()
   return {
     label:
       remaining === "expired"
-        ? `expired (${localTimestamp})`
+        ? `expired (${localTimestamp}; if this happens repeatedly, your system clock may be inaccurate)`
         : `in ${remaining} (${localTimestamp})`,
     secondsLeft,
   };
@@ -459,6 +460,7 @@ export interface WithdrawDryRunData {
   selectedCommitmentLabel: bigint;
   selectedCommitmentValue: bigint;
   proofPublicSignals: number;
+  dryRunMode?: DryRunMode | null;
   /** Relayed-only: fee in basis points. */
   feeBPS?: string;
   /** Relayed-only: ISO timestamp of quote expiration. */
@@ -472,7 +474,6 @@ export interface WithdrawDryRunData {
   anonymitySet?: WithdrawAnonymitySet;
   remainingBelowMinGuidance?: RelayedWithdrawalRemainderGuidance | null;
   warnings?: WithdrawUiWarning[];
-  deprecationWarning?: DeprecationWarningPayload;
 }
 
 /**
@@ -535,6 +536,7 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
       operation: "withdraw",
       mode: data.withdrawMode,
       dryRun: true,
+      dryRunMode: data.dryRunMode ?? "rpc",
       amount: data.amount.toString(),
       asset: data.asset,
       chain: data.chain,
@@ -552,9 +554,6 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
         },
         ...(data.warnings ?? []),
       ],
-      ...(data.deprecationWarning
-        ? { deprecationWarning: data.deprecationWarning }
-        : {}),
     };
     if (data.withdrawMode === "relayed") {
       payload.feeBPS = data.feeBPS;
@@ -650,11 +649,6 @@ export function renderWithdrawDryRun(ctx: OutputContext, data: WithdrawDryRunDat
         formatRelayedWithdrawalRemainderHint(data.remainingBelowMinGuidance),
       );
     }
-    if (data.deprecationWarning) {
-      process.stderr.write(
-        formatDeprecationWarningCallout(data.deprecationWarning),
-      );
-    }
   }
   renderNextSteps(ctx, humanNextActions);
 }
@@ -698,7 +692,6 @@ export interface WithdrawSuccessData {
   localStateSynced?: boolean;
   warningCode?: string | null;
   warnings?: WithdrawUiWarning[];
-  deprecationWarning?: DeprecationWarningPayload;
 }
 
 /**
@@ -823,9 +816,6 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
     if (warnings) {
       payload.warnings = warnings;
     }
-    if (data.deprecationWarning) {
-      payload.deprecationWarning = data.deprecationWarning;
-    }
     printJsonSuccess(appendNextActions(payload, agentNextActions), false);
     return;
   }
@@ -917,11 +907,6 @@ export function renderWithdrawSuccess(ctx: OutputContext, data: WithdrawSuccessD
             }]),
       ]),
     );
-    if (data.deprecationWarning) {
-      process.stderr.write(
-        formatDeprecationWarningCallout(data.deprecationWarning),
-      );
-    }
     if (data.withdrawMode === "direct") {
       process.stderr.write(
         formatCallout(
@@ -1035,7 +1020,7 @@ export function renderWithdrawQuote(ctx: OutputContext, data: WithdrawQuoteData)
     ? {
         code: "WITHDRAW_QUOTE_EXPIRED",
         category: "relayer",
-        message: "This relayer quote has expired. Request a fresh quote before submitting the withdrawal.",
+        message: "This relayer quote has expired. Request a fresh quote before submitting the withdrawal. If this happens repeatedly, your system clock may be inaccurate.",
       }
     : null;
   const warnings = [

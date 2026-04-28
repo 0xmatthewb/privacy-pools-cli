@@ -1,4 +1,8 @@
 import type { Ora } from "ora";
+import {
+  emitProofStreamStage,
+  type ProofStreamStage,
+} from "./stream-json.js";
 
 /** Track whether we've shown the first-run message in this process. */
 let firstRunMessageShown = false;
@@ -14,6 +18,10 @@ export interface ProofProgressController {
 
 export interface ProofProgressOptions {
   dynamicSuffix?: (elapsedSeconds: number) => string | null | undefined;
+  stream?: {
+    enabled?: boolean;
+    baseEvent: Record<string, unknown>;
+  };
 }
 
 /** @internal Exported for test isolation only. */
@@ -89,38 +97,55 @@ export async function withProofProgress<T>(
   firstRunMessageShown = true;
   const phases = isFirstRun
     ? [
-        { after: 0, label: "verify circuits if needed" },
-        { after: 8, label: "build witness" },
-        { after: 18, label: "generate proof" },
-        { after: 35, label: "finalize proof" },
-        { after: 42, label: "verify proof" },
+        { after: 0, label: "verify circuits if needed", stage: "loading_circuits" as const },
+        { after: 8, label: "build witness", stage: "generating_proof" as const },
+        { after: 18, label: "generate proof", stage: "generating_proof" as const },
+        { after: 35, label: "finalize proof", stage: "generating_proof" as const },
+        { after: 42, label: "verify proof", stage: "verifying_proof" as const },
       ]
     : [
-        { after: 0, label: "build witness" },
-        { after: 10, label: "generate proof" },
-        { after: 28, label: "finalize proof" },
-        { after: 35, label: "verify proof" },
+        { after: 0, label: "build witness", stage: "generating_proof" as const },
+        { after: 10, label: "generate proof", stage: "generating_proof" as const },
+        { after: 28, label: "finalize proof", stage: "generating_proof" as const },
+        { after: 35, label: "verify proof", stage: "verifying_proof" as const },
       ];
   const start = Date.now();
   let manualPhaseActive = false;
   let manualPhaseLabel = isFirstRun
     ? "verify circuits if needed"
     : "build witness";
+  let manualStreamStage: ProofStreamStage = isFirstRun
+    ? "loading_circuits"
+    : "generating_proof";
+  let lastEmittedStreamStage: ProofStreamStage | null = null;
 
-  const currentPhaseLabel = (elapsedSeconds: number): string => {
+  const currentPhase = (elapsedSeconds: number): {
+    label: string;
+    stage: ProofStreamStage;
+  } => {
     if (manualPhaseActive) {
-      return manualPhaseLabel;
+      return { label: manualPhaseLabel, stage: manualStreamStage };
     }
 
     const activePhase = phases
       .toReversed()
       .find((phase) => elapsedSeconds >= phase.after);
-    return activePhase?.label ?? phases[0]!.label;
+    return activePhase ?? phases[0]!;
+  };
+
+  const emitStage = (stage: ProofStreamStage) => {
+    if (lastEmittedStreamStage === stage) {
+      return;
+    }
+    lastEmittedStreamStage = stage;
+    emitProofStreamStage(opts.stream?.enabled, opts.stream?.baseEvent, stage);
   };
 
   const renderProgress = () => {
     const elapsed = Math.floor((Date.now() - start) / 1000);
-    const phaseLabel = currentPhaseLabel(elapsed);
+    const phase = currentPhase(elapsed);
+    emitStage(phase.stage);
+    const phaseLabel = phase.label;
     const suffixes = [phaseLabel];
     const dynamicSuffix = opts.dynamicSuffix?.(elapsed)?.trim();
     if (dynamicSuffix) {
@@ -135,31 +160,36 @@ export async function withProofProgress<T>(
     }
   };
 
-  const setManualPhase = (nextLabel: string, opts?: { verificationOnly?: boolean }) => {
-    if (opts?.verificationOnly && !isFirstRun) {
+  const setManualPhase = (
+    nextLabel: string,
+    nextStage: ProofStreamStage,
+    phaseOpts?: { verificationOnly?: boolean },
+  ) => {
+    if (phaseOpts?.verificationOnly && !isFirstRun) {
       return;
     }
     manualPhaseActive = true;
     manualPhaseLabel = nextLabel;
+    manualStreamStage = nextStage;
     renderProgress();
   };
 
   const progress: ProofProgressController = {
     isFirstRun,
     markArtifactVerificationPhase() {
-      setManualPhase("verify circuits if needed", { verificationOnly: true });
+      setManualPhase("verify circuits if needed", "loading_circuits", { verificationOnly: true });
     },
     markBuildWitnessPhase() {
-      setManualPhase("build witness");
+      setManualPhase("build witness", "generating_proof");
     },
     markGenerateProofPhase() {
-      setManualPhase("generate proof");
+      setManualPhase("generate proof", "generating_proof");
     },
     markFinalizeProofPhase() {
-      setManualPhase("finalize proof");
+      setManualPhase("finalize proof", "generating_proof");
     },
     markVerifyProofPhase() {
-      setManualPhase("verify proof");
+      setManualPhase("verify proof", "verifying_proof");
     },
   };
 

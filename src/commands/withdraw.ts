@@ -81,6 +81,7 @@ import {
 } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { emitStreamJsonEvent } from "../utils/stream-json.js";
+import { normalizeDryRunMode, type DryRunMode } from "../utils/dry-run-mode.js";
 import { selectBestWithdrawalCommitment } from "../utils/withdrawal.js";
 import {
   resolveAmountAndAssetInput,
@@ -203,30 +204,6 @@ const entrypointLatestRootAbi = [
 const RELAYER_PROOF_REFRESH_BUDGET_SECONDS = 12;
 const LOCAL_STATE_RECONCILIATION_WARNING_CODE =
   "LOCAL_STATE_RECONCILIATION_REQUIRED";
-const CONFIRM_DIRECT_WITHDRAW_DEPRECATION_WARNING = {
-  code: "FLAG_DEPRECATED",
-  message:
-    "--confirm-direct-withdraw is deprecated. Replaced by interactive confirmation. Will be removed in v3.x.",
-  replacementCommand: "Remove --confirm-direct-withdraw and confirm the direct withdrawal interactively, or use --agent for explicit non-interactive consent.",
-};
-
-function withDirectConfirmDeprecationWarning(
-  error: unknown,
-  warning: typeof CONFIRM_DIRECT_WITHDRAW_DEPRECATION_WARNING | undefined,
-): unknown {
-  if (!warning || !(error instanceof CLIError)) return error;
-  return new CLIError(
-    error.message,
-    error.category,
-    error.hint,
-    error.code,
-    error.retryable,
-    error.presentation,
-    { ...(error.details ?? {}), deprecationWarning: warning },
-    error.docsSlug,
-    error.extra,
-  );
-}
 
 type WithdrawReviewStatus = Exclude<AspApprovalStatus, "approved">;
 
@@ -236,7 +213,8 @@ interface WithdrawCommandOptions {
   direct?: boolean;
   confirmDirectWithdraw?: boolean;
   unsigned?: boolean | string;
-  dryRun?: boolean;
+  dryRun?: boolean | string;
+  wait?: boolean;
   noWait?: boolean;
   all?: boolean;
   acceptAllFundsPublic?: boolean;
@@ -740,16 +718,14 @@ export async function handleWithdrawCommand(
   const unsignedFormat =
     typeof unsignedRaw === "string" ? unsignedRaw.toLowerCase() : undefined;
   const wantsTxFormat = unsignedFormat === "tx";
-  const isDryRun = opts.dryRun ?? false;
+  const dryRunMode: DryRunMode | null = normalizeDryRunMode(opts.dryRun);
+  const isDryRun = dryRunMode !== null;
+  const noWait = opts.wait === false || opts.noWait === true;
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const advisorySilent = isQuiet || isJson || isUnsigned;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
   const isDirect = opts.direct ?? false;
-  const directConfirmDeprecationWarning =
-    opts.confirmDirectWithdraw === true
-      ? CONFIRM_DIRECT_WITHDRAW_DEPRECATION_WARNING
-      : undefined;
   const confirmationTimeoutSeconds = Math.round(
     getConfirmationTimeoutMs() / 1000,
   );
@@ -799,18 +775,20 @@ export async function handleWithdrawCommand(
         "Use --unsigned envelope or --unsigned tx.",
       );
     }
-    if (opts.noWait && isDryRun) {
+    if (noWait && isDryRun) {
       throw new CLIError(
         "--no-wait cannot be combined with --dry-run.",
         "INPUT",
         "Use --dry-run to preview only, or remove --dry-run to submit without waiting for confirmation.",
+        "INPUT_FLAG_CONFLICT",
       );
     }
-    if (opts.noWait && isUnsigned) {
+    if (noWait && isUnsigned) {
       throw new CLIError(
         "--no-wait cannot be combined with --unsigned.",
         "INPUT",
         "Use --unsigned to build an offline envelope, or remove --unsigned to submit and return immediately.",
+        "INPUT_FLAG_CONFLICT",
       );
     }
     if (!isQuiet && !isJson) {
@@ -1027,6 +1005,7 @@ export async function handleWithdrawCommand(
         "Relayed withdrawals require --to <address>.",
         "INPUT",
         "Specify a recipient with --to. Direct withdrawal is available only if you fully accept that it publicly links your deposit and withdrawal addresses.",
+        "INPUT_MISSING_RECIPIENT",
       );
     }
 
@@ -1110,10 +1089,45 @@ export async function handleWithdrawCommand(
       opts.confirmDirectWithdraw !== true &&
       !(isAllWithdrawal && opts.acceptAllFundsPublic === true)
     ) {
+      const retryOptions: Record<string, string | boolean> = {
+        agent: true,
+        chain: chainConfig.name,
+        direct: true,
+        confirmDirectWithdraw: true,
+      };
+      if (fromPaRaw) retryOptions.poolAccount = fromPaRaw;
+      if (recipientAddress) retryOptions.to = recipientAddress;
       throw new CLIError(
         "Direct withdrawal requires explicit privacy-loss acknowledgement in non-interactive mode.",
         "INPUT",
         "Re-run with --confirm-direct-withdraw only if you fully accept that this will publicly link your deposit and withdrawal addresses onchain.",
+        "INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED",
+        false,
+        undefined,
+        {
+          recipient: recipientAddress,
+          signerAddress,
+        },
+        undefined,
+        {
+          helpTopic: "modes",
+          nextActions: [
+            createNextAction(
+              "withdraw",
+              "Retry only if you intentionally prefer direct public withdrawal.",
+              "after_dry_run",
+              {
+                args: isAllWithdrawal
+                  ? [pool.symbol]
+                  : [amountStr, pool.symbol],
+                options: {
+                  ...retryOptions,
+                  ...(isAllWithdrawal ? { all: true } : {}),
+                },
+              },
+            ),
+          ],
+        },
       );
     }
     verbose(
@@ -1434,6 +1448,7 @@ export async function handleWithdrawCommand(
             unknownPoolAccount.message,
             "INPUT",
             unknownPoolAccount.hint,
+            "ACCOUNT_NOT_FOUND",
           );
         }
       }
@@ -1448,12 +1463,18 @@ export async function handleWithdrawCommand(
         (fromPaNumber === undefined || fromPaNumber === null)
       ) {
         spin.stop();
+        const requestedAmountDescription = isDeferredAmount
+          ? isAllWithdrawal
+            ? `a full-balance ${pool.symbol} withdrawal`
+            : `a ${amountStr} ${pool.symbol} withdrawal`
+          : formatAmount(withdrawalAmount, pool.decimals, pool.symbol);
         throw new CLIError(
-          `No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`,
+          `No Pool Account has enough balance for ${requestedAmountDescription}.`,
           "INPUT",
           poolCommitments.length > 0
             ? `Largest available: ${formatAmount(baseSelection.largestAvailable, pool.decimals, pool.symbol)}`
             : `No available Pool Accounts found for ${pool.symbol}. Deposit first, then run 'privacy-pools accounts --chain ${chainConfig.name}'.`,
+          "ACCOUNT_NOT_FOUND",
         );
       }
 
@@ -1562,10 +1583,16 @@ export async function handleWithdrawCommand(
       }
 
       if (approvedSelection.kind === "insufficient") {
+        const requestedAmountDescription = isDeferredAmount
+          ? isAllWithdrawal
+            ? `a full-balance ${pool.symbol} withdrawal`
+            : `a ${amountStr} ${pool.symbol} withdrawal`
+          : formatAmount(withdrawalAmount, pool.decimals, pool.symbol);
         throw new CLIError(
-          `No Pool Account has enough balance for ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}.`,
+          `No Pool Account has enough balance for ${requestedAmountDescription}.`,
           "INPUT",
           `No approved Pool Accounts found for ${pool.symbol} yet. Please wait for your deposits to be approved, or deposit first if you have not funded this pool.`,
+          "ACCOUNT_NOT_FOUND",
         );
       }
 
@@ -2069,16 +2096,6 @@ export async function handleWithdrawCommand(
         }
 
         // Re-verify parity right before proving
-        emitStreamJsonEvent(streamJson, {
-          mode: "withdraw-progress",
-          operation: "withdraw",
-          event: "stage",
-          stage: "generating_proof",
-          chain: chainConfig.name,
-          asset: pool.symbol,
-          withdrawMode: "direct",
-          poolAccountId: selectedPoolAccount.paId,
-        });
         writeWithdrawProgress(1, "Generating and locally verifying the direct withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
@@ -2107,6 +2124,19 @@ export async function handleWithdrawCommand(
             }, {
               progress,
             }),
+          {
+            stream: {
+              enabled: streamJson,
+              baseEvent: {
+                mode: "withdraw-progress",
+                operation: "withdraw",
+                chain: chainConfig.name,
+                asset: pool.symbol,
+                withdrawMode: "direct",
+                poolAccountId: selectedPoolAccount.paId,
+              },
+            },
+          },
         );
         verbose(
           `Proof generated: publicSignals=${proof.publicSignals.length}`,
@@ -2148,9 +2178,6 @@ export async function handleWithdrawCommand(
                 poolAccountId: selectedPoolAccount.paId,
                 rootMatchedAtProofTime: true,
                 warnings: [...payload.warnings, ...recipientWarnings],
-                ...(directConfirmDeprecationWarning
-                  ? { deprecationWarning: directConfirmDeprecationWarning }
-                  : {}),
               },
               false,
             );
@@ -2173,10 +2200,10 @@ export async function handleWithdrawCommand(
             selectedCommitmentLabel: commitmentLabel,
             selectedCommitmentValue: commitment.value,
             proofPublicSignals: proof.publicSignals.length,
+            dryRunMode,
             rootMatchedAtProofTime: true,
             anonymitySet,
             warnings: recipientWarnings,
-            deprecationWarning: directConfirmDeprecationWarning,
           });
           return;
         }
@@ -2215,7 +2242,7 @@ export async function handleWithdrawCommand(
         );
 
         const directExplorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
-        if (opts.noWait) {
+        if (noWait) {
           emitStreamJsonEvent(streamJson, {
             mode: "withdraw-progress",
             operation: "withdraw",
@@ -2272,7 +2299,6 @@ export async function handleWithdrawCommand(
             warningCode: null,
             anonymitySet,
             warnings: recipientWarnings,
-            deprecationWarning: directConfirmDeprecationWarning,
           });
           maybeLaunchBrowser({
             globalOpts,
@@ -2403,7 +2429,6 @@ export async function handleWithdrawCommand(
           warningCode,
           anonymitySet,
           warnings: recipientWarnings,
-          deprecationWarning: directConfirmDeprecationWarning,
         });
         maybeLaunchBrowser({
           globalOpts,
@@ -2920,16 +2945,6 @@ export async function handleWithdrawCommand(
         }
 
         // Re-verify parity right before proving
-        emitStreamJsonEvent(streamJson, {
-          mode: "withdraw-progress",
-          operation: "withdraw",
-          event: "stage",
-          stage: "generating_proof",
-          chain: chainConfig.name,
-          asset: pool.symbol,
-          withdrawMode: "relayed",
-          poolAccountId: selectedPoolAccount.paId,
-        });
         writeWithdrawProgress(2, "Generating and locally verifying the relayed withdrawal proof.");
         await assertLatestRootUnchanged(
           "Pool state changed while preparing your proof.",
@@ -2961,6 +2976,17 @@ export async function handleWithdrawCommand(
           {
             dynamicSuffix: () =>
               `quote valid for ${formatRemainingTime(expirationMs)}`,
+            stream: {
+              enabled: streamJson,
+              baseEvent: {
+                mode: "withdraw-progress",
+                operation: "withdraw",
+                chain: chainConfig.name,
+                asset: pool.symbol,
+                withdrawMode: "relayed",
+                poolAccountId: selectedPoolAccount.paId,
+              },
+            },
           },
         );
         verbose(
@@ -3086,6 +3112,7 @@ export async function handleWithdrawCommand(
             selectedCommitmentLabel: commitmentLabel,
             selectedCommitmentValue: commitment.value,
             proofPublicSignals: proof.publicSignals.length,
+            dryRunMode,
             feeBPS: quote.feeBPS,
             quoteExpiresAt: new Date(expirationMs).toISOString(),
             relayerHost: relayerHostLabel(quote.relayerUrl ?? relayerUrl),
@@ -3121,7 +3148,7 @@ export async function handleWithdrawCommand(
         });
 
         const relayExplorerUrl = explorerTxUrl(chainConfig.id, result.txHash);
-        if (opts.noWait) {
+        if (noWait) {
           emitStreamJsonEvent(streamJson, {
             mode: "withdraw-progress",
             operation: "withdraw",
@@ -3350,13 +3377,7 @@ export async function handleWithdrawCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(
-      withDirectConfirmDeprecationWarning(
-        normalizeInitRequiredInputError(error),
-        directConfirmDeprecationWarning,
-      ),
-      isJson || isUnsigned,
-    );
+    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
   }
 }
 

@@ -7,6 +7,7 @@
  */
 
 import type { OutputContext } from "./common.js";
+import type { DryRunMode } from "../utils/dry-run-mode.js";
 import {
   appendNextActions,
   createNextAction,
@@ -179,6 +180,7 @@ export interface DepositDryRunData {
   poolAccountId: string;
   precommitment: bigint;
   balanceSufficient: boolean | "unknown";
+  dryRunMode?: DryRunMode | null;
   deprecationWarning?: DeprecationWarningPayload;
 }
 
@@ -249,6 +251,7 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
     printJsonSuccess(
       appendNextActions({
         dryRun: true,
+        dryRunMode: data.dryRunMode ?? "rpc",
         operation: "deposit",
         chain: data.chain,
         asset: data.asset,
@@ -575,7 +578,7 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
                 "Use tx-status with the returned submission id to poll for confirmation without resubmitting.",
               ]
           : [
-              "Your deposit is now under Association Set Provider (ASP) review. Private withdrawal unlocks after ASP approval.",
+              "The ASP will validate that this deposit is coming from a good actor (not a flagged account). Private withdrawal unlocks after approval.",
               `${DEPOSIT_APPROVAL_TIMELINE_COPY}`,
             ],
       ),

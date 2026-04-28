@@ -14,7 +14,7 @@ const PROMPT_CANCELLATION_ERROR_NAMES = new Set([
 ]);
 
 export class PromptInteractionUnavailableError extends Error {
-  readonly code = "INPUT_MISSING_ARGUMENT";
+  readonly code = "PROMPT_REQUIRED_NOT_INTERACTIVE";
   readonly hint: string;
 
   constructor(
@@ -74,10 +74,15 @@ export function isPromptInteractionUnavailableError(
 }
 
 export function canPrompt(): boolean {
-  if (process.env.PP_FORCE_TTY === "1" || process.env.PP_FORCE_TTY === "true") {
+  const forceTty =
+    process.env.PRIVACY_POOLS_FORCE_TTY === "1" ||
+    process.env.PRIVACY_POOLS_FORCE_TTY === "true" ||
+    process.env.PP_FORCE_TTY === "1" ||
+    process.env.PP_FORCE_TTY === "true";
+  if (forceTty) {
     return true;
   }
-  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY && process.stderr.isTTY);
 }
 
 export function ensurePromptInteractionAvailable(): void {

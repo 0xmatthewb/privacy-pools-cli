@@ -40,8 +40,11 @@ export async function checkNativeBalance(
     throw new CLIError(
       `Insufficient ${symbol} balance: have ${have}, need ~${need} (includes gas buffer).`,
       "INPUT",
-      `Top up your wallet (${signerAddress}) before retrying.`,
-      "INPUT_INSUFFICIENT_BALANCE"
+      "Top up your <configured wallet> before retrying.",
+      "INPUT_INSUFFICIENT_BALANCE",
+      false,
+      undefined,
+      { walletAddress: signerAddress },
     );
   }
 }
@@ -67,8 +70,11 @@ export async function checkErc20Balance(
     throw new CLIError(
       `Insufficient ${symbol} balance: have ${have}, need ${need}.`,
       "INPUT",
-      `Top up your wallet (${signerAddress}) with ${symbol} before retrying.`,
-      "INPUT_INSUFFICIENT_BALANCE"
+      `Top up your <configured wallet> with ${symbol} before retrying.`,
+      "INPUT_INSUFFICIENT_BALANCE",
+      false,
+      undefined,
+      { walletAddress: signerAddress },
     );
   }
 }
@@ -93,8 +99,11 @@ export async function checkHasGas(
     throw new CLIError(
       `Wallet has zero ${symbol} balance - cannot pay gas.`,
       "INPUT",
-      `Send some ${symbol} to ${signerAddress} for transaction gas fees.`,
-      "INPUT_NO_GAS"
+      `Send some ${symbol} to your <configured wallet> for transaction gas fees.`,
+      "INPUT_NO_GAS",
+      false,
+      undefined,
+      { walletAddress: signerAddress },
     );
   }
 
@@ -104,8 +113,11 @@ export async function checkHasGas(
     throw new CLIError(
       `Insufficient ${symbol} for gas: have ${have}, need ~${need}${txCount > 1 ? ` (${txCount} transactions)` : ""}.`,
       "INPUT",
-      `Top up your wallet (${signerAddress}) with ${symbol} to cover gas fees.`,
-      "INPUT_INSUFFICIENT_GAS"
+      `Top up your <configured wallet> with ${symbol} to cover gas fees.`,
+      "INPUT_INSUFFICIENT_GAS",
+      false,
+      undefined,
+      { walletAddress: signerAddress },
     );
   }
 }

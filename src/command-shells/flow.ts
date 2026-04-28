@@ -39,7 +39,10 @@ export function createFlowCommand(): Command {
     )
     .option("--new-wallet", "Create and use a dedicated wallet for this workflow")
     .option("--export-new-wallet <path>", "Export the generated workflow wallet backup before continuing (requires --new-wallet)")
-    .option("--dry-run", "Validate the flow start inputs without saving a workflow or submitting a deposit")
+    .option(
+      "--dry-run [mode]",
+      "Validate the flow start inputs without saving a workflow or submitting a deposit (modes: offline, rpc, relayer; bare flag = rpc)",
+    )
     .option("--watch", "Keep watching this workflow until it finishes or pauses")
     .option(
       "--stream-json",
@@ -77,6 +80,11 @@ export function createFlowCommand(): Command {
           flags: [
             "--yes",
             "--agent",
+            "--quiet",
+            "--verbose",
+            "--no-progress",
+            "--no-banner",
+            "--no-color",
             "--help-brief",
             "--help-full",
           ],
@@ -147,7 +155,7 @@ export function createFlowCommand(): Command {
     .argument("[workflowId|latest]", "Saved workflow id or 'latest' (defaults to latest)")
     .option(
       "--confirm-ragequit",
-      "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
+      "Required in non-interactive mode (--agent / --yes / CI). Acknowledges public recovery to the original deposit address.",
     )
     .option(
       "--stream-json",

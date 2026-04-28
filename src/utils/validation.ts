@@ -47,14 +47,14 @@ export function validateAddress(
   if (!isAddress(value)) {
     if (!value.startsWith("0x") || value.length !== 42 || !HEX_ADDRESS_PATTERN.test(value)) {
       throw new CLIError(
-        "Invalid address or ENS name.",
+        "Invalid Ethereum address.",
         "INPUT",
         "Provide a 0x-prefixed Ethereum address or an ENS name (for example: vitalik.eth).",
         "INPUT_BAD_ADDRESS",
       );
     }
     throw new CLIError(
-      "Invalid address or ENS name.",
+      "Invalid Ethereum address checksum.",
       "INPUT",
       "Provide an address with the correct EIP-55 checksum, or use the all-lowercase / all-uppercase form.",
       "INPUT_ADDRESS_CHECKSUM_INVALID",
@@ -184,7 +184,7 @@ export async function resolveAddressOrEns(
     }
 
     throw new CLIError(
-      "Invalid address or ENS name.",
+      `Could not resolve ENS name: ${input}.`,
       "INPUT",
       "Verify the ENS name exists and try again. ENS resolution requires mainnet connectivity.",
       "INPUT_BAD_ADDRESS",

@@ -1,4 +1,5 @@
 import { POA_PORTAL_URL } from "../config/chains.js";
+import type { DryRunMode } from "../utils/dry-run-mode.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../utils/approval-timing.js";
 import { formatUnits } from "viem";
 import {
@@ -42,10 +43,6 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
-import {
-  formatDeprecationWarningCallout,
-  type DeprecationWarningPayload,
-} from "./deprecation.js";
 import { formatReviewSurface } from "./review.js";
 import {
   renderFlowRail,
@@ -157,7 +154,6 @@ export interface FlowRenderData {
   action: "start" | "watch" | "status" | "step" | "ragequit";
   snapshot: FlowSnapshot;
   extraWarnings?: FlowJsonWarning[];
-  deprecationWarning?: DeprecationWarningPayload;
 }
 
 export function renderFlowPhaseChangeEvent(event: {
@@ -189,6 +185,8 @@ export interface FlowStartDryRunData {
   estimatedCommittedValue: bigint;
   isErc20: boolean;
   tokenPrice?: number | null;
+  dryRunMode?: DryRunMode | null;
+  amountPatternWarning?: string | null;
   warnings?: FlowJsonWarning[];
 }
 
@@ -896,7 +894,6 @@ function buildFlowJsonSnapshot(
   action: FlowRenderData["action"],
   snapshot: FlowSnapshot,
   extraWarnings: readonly FlowJsonWarning[] = [],
-  deprecationWarning?: DeprecationWarningPayload,
 ) {
   const baseWarnings =
     action === "ragequit"
@@ -974,7 +971,6 @@ function buildFlowJsonSnapshot(
         }
       : undefined,
     warnings,
-    ...(deprecationWarning ? { deprecationWarning } : {}),
   };
 }
 
@@ -1019,6 +1015,7 @@ export function renderFlowStartDryRun(
           mode: "flow",
           action: "start",
           dryRun: true,
+          dryRunMode: data.dryRunMode ?? "rpc",
           chain: data.chain,
           asset: data.asset,
           depositAmount: data.depositAmount.toString(),
@@ -1065,6 +1062,7 @@ export function renderFlowStartDryRun(
         ),
         newWallet: data.walletMode === "new_wallet",
         isErc20: data.isErc20,
+        amountPatternWarning: data.amountPatternWarning ?? null,
         tokenPrice: data.tokenPrice ?? null,
       }),
     );
@@ -1083,7 +1081,6 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
           data.action,
           data.snapshot,
           data.extraWarnings,
-          data.deprecationWarning,
         ),
         agentNextActions,
       ),
@@ -1179,12 +1176,6 @@ export function renderFlowResult(ctx: OutputContext, data: FlowRenderData): void
         ),
       );
     }
-  }
-
-  if (!silent && data.deprecationWarning) {
-    process.stderr.write(
-      formatDeprecationWarningCallout(data.deprecationWarning),
-    );
   }
 
   if (!silent) {

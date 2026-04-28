@@ -1,4 +1,5 @@
 import type { Address, Hex } from "viem";
+import { buildRagequitPrivacyCostManifest } from "./privacy-cost.js";
 import { encodeFunctionData, parseAbi } from "viem";
 import type { NextAction } from "../types.js";
 import type {
@@ -306,18 +307,13 @@ export function buildUnsignedRagequitOutput(params: UnsignedBase & {
     amount: params.selectedCommitmentValue.toString(),
     selectedCommitmentLabel: params.selectedCommitmentLabel.toString(),
     selectedCommitmentValue: params.selectedCommitmentValue.toString(),
-    privacyCostManifest: {
-      action: "ragequit",
-      framing: "public_self_custody_recovery",
+    privacyCostManifest: buildRagequitPrivacyCostManifest({
       poolAccountId: params.poolAccountId ?? null,
-      amount: params.selectedCommitmentValue.toString(),
+      amount: params.selectedCommitmentValue,
       asset: params.assetSymbol,
       chain: params.chainName,
       destinationAddress: params.from,
-      privacyCost: "funds return publicly to the original depositing address",
-      privacyPreserved: false,
-      recommendation: "Prefer a relayed private withdrawal when the Pool Account is approved and above the relayer minimum.",
-    },
+    }),
     warnings: unsignedPreviewWarnings(),
     ...(params.nextActions ? { nextActions: params.nextActions } : {}),
     transactions: [transaction],

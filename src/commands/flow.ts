@@ -50,6 +50,7 @@ import {
   warn,
 } from "../utils/format.js";
 import { resolveGlobalMode } from "../utils/mode.js";
+import { normalizeDryRunMode, type DryRunMode } from "../utils/dry-run-mode.js";
 import {
   canPrompt,
   ensurePromptInteractionAvailable,
@@ -88,7 +89,7 @@ interface FlowStartCommandOptions {
   privacyDelay?: string;
   newWallet?: boolean;
   exportNewWallet?: string;
-  dryRun?: boolean;
+  dryRun?: boolean | string;
   streamJson?: boolean;
 }
 
@@ -105,14 +106,6 @@ interface FlowRagequitCommandOptions {
 interface FlowStepCommandOptions {
   streamJson?: boolean;
 }
-
-const CONFIRM_RAGEQUIT_DEPRECATION_WARNING = {
-  code: "FLAG_DEPRECATED",
-  message:
-    "--confirm-ragequit is deprecated. Replaced by interactive confirmation. Will be removed in v3.x.",
-  replacementCommand:
-    "Remove --confirm-ragequit and confirm the public recovery interactively, or use --agent for explicit non-interactive consent.",
-};
 
 const MAX_FLOW_RECIPIENT_PROMPT_ATTEMPTS = 5;
 
@@ -531,8 +524,8 @@ export async function confirmRecipientIfNew(params: {
     return [warning];
   }
 
-  warn(warning.message, params.silent);
   ensurePromptInteractionAvailable();
+  warn(warning.message, params.silent);
   const ok = await confirmActionWithSeverity({
     severity: "standard",
     standardMessage: "Use this new recipient?",
@@ -555,6 +548,7 @@ async function renderFlowStartDryRunForInputs(params: {
   mode: ReturnType<typeof resolveGlobalMode>;
   ctx: ReturnType<typeof createOutputContext>;
   recipientWarnings: FlowJsonWarning[];
+  dryRunMode: DryRunMode;
 }): Promise<void> {
   const config = loadConfig();
   const chainConfig = resolveChain(params.globalOpts?.chain, config.defaultChain);
@@ -577,6 +571,7 @@ async function renderFlowStartDryRunForInputs(params: {
   }
 
   const warnings: FlowJsonWarning[] = [...params.recipientWarnings];
+  let dryRunAmountPatternWarning: string | null = null;
   if (!isRoundAmount(amount, pool.decimals, pool.symbol)) {
     const humanAmount = formatAmountDecimal(amount, pool.decimals);
     const suggestions = suggestRoundAmounts(amount, pool.decimals, pool.symbol);
@@ -587,11 +582,12 @@ async function renderFlowStartDryRunForInputs(params: {
     const message =
       `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy. ` +
       `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText}`;
+    dryRunAmountPatternWarning = message;
     if (params.mode.skipPrompts) {
       throw new CLIError(
         message,
         "INPUT",
-        suggestionText || "Use a round amount.",
+        suggestionText.trim() || "Use a round amount.",
         "INPUT_NONROUND_AMOUNT",
       );
     }
@@ -638,6 +634,8 @@ async function renderFlowStartDryRunForInputs(params: {
     estimatedCommittedValue,
     isErc20: !isNativePoolAsset(chainConfig.id, pool.asset),
     tokenPrice: deriveTokenPrice(pool),
+    dryRunMode: params.dryRunMode,
+    amountPatternWarning: dryRunAmountPatternWarning,
     warnings,
   });
 }
@@ -980,7 +978,10 @@ export async function handleFlowStartCommand(
       );
     }
 
-    if (opts.dryRun && opts.newWallet && mode.skipPrompts && !opts.exportNewWallet?.trim()) {
+    const dryRunMode: DryRunMode | null = normalizeDryRunMode(opts.dryRun);
+    const isDryRun = dryRunMode !== null;
+
+    if (isDryRun && opts.newWallet && mode.skipPrompts && !opts.exportNewWallet?.trim()) {
       throw new CLIError(
         "Non-interactive workflow wallets require --export-new-wallet <path>.",
         "INPUT",
@@ -988,7 +989,7 @@ export async function handleFlowStartCommand(
       );
     }
 
-    if (opts.dryRun && opts.newWallet && opts.exportNewWallet?.trim()) {
+    if (isDryRun && opts.newWallet && opts.exportNewWallet?.trim()) {
       validateWorkflowWalletBackupPath(opts.exportNewWallet);
     }
 
@@ -1004,11 +1005,11 @@ export async function handleFlowStartCommand(
     const recipientWarnings = await confirmRecipientIfNew({
       address: recipient,
       knownRecipients: collectKnownFlowRecipients(),
-      skipPrompts: mode.skipPrompts || Boolean(opts.dryRun),
+      skipPrompts: mode.skipPrompts || isDryRun,
       silent: mode.isQuiet || mode.isJson,
     });
 
-    if (opts.dryRun) {
+    if (isDryRun) {
       emitStreamJsonEvent(streamJson, {
         mode: "flow-progress",
         action: "start",
@@ -1024,6 +1025,7 @@ export async function handleFlowStartCommand(
         mode,
         ctx,
         recipientWarnings,
+        dryRunMode,
       });
       return;
     }
@@ -1287,10 +1289,6 @@ export async function handleFlowRagequitCommand(
     renderFlowResult(ctx, {
       action: "ragequit",
       snapshot: resultSnapshot,
-      deprecationWarning:
-        opts.confirmRagequit === true
-          ? CONFIRM_RAGEQUIT_DEPRECATION_WARNING
-          : undefined,
     });
     const browserTarget = getFlowBrowserTarget(resultSnapshot);
     if (browserTarget) {

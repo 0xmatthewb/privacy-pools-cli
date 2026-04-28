@@ -204,7 +204,6 @@ export {
   renderWorkflowWalletBackupSaved,
 } from "./workflow-wallet.js";
 export {
-  buildRagequitPrivacyCostManifest,
   formatRagequitReview,
   renderRagequitDryRun,
   renderRagequitSuccess,
@@ -212,6 +211,7 @@ export {
   type RagequitReviewData,
   type RagequitSuccessData,
 } from "./ragequit.js";
+export { buildRagequitPrivacyCostManifest } from "../utils/privacy-cost.js";
 export {
   buildDirectWithdrawalPrivacyCostManifest,
   formatAnonymitySetCallout,

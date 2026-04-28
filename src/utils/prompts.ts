@@ -31,6 +31,7 @@ export type PromptPassword = PromptModule["password"];
 export type PromptSelect = PromptModule["select"];
 
 export const HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD = 1000;
+export const HIGH_STAKES_TOKEN_AMOUNT_FALLBACK = 1000n;
 export const CONFIRMATION_TOKENS = {
   deposit: "DEPOSIT",
   withdraw: "WITHDRAW",
@@ -243,7 +244,7 @@ export function isHighStakesWithdrawal(params: {
     params.tokenPrice ?? null,
   );
   if (usdValue === "-") {
-    return false;
+    return isHighStakesTokenUnitAmount(params.amount, params.decimals);
   }
 
   const parsed = Number(usdValue.replace(/[$,]/g, ""));
@@ -266,11 +267,18 @@ export function isHighStakesUsdAmount(params: {
     params.tokenPrice ?? null,
   );
   if (usdValue === "-") {
-    return false;
+    return isHighStakesTokenUnitAmount(params.amount, params.decimals);
   }
 
   const parsed = Number(usdValue.replace(/[$,]/g, ""));
   return Number.isFinite(parsed) && parsed >= HIGH_STAKES_WITHDRAWAL_USD_THRESHOLD;
+}
+
+function isHighStakesTokenUnitAmount(amount: bigint, decimals: number): boolean {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 36) {
+    return false;
+  }
+  return amount >= HIGH_STAKES_TOKEN_AMOUNT_FALLBACK * 10n ** BigInt(decimals);
 }
 
 export async function confirmActionWithSeverity(params: {

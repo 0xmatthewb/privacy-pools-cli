@@ -86,7 +86,7 @@ export function createSimulateCommand(): Command {
     .addOption(
       new Option(
         "--confirm-direct-withdraw",
-        "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
+        "Required in non-interactive mode (--agent / --yes / CI). Acknowledges direct public withdrawal to the signer address.",
       ),
     )
     .addOption(unsignedCompatOption())
@@ -121,7 +121,7 @@ export function createSimulateCommand(): Command {
     .addOption(impliedDryRunOption())
     .option(
       "--confirm-ragequit",
-      "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
+      "Required in non-interactive mode (--agent / --yes / CI). Acknowledges public recovery to the original deposit address.",
     )
     .addHelpText("after", commandHelpText(ragequitMetadata.help ?? {}))
     .action(

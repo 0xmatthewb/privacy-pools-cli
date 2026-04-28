@@ -3,6 +3,7 @@ export type OutputWidthClass = "wide" | "compact" | "narrow";
 type OutputStreamName = "stdout" | "stderr";
 
 let outputAnsiGuardsInstalled = false;
+let outputEnvironmentWarnings: Record<string, unknown>[] = [];
 const TRUE_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
 
 export function supportsUnicodeOutput(
@@ -216,10 +217,25 @@ function createAnsiGuardedWrite(
 
 export function installOutputAnsiGuards(): void {
   if (outputAnsiGuardsInstalled) return;
+  if (process.env.NO_COLOR && process.env.FORCE_COLOR) {
+    outputEnvironmentWarnings.push({
+      code: "COLOR_ENV_CONFLICT",
+      category: "output",
+      message:
+        "NO_COLOR and FORCE_COLOR are both set. NO_COLOR takes precedence.",
+    });
+    delete process.env.FORCE_COLOR;
+  }
 
   process.stdout.write = createAnsiGuardedWrite("stdout");
   process.stderr.write = createAnsiGuardedWrite("stderr");
   outputAnsiGuardsInstalled = true;
+}
+
+export function consumeOutputEnvironmentWarnings(): Record<string, unknown>[] {
+  const warnings = outputEnvironmentWarnings;
+  outputEnvironmentWarnings = [];
+  return warnings;
 }
 
 export function visibleWidth(value: string): number {

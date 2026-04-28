@@ -33,6 +33,7 @@ import {
 } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { emitStreamJsonEvent } from "../utils/stream-json.js";
+import { normalizeDryRunMode, type DryRunMode } from "../utils/dry-run-mode.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
 import {
@@ -103,7 +104,8 @@ import { createSubmissionRecord } from "../services/submissions.js";
 
 interface DepositCommandOptions {
   unsigned?: boolean | string;
-  dryRun?: boolean;
+  dryRun?: boolean | string;
+  wait?: boolean;
   noWait?: boolean;
   ignoreUniqueAmount?: boolean;
   allowNonRoundAmounts?: boolean;
@@ -197,7 +199,9 @@ export async function handleDepositCommand(
   const unsignedFormat =
     typeof unsignedRaw === "string" ? unsignedRaw.toLowerCase() : undefined;
   const wantsTxFormat = unsignedFormat === "tx";
-  const isDryRun = opts.dryRun ?? false;
+  const dryRunMode: DryRunMode | null = normalizeDryRunMode(opts.dryRun);
+  const isDryRun = dryRunMode !== null;
+  const noWait = opts.wait === false || opts.noWait === true;
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
@@ -223,18 +227,28 @@ export async function handleDepositCommand(
         "Use --unsigned envelope or --unsigned tx.",
       );
     }
-    if (opts.noWait && isDryRun) {
+    if (noWait && isDryRun) {
       throw new CLIError(
         "--no-wait cannot be combined with --dry-run.",
         "INPUT",
         "Use either --dry-run to preview or --no-wait to submit without waiting for confirmation.",
+        "INPUT_FLAG_CONFLICT",
       );
     }
-    if (opts.noWait && isUnsigned) {
+    if (noWait && isUnsigned) {
       throw new CLIError(
         "--no-wait cannot be combined with --unsigned.",
         "INPUT",
         "Use --unsigned to build a signer-facing envelope, or --no-wait to submit immediately and return a submission id.",
+        "INPUT_FLAG_CONFLICT",
+      );
+    }
+    if (isDryRun && isUnsigned) {
+      throw new CLIError(
+        "--unsigned cannot be combined with --dry-run.",
+        "INPUT",
+        "Use simulate deposit to preview validation, or use plain --unsigned to build an offline signing envelope.",
+        "INPUT_FLAG_CONFLICT",
       );
     }
     if (!isQuiet && !isJson) {
@@ -633,6 +647,7 @@ export async function handleDepositCommand(
           poolAccountId: nextPAId,
           precommitment: precommitment as unknown as bigint,
           balanceSufficient,
+          dryRunMode,
           deprecationWarning: ignoreUniqueAmountDeprecationWarning,
         });
         return;
@@ -692,7 +707,7 @@ export async function handleDepositCommand(
           if (allowanceStatus.sufficient) {
             spin.succeed("Existing token approval is already sufficient.");
           } else {
-            if (opts.noWait) {
+            if (noWait) {
               throw new CLIError(
                 "Token approval is required before this ERC20 deposit can be submitted.",
                 "INPUT",
@@ -708,7 +723,7 @@ export async function handleDepositCommand(
               rpcOverride: globalOpts?.rpcUrl,
             });
             approvalTxHash = approveTx.hash as Hex;
-            if (opts.noWait) {
+            if (noWait) {
               spin.succeed("Token approval submitted.");
             } else {
               let approvalReceipt;
@@ -785,7 +800,7 @@ export async function handleDepositCommand(
       }
 
       const depositExplorer = explorerTxUrl(chainConfig.id, tx.hash);
-      if (opts.noWait) {
+      if (noWait) {
         emitStreamJsonEvent(streamJson, {
           mode: "deposit-progress",
           operation: "deposit",

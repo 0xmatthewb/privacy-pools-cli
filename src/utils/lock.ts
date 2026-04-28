@@ -86,7 +86,11 @@ export function acquireProcessLock(): () => void {
       throw new CLIError(
         "Another privacy-pools operation is in progress.",
         "INPUT",
-        "Wait for it to finish, or remove the lock file if the process is stuck: " + lockPath
+        "Wait for it to finish, or remove the lock file if the process is stuck: " + lockPath,
+        "LOCK_HELD",
+        true,
+        undefined,
+        { holdingPid: pid, lockPath },
       );
     }
 
@@ -97,10 +101,15 @@ export function acquireProcessLock(): () => void {
       writeFileSync(lockPath, pidStr, { flag: "wx", mode: 0o600 });
     } catch (retryErr: unknown) {
       if ((retryErr as NodeJS.ErrnoException).code === "EEXIST") {
+        const retryPid = readLockPid(lockPath);
         throw new CLIError(
           "Another privacy-pools operation is in progress.",
           "INPUT",
-          "Wait for it to finish, or remove the lock file if the process is stuck: " + lockPath
+          "Wait for it to finish, or remove the lock file if the process is stuck: " + lockPath,
+          "LOCK_HELD",
+          true,
+          undefined,
+          { holdingPid: retryPid, lockPath },
         );
       }
       throw retryErr;

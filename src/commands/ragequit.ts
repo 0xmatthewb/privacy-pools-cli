@@ -102,6 +102,7 @@ import { maybeLaunchBrowser } from "../utils/web.js";
 import { persistWithReconciliation } from "../services/persist-with-reconciliation.js";
 import { createSubmissionRecord } from "../services/submissions.js";
 import { emitStreamJsonEvent } from "../utils/stream-json.js";
+import { normalizeDryRunMode, type DryRunMode } from "../utils/dry-run-mode.js";
 
 const poolDepositorAbi = [
   {
@@ -122,35 +123,10 @@ interface RagequitCommandOptions {
   poolAccount?: string;
   confirmRagequit?: boolean;
   unsigned?: boolean | string;
-  dryRun?: boolean;
+  dryRun?: boolean | string;
+  wait?: boolean;
   noWait?: boolean;
   streamJson?: boolean;
-}
-
-const CONFIRM_RAGEQUIT_DEPRECATION_WARNING = {
-  code: "FLAG_DEPRECATED",
-  message:
-    "--confirm-ragequit is deprecated. Replaced by interactive confirmation. Will be removed in v3.x.",
-  replacementCommand:
-    "Remove --confirm-ragequit and confirm the public recovery interactively, or use --agent for explicit non-interactive consent.",
-};
-
-function withRagequitDeprecationWarning(
-  error: unknown,
-  warning: typeof CONFIRM_RAGEQUIT_DEPRECATION_WARNING | undefined,
-): unknown {
-  if (!warning || !(error instanceof CLIError)) return error;
-  return new CLIError(
-    error.message,
-    error.category,
-    error.hint,
-    error.code,
-    error.retryable,
-    error.presentation,
-    { ...(error.details ?? {}), deprecationWarning: warning },
-    error.docsSlug,
-    error.extra,
-  );
 }
 
 const LOCAL_STATE_RECONCILIATION_WARNING_CODE =
@@ -360,9 +336,9 @@ export async function handleRagequitCommand(
   const unsignedFormat =
     typeof unsignedRaw === "string" ? unsignedRaw.toLowerCase() : undefined;
   const wantsTxFormat = unsignedFormat === "tx";
-  const isDryRun = opts.dryRun ?? false;
-  const confirmRagequitDeprecationWarning =
-    opts.confirmRagequit === true ? CONFIRM_RAGEQUIT_DEPRECATION_WARNING : undefined;
+  const dryRunMode: DryRunMode | null = normalizeDryRunMode(opts.dryRun);
+  const isDryRun = dryRunMode !== null;
+  const noWait = opts.wait === false || opts.noWait === true;
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
@@ -441,18 +417,20 @@ export async function handleRagequitCommand(
         "Use --unsigned envelope or --unsigned tx.",
       );
     }
-    if (opts.noWait && isDryRun) {
+    if (noWait && isDryRun) {
       throw new CLIError(
         "--no-wait cannot be combined with --dry-run.",
         "INPUT",
         "Use --dry-run to preview only, or remove --dry-run to submit without waiting for confirmation.",
+        "INPUT_FLAG_CONFLICT",
       );
     }
-    if (opts.noWait && isUnsigned) {
+    if (noWait && isUnsigned) {
       throw new CLIError(
         "--no-wait cannot be combined with --unsigned.",
         "INPUT",
         "Use --unsigned to build an offline envelope, or remove --unsigned to submit and return immediately.",
+        "INPUT_FLAG_CONFLICT",
       );
     }
     if (!isQuiet && !isJson) {
@@ -896,8 +874,8 @@ export async function handleRagequitCommand(
           message:
             "This deposit is approved for private withdrawal. Continue with public ragequit anyway?",
           choices: [
-            { name: "Yes, ragequit publicly", value: "ragequit" as const },
             { name: "Switch to private withdrawal", value: "withdraw" as const },
+            { name: "Continue with public ragequit", value: "ragequit" as const },
           ],
         });
         if (choice === "withdraw") {
@@ -1036,15 +1014,6 @@ export async function handleRagequitCommand(
         1,
         "Generating and locally verifying the Pool Account proof required for ragequit.",
       );
-      emitStreamJsonEvent(streamJson, {
-        mode: "ragequit-progress",
-        operation: "ragequit",
-        event: "stage",
-        stage: "generating_proof",
-        chain: chainConfig.name,
-        asset: pool.symbol,
-        poolAccountId: selectedPoolAccount.paId,
-      });
       spin.start();
 
       const proof = await withProofProgress(
@@ -1058,6 +1027,18 @@ export async function handleRagequitCommand(
             commitment.secret,
             { progress },
           ),
+        {
+          stream: {
+            enabled: streamJson,
+            baseEvent: {
+              mode: "ragequit-progress",
+              operation: "ragequit",
+              chain: chainConfig.name,
+              asset: pool.symbol,
+              poolAccountId: selectedPoolAccount.paId,
+            },
+          },
+        },
       );
 
       if (isDryRun) {
@@ -1083,9 +1064,9 @@ export async function handleRagequitCommand(
           selectedCommitmentLabel: commitment.label,
           selectedCommitmentValue: commitment.value,
           proofPublicSignals: proof.publicSignals.length,
+          dryRunMode,
           advisory: advisory?.message ?? null,
           tokenPrice,
-          deprecationWarning: confirmRagequitDeprecationWarning,
         });
         return;
       }
@@ -1123,9 +1104,6 @@ export async function handleRagequitCommand(
               ...payload,
               poolAccountNumber: selectedPoolAccount.paNumber,
               poolAccountId: selectedPoolAccount.paId,
-              ...(confirmRagequitDeprecationWarning
-                ? { deprecationWarning: confirmRagequitDeprecationWarning }
-                : {}),
             },
             false,
           );
@@ -1165,7 +1143,7 @@ export async function handleRagequitCommand(
       );
 
       const ragequitExplorerUrl = explorerTxUrl(chainConfig.id, tx.hash);
-      if (opts.noWait) {
+      if (noWait) {
         spin.succeed("Ragequit submitted.");
         emitStreamJsonEvent(streamJson, {
           mode: "ragequit-progress",
@@ -1213,7 +1191,6 @@ export async function handleRagequitCommand(
           localStateSynced: false,
           warningCode: null,
           tokenPrice,
-          deprecationWarning: confirmRagequitDeprecationWarning,
         });
         maybeLaunchBrowser({
           globalOpts,
@@ -1362,7 +1339,6 @@ export async function handleRagequitCommand(
         localStateSynced,
         warningCode,
         tokenPrice,
-        deprecationWarning: confirmRagequitDeprecationWarning,
       });
       maybeLaunchBrowser({
         globalOpts,
@@ -1387,12 +1363,6 @@ export async function handleRagequitCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(
-      withRagequitDeprecationWarning(
-        normalizeInitRequiredInputError(error),
-        confirmRagequitDeprecationWarning,
-      ),
-      isJson || isUnsigned,
-    );
+    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
   }
 }

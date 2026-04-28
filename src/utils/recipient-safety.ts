@@ -9,7 +9,10 @@ const BURN_RECIPIENTS = new Set([
 ]);
 
 export interface RecipientSafetyWarning {
-  code: "recipient_new_to_profile" | "DIRECT_WITHDRAW_AUTO_RECIPIENT";
+  code:
+    | "RECIPIENT_NEW_TO_PROFILE"
+    | "recipient_new_to_profile"
+    | "DIRECT_WITHDRAW_AUTO_RECIPIENT";
   category: "recipient";
   message: string;
 }
@@ -71,7 +74,7 @@ export function isKnownRecipient(
 
 export function newRecipientWarning(address: string): RecipientSafetyWarning {
   return {
-    code: "recipient_new_to_profile",
+    code: "RECIPIENT_NEW_TO_PROFILE",
     category: "recipient",
     message: `Recipient ${address} has not appeared in this local CLI profile before. Double-check the destination before submitting.`,
   };

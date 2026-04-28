@@ -21,14 +21,17 @@ export function createRagequitCommand(): Command {
         "Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data)",
       ).choices(["envelope", "tx"]),
     )
-    .option("--dry-run", "Generate proof and validate without submitting")
+    .option(
+      "--dry-run [mode]",
+      "Generate proof and validate without submitting (modes: offline, rpc, relayer; bare flag = rpc)",
+    )
     .option(
       "--no-wait",
       "Return after submission instead of waiting for confirmation",
     )
     .option(
       "--confirm-ragequit",
-      "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
+      "Required in non-interactive mode (--agent / --yes / CI). Acknowledges public recovery to the original deposit address.",
     )
     .option(
       "--stream-json",

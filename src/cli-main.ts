@@ -23,7 +23,10 @@ import { setActiveProfile } from "./runtime/config-paths.js";
 import {
   cliMainHelperInternals,
 } from "./runtime/cli-main-helpers.js";
-import { installOutputAnsiGuards } from "./utils/terminal.js";
+import {
+  consumeOutputEnvironmentWarnings,
+  installOutputAnsiGuards,
+} from "./utils/terminal.js";
 import { buildGuidePayload, guideText, resolveGuideTopic } from "./utils/help.js";
 import {
   configureJsonEnvelopeWarnings,
@@ -72,6 +75,7 @@ export async function runCli(
   setModeArgv(normalizedArgv);
   resetWebOutputStatus();
   resetJsonEnvelopeWarnings();
+  const outputWarnings = consumeOutputEnvironmentWarnings();
 
   // Activate --profile before any config loading.
   const profileValue = readLongOptionValue(normalizedArgv, "--profile");
@@ -102,8 +106,12 @@ export async function runCli(
     topLevelCommand !== "completion"
   ) {
     const updateWarning = getUpdateNoticeWarning(pkg.version);
-    if (updateWarning) {
-      configureJsonEnvelopeWarnings([{ ...updateWarning }]);
+    const warnings = [
+      ...outputWarnings,
+      ...(updateWarning ? [{ ...updateWarning }] : []),
+    ];
+    if (warnings.length > 0) {
+      configureJsonEnvelopeWarnings(warnings);
     }
   }
   if (hasLongFlag(normalizedArgv, "--web")) {
@@ -126,6 +134,46 @@ export async function runCli(
     isVersionLike,
     isWelcome,
   );
+
+  if (
+    isMachineMode &&
+    !firstCommandToken &&
+    !isHelpLike &&
+    !isVersionLike
+  ) {
+    printError(
+      new CLIError(
+        "No command specified.",
+        "INPUT",
+        "Run 'privacy-pools capabilities --agent' for machine-readable discovery or 'privacy-pools guide --agent' for the guide index.",
+        "INPUT_NO_COMMAND",
+        false,
+        "inline",
+        undefined,
+        undefined,
+        {
+          nextActions: [
+            {
+              command: "capabilities",
+              reason: "Discover supported commands, flags, schemas, and error codes.",
+              when: "after_capabilities",
+              options: { agent: true },
+              cliCommand: "privacy-pools capabilities --agent",
+            },
+            {
+              command: "guide",
+              reason: "Read the machine-readable guide index.",
+              when: "after_guide",
+              options: { agent: true },
+              cliCommand: "privacy-pools guide --agent",
+            },
+          ],
+        },
+      ),
+      true,
+    );
+    return;
+  }
 
   const [firstToken, secondToken] = allNonOptionTokens(normalizedArgv);
   const resolvedGuideTopic =

@@ -25,7 +25,7 @@ export function createWithdrawCommand(): Command {
     .addOption(
       new Option(
         "--confirm-direct-withdraw",
-        "Deprecated: replaced by interactive confirmation. Will be removed in v3.x.",
+        "Required in non-interactive mode (--agent / --yes / CI). Acknowledges direct public withdrawal to the signer address.",
       ),
     )
     .addOption(
@@ -35,8 +35,8 @@ export function createWithdrawCommand(): Command {
       ).choices(["envelope", "tx"]),
     )
     .option(
-      "--dry-run",
-      "Generate and verify withdrawal artifacts without submitting",
+      "--dry-run [mode]",
+      "Generate and verify withdrawal artifacts without submitting (modes: offline, rpc, relayer; bare flag = rpc)",
     )
     .option(
       "--no-wait",
@@ -138,7 +138,7 @@ export function createWithdrawCommand(): Command {
     .description("Add a recipient to the local withdrawal address book")
     .argument("<address-or-ens>", "Recipient address or ENS name")
     .argument("[label]", "Optional display label")
-    .option("--label <label>", "Optional display label")
+    .addOption(new Option("--label <label>", "Optional display label").hideHelp())
     .action(
       createLazyAction(
         () => import("../commands/withdraw/recipients.js"),

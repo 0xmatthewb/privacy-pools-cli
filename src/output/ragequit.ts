@@ -7,6 +7,8 @@
  */
 
 import type { OutputContext } from "./common.js";
+import type { DryRunMode } from "../utils/dry-run-mode.js";
+import { buildRagequitPrivacyCostManifest } from "../utils/privacy-cost.js";
 import {
   appendNextActions,
   createNextAction,
@@ -36,10 +38,6 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
-import {
-  formatDeprecationWarningCallout,
-  type DeprecationWarningPayload,
-} from "./deprecation.js";
 import { RAGEQUIT_PRIMARY_CALLOUT } from "./copy.js";
 
 export interface RagequitReviewData {
@@ -56,27 +54,6 @@ export interface RagequitReviewData {
 
 const RAGEQUIT_PRIVACY_WARNING_COPY =
   RAGEQUIT_PRIMARY_CALLOUT;
-
-export function buildRagequitPrivacyCostManifest(data: {
-  poolAccountId: string;
-  amount: bigint;
-  asset: string;
-  chain: string;
-  destinationAddress: string | null;
-}): Record<string, unknown> {
-  return {
-    action: "ragequit",
-    framing: "public_self_custody_recovery",
-    poolAccountId: data.poolAccountId,
-    amount: data.amount.toString(),
-    asset: data.asset,
-    chain: data.chain,
-    destinationAddress: data.destinationAddress,
-    privacyCost: "funds return publicly to the original depositing address",
-    privacyPreserved: false,
-    recommendation: "Prefer a relayed private withdrawal when the Pool Account is approved and above the relayer minimum.",
-  };
-}
 
 export function formatRagequitReview(data: RagequitReviewData): string {
   const amountUsd = formatUsdValue(
@@ -160,10 +137,10 @@ export interface RagequitDryRunData {
   selectedCommitmentLabel: bigint;
   selectedCommitmentValue: bigint;
   proofPublicSignals: number;
+  dryRunMode?: DryRunMode | null;
   advisory?: string | null;
   approvedAlternative?: boolean;
   tokenPrice?: number | null;
-  deprecationWarning?: DeprecationWarningPayload;
 }
 
 export interface RagequitSuccessData {
@@ -187,7 +164,6 @@ export interface RagequitSuccessData {
   warningCode?: string | null;
   warnings?: Array<{ code: string; category: string; message: string }>;
   tokenPrice?: number | null;
-  deprecationWarning?: DeprecationWarningPayload;
 }
 
 /**
@@ -234,6 +210,7 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
     printJsonSuccess(
       appendNextActions({
         dryRun: true,
+        dryRunMode: data.dryRunMode ?? "rpc",
         operation: "ragequit",
         chain: data.chain,
         asset: data.asset,
@@ -254,9 +231,6 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
           },
         ],
         ...(data.advisory ? { advisory: data.advisory } : {}),
-        ...(data.deprecationWarning
-          ? { deprecationWarning: data.deprecationWarning }
-          : {}),
         approvedAlternative: data.approvedAlternative ?? false,
       }, agentNextActions),
       false,
@@ -314,11 +288,6 @@ export function renderRagequitDryRun(ctx: OutputContext, data: RagequitDryRunDat
         },
       }),
     );
-    if (data.deprecationWarning) {
-      process.stderr.write(
-        formatDeprecationWarningCallout(data.deprecationWarning),
-      );
-    }
   }
   renderNextSteps(ctx, humanNextActions);
 }
@@ -425,9 +394,6 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
         localStateSynced: data.localStateSynced ?? true,
         warningCode: data.warningCode ?? null,
         ...(warnings ? { warnings } : {}),
-        ...(data.deprecationWarning
-          ? { deprecationWarning: data.deprecationWarning }
-          : {}),
         privacyCostManifest: buildRagequitPrivacyCostManifest(data),
         ...(data.advisory ? { advisory: data.advisory } : {}),
       }, agentNextActions),
@@ -513,11 +479,6 @@ export function renderRagequitSuccess(ctx: OutputContext, data: RagequitSuccessD
           : RAGEQUIT_PRIVACY_WARNING_COPY,
       ),
     );
-    if (data.deprecationWarning) {
-      process.stderr.write(
-        formatDeprecationWarningCallout(data.deprecationWarning),
-      );
-    }
   }
   renderNextSteps(ctx, humanNextActions);
 }

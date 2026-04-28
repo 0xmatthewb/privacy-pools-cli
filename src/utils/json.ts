@@ -43,6 +43,34 @@ function decodeTemplateEscapes(template: string): string {
   });
 }
 
+function looksLikeJqSyntax(expression: string): boolean {
+  const trimmed = expression.trim();
+  return (
+    trimmed.startsWith(".") ||
+    /\|\s*(length|map|select|keys|to_entries)\b/.test(trimmed)
+  );
+}
+
+function suggestJmesPathFromJq(expression: string): string | null {
+  const trimmed = expression.trim();
+  if (!looksLikeJqSyntax(trimmed)) return null;
+  const suggestion = trimmed
+    .replace(/^\.\s*/, "")
+    .replace(/\|\s*length\b/g, "| length(@)")
+    .replace(/\|\s*keys\b/g, "| keys(@)")
+    .replace(/\|\s*to_entries\b/g, "| to_array(@)")
+    .trim();
+  return suggestion.length > 0 && suggestion !== trimmed ? suggestion : null;
+}
+
+function invalidJmesHint(expression: string): string {
+  const jqSuggestion = suggestJmesPathFromJq(expression);
+  if (jqSuggestion) {
+    return `Looks like jq syntax. Try JMESPath: ${jqSuggestion}`;
+  }
+  return "Provide a valid --jmes expression, for example: pools[0].asset or nextActions.";
+}
+
 /**
  * Configure global JSON output filtering.
  *
@@ -64,7 +92,7 @@ export function configureJsonOutput(
       throw new CLIError(
         `Invalid JMESPath expression: ${(err as Error).message}`,
         "INPUT",
-        "Provide a valid --jmes expression, for example: pools[0].asset or nextActions.",
+        invalidJmesHint(jqExpression),
         "INPUT_INVALID_JQ",
       );
     }
@@ -131,7 +159,7 @@ function applyFieldSelection(
       "INPUT_UNKNOWN_JSON_FIELD",
       false,
       "inline",
-      { availableFields, unknownFields, suggestions },
+      { availableFields, availableJsonFields: availableFields, unknownFields, suggestions },
     );
   }
 
@@ -157,7 +185,7 @@ function assertJsonFieldSelectionIsNonEmpty(
     "INPUT_JSON_FIELDS_REQUIRED",
     false,
     "inline",
-    { availableFields },
+    { availableFields, availableJsonFields: availableFields },
   );
 }
 
@@ -390,7 +418,8 @@ export function printJsonSuccess(
       throw new CLIError(
         `Invalid JMESPath expression: ${(err as Error).message}`,
         "INPUT",
-        "Provide a valid --jmes expression, for example: pools[0].asset or nextActions.",
+        invalidJmesHint(_jqExpression),
+        "INPUT_INVALID_JQ",
       );
     }
     writeStructuredValue(result ?? null, pretty);
@@ -418,7 +447,7 @@ export function printJsonError(
   const code = payload.code ?? "UNKNOWN_ERROR";
   const docUrl = errorDocUrl(code);
   const errorObject = details
-    ? { ...errorPayload, code, docUrl, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}), details, ...details }
+    ? { ...errorPayload, code, docUrl, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}), details }
     : { ...errorPayload, code, docUrl, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}) };
   // `error.code` and `error.message` are canonical. `errorCode` and
   // `errorMessage` remain v2 compatibility aliases and must match.
@@ -427,12 +456,8 @@ export function printJsonError(
     success: false,
     errorCode: code,
     errorMessage: payload.message,
-    meta: {
-      deprecated: ["errorCode", "errorMessage", "helpTopic"],
-    },
     ...(helpTopic ? { helpTopic } : {}),
     ...(nextActions ? { nextActions } : {}),
-    ...(details ?? {}),
     error: errorObject,
   };
 

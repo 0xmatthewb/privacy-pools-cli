@@ -123,7 +123,7 @@ export function buildDirectRecipientMismatchNextActions(params: {
     actions.push(
       createNextAction(
         "withdraw",
-        "Retry direct mode without --to to auto-fill the signer address.",
+        "Retry direct mode to withdraw publicly to the signer address instead of the requested recipient.",
         "after_dry_run",
         {
           args: [params.amountInput, params.assetInput],
@@ -156,9 +156,9 @@ export function buildDirectRecipientMismatchNextActions(params: {
     ),
   );
   actions.push(
-    createNextAction(
-      "withdraw",
-      "Retry direct mode without --to to auto-fill the signer address.",
+      createNextAction(
+        "withdraw",
+      "Retry direct mode to withdraw publicly to the signer address instead of the requested recipient.",
       "after_dry_run",
       {
         options: {
@@ -354,6 +354,7 @@ export function formatRelayedWithdrawalRemainderHint(
 ): string {
   return [
     guidance.summary,
+    "You can: (1) withdraw less, (2) withdraw the full balance with --all, or (3) plan a public recovery later via ragequit (compromises privacy for the remainder).",
     ...guidance.choices.map((choice) => `- ${choice}`),
   ].join("\n");
 }

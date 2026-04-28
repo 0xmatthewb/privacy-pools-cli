@@ -68,6 +68,10 @@ export const ERROR_CODE_REGISTRY = {
     category: "INPUT",
     retryable: false,
   },
+  INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED: {
+    category: "INPUT",
+    retryable: false,
+  },
   INPUT_FLAG_CONFLICT: { category: "INPUT", retryable: false },
   INPUT_FLOW_RECIPIENT_RETRY_LIMIT: { category: "INPUT", retryable: false },
   INPUT_INIT_GENERATE_REQUIRES_CAPTURE: {
@@ -83,6 +87,7 @@ export const ERROR_CODE_REGISTRY = {
   INPUT_INSUFFICIENT_GAS: { category: "INPUT", retryable: false },
   INPUT_INVALID_AMOUNT: { category: "INPUT", retryable: false },
   INPUT_INVALID_ASSET: { category: "INPUT", retryable: false },
+  INPUT_INVALID_OPTION: { category: "INPUT", retryable: false },
   INPUT_INVALID_JQ: { category: "INPUT", retryable: false },
   INPUT_INVALID_VALUE: { category: "INPUT", retryable: false },
   INPUT_MISSING_AMOUNT: { category: "INPUT", retryable: false },
@@ -92,7 +97,10 @@ export const ERROR_CODE_REGISTRY = {
   INPUT_MISSING_RECIPIENT: { category: "INPUT", retryable: false },
   INPUT_MUTUALLY_EXCLUSIVE: { category: "INPUT", retryable: false },
   INPUT_NONROUND_AMOUNT: { category: "INPUT", retryable: false },
+  INPUT_NO_SAVED_WORKFLOWS: { category: "INPUT", retryable: false },
   INPUT_NO_GAS: { category: "INPUT", retryable: false },
+  INPUT_NO_COMMAND: { category: "INPUT", retryable: false },
+  PROMPT_REQUIRED_NOT_INTERACTIVE: { category: "INPUT", retryable: false },
   INPUT_PARSE_ERROR: { category: "INPUT", retryable: false },
   INPUT_RAGEQUIT_CONFIRMATION_REQUIRED: {
     category: "INPUT",
@@ -118,6 +126,17 @@ export const ERROR_CODE_REGISTRY = {
   INPUT_JSON_FIELDS_REQUIRED: { category: "INPUT", retryable: false },
   INPUT_UNKNOWN_OPTION: { category: "INPUT", retryable: false },
   INPUT_UNKNOWN_SUBMISSION: { category: "INPUT", retryable: false },
+  INPUT_WATCH_REQUIRES_TTY: { category: "INPUT", retryable: false },
+  INPUT_WORKFLOW_INVALID_STRUCTURE: { category: "INPUT", retryable: false },
+  INPUT_WORKFLOW_LATEST_AMBIGUOUS_INVALID_FILES: {
+    category: "INPUT",
+    retryable: false,
+  },
+  INPUT_WORKFLOW_NOT_FOUND: { category: "INPUT", retryable: false },
+  INPUT_WORKFLOW_UNSUPPORTED_SCHEMA_VERSION: {
+    category: "INPUT",
+    retryable: false,
+  },
   SETUP_REQUIRED: { category: "SETUP", retryable: false },
   SETUP_INVALID_RECOVERY_PHRASE: { category: "SETUP", retryable: false },
   SETUP_INVALID_SIGNER_KEY: { category: "SETUP", retryable: false },
@@ -203,6 +222,7 @@ export const ERROR_CODE_REGISTRY = {
     retryable: true,
   },
   ACCOUNT_NOT_APPROVED: { category: "INPUT", retryable: false },
+  LOCK_HELD: { category: "INPUT", retryable: true },
   UNKNOWN_ERROR: { category: "UNKNOWN", retryable: false },
 } satisfies Record<string, ErrorCodeRegistryEntry>;
 

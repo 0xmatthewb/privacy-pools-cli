@@ -16,8 +16,8 @@ export function createDepositCommand(): Command {
       ).choices(["envelope", "tx"]),
     )
     .option(
-      "--dry-run",
-      "Validate and preview the transaction without submitting",
+      "--dry-run [mode]",
+      "Validate and preview without submitting (modes: offline, rpc, relayer; bare flag = rpc)",
     )
     .option(
       "--no-wait",
@@ -29,7 +29,7 @@ export function createDepositCommand(): Command {
     )
     .option(
       "--allow-non-round-amounts",
-      "Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint)",
+      "Allow non-round deposit amounts (non-interactive modes reject them by default; pass this to override)",
     )
     .addOption(
       new Option(
