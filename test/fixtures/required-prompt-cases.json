@@ -1,0 +1,117 @@
+[
+  {
+    "command": "init",
+    "promptCaseIds": [
+      "init-setup-mode-prompt",
+      "init-backup-method-prompt",
+      "init-backup-path-prompt",
+      "init-backup-confirm-prompt",
+      "init-recovery-verification-prompt",
+      "init-signer-key-prompt",
+      "init-default-chain-prompt"
+    ],
+    "sideEffectAssertions": [
+      {
+        "file": "test/helpers/init-command-interactive.harness.ts",
+        "contains": "expect(existsSync(join(home, \".mnemonic\"))).toBe(false);"
+      },
+      {
+        "file": "test/helpers/init-command-interactive.harness.ts",
+        "contains": "expect(existsSync(join(home, \".signer\"))).toBe(false);"
+      }
+    ]
+  },
+  {
+    "command": "upgrade",
+    "promptCaseIds": ["upgrade-confirm-prompt"],
+    "sideEffectAssertions": [
+      {
+        "file": "test/unit/upgrade-command.unit.test.ts",
+        "contains": "expect(performUpgradeMock).not.toHaveBeenCalled();"
+      }
+    ]
+  },
+  {
+    "command": "flow start",
+    "promptCaseIds": [
+      "flow-start-interactive-prompt",
+      "flow-start-confirm-prompt",
+      "flow-start-new-wallet-backup-choice",
+      "flow-start-new-wallet-backup-path-prompt",
+      "flow-start-new-wallet-backup-confirm"
+    ],
+    "sideEffectAssertions": [
+      {
+        "file": "test/services/workflow.internal.service.test.ts",
+        "contains": "expect(requestQuoteMock).not.toHaveBeenCalled();"
+      },
+      {
+        "file": "test/services/workflow.internal.service.test.ts",
+        "contains": "expect(depositETHMock).not.toHaveBeenCalled();"
+      },
+      {
+        "file": "test/helpers/workflow-mocked.interactive.groups.ts",
+        "contains": "expect(secretFiles).toHaveLength(0);"
+      }
+    ]
+  },
+  {
+    "command": "flow watch",
+    "excludedReason": "saved-workflow automation resumes previously reviewed intent; flow start owns the interactive review prompt"
+  },
+  {
+    "command": "flow ragequit",
+    "excludedReason": "saved-workflow public recovery is covered by flow start review plus ragequit confirmation coverage"
+  },
+  {
+    "command": "deposit",
+    "promptCaseIds": [
+      "deposit-asset-select-prompt",
+      "deposit-unique-amount-prompt",
+      "deposit-confirm-prompt"
+    ],
+    "sideEffectAssertions": [
+      {
+        "file": "test/unit/deposit-command-handler.unit.test.ts",
+        "contains": "expect(depositETHMock).not.toHaveBeenCalled();"
+      },
+      {
+        "file": "test/unit/deposit-command-handler.unit.test.ts",
+        "contains": "expect(depositERC20Mock).not.toHaveBeenCalled();"
+      }
+    ]
+  },
+  {
+    "command": "withdraw",
+    "promptCaseIds": [
+      "withdraw-pa-select-prompt",
+      "withdraw-recipient-prompt",
+      "withdraw-direct-confirm-prompt",
+      "withdraw-confirm"
+    ],
+    "sideEffectAssertions": [
+      {
+        "file": "test/helpers/withdraw-command-handler.interactive.harness.ts",
+        "contains": "expect(submitRelayRequestMock).not.toHaveBeenCalled();"
+      },
+      {
+        "file": "test/helpers/withdraw-command-handler.interactive.harness.ts",
+        "contains": "expect(withdrawDirectMock).not.toHaveBeenCalled();"
+      }
+    ]
+  },
+  {
+    "command": "ragequit",
+    "promptCaseIds": ["ragequit-select", "ragequit-confirm"],
+    "sideEffectAssertions": [
+      {
+        "file": "test/helpers/ragequit-command-handler.harness.ts",
+        "contains": "expect(ragequitMock).not.toHaveBeenCalled();"
+      }
+    ]
+  },
+  {
+    "command": "broadcast",
+    "excludedReason": "broadcast submits an externally signed envelope and has no interactive prompt surface"
+  }
+]
