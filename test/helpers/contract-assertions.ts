@@ -5,6 +5,7 @@ export interface JsonEnvelopeLike {
   schemaVersion?: string;
   success: boolean;
   errorCode?: string;
+  errorMessage?: string;
   error?: {
     code?: string;
     message?: string;
@@ -34,7 +35,17 @@ export function expectJsonEnvelope(
   expect(json.success).toBe(options.success);
 
   if (options.errorCode !== undefined) {
-    expect(json.errorCode ?? json.error?.code).toBe(options.errorCode);
+    expect(json.errorCode).toBe(options.errorCode);
+    expect(json.error?.code).toBe(options.errorCode);
+  }
+
+  if (!options.success) {
+    expect(typeof json.errorCode).toBe("string");
+    expect(typeof json.error?.code).toBe("string");
+    expect(json.errorCode).toBe(json.error?.code);
+    expect(typeof json.errorMessage).toBe("string");
+    expect(typeof json.error?.message).toBe("string");
+    expect(json.errorMessage).toBe(json.error?.message);
   }
   if (options.retryable !== undefined) {
     expect(json.error?.retryable).toBe(options.retryable);

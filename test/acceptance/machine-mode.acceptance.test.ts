@@ -19,21 +19,18 @@ defineScenarioSuite("machine-mode acceptance", [
       success: boolean;
       errorCode: string;
       errorMessage: string;
-      suggestions: string[];
-      error: { category: string; suggestions: string[]; details: { suggestions: string[] } };
+      error: { category: string; details: { suggestions: string[] } };
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(false);
       expect(json.errorCode).toBe("INPUT_UNKNOWN_COMMAND");
       expect(json.error.category).toBe("INPUT");
-      expect(json.suggestions).toContain("accounts");
-      expect(json.error.suggestions).toEqual(json.suggestions);
-      expect(json.error.details.suggestions).toEqual(json.suggestions);
+      expect(json.error.details.suggestions).toContain("accounts");
       expect(json.errorMessage.toLowerCase()).toContain("unknown command");
     }),
   ]),
   defineScenario("agent help returns a JSON help envelope", [
-    runCliStep(["--agent", "help", "deposit"]),
+    runCliStep(["--agent", "deposit", "--help"]),
     assertExit(0),
     assertStderrEmpty(),
     assertJson<{
@@ -50,7 +47,7 @@ defineScenarioSuite("machine-mode acceptance", [
     }),
   ]),
   defineScenario("json help returns a JSON help envelope", [
-    runCliStep(["--json", "help", "deposit"]),
+    runCliStep(["--json", "deposit", "--help"]),
     assertExit(0),
     assertStderrEmpty(),
     assertJson<{

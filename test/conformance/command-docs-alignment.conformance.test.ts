@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import {
+  COMMAND_PATHS,
   getCommandMetadata,
   getDocumentedAgentMarkers,
   type CommandPath,
 } from "../../src/utils/command-metadata.ts";
+import { STATIC_COMMAND_PATHS } from "../../src/utils/command-discovery-static.ts";
 import { NEXT_ACTION_WHEN_VALUES } from "../../src/types.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
 
@@ -57,6 +59,23 @@ const AGENT_MARKERS = getDocumentedAgentMarkers();
 describe("command docs alignment", () => {
   test("AGENTS command markers stay aligned with documented metadata", () => {
     for (const marker of AGENT_MARKERS) {
+      expect(AGENTS).toContain(marker);
+    }
+  });
+
+  test("documented AGENTS command headings resolve to catalog command paths", () => {
+    const documented = Array.from(AGENTS.matchAll(/^#### `([^`]+)`$/gm)).map(
+      (match) => match[1]!,
+    );
+    for (const command of documented) {
+      expect(COMMAND_PATHS).toContain(command as CommandPath);
+    }
+  });
+
+  test("all static command paths with AGENTS markers point at present documentation", () => {
+    for (const path of STATIC_COMMAND_PATHS) {
+      const marker = getCommandMetadata(path).agentsDocMarker;
+      if (!marker) continue;
       expect(AGENTS).toContain(marker);
     }
   });

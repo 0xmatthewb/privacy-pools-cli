@@ -28,6 +28,32 @@ describe("docs generation drift detection", () => {
     expect(result.status).toBe(0);
   });
 
+  test("AUTO-GENERATED command discovery artifacts match generator output", () => {
+    if (!existsSync(join(CLI_ROOT, "dist", "program.js"))) {
+      throw new Error(
+        "dist/program.js not found. Run `npm run build` before running conformance tests.",
+      );
+    }
+
+    const result = spawnSync(
+      "node",
+      ["scripts/generate-command-discovery-static.mjs", "--check"],
+      {
+        cwd: CLI_ROOT,
+        timeout: 180_000,
+        env: buildChildProcessEnv(),
+      },
+    );
+
+    const stderr = result.stderr?.toString() ?? "";
+    if (result.status !== 0) {
+      throw new Error(
+        `command discovery artifacts are out of date. Run \`npm run discovery:generate\` to regenerate.\n${stderr}`,
+      );
+    }
+    expect(result.status).toBe(0);
+  }, { timeout: 210_000 });
+
   test("docs/reference/accounts.md keeps accounts compact-mode nextActions contracts", () => {
     const reference = readFileSync(join(CLI_ROOT, "docs", "reference", "accounts.md"), "utf8");
     const normalizedReference = reference.replace(/\s+/g, " ");

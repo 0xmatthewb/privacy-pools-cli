@@ -12,6 +12,13 @@
 
 import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
+import { parseJsonOutput, runCli } from "../helpers/cli.ts";
+import {
+  argvForMode,
+  assertSafeInvocationInventoryCoverage,
+  invokableSafeInvocationRows,
+  loadSafeInvocationRows,
+} from "../helpers/safe-invocations.ts";
 
 const CLI_ROOT = process.cwd();
 
@@ -113,5 +120,30 @@ describe("output boundary conformance", () => {
     expect(UNMIGRATED_COMMANDS).toEqual(
       UNMIGRATED_COMMANDS.filter((commandPath) => ALL_COMMANDS.includes(commandPath)),
     );
+  });
+
+  const safeInvocationRows = loadSafeInvocationRows();
+
+  test("machine-mode safe invocations write exactly one JSON envelope to stdout", () => {
+    assertSafeInvocationInventoryCoverage(safeInvocationRows);
+
+    for (const row of invokableSafeInvocationRows(safeInvocationRows)) {
+      for (const mode of row.modes ?? []) {
+        const result = runCli(argvForMode(row, mode), {
+          timeoutMs: 20_000,
+          env: {
+            PRIVACY_POOLS_NO_UPDATE_CHECK: "1",
+          },
+        });
+        expect(result.timedOut).toBe(false);
+        const trimmed = result.stdout.trim();
+        expect(trimmed.startsWith("{")).toBe(true);
+        expect(trimmed.endsWith("}")).toBe(true);
+        expect(JSON.stringify(parseJsonOutput(trimmed))).toBe(trimmed);
+        if (mode === "agent") {
+          expect(result.stderr).toBe("");
+        }
+      }
+    }
   });
 });

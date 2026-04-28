@@ -112,7 +112,7 @@ defineScenarioSuite("help acceptance", [
     assertStderrEmpty(),
     assertStdout((stdout) => {
       expect(stdout).toContain("Usage: privacy-pools recipients|recents");
-      expect(stdout).toContain("add [options] <address-or-ens> [label]");
+      expect(stdout).toContain("add <address-or-ens> [label]");
       expect(stdout).toContain("remove|rm <address-or-ens>");
     }),
   ]),

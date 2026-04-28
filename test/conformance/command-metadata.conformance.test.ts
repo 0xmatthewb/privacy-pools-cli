@@ -63,7 +63,6 @@ describe("command metadata conformance", () => {
         expect(entry.aliases).toEqual([]);
         continue;
       }
-      const metadata = getCommandMetadata(entry.path as (typeof COMMAND_PATHS)[number]);
       if (
         entry.path === "protocol-stats"
         || entry.path === "pool-stats"
@@ -73,6 +72,7 @@ describe("command metadata conformance", () => {
         expect(entry.aliases).toEqual([]);
         continue;
       }
+      const metadata = getCommandMetadata(entry.path as (typeof COMMAND_PATHS)[number]);
       expect(entry.aliases).toEqual(metadata.aliases ?? []);
     }
 

@@ -687,7 +687,7 @@ defineScenarioSuite("json-contract acceptance", [
       defaultChain: string;
       signerKeySet: boolean;
       recoveryPhrase?: string;
-      nextActions?: Array<{ command: string }>;
+      nextActions?: Array<{ command: string; runnable?: boolean }>;
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(true);
@@ -696,7 +696,11 @@ defineScenarioSuite("json-contract acceptance", [
       expect(json.defaultChain).toBe("sepolia");
       expect(json.signerKeySet).toBe(false);
       expect(typeof json.recoveryPhrase).toBe("string");
-      expect(json.nextActions?.[0]?.command).toBe("status");
+      expect(json.nextActions?.[0]).toMatchObject({
+        command: "init",
+        runnable: false,
+      });
+      expect(json.nextActions?.[1]?.command).toBe("status");
     }),
   ]),
   defineScenario("flow status keeps the saved workflow JSON contract", [

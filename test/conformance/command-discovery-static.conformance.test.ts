@@ -49,10 +49,10 @@ describe("command discovery static conformance", () => {
     expect(resolveStaticCommandPath("not-a-command")).toBeNull();
   });
 
-  test("static and generated capabilities keep sentinel descriptors aligned", () => {
+  test("static and generated capabilities keep every descriptor aligned", () => {
     const runtimeCapabilities = buildCapabilitiesPayload();
 
-    for (const path of sentinelCommands) {
+    for (const path of STATIC_COMMAND_PATHS) {
       const descriptor = buildCommandDescriptor(path);
       expect(STATIC_CAPABILITIES_PAYLOAD.commandDetails[path]).toEqual(descriptor);
       expect(runtimeCapabilities.commandDetails[path]).toEqual(descriptor);

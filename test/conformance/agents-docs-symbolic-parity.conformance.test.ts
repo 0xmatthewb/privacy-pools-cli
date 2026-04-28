@@ -3,12 +3,17 @@
  */
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import type { Command, Option } from "commander";
+import { createRootProgram } from "../../src/program.ts";
 import { FLOW_PHASE_VALUES } from "../../src/services/workflow.ts";
 import {
   COMMAND_SIDE_EFFECT_CLASS_VALUES,
   NEXT_ACTION_WHEN_VALUES,
 } from "../../src/types.ts";
-import { COMMAND_PATHS } from "../../src/utils/command-metadata.ts";
+import {
+  COMMAND_PATHS,
+  type CommandPath,
+} from "../../src/utils/command-metadata.ts";
 import { ERROR_CODE_REGISTRY } from "../../src/utils/error-code-registry.ts";
 import { EXIT_CODES } from "../../src/utils/errors.ts";
 import {
@@ -328,6 +333,77 @@ function parseErrorCodeTable(doc: string, sectionHeader: RegExp) {
   );
 }
 
+function extractPrivacyPoolsSnippets(doc: string): string[] {
+  const snippets = [
+    ...Array.from(doc.matchAll(/`([^`\n]*privacy-pools\s+[^`\n]+)`/g)).map(
+      (match) => match[1]!,
+    ),
+    ...Array.from(doc.matchAll(/^\s*(privacy-pools\s+.+)$/gm)).map(
+      (match) => match[1]!,
+    ),
+  ];
+  return [...new Set(snippets)]
+    .map((snippet) => snippet.replace(/\s+#.*$/, "").trim())
+    .filter((snippet) => snippet.startsWith("privacy-pools "));
+}
+
+function tokenizeCommand(snippet: string): string[] {
+  return snippet
+    .split(/\s+/)
+    .map((token) => token.replace(/[),.;:]$/, ""))
+    .filter(Boolean);
+}
+
+function normalizeOptionToken(token: string, aliases: Map<string, string>): string | null {
+  const normalized = token.split("=", 1)[0]!;
+  if (!normalized.startsWith("-")) return null;
+  if (normalized.startsWith("--no-")) return `--${normalized.slice("--no-".length)}`;
+  if (normalized.startsWith("--")) return normalized;
+  return aliases.get(normalized) ?? normalized;
+}
+
+function collectCommandOptions(command: Command): {
+  options: Set<string>;
+  aliases: Map<string, string>;
+} {
+  const options = new Set<string>();
+  const aliases = new Map<string, string>();
+  for (const option of command.options as Option[]) {
+    const long = option.long?.replace(/^--no-/, "--");
+    if (!long) continue;
+    options.add(long);
+    if (option.short) aliases.set(option.short, long);
+  }
+  return { options, aliases };
+}
+
+function commandPathForSnippet(tokens: readonly string[]): CommandPath | null {
+  const nonOptionTokens = tokens
+    .slice(1)
+    .filter((token) => !token.startsWith("-"))
+    .filter((token) => !/^<[^>]+>$/.test(token))
+    .filter((token) => !/^\[[^\]]+\]$/.test(token));
+  for (let length = Math.min(nonOptionTokens.length, 4); length > 0; length -= 1) {
+    const candidate = nonOptionTokens.slice(0, length).join(" ");
+    if ((COMMAND_PATHS as string[]).includes(candidate)) {
+      return candidate as CommandPath;
+    }
+  }
+  return null;
+}
+
+function commandByPath(program: Command, path: string): Command | null {
+  let current = program;
+  for (const part of path.split(/\s+/)) {
+    const next = current.commands.find(
+      (command) => command.name() === part || command.aliases().includes(part),
+    );
+    if (!next) return null;
+    current = next;
+  }
+  return current;
+}
+
 describe("agents docs symbolic parity", () => {
   test("exit-code docs stay aligned with runtime exit categories", () => {
     expect(parseExitCodeTable(AGENTS)).toEqual(EXIT_CODES);
@@ -410,5 +486,42 @@ describe("agents docs symbolic parity", () => {
     ].filter((token, index, values) => values.indexOf(token) === index && !knownIdentifiers.has(token));
 
     expect(unknown).toEqual([]);
+  });
+
+  test("documented privacy-pools command examples only use real flags", async () => {
+    const program = await createRootProgram("0.0.0", {
+      loadAllCommands: true,
+      styledHelp: false,
+    });
+    const rootSurface = collectCommandOptions(program);
+    const failures: string[] = [];
+
+    for (const [label, doc] of [
+      ["AGENTS.md", AGENTS],
+      ["skills/privacy-pools-cli/SKILL.md", SKILL],
+      ["skills/privacy-pools-cli/reference.md", REFERENCE],
+    ] as const) {
+      for (const snippet of extractPrivacyPoolsSnippets(doc)) {
+        const tokens = tokenizeCommand(snippet);
+        const path = commandPathForSnippet(tokens);
+        if (!path) continue;
+        const command = commandByPath(program, path);
+        if (!command) {
+          failures.push(`${label}: '${snippet}' references missing command '${path}'`);
+          continue;
+        }
+        const localSurface = collectCommandOptions(command);
+        const validOptions = new Set([...rootSurface.options, ...localSurface.options]);
+        const aliases = new Map([...rootSurface.aliases, ...localSurface.aliases]);
+
+        for (const token of tokens) {
+          const option = normalizeOptionToken(token, aliases);
+          if (!option || validOptions.has(option)) continue;
+          failures.push(`${label}: '${snippet}' uses unknown flag '${token}' for '${path}'`);
+        }
+      }
+    }
+
+    expect(failures).toEqual([]);
   });
 });

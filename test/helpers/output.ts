@@ -9,6 +9,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { expect } from "bun:test";
 import type { ResolvedGlobalMode } from "../../src/output/common.ts";
+import { configureNextActionGlobals } from "../../src/utils/next-action-globals.ts";
 import { restoreProcessExitCode } from "./process.ts";
 
 const textDecoder = new TextDecoder();
@@ -28,6 +29,7 @@ let activeOutputCapture:
 export function makeMode(
   overrides: Partial<ResolvedGlobalMode> = {},
 ): ResolvedGlobalMode {
+  configureNextActionGlobals(undefined);
   return {
     isAgent: false,
     isJson: false,

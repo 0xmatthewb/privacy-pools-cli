@@ -44,6 +44,10 @@ describe("package scripts conformance", () => {
       "npm run build",
       "node scripts/generate-command-discovery-static.mjs",
     ]);
+    expectScriptContains("discovery:check", [
+      "npm run build",
+      "node scripts/generate-command-discovery-static.mjs --check",
+    ]);
     expectScriptContains("docs:generate", [
       "npm run build",
       "node scripts/generate-reference.mjs --write",
