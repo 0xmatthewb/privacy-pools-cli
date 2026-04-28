@@ -1,0 +1,12 @@
+// normalized: NONE
+Fetching pools for sepolia...
+● No pools found on sepolia.
+
+  │ Read-only note:
+  │ Try checking status on sepolia or browsing public activity on the same chain.
+
+Next steps:
+  privacy-pools status --chain sepolia
+    Check wallet and connection readiness.
+  privacy-pools activity --chain sepolia
+    Review public activity on this chain before depositing.

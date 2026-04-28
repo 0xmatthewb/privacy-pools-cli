@@ -238,6 +238,40 @@ function normalizeStatsEntries(
     .map(([, value]) => value as PoolStatsEntry);
 }
 
+function poolStatsEntryMatchesResolvedPool(
+  entry: PoolStatsEntry,
+  pool: PoolStats,
+  chainId: number,
+): boolean {
+  const entryChainId = parseOptionalNumber(entry.chainId);
+  if (entryChainId !== undefined && entryChainId !== chainId) {
+    return false;
+  }
+
+  const assetAddress = resolvePoolAssetAddress(entry);
+  if (assetAddress?.toLowerCase() === pool.asset.toLowerCase()) {
+    return true;
+  }
+
+  const scope = parseOptionalBigInt(entry.scope);
+  return scope !== undefined && scope === pool.scope;
+}
+
+async function attachAspMetricsToResolvedPool(
+  chainConfig: ChainConfig,
+  pool: PoolStats,
+): Promise<PoolStats> {
+  try {
+    const statsEntries = normalizeStatsEntries(await fetchPoolsStats(chainConfig));
+    const match = statsEntries.find((entry) =>
+      poolStatsEntryMatchesResolvedPool(entry, pool, chainConfig.id)
+    );
+    return match ? { ...pool, ...parsePoolStatsEntry(match) } : pool;
+  } catch {
+    return pool;
+  }
+}
+
 export async function resolveTokenMetadata(
   publicClient: PublicClient,
   assetAddress: Address,
@@ -962,13 +996,16 @@ export async function resolvePool(
   const knownAddress = KNOWN_POOLS[chainConfig.id]?.[normalized];
   if (knownAddress) {
     try {
-      return await resolveKnownPoolAddress(
+      const knownPool = await resolveKnownPoolAddress(
         rpcSession,
         chainConfig,
         knownAddress,
         assetInput,
         rpcOverride,
       );
+      return aspLookupFailed
+        ? await attachAspMetricsToResolvedPool(chainConfig, knownPool)
+        : knownPool;
     } catch (error) {
       emitRuntimeDiagnostic("pool-resolution", {
         chain: chainConfig.name,
@@ -1002,7 +1039,9 @@ export async function resolvePool(
         elapsedMs: elapsedRuntimeMs(startedAt).toFixed(2),
         outcome: "ok",
       });
-      return knownPool;
+      return aspLookupFailed
+        ? await attachAspMetricsToResolvedPool(chainConfig, knownPool)
+        : knownPool;
     }
   } catch (error) {
     emitRuntimeDiagnostic("pool-resolution", {

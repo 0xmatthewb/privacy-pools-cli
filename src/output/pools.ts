@@ -10,7 +10,7 @@ import { guardCsvUnsupported, printJsonSuccess, printCsv, printTable, info, warn
 import { POA_PORTAL_URL } from "../config/chains.js";
 import { accentBold, muted } from "../utils/theme.js";
 import { formatAddress, formatAmount, formatBPS, displayDecimals, parseUsd, formatUsdValue, rawUsdValue } from "../utils/format.js";
-import type { PoolStats } from "../types.js";
+import type { NextAction, PoolStats } from "../types.js";
 import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import {
   isActivePoolAccountStatus,
@@ -170,11 +170,39 @@ export function poolToJson(
 /**
  * Render "no pools found" (all raw pools empty, no errors to throw).
  */
+function buildPoolsEmptyNextActions(
+  data: PoolsRenderData,
+  includeAgent: boolean,
+): NextAction[] {
+  const options = {
+    ...(includeAgent ? { agent: true } : {}),
+    ...(data.allChains ? {} : { chain: data.chainName }),
+  };
+  const actionConfig = Object.keys(options).length > 0
+    ? { options }
+    : {};
+
+  return [
+    createNextAction(
+      "status",
+      "Check wallet and connection readiness.",
+      "no_pools_found",
+      actionConfig,
+    ),
+    createNextAction(
+      "activity",
+      data.allChains
+        ? "Review public activity before depositing."
+        : "Review public activity on this chain before depositing.",
+      "no_pools_found",
+      actionConfig,
+    ),
+  ];
+}
+
 export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): void {
+  const emptyNextActions = buildPoolsEmptyNextActions(data, true);
   if (ctx.mode.isJson) {
-    const emptyNextActions = [
-      createNextAction("status", "Check CLI and chain connectivity.", "no_pools_found", { options: { agent: true } }),
-    ];
     if (data.allChains) {
       printJsonSuccess(
         appendNextActions(
@@ -212,10 +240,23 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
 
   const silent = isSilent(ctx);
   if (data.allChains) {
-    info("No pools found on supported chains.", silent);
+    info("No pools found across supported chains.", silent);
+    if (!silent) {
+      process.stderr.write(formatCallout(
+        "read-only",
+        "Try checking status or browsing public activity to confirm the current network state.",
+      ));
+    }
   } else {
     info(`No pools found on ${data.chainName}.`, silent);
+    if (!silent) {
+      process.stderr.write(formatCallout(
+        "read-only",
+        `Try checking status on ${data.chainName} or browsing public activity on the same chain.`,
+      ));
+    }
   }
+  renderNextSteps(ctx, buildPoolsEmptyNextActions(data, false));
 }
 
 /**

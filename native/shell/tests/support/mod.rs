@@ -45,7 +45,7 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
         .lock()
         .expect("native subprocess test lock should not be poisoned");
     let mut command = Command::new(native_shell_bin_path());
-    command.current_dir(env!("CARGO_MANIFEST_DIR"));
+    command.current_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."));
     command.env_clear();
     for (key, value) in std::env::vars_os() {
         if should_inherit_env(&key) {
@@ -469,6 +469,76 @@ fn route_rpc_request(body: &str) -> Value {
         .and_then(Value::as_str)
         .unwrap_or_default();
     let id = request.get("id").cloned().unwrap_or_else(|| json!(1));
+
+    if method == "eth_chainId" {
+        return json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": format!("0x{:x}", FIXTURE_CHAIN_ID),
+        });
+    }
+
+    if method == "eth_blockNumber" {
+        return json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": "0x1",
+        });
+    }
+
+    if method == "eth_getLogs" {
+        return json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": [],
+        });
+    }
+
+    if method == "eth_getBlockByNumber" {
+        return json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": {
+                "number": "0x1",
+                "hash": format!("0x{}", "11".repeat(32)),
+                "parentHash": format!("0x{}", "22".repeat(32)),
+                "timestamp": "0x1",
+                "transactions": [],
+            },
+        });
+    }
+
+    if method == "eth_getTransactionReceipt" || method == "eth_getTransactionByHash" {
+        return json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": null,
+        });
+    }
+
+    if method == "eth_getCode" {
+        return json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": "0x",
+        });
+    }
+
+    if method == "net_version" {
+        return json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": FIXTURE_CHAIN_ID.to_string(),
+        });
+    }
+
+    if method == "web3_clientVersion" {
+        return json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "result": "privacy-pools-native-fixture/1.0.0",
+        });
+    }
 
     if method == "eth_call" {
         let data = request

@@ -12,19 +12,33 @@ use crate::routing::NativeMode;
 use serde_json::{json, Map, Value};
 
 fn build_pools_empty_json_payload(data: &PoolsRenderData) -> Value {
-    let mut status_options = Map::new();
-    status_options.insert("agent".to_string(), Value::Bool(true));
+    let mut options = Map::new();
+    options.insert("agent".to_string(), Value::Bool(true));
     if !data.all_chains {
-        status_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
+        options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
     }
-    let next_actions = Value::Array(vec![build_next_action(
-        "status",
-        "Check CLI and chain connectivity.",
-        "no_pools_found",
-        None,
-        Some(&status_options),
-        None,
-    )]);
+    let next_actions = Value::Array(vec![
+        build_next_action(
+            "status",
+            "Check wallet and connection readiness.",
+            "no_pools_found",
+            None,
+            Some(&options),
+            None,
+        ),
+        build_next_action(
+            "activity",
+            if data.all_chains {
+                "Review public activity before depositing."
+            } else {
+                "Review public activity on this chain before depositing."
+            },
+            "no_pools_found",
+            None,
+            Some(&options),
+            None,
+        ),
+    ]);
 
     if data.all_chains {
         json!({

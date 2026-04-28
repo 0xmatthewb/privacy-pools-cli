@@ -1,9 +1,14 @@
 import type { CliRunOptions } from "./cli.ts";
-import { fixtureEnv, multiChainFixtureEnv } from "./native-shell.ts";
+import {
+  emptyPoolsFixtureEnv,
+  fixtureEnv,
+  multiChainFixtureEnv,
+} from "./native-shell.ts";
 
 export type GoldenEnvironment =
   | "none"
   | "fixture"
+  | "empty-fixture"
   | "multi-fixture"
   | "offline-asp";
 
@@ -148,6 +153,15 @@ export const GOLDEN_TEXT_CASES: readonly GoldenTextCase[] = [
     sharedNative: true,
   },
   {
+    name: "pools/empty-sepolia-human",
+    args: ["--chain", "sepolia", "pools"],
+    env: "empty-fixture",
+    format: "text",
+    stream: "stderr",
+    status: 0,
+    sharedNative: true,
+  },
+  {
     name: "pools/no-results-sepolia-human",
     args: ["--chain", "sepolia", "pools", "--search", "NOPE"],
     env: "fixture",
@@ -277,6 +291,14 @@ export const GOLDEN_JSON_CASES: readonly GoldenJsonCase[] = [
     sharedNative: true,
   },
   {
+    name: "pools/empty-sepolia-agent",
+    args: ["--agent", "--chain", "sepolia", "pools"],
+    env: "empty-fixture",
+    format: "json",
+    status: 0,
+    sharedNative: true,
+  },
+  {
     name: "pools/no-results-sepolia-agent",
     args: ["--agent", "--chain", "sepolia", "pools", "--search", "NOPE"],
     env: "fixture",
@@ -330,6 +352,13 @@ export function resolveGoldenCaseRunOptions(
         env: {
           ...textDefaults,
           ...fixtureEnv(fixture!),
+        },
+      };
+    case "empty-fixture":
+      return {
+        env: {
+          ...textDefaults,
+          ...emptyPoolsFixtureEnv(fixture!),
         },
       };
     case "multi-fixture":

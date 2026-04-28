@@ -308,6 +308,15 @@ export function fixtureEnv(fixture: { url: string }): Record<string, string> {
   };
 }
 
+export function emptyPoolsFixtureEnv(
+  fixture: { url: string },
+): Record<string, string> {
+  return {
+    ...fixtureEnv(fixture),
+    PRIVACY_POOLS_ASP_HOST: `${fixture.url}/empty-pools`,
+  };
+}
+
 export function multiChainFixtureEnv(
   fixture: { url: string },
 ): Record<string, string> {

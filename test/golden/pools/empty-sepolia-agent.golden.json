@@ -1,0 +1,29 @@
+// normalized: NONE
+{
+  "chain": "sepolia",
+  "nextActions": [
+    {
+      "cliCommand": "privacy-pools status --agent --chain sepolia",
+      "command": "status",
+      "options": {
+        "chain": "sepolia"
+      },
+      "reason": "Check wallet and connection readiness.",
+      "when": "no_pools_found"
+    },
+    {
+      "cliCommand": "privacy-pools activity --agent --chain sepolia",
+      "command": "activity",
+      "options": {
+        "chain": "sepolia"
+      },
+      "reason": "Review public activity on this chain before depositing.",
+      "when": "no_pools_found"
+    }
+  ],
+  "pools": [],
+  "schemaVersion": "2.0.0",
+  "search": null,
+  "sort": "tvl-desc",
+  "success": true
+}

@@ -29,6 +29,9 @@ pub(super) fn list_pools_native(
     })?;
     let stats_entries = normalize_pool_stats_entries(&stats_data);
     if stats_entries.is_empty() {
+        if pool_stats_response_is_empty_list(&stats_data) {
+            return Ok(vec![]);
+        }
         return Err(CliError::asp(
             format!("Cannot reach ASP ({}) to discover pools.", chain.asp_host),
             Some("Check your network connection, or try again later.".to_string()),
@@ -59,6 +62,18 @@ pub(super) fn list_pools_native(
     }
 
     Ok(deduplicate_pool_entries(entries))
+}
+
+fn pool_stats_response_is_empty_list(stats_data: &serde_json::Value) -> bool {
+    if let Some(array) = stats_data.as_array() {
+        return array.is_empty();
+    }
+
+    stats_data
+        .as_object()
+        .and_then(|object| object.get("pools"))
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(Vec::is_empty)
 }
 
 pub(super) fn resolve_pool_listing_entries_bounded(

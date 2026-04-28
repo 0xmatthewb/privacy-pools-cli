@@ -35,6 +35,7 @@ import {
 
 const FIXTURE_SERVER_START_TIMEOUT_MS = 20_000;
 const FIXTURE_SERVER_READY_TIMEOUT_MS = 5_000;
+const EMPTY_POOLS_FIXTURE_PREFIX = "/empty-pools";
 
 // ── Canned response data ─────────────────────────────────────────────────────
 
@@ -355,7 +356,12 @@ function firstHeaderValue(value: string | string[] | undefined): string | undefi
 
 function route(req: IncomingMessage, res: ServerResponse): void {
   const url = new URL(req.url ?? "/", `http://localhost`);
-  const path = url.pathname;
+  const emptyPoolsMode =
+    url.pathname === EMPTY_POOLS_FIXTURE_PREFIX ||
+    url.pathname.startsWith(`${EMPTY_POOLS_FIXTURE_PREFIX}/`);
+  const path = emptyPoolsMode
+    ? url.pathname.slice(EMPTY_POOLS_FIXTURE_PREFIX.length) || "/"
+    : url.pathname;
 
   let body: unknown;
 
@@ -389,7 +395,9 @@ function route(req: IncomingMessage, res: ServerResponse): void {
   const poolStatisticsChainId = chainIdFromPublicPath(path, "pool-statistics");
 
   if (poolsStatsChainId !== null) {
-    body = poolStatsForChain(poolsStatsChainId);
+    body = emptyPoolsMode && poolsStatsChainId === 11155111
+      ? []
+      : poolStatsForChain(poolsStatsChainId);
   } else if (path.match(/\/\d+\/public\/deposits-by-label$/)) {
     const labelsHeader = firstHeaderValue(req.headers["x-labels"]);
     const labels = labelsHeader?.split(",").map((label) => label.trim()).filter(Boolean) ?? [];

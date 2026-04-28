@@ -1,17 +1,23 @@
 mod support;
 
 use regex::Regex;
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
+use std::{fs, process};
 use support::{
-    launch_fixture_server, parse_stdout_json, run_native_with_env, stderr_string, stdout_string,
+    launch_fixture_server_with_behavior, live_bridge_env, parse_stdout_json, run_native_with_env,
+    stderr_string, stdout_string, FixtureBehavior,
 };
+
+const SEPOLIA_CHAIN_ID: u64 = 11_155_111;
 
 #[derive(Clone, Copy)]
 enum EnvMode {
     None,
     Fixture,
+    EmptyPoolsFixture,
 }
 
 #[derive(Clone, Copy)]
@@ -41,6 +47,58 @@ fn golden_root() -> PathBuf {
 
 fn golden_path(name: &str, ext: &str) -> PathBuf {
     golden_root().join(format!("{name}.golden.{ext}"))
+}
+
+fn golden_parity_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn isolated_config_home(name: &str) -> PathBuf {
+    let safe_name = name.replace(['/', '\\', ' '], "-");
+    let path =
+        std::env::temp_dir().join(format!("pp-native-golden-{}-{}", process::id(), safe_name));
+    let _ = fs::remove_dir_all(&path);
+    fs::create_dir_all(&path).expect("native golden config home should be creatable");
+    path
+}
+
+fn fixture_behavior_for_env(env_mode: EnvMode) -> FixtureBehavior {
+    match env_mode {
+        EnvMode::Fixture => FixtureBehavior::default(),
+        EnvMode::EmptyPoolsFixture => {
+            FixtureBehavior::default().with_pools_stats_override(SEPOLIA_CHAIN_ID, json!([]))
+        }
+        EnvMode::None => unreachable!("fixture behavior requested for no-fixture case"),
+    }
+}
+
+fn run_fixture_case(
+    args: &[&str],
+    name: &str,
+    env_mode: EnvMode,
+    columns: Option<&str>,
+) -> process::Output {
+    let fixture = launch_fixture_server_with_behavior(fixture_behavior_for_env(env_mode));
+    let asp_host = fixture.base_url().to_string();
+    let rpc_url = fixture.base_url().to_string();
+    let (bridge_key, bridge_value) = live_bridge_env();
+    let config_home = isolated_config_home(name);
+    let config_home_string = config_home.to_string_lossy().to_string();
+    let mut env = vec![("LANG", "en_US.UTF-8")];
+    if let Some(columns) = columns {
+        env.push(("COLUMNS", columns));
+    }
+    env.extend([
+        ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
+        ("PRIVACY_POOLS_ASP_HOST_SEPOLIA", asp_host.as_str()),
+        ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
+        ("PRIVACY_POOLS_HOME", config_home_string.as_str()),
+        (bridge_key.as_str(), bridge_value.as_str()),
+    ]);
+    let output = run_native_with_env(args, &env);
+    let _ = fs::remove_dir_all(config_home);
+    output
 }
 
 fn regex(pattern: &str) -> Regex {
@@ -278,6 +336,20 @@ fn text_cases() -> Vec<TextGoldenCase> {
             stream: StreamKind::Stderr,
         },
         TextGoldenCase {
+            name: "pools/detail-sepolia-human",
+            args: &["--chain", "sepolia", "pools", "ETH"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+            stream: StreamKind::Stderr,
+        },
+        TextGoldenCase {
+            name: "pools/empty-sepolia-human",
+            args: &["--chain", "sepolia", "pools"],
+            env_mode: EnvMode::EmptyPoolsFixture,
+            status: 0,
+            stream: StreamKind::Stderr,
+        },
+        TextGoldenCase {
             name: "activity/global-human",
             args: &["activity"],
             env_mode: EnvMode::Fixture,
@@ -363,6 +435,18 @@ fn json_cases() -> Vec<JsonGoldenCase> {
             status: 0,
         },
         JsonGoldenCase {
+            name: "pools/detail-sepolia-agent",
+            args: &["--agent", "--chain", "sepolia", "pools", "ETH"],
+            env_mode: EnvMode::Fixture,
+            status: 0,
+        },
+        JsonGoldenCase {
+            name: "pools/empty-sepolia-agent",
+            args: &["--agent", "--chain", "sepolia", "pools"],
+            env_mode: EnvMode::EmptyPoolsFixture,
+            status: 0,
+        },
+        JsonGoldenCase {
             name: "activity/global-agent",
             args: &["--agent", "activity"],
             env_mode: EnvMode::Fixture,
@@ -391,22 +475,16 @@ fn json_cases() -> Vec<JsonGoldenCase> {
 
 #[test]
 fn native_human_outputs_match_shared_goldens() {
-    let fixture = launch_fixture_server();
-    let asp_host = fixture.base_url().to_string();
-    let rpc_url = fixture.base_url().to_string();
+    let _guard = golden_parity_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     for case in text_cases() {
         let base_env = [("LANG", "en_US.UTF-8"), ("COLUMNS", "120")];
         let output = match case.env_mode {
             EnvMode::None => run_native_with_env(case.args, &base_env),
-            EnvMode::Fixture => {
-                let env = [
-                    ("LANG", "en_US.UTF-8"),
-                    ("COLUMNS", "120"),
-                    ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
-                    ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
-                ];
-                run_native_with_env(case.args, &env)
+            EnvMode::Fixture | EnvMode::EmptyPoolsFixture => {
+                run_fixture_case(case.args, case.name, case.env_mode, Some("120"))
             }
         };
 
@@ -440,20 +518,15 @@ fn native_human_outputs_match_shared_goldens() {
 
 #[test]
 fn native_json_outputs_match_shared_goldens() {
-    let fixture = launch_fixture_server();
-    let asp_host = fixture.base_url().to_string();
-    let rpc_url = fixture.base_url().to_string();
+    let _guard = golden_parity_lock()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
 
     for case in json_cases() {
         let output = match case.env_mode {
             EnvMode::None => run_native_with_env(case.args, &[("LANG", "en_US.UTF-8")]),
-            EnvMode::Fixture => {
-                let env = [
-                    ("LANG", "en_US.UTF-8"),
-                    ("PRIVACY_POOLS_ASP_HOST", asp_host.as_str()),
-                    ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
-                ];
-                run_native_with_env(case.args, &env)
+            EnvMode::Fixture | EnvMode::EmptyPoolsFixture => {
+                run_fixture_case(case.args, case.name, case.env_mode, None)
             }
         };
 
