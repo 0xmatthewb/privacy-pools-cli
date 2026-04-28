@@ -61,7 +61,7 @@ privacy-pools simulate withdraw --all ETH --to 0xRecipient... --agent --chain ma
 | `-t, --to <address>` | Recipient address (required unless --direct; prompted interactively) |
 | `-p, --pool-account <PA-ID \| numeric-index>` | Withdraw from a specific Pool Account (examples: PA-2 or 2) |
 | `--direct` | WILL publicly link deposit and withdrawal addresses onchain. This cannot be undone. |
-| `--confirm-direct-withdraw` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
+| `--confirm-direct-withdraw` | Required in non-interactive mode (--agent / --yes / CI). Acknowledges direct public withdrawal to the signer address. |
 | `--all` | Withdraw entire Pool Account balance (requires asset: simulate withdraw --all ETH) |
 | `--accept-all-funds-public` | Acknowledge that --all --direct in non-interactive mode publicly links the full Pool Account balance |
 | `--extra-gas` | For ERC20 withdrawals, ask the relayer to include a small native-token gas top-up from the withdrawn funds (slightly higher fee) |
@@ -88,7 +88,7 @@ privacy-pools simulate ragequit ETH --pool-account PA-1 --agent --chain mainnet
 | Flag | Description |
 |------|-------------|
 | `-p, --pool-account <PA-ID \| numeric-index>` | Ragequit a specific Pool Account (examples: PA-2 or 2) |
-| `--confirm-ragequit` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
+| `--confirm-ragequit` | Required in non-interactive mode (--agent / --yes / CI). Acknowledges public recovery to the original deposit address. |
 
 **Safety:** simulate ragequit never signs or submits a transaction.
 **Safety:** Use 'ragequit --unsigned' instead when you need a signer-facing envelope rather than a dry-run preview.

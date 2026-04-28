@@ -51,8 +51,8 @@ privacy-pools config get signer-key --show-secret
 | Flag | Description |
 |------|-------------|
 | `--reveal` | Show the actual value of sensitive keys instead of [set] |
-| `--show-secret` | Clearer alias for --reveal |
-| `--unredacted` | Clearer alias for --reveal |
+| `--show-secret` | Alias for --reveal |
+| `--unredacted` | Alias for --reveal |
 
 **JSON output:** `{ key, value?, set, redacted?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 

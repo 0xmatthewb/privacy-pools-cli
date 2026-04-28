@@ -63,7 +63,7 @@ privacy-pools flow step latest --agent
 | `--privacy-delay <profile>` | Privacy delay profile (off \| balanced \| strict; default: balanced) |
 | `--new-wallet` | Create and use a dedicated wallet for this workflow |
 | `--export-new-wallet <path>` | Export the generated workflow wallet backup before continuing (requires --new-wallet) |
-| `--dry-run` | Validate the flow start inputs without saving a workflow or submitting a deposit |
+| `--dry-run [mode]` | Validate the flow start inputs without saving a workflow or submitting a deposit (modes: offline, rpc, relayer; bare flag = rpc) |
 | `--watch` | Keep watching this workflow until it finishes or pauses |
 | `--stream-json` | Emit line-delimited JSON progress events and finish with the final flow envelope |
 
@@ -94,7 +94,7 @@ Resume a saved flow through funding, approval, privacy delay, and withdrawal
 
 **Usage:** `privacy-pools flow watch [workflowId|latest] [options]`
 
-Human-only convenience wrapper that loops flow status plus flow step until the saved workflow changes or settles. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation using the same saved-workflow state as the one-shot primitives. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the approval service) remains available separately in aspStatus. When a saved workflow is using balanced or strict privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded and is rejected in --agent mode. Agents should use flow status and flow step externally instead. With --stream-json, flow watch emits line-delimited JSON phase_change events as the workflow advances, followed by the final snapshot as the last JSON line with isFinal = true.
+Human-only convenience wrapper that loops flow status plus flow step until the saved workflow changes or settles. It can resume dedicated-wallet funding, public deposit reconciliation, ASP review, privacy-delay waiting, relayed withdrawal, and pending receipt reconciliation using the same saved-workflow state as the one-shot primitives. Workflow phases include awaiting_funding, depositing_publicly, awaiting_asp, approved_waiting_privacy_delay, approved_ready_to_withdraw, withdrawing, completed, completed_public_recovery, paused_poa_required, paused_declined, and stopped_external. The saved workflow phase is reported in phase, while the deposit review state from the ASP (the Association Set Provider) remains available separately in aspStatus. When a saved workflow is using balanced or strict privacy delay, approval first transitions into approved_waiting_privacy_delay until the persisted randomized hold expires. Ctrl-C detaches cleanly. It does not cancel the saved workflow or mutate it beyond any state that was already persisted. flow watch is intentionally unbounded and is rejected in --agent mode. Agents should use flow status and flow step externally instead. With --stream-json, flow watch emits line-delimited JSON phase_change events as the workflow advances, followed by the final snapshot as the last JSON line with isFinal = true.
 
 **Basic:**
 
@@ -185,7 +185,7 @@ privacy-pools flow ragequit 123e4567-e89b-12d3-a456-426614174000
 
 | Flag | Description |
 |------|-------------|
-| `--confirm-ragequit` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
+| `--confirm-ragequit` | Required in non-interactive mode (--agent / --yes / CI). Acknowledges public recovery to the original deposit address. |
 | `--stream-json` | Emit line-delimited JSON progress events and finish with the final flow envelope |
 
 **Safety:** This is a public recovery path. It exits to the original deposit address and does not preserve privacy.

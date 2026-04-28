@@ -1148,6 +1148,7 @@ All errors in JSON mode:
 | `INPUT_BROADCAST_SIGNER_MISMATCH` | INPUT | No | See `docs/errors.md#input-broadcast-signer-mismatch` |
 | `INPUT_BROADCAST_STDIN_READ_FAILED` | INPUT | No | See `docs/errors.md#input-broadcast-stdin-read-failed` |
 | `INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH` | INPUT | No | See `docs/errors.md#input-direct-withdraw-recipient-mismatch` |
+| `INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED` | INPUT | No | See `docs/errors.md#input-direct-withdraw-consent-required` |
 | `INPUT_FLAG_CONFLICT` | INPUT | No | See `docs/errors.md#input-flag-conflict` |
 | `INPUT_FLOW_RECIPIENT_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-flow-recipient-retry-limit` |
 | `INPUT_INIT_GENERATE_REQUIRES_CAPTURE` | INPUT | No | See `docs/errors.md#input-init-generate-requires-capture` |
@@ -1157,6 +1158,7 @@ All errors in JSON mode:
 | `INPUT_INSUFFICIENT_GAS` | INPUT | No | See `docs/errors.md#input-insufficient-gas` |
 | `INPUT_INVALID_AMOUNT` | INPUT | No | See `docs/errors.md#input-invalid-amount` |
 | `INPUT_INVALID_ASSET` | INPUT | No | See `docs/errors.md#input-invalid-asset` |
+| `INPUT_INVALID_OPTION` | INPUT | No | See `docs/errors.md#input-invalid-option` |
 | `INPUT_INVALID_JQ` | INPUT | No | See `docs/errors.md#input-invalid-jq` |
 | `INPUT_INVALID_VALUE` | INPUT | No | See `docs/errors.md#input-invalid-value` |
 | `INPUT_MISSING_AMOUNT` | INPUT | No | See `docs/errors.md#input-missing-amount` |
@@ -1166,7 +1168,10 @@ All errors in JSON mode:
 | `INPUT_MISSING_RECIPIENT` | INPUT | No | See `docs/errors.md#input-missing-recipient` |
 | `INPUT_MUTUALLY_EXCLUSIVE` | INPUT | No | See `docs/errors.md#input-mutually-exclusive` |
 | `INPUT_NONROUND_AMOUNT` | INPUT | No | See `docs/errors.md#input-nonround-amount` |
+| `INPUT_NO_SAVED_WORKFLOWS` | INPUT | No | See `docs/errors.md#input-no-saved-workflows` |
 | `INPUT_NO_GAS` | INPUT | No | See `docs/errors.md#input-no-gas` |
+| `INPUT_NO_COMMAND` | INPUT | No | See `docs/errors.md#input-no-command` |
+| `PROMPT_REQUIRED_NOT_INTERACTIVE` | INPUT | No | See `docs/errors.md#prompt-required-not-interactive` |
 | `INPUT_PARSE_ERROR` | INPUT | No | See `docs/errors.md#input-parse-error` |
 | `INPUT_RAGEQUIT_CONFIRMATION_REQUIRED` | INPUT | No | See `docs/errors.md#input-ragequit-confirmation-required` |
 | `PROMPT_CANCELLED` | CANCELLED | No | See `docs/errors.md#prompt-cancelled` |
@@ -1183,6 +1188,11 @@ All errors in JSON mode:
 | `INPUT_JSON_FIELDS_REQUIRED` | INPUT | No | See `docs/errors.md#input-json-fields-required` |
 | `INPUT_UNKNOWN_OPTION` | INPUT | No | See `docs/errors.md#input-unknown-option` |
 | `INPUT_UNKNOWN_SUBMISSION` | INPUT | No | See `docs/errors.md#input-unknown-submission` |
+| `INPUT_WATCH_REQUIRES_TTY` | INPUT | No | See `docs/errors.md#input-watch-requires-tty` |
+| `INPUT_WORKFLOW_INVALID_STRUCTURE` | INPUT | No | See `docs/errors.md#input-workflow-invalid-structure` |
+| `INPUT_WORKFLOW_LATEST_AMBIGUOUS_INVALID_FILES` | INPUT | No | See `docs/errors.md#input-workflow-latest-ambiguous-invalid-files` |
+| `INPUT_WORKFLOW_NOT_FOUND` | INPUT | No | See `docs/errors.md#input-workflow-not-found` |
+| `INPUT_WORKFLOW_UNSUPPORTED_SCHEMA_VERSION` | INPUT | No | See `docs/errors.md#input-workflow-unsupported-schema-version` |
 | `SETUP_REQUIRED` | SETUP | No | See `docs/errors.md#setup-required` |
 | `SETUP_INVALID_RECOVERY_PHRASE` | SETUP | No | See `docs/errors.md#setup-invalid-recovery-phrase` |
 | `SETUP_INVALID_SIGNER_KEY` | SETUP | No | See `docs/errors.md#setup-invalid-signer-key` |
@@ -1235,6 +1245,7 @@ All errors in JSON mode:
 | `ACCOUNT_WEBSITE_RECOVERY_REQUIRED` | INPUT | No | See `docs/errors.md#account-website-recovery-required` |
 | `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | ASP | Yes | See `docs/errors.md#account-migration-review-incomplete` |
 | `ACCOUNT_NOT_APPROVED` | INPUT | No | See `docs/errors.md#account-not-approved` |
+| `LOCK_HELD` | INPUT | Yes | See `docs/errors.md#lock-held` |
 | `UNKNOWN_ERROR` | UNKNOWN | No | See `docs/errors.md#unknown-error` |
 
 ### Exit codes

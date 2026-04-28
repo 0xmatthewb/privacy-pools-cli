@@ -19,6 +19,14 @@ privacy-pools init       # creates a recovery phrase and saves it locally
 privacy-pools pools      # browse available pools and assets
 ```
 
+### Agent / CI quick start
+
+```bash
+privacy-pools init --agent --default-chain mainnet --backup-file ./privacy-pools-recovery.txt
+privacy-pools status --agent --chain mainnet
+privacy-pools pools --agent --chain mainnet
+```
+
 ### Already have a privacypools.com account?
 
 ```bash

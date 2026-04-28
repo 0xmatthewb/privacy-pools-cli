@@ -148,7 +148,7 @@ describe("withdraw scenarios", () => {
     expect(result.json.warnings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          code: "recipient_new_to_profile",
+          code: "RECIPIENT_NEW_TO_PROFILE",
         }),
       ]),
     );

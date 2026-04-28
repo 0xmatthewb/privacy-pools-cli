@@ -33,7 +33,7 @@ describe("recipient safety", () => {
       known,
     )).toBe(true);
     expect(newRecipientWarning("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")).toMatchObject({
-      code: "recipient_new_to_profile",
+      code: "RECIPIENT_NEW_TO_PROFILE",
       category: "recipient",
     });
   });

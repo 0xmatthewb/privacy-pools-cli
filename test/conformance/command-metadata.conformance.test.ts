@@ -114,6 +114,9 @@ describe("command metadata conformance", () => {
     expect(payload.safeReadOnlyCommands).toContain("pool-stats");
     expect(payload.safeReadOnlyCommands).not.toContain("stats");
     expect(payload.exitCodes).toEqual(CAPABILITY_EXIT_CODES);
+    for (const exitCode of payload.exitCodes) {
+      expect(exitCode.name).toBe(exitCode.errorCode);
+    }
     expect(payload.envVars).toEqual(CAPABILITY_ENV_VARS);
     expect(CAPABILITIES_SCHEMAS.nextActions?.whenValues).toEqual([
       ...NEXT_ACTION_WHEN_VALUES,

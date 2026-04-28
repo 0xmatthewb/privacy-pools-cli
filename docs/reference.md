@@ -24,10 +24,10 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 
 ### Monitoring
 
-- [`accounts`](reference/accounts.md) - View balances, approval status, and Pool Accounts
+- [`accounts`](reference/accounts.md) - List your own pool accounts (deposits, balances, statuses)
 - [`pools`](reference/pools.md) - Browse available pools
 - [`history`](reference/history.md) - View your deposit and withdrawal history
-- [`activity`](reference/activity.md) - View recent deposits and withdrawals across pools
+- [`activity`](reference/activity.md) - Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol
 - [`protocol-stats`](reference/protocol-stats.md) - View aggregate network statistics
 - [`pool-stats`](reference/pool-stats.md) - View statistics for one pool
 - [`sync`](reference/sync.md) - Sync account state with the latest onchain data

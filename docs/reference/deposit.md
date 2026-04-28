@@ -10,7 +10,7 @@ Deposit ETH or ERC-20 tokens into a pool
 
 **Usage:** `privacy-pools deposit <amount> [asset] [options]`
 
-Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local Pool Account precomputation path, so there is no runtime download step when proofs are needed. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Most proof-generation steps complete within a few seconds on typical hardware, although cold starts and slower machines can take longer. In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off. Each deposit includes a one-time vetting fee reviewed by the Privacy Pools Approval Service (ASP). The exact amount is shown before you confirm. The ASP vetting fee is deducted from the public deposit amount, so a round input can still become a non-round committed balance.
+Builds the deposit transaction and submits it onchain. After install, the CLI uses bundled checksum-verified circuit artifacts for the local Pool Account precomputation path, so there is no runtime download step when proofs are needed. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Most proof-generation steps complete within a few seconds on typical hardware, although cold starts and slower machines can take longer. In machine-oriented modes, non-round deposit amounts are rejected by default because they can fingerprint the deposit. Prefer round amounts unless you intentionally accept that privacy trade-off. Each deposit includes a one-time vetting fee reviewed by the Association Set Provider (ASP). The exact amount is shown before you confirm. The ASP vetting fee is deducted from the public deposit amount, so a round input can still become a non-round committed balance.
 
 **Basic:**
 
@@ -37,13 +37,14 @@ privacy-pools deposit 0.1 ETH --unsigned
 | Flag | Description |
 |------|-------------|
 | `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
-| `--dry-run` | Validate and preview the transaction without submitting |
+| `--dry-run [mode]` | Validate and preview without submitting (modes: offline, rpc, relayer; bare flag = rpc) |
 | `--no-wait` | Return after submission instead of waiting for confirmation |
 | `--stream-json` | Emit line-delimited JSON progress events and finish with the final deposit envelope |
-| `--allow-non-round-amounts` | Allow non-round deposit amounts (weaker privacy; round amounts are harder to fingerprint) |
+| `--allow-non-round-amounts` | Allow non-round deposit amounts (non-interactive modes reject them by default; pass this to override) |
 
 **Safety:** Deposits are reviewed by the ASP before approval. Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
 **Safety:** An ASP vetting fee is deducted from the deposit amount.
+**Safety:** Gas pricing uses the connected RPC's current fee suggestions. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.
 **Safety:** Only approved deposits can use withdraw, whether relayed or direct. Declined deposits can be recovered publicly via ragequit. Deposits that require Proof of Association (PoA) must complete the PoA flow at https://tornado.0xbow.io before they can withdraw privately.
 **Safety:** Deposit and simulate deposit amounts are human-readable token amounts, not wei. Asset symbols are normalized case-insensitively.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.

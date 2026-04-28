@@ -63,6 +63,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_BROADCAST_SIGNED_TRANSACTION_MISMATCH`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-signed-transaction-mismatch) | INPUT | no |
 | [`INPUT_BROADCAST_SIGNER_MISMATCH`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-signer-mismatch) | INPUT | no |
 | [`INPUT_BROADCAST_STDIN_READ_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-stdin-read-failed) | INPUT | no |
+| [`INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-consent-required) | INPUT | no |
 | [`INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-recipient-mismatch) | INPUT | no |
 | [`INPUT_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-error) | INPUT | no |
 | [`INPUT_FLAG_CONFLICT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-flag-conflict) | INPUT | no |
@@ -75,6 +76,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_INVALID_AMOUNT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-amount) | INPUT | no |
 | [`INPUT_INVALID_ASSET`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-asset) | INPUT | no |
 | [`INPUT_INVALID_JQ`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-jq) | INPUT | no |
+| [`INPUT_INVALID_OPTION`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-option) | INPUT | no |
 | [`INPUT_INVALID_VALUE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-value) | INPUT | no |
 | [`INPUT_JSON_FIELDS_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-json-fields-required) | INPUT | no |
 | [`INPUT_MISSING_AMOUNT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-amount) | INPUT | no |
@@ -83,7 +85,9 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_MISSING_FLOW_SUBCOMMAND`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-flow-subcommand) | INPUT | no |
 | [`INPUT_MISSING_RECIPIENT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-recipient) | INPUT | no |
 | [`INPUT_MUTUALLY_EXCLUSIVE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-mutually-exclusive) | INPUT | no |
+| [`INPUT_NO_COMMAND`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-command) | INPUT | no |
 | [`INPUT_NO_GAS`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-gas) | INPUT | no |
+| [`INPUT_NO_SAVED_WORKFLOWS`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-saved-workflows) | INPUT | no |
 | [`INPUT_NONROUND_AMOUNT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-nonround-amount) | INPUT | no |
 | [`INPUT_PARSE_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-parse-error) | INPUT | no |
 | [`INPUT_RAGEQUIT_CONFIRMATION_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-ragequit-confirmation-required) | INPUT | no |
@@ -99,7 +103,14 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_UNKNOWN_JSON_FIELD`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-json-field) | INPUT | no |
 | [`INPUT_UNKNOWN_OPTION`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-option) | INPUT | no |
 | [`INPUT_UNKNOWN_SUBMISSION`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-submission) | INPUT | no |
+| [`INPUT_WATCH_REQUIRES_TTY`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-watch-requires-tty) | INPUT | no |
+| [`INPUT_WORKFLOW_INVALID_STRUCTURE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-invalid-structure) | INPUT | no |
+| [`INPUT_WORKFLOW_LATEST_AMBIGUOUS_INVALID_FILES`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-latest-ambiguous-invalid-files) | INPUT | no |
+| [`INPUT_WORKFLOW_NOT_FOUND`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-not-found) | INPUT | no |
+| [`INPUT_WORKFLOW_UNSUPPORTED_SCHEMA_VERSION`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-unsupported-schema-version) | INPUT | no |
+| [`LOCK_HELD`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#lock-held) | INPUT | yes |
 | [`PROMPT_CANCELLED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#prompt-cancelled) | CANCELLED | no |
+| [`PROMPT_REQUIRED_NOT_INTERACTIVE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#prompt-required-not-interactive) | INPUT | no |
 | [`PROOF_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-error) | PROOF | no |
 | [`PROOF_GENERATION_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-generation-failed) | PROOF | no |
 | [`PROOF_MALFORMED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#proof-malformed) | PROOF | no |
@@ -479,6 +490,12 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-stdin-read-failed
 
+## INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-consent-required
+
 ## INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH
 
 - Category: `INPUT`
@@ -551,6 +568,12 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-jq
 
+## INPUT_INVALID_OPTION
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-option
+
 ## INPUT_INVALID_VALUE
 
 - Category: `INPUT`
@@ -599,11 +622,23 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-mutually-exclusive
 
+## INPUT_NO_COMMAND
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-command
+
 ## INPUT_NO_GAS
 
 - Category: `INPUT`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-gas
+
+## INPUT_NO_SAVED_WORKFLOWS
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-no-saved-workflows
 
 ## INPUT_NONROUND_AMOUNT
 
@@ -695,11 +730,53 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-unknown-submission
 
+## INPUT_WATCH_REQUIRES_TTY
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-watch-requires-tty
+
+## INPUT_WORKFLOW_INVALID_STRUCTURE
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-invalid-structure
+
+## INPUT_WORKFLOW_LATEST_AMBIGUOUS_INVALID_FILES
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-latest-ambiguous-invalid-files
+
+## INPUT_WORKFLOW_NOT_FOUND
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-not-found
+
+## INPUT_WORKFLOW_UNSUPPORTED_SCHEMA_VERSION
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-workflow-unsupported-schema-version
+
+## LOCK_HELD
+
+- Category: `INPUT`
+- Retryable: `true`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#lock-held
+
 ## PROMPT_CANCELLED
 
 - Category: `CANCELLED`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#prompt-cancelled
+
+## PROMPT_REQUIRED_NOT_INTERACTIVE
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#prompt-required-not-interactive
 
 ## PROOF_ERROR
 

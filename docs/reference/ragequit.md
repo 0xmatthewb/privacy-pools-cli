@@ -10,7 +10,7 @@ Recover funds publicly to your deposit address
 
 **Usage:** `privacy-pools ragequit [asset] [options]`
 
-Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools. Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval. In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped, --confirm-ragequit remains available as a deprecated compatibility flag for this release. Use --stream-json when a runner needs line-delimited progress events while proof generation and public recovery submission run.
+Your self-custody guarantee: recover funds publicly to your deposit address at any time. This does not provide privacy. Available for any Pool Account regardless of ASP status: declined, PoA-blocked, pending, or approved. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Asset lookup still works when live public pool discovery is unavailable because the CLI keeps a built-in onchain-verified registry for supported pools. Use ragequit when the ASP declined your deposit, the relayer cannot process the remaining balance below minimum, or you want to publicly recover funds without waiting for approval. In interactive mode, standalone ragequit requires typing the exact RAGEQUIT token. When prompts are skipped (--agent, --yes, or CI), use --confirm-ragequit to explicitly acknowledge public recovery to the original deposit address. Use --stream-json when a runner needs line-delimited progress events while proof generation and public recovery submission run.
 
 **Basic:**
 
@@ -32,9 +32,9 @@ privacy-pools ragequit ETH --pool-account PA-1 --stream-json
 |------|-------------|
 | `-p, --pool-account <PA-ID \| numeric-index>` | Ragequit a specific Pool Account (examples: PA-2 or 2) |
 | `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
-| `--dry-run` | Generate proof and validate without submitting |
+| `--dry-run [mode]` | Generate proof and validate without submitting (modes: offline, rpc, relayer; bare flag = rpc) |
 | `--no-wait` | Return after submission instead of waiting for confirmation |
-| `--confirm-ragequit` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
+| `--confirm-ragequit` | Required in non-interactive mode (--agent / --yes / CI). Acknowledges public recovery to the original deposit address. |
 | `--stream-json` | Emit line-delimited JSON progress events and finish with the final ragequit envelope |
 
 **Safety:** Ragequit is always available as your self-custody guarantee, but it publicly recovers funds to the original deposit address and does not provide privacy.

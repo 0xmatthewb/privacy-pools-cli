@@ -10,7 +10,7 @@ Withdraw privately from a pool
 
 **Usage:** `privacy-pools withdraw [amount] [asset] [options]`
 
-Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Pool Accounts marked poa_required cannot withdraw privately until Proof of Association is completed at https://tornado.0xbow.io. Like deposits, machine-oriented modes reject non-round amounts by default because unusual amounts can fingerprint the withdrawal. Opt out only when you intentionally accept that trade-off. In interactive mode, omitting the amount prompts for it after the pool is selected. Relayer quotes are refreshed automatically before proof generation when they are close to expiry.
+Relayed withdrawal is the default because it preserves privacy and follows the website-style happy path. Direct withdrawal is still available, but it links the deposit and withdrawal onchain and should be treated as an explicit privacy trade-off. A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Pool Accounts marked poa_required cannot withdraw privately until Proof of Association is completed at https://tornado.0xbow.io. Withdrawals do not currently block non-round amounts because --all and percentages are common withdrawal paths, but unusual exact amounts can still reduce privacy. Prefer --all, 100%, or round amounts where practical. In interactive mode, omitting the amount prompts for it after the pool is selected. Relayer quotes are refreshed automatically before proof generation when they are close to expiry.
 
 **Basic:**
 
@@ -45,9 +45,9 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 | `-t, --to <address>` | Recipient address (required unless --direct; prompted interactively) |
 | `-p, --pool-account <PA-ID \| numeric-index>` | Withdraw from a specific Pool Account (examples: PA-2 or 2) |
 | `--direct` | WILL publicly link deposit and withdrawal addresses onchain. This cannot be undone. |
-| `--confirm-direct-withdraw` | Deprecated: replaced by interactive confirmation. Will be removed in v3.x. |
+| `--confirm-direct-withdraw` | Required in non-interactive mode (--agent / --yes / CI). Acknowledges direct public withdrawal to the signer address. |
 | `--unsigned [format]` | Build unsigned transaction without submitting (default: envelope JSON; use --unsigned tx for raw transaction data) |
-| `--dry-run` | Generate and verify withdrawal artifacts without submitting |
+| `--dry-run [mode]` | Generate and verify withdrawal artifacts without submitting (modes: offline, rpc, relayer; bare flag = rpc) |
 | `--no-wait` | Return after submission instead of waiting for confirmation |
 | `--stream-json` | Emit line-delimited JSON progress events and finish with the final withdrawal envelope |
 | `--all` | Withdraw entire Pool Account balance (requires asset: withdraw --all ETH) |
@@ -58,7 +58,8 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 **Safety:** Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.
 **Safety:** ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.
 **Safety:** Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
-**Safety:** When prompts are skipped, direct withdrawals still require an explicit acknowledgement. --confirm-direct-withdraw remains available as a deprecated compatibility flag for this release.
+**Safety:** When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link.
+**Safety:** Gas pricing uses the connected RPC's current fee suggestions for direct withdrawals and public recovery. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.
 **Safety:** --extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. ERC20 withdrawals default to this on unless --no-extra-gas is passed; ETH withdrawals ignore it.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
 

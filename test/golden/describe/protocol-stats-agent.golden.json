@@ -5,6 +5,17 @@
     "stats",
     "stats global"
   ],
+  "availableJsonFields": [
+    "allTime",
+    "cacheTimestamp",
+    "chain",
+    "chains",
+    "command",
+    "deprecationWarning",
+    "invokedAs",
+    "last24h",
+    "mode"
+  ],
   "command": "protocol-stats",
   "description": "View aggregate network statistics",
   "examples": [

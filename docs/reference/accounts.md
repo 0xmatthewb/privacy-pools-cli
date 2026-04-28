@@ -6,7 +6,7 @@ Detailed reference for the `privacy-pools accounts` command family. Back to the 
 
 ## `accounts`
 
-View balances, approval status, and Pool Accounts
+List your own pool accounts (deposits, balances, statuses)
 
 Shows each Pool Account, its ASP review state, and per-pool aggregate balances. Bare `accounts` is a mainnet dashboard; use --chain for a specific network or --include-testnets to include supported testnets. Compact modes like --summary and --pending-only are intended for agent polling loops so they do not have to parse the full account dataset on every check. --pending-only remains supported as shorthand for --status pending in polling loops. Use --status <status> to filter by approved/pending/poa_required/declined/unknown/spent/exited. Human-only --watch is a 15-second pending poll loop that stops when pending results reach zero or on Ctrl-C.
 
@@ -39,12 +39,16 @@ privacy-pools accounts --no-sync --chain mainnet
 | Flag | Description |
 |------|-------------|
 | `--no-sync` | Use cached data (faster, but may be stale) |
+| `--refresh` | Force a full account refresh even when cached state is fresh |
 | `--include-testnets` | Include supported testnets (default: CLI-supported mainnet chains only) |
 | `--details` | Show additional details per Pool Account |
 | `--summary` | Show counts and balances only |
+| `--history` | Show private account history (replaces the history command) |
+| `--page <n>` | Show page N for --history |
 | `--pending-only` | Show only pending ASP approvals |
 | `--status <status>` | Filter by Pool Account status (approved, pending, poa_required, declined, unknown, spent, exited) |
-| `--watch` | Re-render pending approvals every 15s until none remain (human mode only; requires pending filter) |
+| `--watch` | Re-render pending approvals until none remain (human TTY only; requires --pending-only or --status pending; not available in --agent/--json/--csv) |
+| `--watch-interval <seconds>` | Seconds between --watch refreshes |
 | `-n, --limit <n>` | Limit Pool Account rows returned |
 
 **JSON output:** `{ chain, allChains?, chains?, warnings?, lastSyncTime?, syncSkipped, accounts: [{ poolAccountNumber, poolAccountId, status, aspStatus, asset, scope, value, hash, label, blockNumber, txHash, explorerUrl, chain?, chainId? }], balances: [{ asset, balance, usdValue, poolAccounts, chain?, chainId? }], pendingCount, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`

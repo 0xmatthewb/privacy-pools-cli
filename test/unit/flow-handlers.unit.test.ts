@@ -575,7 +575,7 @@ describe("flow command handlers", () => {
       snapshot: watchedSnapshot,
       extraWarnings: [
         expect.objectContaining({
-          code: "recipient_new_to_profile",
+          code: "RECIPIENT_NEW_TO_PROFILE",
           category: "recipient",
         }),
       ],

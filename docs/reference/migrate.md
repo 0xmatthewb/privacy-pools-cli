@@ -16,6 +16,10 @@ privacy-pools migrate status --chain mainnet
 privacy-pools migrate status --include-testnets --agent
 ```
 
+| Flag | Description |
+|------|-------------|
+| `--include-testnets` | Include supported testnets (default: CLI-supported mainnet chains only) |
+
 ## `migrate status`
 
 Check migration status for legacy Pool Accounts

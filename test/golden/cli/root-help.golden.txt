@@ -62,10 +62,12 @@ Options:
                           elsewhere
 
   Monitoring
-  accounts                View balances, approval status, and Pool Accounts
+  accounts                List your own pool accounts (deposits, balances,
+                          statuses)
   pools                   Browse available pools
   history                 View your deposit and withdrawal history
-  activity                View recent deposits and withdrawals across pools
+  activity                Browse the public activity feed (deposits,
+                          withdrawals, ragequits) across the protocol
   protocol-stats          View aggregate network statistics
   pool-stats              View statistics for one pool
   stats                   Deprecated compatibility alias for protocol-stats and
@@ -86,6 +88,10 @@ Common workflows:
   Manual path       privacy-pools deposit 0.1 ETH
   Watch review      privacy-pools accounts --chain mainnet --pending-only
   Withdraw          privacy-pools withdraw --all ETH --to <address>
+
+Common pairs:
+  Your state        privacy-pools accounts
+  Network state     privacy-pools activity
 
 Help topics:
   topics, quickstart, keys, workflow, flow-states, ragequit, automation, env-vars, next-actions, profiles, pool-accounts, agents, json, formatting, modes, quiet, troubleshooting, exit-codes

@@ -6,7 +6,7 @@ Detailed reference for the `privacy-pools activity` command family. Back to the 
 
 ## `activity`
 
-View recent deposits and withdrawals across pools
+Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol
 
 **Usage:** `privacy-pools activity [asset] [options]`
 

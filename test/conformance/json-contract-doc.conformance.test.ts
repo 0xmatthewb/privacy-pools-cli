@@ -49,6 +49,7 @@ describe("external JSON contract doc conformance", () => {
       [String(EXIT_CODES.RELAYER)]: "RELAYER_ERROR",
       [String(EXIT_CODES.PROOF)]: "PROOF_ERROR",
       [String(EXIT_CODES.CONTRACT)]: "CONTRACT_ERROR",
+      [String(EXIT_CODES.CANCELLED)]: "PROMPT_CANCELLED",
     });
   });
 

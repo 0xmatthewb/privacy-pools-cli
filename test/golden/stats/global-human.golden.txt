@@ -1,6 +1,10 @@
 // normalized: TS
 Fetching global statistics...
-Warning: Command 'stats global' is deprecated and will be removed in the next minor release. Use 'privacy-pools protocol-stats' instead.
+
+  │ Warning:
+  │ Command 'stats global' is deprecated and will be removed in the next minor release. Use 'privacy-pools
+  │ protocol-stats' instead.
+  │ Replacement: privacy-pools protocol-stats
 
 Global statistics (all-mainnets):
 

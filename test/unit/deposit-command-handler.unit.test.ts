@@ -887,7 +887,6 @@ describe("deposit command handler", () => {
       "Deposit transaction reverted",
     );
     expect(json.error.details.approvalTxHash).toBe(`0x${"12".repeat(32)}`);
-    expect(json.error.approvalTxHash).toBe(`0x${"12".repeat(32)}`);
     expect(saveAccountMock).not.toHaveBeenCalled();
     expect(exitCode).toBe(7);
   });

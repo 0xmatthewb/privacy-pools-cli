@@ -102,7 +102,7 @@ describe("cli output policy regressions", () => {
     ).errorCode).toBe("INPUT_MISSING_ASSET");
   });
 
-  test("deprecated confirmation flags emit warnings on early failures", () => {
+  test("confirmation flags stay non-deprecated on early failures", () => {
     const withdraw = runCli([
       "withdraw",
       "0.01",
@@ -124,23 +124,13 @@ describe("cli output policy regressions", () => {
 
     expect(parseJsonOutput<{
       deprecationWarning?: { code: string; replacementCommand: string };
-    }>(withdraw.stdout).deprecationWarning).toEqual(
-      expect.objectContaining({
-        code: "FLAG_DEPRECATED",
-        replacementCommand: expect.stringContaining("--confirm-direct-withdraw"),
-      }),
-    );
+    }>(withdraw.stdout).deprecationWarning).toBeUndefined();
     expect(parseJsonOutput<{
       deprecationWarning?: { code: string; replacementCommand: string };
-    }>(ragequit.stdout).deprecationWarning).toEqual(
-      expect.objectContaining({
-        code: "FLAG_DEPRECATED",
-        replacementCommand: expect.stringContaining("--confirm-ragequit"),
-      }),
-    );
+    }>(ragequit.stdout).deprecationWarning).toBeUndefined();
   });
 
-  test("deprecated confirmation flags render human warnings on errors", () => {
+  test("confirmation flags do not render deprecation warnings on errors", () => {
     const withdraw = runCli([
       "withdraw",
       "0.01",
@@ -154,9 +144,8 @@ describe("cli output policy regressions", () => {
 
     expect(withdraw.status).not.toBe(0);
     expect(withdraw.stdout).toBe("");
-    expect(withdraw.stderr).toContain("Warning:");
-    expect(withdraw.stderr).toContain("--confirm-direct-withdraw is deprecated");
-    expect(withdraw.stderr).toContain("Replacement:");
+    expect(withdraw.stderr).not.toContain("--confirm-direct-withdraw is deprecated");
+    expect(withdraw.stderr).not.toContain("Replacement:");
   });
 
   test("remaining long-running recovery commands expose stream-json", () => {
