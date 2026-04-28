@@ -1161,7 +1161,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--break-privacy-acknowledged",
         "--accept-all-funds-public",
+        "--no-remember",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -1186,11 +1188,15 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "usage": "recipients",
       "flags": [
-        "--limit <n>"
+        "--limit <n>",
+        "--all-chains",
+        "--include-metadata"
       ],
-      "agentFlags": "--agent [--limit <n>]",
+      "agentFlags": "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       "agentFlagNames": [
         "--agent",
+        "--all-chains",
+        "--include-metadata",
         "--limit"
       ],
       "requiresInit": false,
@@ -1205,11 +1211,15 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "usage": "recipients list",
       "flags": [
-        "--limit <n>"
+        "--limit <n>",
+        "--all-chains",
+        "--include-metadata"
       ],
-      "agentFlags": "--agent [--limit <n>]",
+      "agentFlags": "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       "agentFlagNames": [
         "--agent",
+        "--all-chains",
+        "--include-metadata",
         "--limit"
       ],
       "requiresInit": false,
@@ -4337,7 +4347,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--break-privacy-acknowledged",
         "--accept-all-funds-public",
+        "--no-remember",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -4460,7 +4472,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
-        "When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link.",
+        "When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link. Agent mode also requires --break-privacy-acknowledged for this high-stakes path.",
         "Gas pricing uses the connected RPC's current fee suggestions for direct withdrawals and public recovery. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.",
         "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. ERC20 withdrawals default to this on unless --no-extra-gas is passed; ETH withdrawals ignore it.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
@@ -4577,7 +4589,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "recipients",
       "flags": [
-        "--limit <n>"
+        "--limit <n>",
+        "--all-chains",
+        "--include-metadata"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -4633,7 +4647,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "privacy-pools recipients remove 0xRecipient..."
         }
       ],
-      "jsonFields": "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
+      "jsonFields": "{ mode: \"recipient-history\", operation, chain?, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }], recipient? }",
       "jsonVariants": [],
       "safetyNotes": [
         "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
@@ -4643,6 +4657,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentFlagNames": [
         "--agent",
+        "--all-chains",
+        "--include-metadata",
         "--limit"
       ],
       "agentWorkflowNotes": [
@@ -4664,7 +4680,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "recipients list",
       "flags": [
-        "--limit <n>"
+        "--limit <n>",
+        "--all-chains",
+        "--include-metadata"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -4715,7 +4733,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "privacy-pools recents"
         }
       ],
-      "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", chain, count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -4724,6 +4742,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsDryRun": false,
       "agentFlagNames": [
         "--agent",
+        "--all-chains",
+        "--include-metadata",
         "--limit"
       ],
       "agentWorkflowNotes": [
@@ -6837,6 +6857,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-stdin-read-failed"
     },
     {
+      "code": "INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-agent-ack-required"
+    },
+    {
       "code": "INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED",
       "category": "INPUT",
       "retryable": false,
@@ -6919,6 +6945,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "category": "INPUT",
       "retryable": false,
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-option"
+    },
+    {
+      "code": "INPUT_INVALID_RPC_URL",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-rpc-url"
     },
     {
       "code": "INPUT_INVALID_VALUE",

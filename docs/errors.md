@@ -65,6 +65,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_BROADCAST_SIGNED_TRANSACTION_MISMATCH`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-signed-transaction-mismatch) | INPUT | no |
 | [`INPUT_BROADCAST_SIGNER_MISMATCH`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-signer-mismatch) | INPUT | no |
 | [`INPUT_BROADCAST_STDIN_READ_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-stdin-read-failed) | INPUT | no |
+| [`INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-agent-ack-required) | INPUT | no |
 | [`INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-consent-required) | INPUT | no |
 | [`INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-recipient-mismatch) | INPUT | no |
 | [`INPUT_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-error) | INPUT | no |
@@ -79,6 +80,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_INVALID_ASSET`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-asset) | INPUT | no |
 | [`INPUT_INVALID_JQ`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-jq) | INPUT | no |
 | [`INPUT_INVALID_OPTION`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-option) | INPUT | no |
+| [`INPUT_INVALID_RPC_URL`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-rpc-url) | INPUT | no |
 | [`INPUT_INVALID_VALUE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-value) | INPUT | no |
 | [`INPUT_JSON_FIELDS_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-json-fields-required) | INPUT | no |
 | [`INPUT_MISSING_AMOUNT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-amount) | INPUT | no |
@@ -507,6 +509,12 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-broadcast-stdin-read-failed
 
+## INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-agent-ack-required
+
 ## INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED
 
 - Category: `INPUT`
@@ -590,6 +598,12 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Category: `INPUT`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-option
+
+## INPUT_INVALID_RPC_URL
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-rpc-url
 
 ## INPUT_INVALID_VALUE
 

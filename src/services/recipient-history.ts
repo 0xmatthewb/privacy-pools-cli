@@ -17,6 +17,11 @@ export interface RecipientHistoryEntry {
   updatedAt: string;
 }
 
+export interface RecipientHistoryFilter {
+  chain?: string | null;
+  includeGlobal?: boolean;
+}
+
 interface LegacyRecipientHistoryFile {
   version: 1;
   recipients: string[];
@@ -48,6 +53,10 @@ function normalizeRecipientAddress(address: string): string {
 function normalizeOptionalText(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeChain(value: string | null | undefined): string | undefined {
+  return normalizeOptionalText(value)?.toLowerCase();
 }
 
 function normalizeTimestamp(value: unknown): string | null {
@@ -93,8 +102,8 @@ function normalizeRecipientEntry(
     ...(normalizeOptionalText(candidate.ensName)
       ? { ensName: normalizeOptionalText(candidate.ensName) }
       : {}),
-    ...(normalizeOptionalText(candidate.chain)
-      ? { chain: normalizeOptionalText(candidate.chain) }
+    ...(normalizeChain(candidate.chain)
+      ? { chain: normalizeChain(candidate.chain) }
       : {}),
     source: normalizeSource(candidate.source),
     useCount:
@@ -118,13 +127,13 @@ function parseRecipientHistory(raw: string): RecipientHistoryEntry[] {
     typeof (parsed as Partial<RecipientHistoryFile>).updatedAt === "string"
       ? normalizeTimestamp((parsed as Partial<RecipientHistoryFile>).updatedAt) ?? new Date(0).toISOString()
       : new Date(0).toISOString();
-  const byAddress = new Map<string, RecipientHistoryEntry>();
+  const byRecipient = new Map<string, RecipientHistoryEntry>();
   for (const rawEntry of parsed.recipients) {
     const entry = normalizeRecipientEntry(rawEntry, fallbackUpdatedAt);
     if (!entry) continue;
-    byAddress.set(entry.address.toLowerCase(), entry);
+    byRecipient.set(recipientHistoryKey(entry.address, entry.chain), entry);
   }
-  return sortRecipientHistoryEntries([...byAddress.values()]);
+  return sortRecipientHistoryEntries([...byRecipient.values()]);
 }
 
 function sortRecipientHistoryEntries(
@@ -137,6 +146,20 @@ function sortRecipientHistoryEntries(
     if (a.useCount !== b.useCount) return b.useCount - a.useCount;
     return a.address.localeCompare(b.address);
   });
+}
+
+function recipientHistoryKey(address: string, chain: string | null | undefined): string {
+  return `${normalizeRecipientAddress(address).toLowerCase()}::${normalizeChain(chain) ?? ""}`;
+}
+
+function recipientMatchesFilter(
+  entry: RecipientHistoryEntry,
+  filter: RecipientHistoryFilter = {},
+): boolean {
+  const chain = normalizeChain(filter.chain);
+  if (!chain) return true;
+  const entryChain = normalizeChain(entry.chain);
+  return entryChain === chain || (!entryChain && filter.includeGlobal !== false);
 }
 
 function writeRecipientHistory(
@@ -152,7 +175,9 @@ function writeRecipientHistory(
   writePrivateFileAtomic(recipientHistoryPath(), `${JSON.stringify(payload, null, 2)}\n`);
 }
 
-export function loadRecipientHistoryEntries(): RecipientHistoryEntry[] {
+export function loadRecipientHistoryEntries(
+  filter: RecipientHistoryFilter = {},
+): RecipientHistoryEntry[] {
   const path = recipientHistoryPath();
   const legacyPath = legacyRecipientHistoryPath();
   const readablePath = existsSync(path)
@@ -162,14 +187,15 @@ export function loadRecipientHistoryEntries(): RecipientHistoryEntry[] {
       : null;
   if (!readablePath) return [];
   try {
-    return parseRecipientHistory(readFileSync(readablePath, "utf-8"));
+    return parseRecipientHistory(readFileSync(readablePath, "utf-8"))
+      .filter((entry) => recipientMatchesFilter(entry, filter));
   } catch {
     return [];
   }
 }
 
-export function loadKnownRecipientHistory(): string[] {
-  return loadRecipientHistoryEntries().map((entry) => entry.address);
+export function loadKnownRecipientHistory(chain?: string | null): string[] {
+  return loadRecipientHistoryEntries({ chain }).map((entry) => entry.address);
 }
 
 export function upsertRecipientHistoryEntry(params: {
@@ -184,8 +210,10 @@ export function upsertRecipientHistoryEntry(params: {
   const address = normalizeRecipientAddress(params.address);
   const nowIso = (params.now ?? new Date()).toISOString();
   const recipients = loadRecipientHistoryEntries();
-  const existingIndex = recipients.findIndex(
-    (entry) => entry.address.toLowerCase() === address.toLowerCase(),
+  const entryChain = normalizeChain(params.chain);
+  const key = recipientHistoryKey(address, entryChain);
+  const existingIndex = recipients.findIndex((entry) =>
+    recipientHistoryKey(entry.address, entry.chain) === key
   );
   const existing = existingIndex >= 0 ? recipients[existingIndex] : undefined;
   const incrementUseCount = params.incrementUseCount ?? false;
@@ -194,7 +222,7 @@ export function upsertRecipientHistoryEntry(params: {
     address,
     ...(existing?.label ? { label: existing.label } : {}),
     ...(existing?.ensName ? { ensName: existing.ensName } : {}),
-    ...(existing?.chain ? { chain: existing.chain } : {}),
+    ...(entryChain ? { chain: entryChain } : existing?.chain ? { chain: existing.chain } : {}),
     source,
     useCount: (existing?.useCount ?? 0) + (incrementUseCount ? 1 : 0),
     firstUsedAt:
@@ -209,7 +237,7 @@ export function upsertRecipientHistoryEntry(params: {
   if (label) next.label = label;
   const ensName = normalizeOptionalText(params.ensName);
   if (ensName) next.ensName = ensName;
-  const chain = normalizeOptionalText(params.chain);
+  const chain = normalizeChain(params.chain);
   if (chain) next.chain = chain;
 
   if (existingIndex >= 0) {
@@ -237,11 +265,16 @@ export function rememberKnownRecipient(
   });
 }
 
-export function removeRecipientHistoryEntry(address: string): boolean {
+export function removeRecipientHistoryEntry(
+  address: string,
+  filter: RecipientHistoryFilter = {},
+): boolean {
   const normalized = normalizeRecipientAddress(address);
   const recipients = loadRecipientHistoryEntries();
   const next = recipients.filter(
-    (entry) => entry.address.toLowerCase() !== normalized.toLowerCase(),
+    (entry) =>
+      entry.address.toLowerCase() !== normalized.toLowerCase() ||
+      !recipientMatchesFilter(entry, filter),
   );
   if (next.length === recipients.length) {
     return false;
@@ -250,15 +283,22 @@ export function removeRecipientHistoryEntry(address: string): boolean {
   return true;
 }
 
-export function clearRecipientHistory(): number {
+export function clearRecipientHistory(filter: RecipientHistoryFilter = {}): number {
   const recipients = loadRecipientHistoryEntries();
+  const matching = recipients.filter((entry) => recipientMatchesFilter(entry, filter));
   if (recipients.length === 0) {
     return 0;
+  }
+  if (matching.length < recipients.length) {
+    writeRecipientHistory(
+      recipients.filter((entry) => !recipientMatchesFilter(entry, filter)),
+    );
+    return matching.length;
   }
   try {
     unlinkSync(recipientHistoryPath());
   } catch {
     writeRecipientHistory([]);
   }
-  return recipients.length;
+  return matching.length;
 }

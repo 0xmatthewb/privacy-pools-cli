@@ -11,7 +11,6 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
 import { join } from "path";
 import { resolveConfigHome } from "../runtime/config-paths.js";
 
@@ -62,13 +61,14 @@ function getSessionIdentifier(): string | null {
 
 function updateNoticeMarkerPath(): string {
   const sessionId = getSessionIdentifier();
+  const markerDir = join(configDir(), ".session-markers");
   if (sessionId) {
     return join(
-      tmpdir(),
+      markerDir,
       `privacy-pools-update-notice-${sanitizeForFilename(sessionId)}.shown`,
     );
   }
-  return join(tmpdir(), "privacy-pools-update-notice-fallback.shown");
+  return join(markerDir, "privacy-pools-update-notice-fallback.shown");
 }
 
 function hasShownUpdateNoticeThisSession(): boolean {
@@ -77,6 +77,7 @@ function hasShownUpdateNoticeThisSession(): boolean {
 
 function markUpdateNoticeShownThisSession(): void {
   try {
+    mkdirSync(join(configDir(), ".session-markers"), { recursive: true });
     writeFileSync(updateNoticeMarkerPath(), "", { mode: 0o600 });
   } catch {
     // Best effort.

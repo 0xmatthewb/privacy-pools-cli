@@ -7,9 +7,9 @@ import {
   MERKLE_TREE_HEIGHT,
 } from "./merkle-tree.js";
 import { getTerminalColumns, visibleWidth, padDisplay, inlineSeparator } from "./terminal.js";
-import { existsSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
-import { tmpdir } from "os";
+import { resolveConfigHome } from "../runtime/config-paths.js";
 import {
   DEFAULT_WELCOME_BANNER_ACTIONS,
   type WelcomeAction,
@@ -57,14 +57,15 @@ function bannerMarkerVersionSuffix(version: string | undefined): string {
 function bannerMarkerPath(version: string | undefined): string {
   const sessionId = getSessionIdentifier();
   const versionSuffix = bannerMarkerVersionSuffix(version);
+  const markerDir = join(resolveConfigHome(), ".session-markers");
   if (sessionId) {
     return join(
-      tmpdir(),
+      markerDir,
       `privacy-pools-banner-${sanitizeForFilename(sessionId)}-${versionSuffix}.shown`
     );
   }
   // Worst-case fallback if session detection fails.
-  return join(tmpdir(), `privacy-pools-banner-fallback-${versionSuffix}.shown`);
+  return join(markerDir, `privacy-pools-banner-fallback-${versionSuffix}.shown`);
 }
 
 function hasBannerBeenShown(version: string | undefined): boolean {
@@ -74,6 +75,7 @@ function hasBannerBeenShown(version: string | undefined): boolean {
 function markBannerShown(version: string | undefined): void {
   const markerPath = bannerMarkerPath(version);
   try {
+    mkdirSync(join(resolveConfigHome(), ".session-markers"), { recursive: true });
     writeFileSync(markerPath, "", { mode: 0o600 });
   } catch {
     // Best effort - don't break the CLI over a marker file

@@ -593,7 +593,7 @@ describe("renderStatus parity", () => {
       nativeRuntimeAdvisory: {
         code: "native_acceleration_unavailable",
         message:
-          "The optional native runtime for this supported host is unavailable or invalid, so the CLI is using the safe JS path. All commands remain available, but read-only discovery commands may be slower. Reinstall without --omit=optional and ensure optional dependencies are enabled.",
+          "The native runtime for this supported host is unavailable or invalid, so the CLI is using the safe JS path. All commands remain available, but read-only discovery commands may be slower. Install a release that includes the host native package or configure PRIVACY_POOLS_CLI_BINARY to enable native acceleration.",
         affects: ["discovery"],
       },
     };
@@ -604,7 +604,7 @@ describe("renderStatus parity", () => {
       {
         code: "native_acceleration_unavailable",
         message:
-          "The optional native runtime for this supported host is unavailable or invalid, so the CLI is using the safe JS path. All commands remain available, but read-only discovery commands may be slower. Reinstall without --omit=optional and ensure optional dependencies are enabled.",
+          "The native runtime for this supported host is unavailable or invalid, so the CLI is using the safe JS path. All commands remain available, but read-only discovery commands may be slower. Install a release that includes the host native package or configure PRIVACY_POOLS_CLI_BINARY to enable native acceleration.",
         affects: ["discovery"],
       },
     ]);

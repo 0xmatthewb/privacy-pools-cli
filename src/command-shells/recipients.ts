@@ -13,6 +13,8 @@ export function createRecipientsCommand(): Command {
     .alias("recents")
     .description(metadata.description)
     .option("-n, --limit <n>", "Limit recipients returned")
+    .option("--all-chains", "List remembered recipients across all chains")
+    .option("--include-metadata", "Include recipient timestamps in JSON output")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(
@@ -26,6 +28,8 @@ export function createRecipientsCommand(): Command {
     .alias("ls")
     .description(listMetadata.description)
     .option("-n, --limit <n>", "Limit recipients returned")
+    .option("--all-chains", "List remembered recipients across all chains")
+    .option("--include-metadata", "Include recipient timestamps in JSON output")
     .addHelpText("after", commandHelpText(listMetadata.help ?? {}))
     .action(
       createLazyAction(

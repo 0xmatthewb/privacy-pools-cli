@@ -10,7 +10,12 @@ interface RecipientEnvelope {
   removed?: boolean;
   removedCount?: number;
   recipient?: { address: string; label: string | null };
-  recipients?: Array<{ address: string; label: string | null }>;
+  chain?: string;
+  recipients?: Array<{
+    address: string;
+    label: string | null;
+    updatedAt?: string;
+  }>;
 }
 
 describe("recipients command integration", () => {
@@ -36,9 +41,11 @@ describe("recipients command integration", () => {
     expect(parseJsonOutput<RecipientEnvelope>(listOne.stdout)).toMatchObject({
       success: true,
       operation: "list",
+      chain: "mainnet",
       count: 1,
       recipients: [{ address: first, label: "treasury" }],
     });
+    expect(parseJsonOutput<RecipientEnvelope>(listOne.stdout).recipients?.[0]?.updatedAt).toBeUndefined();
 
     const removeByLabel = runCli(
       ["--agent", "recipients", "remove", "treasury"],

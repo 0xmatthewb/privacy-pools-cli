@@ -212,12 +212,14 @@ interface WithdrawCommandOptions {
   poolAccount?: string;
   direct?: boolean;
   confirmDirectWithdraw?: boolean;
+  breakPrivacyAcknowledged?: boolean;
   unsigned?: boolean | string;
   dryRun?: boolean | string;
   wait?: boolean;
   noWait?: boolean;
   all?: boolean;
   acceptAllFundsPublic?: boolean;
+  remember?: boolean;
   extraGas?: boolean;
   streamJson?: boolean;
 }
@@ -619,8 +621,9 @@ export function collectKnownWorkflowRecipients(): string[] {
 
 export function collectKnownWithdrawalRecipients(
   signerAddress: Address | null,
+  chain?: string | null,
 ): string[] {
-  return collectKnownWithdrawalRecipientsHelper(signerAddress);
+  return collectKnownWithdrawalRecipientsHelper(signerAddress, chain);
 }
 
 export function rememberSuccessfulWithdrawalRecipient(
@@ -1095,6 +1098,9 @@ export async function handleWithdrawCommand(
         direct: true,
         confirmDirectWithdraw: true,
       };
+      if (mode.isAgent) {
+        retryOptions.breakPrivacyAcknowledged = true;
+      }
       if (fromPaRaw) retryOptions.poolAccount = fromPaRaw;
       if (recipientAddress) retryOptions.to = recipientAddress;
       throw new CLIError(
@@ -1115,6 +1121,54 @@ export async function handleWithdrawCommand(
             createNextAction(
               "withdraw",
               "Retry only if you intentionally prefer direct public withdrawal.",
+              "after_dry_run",
+              {
+                args: isAllWithdrawal
+                  ? [pool.symbol]
+                  : [amountStr, pool.symbol],
+                options: {
+                  ...retryOptions,
+                  ...(isAllWithdrawal ? { all: true } : {}),
+                },
+              },
+            ),
+          ],
+        },
+      );
+    }
+    if (
+      isDirect &&
+      mode.isAgent &&
+      !isDryRun &&
+      opts.breakPrivacyAcknowledged !== true
+    ) {
+      const retryOptions: Record<string, string | boolean> = {
+        agent: true,
+        chain: chainConfig.name,
+        direct: true,
+        confirmDirectWithdraw: true,
+        breakPrivacyAcknowledged: true,
+      };
+      if (fromPaRaw) retryOptions.poolAccount = fromPaRaw;
+      if (recipientAddress) retryOptions.to = recipientAddress;
+      throw new CLIError(
+        "Direct withdrawal requires an explicit agent privacy-loss acknowledgement.",
+        "INPUT",
+        "Re-run with --confirm-direct-withdraw --break-privacy-acknowledged only if the operator intentionally accepts that this publicly links the deposit and withdrawal addresses.",
+        "INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED",
+        false,
+        undefined,
+        {
+          recipient: recipientAddress,
+          signerAddress,
+        },
+        undefined,
+        {
+          helpTopic: "modes",
+          nextActions: [
+            createNextAction(
+              "withdraw",
+              "Retry only after an operator explicitly accepts direct public withdrawal.",
               "after_dry_run",
               {
                 args: isAllWithdrawal
@@ -1938,7 +1992,7 @@ export async function handleWithdrawCommand(
       const resolvedRecipientAddress = recipientAddress;
       recipientWarnings = await confirmRecipientIfNew({
         address: resolvedRecipientAddress,
-        knownRecipients: collectKnownWithdrawalRecipients(signerAddress),
+        knownRecipients: collectKnownWithdrawalRecipients(signerAddress, chainConfig.name),
         skipPrompts,
         silent,
       });
@@ -2270,10 +2324,12 @@ export async function handleWithdrawCommand(
               },
             ],
           });
-          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
-            ensName: recipientEnsName,
-            chain: chainConfig.name,
-          });
+          if (opts.remember !== false) {
+            rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
+              ensName: recipientEnsName,
+              chain: chainConfig.name,
+            });
+          }
 
           const ctx = createOutputContext(mode);
           renderWithdrawSuccess(ctx, {
@@ -2402,10 +2458,12 @@ export async function handleWithdrawCommand(
           txHash: tx.hash,
           blockNumber: receipt.blockNumber.toString(),
         });
-        rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
-          ensName: recipientEnsName,
-          chain: chainConfig.name,
-        });
+        if (opts.remember !== false) {
+          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
+            ensName: recipientEnsName,
+            chain: chainConfig.name,
+          });
+        }
 
         const ctx = createOutputContext(mode);
         renderWithdrawSuccess(ctx, {
@@ -3176,10 +3234,12 @@ export async function handleWithdrawCommand(
               },
             ],
           });
-          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
-            ensName: recipientEnsName,
-            chain: chainConfig.name,
-          });
+          if (opts.remember !== false) {
+            rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
+              ensName: recipientEnsName,
+              chain: chainConfig.name,
+            });
+          }
 
           const ctx = createOutputContext(mode);
           renderWithdrawSuccess(ctx, {
@@ -3317,10 +3377,12 @@ export async function handleWithdrawCommand(
           txHash: result.txHash,
           blockNumber: receipt.blockNumber.toString(),
         });
-        rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
-          ensName: recipientEnsName,
-          chain: chainConfig.name,
-        });
+        if (opts.remember !== false) {
+          rememberSuccessfulWithdrawalRecipient(resolvedRecipientAddress, {
+            ensName: recipientEnsName,
+            chain: chainConfig.name,
+          });
+        }
 
         const ctx = createOutputContext(mode);
         renderWithdrawSuccess(ctx, {

@@ -11,8 +11,9 @@ For flags, configuration, and environment variables, see [`docs/reference.md`](d
 ```bash
 # Install (recommended for agents)
 npm i -g privacy-pools-cli
-# Keep optional dependencies enabled so supported hosts can use the native shell.
-# Avoid --omit=optional and configs such as npm_config_omit=optional.
+# The npm package installs cleanly without unpublished native package deps.
+# Supported hosts can use native acceleration when release artifacts or explicit
+# PRIVACY_POOLS_CLI_BINARY overrides provide a verified native shell.
 
 # Unreleased/source builds
 npm i -g github:0xmatthewb/privacy-pools-cli
@@ -50,7 +51,8 @@ privacy-pools broadcast ./signed-envelope.json --agent --no-wait   # optional in
 ## Distribution
 
 The public npm entrypoint is `privacy-pools-cli`. It installs the JS launcher
-and, when present, an exact-version optional native shell package for the host:
+and can use a verified host-native shell when a matching native package or
+explicit binary override is present:
 
 | Human OS | Native package |
 | ---- | ---- |
@@ -64,12 +66,14 @@ Linux native packaging currently targets x64 glibc hosts. Alpine and other
 musl-based environments fall back to the JS launcher automatically.
 
 For agent onboarding, prefer the plain npm install above on a supported host.
-Normal npm installs include the host optional native package automatically.
-If a supported published install falls back to JS because the optional native
-package is missing or invalid, `status --agent` includes the warning code
-`native_acceleration_unavailable`. The CLI remains fully functional, but
-read-only discovery commands will be slower until the package is reinstalled
-without omitting optional dependencies.
+The root package does not declare unpublished host-native packages as optional
+dependencies; this keeps `npm ci` and global installs deterministic before all
+native packages are published. If a supported published install falls back to JS
+because the native shell is missing or invalid, `status --agent` includes the
+warning code `native_acceleration_unavailable`. The CLI remains fully
+functional, but read-only discovery commands will be slower until a release that
+includes the host package is installed or `PRIVACY_POOLS_CLI_BINARY` points to a
+verified native shell.
 
 ## Core Concepts
 
@@ -514,7 +518,7 @@ When a human delegates CLI operations to an agent:
 | `-v, --verbose` | Enable verbose/debug output |
 | `--no-progress` | Suppress spinners/progress indicators (useful in CI) |
 | `--no-header` | Suppress header rows in CSV and wide/tabular output |
-| `--no-banner` | Disable welcome banner output. For deterministic output in CI/container environments, use `--no-banner` or `--agent` (which implies `--quiet`, suppressing the banner). The banner uses a session marker in `/tmp` that may not persist across container restarts. |
+| `--no-banner` | Disable welcome banner output. For deterministic output in CI/container environments, use `--no-banner` or `--agent` (which implies `--quiet`, suppressing the banner). The banner uses a session marker under the local Privacy Pools config directory. |
 | `--no-color` | Disable colored output (also respects `NO_COLOR` env var) |
 | `--timeout <seconds>` | Network/transaction timeout in seconds (default: 30) |
 
@@ -529,7 +533,9 @@ CSV output is intentionally limited to listing and read-only reporting commands 
 | `activity` | Yes |
 | `protocol-stats` | Yes |
 | `pool-stats` | Yes |
+| `stats` | Yes |
 | `history` | Yes |
+| `recipients` | Yes |
 | `deposit` | No |
 | `withdraw` | No |
 | `ragequit` | No |
@@ -1241,6 +1247,7 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `INPUT_BROADCAST_STDIN_READ_FAILED` | INPUT | No | See `docs/errors.md#input-broadcast-stdin-read-failed` |
 | `INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH` | INPUT | No | See `docs/errors.md#input-direct-withdraw-recipient-mismatch` |
 | `INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED` | INPUT | No | See `docs/errors.md#input-direct-withdraw-consent-required` |
+| `INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED` | INPUT | No | See `docs/errors.md#input-direct-withdraw-agent-ack-required` |
 | `INPUT_FLAG_CONFLICT` | INPUT | No | See `docs/errors.md#input-flag-conflict` |
 | `INPUT_FLOW_RECIPIENT_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-flow-recipient-retry-limit` |
 | `INPUT_INIT_GENERATE_REQUIRES_CAPTURE` | INPUT | No | See `docs/errors.md#input-init-generate-requires-capture` |
@@ -1253,6 +1260,7 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `INPUT_INVALID_ASSET` | INPUT | No | See `docs/errors.md#input-invalid-asset` |
 | `INPUT_INVALID_OPTION` | INPUT | No | See `docs/errors.md#input-invalid-option` |
 | `INPUT_INVALID_JQ` | INPUT | No | See `docs/errors.md#input-invalid-jq` |
+| `INPUT_INVALID_RPC_URL` | INPUT | No | See `docs/errors.md#input-invalid-rpc-url` |
 | `INPUT_INVALID_VALUE` | INPUT | No | See `docs/errors.md#input-invalid-value` |
 | `INPUT_MISSING_AMOUNT` | INPUT | No | See `docs/errors.md#input-missing-amount` |
 | `INPUT_MISSING_ARGUMENT` | INPUT | No | See `docs/errors.md#input-missing-argument` |

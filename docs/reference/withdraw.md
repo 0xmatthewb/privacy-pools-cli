@@ -54,11 +54,13 @@ privacy-pools withdraw quote 0.1 ETH --to 0xRecipient...
 | `--accept-all-funds-public` | Acknowledge that --all --direct in non-interactive mode publicly links the full Pool Account balance |
 | `--extra-gas` | For ERC20 withdrawals, ask the relayer to include a small native-token gas top-up from the withdrawn funds (slightly higher fee) |
 | `--no-extra-gas` | Disable extra gas for ERC20 withdrawals |
+| `--no-remember` | Do not save the withdrawal recipient to the local address book |
+| `--break-privacy-acknowledged` | Required with --agent --direct. Acknowledges the irreversible public link created by direct withdrawal. |
 
 **Safety:** Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.
 **Safety:** ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.
 **Safety:** Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.
-**Safety:** When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link.
+**Safety:** When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link. Agent mode also requires --break-privacy-acknowledged for this high-stakes path.
 **Safety:** Gas pricing uses the connected RPC's current fee suggestions for direct withdrawals and public recovery. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.
 **Safety:** --extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. ERC20 withdrawals default to this on unless --no-extra-gas is passed; ETH withdrawals ignore it.
 **Safety:** Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.
@@ -89,10 +91,12 @@ privacy-pools withdraw recipients remove 0xRecipient...
 | Flag | Description |
 |------|-------------|
 | `-n, --limit <n>` | Limit recipients returned |
+| `--all-chains` | List remembered recipients across all chains |
+| `--include-metadata` | Include recipient timestamps in JSON output |
 
 **Safety:** Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.
 
-**JSON output:** `{ mode: "recipient-history", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }`
+**JSON output:** `{ mode: "recipient-history", operation, chain?, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }], recipient? }`
 
 ## `withdraw recipients list`
 
@@ -107,8 +111,10 @@ privacy-pools withdraw recents
 | Flag | Description |
 |------|-------------|
 | `-n, --limit <n>` | Limit recipients returned |
+| `--all-chains` | List remembered recipients across all chains |
+| `--include-metadata` | Include recipient timestamps in JSON output |
 
-**JSON output:** `{ mode: "recipient-history", operation: "list", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }`
+**JSON output:** `{ mode: "recipient-history", operation: "list", chain, count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }] }`
 
 ## `withdraw recipients add`
 

@@ -72,6 +72,10 @@ export const ERROR_CODE_REGISTRY = {
     category: "INPUT",
     retryable: false,
   },
+  INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED: {
+    category: "INPUT",
+    retryable: false,
+  },
   INPUT_FLAG_CONFLICT: { category: "INPUT", retryable: false },
   INPUT_FLOW_RECIPIENT_RETRY_LIMIT: { category: "INPUT", retryable: false },
   INPUT_INIT_GENERATE_REQUIRES_CAPTURE: {
@@ -93,6 +97,7 @@ export const ERROR_CODE_REGISTRY = {
   INPUT_INVALID_ASSET: { category: "INPUT", retryable: false },
   INPUT_INVALID_OPTION: { category: "INPUT", retryable: false },
   INPUT_INVALID_JQ: { category: "INPUT", retryable: false },
+  INPUT_INVALID_RPC_URL: { category: "INPUT", retryable: false },
   INPUT_INVALID_VALUE: { category: "INPUT", retryable: false },
   INPUT_MISSING_AMOUNT: { category: "INPUT", retryable: false },
   INPUT_MISSING_ARGUMENT: { category: "INPUT", retryable: false },

@@ -334,6 +334,40 @@ export function resolveRpcEnvVar(chainId: number): string | undefined {
   return global || undefined;
 }
 
+function isLoopbackRpcHost(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  return normalized === "localhost" ||
+    normalized === "::1" ||
+    normalized.startsWith("127.");
+}
+
+export function validateRpcUrl(value: string): string {
+  const trimmed = value.trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new CLIError(
+      `Invalid RPC URL: ${value}`,
+      "INPUT",
+      "Use a full https:// URL, or http://localhost / http://127.0.0.1 for local development.",
+      "INPUT_INVALID_RPC_URL",
+    );
+  }
+
+  if (parsed.protocol === "https:") return trimmed;
+  if (parsed.protocol === "http:" && isLoopbackRpcHost(parsed.hostname)) {
+    return trimmed;
+  }
+
+  throw new CLIError(
+    `Unsupported RPC URL scheme or host: ${value}`,
+    "INPUT",
+    "RPC URLs must use https:// unless they point to localhost, 127.0.0.1, or ::1 for local development.",
+    "INPUT_INVALID_RPC_URL",
+  );
+}
+
 // Default public RPCs per chain (primary + fallbacks).
 // Users can override per chain via init --rpc-url or config.json.
 export const DEFAULT_RPC_URLS: Record<number, string[]> = {
@@ -391,13 +425,15 @@ export function hasCustomRpcOverride(
  * single URL is returned (no automatic fallbacks).
  */
 export function getRpcUrls(chainId: number, overrideFromFlag?: string): string[] {
-  if (overrideFromFlag?.trim()) return [overrideFromFlag.trim()];
+  if (overrideFromFlag?.trim()) return [validateRpcUrl(overrideFromFlag)];
 
   const envUrl = resolveRpcEnvVar(chainId);
-  if (envUrl) return [envUrl];
+  if (envUrl) return [validateRpcUrl(envUrl)];
 
   const config = loadConfig();
-  if (config.rpcOverrides[chainId]) return [config.rpcOverrides[chainId]];
+  if (config.rpcOverrides[chainId]) {
+    return [validateRpcUrl(config.rpcOverrides[chainId])];
+  }
 
   const urls = DEFAULT_RPC_URLS[chainId];
   if (!urls || urls.length === 0) throw new CLIError(

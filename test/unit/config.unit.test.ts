@@ -476,7 +476,11 @@ describe("getRpcUrls multi-URL fallback", () => {
   });
 
   test("returns single-element array when flag override provided", () => {
-    expect(getRpcUrls(1, "http://custom.invalid")).toEqual(["http://custom.invalid"]);
+    expect(getRpcUrls(1, "http://127.0.0.1:8545")).toEqual(["http://127.0.0.1:8545"]);
+  });
+
+  test("rejects cleartext RPC URLs outside loopback hosts", () => {
+    expect(() => getRpcUrls(1, "http://custom.invalid")).toThrow("Unsupported RPC URL");
   });
 
   test("returns single-element array when env override provided", () => {

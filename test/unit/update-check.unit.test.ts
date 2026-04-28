@@ -12,7 +12,6 @@
 
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { cleanupTrackedTempDirs, createTrackedTempDir } from "../helpers/temp.ts";
 
@@ -36,9 +35,10 @@ function writeCacheFile(
   );
 }
 
-function updateNoticeMarkerPathFor(sessionId: string): string {
+function updateNoticeMarkerPathFor(configHome: string, sessionId: string): string {
   return join(
-    tmpdir(),
+    configHome,
+    ".session-markers",
     `privacy-pools-update-notice-${sessionId.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120)}.shown`,
   );
 }
@@ -497,7 +497,10 @@ describe("post-command update notices", () => {
     for (const key of sessionEnvKeys) {
       delete process.env[key];
     }
-    rmSync(updateNoticeMarkerPathFor(`ppid-${process.ppid}`), { force: true });
+    rmSync(
+      updateNoticeMarkerPathFor(join(home, ".privacy-pools"), `ppid-${process.ppid}`),
+      { force: true },
+    );
 
     try {
       const { consumePostCommandUpdateNotice } = await importUpdateCheck();

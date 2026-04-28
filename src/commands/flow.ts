@@ -394,8 +394,8 @@ export async function watchFlowWithStatusAndStep(params: {
   }
 }
 
-export function collectKnownFlowRecipients(): string[] {
-  const recipients: string[] = [...loadKnownRecipientHistory()];
+export function collectKnownFlowRecipients(chain?: string | null): string[] {
+  const recipients: string[] = [...loadKnownRecipientHistory(chain)];
   try {
     recipients.push(getSignerAddress(loadPrivateKey()));
   } catch {
@@ -1002,10 +1002,11 @@ export async function handleFlowStartCommand(
       info(`Resolved ${resolvedRecipient.ensName} -> ${resolvedRecipient.address}`, mode.isQuiet || mode.isJson);
     }
     recipient = resolvedRecipient.address;
+    const recipientChain = globalOpts.chain ?? loadConfig().defaultChain;
 
     const recipientWarnings = await confirmRecipientIfNew({
       address: recipient,
-      knownRecipients: collectKnownFlowRecipients(),
+      knownRecipients: collectKnownFlowRecipients(recipientChain),
       skipPrompts: mode.skipPrompts || isDryRun,
       silent: mode.isQuiet || mode.isJson,
     });

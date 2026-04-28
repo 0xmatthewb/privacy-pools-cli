@@ -61,6 +61,13 @@ export function createWithdrawCommand(): Command {
       "For ERC20 withdrawals, ask the relayer to include a small native-token gas top-up from the withdrawn funds (slightly higher fee)",
     )
     .option("--no-extra-gas", "Disable extra gas for ERC20 withdrawals")
+    .option("--no-remember", "Do not save the withdrawal recipient to the local address book")
+    .addOption(
+      new Option(
+        "--break-privacy-acknowledged",
+        "Required with --agent --direct. Acknowledges the irreversible public link created by direct withdrawal.",
+      ),
+    )
     .addHelpText(
       "after",
       groupedFlagGuideText([
@@ -87,8 +94,10 @@ export function createWithdrawCommand(): Command {
           flags: [
             "--direct",
             "--confirm-direct-withdraw",
+            "--break-privacy-acknowledged",
             "--extra-gas",
             "--no-extra-gas",
+            "--no-remember",
           ],
         },
         {
@@ -115,9 +124,11 @@ export function createWithdrawCommand(): Command {
     .alias("recents")
     .description(recipientsMetadata.description)
     .option("-n, --limit <n>", "Limit recipients returned")
+    .option("--all-chains", "List remembered recipients across all chains")
+    .option("--include-metadata", "Include recipient timestamps in JSON output")
     .addHelpText(
       "after",
-      "\nSuccessful withdrawals are remembered automatically. Use add/remove to manage the local address book manually.\n",
+      "\nSuccessful withdrawals are remembered by chain unless --no-remember is set. Use add/remove to manage the local address book manually.\n",
     )
     .action(
       createLazyAction(
@@ -131,6 +142,8 @@ export function createWithdrawCommand(): Command {
     .alias("ls")
     .description(recipientsListMetadata.description)
     .option("-n, --limit <n>", "Limit recipients returned")
+    .option("--all-chains", "List remembered recipients across all chains")
+    .option("--include-metadata", "Include recipient timestamps in JSON output")
     .action(
       createLazyAction(
         () => import("../commands/withdraw/recipients.js"),

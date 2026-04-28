@@ -78,7 +78,7 @@ export function guardStaticCsvUnsupported(
     throw new CLIError(
       `--output csv is not supported for '${commandName}'.`,
       "INPUT",
-      "CSV output is available for: pools, accounts, activity, stats, history.",
+      "CSV output is available for: pools, accounts, activity, stats, history, recipients.",
     );
   }
 }

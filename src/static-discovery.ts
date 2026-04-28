@@ -166,7 +166,7 @@ export async function runStaticCompletionQuery(
       throw new CLIError(
         "--output csv is not supported for 'completion'.",
         "INPUT",
-        "CSV output is available for: pools, accounts, activity, stats, history.",
+        "CSV output is available for: pools, accounts, activity, stats, history, recipients.",
       );
     }
 

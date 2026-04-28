@@ -3244,6 +3244,8 @@
     "recipients": {
       "agentFlagNames": [
         "--agent",
+        "--all-chains",
+        "--include-metadata",
         "--limit"
       ],
       "agentWorkflowNotes": [
@@ -3268,7 +3270,9 @@
       },
       "expectedLatencyClass": "fast",
       "flags": [
-        "--limit <n>"
+        "--limit <n>",
+        "--all-chains",
+        "--include-metadata"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3294,7 +3298,7 @@
         "--profile <name>"
       ],
       "group": "transaction",
-      "jsonFields": "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
+      "jsonFields": "{ mode: \"recipient-history\", operation, chain?, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }], recipient? }",
       "jsonVariants": [],
       "prerequisites": [],
       "requiresHumanReview": false,
@@ -3471,6 +3475,8 @@
     "recipients list": {
       "agentFlagNames": [
         "--agent",
+        "--all-chains",
+        "--include-metadata",
         "--limit"
       ],
       "agentWorkflowNotes": [
@@ -3494,7 +3500,9 @@
       },
       "expectedLatencyClass": "fast",
       "flags": [
-        "--limit <n>"
+        "--limit <n>",
+        "--all-chains",
+        "--include-metadata"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -3520,7 +3528,7 @@
         "--profile <name>"
       ],
       "group": "transaction",
-      "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
+      "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", chain, count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }] }",
       "jsonVariants": [],
       "prerequisites": [],
       "requiresHumanReview": false,
@@ -4397,7 +4405,9 @@
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--break-privacy-acknowledged",
         "--accept-all-funds-public",
+        "--no-remember",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -4452,7 +4462,7 @@
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
-        "When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link.",
+        "When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link. Agent mode also requires --break-privacy-acknowledged for this high-stakes path.",
         "Gas pricing uses the connected RPC's current fee suggestions for direct withdrawals and public recovery. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.",
         "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. ERC20 withdrawals default to this on unless --no-extra-gas is passed; ETH withdrawals ignore it.",
         "Signing source precedence: PRIVACY_POOLS_PRIVATE_KEY environment variable first, then the saved signer key file, then recovery-derived fallback where the command supports it.",
@@ -5141,7 +5151,9 @@
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--break-privacy-acknowledged",
         "--accept-all-funds-public",
+        "--no-remember",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -5157,16 +5169,20 @@
     {
       "agentFlagNames": [
         "--agent",
+        "--all-chains",
+        "--include-metadata",
         "--limit"
       ],
-      "agentFlags": "--agent [--limit <n>]",
+      "agentFlags": "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       "aliases": [
         "recents"
       ],
       "description": "Manage remembered withdrawal recipients",
       "expectedLatencyClass": "fast",
       "flags": [
-        "--limit <n>"
+        "--limit <n>",
+        "--all-chains",
+        "--include-metadata"
       ],
       "group": "transaction",
       "name": "recipients",
@@ -5176,16 +5192,20 @@
     {
       "agentFlagNames": [
         "--agent",
+        "--all-chains",
+        "--include-metadata",
         "--limit"
       ],
-      "agentFlags": "--agent [--limit <n>]",
+      "agentFlags": "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       "aliases": [
         "ls"
       ],
       "description": "List remembered withdrawal recipients",
       "expectedLatencyClass": "fast",
       "flags": [
-        "--limit <n>"
+        "--limit <n>",
+        "--all-chains",
+        "--include-metadata"
       ],
       "group": "transaction",
       "name": "recipients list",
@@ -5906,6 +5926,12 @@
     },
     {
       "category": "INPUT",
+      "code": "INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-agent-ack-required",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
       "code": "INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED",
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-direct-withdraw-consent-required",
       "retryable": false
@@ -5986,6 +6012,12 @@
       "category": "INPUT",
       "code": "INPUT_INVALID_OPTION",
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-option",
+      "retryable": false
+    },
+    {
+      "category": "INPUT",
+      "code": "INPUT_INVALID_RPC_URL",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-rpc-url",
       "retryable": false
     },
     {

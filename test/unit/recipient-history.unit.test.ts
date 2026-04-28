@@ -63,11 +63,34 @@ describe("recipient history", () => {
     });
 
     const entries = loadRecipientHistoryEntries();
-    expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({
+    expect(entries).toHaveLength(2);
+    expect(loadRecipientHistoryEntries({ chain: "mainnet" })).toEqual([
+      expect.objectContaining({
+        address,
+        ensName: "alice.eth",
+        chain: "mainnet",
+        source: "withdrawal",
+        useCount: 1,
+      }),
+    ]);
+    expect(loadRecipientHistoryEntries({ chain: "arbitrum" })).toEqual([
+      expect.objectContaining({
+        address,
+        chain: "arbitrum",
+        source: "withdrawal",
+        useCount: 1,
+      }),
+    ]);
+    expect(loadKnownRecipientHistory("mainnet")).toEqual([address]);
+    expect(loadKnownRecipientHistory("optimism")).toEqual([]);
+
+    rememberKnownRecipient(address, {
+      chain: "mainnet",
+    });
+    expect(loadRecipientHistoryEntries({ chain: "mainnet" })[0]).toMatchObject({
       address,
       ensName: "alice.eth",
-      chain: "arbitrum",
+      chain: "mainnet",
       source: "withdrawal",
       useCount: 2,
     });

@@ -8,6 +8,7 @@ import {
   upsertRecipientHistoryEntry,
   type RecipientHistoryEntry,
 } from "../../services/recipient-history.js";
+import { loadConfig } from "../../services/config.js";
 import {
   getWorkflowStatus,
   listSavedWorkflowIds,
@@ -110,10 +111,11 @@ export function collectKnownWorkflowRecipients(): string[] {
 
 export function collectKnownWithdrawalRecipients(
   signerAddress: Address | null,
+  chain?: string | null,
 ): string[] {
   return [
     ...(signerAddress ? [signerAddress] : []),
-    ...loadKnownRecipientHistory(),
+    ...loadKnownRecipientHistory(chain),
     ...collectKnownWorkflowRecipients(),
   ];
 }
@@ -145,10 +147,14 @@ export function rememberSuccessfulWithdrawalRecipient(
 interface RecipientCommandOptions {
   label?: string;
   limit?: string;
+  allChains?: boolean;
+  includeMetadata?: boolean;
 }
 
 interface RecipientListCommandOptions {
   limit?: string;
+  allChains?: boolean;
+  includeMetadata?: boolean;
 }
 
 function rootOptionsForCommand(cmd: Command): GlobalOptions {
@@ -171,6 +177,21 @@ function recipientCommandPrefix(cmd: Command): string {
 
 function recipientCommandPath(cmd: Command, suffix?: string): string {
   return [recipientCommandPrefix(cmd), suffix].filter(Boolean).join(" ");
+}
+
+function recipientCommandChain(
+  cmd: Command,
+  opts: { allChains?: boolean } = {},
+): string | undefined {
+  if (opts.allChains) return undefined;
+  const rootOptions = rootOptionsForCommand(cmd);
+  const chain = rootOptions.chain?.trim();
+  if (chain) return chain.toLowerCase();
+  try {
+    return loadConfig().defaultChain.toLowerCase();
+  } catch {
+    return "mainnet";
+  }
 }
 
 function withdrawRecipientsDeprecationWarning(cmd: Command):
@@ -215,7 +236,10 @@ function recipientDeprecationWarning(cmd: Command):
     ?? withdrawRecipientsDeprecationWarning(cmd);
 }
 
-function recipientPayload(entry: RecipientHistoryEntry): Record<string, unknown> {
+function recipientPayload(
+  entry: RecipientHistoryEntry,
+  options: { includeMetadata?: boolean } = {},
+): Record<string, unknown> {
   return {
     address: entry.address,
     label: entry.label ?? null,
@@ -223,9 +247,13 @@ function recipientPayload(entry: RecipientHistoryEntry): Record<string, unknown>
     chain: entry.chain ?? null,
     source: entry.source,
     useCount: entry.useCount,
-    firstUsedAt: entry.firstUsedAt,
-    lastUsedAt: entry.lastUsedAt,
-    updatedAt: entry.updatedAt,
+    ...(options.includeMetadata
+      ? {
+          firstUsedAt: entry.firstUsedAt,
+          lastUsedAt: entry.lastUsedAt,
+          updatedAt: entry.updatedAt,
+        }
+      : {}),
   };
 }
 
@@ -244,11 +272,11 @@ function parseOptionalLimit(raw: string | undefined): number | undefined {
 
 function resolveStoredRecipientForRemoval(
   addressOrEns: string,
+  entries: readonly RecipientHistoryEntry[] = loadRecipientHistoryEntries(),
 ): RecipientHistoryEntry | null {
   const trimmed = addressOrEns.trim();
   if (trimmed.length === 0) return null;
 
-  const entries = loadRecipientHistoryEntries();
   const index = Number.parseInt(trimmed, 10);
   if (
     /^\d+$/.test(trimmed) &&
@@ -270,18 +298,23 @@ function resolveStoredRecipientForRemoval(
 function renderRecipientList(
   entries: readonly RecipientHistoryEntry[],
   cmd: Command,
+  opts: RecipientListCommandOptions,
 ): void {
   const mode = resolveGlobalMode(rootOptionsForCommand(cmd));
   const ctx = createOutputContext(mode);
   const commandPrefix = recipientCommandPrefix(cmd);
   const deprecationWarning = recipientDeprecationWarning(cmd);
+  const chain = recipientCommandChain(cmd, opts);
   try {
     if (mode.isJson) {
       const payload = {
         mode: "recipient-history",
         operation: "list",
+        chain: chain ?? "all-chains",
         count: entries.length,
-        recipients: entries.map(recipientPayload),
+        recipients: entries.map((entry) =>
+          recipientPayload(entry, { includeMetadata: opts.includeMetadata }),
+        ),
         ...(deprecationWarning ? { deprecationWarning } : {}),
       };
       printJsonSuccess(
@@ -334,7 +367,10 @@ function renderRecipientList(
       return;
     }
 
-    process.stderr.write(formatSectionHeading("Withdrawal recipients", { divider: true }));
+    process.stderr.write(formatSectionHeading(
+      chain ? `Withdrawal recipients (${chain})` : "Withdrawal recipients",
+      { divider: true },
+    ));
     for (const entry of entries) {
       const title = entry.label
         ? `${entry.label} (${formatAddress(entry.address)})`
@@ -363,8 +399,13 @@ export async function handleWithdrawRecipientsListCommand(
   cmd: Command,
 ): Promise<void> {
   const limit = parseOptionalLimit(opts.limit);
-  const entries = loadRecipientHistoryEntries();
-  renderRecipientList(limit === undefined ? entries : entries.slice(0, limit), cmd);
+  const chain = recipientCommandChain(cmd, opts);
+  const entries = loadRecipientHistoryEntries({ chain });
+  renderRecipientList(
+    limit === undefined ? entries : entries.slice(0, limit),
+    cmd,
+    opts,
+  );
 }
 
 export async function handleWithdrawRecipientsAddCommand(
@@ -386,6 +427,7 @@ export async function handleWithdrawRecipientsAddCommand(
       address: resolved.address,
       ensName: resolved.ensName,
       label: opts.label ?? positionalLabel,
+      chain: recipientCommandChain(cmd, opts),
       source: "manual",
     });
 
@@ -393,7 +435,7 @@ export async function handleWithdrawRecipientsAddCommand(
       printJsonSuccess({
         mode: "recipient-history",
         operation: "add",
-        recipient: recipientPayload(entry),
+        recipient: recipientPayload(entry, { includeMetadata: opts.includeMetadata }),
         ...(deprecationWarning ? { deprecationWarning } : {}),
       });
       return;
@@ -420,11 +462,13 @@ export async function handleWithdrawRecipientsRemoveCommand(
   const deprecationWarning = recipientDeprecationWarning(cmd);
   try {
     guardCsvUnsupported(ctx, recipientCommandPath(cmd, "remove"));
-    const stored = resolveStoredRecipientForRemoval(addressOrEns);
+    const chain = recipientCommandChain(cmd, {});
+    const entries = loadRecipientHistoryEntries({ chain });
+    const stored = resolveStoredRecipientForRemoval(addressOrEns, entries);
     const resolved = stored
       ? { address: stored.address }
       : await resolveSafeRecipientAddressOrEns(addressOrEns, "Recipient");
-    const removed = removeRecipientHistoryEntry(resolved.address);
+    const removed = removeRecipientHistoryEntry(resolved.address, { chain });
 
     if (mode.isJson) {
       printJsonSuccess({
@@ -461,7 +505,8 @@ export async function handleWithdrawRecipientsClearCommand(
   const deprecationWarning = recipientDeprecationWarning(cmd);
   try {
     guardCsvUnsupported(ctx, recipientCommandPath(cmd, "clear"));
-    const removedCount = clearRecipientHistory();
+    const chain = recipientCommandChain(cmd, {});
+    const removedCount = clearRecipientHistory({ chain });
 
     if (mode.isJson) {
       printJsonSuccess({

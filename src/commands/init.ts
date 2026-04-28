@@ -5,7 +5,6 @@ import {
   unlinkSync,
 } from "fs";
 import { dirname, join } from "path";
-import { homedir } from "os";
 import type { Command } from "commander";
 import chalk from "chalk";
 import { Separator } from "@inquirer/select";
@@ -18,6 +17,7 @@ import { resolveChain } from "../utils/validation.js";
 import {
   configExists,
   ensureConfigDir,
+  getConfigDir,
   getConfigFilePath,
   getMnemonicFilePath,
   getSignerFilePath,
@@ -292,15 +292,17 @@ export function writeRecoveryBackupFile(
 }
 
 function defaultRecoveryBackupPath(): string {
-  const base = join(homedir(), "privacy-pools-recovery.txt");
+  ensureConfigDir();
+  const configDir = getConfigDir();
+  const base = join(configDir, "privacy-pools-recovery.txt");
   if (!existsSync(base)) return base;
 
   for (let index = 1; index < 1000; index += 1) {
-    const candidate = join(homedir(), `privacy-pools-recovery-${index}.txt`);
+    const candidate = join(configDir, `privacy-pools-recovery-${index}.txt`);
     if (!existsSync(candidate)) return candidate;
   }
 
-  return join(homedir(), `privacy-pools-recovery-${Date.now()}.txt`);
+  return join(configDir, `privacy-pools-recovery-${Date.now()}.txt`);
 }
 
 function quoteCliArg(value: string): string {

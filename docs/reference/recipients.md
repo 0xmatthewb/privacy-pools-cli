@@ -20,10 +20,12 @@ privacy-pools recipients remove 0xRecipient...
 | Flag | Description |
 |------|-------------|
 | `-n, --limit <n>` | Limit recipients returned |
+| `--all-chains` | List remembered recipients across all chains |
+| `--include-metadata` | Include recipient timestamps in JSON output |
 
 **Safety:** Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.
 
-**JSON output:** `{ mode: "recipient-history", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }`
+**JSON output:** `{ mode: "recipient-history", operation, chain?, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }], recipient? }`
 
 ## `recipients list`
 
@@ -38,8 +40,10 @@ privacy-pools recents
 | Flag | Description |
 |------|-------------|
 | `-n, --limit <n>` | Limit recipients returned |
+| `--all-chains` | List remembered recipients across all chains |
+| `--include-metadata` | Include recipient timestamps in JSON output |
 
-**JSON output:** `{ mode: "recipient-history", operation: "list", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }`
+**JSON output:** `{ mode: "recipient-history", operation: "list", chain, count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }] }`
 
 ## `recipients add`
 

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   checkForUpdateInBackground,
@@ -26,10 +25,11 @@ function writeCacheFile(home: string, data: unknown): void {
   );
 }
 
-function markerPathFor(sessionId: string): string {
+function markerPathFor(home: string, sessionId: string): string {
   const sanitized = sessionId.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
   return join(
-    tmpdir(),
+    home,
+    ".session-markers",
     `privacy-pools-update-notice-${sanitized}.shown`,
   );
 }
@@ -92,7 +92,7 @@ describe("update check runtime coverage", () => {
   test("consumePostCommandUpdateNotice uses session markers and only returns once", () => {
     const home = freshHome();
     const sessionId = "runtime/session:one";
-    const markerPath = markerPathFor(sessionId);
+    const markerPath = markerPathFor(home, sessionId);
     rmSync(markerPath, { force: true });
 
     process.env.PRIVACY_POOLS_HOME = home;
@@ -109,7 +109,7 @@ describe("update check runtime coverage", () => {
 
   test("consumePostCommandUpdateNotice falls back to the ppid marker when session ids are absent", () => {
     const home = freshHome();
-    const markerPath = markerPathFor(`ppid-${process.ppid}`);
+    const markerPath = markerPathFor(home, `ppid-${process.ppid}`);
     rmSync(markerPath, { force: true });
 
     process.env.PRIVACY_POOLS_HOME = home;

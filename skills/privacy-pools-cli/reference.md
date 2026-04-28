@@ -2,7 +2,7 @@
 
 Detailed payload spec, JSON output shapes, and unsigned transaction format for agent integration.
 
-Install with `npm i -g privacy-pools-cli` on a supported host and keep optional dependencies enabled so the host native shell can install automatically. Avoid `--omit=optional` and configs like `npm_config_omit=optional` unless you intentionally want the pure JS path. If a supported published install falls back to JS because the optional native package is missing or invalid, `status --agent` includes the warning code `native_acceleration_unavailable`.
+Install with `npm i -g privacy-pools-cli` on a supported host. The root package installs cleanly without unpublished native package dependencies; supported hosts use native acceleration when a release includes the host package or `PRIVACY_POOLS_CLI_BINARY` points to a verified native shell. If a supported published install falls back to JS because the native shell is missing or invalid, `status --agent` includes the warning code `native_acceleration_unavailable`.
 
 ## Easy-path workflow
 
@@ -1149,6 +1149,7 @@ All errors in JSON mode:
 | `INPUT_BROADCAST_STDIN_READ_FAILED` | INPUT | No | See `docs/errors.md#input-broadcast-stdin-read-failed` |
 | `INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH` | INPUT | No | See `docs/errors.md#input-direct-withdraw-recipient-mismatch` |
 | `INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED` | INPUT | No | See `docs/errors.md#input-direct-withdraw-consent-required` |
+| `INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED` | INPUT | No | See `docs/errors.md#input-direct-withdraw-agent-ack-required` |
 | `INPUT_FLAG_CONFLICT` | INPUT | No | See `docs/errors.md#input-flag-conflict` |
 | `INPUT_FLOW_RECIPIENT_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-flow-recipient-retry-limit` |
 | `INPUT_INIT_GENERATE_REQUIRES_CAPTURE` | INPUT | No | See `docs/errors.md#input-init-generate-requires-capture` |
@@ -1161,6 +1162,7 @@ All errors in JSON mode:
 | `INPUT_INVALID_ASSET` | INPUT | No | See `docs/errors.md#input-invalid-asset` |
 | `INPUT_INVALID_OPTION` | INPUT | No | See `docs/errors.md#input-invalid-option` |
 | `INPUT_INVALID_JQ` | INPUT | No | See `docs/errors.md#input-invalid-jq` |
+| `INPUT_INVALID_RPC_URL` | INPUT | No | See `docs/errors.md#input-invalid-rpc-url` |
 | `INPUT_INVALID_VALUE` | INPUT | No | See `docs/errors.md#input-invalid-value` |
 | `INPUT_MISSING_AMOUNT` | INPUT | No | See `docs/errors.md#input-missing-amount` |
 | `INPUT_MISSING_ARGUMENT` | INPUT | No | See `docs/errors.md#input-missing-argument` |

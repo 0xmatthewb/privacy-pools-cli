@@ -1239,7 +1239,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "Always prefer relayed withdrawals (the default). Direct withdrawals (--direct) WILL publicly link your deposit and withdrawal addresses onchain. This cannot be undone. Only use --direct if you fully accept this privacy loss.",
         "ASP approval is required for both relayed and direct withdrawals. Declined deposits can be recovered publicly via ragequit to the original deposit address.",
         "Relayed withdrawals must also respect the relayer minimum. If a withdrawal would leave a positive remainder below that minimum, the CLI warns so you can withdraw less, use --all/100%, or choose a public recovery path later.",
-        "When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link.",
+        "When prompts are skipped (--agent, --yes, or CI), direct withdrawals still require --confirm-direct-withdraw to explicitly acknowledge the public onchain link. Agent mode also requires --break-privacy-acknowledged for this high-stakes path.",
         "Gas pricing uses the connected RPC's current fee suggestions for direct withdrawals and public recovery. If network fees are volatile, retry after fees settle or use an RPC/provider that supports reliable fee estimation.",
         "--extra-gas requests native gas tokens alongside ERC20 withdrawals so the recipient can pay gas after receiving funds. ERC20 withdrawals default to this on unless --no-extra-gas is passed; ETH withdrawals ignore it.",
         SIGNING_SOURCE_NOTE,
@@ -1271,7 +1271,9 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "--all",
         "--direct",
         "--confirm-direct-withdraw",
+        "--break-privacy-acknowledged",
         "--accept-all-funds-public",
+        "--no-remember",
         "--extra-gas",
         "--no-extra-gas",
         "--unsigned [envelope|tx]",
@@ -1330,7 +1332,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools recipients remove 0xRecipient...",
       ],
       jsonFields:
-        "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
+        "{ mode: \"recipient-history\", operation, chain?, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }], recipient? }",
       safetyNotes: [
         "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
       ],
@@ -1341,8 +1343,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "recipients",
-      flags: ["--limit <n>"],
-      agentFlags: "--agent [--limit <n>]",
+      flags: ["--limit <n>", "--all-chains", "--include-metadata"],
+      agentFlags: "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -1359,7 +1361,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools recents",
       ],
       jsonFields:
-        "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
+        "{ mode: \"recipient-history\", operation: \"list\", chain, count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }] }",
       agentWorkflowNotes: [
         "Use this read-only list to offer previously used recipients before prompting for a new address.",
       ],
@@ -1367,8 +1369,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "recipients list",
-      flags: ["--limit <n>"],
-      agentFlags: "--agent [--limit <n>]",
+      flags: ["--limit <n>", "--all-chains", "--include-metadata"],
+      agentFlags: "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -1457,7 +1459,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools withdraw recipients remove 0xRecipient...",
       ],
       jsonFields:
-        "{ mode: \"recipient-history\", operation, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }], recipient? }",
+        "{ mode: \"recipient-history\", operation, chain?, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }], recipient? }",
       safetyNotes: [
         "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
       ],
@@ -1468,8 +1470,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "withdraw recipients",
-      flags: ["--limit <n>"],
-      agentFlags: "--agent [--limit <n>]",
+      flags: ["--limit <n>", "--all-chains", "--include-metadata"],
+      agentFlags: "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -1487,7 +1489,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools withdraw recents",
       ],
       jsonFields:
-        "{ mode: \"recipient-history\", operation: \"list\", count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt }] }",
+        "{ mode: \"recipient-history\", operation: \"list\", chain, count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }] }",
       agentWorkflowNotes: [
         "Use this read-only list to offer previously used recipients before prompting for a new address.",
       ],
@@ -1495,8 +1497,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "withdraw recipients list",
-      flags: ["--limit <n>"],
-      agentFlags: "--agent [--limit <n>]",
+      flags: ["--limit <n>", "--all-chains", "--include-metadata"],
+      agentFlags: "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },

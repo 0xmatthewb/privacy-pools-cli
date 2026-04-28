@@ -300,16 +300,18 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         options: [
           completionOption("-t, --to <address>"),
           completionOption("-p, --pool-account <PA-#|#>"),
-          completionOption("--direct"),
-          completionOption("--accept-all-funds-public"),
-          completionOption("--confirm-direct-withdraw"),
-          completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
-          completionOption("--dry-run [mode]"),
-          completionOption("--no-wait"),
-          completionOption("--stream-json"),
-          completionOption("--all"),
-          completionOption("--extra-gas"),
-          completionOption("--no-extra-gas"),
+              completionOption("--direct"),
+              completionOption("--accept-all-funds-public"),
+              completionOption("--confirm-direct-withdraw"),
+              completionOption("--break-privacy-acknowledged"),
+              completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
+              completionOption("--dry-run [mode]"),
+              completionOption("--no-wait"),
+              completionOption("--stream-json"),
+              completionOption("--all"),
+              completionOption("--extra-gas"),
+              completionOption("--no-extra-gas"),
+              completionOption("--no-remember"),
         ],
         subcommands: [
           completionCommand("quote", {
@@ -319,11 +321,19 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           }),
           completionCommand("recipients", {
             aliases: ["recents"],
-            options: [completionOption("-n, --limit <n>")],
+            options: [
+              completionOption("--all-chains"),
+              completionOption("--include-metadata"),
+              completionOption("-n, --limit <n>"),
+            ],
             subcommands: [
               completionCommand("list", {
                 aliases: ["ls"],
-                options: [completionOption("-n, --limit <n>")],
+                options: [
+                  completionOption("--all-chains"),
+                  completionOption("--include-metadata"),
+                  completionOption("-n, --limit <n>"),
+                ],
               }),
               completionCommand("add"),
               completionCommand("remove", { aliases: ["rm"] }),
@@ -334,11 +344,19 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       }),
       completionCommand("recipients", {
         aliases: ["recents"],
-        options: [completionOption("-n, --limit <n>")],
+        options: [
+          completionOption("--all-chains"),
+          completionOption("--include-metadata"),
+          completionOption("-n, --limit <n>"),
+        ],
         subcommands: [
           completionCommand("list", {
             aliases: ["ls"],
-            options: [completionOption("-n, --limit <n>")],
+            options: [
+              completionOption("--all-chains"),
+              completionOption("--include-metadata"),
+              completionOption("-n, --limit <n>"),
+            ],
           }),
           completionCommand("add"),
           completionCommand("remove", { aliases: ["rm"] }),
