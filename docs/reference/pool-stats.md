@@ -10,9 +10,15 @@ View statistics for one pool
 
 **Usage:** `privacy-pools pool-stats [asset] [options]`
 
+--limit is accepted for list-command consistency; pool-stats remains an aggregate report for one pool.
+
 ```bash
 privacy-pools pool-stats ETH
-privacy-pools pool-stats USDC --agent --chain mainnet
+privacy-pools pool-stats USDC --agent --chain mainnet --limit 10
 ```
+
+| Flag | Description |
+|------|-------------|
+| `-n, --limit <n>` | Limit repeated rows in tabular stats output |
 
 **JSON output:** `{ mode: "pool-stats", command: "pool-stats", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }`

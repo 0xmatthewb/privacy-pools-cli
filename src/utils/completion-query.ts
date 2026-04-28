@@ -382,12 +382,20 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-n, --limit <n>"),
         ],
       }),
-      completionCommand("protocol-stats"),
-      completionCommand("pool-stats"),
+      completionCommand("protocol-stats", {
+        options: [completionOption("-n, --limit <n>")],
+      }),
+      completionCommand("pool-stats", {
+        options: [completionOption("-n, --limit <n>")],
+      }),
       completionCommand("stats", {
         subcommands: [
-          completionCommand("global"),
-          completionCommand("pool"),
+          completionCommand("global", {
+            options: [completionOption("-n, --limit <n>")],
+          }),
+          completionCommand("pool", {
+            options: [completionOption("-n, --limit <n>")],
+          }),
         ],
       }),
       completionCommand("guide", {

@@ -9,7 +9,7 @@
   "description": "View aggregate network statistics",
   "examples": [
     "privacy-pools protocol-stats",
-    "privacy-pools protocol-stats --agent"
+    "privacy-pools protocol-stats --agent --limit 10"
   ],
   "execution": {
     "nativeModes": [
@@ -21,9 +21,12 @@
     "owner": "hybrid"
   },
   "expectedLatencyClass": "medium",
-  "flags": [],
+  "flags": [
+    "--limit <n>"
+  ],
   "globalFlags": [
     "-j, --json",
+    "--json-fields <fields>",
     "--template <template>",
     "-o, --output <format>",
     "-y, --yes",
@@ -69,7 +72,7 @@
       "description": "Example 1"
     },
     {
-      "command": "privacy-pools protocol-stats --agent",
+      "command": "privacy-pools protocol-stats --agent --limit 10",
       "description": "Example 2"
     }
   ],

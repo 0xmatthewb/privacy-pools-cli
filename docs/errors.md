@@ -68,6 +68,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_FLAG_CONFLICT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-flag-conflict) | INPUT | no |
 | [`INPUT_FLOW_RECIPIENT_RETRY_LIMIT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-flow-recipient-retry-limit) | INPUT | no |
 | [`INPUT_INIT_GENERATE_REQUIRES_CAPTURE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-init-generate-requires-capture) | INPUT | no |
+| [`INPUT_INIT_RECOVERY_PHRASE_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-init-recovery-phrase-required) | INPUT | no |
 | [`INPUT_INIT_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-init-required) | INPUT | no |
 | [`INPUT_INSUFFICIENT_BALANCE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-insufficient-balance) | INPUT | no |
 | [`INPUT_INSUFFICIENT_GAS`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-insufficient-gas) | INPUT | no |
@@ -75,6 +76,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`INPUT_INVALID_ASSET`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-asset) | INPUT | no |
 | [`INPUT_INVALID_JQ`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-jq) | INPUT | no |
 | [`INPUT_INVALID_VALUE`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-value) | INPUT | no |
+| [`INPUT_JSON_FIELDS_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-json-fields-required) | INPUT | no |
 | [`INPUT_MISSING_AMOUNT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-amount) | INPUT | no |
 | [`INPUT_MISSING_ARGUMENT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-argument) | INPUT | no |
 | [`INPUT_MISSING_ASSET`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-missing-asset) | INPUT | no |
@@ -507,6 +509,12 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-init-generate-requires-capture
 
+## INPUT_INIT_RECOVERY_PHRASE_REQUIRED
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-init-recovery-phrase-required
+
 ## INPUT_INIT_REQUIRED
 
 - Category: `INPUT`
@@ -548,6 +556,12 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Category: `INPUT`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-value
+
+## INPUT_JSON_FIELDS_REQUIRED
+
+- Category: `INPUT`
+- Retryable: `false`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-json-fields-required
 
 ## INPUT_MISSING_AMOUNT
 

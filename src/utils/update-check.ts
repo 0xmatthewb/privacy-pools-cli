@@ -7,7 +7,7 @@
  *
  * Disabled via `PP_NO_UPDATE_CHECK=1`.
  *
- * Display: a single dim line shown only on the welcome screen.
+ * Display: a single dim line for humans, and a structured warning for agents.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
@@ -135,11 +135,7 @@ export function isNewer(latest: string, current: string): boolean {
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
-/**
- * Returns a dim one-line notice if a newer version is available, or null.
- * Reads from cache only — never performs a network call.
- */
-export function getUpdateNotice(currentVersion: string): string | null {
+function readFreshNewerCache(currentVersion: string): UpdateCache | null {
   if (process.env.PP_NO_UPDATE_CHECK === "1") return null;
 
   const cache = readCache();
@@ -149,11 +145,46 @@ export function getUpdateNotice(currentVersion: string): string | null {
   const age = Date.now() - cache.checkedAt;
   if (age > UPDATE_CHECK_CACHE_TTL_MS) return null;
   if (!isNewer(cache.latestVersion, currentVersion)) return null;
+  return cache;
+}
+
+/**
+ * Returns a dim one-line notice if a newer version is available, or null.
+ * Reads from cache only — never performs a network call.
+ */
+export function getUpdateNotice(currentVersion: string): string | null {
+  const cache = readFreshNewerCache(currentVersion);
+  if (!cache) return null;
 
   return (
     `  Update available: ${currentVersion} \u2192 ${cache.latestVersion}  ` +
     `(npm i -g ${CLI_NPM_PACKAGE_NAME}@${cache.latestVersion})`
   );
+}
+
+export interface UpdateNoticeWarning {
+  code: "CLI_UPDATE_AVAILABLE";
+  category: "update";
+  message: string;
+  currentVersion: string;
+  latestVersion: string;
+  command: string;
+}
+
+export function getUpdateNoticeWarning(
+  currentVersion: string,
+): UpdateNoticeWarning | null {
+  const cache = readFreshNewerCache(currentVersion);
+  if (!cache) return null;
+
+  return {
+    code: "CLI_UPDATE_AVAILABLE",
+    category: "update",
+    message: `privacy-pools-cli ${cache.latestVersion} is available (current ${currentVersion}).`,
+    currentVersion,
+    latestVersion: cache.latestVersion,
+    command: `npm i -g ${CLI_NPM_PACKAGE_NAME}@${cache.latestVersion}`,
+  };
 }
 
 export interface PostCommandUpdateNoticeEligibility {

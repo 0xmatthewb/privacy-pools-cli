@@ -901,10 +901,11 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Always returns aggregate cross-chain statistics. The --chain flag is not supported; use pool-stats <symbol> --chain <chain> for chain-specific data.",
+        "--limit is accepted for list-command consistency; protocol-stats remains an aggregate report and does not truncate the allTime/last24h summary objects.",
       ],
       examples: [
         "privacy-pools protocol-stats",
-        "privacy-pools protocol-stats --agent",
+        "privacy-pools protocol-stats --agent --limit 10",
       ],
       jsonFields:
         "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
@@ -912,8 +913,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "protocol-stats",
-      flags: [],
-      agentFlags: "--agent",
+      flags: ["--limit <n>"],
+      agentFlags: "--agent [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
@@ -925,9 +926,12 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     description: ROOT_COMMAND_DESCRIPTIONS["pool-stats"],
     aliases: ["stats pool"],
     help: {
+      overview: [
+        "--limit is accepted for list-command consistency; pool-stats remains an aggregate report for one pool.",
+      ],
       examples: [
         "privacy-pools pool-stats ETH",
-        "privacy-pools pool-stats USDC --agent --chain mainnet",
+        "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10",
       ],
       jsonFields:
         "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
@@ -935,8 +939,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "pool-stats <symbol|address>",
-      flags: ["<symbol|address>"],
-      agentFlags: "--agent",
+      flags: ["<symbol|address>", "--limit <n>"],
+      agentFlags: "--agent [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },

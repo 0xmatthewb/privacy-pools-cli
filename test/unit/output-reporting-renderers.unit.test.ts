@@ -81,6 +81,16 @@ describe("renderPoolsEmpty parity", () => {
     expect(json.success).toBe(true);
     expect(json.chain).toBe("sepolia");
     expect(json.pools).toEqual([]);
+    expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
+      "status",
+      "activity",
+    ]);
+    expect(json.nextActions[0].cliCommand).toBe(
+      "privacy-pools status --agent --chain sepolia",
+    );
+    expect(json.nextActions[1].cliCommand).toBe(
+      "privacy-pools activity --agent --chain sepolia",
+    );
     expect(stderr).toBe("");
   });
 
@@ -101,6 +111,12 @@ describe("renderPoolsEmpty parity", () => {
     const json = parseCapturedJson(stdout);
     expect(json.chain).toBe("all-mainnets");
     expect(json.chainSummaries).toEqual(data.chainSummaries);
+    expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
+      "status",
+      "activity",
+    ]);
+    expect(json.nextActions[0].cliCommand).toBe("privacy-pools status --agent");
+    expect(json.nextActions[1].cliCommand).toBe("privacy-pools activity --agent");
   });
 
   test("human mode: emits no-pools message to stderr", () => {
@@ -117,6 +133,11 @@ describe("renderPoolsEmpty parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toContain("No pools found on sepolia");
+    expect(stderr).toContain("Read-only note");
+    expect(stderr).toContain("Try checking status on sepolia");
+    expect(stderr).toContain("Next steps:");
+    expect(stderr).toContain("privacy-pools status --chain sepolia");
+    expect(stderr).toContain("privacy-pools activity --chain sepolia");
   });
 
   test("quiet mode: emits nothing", () => {

@@ -8,11 +8,15 @@ Detailed reference for the `privacy-pools protocol-stats` command family. Back t
 
 View aggregate network statistics
 
-Always returns aggregate cross-chain statistics. The --chain flag is not supported; use pool-stats <symbol> --chain <chain> for chain-specific data.
+Always returns aggregate cross-chain statistics. The --chain flag is not supported; use pool-stats <symbol> --chain <chain> for chain-specific data. --limit is accepted for list-command consistency; protocol-stats remains an aggregate report and does not truncate the allTime/last24h summary objects.
 
 ```bash
 privacy-pools protocol-stats
-privacy-pools protocol-stats --agent
+privacy-pools protocol-stats --agent --limit 10
 ```
+
+| Flag | Description |
+|------|-------------|
+| `-n, --limit <n>` | Limit repeated rows in tabular stats output |
 
 **JSON output:** `{ mode: "global-stats", command: "protocol-stats", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }`

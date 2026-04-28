@@ -654,6 +654,7 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: () => null,
+      getUpdateNoticeWarning: () => null,
       consumePostCommandUpdateNotice: consumePostCommandUpdateNoticeMock,
       shouldShowPostCommandUpdateNotice: shouldShowPostCommandUpdateNoticeMock,
     }));
@@ -691,6 +692,7 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: getUpdateNoticeMock,
+      getUpdateNoticeWarning: () => null,
       consumePostCommandUpdateNotice: () => null,
       shouldShowPostCommandUpdateNotice: () => false,
     }));
@@ -713,6 +715,7 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: () => null,
+      getUpdateNoticeWarning: () => null,
       consumePostCommandUpdateNotice: () => null,
       shouldShowPostCommandUpdateNotice: () => false,
     }));
@@ -735,6 +738,7 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: () => null,
+      getUpdateNoticeWarning: () => null,
       consumePostCommandUpdateNotice: () => null,
       shouldShowPostCommandUpdateNotice: () => false,
     }));
@@ -824,6 +828,7 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: () => null,
+      getUpdateNoticeWarning: () => null,
       consumePostCommandUpdateNotice: () => "cached update available",
       shouldShowPostCommandUpdateNotice: () => true,
     }));
@@ -836,6 +841,50 @@ describe("bootstrap runtime coverage", () => {
     expect(stdout).toBe("");
     expect(stderr).toContain("cached update available");
     expect(checkForUpdateInBackgroundMock).not.toHaveBeenCalled();
+  });
+
+  test("runCli surfaces cached update notice as an agent warning", async () => {
+    const program = makeProgram(() => async () => {
+      const { printJsonSuccess } = await import("../../src/utils/json.ts");
+      printJsonSuccess({ mode: "status" });
+    });
+    setTty(false);
+
+    mock.module("../../src/program.ts", () => ({
+      createRootProgram: async () => program,
+    }));
+    mock.module("../../src/utils/update-check.ts", () => ({
+      checkForUpdateInBackground: () => undefined,
+      getUpdateNotice: () => null,
+      getUpdateNoticeWarning: () => ({
+        code: "CLI_UPDATE_AVAILABLE",
+        category: "update",
+        message: "privacy-pools-cli 1.2.4 is available (current 1.2.3).",
+        currentVersion: "1.2.3",
+        latestVersion: "1.2.4",
+        command: "npm i -g privacy-pools-cli@1.2.4",
+      }),
+      consumePostCommandUpdateNotice: () => null,
+      shouldShowPostCommandUpdateNotice: () => false,
+    }));
+
+    const { runCli } = await import("../../src/cli-main.ts?agent-update-warning");
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      runCli({ version: "1.2.3" }, ["status", "--agent"]),
+    );
+
+    expect(stderr).toBe("");
+    const parsed = JSON.parse(stdout.trim());
+    expect(parsed.warnings).toEqual([
+      {
+        code: "CLI_UPDATE_AVAILABLE",
+        category: "update",
+        message: "privacy-pools-cli 1.2.4 is available (current 1.2.3).",
+        currentVersion: "1.2.3",
+        latestVersion: "1.2.4",
+        command: "npm i -g privacy-pools-cli@1.2.4",
+      },
+    ]);
   });
 
   test("runCli welcome output includes the current update notice for interactive users", async () => {
@@ -861,6 +910,7 @@ describe("bootstrap runtime coverage", () => {
     mock.module("../../src/utils/update-check.ts", () => ({
       checkForUpdateInBackground: checkForUpdateInBackgroundMock,
       getUpdateNotice: () => "new version available",
+      getUpdateNoticeWarning: () => null,
       consumePostCommandUpdateNotice: () => null,
       shouldShowPostCommandUpdateNotice: () => false,
     }));

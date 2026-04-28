@@ -75,6 +75,10 @@ export const ERROR_CODE_REGISTRY = {
     retryable: false,
   },
   INPUT_INIT_REQUIRED: { category: "INPUT", retryable: false },
+  INPUT_INIT_RECOVERY_PHRASE_REQUIRED: {
+    category: "INPUT",
+    retryable: false,
+  },
   INPUT_INSUFFICIENT_BALANCE: { category: "INPUT", retryable: false },
   INPUT_INSUFFICIENT_GAS: { category: "INPUT", retryable: false },
   INPUT_INVALID_AMOUNT: { category: "INPUT", retryable: false },
@@ -111,6 +115,7 @@ export const ERROR_CODE_REGISTRY = {
   INPUT_UNKNOWN_CHAIN: { category: "INPUT", retryable: false },
   INPUT_UNKNOWN_COMMAND: { category: "INPUT", retryable: false },
   INPUT_UNKNOWN_JSON_FIELD: { category: "INPUT", retryable: false },
+  INPUT_JSON_FIELDS_REQUIRED: { category: "INPUT", retryable: false },
   INPUT_UNKNOWN_OPTION: { category: "INPUT", retryable: false },
   INPUT_UNKNOWN_SUBMISSION: { category: "INPUT", retryable: false },
   SETUP_REQUIRED: { category: "SETUP", retryable: false },

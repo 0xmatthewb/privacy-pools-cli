@@ -1152,6 +1152,7 @@ All errors in JSON mode:
 | `INPUT_FLOW_RECIPIENT_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-flow-recipient-retry-limit` |
 | `INPUT_INIT_GENERATE_REQUIRES_CAPTURE` | INPUT | No | See `docs/errors.md#input-init-generate-requires-capture` |
 | `INPUT_INIT_REQUIRED` | INPUT | No | See `docs/errors.md#input-init-required` |
+| `INPUT_INIT_RECOVERY_PHRASE_REQUIRED` | INPUT | No | See `docs/errors.md#input-init-recovery-phrase-required` |
 | `INPUT_INSUFFICIENT_BALANCE` | INPUT | No | See `docs/errors.md#input-insufficient-balance` |
 | `INPUT_INSUFFICIENT_GAS` | INPUT | No | See `docs/errors.md#input-insufficient-gas` |
 | `INPUT_INVALID_AMOUNT` | INPUT | No | See `docs/errors.md#input-invalid-amount` |
@@ -1179,6 +1180,7 @@ All errors in JSON mode:
 | `INPUT_UNKNOWN_CHAIN` | INPUT | No | See `docs/errors.md#input-unknown-chain` |
 | `INPUT_UNKNOWN_COMMAND` | INPUT | No | See `docs/errors.md#input-unknown-command` |
 | `INPUT_UNKNOWN_JSON_FIELD` | INPUT | No | See `docs/errors.md#input-unknown-json-field` |
+| `INPUT_JSON_FIELDS_REQUIRED` | INPUT | No | See `docs/errors.md#input-json-fields-required` |
 | `INPUT_UNKNOWN_OPTION` | INPUT | No | See `docs/errors.md#input-unknown-option` |
 | `INPUT_UNKNOWN_SUBMISSION` | INPUT | No | See `docs/errors.md#input-unknown-submission` |
 | `SETUP_REQUIRED` | SETUP | No | See `docs/errors.md#setup-required` |

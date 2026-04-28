@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   JSON_SCHEMA_VERSION,
+  configureJsonEnvelopeWarnings,
   configureJsonOutput,
   printJsonSuccess,
   printJsonError,
@@ -83,6 +84,54 @@ describe("JSON output helpers", () => {
         expect((error as CLIError).details?.availableFields).toContain("foo");
         expect((error as CLIError).details?.availableFields).toContain("schemaVersion");
       }
+    });
+
+    test("rejects empty --json-fields with an available field catalog", () => {
+      configureJsonOutput([], null);
+
+      expect(() => {
+        printJsonSuccess({ foo: "bar" });
+      }).toThrow(CLIError);
+      try {
+        printJsonSuccess({ foo: "bar" });
+      } catch (error) {
+        expect(error).toBeInstanceOf(CLIError);
+        expect((error as CLIError).code).toBe("INPUT_JSON_FIELDS_REQUIRED");
+        expect((error as CLIError).details?.availableFields).toEqual([
+          "foo",
+          "schemaVersion",
+          "success",
+        ]);
+      }
+    });
+
+    test("merges configured envelope warnings into success payloads", () => {
+      configureJsonEnvelopeWarnings([
+        {
+          code: "CLI_UPDATE_AVAILABLE",
+          category: "update",
+          message: "privacy-pools-cli 2.1.0 is available (current 2.0.0).",
+        },
+      ]);
+
+      const output = captureStdout(() => {
+        printJsonSuccess({
+          command: "status",
+          warnings: [
+            {
+              code: "existing",
+              category: "test",
+              message: "Already present.",
+            },
+          ],
+        });
+      });
+
+      const parsed = JSON.parse(output.trim());
+      expect(parsed.warnings.map((warning: { code: string }) => warning.code)).toEqual([
+        "existing",
+        "CLI_UPDATE_AVAILABLE",
+      ]);
     });
 
     test("validates --jmes expressions before output is configured", () => {

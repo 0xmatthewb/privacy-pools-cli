@@ -24,6 +24,7 @@ let _jsonFields: string[] | null = null;
 let _jqExpression: string | null = null;
 let _template: string | null = null;
 let _structuredFormat: "json" | "yaml" = "json";
+let _jsonEnvelopeWarnings: Record<string, unknown>[] = [];
 
 function decodeTemplateEscapes(template: string): string {
   return template.replace(/\\([ntr\\])/g, (_match, code: string) => {
@@ -80,6 +81,17 @@ export function resetJsonOutputConfig(): void {
   _jqExpression = null;
   _template = null;
   _structuredFormat = "json";
+  resetJsonEnvelopeWarnings();
+}
+
+export function configureJsonEnvelopeWarnings(
+  warnings: Record<string, unknown>[],
+): void {
+  _jsonEnvelopeWarnings = warnings.filter((warning) => warning !== null);
+}
+
+export function resetJsonEnvelopeWarnings(): void {
+  _jsonEnvelopeWarnings = [];
 }
 
 /**
@@ -130,6 +142,50 @@ function applyFieldSelection(
     }
   }
   return filtered;
+}
+
+function assertJsonFieldSelectionIsNonEmpty(
+  payload: Record<string, unknown>,
+): void {
+  if (_jsonFields === null || _jsonFields.length > 0) return;
+
+  const availableFields = Object.keys(payload).sort();
+  throw new CLIError(
+    "Specify one or more comma-separated fields for --json.",
+    "INPUT",
+    `Available fields: ${availableFields.join(", ")}.`,
+    "INPUT_JSON_FIELDS_REQUIRED",
+    false,
+    "inline",
+    { availableFields },
+  );
+}
+
+function appendEnvelopeWarnings(output: Record<string, unknown>): void {
+  if (_jsonEnvelopeWarnings.length === 0) return;
+
+  const existingWarnings = Array.isArray(output.warnings)
+    ? output.warnings.filter(
+        (warning): warning is Record<string, unknown> =>
+          typeof warning === "object" && warning !== null,
+      )
+    : [];
+  const seenCodes = new Set(
+    existingWarnings
+      .map((warning) => warning.code)
+      .filter((code): code is string => typeof code === "string"),
+  );
+  const additionalWarnings = _jsonEnvelopeWarnings.filter((warning) => {
+    const code = warning.code;
+    if (typeof code !== "string") return true;
+    if (seenCodes.has(code)) return false;
+    seenCodes.add(code);
+    return true;
+  });
+
+  if (existingWarnings.length > 0 || additionalWarnings.length > 0) {
+    output.warnings = [...existingWarnings, ...additionalWarnings];
+  }
 }
 
 function templateValue(path: string, payload: unknown): unknown {
@@ -308,6 +364,8 @@ export function printJsonSuccess(
     output.webOpened = webStatus.opened;
     output.webStatus = webStatus.opened ? "opened" : "not_opened";
   }
+  appendEnvelopeWarnings(output);
+  assertJsonFieldSelectionIsNonEmpty(output);
 
   // Apply --json <fields> selection after the envelope is assembled so
   // schemaVersion/success can appear in the field catalog too.

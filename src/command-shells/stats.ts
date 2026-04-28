@@ -7,6 +7,7 @@ export function createProtocolStatsCommand(): Command {
   const metadata = getCommandMetadata("protocol-stats");
   return new Command("protocol-stats")
     .description(metadata.description)
+    .option("-n, --limit <n>", "Limit repeated rows in tabular stats output")
     .addHelpText("after", "\nNote: protocol-stats is always cross-chain; --chain is not supported. Use pool-stats <asset> --chain <chain> for a chain-scoped pool view.\n")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
@@ -22,6 +23,7 @@ export function createPoolStatsCommand(): Command {
   return new Command("pool-stats")
     .description(metadata.description)
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
+    .option("-n, --limit <n>", "Limit repeated rows in tabular stats output")
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(
       createLazyAction(
@@ -48,6 +50,7 @@ export function createStatsCommand(): Command {
   command
     .command("global", { isDefault: true })
     .description(globalMetadata.description)
+    .option("-n, --limit <n>", "Limit repeated rows in tabular stats output")
     .addHelpText("after", commandHelpText(globalMetadata.help ?? {}))
     .action(
       createLazyAction(
@@ -60,6 +63,7 @@ export function createStatsCommand(): Command {
     .command("pool")
     .description(poolMetadata.description)
     .argument("[asset]", "Asset symbol (e.g. ETH, USDC)")
+    .option("-n, --limit <n>", "Limit repeated rows in tabular stats output")
     .addHelpText("after", commandHelpText(poolMetadata.help ?? {}))
     .action(
       createLazyAction(

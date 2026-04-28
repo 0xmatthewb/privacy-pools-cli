@@ -923,8 +923,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "stats global"
       ],
       "usage": "protocol-stats",
-      "flags": [],
-      "agentFlags": "--agent",
+      "flags": [
+        "--limit <n>"
+      ],
+      "agentFlags": "--agent [--limit <n>]",
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -937,9 +939,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "usage": "pool-stats <symbol|address>",
       "flags": [
-        "<symbol|address>"
+        "<symbol|address>",
+        "--limit <n>"
       ],
-      "agentFlags": "--agent",
+      "agentFlags": "--agent [--limit <n>]",
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -1302,6 +1305,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -1461,6 +1465,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -1572,6 +1577,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -1652,6 +1658,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -1721,6 +1728,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -1799,6 +1807,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -1880,6 +1889,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -1956,6 +1966,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2021,6 +2032,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2091,6 +2103,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2156,6 +2169,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2221,6 +2235,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2286,6 +2301,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2357,6 +2373,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2473,6 +2490,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2557,6 +2575,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2707,6 +2726,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2823,6 +2843,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2906,6 +2927,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -2997,6 +3019,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3096,6 +3119,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3222,6 +3246,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3319,9 +3344,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         ]
       },
       "usage": "protocol-stats",
-      "flags": [],
+      "flags": [
+        "--limit <n>"
+      ],
       "globalFlags": [
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3350,7 +3378,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools protocol-stats",
-        "privacy-pools protocol-stats --agent"
+        "privacy-pools protocol-stats --agent --limit 10"
       ],
       "structuredExamples": [
         {
@@ -3359,7 +3387,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 2",
-          "command": "privacy-pools protocol-stats --agent"
+          "command": "privacy-pools protocol-stats --agent --limit 10"
         }
       ],
       "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
@@ -3389,11 +3417,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       },
       "usage": "pool-stats <symbol|address>",
       "flags": [
-        "<symbol|address>"
+        "<symbol|address>",
+        "--limit <n>"
       ],
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3422,7 +3452,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools pool-stats ETH",
-        "privacy-pools pool-stats USDC --agent --chain mainnet"
+        "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10"
       ],
       "structuredExamples": [
         {
@@ -3431,7 +3461,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 2",
-          "command": "privacy-pools pool-stats USDC --agent --chain mainnet"
+          "command": "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10"
         }
       ],
       "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
@@ -3462,6 +3492,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3563,6 +3594,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3632,6 +3664,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3700,6 +3733,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3781,6 +3815,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -3862,6 +3897,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4000,6 +4036,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4145,6 +4182,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4224,6 +4262,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4306,6 +4345,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4380,6 +4420,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4448,6 +4489,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4513,6 +4555,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4583,6 +4626,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4665,6 +4709,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4739,6 +4784,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4807,6 +4853,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4872,6 +4919,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -4945,6 +4993,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5058,6 +5107,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5140,6 +5190,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5220,6 +5271,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5300,6 +5352,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5396,6 +5449,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5537,6 +5591,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5611,6 +5666,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5692,6 +5748,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5788,6 +5845,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -5870,6 +5928,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "globalFlags": [
         "-c, --chain <name>",
         "-j, --json",
+        "--json-fields <fields>",
         "--template <template>",
         "-o, --output <format>",
         "-y, --yes",
@@ -6285,6 +6344,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     {
       "flag": "-j, --json",
       "description": "Machine-readable JSON output on stdout. After the command name, pass --json <fields> or --json=<fields> to select top-level fields."
+    },
+    {
+      "flag": "--json-fields <fields>",
+      "description": "Select specific JSON fields (comma-separated, implies --json)"
     },
     {
       "flag": "--template <template>",
@@ -6795,6 +6858,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-init-generate-requires-capture"
     },
     {
+      "code": "INPUT_INIT_RECOVERY_PHRASE_REQUIRED",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-init-recovery-phrase-required"
+    },
+    {
       "code": "INPUT_INIT_REQUIRED",
       "category": "INPUT",
       "retryable": false,
@@ -6835,6 +6904,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "category": "INPUT",
       "retryable": false,
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-invalid-value"
+    },
+    {
+      "code": "INPUT_JSON_FIELDS_REQUIRED",
+      "category": "INPUT",
+      "retryable": false,
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-json-fields-required"
     },
     {
       "code": "INPUT_MISSING_AMOUNT",

@@ -31,7 +31,6 @@ export const ROOT_GLOBAL_FLAG_METADATA: readonly RootGlobalFlagEntry[] = [
     description: "Select specific JSON fields (comma-separated, implies --json)",
     takesValue: true,
     welcomeBoolean: false,
-    hidden: true,
   },
   {
     flag: "--template <template>",

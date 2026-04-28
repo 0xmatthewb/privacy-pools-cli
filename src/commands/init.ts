@@ -728,6 +728,31 @@ export function resolveNonInteractivePlan(
         "No recovery phrase is configured yet.",
         "INPUT",
         "Create an account with --backup-file or --show-recovery-phrase, or load one with --recovery-phrase-file or --recovery-phrase-stdin before using --signer-only.",
+        "INPUT_INIT_RECOVERY_PHRASE_REQUIRED",
+        false,
+        "inline",
+        undefined,
+        undefined,
+        {
+          nextActions: [
+            createNextAction(
+              "init",
+              "Create or load a recovery phrase before signer-only setup.",
+              "status_not_ready",
+              {
+                options: { agent: true },
+                runnable: false,
+                parameters: [
+                  {
+                    name: "recoveryPhraseSource",
+                    type: "backup_file_or_show_recovery_phrase_or_recovery_phrase_file_or_stdin",
+                    required: true,
+                  },
+                ],
+              },
+            ),
+          ],
+        },
       );
     }
     if (!params.hasSignerSource && !params.hasEnvironmentSigner) {

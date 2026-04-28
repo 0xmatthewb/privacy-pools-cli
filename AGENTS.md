@@ -88,6 +88,8 @@ Parse `success` first. On failure, read `error.code` for programmatic handling a
 
 Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
+Success payloads may also include `warnings[]`. Agents should log them and continue unless a command-specific contract says otherwise. Update-available warnings are advisory and include the exact npm command for upgrading the CLI.
+
 The complete JSON output contract is defined in [`docs/contracts/cli-json-contract.v2.0.0.json`](docs/contracts/cli-json-contract.v2.0.0.json). For a stable bundled machine-contract path inside the installed package, prefer `docs/contracts/cli-json-contract.current.json`. Installed packages include that stable path plus the active schema snapshot for the packaged CLI version. The repository may retain older versioned snapshots for historical reference, and runtime discovery metadata may still point at the exact versioned snapshot for the active schema.
 
 ### NextActions Specification
@@ -501,6 +503,7 @@ When a human delegates CLI operations to an agent:
 | ---- | ----------- |
 | `--agent` | Machine-friendly mode (alias for `--json --yes --quiet`) |
 | `-j, --json` | Machine-readable JSON output on stdout |
+| `--json-fields <fields>` | Select top-level JSON fields (comma-separated, implies `--json`) |
 | `-o, --output <fmt>` | Output format: `table` (default), `csv`, `json` |
 | `--jmes <expression>` | Filter JSON output with a JMESPath expression (implies `--json`) |
 | `--jq <expression>` | Compatibility alias for `--jmes`; this uses JMESPath, not jq syntax |
@@ -705,6 +708,8 @@ Representative JSON payloads:
 `config set default-chain <chain>` persists the active profile's default chain under the CLI config home. It is profile-wide state, not a workspace/session-scoped context switch. Use per-command `--chain <name>` when one repo or one shell session needs to target a different network temporarily.
 
 Filter conventions stay intentionally mixed: use positional asset arguments for pool-specific public views (`activity ETH`, `pool-stats ETH`, `pools ETH` detail), and use flags for list refinement or state filters (`--search`, `--status`, `--pending-only`, `--page`, `--limit`).
+
+List and report commands accept `--limit <n>` where they can return repeated rows or events. Aggregate stats commands (`protocol-stats`, `pool-stats`) accept the flag for command-surface consistency; their JSON payloads remain aggregate summaries.
 
 #### `completion`
 
@@ -1239,6 +1244,7 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `INPUT_FLOW_RECIPIENT_RETRY_LIMIT` | INPUT | No | See `docs/errors.md#input-flow-recipient-retry-limit` |
 | `INPUT_INIT_GENERATE_REQUIRES_CAPTURE` | INPUT | No | See `docs/errors.md#input-init-generate-requires-capture` |
 | `INPUT_INIT_REQUIRED` | INPUT | No | See `docs/errors.md#input-init-required` |
+| `INPUT_INIT_RECOVERY_PHRASE_REQUIRED` | INPUT | No | See `docs/errors.md#input-init-recovery-phrase-required` |
 | `INPUT_INSUFFICIENT_BALANCE` | INPUT | No | See `docs/errors.md#input-insufficient-balance` |
 | `INPUT_INSUFFICIENT_GAS` | INPUT | No | See `docs/errors.md#input-insufficient-gas` |
 | `INPUT_INVALID_AMOUNT` | INPUT | No | See `docs/errors.md#input-invalid-amount` |
@@ -1266,6 +1272,7 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `INPUT_UNKNOWN_CHAIN` | INPUT | No | See `docs/errors.md#input-unknown-chain` |
 | `INPUT_UNKNOWN_COMMAND` | INPUT | No | See `docs/errors.md#input-unknown-command` |
 | `INPUT_UNKNOWN_JSON_FIELD` | INPUT | No | See `docs/errors.md#input-unknown-json-field` |
+| `INPUT_JSON_FIELDS_REQUIRED` | INPUT | No | See `docs/errors.md#input-json-fields-required` |
 | `INPUT_UNKNOWN_OPTION` | INPUT | No | See `docs/errors.md#input-unknown-option` |
 | `INPUT_UNKNOWN_SUBMISSION` | INPUT | No | See `docs/errors.md#input-unknown-submission` |
 | `SETUP_REQUIRED` | SETUP | No | See `docs/errors.md#setup-required` |

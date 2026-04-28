@@ -280,6 +280,9 @@ Target chain (mainnet, arbitrum, optimism, ...)
 .B \-j, \-\-json
 Machine\-readable JSON output on stdout. After the command name, pass \-\-json <fields> or \-\-json=<fields> to select top\-level fields.
 .TP
+.B \-\-json\-fields <fields>
+Select specific JSON fields (comma\-separated, implies \-\-json)
+.TP
 .B \-\-template <template>
 Render structured output through a lightweight Mustache\-style template with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration
 .TP

@@ -672,10 +672,15 @@ describe("init command handler", () => {
     );
 
     expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_ERROR");
+    expect(json.errorCode).toBe("INPUT_INIT_RECOVERY_PHRASE_REQUIRED");
     expect(json.error.message ?? json.errorMessage).toContain(
       "No recovery phrase is configured yet",
     );
+    expect(json.error.nextActions?.[0]).toMatchObject({
+      command: "init",
+      runnable: false,
+      when: "status_not_ready",
+    });
     expect(exitCode).toBe(2);
   });
 

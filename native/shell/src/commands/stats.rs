@@ -74,10 +74,11 @@ pub fn handle_stats_native(
         }
 
         let mode = resolve_mode(parsed);
-        let stats_invocation = resolve_stats_invocation(parsed);
+        let stats_tokens = stats_non_option_tokens(argv);
+        let stats_invocation = resolve_stats_invocation(&stats_tokens);
 
         if stats_invocation.is_pool() {
-            let asset = stats_asset_token(parsed).cloned().ok_or_else(|| {
+            let asset = stats_asset_token(&stats_tokens).cloned().ok_or_else(|| {
                 CliError::input_with_code(
                     "Missing asset argument.",
                     Some("Example: privacy-pools pool-stats ETH".to_string()),
@@ -190,11 +191,44 @@ pub fn handle_stats_native(
     }
 }
 
-fn resolve_stats_invocation(parsed: &ParsedRootArgv) -> StatsInvocation {
-    match parsed.non_option_tokens.first().map(String::as_str) {
+fn stats_non_option_tokens(argv: &[String]) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut index = 0;
+    while index < argv.len() {
+        let token = &argv[index];
+        if token == "--" {
+            tokens.extend(argv.iter().skip(index + 1).cloned());
+            break;
+        }
+        if token == "--limit"
+            || token == "-n"
+            || crate::root_argv::is_command_global_value_option(token)
+        {
+            index += 2;
+            continue;
+        }
+        if token.starts_with("--limit=")
+            || crate::root_argv::is_command_global_inline_value_option(token)
+            || crate::root_argv::is_command_global_boolean_option(token)
+        {
+            index += 1;
+            continue;
+        }
+        if token.starts_with('-') {
+            index += 1;
+            continue;
+        }
+        tokens.push(token.clone());
+        index += 1;
+    }
+    tokens
+}
+
+fn resolve_stats_invocation(tokens: &[String]) -> StatsInvocation {
+    match tokens.first().map(String::as_str) {
         Some("pool-stats") => StatsInvocation::Pool,
         Some("protocol-stats") => StatsInvocation::Protocol,
-        Some("stats") => match parsed.non_option_tokens.get(1).map(String::as_str) {
+        Some("stats") => match tokens.get(1).map(String::as_str) {
             Some("pool") => StatsInvocation::PoolAlias,
             Some("global") => StatsInvocation::ProtocolAliasGlobal,
             _ => StatsInvocation::ProtocolAliasDefault,
@@ -203,10 +237,10 @@ fn resolve_stats_invocation(parsed: &ParsedRootArgv) -> StatsInvocation {
     }
 }
 
-fn stats_asset_token(parsed: &ParsedRootArgv) -> Option<&String> {
-    match parsed.non_option_tokens.first().map(String::as_str) {
-        Some("pool-stats") => parsed.non_option_tokens.get(1),
-        Some("stats") => parsed.non_option_tokens.get(2),
+fn stats_asset_token(tokens: &[String]) -> Option<&String> {
+    match tokens.first().map(String::as_str) {
+        Some("pool-stats") => tokens.get(1),
+        Some("stats") => tokens.get(2),
         _ => None,
     }
 }

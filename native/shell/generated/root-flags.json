@@ -15,8 +15,7 @@
     "flag": "--json-fields <fields>",
     "description": "Select specific JSON fields (comma-separated, implies --json)",
     "takesValue": true,
-    "welcomeBoolean": false,
-    "hidden": true
+    "welcomeBoolean": false
   },
   {
     "flag": "--template <template>",

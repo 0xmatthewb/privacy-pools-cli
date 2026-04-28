@@ -3,6 +3,7 @@ import {
   checkForUpdateInBackground,
   consumePostCommandUpdateNotice,
   getUpdateNotice,
+  getUpdateNoticeWarning,
   shouldShowPostCommandUpdateNotice,
 } from "./utils/update-check.js";
 import { CLIError, printError } from "./utils/errors.js";
@@ -24,7 +25,11 @@ import {
 } from "./runtime/cli-main-helpers.js";
 import { installOutputAnsiGuards } from "./utils/terminal.js";
 import { buildGuidePayload, guideText, resolveGuideTopic } from "./utils/help.js";
-import { printJsonSuccess } from "./utils/json.js";
+import {
+  configureJsonEnvelopeWarnings,
+  printJsonSuccess,
+  resetJsonEnvelopeWarnings,
+} from "./utils/json.js";
 import { setModeArgv } from "./utils/mode.js";
 import {
   markWebRequested,
@@ -66,6 +71,7 @@ export async function runCli(
   installOutputAnsiGuards();
   setModeArgv(normalizedArgv);
   resetWebOutputStatus();
+  resetJsonEnvelopeWarnings();
 
   // Activate --profile before any config loading.
   const profileValue = readLongOptionValue(normalizedArgv, "--profile");
@@ -86,6 +92,20 @@ export async function runCli(
     suppressBanner,
   } = parsedArgv;
   const shouldStyleHelp = !isStructuredOutputMode;
+  const topLevelCommand = (firstCommandToken ?? "").trim();
+  if (
+    isStructuredOutputMode &&
+    !isWelcome &&
+    !isHelpLike &&
+    !isVersionLike &&
+    topLevelCommand !== "upgrade" &&
+    topLevelCommand !== "completion"
+  ) {
+    const updateWarning = getUpdateNoticeWarning(pkg.version);
+    if (updateWarning) {
+      configureJsonEnvelopeWarnings([{ ...updateWarning }]);
+    }
+  }
   if (hasLongFlag(normalizedArgv, "--web")) {
     markWebRequested();
   }

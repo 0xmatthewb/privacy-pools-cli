@@ -7,6 +7,7 @@ import {
   consumePostCommandUpdateNotice,
   fetchLatestVersion,
   getUpdateNotice,
+  getUpdateNoticeWarning,
   shouldShowPostCommandUpdateNotice,
 } from "../../src/utils/update-check.ts";
 import { cleanupTrackedTempDirs, createTrackedTempDir } from "../helpers/temp.ts";
@@ -148,6 +149,27 @@ describe("update check runtime coverage", () => {
       checkedAt: Date.now() - (25 * 60 * 60 * 1000),
     });
     expect(getUpdateNotice("1.0.0")).toBeNull();
+  });
+
+  test("getUpdateNoticeWarning returns a structured agent warning from fresh cache", () => {
+    const home = freshHome();
+    process.env.PRIVACY_POOLS_HOME = home;
+
+    writeCacheFile(home, {
+      latestVersion: "2.0.0",
+      checkedAt: Date.now(),
+    });
+
+    expect(getUpdateNoticeWarning("1.0.0")).toEqual({
+      code: "CLI_UPDATE_AVAILABLE",
+      category: "update",
+      message: "privacy-pools-cli 2.0.0 is available (current 1.0.0).",
+      currentVersion: "1.0.0",
+      latestVersion: "2.0.0",
+      command: "npm i -g privacy-pools-cli@2.0.0",
+    });
+
+    expect(getUpdateNoticeWarning("2.0.0")).toBeNull();
   });
 
   test("shouldShowPostCommandUpdateNotice honors suppressions, tty state, and command exclusions", () => {

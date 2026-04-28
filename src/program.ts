@@ -280,6 +280,12 @@ export async function createRootProgram(
     .option("-j, --json", rootGlobalFlagDescription("-j, --json"))
     .addOption(
       new Option(
+        "--json-fields <fields>",
+        rootGlobalFlagDescription("--json-fields <fields>"),
+      ),
+    )
+    .addOption(
+      new Option(
         "-o, --output <format>",
         rootGlobalFlagDescription("-o, --output <format>"),
       ).choices([...rootGlobalFlagValues("-o, --output <format>")]),
@@ -302,12 +308,6 @@ export async function createRootProgram(
       "-r, --rpc-url <url>",
       rootGlobalFlagDescription("-r, --rpc-url <url>"),
     ),
-  );
-  program.addOption(
-    new Option(
-      "--json-fields <fields>",
-      rootGlobalFlagDescription("--json-fields <fields>"),
-    ).hideHelp(),
   );
   program.addOption(
     new Option(

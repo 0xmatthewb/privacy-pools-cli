@@ -48,6 +48,7 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 |------|-------------|
 | `-c, --chain <name>` | Target chain (mainnet, arbitrum, optimism, ...) |
 | `-j, --json` | Machine-readable JSON output on stdout. After the command name, pass --json <fields> or --json=<fields> to select top-level fields. |
+| `--json-fields <fields>` | Select specific JSON fields (comma-separated, implies --json) |
 | `--template <template>` | Render structured output through a lightweight Mustache-style template with {{path.to.value}} placeholders and {{#items}}...{{/items}} list iteration |
 | `-o, --output <format>` | Output format: table (default), csv, json, yaml, wide, name |
 | `-y, --yes` | Skip confirmation prompts |

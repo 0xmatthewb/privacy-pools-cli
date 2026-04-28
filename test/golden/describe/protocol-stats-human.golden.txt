@@ -13,8 +13,13 @@ Summary:
   Aliases:          stats, stats global
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Flags:
+  --limit <n>
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Global flags:
   -j, --json
+  --json-fields <fields>
   --template <template>
   -o, --output <format>
   -y, --yes
@@ -39,7 +44,7 @@ Structured examples:
 Example 1:
   privacy-pools protocol-stats
 Example 2:
-  privacy-pools protocol-stats --agent
+  privacy-pools protocol-stats --agent --limit 10
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 JSON fields:
