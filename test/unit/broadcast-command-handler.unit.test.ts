@@ -41,6 +41,7 @@ const broadcastEnvelopeMock = mock(async () => ({
 }));
 
 let handleBroadcastCommand: typeof import("../../src/commands/broadcast.ts").handleBroadcastCommand;
+let readBroadcastInput: typeof import("../../src/commands/broadcast.ts").readBroadcastInput;
 
 function fakeRoot(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -65,7 +66,7 @@ beforeAll(async () => {
     ],
   ]);
 
-  ({ handleBroadcastCommand } = await import("../../src/commands/broadcast.ts?broadcast-command-handler-tests"));
+  ({ handleBroadcastCommand, readBroadcastInput } = await import("../../src/commands/broadcast.ts?broadcast-command-handler-tests"));
 });
 
 afterEach(() => {
@@ -210,6 +211,24 @@ describe("broadcast command handler", () => {
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("INPUT_BROADCAST_INPUT_NOT_FOUND");
     expect(exitCode).toBe(2);
+  });
+
+  test("rejects empty broadcast stdin before calling the broadcast service", () => {
+    expect(() => readBroadcastInput("-", () => " \n\t")).toThrow(
+      "No broadcast envelope was received on stdin.",
+    );
+    expect(broadcastEnvelopeMock).not.toHaveBeenCalled();
+
+    try {
+      readBroadcastInput("-", () => "");
+      expect.unreachable("expected empty stdin to fail closed");
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: "INPUT_BROADCAST_EMPTY_STDIN",
+        category: "INPUT",
+        hint: expect.stringContaining("privacy-pools broadcast -"),
+      });
+    }
   });
 
   test("forwards --validate-only to the broadcast service", async () => {

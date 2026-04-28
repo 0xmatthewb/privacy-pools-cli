@@ -21,6 +21,7 @@ import { createTrackedTempDir, cleanupTrackedTempDirs } from "../helpers/temp.ts
 
 const realInquirerPrompts = await import("@inquirer/prompts");
 const ORIGINAL_HOME = process.env.HOME;
+const ORIGINAL_PAGER = process.env.PAGER;
 const ORIGINAL_PRIVACY_POOLS_HOME = process.env.PRIVACY_POOLS_HOME;
 const ORIGINAL_STDIN_IS_TTY = process.stdin.isTTY;
 const ORIGINAL_STDOUT_IS_TTY = process.stdout.isTTY;
@@ -53,6 +54,11 @@ afterEach(() => {
     delete process.env.PRIVACY_POOLS_HOME;
   } else {
     process.env.PRIVACY_POOLS_HOME = ORIGINAL_PRIVACY_POOLS_HOME;
+  }
+  if (ORIGINAL_PAGER === undefined) {
+    delete process.env.PAGER;
+  } else {
+    process.env.PAGER = ORIGINAL_PAGER;
   }
   Object.defineProperty(process.stdin, "isTTY", {
     configurable: true,
@@ -92,6 +98,22 @@ describe("utility command handlers", () => {
     expect(json.help).toContain("flow ragequit");
     expect(json.help).toContain("--new-wallet");
     expect(stderr).toBe("");
+  });
+
+  test("guide falls back to rendered output when the pager exits unsuccessfully", async () => {
+    process.env.PAGER = "false";
+    Object.defineProperty(process.stdout, "isTTY", {
+      configurable: true,
+      value: true,
+    });
+
+    const { stdout, stderr } = await captureAsyncOutput(() =>
+      handleGuideCommand(undefined, { pager: true }, fakeCommand()),
+    );
+
+    expect(stdout).toBe("");
+    expect(stderr).toContain("Privacy Pools: Quick Guide");
+    expect(stderr).toContain("privacy-pools flow start");
   });
 
   test("describe returns command metadata for a valid command path", async () => {

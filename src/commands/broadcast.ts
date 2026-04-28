@@ -8,11 +8,14 @@ import type { GlobalOptions } from "../types.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 
-function readBroadcastInput(inputRef: string): string {
+export function readBroadcastInput(
+  inputRef: string,
+  readStdin: () => string = () => readFileSync(0, "utf-8"),
+): string {
   if (inputRef === "-") {
     let stdin: string;
     try {
-      stdin = readFileSync(0, "utf-8");
+      stdin = readStdin();
     } catch (error) {
       throw new CLIError(
         "Failed to read broadcast envelope from stdin.",
