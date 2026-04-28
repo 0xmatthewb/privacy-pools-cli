@@ -112,7 +112,10 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
                 Some("Use --help to see usage and examples.".to_string()),
             ));
         }
-        if format_value == "csv" && parsed.is_structured_output_mode {
+        if format_value == "csv"
+            && parsed.is_structured_output_mode
+            && !allows_structured_output_to_override_csv(parsed)
+        {
             return Err(CliError::input_with_code(
                 "Choose either JSON or CSV output, not both.",
                 Some(
@@ -215,6 +218,15 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
     }
 }
 
+fn allows_structured_output_to_override_csv(parsed: &ParsedRootArgv) -> bool {
+    parsed.is_root_help_invocation
+        || parsed.is_version_like
+        || matches!(
+            parsed.first_command_token.as_deref(),
+            Some("guide" | "capabilities" | "describe" | "completion")
+        )
+}
+
 pub(crate) fn parse_timeout_ms(argv: &[String]) -> u64 {
     read_long_option_value(argv, "--timeout")
         .and_then(|value| value.parse::<f64>().ok())
@@ -256,6 +268,21 @@ mod tests {
         let argv = argv(&["--output", "wide", "guide"]);
         let parsed = parse_root_argv(&argv);
         assert_eq!(run(&argv, &parsed).unwrap(), 0);
+    }
+
+    #[test]
+    fn run_lets_structured_discovery_override_csv() {
+        let argv = argv(&["--json", "--output", "csv", "capabilities"]);
+        let parsed = parse_root_argv(&argv);
+        assert_eq!(run(&argv, &parsed).unwrap(), 0);
+    }
+
+    #[test]
+    fn run_keeps_json_csv_conflict_for_non_discovery_commands() {
+        let argv = argv(&["--json", "--output", "csv", "pools"]);
+        let parsed = parse_root_argv(&argv);
+        let error = run(&argv, &parsed).expect_err("non-discovery conflict should fail");
+        assert_eq!(error.code, "INPUT_FLAG_CONFLICT");
     }
 
     #[test]
