@@ -43,10 +43,16 @@ const HIDDEN_DISCOVERY_COMMANDS = new Set<CommandPath>([
   "withdraw recipients remove",
   "withdraw recipients clear",
 ]);
+const AGENT_FLAG_PATTERN = /--[a-z0-9][a-z0-9-]*/gi;
 
 export interface GlobalFlagMetadata {
   flag: string;
   description: string;
+}
+
+export function agentFlagNamesFromInvocation(invocation: string | undefined): string[] {
+  if (!invocation) return [];
+  return [...new Set(invocation.match(AGENT_FLAG_PATTERN) ?? [])].sort();
 }
 
 function defaultExecutionMetadata(path: CommandPath): CommandExecutionDescriptor {
@@ -501,6 +507,7 @@ function descriptorSeed(path: CommandPath) {
     ],
     supportsUnsigned: metadata.help?.supportsUnsigned ?? false,
     supportsDryRun: metadata.help?.supportsDryRun ?? false,
+    agentFlagNames: capabilities.agentFlagNames,
     agentWorkflowNotes: metadata.help?.agentWorkflowNotes ?? [],
     expectedNextActionWhen: metadata.expectedNextActionWhen,
     agentRequiredFlags: capabilities.agentRequiredFlags,
@@ -562,6 +569,7 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     safetyNotes: seed.safetyNotes,
     supportsUnsigned: seed.supportsUnsigned,
     supportsDryRun: seed.supportsDryRun,
+    ...(seed.agentFlagNames ? { agentFlagNames: seed.agentFlagNames } : {}),
     agentWorkflowNotes: seed.agentWorkflowNotes,
     ...(seed.expectedNextActionWhen
       ? { expectedNextActionWhen: seed.expectedNextActionWhen }
@@ -604,13 +612,25 @@ export function listCommandPaths(): CommandPath[] {
 
 export function getCommandMetadata(path: CommandPath): CommandMetadata {
   const metadata = COMMAND_CATALOG[path];
+  const agentFlagNames =
+    metadata.capabilities?.agentFlagNames
+    ?? agentFlagNamesFromInvocation(metadata.capabilities?.agentFlags);
+  const capabilities = metadata.capabilities
+    ? {
+        ...metadata.capabilities,
+        ...(agentFlagNames.length > 0 ? { agentFlagNames } : {}),
+      }
+    : undefined;
+
   return {
     ...metadata,
+    ...(capabilities ? { capabilities } : {}),
     help: {
       ...(metadata.help ?? {}),
       ...(metadata.capabilities?.agentFlags
         ? { agentFlags: metadata.capabilities.agentFlags }
         : {}),
+      ...(agentFlagNames.length > 0 ? { agentFlagNames } : {}),
       ...(metadata.capabilities?.agentRequiredFlags
         ? { agentRequiredFlags: metadata.capabilities.agentRequiredFlags }
         : {}),
@@ -642,6 +662,7 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
         usage: seed.usage,
         flags: seed.flags,
         agentFlags: metadata.capabilities?.agentFlags,
+        agentFlagNames: metadata.capabilities?.agentFlagNames,
         requiresInit: seed.requiresInit,
         expectedLatencyClass: seed.expectedLatencyClass,
       };

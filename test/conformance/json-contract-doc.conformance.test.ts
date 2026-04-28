@@ -202,6 +202,7 @@ describe("external JSON contract doc conformance", () => {
     expect(describe.successFields?.globalFlags).toBe("string[]");
     expect(describe.successFields?.execution).toContain('"js-runtime"|"native-shell"|"hybrid"');
     expect(describe.successFields?.expectedNextActionWhen).toContain("string[]");
+    expect(describe.successFields?.agentFlagNames).toContain("string[]");
     expect(describe.successFields?.sideEffectClass).toContain('"fund_movement"');
     expect(describe.successFields?.touchesFunds).toBe("boolean");
     expect(describe.successFields?.requiresHumanReview).toBe("boolean");

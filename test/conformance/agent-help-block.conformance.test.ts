@@ -12,12 +12,14 @@ describe("agent help block conformance", () => {
   for (const path of STATIC_COMMAND_PATHS) {
     const metadata = getCommandMetadata(path);
     const agentFlags = metadata.capabilities?.agentFlags;
+    const agentFlagNames = metadata.capabilities?.agentFlagNames ?? [];
     const agentWorkflowNotes = metadata.help?.agentWorkflowNotes ?? [];
     const agentRequiredFlags = metadata.capabilities?.agentRequiredFlags ?? [];
     const agentsDocMarker = metadata.agentsDocMarker;
 
     if (
       !agentFlags &&
+      agentFlagNames.length === 0 &&
       agentWorkflowNotes.length === 0 &&
       agentRequiredFlags.length === 0 &&
       !agentsDocMarker
@@ -36,6 +38,9 @@ describe("agent help block conformance", () => {
       const help = normalize(result.stdout);
       if (agentFlags) {
         expect(help).toContain(normalize(agentFlags));
+      }
+      for (const flag of agentFlagNames) {
+        expect(help).toContain(normalize(flag));
       }
       for (const note of agentWorkflowNotes) {
         expect(help).toContain(normalize(note));

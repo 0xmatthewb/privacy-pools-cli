@@ -1,5 +1,9 @@
 // normalized: NONE
 {
+  "agentFlagNames": [
+    "--agent",
+    "--limit"
+  ],
   "agentWorkflowNotes": [],
   "aliases": [
     "stats",

@@ -646,6 +646,7 @@ export interface CommandHelpConfig {
   supportsDryRun?: boolean;
   safetyNotes?: string[];
   agentFlags?: string;
+  agentFlagNames?: string[];
   agentRequiredFlags?: string[];
   agentWorkflowNotes?: string[];
   agentsDocMarker?: string;

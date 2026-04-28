@@ -806,6 +806,7 @@
         "safetyNotes": "string[]",
         "supportsUnsigned": "boolean",
         "supportsDryRun": "boolean",
+        "agentFlagNames": "string[]|undefined (structured flags accepted in agent invocation examples)",
         "agentWorkflowNotes": "string[]",
         "sideEffectClass": "\"read_only\"|\"local_cache_write\"|\"local_state_write\"|\"network_write\"|\"fund_movement\"",
         "touchesFunds": "boolean",

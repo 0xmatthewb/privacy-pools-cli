@@ -630,6 +630,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--dry-run"
       ],
       "agentFlags": "--agent [--staged] --default-chain <chain> (--show-recovery-phrase | --backup-file <path>); or --pending --agent --default-chain <chain>",
+      "agentFlagNames": [
+        "--agent",
+        "--backup-file",
+        "--default-chain",
+        "--pending",
+        "--show-recovery-phrase",
+        "--staged"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -643,6 +651,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--changelog"
       ],
       "agentFlags": "--agent [--check] [--yes]",
+      "agentFlagNames": [
+        "--agent",
+        "--check",
+        "--yes"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -659,6 +672,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "path"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -669,6 +685,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "config list",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -681,6 +700,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--reveal"
       ],
       "agentFlags": "--agent [--reveal]",
+      "agentFlagNames": [
+        "--agent",
+        "--reveal"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -694,6 +717,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stdin"
       ],
       "agentFlags": "--agent --file <path> | --stdin",
+      "agentFlagNames": [
+        "--agent",
+        "--file",
+        "--stdin"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -707,6 +735,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "config unset <key>",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -717,6 +748,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "config path",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -736,6 +770,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "config profile list",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -746,6 +783,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "config profile create <name>",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -756,6 +796,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "config profile active",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -781,6 +824,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "ragequit [workflowId|latest]"
       ],
       "agentFlags": "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent, then use status/step/ragequit --agent",
+      "agentFlagNames": [
+        "--agent",
+        "--privacy-delay",
+        "--to"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -800,6 +848,15 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--export-new-wallet <path>"
       ],
       "agentFlags": "--agent [--privacy-delay <profile>] [--dry-run] [--stream-json] [--allow-non-round-amounts] [--new-wallet] [--export-new-wallet <path>]",
+      "agentFlagNames": [
+        "--agent",
+        "--allow-non-round-amounts",
+        "--dry-run",
+        "--export-new-wallet",
+        "--new-wallet",
+        "--privacy-delay",
+        "--stream-json"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -814,6 +871,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "agentFlags": "not supported in --agent mode",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -826,6 +886,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "[workflowId|latest]"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -839,6 +902,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "agentFlags": "--agent [--stream-json]",
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -853,6 +920,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "agentFlags": "--agent [--confirm-ragequit] [--stream-json]",
+      "agentFlagNames": [
+        "--agent",
+        "--confirm-ragequit",
+        "--stream-json"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -867,6 +939,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "ragequit [asset] --pool-account <PA-ID | numeric-index>"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -879,6 +954,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--allow-non-round-amounts"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -898,6 +976,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-extra-gas"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -911,6 +992,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--confirm-ragequit"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -926,6 +1010,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "agentFlags": "--agent [--include-testnets] [--search <query>] [--sort <mode>] [--limit <n>]",
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets",
+        "--limit",
+        "--search",
+        "--sort"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -939,6 +1030,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-check"
       ],
       "agentFlags": "--agent [--check <all|rpc|asp|none>] [--no-check]",
+      "agentFlagNames": [
+        "--agent",
+        "--check",
+        "--no-check"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -949,6 +1045,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "tx-status <submissionId>",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -964,6 +1063,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "agentFlags": "--agent [<asset>] [--include-testnets] [--page <n>] [--limit <n>]",
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets",
+        "--limit",
+        "--page"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -980,6 +1085,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "agentFlags": "--agent [--limit <n>]",
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -996,6 +1105,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "agentFlags": "--agent [--limit <n>]",
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "medium"
     },
@@ -1008,6 +1121,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "<command...>"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1027,6 +1143,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--max-priority-fee-per-gas <gwei>"
       ],
       "agentFlags": "--agent [--stream-json]",
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1050,6 +1170,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "agentFlags": "--agent [--stream-json]",
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1065,6 +1189,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "agentFlags": "--agent [--limit <n>]",
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1080,6 +1208,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "agentFlags": "--agent [--limit <n>]",
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1090,6 +1222,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "recipients add <address-or-ens> [label]",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1103,6 +1238,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "recipients remove <address-or-ens>",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1113,6 +1251,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "recipients clear",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1125,6 +1266,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--to <address>"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "medium"
     },
@@ -1138,6 +1282,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-wait"
       ],
       "agentFlags": "--agent [--validate-only] [--no-wait]",
+      "agentFlagNames": [
+        "--agent",
+        "--no-wait",
+        "--validate-only"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "slow"
     },
@@ -1161,6 +1310,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "agentFlags": "--agent [--limit <n>]",
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1173,6 +1326,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--include-testnets"
       ],
       "agentFlags": "--agent [--include-testnets]",
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1185,6 +1342,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--include-testnets"
       ],
       "agentFlags": "--agent [--include-testnets]",
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1199,6 +1360,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit <n>"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1212,6 +1376,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "agentFlags": "--agent [asset] [--stream-json]",
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1229,6 +1397,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "agentFlags": "--agent [--stream-json]",
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -1243,6 +1415,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-pager"
       ],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1257,6 +1432,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--install"
       ],
       "agentFlags": "--agent [shell] [--install]",
+      "agentFlagNames": [
+        "--agent",
+        "--install"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     },
@@ -1267,6 +1446,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "capabilities",
       "flags": [],
       "agentFlags": "--agent",
+      "agentFlagNames": [
+        "--agent"
+      ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
     }
@@ -1441,6 +1623,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": true,
+      "agentFlagNames": [
+        "--agent",
+        "--backup-file",
+        "--default-chain",
+        "--pending",
+        "--show-recovery-phrase",
+        "--staged"
+      ],
       "agentWorkflowNotes": [
         "When generating a new recovery phrase in machine mode, pass --show-recovery-phrase or --backup-file so the phrase is captured before init completes.",
         "When loading an existing recovery phrase, inspect restoreDiscovery and nextActions instead of assuming the account is immediately ready to transact."
@@ -1550,6 +1740,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--check",
+        "--yes"
+      ],
       "agentWorkflowNotes": [
         "In machine modes, upgrade is check-only unless --yes is explicitly present.",
         "Treat status = ready as an available update on a supported global npm install, status = manual as an available update requiring manual follow-up, and status = upgraded as a completed install that still requires a fresh CLI invocation."
@@ -1640,6 +1835,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "config list": {
@@ -1706,6 +1904,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "config get": {
@@ -1784,6 +1985,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--reveal"
+      ],
       "agentWorkflowNotes": []
     },
     "config set": {
@@ -1865,6 +2070,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--file",
+        "--stdin"
+      ],
       "agentWorkflowNotes": []
     },
     "config unset": {
@@ -1944,6 +2154,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "config path": {
@@ -2010,6 +2223,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "config profile": {
@@ -2147,6 +2363,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "config profile create": {
@@ -2213,6 +2432,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "config profile active": {
@@ -2279,6 +2501,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "config profile use": {
@@ -2451,6 +2676,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": true,
+      "agentFlagNames": [
+        "--agent",
+        "--privacy-delay",
+        "--to"
+      ],
       "agentWorkflowNotes": [
         "Start with flow start <amount> <asset> --to <address> --agent, then poll with flow status <workflowId|latest> --agent and advance with flow step <workflowId|latest> --agent until the workflow completes or pauses.",
         "If flow status or flow step returns flow_declined or flow_public_recovery_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
@@ -2543,6 +2773,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": [
         "Treat simulate as a convenience alias for --dry-run, not as a new machine contract. Existing after_dry_run nextActions remain unchanged."
       ]
@@ -2686,6 +2919,15 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": true,
+      "agentFlagNames": [
+        "--agent",
+        "--allow-non-round-amounts",
+        "--dry-run",
+        "--export-new-wallet",
+        "--new-wallet",
+        "--privacy-delay",
+        "--stream-json"
+      ],
       "agentWorkflowNotes": [
         "With --new-wallet, --agent returns an awaiting_funding snapshot with the dedicated wallet address and required funding amounts instead of running an internal watch loop.",
         "In --agent mode, --watch is rejected. Start the flow, then use flow status and flow step as separate one-shot primitives."
@@ -2809,6 +3051,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": [
         "flow watch is not available in --agent mode.",
         "Use flow status to poll and flow step to advance the same saved workflow externally."
@@ -2895,6 +3140,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": [],
       "expectedNextActionWhen": [
         "flow_resume",
@@ -2986,6 +3234,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "agentWorkflowNotes": [],
       "expectedNextActionWhen": [
         "flow_resume",
@@ -3085,6 +3337,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--confirm-ragequit",
+        "--stream-json"
+      ],
       "agentWorkflowNotes": [],
       "expectedNextActionWhen": [
         "flow_public_recovery_pending",
@@ -3214,6 +3471,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets",
+        "--limit",
+        "--search",
+        "--sort"
+      ],
       "agentWorkflowNotes": [
         "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
         "Registry-backed aggregate fields may be null when upstream data is unavailable for that pool/chain: totalInPoolValue*, totalDeposits*, acceptedDeposits*, pendingDeposits*, *Count, growth24h, and pendingGrowth24h.",
@@ -3322,6 +3586,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets",
+        "--limit",
+        "--page"
+      ],
       "agentWorkflowNotes": []
     },
     "protocol-stats": {
@@ -3395,6 +3665,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "agentWorkflowNotes": []
     },
     "pool-stats": {
@@ -3469,6 +3743,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "agentWorkflowNotes": []
     },
     "status": {
@@ -3574,6 +3852,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--check",
+        "--no-check"
+      ],
       "agentWorkflowNotes": []
     },
     "tx-status": {
@@ -3640,6 +3923,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": [],
       "expectedNextActionWhen": [
         "after_submit"
@@ -3710,6 +3996,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "describe": {
@@ -3787,13 +4076,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "privacy-pools describe envelope.commands.status.successFields --agent"
         }
       ],
-      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples: [{ description, command, category? }], jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
+      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples: [{ description, command, category? }], jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentFlagNames?, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "guide": {
@@ -3875,6 +4167,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "deposit": {
@@ -4014,6 +4309,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "agentWorkflowNotes": [
         "With --no-wait, poll tx-status <submissionId> until the deposit transaction confirms, then use flow status <workflowId> or accounts --chain <chain> to follow ASP review.",
         "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at https://tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.",
@@ -4169,6 +4468,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "agentWorkflowNotes": [
         "With --no-wait, poll tx-status <submissionId> until the withdrawal confirms instead of resubmitting.",
         "If the CLI is interrupted after proof generation but before submission completes, re-run withdraw to generate a fresh proof and re-evaluate the current account state.",
@@ -4251,6 +4554,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": [
         "Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.",
         "Preferred order is withdraw quote <amount> <asset>; withdraw quote <asset> <amount> remains supported for compatibility."
@@ -4335,6 +4641,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "agentWorkflowNotes": [
         "Use this read-only list to offer previously used recipients before prompting for a new address."
       ]
@@ -4412,6 +4722,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "agentWorkflowNotes": [
         "Use this read-only list to offer previously used recipients before prompting for a new address."
       ]
@@ -4481,6 +4795,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "recipients remove": {
@@ -4549,6 +4866,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "recipients clear": {
@@ -4616,6 +4936,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "ragequit": {
@@ -4729,6 +5052,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": true,
       "supportsDryRun": true,
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "agentWorkflowNotes": [
         "With --no-wait, poll tx-status <submissionId> until the public recovery confirms instead of resubmitting.",
         "If the public recovery transaction was submitted but confirmation timed out, re-run ragequit or sync --chain <chain> before retrying so the CLI can detect the onchain result."
@@ -4807,6 +5134,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": [
         "This is a pure alias for deposit --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged."
       ],
@@ -4891,6 +5221,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": [
         "This is a pure alias for withdraw --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged."
       ],
@@ -4972,6 +5305,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": [
         "This is a pure alias for ragequit --dry-run. Existing agent dry-run parsing and after_dry_run nextActions remain unchanged."
       ],
@@ -5067,6 +5403,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--no-wait",
+        "--validate-only"
+      ],
       "agentWorkflowNotes": [
         "Keep using your existing Bankr or custom signer path if you already have one. broadcast is optional and does not change the current --unsigned contract.",
         "For first-party envelope workflows, the canonical sequence is: build with --unsigned, sign outside the CLI, then return with broadcast.",
@@ -5220,6 +5561,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
       "agentWorkflowNotes": [
         "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --include-testnets to include supported testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
@@ -5299,6 +5644,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets"
+      ],
       "agentWorkflowNotes": []
     },
     "migrate status": {
@@ -5377,6 +5726,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets"
+      ],
       "agentWorkflowNotes": [
         "Use this after init/import when the CLI warns that a legacy pre-upgrade account may need website migration or website-based recovery."
       ]
@@ -5477,6 +5830,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
       "agentWorkflowNotes": []
     },
     "sync": {
@@ -5555,6 +5911,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--stream-json"
+      ],
       "agentWorkflowNotes": [
         "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
         "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs; the terminal result line includes isFinal = true."
@@ -5649,6 +6009,10 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent",
+        "--install"
+      ],
       "agentWorkflowNotes": []
     }
   },

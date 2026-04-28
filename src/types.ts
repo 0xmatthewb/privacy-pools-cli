@@ -199,6 +199,7 @@ export interface CapabilityCommandSummary {
   flags?: string[];
   usage?: string;
   agentFlags?: string;
+  agentFlagNames?: string[];
   requiresInit: boolean;
   expectedLatencyClass?: CommandLatencyClass;
 }
@@ -232,6 +233,7 @@ export interface DetailedCommandDescriptor {
   safetyNotes: string[];
   supportsUnsigned: boolean;
   supportsDryRun: boolean;
+  agentFlagNames?: string[];
   agentWorkflowNotes: string[];
   expectedNextActionWhen?: NextActionWhen[];
   /** Flags that agents must supply for unattended execution (no interactive fallback). */
