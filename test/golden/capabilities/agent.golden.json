@@ -1,4 +1,4 @@
-// normalized: NONE
+// normalized: RUNTIME
 {
   "agentNotes": {
     "firstRun": "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
@@ -6464,7 +6464,7 @@
     "jsonSchemaVersion": "2.0.0",
     "manifestVersion": "1",
     "nativeBridgeVersion": "1",
-    "runtime": "js",
+    "runtime": "<RUNTIME>",
     "runtimeVersion": "v1",
     "workerProtocolVersion": "1",
     "workflowSecretVersion": "1",

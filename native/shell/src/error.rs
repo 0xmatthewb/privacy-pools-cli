@@ -7,6 +7,7 @@ use std::ops::Deref;
 // native shell only constructs a subset of these categories today.
 #[allow(dead_code)]
 pub enum ErrorCategory {
+    Cancelled,
     Input,
     Setup,
     Rpc,
@@ -67,6 +68,7 @@ impl PartialEq<&str> for ErrorText {
 impl ErrorCategory {
     pub fn as_str(self) -> &'static str {
         match self {
+            ErrorCategory::Cancelled => "CANCELLED",
             ErrorCategory::Input => "INPUT",
             ErrorCategory::Setup => "SETUP",
             ErrorCategory::Rpc => "RPC",
@@ -88,11 +90,13 @@ impl ErrorCategory {
             ErrorCategory::Proof => 6,
             ErrorCategory::Contract => 7,
             ErrorCategory::Asp => 8,
+            ErrorCategory::Cancelled => 9,
         }
     }
 
     fn default_code(self) -> &'static str {
         match self {
+            ErrorCategory::Cancelled => "PROMPT_CANCELLED",
             ErrorCategory::Input => "INPUT_ERROR",
             ErrorCategory::Setup => "SETUP_REQUIRED",
             ErrorCategory::Rpc => "RPC_ERROR",
@@ -204,9 +208,11 @@ impl CliError {
 
 fn default_error_presentation(category: ErrorCategory) -> ErrorPresentation {
     match category {
-        ErrorCategory::Input | ErrorCategory::Setup | ErrorCategory::Rpc | ErrorCategory::Asp => {
-            ErrorPresentation::Inline
-        }
+        ErrorCategory::Cancelled
+        | ErrorCategory::Input
+        | ErrorCategory::Setup
+        | ErrorCategory::Rpc
+        | ErrorCategory::Asp => ErrorPresentation::Inline,
         ErrorCategory::Relayer
         | ErrorCategory::Proof
         | ErrorCategory::Contract

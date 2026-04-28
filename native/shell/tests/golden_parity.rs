@@ -214,6 +214,11 @@ fn normalize_json_value(
             Value::String("<BLOCK>".to_string())
         }
         Value::String(text) => {
+            if key == Some("runtime") && (text == "js" || text == "native") {
+                applied.insert("RUNTIME");
+                return Value::String("<RUNTIME>".to_string());
+            }
+
             if key.is_some_and(is_block_key) && text.chars().all(|ch| ch.is_ascii_digit()) {
                 applied.insert("BLOCK");
                 return Value::String("<BLOCK>".to_string());

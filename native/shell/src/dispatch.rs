@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::{json, Map, Value};
 
@@ -136,8 +136,7 @@ pub fn handle_completion(
     guard_csv_unsupported(parsed, "completion")?;
 
     if let Some(query) = parse_completion_query(argv)? {
-        let candidates =
-            query_completion_candidates(&query.words, query.cword, &manifest.completion_spec);
+        let candidates = query_completion_candidates(&query.words, query.cword, manifest);
 
         if parsed.is_structured_output_mode {
             let mut install_options = Map::new();
@@ -281,8 +280,9 @@ fn build_completion_tree(spec: &CompletionCommandSpec) -> CompletionNode {
 fn query_completion_candidates(
     words_input: &[String],
     cword_input: Option<usize>,
-    root_spec: &CompletionCommandSpec,
+    manifest: &Manifest,
 ) -> Vec<String> {
+    let root_spec = &manifest.completion_spec;
     let tree = build_completion_tree(root_spec);
     let command_name = if root_spec.name.is_empty() {
         "privacy-pools".to_string()
@@ -294,27 +294,33 @@ fn query_completion_candidates(
     let cword = normalize_completion_cword(cword_input, words.len());
     let current_token = words.get(cword).cloned().unwrap_or_default();
 
-    let (current, expecting_value_for) = resolve_completion_context(&tree, &words, cword);
+    let (current, command_path, expecting_value_for) =
+        resolve_completion_context(&tree, &words, cword);
 
     if current_token.starts_with('-') && current_token.contains('=') {
         let mut parts = current_token.splitn(2, '=');
         let flag = parts.next().unwrap_or_default();
         let value_prefix = parts.next().unwrap_or_default();
         if let Some(option) = find_completion_option(flag, &current, &tree) {
+            if is_json_fields_option(&option) {
+                return complete_json_fields_value(&command_path, value_prefix, manifest)
+                    .into_iter()
+                    .map(|value| format!("{flag}={value}"))
+                    .collect();
+            }
             if !option.values.is_empty() {
-                return filter_completion_candidates(
-                    option
-                        .values
-                        .iter()
-                        .map(|value| format!("{flag}={value}"))
-                        .collect(),
-                    value_prefix,
-                );
+                return filter_completion_candidates(option.values.clone(), value_prefix)
+                    .into_iter()
+                    .map(|value| format!("{flag}={value}"))
+                    .collect();
             }
         }
     }
 
     if let Some(option) = expecting_value_for {
+        if is_json_fields_option(&option) {
+            return complete_json_fields_value(&command_path, &current_token, manifest);
+        }
         if option.values.is_empty() {
             return vec![];
         }
@@ -366,8 +372,9 @@ fn resolve_completion_context(
     root: &CompletionNode,
     words: &[String],
     cword: usize,
-) -> (CompletionNode, Option<CompletionOptionSpec>) {
+) -> (CompletionNode, Vec<String>, Option<CompletionOptionSpec>) {
     let mut current = root.clone();
+    let mut command_path = vec![];
     let mut expecting_value_for: Option<CompletionOptionSpec> = None;
     let boundary = cword.min(words.len()).max(1);
 
@@ -380,7 +387,10 @@ fn resolve_completion_context(
         if token.starts_with('-') {
             let flag = token.split('=').next().unwrap_or_default();
             if let Some(option) = find_completion_option(flag, &current, root) {
-                if option.takes_value && !token.contains('=') {
+                if !token.contains('=')
+                    && (option.takes_value
+                        || (is_json_fields_option(&option) && !command_path.is_empty()))
+                {
                     expecting_value_for = Some(option);
                 }
             }
@@ -389,10 +399,105 @@ fn resolve_completion_context(
 
         if let Some(subcommand) = current.subcommands.get(token) {
             current = subcommand.clone();
+            command_path.push(token.clone());
         }
     }
 
-    (current, expecting_value_for)
+    (current, command_path, expecting_value_for)
+}
+
+fn is_json_fields_option(option: &CompletionOptionSpec) -> bool {
+    option
+        .names
+        .iter()
+        .any(|name| name == "--json-fields" || name == "--json" || name == "-j")
+}
+
+fn json_field_candidates(command_path: &[String], manifest: &Manifest) -> Vec<String> {
+    let mut candidates = vec![
+        "schemaVersion".to_string(),
+        "success".to_string(),
+        "errorCode".to_string(),
+        "errorMessage".to_string(),
+        "error".to_string(),
+        "nextActions".to_string(),
+    ];
+    let path = command_path.join(" ");
+    if let Some(json_fields) = manifest
+        .capabilities_payload
+        .get("commandDetails")
+        .and_then(|details| details.get(&path))
+        .and_then(|details| details.get("jsonFields"))
+        .and_then(Value::as_str)
+    {
+        for raw_token in json_fields.split(',') {
+            if let Some(name) = extract_json_field_name(raw_token) {
+                candidates.push(name);
+            }
+        }
+    }
+    filter_completion_candidates(candidates, "")
+}
+
+fn extract_json_field_name(raw_token: &str) -> Option<String> {
+    let token = raw_token
+        .trim()
+        .trim_start_matches(|character: char| {
+            character == '{' || character == '[' || character.is_whitespace()
+        })
+        .trim_start();
+    let mut characters = token.chars();
+    let first = characters.next()?;
+    if !first.is_ascii_alphabetic() {
+        return None;
+    }
+
+    let mut name = first.to_string();
+    for character in characters {
+        if character.is_ascii_alphanumeric() {
+            name.push(character);
+        } else {
+            break;
+        }
+    }
+    Some(name)
+}
+
+fn complete_json_fields_value(
+    command_path: &[String],
+    raw_value: &str,
+    manifest: &Manifest,
+) -> Vec<String> {
+    let parts: Vec<&str> = raw_value.split(',').collect();
+    let current = parts.last().map(|value| value.trim()).unwrap_or_default();
+    let selected = parts
+        .iter()
+        .take(parts.len().saturating_sub(1))
+        .map(|part| part.trim().to_string())
+        .filter(|part| !part.is_empty())
+        .collect::<HashSet<_>>();
+    let prefix = if selected.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "{},",
+            parts
+                .iter()
+                .take(parts.len().saturating_sub(1))
+                .map(|part| part.trim())
+                .filter(|part| !part.is_empty())
+                .collect::<Vec<_>>()
+                .join(",")
+        )
+    };
+    let candidates = json_field_candidates(command_path, manifest)
+        .into_iter()
+        .filter(|field| !selected.contains(field))
+        .collect();
+    filter_completion_candidates(candidates, current)
+        .into_iter()
+        .map(|field| format!("{prefix}{field}"))
+        .collect()
 }
 
 fn find_completion_option(
@@ -452,6 +557,21 @@ mod tests {
 
     fn argv(tokens: &[&str]) -> Vec<String> {
         tokens.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[derive(Debug, serde::Deserialize)]
+    struct SharedCompletionQueryCase {
+        name: String,
+        words: Vec<String>,
+        cword: usize,
+        expected: Vec<String>,
+    }
+
+    fn shared_completion_query_cases() -> Vec<SharedCompletionQueryCase> {
+        serde_json::from_str(include_str!(
+            "../../../test/fixtures/completion-query-cases.json"
+        ))
+        .expect("shared completion query fixture must deserialize")
     }
 
     fn parsed(tokens: &[&str]) -> ParsedRootArgv {
@@ -519,14 +639,24 @@ mod tests {
     #[test]
     fn completion_queries_filter_and_sort_candidates() {
         let manifest = manifest();
-        let candidates = query_completion_candidates(
-            &argv(&["privacy-pools", "stats", "p"]),
-            Some(2),
-            &manifest.completion_spec,
-        );
+        let candidates =
+            query_completion_candidates(&argv(&["privacy-pools", "stats", "p"]), Some(2), manifest);
 
         assert!(candidates.contains(&"pool".to_string()));
         assert!(!candidates.contains(&"global".to_string()));
+    }
+
+    #[test]
+    fn completion_queries_match_shared_parity_fixture() {
+        let manifest = manifest();
+        for test_case in shared_completion_query_cases() {
+            assert_eq!(
+                query_completion_candidates(&test_case.words, Some(test_case.cword), manifest),
+                test_case.expected,
+                "completion query mismatch for {}",
+                test_case.name
+            );
+        }
     }
 
     #[test]
@@ -565,7 +695,7 @@ mod tests {
         assert_eq!(normalize_completion_cword(None, 0), 0);
 
         let root = build_completion_tree(&manifest().completion_spec);
-        let (current, expecting_value_for) = resolve_completion_context(
+        let (current, _, expecting_value_for) = resolve_completion_context(
             &root,
             &argv(&["privacy-pools", "completion", "--shell"]),
             3,

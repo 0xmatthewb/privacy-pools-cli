@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { CHAINS } from "../../src/config/chains.ts";
 import { saveAccount } from "../../src/services/account-storage.ts";
 import { saveWorkflowSnapshot } from "../../src/services/workflow.ts";
@@ -15,6 +15,14 @@ import {
 } from "../../src/utils/completion-query.ts";
 
 const ORIGINAL_PRIVACY_POOLS_HOME = process.env.PRIVACY_POOLS_HOME;
+const completionQueryCases = JSON.parse(
+  readFileSync(resolve(process.cwd(), "test/fixtures/completion-query-cases.json"), "utf8"),
+) as Array<{
+  name: string;
+  words: string[];
+  cword: number;
+  expected: string[];
+}>;
 
 describe("completion query helpers", () => {
   afterEach(() => {
@@ -25,6 +33,14 @@ describe("completion query helpers", () => {
     }
     cleanupTrackedTempDirs();
   });
+
+  for (const testCase of completionQueryCases) {
+    test(`matches shared completion query parity fixture: ${testCase.name}`, () => {
+      expect(queryCompletionCandidates(testCase.words, testCase.cword)).toEqual(
+        testCase.expected,
+      );
+    });
+  }
 
   function createCompletionHome(prefix: string): string {
     const home = createTrackedTempDir(prefix);

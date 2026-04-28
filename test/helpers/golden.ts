@@ -122,6 +122,11 @@ function normalizeJsonValue(
   }
 
   if (typeof value === "string") {
+    if (key === "runtime" && (value === "js" || value === "native")) {
+      applied.add("RUNTIME");
+      return "<RUNTIME>";
+    }
+
     if (key && BLOCK_KEYS.has(key) && /^\d+$/.test(value)) {
       applied.add("BLOCK");
       return "<BLOCK>";

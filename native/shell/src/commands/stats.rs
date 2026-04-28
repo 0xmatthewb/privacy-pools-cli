@@ -3,9 +3,9 @@ use crate::config::{load_config, resolve_chain};
 use crate::contract::Manifest;
 use crate::error::CliError;
 use crate::output::{
-    build_next_action, format_command_heading, format_count_number, format_key_value_rows,
-    format_section_heading, print_csv, print_json_success, print_table, render_next_steps,
-    should_render_wide_tables, start_spinner, write_stderr_text,
+    build_next_action, format_callout, format_command_heading, format_count_number,
+    format_key_value_rows, format_section_heading, print_csv, print_json_success, print_table,
+    render_next_steps, should_render_wide_tables, start_spinner, write_stderr_text, CalloutKind,
 };
 use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_statistics, fetch_pool_statistics};
@@ -257,6 +257,20 @@ fn deprecated_stats_warning(invoked_as: &str, replacement_command: &str) -> Valu
     })
 }
 
+fn render_deprecation_warning(deprecation_warning: &Value) {
+    let Some(message) = deprecation_warning.get("message").and_then(Value::as_str) else {
+        return;
+    };
+    let mut lines = vec![message.to_string()];
+    if let Some(replacement) = deprecation_warning
+        .get("replacementCommand")
+        .and_then(Value::as_str)
+    {
+        lines.push(format!("Replacement: {replacement}"));
+    }
+    write_stderr_text(&format_callout(CalloutKind::Warning, &lines));
+}
+
 fn normalize_cross_asset_stats(mut stats: Value) -> Value {
     let should_null_tvl = stats
         .as_object()
@@ -313,10 +327,8 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
         return;
     }
 
-    if let Some(deprecation_warning) = data.deprecation_warning {
-        if let Some(message) = deprecation_warning.get("message").and_then(Value::as_str) {
-            write_stderr_text(&format!("Warning: {message}\n"));
-        }
+    if let Some(deprecation_warning) = &data.deprecation_warning {
+        render_deprecation_warning(deprecation_warning);
     }
 
     write_stderr_text(&format_command_heading(&format!(
@@ -387,10 +399,8 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
         return;
     }
 
-    if let Some(deprecation_warning) = data.deprecation_warning {
-        if let Some(message) = deprecation_warning.get("message").and_then(Value::as_str) {
-            write_stderr_text(&format!("Warning: {message}\n"));
-        }
+    if let Some(deprecation_warning) = &data.deprecation_warning {
+        render_deprecation_warning(deprecation_warning);
     }
 
     write_stderr_text(&format_command_heading(&format!(

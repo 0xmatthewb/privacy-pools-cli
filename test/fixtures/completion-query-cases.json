@@ -1,0 +1,101 @@
+[
+  {
+    "name": "root commands and flags",
+    "words": ["privacy-pools"],
+    "cword": 1,
+    "expected": [
+      "--agent",
+      "--chain",
+      "--help-brief",
+      "--help-full",
+      "--jmes",
+      "--jq",
+      "--json",
+      "--json-fields",
+      "--no-banner",
+      "--no-color",
+      "--no-header",
+      "--no-progress",
+      "--output",
+      "--profile",
+      "--quiet",
+      "--rpc-url",
+      "--template",
+      "--timeout",
+      "--verbose",
+      "--version",
+      "--web",
+      "--yes",
+      "-c",
+      "-j",
+      "-o",
+      "-q",
+      "-r",
+      "-v",
+      "-V",
+      "-y",
+      "accounts",
+      "activity",
+      "broadcast",
+      "capabilities",
+      "completion",
+      "config",
+      "deposit",
+      "describe",
+      "flow",
+      "guide",
+      "history",
+      "init",
+      "migrate",
+      "pool-stats",
+      "pools",
+      "protocol-stats",
+      "ragequit",
+      "recents",
+      "recipients",
+      "simulate",
+      "stats",
+      "status",
+      "sync",
+      "tx-status",
+      "upgrade",
+      "withdraw"
+    ]
+  },
+  {
+    "name": "flow subcommand prefix",
+    "words": ["privacy-pools", "flow", "st"],
+    "cword": 2,
+    "expected": ["start", "status", "step"]
+  },
+  {
+    "name": "chain values",
+    "words": ["privacy-pools", "--chain", ""],
+    "cword": 2,
+    "expected": ["arbitrum", "mainnet", "op-sepolia", "optimism", "sepolia"]
+  },
+  {
+    "name": "inline output value",
+    "words": ["privacy-pools", "--output=j"],
+    "cword": 1,
+    "expected": ["--output=json"]
+  },
+  {
+    "name": "flow privacy delay values",
+    "words": ["privacy-pools", "flow", "start", "0.1", "ETH", "--privacy-delay", ""],
+    "cword": 6,
+    "expected": ["balanced", "off", "strict"]
+  },
+  {
+    "name": "json field inline values",
+    "words": ["privacy-pools", "withdraw", "quote", "--json=quote"],
+    "cword": 3,
+    "expected": ["--json=quoteExpiresAt", "--json=quoteFeeBPS"]
+  },
+  {
+    "name": "stats alias subcommand prefix",
+    "words": ["privacy-pools", "stats", "p"],
+    "cword": 2,
+    "expected": ["pool"]
+  }
+]
