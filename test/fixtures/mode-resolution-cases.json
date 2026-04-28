@@ -1,0 +1,78 @@
+[
+  {
+    "name": "human root help",
+    "argv": ["--help"],
+    "expected": {
+      "status": 0,
+      "stdout": "text",
+      "stderr": "empty"
+    }
+  },
+  {
+    "name": "json root help",
+    "argv": ["--json", "--help"],
+    "expected": {
+      "status": 0,
+      "stdout": "json",
+      "stderr": "empty"
+    }
+  },
+  {
+    "name": "agent root help",
+    "argv": ["--agent", "--help"],
+    "expected": {
+      "status": 0,
+      "stdout": "json",
+      "stderr": "empty"
+    }
+  },
+  {
+    "name": "agent flag capabilities",
+    "argv": ["--agent", "capabilities"],
+    "expected": {
+      "status": 0,
+      "stdout": "json",
+      "stderr": "empty"
+    }
+  },
+  {
+    "name": "agent env capabilities",
+    "argv": ["capabilities"],
+    "env": {
+      "PRIVACY_POOLS_AGENT": "1"
+    },
+    "expected": {
+      "status": 0,
+      "stdout": "json",
+      "stderr": "empty"
+    }
+  },
+  {
+    "name": "json wins over csv on discovery",
+    "argv": ["--json", "--output", "csv", "capabilities"],
+    "expected": {
+      "status": 0,
+      "stdout": "json",
+      "stderr": "empty"
+    }
+  },
+  {
+    "name": "quiet status keeps concise stdout",
+    "argv": ["--quiet", "--no-banner", "status", "--no-check"],
+    "seededHome": true,
+    "expected": {
+      "status": 0,
+      "stdout": "text",
+      "stderr": "empty"
+    }
+  },
+  {
+    "name": "human capabilities uses stderr",
+    "argv": ["--no-banner", "capabilities"],
+    "expected": {
+      "status": 0,
+      "stdout": "empty",
+      "stderr": "text"
+    }
+  }
+]

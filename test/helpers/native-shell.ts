@@ -123,7 +123,7 @@ export function normalizeParityStderr(stderr: string): string {
     .replace(/\n{3,}/g, "\n\n");
 }
 
-function normalizeParityJsonValue(value: unknown): unknown {
+export function normalizeParityJsonValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((entry) => normalizeParityJsonValue(entry));
   }
@@ -131,6 +131,9 @@ function normalizeParityJsonValue(value: unknown): unknown {
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([key, entry]) => {
+        if (key === "runtime" && (entry === "js" || entry === "native")) {
+          return [key, "<RUNTIME>"];
+        }
         if (key === "nextPollAfter") {
           return [key, typeof entry === "string" ? "<next-poll-after>" : entry];
         }
