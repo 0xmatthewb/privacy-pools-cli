@@ -5,22 +5,46 @@
  * documented exit code. This prevents regressions where error paths
  * accidentally return the wrong exit code.
  */
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
   createSeededHome,
   createTempHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
+import {
+  killFixtureServer,
+  launchFixtureServer,
+  type FixtureServer,
+} from "../helpers/fixture-server.ts";
 import { EXIT_CODES, type ErrorCategory } from "../../src/utils/errors.ts";
 
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
+const MALFORMED_RELAYER_RECIPIENT = "0x0000000000000000000000000000000000000002";
 
 const EXIT_CODE_MAP = EXIT_CODES satisfies Record<ErrorCategory, number>;
 
 describe("exit-code matrix", () => {
+  let fixture: FixtureServer;
+
+  beforeAll(async () => {
+    fixture = await launchFixtureServer();
+  });
+
+  afterAll(async () => {
+    await killFixtureServer(fixture);
+  });
+
+  function fixtureEnv() {
+    return {
+      PRIVACY_POOLS_ASP_HOST: fixture.url,
+      PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture.url,
+      PRIVACY_POOLS_RELAYER_HOST_SEPOLIA: fixture.url,
+    };
+  }
+
   test("INPUT error → exit code 2 (missing required option)", () => {
     const home = createSeededHome("sepolia");
     const result = runCli(
@@ -52,6 +76,55 @@ describe("exit-code matrix", () => {
     expect(result.status).toBe(EXIT_CODE_MAP.SETUP);
     const json = parseJsonOutput<{ error?: { category?: string } }>(result.stdout);
     expect(json.error?.category).toBe("SETUP");
+  });
+
+  test("RPC error → exit code 3 (offline RPC during account sync)", () => {
+    const home = createSeededHome("sepolia");
+    const result = runCli(
+      ["--json", "accounts", "--chain", "sepolia"],
+      {
+        home,
+        timeoutMs: 15_000,
+        env: {
+          PRIVACY_POOLS_RPC_URL_SEPOLIA: "http://127.0.0.1:9",
+        },
+      },
+    );
+    expect(result.status).toBe(EXIT_CODE_MAP.RPC);
+    const json = parseJsonOutput<{ error?: { category?: string } }>(result.stdout);
+    expect(json.error?.category).toBe("RPC");
+  });
+
+  test("RELAYER error → exit code 5 (malformed relayer quote)", () => {
+    const home = createSeededHome("sepolia");
+    const result = runCli(
+      [
+        "--json",
+        "--chain",
+        "sepolia",
+        "withdraw",
+        "quote",
+        "0.1",
+        "ETH",
+        "--to",
+        MALFORMED_RELAYER_RECIPIENT,
+      ],
+      { home, timeoutMs: 15_000, env: fixtureEnv() },
+    );
+    expect(result.status).toBe(EXIT_CODE_MAP.RELAYER);
+    const json = parseJsonOutput<{ error?: { category?: string } }>(result.stdout);
+    expect(json.error?.category).toBe("RELAYER");
+  });
+
+  test("UNKNOWN error → exit code 1 (unexpected fixture RPC method)", () => {
+    const home = createSeededHome("sepolia");
+    const result = runCli(
+      ["--json", "deposit", "0.1", "ETH", "--chain", "sepolia", "--yes", "--no-wait"],
+      { home, timeoutMs: 15_000, env: fixtureEnv() },
+    );
+    expect(result.status).toBe(EXIT_CODE_MAP.UNKNOWN);
+    const json = parseJsonOutput<{ error?: { category?: string } }>(result.stdout);
+    expect(json.error?.category).toBe("UNKNOWN");
   });
 
   test("exit code 0 for successful commands (status)", () => {
