@@ -12,22 +12,13 @@ import {
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
+import { EXIT_CODES, type ErrorCategory } from "../../src/utils/errors.ts";
 
 const OFFLINE_ASP_ENV = {
   PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
 };
 
-/** Documented exit-code → category mapping from src/utils/errors.ts */
-const EXIT_CODE_MAP: Record<string, number> = {
-  UNKNOWN: 1,
-  INPUT: 2,
-  RPC: 3,
-  SETUP: 4,
-  RELAYER: 5,
-  PROOF: 6,
-  CONTRACT: 7,
-  ASP: 8,
-};
+const EXIT_CODE_MAP = EXIT_CODES satisfies Record<ErrorCategory, number>;
 
 describe("exit-code matrix", () => {
   test("INPUT error → exit code 2 (missing required option)", () => {
@@ -51,6 +42,17 @@ describe("exit-code matrix", () => {
     const json = parseJsonOutput<{ error?: { category?: string } }>(result.stdout);
     expect(json.error?.category).toBe("ASP");
   }, 10_000);
+
+  test("SETUP error → exit code 4 (wallet command before init)", () => {
+    const home = createTempHome();
+    const result = runCli(
+      ["--json", "accounts", "--chain", "sepolia", "--no-sync"],
+      { home, timeoutMs: 10_000 },
+    );
+    expect(result.status).toBe(EXIT_CODE_MAP.SETUP);
+    const json = parseJsonOutput<{ error?: { category?: string } }>(result.stdout);
+    expect(json.error?.category).toBe("SETUP");
+  });
 
   test("exit code 0 for successful commands (status)", () => {
     const home = createTempHome();
@@ -130,12 +132,12 @@ describe("exit-code matrix", () => {
 
   test("all documented exit codes are distinct positive integers", () => {
     const codes = Object.values(EXIT_CODE_MAP);
-    expect(codes.length).toBe(8);
-    expect(new Set(codes).size).toBe(8);
+    expect(codes.length).toBe(9);
+    expect(new Set(codes).size).toBe(9);
     for (const code of codes) {
       expect(Number.isInteger(code)).toBe(true);
       expect(code).toBeGreaterThan(0);
-      expect(code).toBeLessThanOrEqual(8);
+      expect(code).toBeLessThanOrEqual(9);
     }
   });
 });
