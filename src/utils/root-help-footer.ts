@@ -5,7 +5,7 @@ export const ROOT_HELP_FOOTER_ENTRIES = [
   ["Full guide:", "privacy-pools guide"],
   ["Command help:", "privacy-pools <command> --help"],
   ["Agent discovery:", "privacy-pools capabilities"],
-  ["Agent skill:", "skills/privacy-pools-cli/SKILL.md"],
+  ["Agent skill:", "skills/privacy-pools/SKILL.md"],
 ] as const;
 
 const COMMON_WORKFLOWS = [

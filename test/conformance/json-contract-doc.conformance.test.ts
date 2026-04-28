@@ -36,7 +36,7 @@ describe("external JSON contract doc conformance", () => {
   });
 
   test("agent skill contract heading matches the active JSON schema version", () => {
-    const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+    const skill = readFileSync(`${CLI_ROOT}/skills/privacy-pools/SKILL.md`, "utf8");
     expect(skill).toContain(`## 2. JSON output contract (v${JSON_SCHEMA_VERSION})`);
   });
 

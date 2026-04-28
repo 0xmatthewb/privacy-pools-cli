@@ -29,7 +29,7 @@ import { CLI_ROOT } from "../helpers/paths.ts";
 
 // Stateless; safe to run in shared batch.
 // Check matrix:
-// | Check | AGENTS.md | skills/privacy-pools-cli/SKILL.md | skills/privacy-pools-cli/reference.md |
+// | Check | AGENTS.md | skills/privacy-pools/SKILL.md | skills/privacy-pools/references/reference.md |
 // | --- | --- | --- | --- |
 // | Exit-code parity | X | X | X |
 // | Error-code table parity | X |  | X |
@@ -41,9 +41,9 @@ import { CLI_ROOT } from "../helpers/paths.ts";
 // the codes mentioned there.
 
 const AGENTS = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
-const SKILL = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+const SKILL = readFileSync(`${CLI_ROOT}/skills/privacy-pools/SKILL.md`, "utf8");
 const REFERENCE = readFileSync(
-  `${CLI_ROOT}/skills/privacy-pools-cli/reference.md`,
+  `${CLI_ROOT}/skills/privacy-pools/references/reference.md`,
   "utf8",
 );
 
@@ -480,7 +480,7 @@ describe("agents docs symbolic parity", () => {
     }
     if (JSON.stringify(referenceDocumented) !== JSON.stringify(expected)) {
       throw new Error(
-        formatMapDrift("skills/privacy-pools-cli/reference.md error-code table", referenceDocumented, expected),
+        formatMapDrift("skills/privacy-pools/references/reference.md error-code table", referenceDocumented, expected),
       );
     }
   });
@@ -489,7 +489,7 @@ describe("agents docs symbolic parity", () => {
     for (const [label, doc] of [
       ["AGENTS.md", extractSection(AGENTS, /^### Retry strategy$/m)],
       [
-        "skills/privacy-pools-cli/reference.md",
+        "skills/privacy-pools/references/reference.md",
         extractSection(REFERENCE, /^### Retry strategy$/m),
       ],
     ] as const) {
@@ -551,8 +551,8 @@ describe("agents docs symbolic parity", () => {
 
     for (const [label, doc] of [
       ["AGENTS.md", AGENTS],
-      ["skills/privacy-pools-cli/SKILL.md", SKILL],
-      ["skills/privacy-pools-cli/reference.md", REFERENCE],
+      ["skills/privacy-pools/SKILL.md", SKILL],
+      ["skills/privacy-pools/references/reference.md", REFERENCE],
     ] as const) {
       for (const snippet of extractPrivacyPoolsSnippets(doc)) {
         const tokens = tokenizeCommand(snippet);

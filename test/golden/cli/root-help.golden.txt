@@ -101,4 +101,4 @@ Help topics:
   Full guide:       privacy-pools guide
   Command help:     privacy-pools <command> --help
   Agent discovery:  privacy-pools capabilities
-  Agent skill:      skills/privacy-pools-cli/SKILL.md
+  Agent skill:      skills/privacy-pools/SKILL.md

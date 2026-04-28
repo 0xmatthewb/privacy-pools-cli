@@ -316,7 +316,7 @@ describe("ci job selection", () => {
     const crossPlatformDecision = evaluateJobSelection({
       job: "cross-platform",
       eventName: "pull_request",
-      changedFiles: ["skills/privacy-pools-cli/reference.md"],
+      changedFiles: ["skills/privacy-pools/references/reference.md"],
     });
     expect(crossPlatformDecision.shouldRun).toBe(false);
     expect(crossPlatformDecision.reason).toContain("No changes matched");

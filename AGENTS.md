@@ -4,7 +4,7 @@ This document is for AI agents, bots, and programmatic consumers of the Privacy 
 
 For flags, configuration, and environment variables, see [`docs/reference.md`](docs/reference.md). For native runtime troubleshooting and fallback controls, see [`docs/runtime-upgrades.md`](docs/runtime-upgrades.md). For release history, see [`CHANGELOG.md`](CHANGELOG.md).
 
-> **Skill files**: For Bankr, Claude Code, and other skill-aware agents, see [`skills/privacy-pools-cli/SKILL.md`](skills/privacy-pools-cli/SKILL.md) and [`skills/privacy-pools-cli/reference.md`](skills/privacy-pools-cli/reference.md).
+> **Skill files**: For Bankr, Claude Code, and other skill-aware agents, see [`skills/privacy-pools/SKILL.md`](skills/privacy-pools/SKILL.md) and [`skills/privacy-pools/references/reference.md`](skills/privacy-pools/references/reference.md).
 
 ## Quick Start
 

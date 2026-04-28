@@ -49,9 +49,9 @@ function extractDocumentSection(
 }
 
 const AGENTS = readFileSync(`${CLI_ROOT}/AGENTS.md`, "utf8");
-const SKILL = readFileSync(`${CLI_ROOT}/skills/privacy-pools-cli/SKILL.md`, "utf8");
+const SKILL = readFileSync(`${CLI_ROOT}/skills/privacy-pools/SKILL.md`, "utf8");
 const SKILL_REFERENCE = readFileSync(
-  `${CLI_ROOT}/skills/privacy-pools-cli/reference.md`,
+  `${CLI_ROOT}/skills/privacy-pools/references/reference.md`,
   "utf8",
 );
 const AGENT_MARKERS = getDocumentedAgentMarkers();

@@ -373,7 +373,7 @@ describe("packed CLI smoke", () => {
     expect(packed.filePaths.has("docs/contracts/cli-json-contract.v1.6.0.json")).toBe(false);
     expect(packed.filePaths.has("docs/reference.md")).toBe(true);
     expect(packed.filePaths.has("docs/runtime-upgrades.md")).toBe(true);
-    expect(packed.filePaths.has("skills/privacy-pools-cli/SKILL.md")).toBe(true);
-    expect(packed.filePaths.has("skills/privacy-pools-cli/reference.md")).toBe(true);
+    expect(packed.filePaths.has("skills/privacy-pools/SKILL.md")).toBe(true);
+    expect(packed.filePaths.has("skills/privacy-pools/references/reference.md")).toBe(true);
   }, 30_000);
 }, 300_000);

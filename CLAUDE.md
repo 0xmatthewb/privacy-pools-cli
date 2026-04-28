@@ -2,7 +2,7 @@
 
 Developer guide for AI agents contributing to this codebase.
 
-For CLI consumer/agent integration docs, see [AGENTS.md](AGENTS.md) and [skills/privacy-pools-cli/SKILL.md](skills/privacy-pools-cli/SKILL.md).
+For CLI consumer/agent integration docs, see [AGENTS.md](AGENTS.md) and [skills/privacy-pools/SKILL.md](skills/privacy-pools/SKILL.md).
 For test architecture and suite policy, see [docs/testing.md](docs/testing.md).
 
 ## Build & Run
