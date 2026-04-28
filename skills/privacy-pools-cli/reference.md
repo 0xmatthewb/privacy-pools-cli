@@ -258,7 +258,7 @@ All numeric token amounts are in wei (strings). USD values, counts, and growth r
 ### `activity`
 
 ```bash
-privacy-pools activity [symbol] --agent [--limit <n>] [--page <n>]
+privacy-pools activity [asset] --agent [--limit <n>] [--page <n>]
 ```
 
 Defaults to all CLI-supported mainnet chains when no `--chain` is specified.
@@ -1280,7 +1280,7 @@ When `retryable: true`:
 When `retryable: false`:
 5. `ACCOUNT_MIGRATION_REQUIRED`: review the account in the Privacy Pools website first, migrate the legacy account there, then rerun the CLI restore or sync command.
 6. `ACCOUNT_WEBSITE_RECOVERY_REQUIRED`: review the account in the Privacy Pools website first and use the website's recovery flow for declined legacy deposits, then rerun the CLI restore or sync command.
-7. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poa_required`, complete Proof of Association at https://tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit <symbol> --chain <chain> --pool-account <PA-#>`.
+7. `ACCOUNT_NOT_APPROVED`: run `privacy-pools accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `privacy-pools accounts --agent --chain <chain> --pending-only`. If it is `poa_required`, complete Proof of Association at https://tornado.0xbow.io first. If it is `declined`, recover with `privacy-pools ragequit <asset> --chain <chain> --pool-account <PA-#>`.
 
 ---
 

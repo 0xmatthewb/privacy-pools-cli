@@ -128,6 +128,7 @@ These areas must be kept in sync when either side changes.
 | Output formatting | `native/shell/src/output.rs`, `native/shell/tests/golden_parity.rs` via `test/golden/*.golden.txt` | `test/integration/cli-golden.integration.test.ts`, `test/integration/cli-native-human-output.integration.test.ts` via `test/golden/*.golden.txt` |
 | RPC ABI encoding | `native/shell/src/commands/pools/rpc_abi.rs` via `test/fixtures/rpc-abi-cases.json` | `test/unit/rpc-abi-parity.unit.test.ts` via viem + `test/fixtures/rpc-abi-cases.json` |
 | Token metadata | `native/shell/src/commands/pools/rpc_token.rs` decoded against `test/fixtures/rpc-abi-cases.json` primitives | `test/unit/rpc-abi-parity.unit.test.ts` decoded against `test/fixtures/rpc-abi-cases.json` |
+| Stats routing and rendering | `native/shell/src/commands/stats.rs` | `src/commands/stats.ts`, `src/output/stats.ts` |
 | NextActions | `native/shell/src/output.rs`, `native/shell/tests/golden_parity.rs` via `test/golden/*.golden.json` | `src/output/common.ts`, `test/integration/cli-golden.integration.test.ts`, `test/integration/cli-native-machine-contract.integration.test.ts` via `test/golden/*.golden.json` |
 
 The bridge version guard (`src/runtime/runtime-contract.js` ↔ `native/shell/src/contract.rs`)

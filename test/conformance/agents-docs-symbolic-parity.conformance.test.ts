@@ -354,8 +354,27 @@ function tokenizeCommand(snippet: string): string[] {
     .filter(Boolean);
 }
 
+function stripOptionalSyntax(token: string): string {
+  return token.replace(/^\[/, "").replace(/\]$/, "");
+}
+
+function positionalPlaceholderName(token: string): string | null {
+  const normalized = stripOptionalSyntax(token);
+  const required = /^<([^>]+)>$/.exec(normalized);
+  if (required) return required[1]!.replace(/\.\.\.$/, "");
+  const optional = /^\[([^\]]+)\]$/.exec(token);
+  if (!optional) return null;
+  const name = optional[1]!;
+  if (name.startsWith("-")) return null;
+  return name.replace(/^<|>$/g, "").replace(/\.\.\.$/, "");
+}
+
+function normalizeArgumentName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 function normalizeOptionToken(token: string, aliases: Map<string, string>): string | null {
-  const normalized = token.split("=", 1)[0]!;
+  const normalized = stripOptionalSyntax(token).split("=", 1)[0]!;
   if (!normalized.startsWith("-")) return null;
   if (normalized.startsWith("--no-")) return `--${normalized.slice("--no-".length)}`;
   if (normalized.startsWith("--")) return normalized;
@@ -365,24 +384,26 @@ function normalizeOptionToken(token: string, aliases: Map<string, string>): stri
 function collectCommandOptions(command: Command): {
   options: Set<string>;
   aliases: Map<string, string>;
+  valueOptions: Set<string>;
 } {
   const options = new Set<string>();
   const aliases = new Map<string, string>();
+  const valueOptions = new Set<string>();
   for (const option of command.options as Option[]) {
     const long = option.long?.replace(/^--no-/, "--");
     if (!long) continue;
     options.add(long);
     if (option.short) aliases.set(option.short, long);
+    if (option.required || option.optional) valueOptions.add(long);
   }
-  return { options, aliases };
+  return { options, aliases, valueOptions };
 }
 
 function commandPathForSnippet(tokens: readonly string[]): CommandPath | null {
   const nonOptionTokens = tokens
     .slice(1)
-    .filter((token) => !token.startsWith("-"))
-    .filter((token) => !/^<[^>]+>$/.test(token))
-    .filter((token) => !/^\[[^\]]+\]$/.test(token));
+    .filter((token) => !stripOptionalSyntax(token).startsWith("-"))
+    .filter((token) => positionalPlaceholderName(token) === null);
   for (let length = Math.min(nonOptionTokens.length, 4); length > 0; length -= 1) {
     const candidate = nonOptionTokens.slice(0, length).join(" ");
     if ((COMMAND_PATHS as string[]).includes(candidate)) {
@@ -390,6 +411,38 @@ function commandPathForSnippet(tokens: readonly string[]): CommandPath | null {
     }
   }
   return null;
+}
+
+function commandPathTokenIndexes(tokens: readonly string[], path: CommandPath): Set<number> {
+  const parts = path.split(/\s+/);
+  const indexes = new Set<number>();
+  let partIndex = 0;
+
+  for (let index = 1; index < tokens.length && partIndex < parts.length; index += 1) {
+    const token = stripOptionalSyntax(tokens[index]!);
+    if (token.startsWith("-")) continue;
+    if (token !== parts[partIndex]) continue;
+    indexes.add(index);
+    partIndex += 1;
+  }
+
+  return indexes;
+}
+
+function optionValueIndexes(
+  tokens: readonly string[],
+  aliases: Map<string, string>,
+  valueOptions: Set<string>,
+): Set<number> {
+  const indexes = new Set<number>();
+  for (let index = 1; index < tokens.length; index += 1) {
+    const raw = tokens[index]!;
+    const option = normalizeOptionToken(raw, aliases);
+    if (!option || !valueOptions.has(option) || raw.includes("=")) continue;
+    const nextIndex = index + 1;
+    if (nextIndex < tokens.length) indexes.add(nextIndex);
+  }
+  return indexes;
 }
 
 function commandByPath(program: Command, path: string): Command | null {
@@ -513,11 +566,28 @@ describe("agents docs symbolic parity", () => {
         const localSurface = collectCommandOptions(command);
         const validOptions = new Set([...rootSurface.options, ...localSurface.options]);
         const aliases = new Map([...rootSurface.aliases, ...localSurface.aliases]);
+        const valueOptions = new Set([...rootSurface.valueOptions, ...localSurface.valueOptions]);
+        const positionalTokenIndexes = commandPathTokenIndexes(tokens, path);
+        const optionValues = optionValueIndexes(tokens, aliases, valueOptions);
+        const registeredArguments = command.registeredArguments.map((argument) => argument.name());
+        const validArguments = new Set(registeredArguments.map(normalizeArgumentName));
 
-        for (const token of tokens) {
+        for (const [index, token] of tokens.entries()) {
           const option = normalizeOptionToken(token, aliases);
-          if (!option || validOptions.has(option)) continue;
-          failures.push(`${label}: '${snippet}' uses unknown flag '${token}' for '${path}'`);
+          if (option) {
+            if (!validOptions.has(option)) {
+              failures.push(`${label}: '${snippet}' uses unknown flag '${token}' for '${path}'`);
+            }
+            continue;
+          }
+          if (index === 0 || positionalTokenIndexes.has(index) || optionValues.has(index)) continue;
+          const placeholder = positionalPlaceholderName(token);
+          if (!placeholder) continue;
+          if (validArguments.has(normalizeArgumentName(placeholder))) continue;
+          failures.push(
+            `${label}: '${snippet}' uses positional placeholder '${token}' for '${path}', ` +
+              `but registered positionals are [${registeredArguments.join(", ")}]`,
+          );
         }
       }
     }
