@@ -1,0 +1,55 @@
+// normalized: ADDR, BLOCK, HASH, WEI
+{
+  "amount": "<WEI>",
+  "approvalTxHash": null,
+  "asset": "ETH",
+  "blockNumber": "<BLOCK>",
+  "chain": "mainnet",
+  "committedValue": "<WEI>",
+  "estimatedCommitted": "99500000000000000",
+  "explorerUrl": "https://etherscan.io/tx/0xaabb",
+  "feesApply": false,
+  "label": "789",
+  "localStateSynced": true,
+  "nextActions": [
+    {
+      "cliCommand": "privacy-pools accounts --agent --chain mainnet --pending-only",
+      "command": "accounts",
+      "options": {
+        "chain": "mainnet",
+        "pendingOnly": true
+      },
+      "reason": "Poll pending review for PA-1. When it disappears, re-run accounts to confirm whether it was approved, declined, or needs Proof of Association.",
+      "when": "after_deposit"
+    },
+    {
+      "args": [
+        "ETH"
+      ],
+      "cliCommand": "privacy-pools ragequit ETH --agent --chain mainnet --pool-account PA-1",
+      "command": "ragequit",
+      "options": {
+        "chain": "mainnet",
+        "poolAccount": "PA-1"
+      },
+      "reason": "If you decide not to wait for ASP review, ragequit remains available as a public recovery path for PA-1.",
+      "when": "after_deposit"
+    }
+  ],
+  "operation": "deposit",
+  "pending": false,
+  "poolAccountId": "PA-1",
+  "poolAccountNumber": 1,
+  "poolAddress": "<ADDR>",
+  "reconciliationRequired": false,
+  "schemaVersion": "2.0.0",
+  "scope": "42",
+  "status": "confirmed",
+  "submissionId": null,
+  "success": true,
+  "txHash": "<HASH>",
+  "vettingFeeAmount": null,
+  "vettingFeeBPS": null,
+  "warningCode": null,
+  "workflowId": null
+}

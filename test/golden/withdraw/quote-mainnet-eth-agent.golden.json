@@ -1,0 +1,40 @@
+// normalized: ADDR, TS, WEI
+{
+  "amount": "<WEI>",
+  "asset": "ETH",
+  "baseFeeBPS": "45",
+  "chain": "mainnet",
+  "feeAmount": "<WEI>",
+  "feeCommitmentPresent": true,
+  "minWithdrawAmount": "<WEI>",
+  "minWithdrawAmountFormatted": "0.1 ETH",
+  "mode": "relayed-quote",
+  "netAmount": "<WEI>",
+  "nextActions": [
+    {
+      "args": [
+        "0.5",
+        "ETH"
+      ],
+      "cliCommand": "privacy-pools withdraw 0.5 ETH --agent --chain mainnet --to <ADDR>",
+      "command": "withdraw",
+      "options": {
+        "chain": "mainnet",
+        "to": "<ADDR>"
+      },
+      "reason": "Submit the withdrawal promptly if the quoted fee is acceptable.",
+      "when": "after_quote"
+    }
+  ],
+  "quoteExpiresAt": "<TS>",
+  "quoteFeeBPS": "50",
+  "quoteRefreshCount": 3,
+  "recipient": "<ADDR>",
+  "relayTxCost": {
+    "eth": "100000000000000",
+    "gas": "0"
+  },
+  "relayerHost": "https://relayer.example",
+  "schemaVersion": "2.0.0",
+  "success": true
+}

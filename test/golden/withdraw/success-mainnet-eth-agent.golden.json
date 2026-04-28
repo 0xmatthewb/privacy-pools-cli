@@ -1,0 +1,45 @@
+// normalized: ADDR, BLOCK, HASH, WEI
+{
+  "amount": "<WEI>",
+  "anonymitySet": {
+    "eligible": 42,
+    "percentage": 32.81,
+    "total": 128
+  },
+  "asset": "ETH",
+  "blockNumber": "<BLOCK>",
+  "chain": "mainnet",
+  "explorerUrl": "https://etherscan.io/tx/0x1122",
+  "feeBPS": "50",
+  "localStateSynced": true,
+  "mode": "relayed",
+  "nextActions": [
+    {
+      "cliCommand": "privacy-pools accounts --agent --chain mainnet",
+      "command": "accounts",
+      "options": {
+        "chain": "mainnet"
+      },
+      "reason": "Verify the updated balance for PA-2 after withdrawal.",
+      "when": "after_withdraw"
+    }
+  ],
+  "operation": "withdraw",
+  "pending": false,
+  "poolAccountId": "PA-2",
+  "poolAccountNumber": 2,
+  "poolAddress": "<ADDR>",
+  "quoteRefreshCount": 1,
+  "recipient": "<ADDR>",
+  "reconciliationRequired": false,
+  "relayerHost": "https://relayer.example",
+  "remainingBalance": "<WEI>",
+  "rootMatchedAtProofTime": true,
+  "schemaVersion": "2.0.0",
+  "scope": "42",
+  "status": "confirmed",
+  "submissionId": null,
+  "success": true,
+  "txHash": "<HASH>",
+  "warningCode": null
+}

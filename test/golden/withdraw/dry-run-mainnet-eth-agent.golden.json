@@ -1,0 +1,51 @@
+// normalized: ADDR, WEI
+{
+  "amount": "<WEI>",
+  "anonymitySet": {
+    "eligible": 42,
+    "percentage": 32.81,
+    "total": 128
+  },
+  "asset": "ETH",
+  "chain": "mainnet",
+  "dryRun": true,
+  "dryRunMode": "rpc",
+  "feeBPS": "50",
+  "mode": "relayed",
+  "nextActions": [
+    {
+      "args": [
+        "0.5",
+        "ETH"
+      ],
+      "cliCommand": "privacy-pools withdraw 0.5 ETH --agent --chain mainnet --to <ADDR> --pool-account PA-2",
+      "command": "withdraw",
+      "options": {
+        "chain": "mainnet",
+        "poolAccount": "PA-2",
+        "to": "<ADDR>"
+      },
+      "reason": "Submit the withdrawal for real when you are ready to broadcast it.",
+      "when": "after_dry_run"
+    }
+  ],
+  "operation": "withdraw",
+  "poolAccountId": "PA-2",
+  "poolAccountNumber": 2,
+  "proofPublicSignals": 7,
+  "quoteRefreshCount": 0,
+  "recipient": "<ADDR>",
+  "relayerHost": "https://relayer.example",
+  "rootMatchedAtProofTime": true,
+  "schemaVersion": "2.0.0",
+  "selectedCommitmentLabel": "789",
+  "selectedCommitmentValue": "500000000000000000",
+  "success": true,
+  "warnings": [
+    {
+      "category": "preview",
+      "code": "PREVIEW_VALIDATION_APPROXIMATE",
+      "message": "Dry-run validation is approximate until the transaction is signed and submitted."
+    }
+  ]
+}

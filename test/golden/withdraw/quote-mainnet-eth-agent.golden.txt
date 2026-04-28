@@ -1,0 +1,18 @@
+// normalized: ADDR
+
+------------------------------------------------------------------------------------------------------------------------
+Withdrawal quote:
+  Asset:                 ETH
+  Withdraw amount:       0.5 ETH
+  Total fee:             0.0025 ETH (0.50% of withdrawal)
+  Relayer fee:           0.00225 ETH (0.45%)
+  Blockchain relay cost: 0.0001 ETH
+  You receive:           0.4975 ETH
+  Min withdraw:          0.1 ETH
+  Recipient:             <ADDR>
+  Relayer:               https://relayer.example
+  Quote refreshes:       3
+
+Next steps:
+  privacy-pools withdraw 0.5 ETH --to <ADDR>
+    Submit the withdrawal promptly if the quoted fee is acceptable.

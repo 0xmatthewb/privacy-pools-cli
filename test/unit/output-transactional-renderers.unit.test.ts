@@ -10,6 +10,7 @@ import { renderRagequitDryRun, renderRagequitSuccess, type RagequitDryRunData, t
 import { renderWithdrawDryRun, renderWithdrawSuccess, renderWithdrawQuote, type WithdrawDryRunData, type WithdrawSuccessData, type WithdrawQuoteData } from "../../src/output/withdraw.ts";
 import { JSON_SCHEMA_VERSION } from "../../src/utils/json.ts";
 import { CLIError } from "../../src/utils/errors.ts";
+import { expectGolden, expectJsonGolden } from "../helpers/golden.ts";
 import { makeMode, captureOutput, parseCapturedJson } from "../helpers/output.ts";
 
 function expectNextAction(
@@ -38,6 +39,28 @@ function expectNextAction(
 
 function countMatches(value: string, pattern: RegExp): number {
   return value.match(pattern)?.length ?? 0;
+}
+
+function renderAgentJson(render: (ctx: ReturnType<typeof createOutputContext>) => void): unknown {
+  const ctx = createOutputContext(
+    makeMode({ isAgent: true, isJson: true, isQuiet: true, skipPrompts: true }),
+    false,
+    { suppressUrgentRecommendations: true },
+  );
+  const { stdout, stderr } = captureOutput(() => render(ctx));
+  expect(stderr).toBe("");
+  return parseCapturedJson(stdout);
+}
+
+function renderHumanText(render: (ctx: ReturnType<typeof createOutputContext>) => void): string {
+  const ctx = createOutputContext(
+    makeMode(),
+    false,
+    { suppressUrgentRecommendations: true },
+  );
+  const { stdout, stderr } = captureOutput(() => render(ctx));
+  expect(stdout).toBe("");
+  return stderr;
 }
 
 // ── renderInitResult parity ─────────────────────────────────────────────────
@@ -382,8 +405,10 @@ describe("renderDepositSuccess parity", () => {
     expect(stderr).toContain("Tx:");
     expect(stderr).not.toContain("Approve tx:");
     expect(stderr).toContain("Explorer:");
-    expect(stderr).toContain("under Association Set Provider (ASP) review");
-    expect(stderr).toContain("Association Set Provider (ASP)");
+    expect(stderr).toContain("now under ASP review");
+    expect(stderr).toContain(
+      "The ASP will validate that this deposit is coming from a good actor",
+    );
     expect(stderr).toContain("Deposited 0.1 ETH -> sepolia ETH pool");
     expect(countMatches(stderr, /Deposited 0\.1 ETH/g)).toBe(1);
     expect(stderr).toContain("Next steps:");
@@ -1224,6 +1249,111 @@ describe("renderWithdrawQuote parity", () => {
 
     expect(stdout).toBe("");
     expect(stderr).toBe("");
+  });
+});
+
+// ── Transaction envelope goldens ────────────────────────────────────────────
+
+const GOLDEN_DEPOSIT_DRY_RUN: DepositDryRunData = {
+  ...STUB_DEPOSIT_DRY_RUN,
+  chain: "mainnet",
+};
+
+const GOLDEN_DEPOSIT_SUCCESS: DepositSuccessData = {
+  ...STUB_DEPOSIT_SUCCESS,
+  status: "confirmed",
+  chain: "mainnet",
+  blockNumber: 19000000n,
+  explorerUrl: "https://etherscan.io/tx/0xaabb",
+};
+
+const GOLDEN_WITHDRAW_DRY_RUN: WithdrawDryRunData = {
+  ...STUB_WITHDRAW_DRY_RUN_RELAYED,
+  chain: "mainnet",
+  quoteExpiresAt: undefined,
+  relayerHost: "https://relayer.example",
+  quoteRefreshCount: 0,
+  anonymitySet: { eligible: 42, total: 128, percentage: 32.81 },
+};
+
+const GOLDEN_WITHDRAW_SUCCESS: WithdrawSuccessData = {
+  ...STUB_WITHDRAW_SUCCESS_RELAYED,
+  status: "confirmed",
+  chain: "mainnet",
+  blockNumber: 19000001n,
+  explorerUrl: "https://etherscan.io/tx/0x1122",
+  relayerHost: "https://relayer.example",
+  quoteRefreshCount: 1,
+  tokenPrice: null,
+  anonymitySet: { eligible: 42, total: 128, percentage: 32.81 },
+};
+
+const GOLDEN_WITHDRAW_QUOTE_JSON: WithdrawQuoteData = {
+  ...STUB_WITHDRAW_QUOTE,
+  chain: "mainnet",
+  relayerHost: "https://relayer.example",
+  quoteRefreshCount: 3,
+};
+
+const GOLDEN_WITHDRAW_QUOTE_TEXT: WithdrawQuoteData = {
+  ...GOLDEN_WITHDRAW_QUOTE_JSON,
+  quoteExpiresAt: null,
+};
+
+describe("transaction envelope goldens", () => {
+  test("deposit dry-run mainnet ETH envelope", () => {
+    expectJsonGolden(
+      "deposit/dry-run-mainnet-eth-agent",
+      renderAgentJson((ctx) => renderDepositDryRun(ctx, GOLDEN_DEPOSIT_DRY_RUN)),
+    );
+    expectGolden(
+      "deposit/dry-run-mainnet-eth-agent",
+      renderHumanText((ctx) => renderDepositDryRun(ctx, GOLDEN_DEPOSIT_DRY_RUN)),
+    );
+  });
+
+  test("deposit success mainnet ETH envelope", () => {
+    expectJsonGolden(
+      "deposit/success-mainnet-eth-agent",
+      renderAgentJson((ctx) => renderDepositSuccess(ctx, GOLDEN_DEPOSIT_SUCCESS)),
+    );
+    expectGolden(
+      "deposit/success-mainnet-eth-agent",
+      renderHumanText((ctx) => renderDepositSuccess(ctx, GOLDEN_DEPOSIT_SUCCESS)),
+    );
+  });
+
+  test("withdraw dry-run mainnet ETH envelope", () => {
+    expectJsonGolden(
+      "withdraw/dry-run-mainnet-eth-agent",
+      renderAgentJson((ctx) => renderWithdrawDryRun(ctx, GOLDEN_WITHDRAW_DRY_RUN)),
+    );
+    expectGolden(
+      "withdraw/dry-run-mainnet-eth-agent",
+      renderHumanText((ctx) => renderWithdrawDryRun(ctx, GOLDEN_WITHDRAW_DRY_RUN)),
+    );
+  });
+
+  test("withdraw success mainnet ETH envelope", () => {
+    expectJsonGolden(
+      "withdraw/success-mainnet-eth-agent",
+      renderAgentJson((ctx) => renderWithdrawSuccess(ctx, GOLDEN_WITHDRAW_SUCCESS)),
+    );
+    expectGolden(
+      "withdraw/success-mainnet-eth-agent",
+      renderHumanText((ctx) => renderWithdrawSuccess(ctx, GOLDEN_WITHDRAW_SUCCESS)),
+    );
+  });
+
+  test("withdraw quote mainnet ETH envelope", () => {
+    expectJsonGolden(
+      "withdraw/quote-mainnet-eth-agent",
+      renderAgentJson((ctx) => renderWithdrawQuote(ctx, GOLDEN_WITHDRAW_QUOTE_JSON)),
+    );
+    expectGolden(
+      "withdraw/quote-mainnet-eth-agent",
+      renderHumanText((ctx) => renderWithdrawQuote(ctx, GOLDEN_WITHDRAW_QUOTE_TEXT)),
+    );
   });
 });
 

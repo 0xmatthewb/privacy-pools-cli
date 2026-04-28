@@ -1,0 +1,18 @@
+// normalized: NONE
+
++ Dry-run: validation succeeded. Re-run without --dry-run to submit.
++-- Deposit dry-run ----------------------------------------------------+
+|   Chain:                  mainnet                                     |
+|   Asset:                  ETH                                         |
+|   Pool Account:           PA-1                                        |
+|   Amount:                 0.1 ETH                                     |
+|   Vetting fee:            0.0005 ETH (0.50%)                          |
+|   Expected net deposited: 0.0995 ETH                                  |
+|   Balance sufficient:     yes                                         |
+|   Read-only note:                                                     |
+|     No transaction was submitted and no local Pool Account was saved. |
++-----------------------------------------------------------------------+
+
+Next steps:
+  privacy-pools deposit 0.1 ETH --chain mainnet
+    Submit the deposit for real when you are ready to broadcast it.
