@@ -88,7 +88,7 @@
                 "schemaVersion",
                 "success"
               ],
-              "additionalProperties": true
+              "additionalProperties": {}
             },
             {
               "type": "object",
@@ -125,7 +125,7 @@
                       "pools",
                       "error"
                     ],
-                    "additionalProperties": true
+                    "additionalProperties": {}
                   }
                 },
                 "search": {
@@ -243,7 +243,7 @@
                       "totalDepositsCount",
                       "pendingDepositsCount"
                     ],
-                    "additionalProperties": true
+                    "additionalProperties": {}
                   }
                 },
                 "warnings": {
@@ -264,7 +264,7 @@
                     "required": [
                       "message"
                     ],
-                    "additionalProperties": true
+                    "additionalProperties": {}
                   }
                 },
                 "nextActions": {
@@ -280,7 +280,7 @@
                 "sort",
                 "pools"
               ],
-              "additionalProperties": true
+              "additionalProperties": {}
             }
           ]
         },
@@ -330,6 +330,22 @@
                   "items": {
                     "$ref": "#/definitions/pools envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
+                },
+                "retry": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "availableFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "unknownFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               },
               "required": [
@@ -337,7 +353,32 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": true
+              "additionalProperties": {}
+            },
+            "availableFields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "unknownFields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "helpTopic": {
+              "type": "string"
+            },
+            "nextActions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/pools envelope/anyOf/0/allOf/0/properties/nextActions/items"
+              }
+            },
+            "retry": {
+              "type": "object",
+              "additionalProperties": {}
             }
           },
           "required": [
@@ -347,7 +388,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": true
+          "additionalProperties": {}
         }
       ],
       "description": "pools"

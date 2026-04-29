@@ -15,6 +15,7 @@ interface ContractDoc {
   version: string;
   schemaVersion: string;
   exitCodes: Record<string, string>;
+  generated?: unknown;
   shared?: {
     rawUnsignedTransaction?: Record<string, string>;
   };
@@ -53,6 +54,14 @@ describe("external JSON contract doc conformance", () => {
     expect(currentDoc).toEqual(versionedDoc);
     expect(currentDoc.version).toBe(JSON_SCHEMA_VERSION);
     expect(currentDoc.schemaVersion).toBe(JSON_SCHEMA_VERSION);
+  });
+
+  test("generated contract section matches the Zod-derived generator output", async () => {
+    const currentDoc = JSON.parse(readFileSync(CURRENT_CONTRACT_DOC_PATH, "utf8")) as ContractDoc;
+    const generator = await import("../../scripts/generate-json-contract.mjs");
+    const generated = generator.generateJsonContractSection() as unknown;
+
+    expect(currentDoc.generated).toEqual(generated);
   });
 
   test("doc includes the full exit code map used by runtime", () => {

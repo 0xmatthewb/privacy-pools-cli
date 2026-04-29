@@ -88,7 +88,7 @@
                 "schemaVersion",
                 "success"
               ],
-              "additionalProperties": true
+              "additionalProperties": {}
             },
             {
               "type": "object",
@@ -205,7 +205,7 @@
                     "agentGuide",
                     "changelog"
                   ],
-                  "additionalProperties": true
+                  "additionalProperties": {}
                 },
                 "nextActions": {
                   "type": "array",
@@ -230,7 +230,7 @@
                 "safeReadOnlyCommands",
                 "jsonOutputContract"
               ],
-              "additionalProperties": true
+              "additionalProperties": {}
             }
           ]
         },
@@ -280,6 +280,22 @@
                   "items": {
                     "$ref": "#/definitions/capabilities envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
+                },
+                "retry": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "availableFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "unknownFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               },
               "required": [
@@ -287,7 +303,32 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": true
+              "additionalProperties": {}
+            },
+            "availableFields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "unknownFields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "helpTopic": {
+              "type": "string"
+            },
+            "nextActions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/capabilities envelope/anyOf/0/allOf/0/properties/nextActions/items"
+              }
+            },
+            "retry": {
+              "type": "object",
+              "additionalProperties": {}
             }
           },
           "required": [
@@ -297,7 +338,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": true
+          "additionalProperties": {}
         }
       ],
       "description": "capabilities"

@@ -12,12 +12,12 @@ const warningSchema = z.object({
   code: z.string().optional(),
   category: z.string().optional(),
   message: z.string(),
-}).passthrough();
+}).catchall(z.unknown());
 const deprecationWarningSchema = z.object({
   code: z.string(),
   message: z.string(),
   replacementCommand: z.string(),
-}).passthrough();
+}).catchall(z.unknown());
 
 const poolBaseSchema = z.object({
   asset: z.string(),
@@ -42,7 +42,7 @@ const poolBaseSchema = z.object({
   growth24h: z.number().nullable().optional(),
   pendingGrowth24h: z.number().nullable().optional(),
   myPoolAccountsCount: z.number().optional(),
-}).passthrough();
+}).catchall(z.unknown());
 
 const poolListItemSchema = poolBaseSchema.extend({
   chain: z.string().optional(),
@@ -58,7 +58,7 @@ const timeBasedStatsSchema = z.object({
   totalWithdrawalsValue: z.string().nullable().optional(),
   totalDepositsValueUsd: z.string().nullable().optional(),
   totalWithdrawalsValueUsd: z.string().nullable().optional(),
-}).passthrough();
+}).catchall(z.unknown());
 
 const transactionResultBaseSchema = z.object({
   operation: z.string(),
@@ -79,7 +79,7 @@ const transactionResultBaseSchema = z.object({
   warningCode: z.string().nullable().optional(),
   warnings: z.array(warningSchema).optional(),
   deprecationWarning: deprecationWarningSchema.optional(),
-}).passthrough();
+}).catchall(z.unknown());
 
 function commandEnvelope(payloadSchema: z.ZodTypeAny): z.ZodTypeAny {
   return z.union([
@@ -101,7 +101,7 @@ const commandPayloadSchemas: Partial<Record<CommandPath, z.ZodTypeAny>> = {
     pendingCount: z.number().optional(),
     warnings: z.array(warningSchema).optional(),
     nextActions: z.array(nextActionSchema).optional(),
-  }).passthrough(),
+  }).catchall(z.unknown()),
   capabilities: z.object({
     commands: z.array(z.record(z.unknown())),
     commandDetails: z.record(z.record(z.unknown())),
@@ -125,9 +125,9 @@ const commandPayloadSchemas: Partial<Record<CommandPath, z.ZodTypeAny>> = {
       jsonContract: z.string().optional(),
       envelopeSchemas: z.string().optional(),
       errorCodes: z.string().optional(),
-    }).passthrough().optional(),
+    }).catchall(z.unknown()).optional(),
     nextActions: z.array(nextActionSchema).optional(),
-  }).passthrough(),
+  }).catchall(z.unknown()),
   deposit: transactionResultBaseSchema.extend({
     operation: z.literal("deposit"),
     workflowId: z.string().optional(),
@@ -138,7 +138,7 @@ const commandPayloadSchemas: Partial<Record<CommandPath, z.ZodTypeAny>> = {
     vettingFeeAmount: z.string().optional(),
     feesApply: z.boolean().optional(),
     label: z.string().nullable().optional(),
-  }).passthrough(),
+  }).catchall(z.unknown()),
   pools: z.object({
     chain: z.string(),
     requestedChain: z.string().nullable().optional(),
@@ -146,13 +146,13 @@ const commandPayloadSchemas: Partial<Record<CommandPath, z.ZodTypeAny>> = {
       chain: z.string(),
       pools: z.number(),
       error: z.string().nullable(),
-    }).passthrough()).optional(),
+    }).catchall(z.unknown())).optional(),
     search: z.string().nullable(),
     sort: z.string(),
     pools: z.array(poolListItemSchema),
     warnings: z.array(warningSchema).optional(),
     nextActions: z.array(nextActionSchema).optional(),
-  }).passthrough(),
+  }).catchall(z.unknown()),
   "pool-stats": z.object({
     mode: z.literal("pool-stats"),
     command: z.string(),
@@ -165,7 +165,7 @@ const commandPayloadSchemas: Partial<Record<CommandPath, z.ZodTypeAny>> = {
     cacheTimestamp: optionalNullableString,
     allTime: timeBasedStatsSchema.nullable(),
     last24h: timeBasedStatsSchema.nullable(),
-  }).passthrough(),
+  }).catchall(z.unknown()),
   "protocol-stats": z.object({
     mode: z.literal("global-stats"),
     command: z.string(),
@@ -177,7 +177,7 @@ const commandPayloadSchemas: Partial<Record<CommandPath, z.ZodTypeAny>> = {
     allTime: timeBasedStatsSchema.nullable(),
     last24h: timeBasedStatsSchema.nullable(),
     perChain: z.array(z.record(z.unknown())).optional(),
-  }).passthrough(),
+  }).catchall(z.unknown()),
   status: z.object({
     mode: z.string().optional(),
     configExists: z.boolean(),
@@ -203,7 +203,7 @@ const commandPayloadSchemas: Partial<Record<CommandPath, z.ZodTypeAny>> = {
     aspLive: z.boolean().optional(),
     rpcLive: z.boolean().optional(),
     rpcBlockNumber: z.string().optional(),
-  }).passthrough(),
+  }).catchall(z.unknown()),
   withdraw: transactionResultBaseSchema.extend({
     operation: z.literal("withdraw"),
     mode: z.enum(["relayed", "direct"]).optional(),
@@ -219,14 +219,14 @@ const commandPayloadSchemas: Partial<Record<CommandPath, z.ZodTypeAny>> = {
       eligible: z.number(),
       total: z.number(),
       percentage: z.number(),
-    }).passthrough().optional(),
-  }).passthrough(),
+    }).catchall(z.unknown()).optional(),
+  }).catchall(z.unknown()),
 };
 
 export const commandEnvelopeSchemas = Object.fromEntries(
   COMMAND_PATHS.map((command) => [
     command,
-    commandEnvelope(commandPayloadSchemas[command] ?? z.object({}).passthrough())
+    commandEnvelope(commandPayloadSchemas[command] ?? z.object({}).catchall(z.unknown()))
       .describe(command),
   ]),
 ) as Record<CommandPath, z.ZodTypeAny>;

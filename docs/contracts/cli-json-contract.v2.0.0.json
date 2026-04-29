@@ -948,5 +948,645 @@
     "withdrawDirect": "function withdraw((address processooor, bytes data) _withdrawal, (uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[8] pubSignals) _proof)",
     "withdrawRelayed": "function relay((address processooor, bytes data) _withdrawal, (uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[8] pubSignals) _proof, uint256 _scope)",
     "ragequit": "function ragequit((uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[4] pubSignals) _proof)"
+  },
+  "generated": {
+    "marker": "AUTO-GENERATED: run npm run docs:generate to update",
+    "generatedFrom": "src/types/envelopes/commands.ts",
+    "commands": {
+      "init": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "upgrade": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config list": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config get": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config set": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config unset": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config path": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config profile": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config profile list": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config profile create": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config profile active": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "config profile use": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "flow": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "simulate": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "flow start": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "flow watch": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "flow status": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "flow step": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "flow ragequit": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "pools": {
+        "successFields": {
+          "chain": "string",
+          "chainSummaries": "array<object{chain,pools,error}>",
+          "nextActions": "array<unknown>",
+          "pools": "array<object{asset,tokenAddress,pool,scope,decimals,minimumDeposit,vettingFeeBPS,maxRelayFeeBPS,totalInPoolValue,totalInPoolValueUsd,totalDepositsValue,totalDepositsValueUsd,acceptedDepositsValue,acceptedDepositsValueUsd,pendingDepositsValue,pendingDepositsValueUsd,totalDepositsCount,acceptedDepositsCount,pendingDepositsCount,growth24h,pendingGrowth24h,myPoolAccountsCount,chain}>",
+          "requestedChain": "string|null",
+          "search": "string|null",
+          "sort": "string",
+          "warnings": "array<object{code,category,message}>"
+        },
+        "requiredSuccessFields": [
+          "chain",
+          "pools",
+          "search",
+          "sort"
+        ],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "activity": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "stats": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "protocol-stats": {
+        "successFields": {
+          "allTime": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
+          "cacheTimestamp": "string|null",
+          "chain": "string",
+          "chains": "array<string>",
+          "command": "string",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "invokedAs": "string",
+          "last24h": "unknown|null",
+          "mode": "\"global-stats\"",
+          "perChain": "array<object>"
+        },
+        "requiredSuccessFields": [
+          "allTime",
+          "chain",
+          "chains",
+          "command",
+          "last24h",
+          "mode"
+        ],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "pool-stats": {
+        "successFields": {
+          "allTime": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
+          "asset": "string",
+          "cacheTimestamp": "string|null",
+          "chain": "string",
+          "command": "string",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "invokedAs": "string",
+          "last24h": "unknown|null",
+          "mode": "\"pool-stats\"",
+          "pool": "string",
+          "scope": "string"
+        },
+        "requiredSuccessFields": [
+          "allTime",
+          "asset",
+          "chain",
+          "command",
+          "last24h",
+          "mode",
+          "pool",
+          "scope"
+        ],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "status": {
+        "successFields": {
+          "accountFiles": "array<object>",
+          "aspHost": "string|null",
+          "aspLive": "boolean",
+          "blockingIssues": "array<object>",
+          "configDir": "string|null",
+          "configExists": "boolean",
+          "defaultChain": "string|null",
+          "entrypoint": "string|null",
+          "mode": "string",
+          "nextActions": "array<unknown>",
+          "readyForDeposit": "boolean",
+          "readyForUnsigned": "boolean",
+          "readyForWithdraw": "boolean",
+          "recommendedMode": "string",
+          "recoveryPhraseSet": "boolean",
+          "rpcBlockNumber": "string",
+          "rpcIsCustom": "boolean",
+          "rpcLive": "boolean",
+          "rpcUrl": "string|null",
+          "selectedChain": "string|null",
+          "signerAddress": "string|null",
+          "signerKeySet": "boolean",
+          "signerKeyValid": "boolean",
+          "warnings": "array<object>"
+        },
+        "requiredSuccessFields": [
+          "configDir",
+          "configExists",
+          "defaultChain",
+          "readyForDeposit",
+          "readyForUnsigned",
+          "readyForWithdraw",
+          "recommendedMode",
+          "recoveryPhraseSet",
+          "selectedChain",
+          "signerKeySet",
+          "signerKeyValid"
+        ],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "tx-status": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "capabilities": {
+        "successFields": {
+          "agentNotes": "object",
+          "agentWorkflow": "array<string>",
+          "commandDetails": "object",
+          "commands": "array<object>",
+          "documentation": "object{reference,agentGuide,changelog,runtimeUpgrades,jsonContract,envelopeSchemas,errorCodes}",
+          "envVars": "array<object>",
+          "executionRoutes": "object",
+          "exitCodes": "array<object>",
+          "globalFlags": "array<object>",
+          "jsonOutputContract": "string",
+          "nextActions": "array<unknown>",
+          "protocol": "object",
+          "runtime": "object",
+          "safeReadOnlyCommands": "array<string>",
+          "schemas": "object",
+          "supportedChains": "array<object>"
+        },
+        "requiredSuccessFields": [
+          "agentNotes",
+          "agentWorkflow",
+          "commandDetails",
+          "commands",
+          "envVars",
+          "executionRoutes",
+          "exitCodes",
+          "globalFlags",
+          "jsonOutputContract",
+          "protocol",
+          "runtime",
+          "safeReadOnlyCommands",
+          "schemas",
+          "supportedChains"
+        ],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "describe": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "guide": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "deposit": {
+        "successFields": {
+          "amount": "string",
+          "approvalTxHash": "string|null",
+          "asset": "string",
+          "blockNumber": "string|number|null",
+          "chain": "string",
+          "committedValue": "string|null",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "estimatedCommitted": "string|null",
+          "explorerUrl": "string|null",
+          "feesApply": "boolean",
+          "label": "string|null",
+          "localStateSynced": "boolean",
+          "operation": "\"deposit\"",
+          "poolAccountId": "string",
+          "poolAccountNumber": "number",
+          "poolAddress": "string",
+          "reconciliationRequired": "boolean",
+          "scope": "string",
+          "status": "\"submitted\"|\"confirmed\"",
+          "submissionId": "string",
+          "txHash": "string",
+          "vettingFeeAmount": "string",
+          "vettingFeeBPS": "string",
+          "warningCode": "string|null",
+          "warnings": "array<object{code,category,message}>",
+          "workflowId": "string"
+        },
+        "requiredSuccessFields": [
+          "amount",
+          "asset",
+          "chain",
+          "operation"
+        ],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "withdraw": {
+        "successFields": {
+          "amount": "string",
+          "anonymitySet": "object{eligible,total,percentage}",
+          "asset": "string",
+          "blockNumber": "string|number|null",
+          "chain": "string",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "explorerUrl": "string|null",
+          "extraGas": "boolean",
+          "extraGasFundAmount": "string|null",
+          "feeBPS": "string",
+          "localStateSynced": "boolean",
+          "mode": "\"relayed\"|\"direct\"",
+          "operation": "\"withdraw\"",
+          "poolAccountId": "string",
+          "poolAccountNumber": "number",
+          "poolAddress": "string",
+          "quoteRefreshCount": "number",
+          "recipient": "string",
+          "reconciliationRequired": "boolean",
+          "relayerHost": "string",
+          "remainingBalance": "string",
+          "rootMatchedAtProofTime": "boolean",
+          "scope": "string",
+          "status": "\"submitted\"|\"confirmed\"",
+          "submissionId": "string",
+          "txHash": "string",
+          "warningCode": "string|null",
+          "warnings": "array<object{code,category,message}>"
+        },
+        "requiredSuccessFields": [
+          "amount",
+          "asset",
+          "chain",
+          "operation"
+        ],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "withdraw quote": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "recipients": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "recipients list": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "recipients add": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "recipients remove": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "recipients clear": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "withdraw recipients": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "withdraw recipients list": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "withdraw recipients add": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "withdraw recipients remove": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "withdraw recipients clear": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "ragequit": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "simulate deposit": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "simulate withdraw": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "simulate ragequit": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "broadcast": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "accounts": {
+        "successFields": {
+          "accounts": "array<object>",
+          "allChains": "boolean",
+          "balances": "array<object>",
+          "chain": "string",
+          "chains": "array<string>",
+          "lastSyncTime": "string|null",
+          "nextActions": "array<unknown>",
+          "pendingCount": "number",
+          "requestedChain": "string|null",
+          "syncSkipped": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
+        "requiredSuccessFields": [
+          "chain"
+        ],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "migrate": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "migrate status": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "history": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "sync": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "completion": {
+        "successFields": {},
+        "requiredSuccessFields": [],
+        "variants": [
+          "success",
+          "error"
+        ]
+      }
+    }
   }
 }

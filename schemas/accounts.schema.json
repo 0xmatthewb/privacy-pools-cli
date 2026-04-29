@@ -88,7 +88,7 @@
                 "schemaVersion",
                 "success"
               ],
-              "additionalProperties": true
+              "additionalProperties": {}
             },
             {
               "type": "object",
@@ -155,7 +155,7 @@
                     "required": [
                       "message"
                     ],
-                    "additionalProperties": true
+                    "additionalProperties": {}
                   }
                 },
                 "nextActions": {
@@ -168,7 +168,7 @@
               "required": [
                 "chain"
               ],
-              "additionalProperties": true
+              "additionalProperties": {}
             }
           ]
         },
@@ -218,6 +218,22 @@
                   "items": {
                     "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
+                },
+                "retry": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "availableFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "unknownFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               },
               "required": [
@@ -225,7 +241,32 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": true
+              "additionalProperties": {}
+            },
+            "availableFields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "unknownFields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "helpTopic": {
+              "type": "string"
+            },
+            "nextActions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/0/properties/nextActions/items"
+              }
+            },
+            "retry": {
+              "type": "object",
+              "additionalProperties": {}
             }
           },
           "required": [
@@ -235,7 +276,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": true
+          "additionalProperties": {}
         }
       ],
       "description": "accounts"

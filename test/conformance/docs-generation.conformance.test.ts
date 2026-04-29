@@ -80,6 +80,32 @@ describe("docs generation drift detection", () => {
     expect(result.status).toBe(0);
   });
 
+  test("AUTO-GENERATED JSON contract section matches Zod envelope schemas", () => {
+    if (!existsSync(join(CLI_ROOT, "dist", "types", "envelopes", "commands.js"))) {
+      throw new Error(
+        "dist/types/envelopes/commands.js not found. Run `npm run build` before running conformance tests.",
+      );
+    }
+
+    const result = spawnSync(
+      "node",
+      ["scripts/generate-json-contract.mjs", "--check"],
+      {
+        cwd: CLI_ROOT,
+        timeout: 30_000,
+        env: buildChildProcessEnv(),
+      },
+    );
+
+    const stderr = result.stderr?.toString() ?? "";
+    if (result.status !== 0) {
+      throw new Error(
+        `JSON contract docs are out of date. Run \`npm run docs:generate\` to regenerate.\n${stderr}`,
+      );
+    }
+    expect(result.status).toBe(0);
+  });
+
   test("AUTO-GENERATED command discovery artifacts match generator output", () => {
     if (!existsSync(join(CLI_ROOT, "dist", "program.js"))) {
       throw new Error(
