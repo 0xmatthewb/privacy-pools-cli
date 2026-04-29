@@ -569,7 +569,8 @@ function buildPartialSubmissionError(
     category,
     hint,
     code,
-    false,
+    code === "RPC_BROADCAST_CONFIRMATION_TIMEOUT" ||
+      code === "RPC_BROADCAST_SUBMISSION_FAILED",
     undefined,
     {
       submittedTransactions,
@@ -1064,6 +1065,14 @@ async function broadcastRelayedEnvelope(
       "RELAYER",
       "Request a fresh relayed withdraw quote and regenerate the unsigned envelope before broadcasting.",
       "RELAYER_BROADCAST_QUOTE_EXPIRED",
+      true,
+      undefined,
+      {
+        chain: envelope.chain,
+        asset: envelope.asset,
+        amount: envelope.amount,
+        recipient: envelope.recipient,
+      },
     );
   }
 
@@ -1222,7 +1231,7 @@ async function broadcastRelayedEnvelope(
       "RPC",
       "The relayer request was already accepted. Check the submitted tx hash before retrying to avoid duplicate execution.",
       "RPC_BROADCAST_CONFIRMATION_TIMEOUT",
-      false,
+      true,
       undefined,
       {
         submittedTransactions: [

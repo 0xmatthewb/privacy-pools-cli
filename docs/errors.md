@@ -125,6 +125,7 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`RELAYER_BROADCAST_SUBMISSION_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-broadcast-submission-failed) | RELAYER | yes |
 | [`RELAYER_CONFIRMATION_RETRY_LIMIT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-confirmation-retry-limit) | RELAYER | yes |
 | [`RELAYER_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-error) | RELAYER | no |
+| [`RELAYER_FEE_EXCEEDS_MAX`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-fee-exceeds-max) | RELAYER | yes |
 | [`RELAYER_HOST`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-host) | RELAYER | no |
 | [`RPC_BROADCAST_CONFIRMATION_TIMEOUT`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-confirmation-timeout) | RPC | yes |
 | [`RPC_BROADCAST_SUBMISSION_FAILED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-submission-failed) | RPC | yes |
@@ -868,6 +869,12 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Category: `RELAYER`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-error
+
+## RELAYER_FEE_EXCEEDS_MAX
+
+- Category: `RELAYER`
+- Retryable: `true`
+- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-fee-exceeds-max
 
 ## RELAYER_HOST
 

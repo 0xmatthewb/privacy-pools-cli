@@ -159,6 +159,7 @@ export const ERROR_CODE_REGISTRY = {
   RPC_POOL_RESOLUTION_FAILED: { category: "RPC", retryable: true },
   ASP_ERROR: { category: "ASP", retryable: false },
   RELAYER_ERROR: { category: "RELAYER", retryable: false },
+  RELAYER_FEE_EXCEEDS_MAX: { category: "RELAYER", retryable: true },
   RELAYER_BROADCAST_QUOTE_EXPIRED: { category: "RELAYER", retryable: true },
   RELAYER_BROADCAST_RELAYER_HOST_MISMATCH: {
     category: "RELAYER",
