@@ -2,12 +2,14 @@ import type { CliRunOptions } from "./cli.ts";
 import {
   emptyPoolsFixtureEnv,
   fixtureEnv,
+  fixtureWithRelayerEnv,
   multiChainFixtureEnv,
 } from "./native-shell.ts";
 
 export type GoldenEnvironment =
   | "none"
   | "fixture"
+  | "fixture-relayer"
   | "empty-fixture"
   | "multi-fixture"
   | "offline-asp";
@@ -244,6 +246,13 @@ export const GOLDEN_JSON_CASES: readonly GoldenJsonCase[] = [
     status: 0,
   },
   {
+    name: "status/aggregated-sepolia-agent",
+    args: ["--agent", "--chain", "sepolia", "status", "--check", "--aggregated"],
+    env: "fixture-relayer",
+    format: "json",
+    status: 0,
+  },
+  {
     name: "pools/multichain-agent",
     args: ["--agent", "pools"],
     env: "multi-fixture",
@@ -352,6 +361,13 @@ export function resolveGoldenCaseRunOptions(
         env: {
           ...textDefaults,
           ...fixtureEnv(fixture!),
+        },
+      };
+    case "fixture-relayer":
+      return {
+        env: {
+          ...textDefaults,
+          ...fixtureWithRelayerEnv(fixture!),
         },
       };
     case "empty-fixture":

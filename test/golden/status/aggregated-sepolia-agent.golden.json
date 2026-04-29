@@ -1,0 +1,1446 @@
+// normalized: ADDR, BLOCK, PORT, RUNTIME
+{
+  "accountFiles": [],
+  "aspHost": "http://127.0.0.1:<PORT>",
+  "aspLive": true,
+  "blockingIssues": [
+    {
+      "affects": [
+        "deposit",
+        "withdraw",
+        "unsigned"
+      ],
+      "code": "config_missing",
+      "message": "CLI configuration is missing. Run init before building or submitting wallet-dependent commands."
+    },
+    {
+      "affects": [
+        "deposit",
+        "withdraw",
+        "unsigned"
+      ],
+      "code": "recovery_phrase_missing",
+      "message": "No recovery phrase is configured. Wallet-dependent commands cannot run safely."
+    }
+  ],
+  "configDir": null,
+  "configExists": false,
+  "defaultChain": null,
+  "entrypoint": "<ADDR>",
+  "mode": "cli-status",
+  "nextActions": [
+    {
+      "cliCommand": "privacy-pools init --agent --chain sepolia --show-recovery-phrase --default-chain sepolia",
+      "command": "init",
+      "options": {
+        "defaultChain": "sepolia",
+        "showRecoveryPhrase": true
+      },
+      "reason": "Complete CLI setup before transacting.",
+      "when": "status_not_ready"
+    }
+  ],
+  "pending": {
+    "poolAccounts": [],
+    "submissions": [],
+    "workflows": []
+  },
+  "phaseGraphRef": "flow",
+  "readyForDeposit": false,
+  "readyForUnsigned": false,
+  "readyForWithdraw": false,
+  "recommendedMode": "setup-required",
+  "recoveryPhraseSet": false,
+  "recoveryTable": {
+    "ACCOUNT_MIGRATION_REQUIRED": {
+      "classification": "actionable",
+      "firstTry": "run migrate status across supported chains",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools migrate status --agent --include-testnets",
+          "command": "migrate status",
+          "options": {
+            "includeTestnets": true
+          },
+          "reason": "Check legacy account migration or recovery readiness before retrying.",
+          "when": "accounts_restore_check"
+        }
+      ],
+      "symptom": "legacy pre-upgrade account needs migration review"
+    },
+    "ACCOUNT_MIGRATION_REVIEW_INCOMPLETE": {
+      "classification": "actionable",
+      "fallback": "run migrate status before acting on the account",
+      "firstTry": "retry when ASP connectivity is healthy",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools migrate status --agent --include-testnets",
+          "command": "migrate status",
+          "options": {
+            "includeTestnets": true
+          },
+          "reason": "Check legacy account migration or recovery readiness before retrying.",
+          "when": "accounts_restore_check"
+        }
+      ],
+      "symptom": "legacy ASP review data is incomplete"
+    },
+    "ACCOUNT_NOT_APPROVED": {
+      "classification": "actionable",
+      "fallback": "pending: poll; declined: ragequit; poa_required: complete PoA",
+      "firstTry": "check accounts to branch on aspStatus",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools accounts --agent --chain sepolia",
+          "command": "accounts",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Check current ASP review status before deciding whether to wait, complete PoA, or recover publicly.",
+          "when": "after_sync"
+        },
+        {
+          "args": [
+            "<asset>"
+          ],
+          "command": "ragequit",
+          "options": {
+            "chain": "sepolia",
+            "poolAccount": "<PA-#>"
+          },
+          "parameters": [
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            },
+            {
+              "name": "poolAccount",
+              "required": true,
+              "type": "pool_account_id"
+            }
+          ],
+          "reason": "If accounts shows the Pool Account was declined, recover it publicly.",
+          "runnable": false,
+          "when": "flow_public_recovery_optional"
+        }
+      ],
+      "symptom": "selected Pool Account is not approved for private withdrawal"
+    },
+    "ACCOUNT_NOT_FOUND": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "ACCOUNT_NOT_FOUND requires corrected input or operator review"
+    },
+    "ACCOUNT_WEBSITE_RECOVERY_REQUIRED": {
+      "classification": "actionable",
+      "fallback": "complete website recovery before restoring in the CLI",
+      "firstTry": "run migrate status to confirm readiness and affected chains",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools migrate status --agent --include-testnets",
+          "command": "migrate status",
+          "options": {
+            "includeTestnets": true
+          },
+          "reason": "Check legacy account migration or recovery readiness before retrying.",
+          "when": "accounts_restore_check"
+        }
+      ],
+      "symptom": "legacy account needs website-based recovery"
+    },
+    "ASP_ERROR": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "ASP_ERROR requires corrected input or operator review"
+    },
+    "CONTRACT_BROADCAST_REVERTED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_BROADCAST_REVERTED requires corrected input or operator review"
+    },
+    "CONTRACT_CONTEXT_MISMATCH": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_CONTEXT_MISMATCH requires corrected input or operator review"
+    },
+    "CONTRACT_ERROR": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_ERROR requires corrected input or operator review"
+    },
+    "CONTRACT_INCORRECT_ASP_ROOT": {
+      "classification": "actionable",
+      "firstTry": "sync and retry the original command",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools sync --agent --chain sepolia",
+          "command": "sync",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Refresh local pool state and roots, then retry the original command.",
+          "when": "after_sync"
+        }
+      ],
+      "symptom": "ASP root changed since proof generation"
+    },
+    "CONTRACT_INSUFFICIENT_FUNDS": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_INSUFFICIENT_FUNDS requires corrected input or operator review"
+    },
+    "CONTRACT_INVALID_COMMITMENT": {
+      "classification": "actionable",
+      "firstTry": "sync account state and retry",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools sync --agent --chain sepolia",
+          "command": "sync",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Refresh local pool state and roots, then retry the original command.",
+          "when": "after_sync"
+        }
+      ],
+      "symptom": "selected commitment is no longer in local pool state"
+    },
+    "CONTRACT_INVALID_DEPOSIT_VALUE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_INVALID_DEPOSIT_VALUE requires corrected input or operator review"
+    },
+    "CONTRACT_INVALID_PROCESSOOOR": {
+      "classification": "actionable",
+      "fallback": "sync if the mismatch persists",
+      "firstTry": "request a fresh quote and retry the default relayed path",
+      "nextActions": [
+        {
+          "args": [
+            "<amount>",
+            "<asset>"
+          ],
+          "command": "withdraw quote",
+          "options": {
+            "chain": "sepolia",
+            "to": "<addr>"
+          },
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            },
+            {
+              "name": "to",
+              "required": true,
+              "type": "address"
+            }
+          ],
+          "reason": "Request a fresh relayer quote before retrying the withdrawal.",
+          "runnable": false,
+          "when": "after_quote"
+        }
+      ],
+      "symptom": "withdrawal mode did not match the proof context"
+    },
+    "CONTRACT_INVALID_PROOF": {
+      "classification": "actionable",
+      "firstTry": "sync and regenerate the proof",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools sync --agent --chain sepolia",
+          "command": "sync",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Refresh local pool state and roots, then retry the original command.",
+          "when": "after_sync"
+        }
+      ],
+      "symptom": "onchain proof verification failed"
+    },
+    "CONTRACT_INVALID_TREE_DEPTH": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_INVALID_TREE_DEPTH requires corrected input or operator review"
+    },
+    "CONTRACT_INVALID_WITHDRAWAL_AMOUNT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_INVALID_WITHDRAWAL_AMOUNT requires corrected input or operator review"
+    },
+    "CONTRACT_MAX_TREE_DEPTH_REACHED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_MAX_TREE_DEPTH_REACHED requires corrected input or operator review"
+    },
+    "CONTRACT_MINIMUM_DEPOSIT_AMOUNT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_MINIMUM_DEPOSIT_AMOUNT requires corrected input or operator review"
+    },
+    "CONTRACT_NATIVE_ASSET_TRANSFER_FAILED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_NATIVE_ASSET_TRANSFER_FAILED requires corrected input or operator review"
+    },
+    "CONTRACT_NONCE_ERROR": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 3,
+        "maxDelayMs": 8000,
+        "strategy": "exponential-backoff"
+      },
+      "symptom": "CONTRACT_NONCE_ERROR is retryable"
+    },
+    "CONTRACT_NOT_YET_RAGEQUITTEABLE": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 30000,
+        "maxAttempts": 5,
+        "maxDelayMs": 60000,
+        "note": "Retry after the onchain ragequit delay has elapsed.",
+        "strategy": "fixed-backoff"
+      },
+      "symptom": "CONTRACT_NOT_YET_RAGEQUITTEABLE is retryable"
+    },
+    "CONTRACT_NO_ROOTS_AVAILABLE": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 30000,
+        "maxAttempts": 5,
+        "maxDelayMs": 60000,
+        "note": "Retry after the relayer publishes pool roots.",
+        "strategy": "fixed-backoff"
+      },
+      "symptom": "CONTRACT_NO_ROOTS_AVAILABLE is retryable"
+    },
+    "CONTRACT_NULLIFIER_ALREADY_SPENT": {
+      "classification": "actionable",
+      "firstTry": "reconcile account state",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools accounts --agent --chain sepolia",
+          "command": "accounts",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Refresh and reconcile Pool Account state before choosing another account.",
+          "when": "after_sync"
+        }
+      ],
+      "symptom": "selected Pool Account was already spent"
+    },
+    "CONTRACT_ONLY_ORIGINAL_DEPOSITOR": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_ONLY_ORIGINAL_DEPOSITOR requires corrected input or operator review"
+    },
+    "CONTRACT_POOL_IS_DEAD": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_POOL_IS_DEAD requires corrected input or operator review"
+    },
+    "CONTRACT_POOL_NOT_FOUND": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_POOL_NOT_FOUND requires corrected input or operator review"
+    },
+    "CONTRACT_PRECOMMITMENT_ALREADY_USED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "CONTRACT_PRECOMMITMENT_ALREADY_USED requires corrected input or operator review"
+    },
+    "CONTRACT_RELAY_FEE_GREATER_THAN_MAX": {
+      "classification": "actionable",
+      "fallback": "wait for fees to normalize",
+      "firstTry": "request a fresh quote",
+      "nextActions": [
+        {
+          "args": [
+            "<amount>",
+            "<asset>"
+          ],
+          "command": "withdraw quote",
+          "options": {
+            "chain": "sepolia",
+            "to": "<addr>"
+          },
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            },
+            {
+              "name": "to",
+              "required": true,
+              "type": "address"
+            }
+          ],
+          "reason": "Request a fresh relayer quote before retrying the withdrawal.",
+          "runnable": false,
+          "when": "after_quote"
+        }
+      ],
+      "symptom": "onchain relay fee exceeds the pool maximum"
+    },
+    "CONTRACT_SCOPE_MISMATCH": {
+      "classification": "actionable",
+      "firstTry": "sync and retry the original command",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools sync --agent --chain sepolia",
+          "command": "sync",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Refresh local pool state and roots, then retry the original command.",
+          "when": "after_sync"
+        }
+      ],
+      "symptom": "proof scope does not match the current pool state"
+    },
+    "CONTRACT_UNKNOWN_STATE_ROOT": {
+      "classification": "actionable",
+      "firstTry": "sync and retry the original command",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools sync --agent --chain sepolia",
+          "command": "sync",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Refresh local pool state and roots, then retry the original command.",
+          "when": "after_sync"
+        }
+      ],
+      "symptom": "state root is stale or unknown"
+    },
+    "FLOW_RELAYER_MINIMUM_BLOCKED": {
+      "classification": "actionable",
+      "firstTry": "use saved-flow public recovery",
+      "nextActions": [
+        {
+          "args": [
+            "latest"
+          ],
+          "cliCommand": "privacy-pools flow ragequit latest --agent",
+          "command": "flow ragequit",
+          "reason": "Recover the saved workflow publicly because relayed private withdrawal is blocked.",
+          "when": "flow_public_recovery_required"
+        }
+      ],
+      "symptom": "saved flow cannot use the relayer minimum-safe private path"
+    },
+    "INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INIT_GENERATED_RECOVERY_WORD_COUNT_INVALID requires corrected input or operator review"
+    },
+    "INPUT_ADDRESS_CHECKSUM_INVALID": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_ADDRESS_CHECKSUM_INVALID requires corrected input or operator review"
+    },
+    "INPUT_AGENT_ACCOUNTS_WATCH_UNSUPPORTED": {
+      "classification": "actionable",
+      "firstTry": "poll accounts --pending-only externally",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools accounts --agent --chain sepolia --pending-only",
+          "command": "accounts",
+          "options": {
+            "chain": "sepolia",
+            "pendingOnly": true
+          },
+          "reason": "Take one machine-readable pending snapshot, then poll externally.",
+          "when": "has_pending"
+        }
+      ],
+      "symptom": "accounts --watch was requested in agent mode"
+    },
+    "INPUT_AGENT_FLOW_WATCH_UNSUPPORTED": {
+      "classification": "actionable",
+      "firstTry": "use flow status plus flow step",
+      "nextActions": [
+        {
+          "args": [
+            "latest"
+          ],
+          "cliCommand": "privacy-pools flow status latest --agent",
+          "command": "flow status",
+          "reason": "Read the saved workflow snapshot without attaching a watcher.",
+          "when": "flow_resume"
+        },
+        {
+          "args": [
+            "latest"
+          ],
+          "cliCommand": "privacy-pools flow step latest --agent",
+          "command": "flow step",
+          "reason": "Advance the saved workflow by one actionable step.",
+          "when": "flow_resume"
+        }
+      ],
+      "symptom": "flow watch was requested in agent mode"
+    },
+    "INPUT_APPROVAL_REQUIRED_NO_WAIT": {
+      "classification": "actionable",
+      "firstTry": "rerun deposit without --no-wait so approval can confirm",
+      "nextActions": [
+        {
+          "args": [
+            "<amount>",
+            "<asset>"
+          ],
+          "command": "deposit",
+          "options": {
+            "chain": "sepolia"
+          },
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            }
+          ],
+          "reason": "Retry without --no-wait so the CLI can confirm token approval before submitting the deposit.",
+          "runnable": false,
+          "when": "flow_manual_followup"
+        }
+      ],
+      "symptom": "ERC-20 approval is required before deposit submission"
+    },
+    "INPUT_APPROVED_POOL_ACCOUNT_RAGEQUIT_REQUIRES_OVERRIDE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_APPROVED_POOL_ACCOUNT_RAGEQUIT_REQUIRES_OVERRIDE requires corrected input or operator review"
+    },
+    "INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_APPROVED_WORKFLOW_RAGEQUIT_REQUIRES_OVERRIDE requires corrected input or operator review"
+    },
+    "INPUT_BAD_ADDRESS": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BAD_ADDRESS requires corrected input or operator review"
+    },
+    "INPUT_BELOW_MINIMUM_DEPOSIT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BELOW_MINIMUM_DEPOSIT requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_CHAIN_MISMATCH": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_CHAIN_MISMATCH requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_CHAIN_OVERRIDE_MISMATCH": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_CHAIN_OVERRIDE_MISMATCH requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_EMPTY_STDIN": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_EMPTY_STDIN requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_INLINE_JSON_UNSUPPORTED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_INLINE_JSON_UNSUPPORTED requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_INPUT_NOT_FOUND": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_INPUT_NOT_FOUND requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_INPUT_UNREADABLE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_INPUT_UNREADABLE requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_INVALID_ENVELOPE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_INVALID_ENVELOPE requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_INVALID_JSON": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_INVALID_JSON requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_INVALID_SIGNED_TRANSACTION": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_INVALID_SIGNED_TRANSACTION requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_MISSING_RELAYER_HOST": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_MISSING_RELAYER_HOST requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_MISSING_SIGNED_TRANSACTIONS": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_MISSING_SIGNED_TRANSACTIONS requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_MIXED_SIGNERS": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_MIXED_SIGNERS requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_RELAYER_REQUEST_MISMATCH": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_RELAYER_REQUEST_MISMATCH requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_REQUIRES_ENVELOPE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_REQUIRES_ENVELOPE requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_SIGNED_TRANSACTION_COUNT_MISMATCH": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_SIGNED_TRANSACTION_COUNT_MISMATCH requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_SIGNED_TRANSACTION_MISMATCH": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_SIGNED_TRANSACTION_MISMATCH requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_SIGNER_MISMATCH": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_SIGNER_MISMATCH requires corrected input or operator review"
+    },
+    "INPUT_BROADCAST_STDIN_READ_FAILED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_BROADCAST_STDIN_READ_FAILED requires corrected input or operator review"
+    },
+    "INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_DIRECT_WITHDRAW_AGENT_ACK_REQUIRED requires corrected input or operator review"
+    },
+    "INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_DIRECT_WITHDRAW_CONSENT_REQUIRED requires corrected input or operator review"
+    },
+    "INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH": {
+      "classification": "actionable",
+      "firstTry": "retry the default relayed withdrawal path",
+      "nextActions": [
+        {
+          "args": [
+            "<amount>",
+            "<asset>"
+          ],
+          "command": "withdraw quote",
+          "options": {
+            "chain": "sepolia",
+            "to": "<addr>"
+          },
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            },
+            {
+              "name": "to",
+              "required": true,
+              "type": "address"
+            }
+          ],
+          "reason": "Request a fresh relayer quote before retrying the withdrawal.",
+          "runnable": false,
+          "when": "after_quote"
+        }
+      ],
+      "symptom": "direct withdrawal recipient differs from the signer"
+    },
+    "INPUT_ERROR": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_ERROR requires corrected input or operator review"
+    },
+    "INPUT_FLAG_CONFLICT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_FLAG_CONFLICT requires corrected input or operator review"
+    },
+    "INPUT_FLOW_RECIPIENT_RETRY_LIMIT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_FLOW_RECIPIENT_RETRY_LIMIT requires corrected input or operator review"
+    },
+    "INPUT_INIT_GENERATE_REQUIRES_CAPTURE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INIT_GENERATE_REQUIRES_CAPTURE requires corrected input or operator review"
+    },
+    "INPUT_INIT_RECOVERY_PHRASE_REQUIRED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INIT_RECOVERY_PHRASE_REQUIRED requires corrected input or operator review"
+    },
+    "INPUT_INIT_REQUIRED": {
+      "classification": "actionable",
+      "firstTry": "run init",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools init --agent",
+          "command": "init",
+          "reason": "Complete CLI setup before retrying wallet-dependent commands.",
+          "when": "status_not_ready"
+        }
+      ],
+      "symptom": "wallet-dependent command was run before setup completed"
+    },
+    "INPUT_INSUFFICIENT_BALANCE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INSUFFICIENT_BALANCE requires corrected input or operator review"
+    },
+    "INPUT_INSUFFICIENT_GAS": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INSUFFICIENT_GAS requires corrected input or operator review"
+    },
+    "INPUT_INVALID_AMOUNT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INVALID_AMOUNT requires corrected input or operator review"
+    },
+    "INPUT_INVALID_ASSET": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INVALID_ASSET requires corrected input or operator review"
+    },
+    "INPUT_INVALID_JQ": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INVALID_JQ requires corrected input or operator review"
+    },
+    "INPUT_INVALID_OPTION": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INVALID_OPTION requires corrected input or operator review"
+    },
+    "INPUT_INVALID_RPC_URL": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INVALID_RPC_URL requires corrected input or operator review"
+    },
+    "INPUT_INVALID_VALUE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_INVALID_VALUE requires corrected input or operator review"
+    },
+    "INPUT_JSON_FIELDS_REQUIRED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_JSON_FIELDS_REQUIRED requires corrected input or operator review"
+    },
+    "INPUT_MISSING_AMOUNT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_MISSING_AMOUNT requires corrected input or operator review"
+    },
+    "INPUT_MISSING_ARGUMENT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_MISSING_ARGUMENT requires corrected input or operator review"
+    },
+    "INPUT_MISSING_ASSET": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_MISSING_ASSET requires corrected input or operator review"
+    },
+    "INPUT_MISSING_FLOW_SUBCOMMAND": {
+      "classification": "actionable",
+      "firstTry": "choose flow start, status, step, or ragequit",
+      "nextActions": [
+        {
+          "command": "flow start",
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            },
+            {
+              "name": "to",
+              "required": true,
+              "type": "address"
+            }
+          ],
+          "reason": "Create a saved workflow before requesting workflow status.",
+          "runnable": false,
+          "when": "flow_manual_followup"
+        }
+      ],
+      "symptom": "flow was called without a subcommand in machine mode"
+    },
+    "INPUT_MISSING_RECIPIENT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_MISSING_RECIPIENT requires corrected input or operator review"
+    },
+    "INPUT_MUTUALLY_EXCLUSIVE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_MUTUALLY_EXCLUSIVE requires corrected input or operator review"
+    },
+    "INPUT_NONROUND_AMOUNT": {
+      "classification": "actionable",
+      "fallback": "use --allow-non-round-amounts only when the privacy tradeoff is intentional",
+      "firstTry": "retry with the suggested round amount",
+      "nextActions": [
+        {
+          "args": [
+            "<roundAmount>",
+            "<asset>"
+          ],
+          "command": "deposit",
+          "options": {
+            "chain": "sepolia"
+          },
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "round_token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            }
+          ],
+          "reason": "Retry with the nearest lower round amount to reduce amount fingerprinting.",
+          "runnable": false,
+          "when": "flow_manual_followup"
+        },
+        {
+          "args": [
+            "<amount>",
+            "<asset>"
+          ],
+          "command": "deposit",
+          "options": {
+            "allowNonRoundAmounts": true,
+            "chain": "sepolia"
+          },
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "round_token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            }
+          ],
+          "reason": "Retry with the explicit non-round amount override only if the operator accepts the privacy tradeoff.",
+          "runnable": false,
+          "when": "flow_manual_followup"
+        }
+      ],
+      "symptom": "amount may fingerprint this transaction"
+    },
+    "INPUT_NO_COMMAND": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_NO_COMMAND requires corrected input or operator review"
+    },
+    "INPUT_NO_GAS": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_NO_GAS requires corrected input or operator review"
+    },
+    "INPUT_NO_SAVED_WORKFLOWS": {
+      "classification": "actionable",
+      "firstTry": "start a new saved flow",
+      "nextActions": [
+        {
+          "command": "flow start",
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            },
+            {
+              "name": "to",
+              "required": true,
+              "type": "address"
+            }
+          ],
+          "reason": "Create a saved workflow before requesting workflow status.",
+          "runnable": false,
+          "when": "flow_manual_followup"
+        }
+      ],
+      "symptom": "latest workflow was requested but no workflow is saved locally"
+    },
+    "INPUT_PARSE_ERROR": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_PARSE_ERROR requires corrected input or operator review"
+    },
+    "INPUT_RAGEQUIT_CONFIRMATION_REQUIRED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_RAGEQUIT_CONFIRMATION_REQUIRED requires corrected input or operator review"
+    },
+    "INPUT_RECIPIENT_BURN_ADDRESS": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_RECIPIENT_BURN_ADDRESS requires corrected input or operator review"
+    },
+    "INPUT_RECIPIENT_RETRY_LIMIT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_RECIPIENT_RETRY_LIMIT requires corrected input or operator review"
+    },
+    "INPUT_RECOVERY_PHRASE_RETRY_LIMIT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_RECOVERY_PHRASE_RETRY_LIMIT requires corrected input or operator review"
+    },
+    "INPUT_RECOVERY_VERIFICATION_RETRY_LIMIT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_RECOVERY_VERIFICATION_RETRY_LIMIT requires corrected input or operator review"
+    },
+    "INPUT_REMAINDER_BELOW_RELAYER_MINIMUM": {
+      "classification": "actionable",
+      "fallback": "recover the remainder publicly with ragequit if needed",
+      "firstTry": "withdraw the full balance with --all",
+      "nextActions": [
+        {
+          "args": [
+            "<asset>"
+          ],
+          "command": "withdraw",
+          "options": {
+            "all": true,
+            "chain": "sepolia",
+            "poolAccount": "<PA-#>",
+            "to": "<addr>"
+          },
+          "parameters": [
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            },
+            {
+              "name": "to",
+              "required": true,
+              "type": "address"
+            },
+            {
+              "name": "poolAccount",
+              "required": true,
+              "type": "pool_account_id"
+            }
+          ],
+          "reason": "Withdraw the full Pool Account balance to avoid leaving a relayer-blocked remainder.",
+          "runnable": false,
+          "when": "flow_manual_followup"
+        }
+      ],
+      "symptom": "withdrawal would leave dust below the relayer minimum"
+    },
+    "INPUT_SIMULATE_UNSIGNED_UNSUPPORTED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_SIMULATE_UNSIGNED_UNSUPPORTED requires corrected input or operator review"
+    },
+    "INPUT_UNKNOWN_ASSET": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_UNKNOWN_ASSET requires corrected input or operator review"
+    },
+    "INPUT_UNKNOWN_CHAIN": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_UNKNOWN_CHAIN requires corrected input or operator review"
+    },
+    "INPUT_UNKNOWN_COMMAND": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_UNKNOWN_COMMAND requires corrected input or operator review"
+    },
+    "INPUT_UNKNOWN_JSON_FIELD": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_UNKNOWN_JSON_FIELD requires corrected input or operator review"
+    },
+    "INPUT_UNKNOWN_OPTION": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_UNKNOWN_OPTION requires corrected input or operator review"
+    },
+    "INPUT_UNKNOWN_SUBMISSION": {
+      "classification": "actionable",
+      "firstTry": "rerun the original command with --no-wait and capture the returned submissionId",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools status --agent --aggregated",
+          "command": "status",
+          "options": {
+            "aggregated": true
+          },
+          "reason": "Check local setup and pending submission state before retrying.",
+          "when": "status_ready_has_accounts"
+        }
+      ],
+      "symptom": "tx-status was called with an unknown submission id"
+    },
+    "INPUT_WATCH_REQUIRES_TTY": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_WATCH_REQUIRES_TTY requires corrected input or operator review"
+    },
+    "INPUT_WORKFLOW_INVALID_STRUCTURE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_WORKFLOW_INVALID_STRUCTURE requires corrected input or operator review"
+    },
+    "INPUT_WORKFLOW_LATEST_AMBIGUOUS_INVALID_FILES": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_WORKFLOW_LATEST_AMBIGUOUS_INVALID_FILES requires corrected input or operator review"
+    },
+    "INPUT_WORKFLOW_NOT_FOUND": {
+      "classification": "actionable",
+      "fallback": "start a new flow if no saved workflow exists",
+      "firstTry": "inspect the latest saved workflow",
+      "nextActions": [
+        {
+          "args": [
+            "latest"
+          ],
+          "cliCommand": "privacy-pools flow status latest --agent",
+          "command": "flow status",
+          "reason": "Inspect the most recent saved workflow.",
+          "when": "flow_resume"
+        }
+      ],
+      "symptom": "requested workflow id is not saved locally"
+    },
+    "INPUT_WORKFLOW_UNSUPPORTED_SCHEMA_VERSION": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "INPUT_WORKFLOW_UNSUPPORTED_SCHEMA_VERSION requires corrected input or operator review"
+    },
+    "LOCK_HELD": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 5,
+        "maxDelayMs": 5000,
+        "note": "Retry after the active privacy-pools process releases the lock.",
+        "strategy": "fixed-backoff"
+      },
+      "symptom": "LOCK_HELD is retryable"
+    },
+    "PROMPT_CANCELLED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "PROMPT_CANCELLED requires corrected input or operator review"
+    },
+    "PROMPT_REQUIRED_NOT_INTERACTIVE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "PROMPT_REQUIRED_NOT_INTERACTIVE requires corrected input or operator review"
+    },
+    "PROOF_ERROR": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "PROOF_ERROR requires corrected input or operator review"
+    },
+    "PROOF_GENERATION_FAILED": {
+      "classification": "actionable",
+      "fallback": "verify the recovery phrase and account state",
+      "firstTry": "sync local state and retry",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools sync --agent --chain sepolia",
+          "command": "sync",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Refresh local pool state and roots, then retry the original command.",
+          "when": "after_sync"
+        }
+      ],
+      "symptom": "proof generation failed with local inputs"
+    },
+    "PROOF_MALFORMED": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "PROOF_MALFORMED requires corrected input or operator review"
+    },
+    "PROOF_MERKLE_ERROR": {
+      "classification": "actionable",
+      "firstTry": "sync local state and retry",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools sync --agent --chain sepolia",
+          "command": "sync",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Refresh local pool state and roots, then retry the original command.",
+          "when": "after_sync"
+        }
+      ],
+      "symptom": "Pool Account was not found in local Merkle data"
+    },
+    "PROOF_VERIFICATION_FAILED": {
+      "classification": "actionable",
+      "fallback": "reinstall or upgrade to refresh circuit artifacts",
+      "firstTry": "sync local state and retry",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools sync --agent --chain sepolia",
+          "command": "sync",
+          "options": {
+            "chain": "sepolia"
+          },
+          "reason": "Refresh local pool state and roots, then retry the original command.",
+          "when": "after_sync"
+        }
+      ],
+      "symptom": "generated proof failed verification"
+    },
+    "RELAYER_BROADCAST_QUOTE_EXPIRED": {
+      "classification": "actionable",
+      "firstTry": "request a fresh quote and regenerate the envelope",
+      "nextActions": [
+        {
+          "args": [
+            "<amount>",
+            "<asset>"
+          ],
+          "command": "withdraw quote",
+          "options": {
+            "chain": "sepolia",
+            "to": "<addr>"
+          },
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            },
+            {
+              "name": "to",
+              "required": true,
+              "type": "address"
+            }
+          ],
+          "reason": "Request a fresh relayer quote before retrying the withdrawal.",
+          "runnable": false,
+          "when": "after_quote"
+        }
+      ],
+      "symptom": "relayed broadcast quote expired"
+    },
+    "RELAYER_BROADCAST_RELAYER_HOST_MISMATCH": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "RELAYER_BROADCAST_RELAYER_HOST_MISMATCH requires corrected input or operator review"
+    },
+    "RELAYER_BROADCAST_SUBMISSION_FAILED": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 3,
+        "maxDelayMs": 8000,
+        "strategy": "exponential-backoff"
+      },
+      "symptom": "RELAYER_BROADCAST_SUBMISSION_FAILED is retryable"
+    },
+    "RELAYER_CONFIRMATION_RETRY_LIMIT": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 3,
+        "maxDelayMs": 8000,
+        "strategy": "exponential-backoff"
+      },
+      "symptom": "RELAYER_CONFIRMATION_RETRY_LIMIT is retryable"
+    },
+    "RELAYER_ERROR": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "RELAYER_ERROR requires corrected input or operator review"
+    },
+    "RELAYER_FEE_EXCEEDS_MAX": {
+      "classification": "actionable",
+      "fallback": "wait for fees to normalize or choose another pool",
+      "firstTry": "request a fresh quote",
+      "nextActions": [
+        {
+          "args": [
+            "<amount>",
+            "<asset>"
+          ],
+          "command": "withdraw quote",
+          "options": {
+            "chain": "sepolia",
+            "to": "<addr>"
+          },
+          "parameters": [
+            {
+              "name": "amount",
+              "required": true,
+              "type": "token_amount"
+            },
+            {
+              "name": "asset",
+              "required": true,
+              "type": "asset"
+            },
+            {
+              "name": "to",
+              "required": true,
+              "type": "address"
+            }
+          ],
+          "reason": "Request a fresh relayer quote before retrying the withdrawal.",
+          "runnable": false,
+          "when": "after_quote"
+        }
+      ],
+      "symptom": "quoted relayer fee exceeds the allowed maximum"
+    },
+    "RPC_BROADCAST_CONFIRMATION_TIMEOUT": {
+      "classification": "actionable",
+      "fallback": "inspect the submitted tx hash before retrying",
+      "firstTry": "poll tx-status with the returned submission id",
+      "nextActions": [
+        {
+          "args": [
+            "<submissionId>"
+          ],
+          "command": "tx-status",
+          "parameters": [
+            {
+              "name": "submissionId",
+              "required": true,
+              "type": "uuid"
+            }
+          ],
+          "reason": "Poll the accepted submission instead of rebroadcasting.",
+          "runnable": false,
+          "when": "after_submit"
+        }
+      ],
+      "symptom": "broadcast accepted a transaction but confirmation timed out"
+    },
+    "RPC_BROADCAST_SUBMISSION_FAILED": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 3,
+        "maxDelayMs": 8000,
+        "strategy": "exponential-backoff"
+      },
+      "symptom": "RPC_BROADCAST_SUBMISSION_FAILED is retryable"
+    },
+    "RPC_ERROR": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "RPC_ERROR requires corrected input or operator review"
+    },
+    "RPC_NETWORK_ERROR": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 3,
+        "maxDelayMs": 8000,
+        "strategy": "exponential-backoff"
+      },
+      "symptom": "RPC_NETWORK_ERROR is retryable"
+    },
+    "RPC_POOL_RESOLUTION_FAILED": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 3,
+        "maxDelayMs": 8000,
+        "strategy": "exponential-backoff"
+      },
+      "symptom": "RPC_POOL_RESOLUTION_FAILED is retryable"
+    },
+    "RPC_RATE_LIMITED": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 3,
+        "maxDelayMs": 8000,
+        "strategy": "exponential-backoff"
+      },
+      "symptom": "RPC_RATE_LIMITED is retryable"
+    },
+    "SETUP_INVALID_RECOVERY_PHRASE": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "SETUP_INVALID_RECOVERY_PHRASE requires corrected input or operator review"
+    },
+    "SETUP_INVALID_SIGNER_KEY": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "SETUP_INVALID_SIGNER_KEY requires corrected input or operator review"
+    },
+    "SETUP_RECOVERY_PHRASE_MISSING": {
+      "classification": "actionable",
+      "firstTry": "run init",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools init --agent",
+          "command": "init",
+          "reason": "Complete CLI setup before retrying wallet-dependent commands.",
+          "when": "status_not_ready"
+        }
+      ],
+      "symptom": "no recovery phrase is configured"
+    },
+    "SETUP_REQUIRED": {
+      "classification": "actionable",
+      "firstTry": "run init",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools init --agent",
+          "command": "init",
+          "reason": "Complete CLI setup before retrying wallet-dependent commands.",
+          "when": "status_not_ready"
+        }
+      ],
+      "symptom": "CLI wallet setup is incomplete"
+    },
+    "SETUP_SIGNER_KEY_MISSING": {
+      "classification": "actionable",
+      "firstTry": "run init --signer-only or set PRIVACY_POOLS_PRIVATE_KEY",
+      "nextActions": [
+        {
+          "cliCommand": "privacy-pools init --agent --signer-only",
+          "command": "init",
+          "options": {
+            "signerOnly": true
+          },
+          "reason": "Finish signer setup before retrying commands that submit transactions.",
+          "when": "status_not_ready"
+        }
+      ],
+      "symptom": "no signer key is configured"
+    },
+    "UNKNOWN_ERROR": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "UNKNOWN_ERROR requires corrected input or operator review"
+    },
+    "UPGRADE_CHECK_FAILED": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 3,
+        "maxDelayMs": 8000,
+        "strategy": "exponential-backoff"
+      },
+      "symptom": "UPGRADE_CHECK_FAILED is retryable"
+    },
+    "UPGRADE_INSTALL_FAILED": {
+      "classification": "retry-only",
+      "firstTry": "retry with backoff",
+      "retry": {
+        "initialDelayMs": 1000,
+        "maxAttempts": 3,
+        "maxDelayMs": 8000,
+        "strategy": "exponential-backoff"
+      },
+      "symptom": "UPGRADE_INSTALL_FAILED is retryable"
+    },
+    "UPGRADE_UNSUPPORTED_CONTEXT": {
+      "classification": "terminal-input",
+      "firstTry": "fix the request using error.message, error.hint, and error.details, then rerun the command",
+      "symptom": "UPGRADE_UNSUPPORTED_CONTEXT requires corrected input or operator review"
+    }
+  },
+  "relayerHost": "http://127.0.0.1:<PORT>",
+  "relayerLive": true,
+  "rpcBlockNumber": "<BLOCK>",
+  "rpcIsCustom": true,
+  "rpcLive": true,
+  "rpcUrl": "http://127.0.0.1:<PORT>",
+  "runtime": "<RUNTIME>",
+  "schemaVersion": "2.0.0",
+  "selectedChain": "sepolia",
+  "signerAddress": null,
+  "signerKeySet": false,
+  "signerKeyValid": false,
+  "success": true
+}

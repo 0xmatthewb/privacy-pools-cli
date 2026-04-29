@@ -365,6 +365,15 @@ function route(req: IncomingMessage, res: ServerResponse): void {
 
   let body: unknown;
 
+  if (
+    req.method === "GET" &&
+    (path === "/health/liveness" || path === "/relayer/health/liveness")
+  ) {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(LIVENESS));
+    return;
+  }
+
   if (req.method === "GET" && path === "/relayer/details") {
     const chainId = url.searchParams.get("chainId");
     const assetAddress = url.searchParams.get("assetAddress");

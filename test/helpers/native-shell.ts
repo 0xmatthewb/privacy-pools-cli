@@ -311,6 +311,15 @@ export function fixtureEnv(fixture: { url: string }): Record<string, string> {
   };
 }
 
+export function fixtureWithRelayerEnv(
+  fixture: { url: string },
+): Record<string, string> {
+  return {
+    ...fixtureEnv(fixture),
+    PRIVACY_POOLS_RELAYER_HOST_SEPOLIA: fixture.url,
+  };
+}
+
 export function emptyPoolsFixtureEnv(
   fixture: { url: string },
 ): Record<string, string> {

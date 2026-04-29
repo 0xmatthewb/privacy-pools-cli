@@ -14,6 +14,7 @@ const NO_COLOR_WARNING_PATTERN =
 const HASH_PATTERN = /0x[a-fA-F0-9]{64}\b/g;
 const ADDR_PATTERN = /0x[a-fA-F0-9]{40}\b/g;
 const TS_PATTERN = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b/g;
+const LOCALHOST_PORT_PATTERN = /\bhttp:\/\/(?:127\.0\.0\.1|localhost):\d+\b/g;
 const BLOCK_LABEL_PATTERN = /\b(Block(?: number)?\s*:\s*)\d+\b/g;
 
 const BLOCK_KEYS = new Set([
@@ -139,6 +140,13 @@ function normalizeJsonValue(
 
     let normalized = value;
     normalized = withNormalized(normalized, TS_PATTERN, "<TS>", "TS", applied);
+    normalized = withNormalized(
+      normalized,
+      LOCALHOST_PORT_PATTERN,
+      "http://127.0.0.1:<PORT>",
+      "PORT",
+      applied,
+    );
     normalized = withNormalized(normalized, HASH_PATTERN, "<HASH>", "HASH", applied);
     normalized = withNormalized(normalized, ADDR_PATTERN, "<ADDR>", "ADDR", applied);
     return normalized;
@@ -158,6 +166,13 @@ function normalizeText(value: string): NormalizedGolden {
     .replace(/\n{3,}/g, "\n\n");
 
   normalized = withNormalized(normalized, TS_PATTERN, "<TS>", "TS", applied);
+  normalized = withNormalized(
+    normalized,
+    LOCALHOST_PORT_PATTERN,
+    "http://127.0.0.1:<PORT>",
+    "PORT",
+    applied,
+  );
   normalized = withNormalized(normalized, HASH_PATTERN, "<HASH>", "HASH", applied);
   normalized = withNormalized(normalized, ADDR_PATTERN, "<ADDR>", "ADDR", applied);
   normalized = normalized.replace(BLOCK_LABEL_PATTERN, "$1<BLOCK>");
