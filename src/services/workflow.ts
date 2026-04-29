@@ -4667,6 +4667,18 @@ export async function startWorkflow(
         "INPUT",
         `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText} Pass --allow-non-round-amounts if you intentionally accept the privacy trade-off.`,
         "INPUT_NONROUND_AMOUNT",
+        false,
+        undefined,
+        {
+          command: "flow start",
+          amountInput,
+          asset: pool.symbol,
+          chain: chainConfig.name,
+          recipient,
+          suggestedRoundAmount: suggestions[0]
+            ? formatAmountDecimal(suggestions[0], pool.decimals)
+            : undefined,
+        },
       );
     }
 

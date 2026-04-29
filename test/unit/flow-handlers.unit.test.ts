@@ -911,7 +911,7 @@ describe("flow command handlers", () => {
     );
   });
 
-  test("start dry-run rejects non-round amounts in machine mode and warns humans when privacy delay is off", async () => {
+  test("start dry-run warns on non-round amounts and warns humans when privacy delay is off", async () => {
     const agentCmd = fakeCommand({ agent: true, chain: "sepolia" });
 
     await handleFlowStartCommand(
@@ -926,13 +926,22 @@ describe("flow command handlers", () => {
       agentCmd,
     );
 
-    expect(printErrorMock).toHaveBeenCalledTimes(1);
-    const [agentError] = printErrorMock.mock.calls[0] ?? [];
-    expect((agentError as InstanceType<typeof realErrors.CLIError>).code).toBe(
-      "INPUT_NONROUND_AMOUNT",
+    expect(printErrorMock).not.toHaveBeenCalled();
+    expect(renderFlowStartDryRunMock).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({
+        warnings: expect.arrayContaining([
+          expect.objectContaining({
+            code: "PRIVACY_NONROUND_AMOUNT",
+            suggestedRoundAmount: "0.12",
+            escape: "--allow-non-round-amounts",
+          }),
+        ]),
+      }),
     );
 
     clearMockCalls(printErrorMock);
+    clearMockCalls(renderFlowStartDryRunMock);
     await handleFlowStartCommand(
       "0.123456789123456789",
       "ETH",
@@ -950,6 +959,7 @@ describe("flow command handlers", () => {
       ctx,
       expect.objectContaining({
         warnings: expect.arrayContaining([
+          expect.objectContaining({ code: "PRIVACY_NONROUND_AMOUNT" }),
           expect.objectContaining({ code: "amount_pattern_linkability" }),
           expect.objectContaining({ code: "timing_delay_disabled" }),
         ]),

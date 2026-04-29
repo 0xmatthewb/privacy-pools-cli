@@ -39,7 +39,12 @@ import {
   validateWorkflowWalletBackupPath,
 } from "../services/workflow.js";
 import type { GlobalOptions } from "../types.js";
-import { formatAmountDecimal, isRoundAmount, suggestRoundAmounts } from "../utils/amount-privacy.js";
+import {
+  buildPrivacyNonRoundAmountWarning,
+  formatAmountDecimal,
+  isRoundAmount,
+  suggestRoundAmounts,
+} from "../utils/amount-privacy.js";
 import { isNativePoolAsset, POA_PORTAL_URL } from "../config/chains.js";
 import { CLIError, printError, promptCancelledError } from "../utils/errors.js";
 import {
@@ -584,19 +589,13 @@ async function renderFlowStartDryRunForInputs(params: {
       `Non-round amount ${humanAmount} ${pool.symbol} may reduce privacy. ` +
       `That pattern can make later withdrawals more identifiable even though the protocol breaks the direct onchain link.${suggestionText}`;
     dryRunAmountPatternWarning = message;
-    if (params.mode.skipPrompts && !params.opts.allowNonRoundAmounts) {
-      throw new CLIError(
-        message,
-        "INPUT",
-        suggestionText.trim() || "Use a round amount, or pass --allow-non-round-amounts if you intentionally accept the privacy trade-off.",
-        "INPUT_NONROUND_AMOUNT",
-      );
-    }
-    warnings.push({
-      code: "amount_pattern_linkability",
-      category: "privacy",
-      message,
+    const warning = buildPrivacyNonRoundAmountWarning({
+      amount,
+      decimals: pool.decimals,
+      symbol: pool.symbol,
+      escape: true,
     });
+    if (warning) warnings.push(warning);
   }
 
   const privacyDelayProfile = resolveFlowPrivacyDelayProfile(

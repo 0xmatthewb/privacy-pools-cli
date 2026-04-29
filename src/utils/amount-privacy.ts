@@ -170,6 +170,40 @@ export function formatAmountDecimal(amount: bigint, decimals: number): string {
   return `${whole}.${fracStr}`;
 }
 
+export interface PrivacyNonRoundAmountWarning {
+  code: "PRIVACY_NONROUND_AMOUNT";
+  category: "privacy";
+  message: string;
+  suggestedRoundAmount?: string;
+  escape?: "--allow-non-round-amounts";
+}
+
+export function buildPrivacyNonRoundAmountWarning(params: {
+  amount: bigint;
+  decimals: number;
+  symbol: string;
+  escape?: boolean;
+}): PrivacyNonRoundAmountWarning | null {
+  if (isRoundAmount(params.amount, params.decimals, params.symbol)) {
+    return null;
+  }
+  const humanAmount = formatAmountDecimal(params.amount, params.decimals);
+  const [suggestion] = suggestRoundAmounts(
+    params.amount,
+    params.decimals,
+    params.symbol,
+  );
+  return {
+    code: "PRIVACY_NONROUND_AMOUNT",
+    category: "privacy",
+    message: `Amount ${humanAmount} ${params.symbol} may fingerprint this transaction`,
+    ...(suggestion !== undefined
+      ? { suggestedRoundAmount: formatAmountDecimal(suggestion, params.decimals) }
+      : {}),
+    ...(params.escape ? { escape: "--allow-non-round-amounts" as const } : {}),
+  };
+}
+
 interface WithdrawalPrivacyTipInput {
   amount: bigint;
   balance: bigint;

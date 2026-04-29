@@ -12,6 +12,7 @@ import type {
   RelayerQuoteResponse,
 } from "../../types.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "../../utils/approval-timing.js";
+import { buildPrivacyNonRoundAmountWarning } from "../../utils/amount-privacy.js";
 import { CLIError } from "../../utils/errors.js";
 import {
   formatAmount,
@@ -73,27 +74,34 @@ export function getSuspiciousTestnetMinWithdrawFloor(decimals: number): bigint {
 export function buildWithdrawQuoteWarnings(params: {
   chainIsTestnet: boolean;
   assetSymbol: string;
+  amount?: bigint;
   minWithdrawAmount: bigint;
   decimals: number;
 }): WithdrawUiWarning[] {
-  if (!params.chainIsTestnet) {
-    return [];
+  const warnings: WithdrawUiWarning[] = [];
+  const privacyWarning = params.amount === undefined
+    ? null
+    : buildPrivacyNonRoundAmountWarning({
+      amount: params.amount,
+      decimals: params.decimals,
+      symbol: params.assetSymbol,
+    });
+  if (privacyWarning) {
+    warnings.push(privacyWarning);
   }
 
   const friendlyFloor = getSuspiciousTestnetMinWithdrawFloor(params.decimals);
-  if (params.minWithdrawAmount >= friendlyFloor) {
-    return [];
-  }
-
-  return [
-    {
+  if (params.chainIsTestnet && params.minWithdrawAmount < friendlyFloor) {
+    warnings.push({
       code: "TESTNET_MIN_WITHDRAW_AMOUNT_UNUSUALLY_LOW",
       category: "testnet",
       message:
         `This is a testnet quote. The relayer minimum is below ${formatAmount(friendlyFloor, params.decimals, params.assetSymbol)}, ` +
         "so treat it as a testnet convenience rather than a production-like floor.",
-    },
-  ];
+    });
+  }
+
+  return warnings;
 }
 
 export function buildDirectRecipientMismatchNextActions(params: {
@@ -394,6 +402,7 @@ export function validateRelayerQuoteForWithdrawal(
       `Quoted relay fee (${formatBPS(quote.feeBPS)}) exceeds onchain maximum (${formatBPS(maxFeeBPS.toString())}).`,
       "RELAYER",
       "Try again later when fees are lower. If privacy is not a concern, --direct withdraws without a relayer but publicly links your deposit and withdrawal addresses.",
+      "RELAYER_FEE_EXCEEDS_MAX",
     );
   }
 

@@ -227,6 +227,25 @@ describe("withdraw command helper coverage", () => {
     ]);
   });
 
+  test("builds withdraw quote privacy warnings for non-round amounts", () => {
+    expect(
+      buildWithdrawQuoteWarnings({
+        chainIsTestnet: false,
+        assetSymbol: "ETH",
+        amount: 123456789123456789n,
+        minWithdrawAmount: 1_000_000_000_000n,
+        decimals: 18,
+      }),
+    ).toEqual([
+      {
+        code: "PRIVACY_NONROUND_AMOUNT",
+        category: "privacy",
+        message: "Amount 0.123456789123456789 ETH may fingerprint this transaction",
+        suggestedRoundAmount: "0.12",
+      },
+    ]);
+  });
+
   test("builds direct-recipient mismatch next actions for explicit and templated assets", () => {
     expect(
       buildDirectRecipientMismatchNextActions({

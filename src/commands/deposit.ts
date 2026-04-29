@@ -37,6 +37,7 @@ import { normalizeDryRunMode, type DryRunMode } from "../utils/dry-run-mode.js";
 import type { GlobalOptions } from "../types.js";
 import { resolveAmountAndAssetInput } from "../utils/positional.js";
 import {
+  buildPrivacyNonRoundAmountWarning,
   isRoundAmount,
   suggestRoundAmounts,
   formatAmountDecimal,
@@ -355,6 +356,23 @@ export async function handleDepositCommand(
     });
     validatePositive(amount, "Deposit amount");
     verbose(`Deposit amount (raw): ${amount.toString()}`, isVerbose, silent);
+    const depositWarnings = [
+      ...(buildPrivacyNonRoundAmountWarning({
+        amount,
+        decimals: pool.decimals,
+        symbol: pool.symbol,
+        escape: true,
+      })
+        ? [
+            buildPrivacyNonRoundAmountWarning({
+              amount,
+              decimals: pool.decimals,
+              symbol: pool.symbol,
+              escape: true,
+            })!,
+          ]
+        : []),
+    ];
 
     if (amount < pool.minimumDepositAmount) {
       throw new CLIError(
@@ -367,6 +385,7 @@ export async function handleDepositCommand(
 
     // Privacy guard: non-round amounts can fingerprint deposits
     if (
+      !isDryRun &&
       !opts.allowNonRoundAmounts &&
       !opts.ignoreUniqueAmount &&
       !isRoundAmount(amount, pool.decimals, pool.symbol)
@@ -395,6 +414,17 @@ export async function handleDepositCommand(
           "INPUT",
           `${message} Round committed balances are harder to fingerprint. Pass --allow-non-round-amounts to proceed anyway.`,
           "INPUT_NONROUND_AMOUNT",
+          false,
+          undefined,
+          {
+            command: "deposit",
+            amountInput: amountStr,
+            asset: pool.symbol,
+            chain: chainConfig.name,
+            suggestedRoundAmount: suggestions[0]
+              ? formatAmountDecimal(suggestions[0], pool.decimals)
+              : undefined,
+          },
         );
       } else {
         // Interactive mode: warning + confirmation
@@ -651,6 +681,7 @@ export async function handleDepositCommand(
           balanceSufficient,
           dryRunMode,
           deprecationWarning: ignoreUniqueAmountDeprecationWarning,
+          warnings: depositWarnings,
         });
         return;
       }

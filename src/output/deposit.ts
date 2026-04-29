@@ -181,6 +181,13 @@ export interface DepositDryRunData {
   balanceSufficient: boolean | "unknown";
   dryRunMode?: DryRunMode | null;
   deprecationWarning?: DeprecationWarningPayload;
+  warnings?: Array<{
+    code: string;
+    category: string;
+    message: string;
+    suggestedRoundAmount?: string;
+    escape?: string;
+  }>;
 }
 
 export interface DepositSuccessData {
@@ -270,6 +277,7 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
             category: "preview",
             message: "Dry-run validation is approximate until the transaction is signed and submitted.",
           },
+          ...(data.warnings ?? []),
         ],
       }, agentNextActions),
       false,

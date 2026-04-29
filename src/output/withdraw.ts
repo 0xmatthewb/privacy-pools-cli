@@ -51,6 +51,8 @@ export interface WithdrawUiWarning {
   code: string;
   category: string;
   message: string;
+  suggestedRoundAmount?: string;
+  escape?: string;
 }
 
 export interface RelayedWithdrawalRemainderGuidance {

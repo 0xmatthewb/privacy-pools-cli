@@ -576,6 +576,29 @@ describe("deposit command handler", () => {
     expect(json.balanceSufficient).toBe("unknown");
   });
 
+  test("dry-run surfaces typed privacy warnings for non-round amounts", async () => {
+    useIsolatedHome();
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleDepositCommand(
+        "0.123456789123",
+        "ETH",
+        { dryRun: true },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.warnings).toContainEqual(
+      expect.objectContaining({
+        code: "PRIVACY_NONROUND_AMOUNT",
+        category: "privacy",
+        suggestedRoundAmount: "0.12",
+        escape: "--allow-non-round-amounts",
+      }),
+    );
+  });
+
   test("dry-run reports a positive balance check when a signer key is available", async () => {
     useIsolatedHome({ withSigner: true });
 

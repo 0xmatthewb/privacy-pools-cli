@@ -87,7 +87,9 @@ import {
   resolveAmountAndAssetInput,
   isPercentageAmount,
 } from "../utils/positional.js";
-import { writeWithdrawalPrivacyTip } from "../utils/amount-privacy.js";
+import {
+  writeWithdrawalPrivacyTip,
+} from "../utils/amount-privacy.js";
 import {
   printRawTransactions,
   stringifyBigInts,
@@ -235,6 +237,7 @@ export function getSuspiciousTestnetMinWithdrawFloor(decimals: number): bigint {
 export function buildWithdrawQuoteWarnings(params: {
   chainIsTestnet: boolean;
   assetSymbol: string;
+  amount?: bigint;
   minWithdrawAmount: bigint;
   decimals: number;
 }): WithdrawUiWarning[] {
@@ -1633,6 +1636,11 @@ export async function handleWithdrawCommand(
             assetSymbol: pool.symbol,
             status: singularStatus,
           }),
+          {
+            chain: chainConfig.name,
+            asset: pool.symbol,
+            aspStatus: singularStatus,
+          },
         );
       }
 
@@ -1706,6 +1714,18 @@ export async function handleWithdrawCommand(
                   ? requested.status
                   : undefined,
             }),
+            {
+              chain: chainConfig.name,
+              asset: pool.symbol,
+              poolAccountId: requested.paId,
+              aspStatus:
+                requested.status === "pending" ||
+                requested.status === "poa_required" ||
+                requested.status === "declined" ||
+                requested.status === "unknown"
+                  ? requested.status
+                  : undefined,
+            },
           );
         }
 
@@ -3567,6 +3587,7 @@ export async function handleWithdrawQuoteCommand(
     const warnings = buildWithdrawQuoteWarnings({
       chainIsTestnet: chainConfig.isTestnet,
       assetSymbol: pool.symbol,
+      amount,
       minWithdrawAmount: BigInt(details.minWithdrawAmount),
       decimals: pool.decimals,
     });
