@@ -9,6 +9,31 @@ import {
 } from "../../src/services/flow-phase-graph.ts";
 import { FLOW_PHASE_VALUES, type FlowPhase } from "../../src/types.ts";
 
+function edgeKey(from: FlowPhase, to: FlowPhase): string {
+  return `${from}->${to}`;
+}
+
+function collectWorkflowPhaseAssignmentInventory(
+  source: string,
+): Record<string, number> {
+  const inventory: Record<string, number> = {};
+  let currentFunction = "module";
+  for (const line of source.split("\n")) {
+    const functionMatch = line.match(
+      /^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/,
+    );
+    if (functionMatch?.[1]) {
+      currentFunction = functionMatch[1];
+    }
+
+    const phaseMatch = line.match(/phase: "([a-z_]+)"/);
+    if (!phaseMatch?.[1]) continue;
+    const key = `${currentFunction}:${phaseMatch[1]}`;
+    inventory[key] = (inventory[key] ?? 0) + 1;
+  }
+  return inventory;
+}
+
 describe("flow phase graph", () => {
   test("uses the canonical phase list and explicit terminal/paused sets", () => {
     expect(FLOW_PHASE_GRAPH.nodes).toEqual([...FLOW_PHASE_VALUES]);
@@ -92,22 +117,70 @@ describe("flow phase graph", () => {
     );
   });
 
-  test("keeps workflow transition targets represented in service mutations", () => {
+  test("keeps workflow-emitted phase transitions represented in the graph", () => {
     const workflowSource = readFileSync(
       new URL("../../src/services/workflow.ts", import.meta.url),
       "utf8",
     );
-    const operationalEdges = FLOW_PHASE_GRAPH.edges.filter(
-      (edge) =>
-        edge.trigger !== FLOW_EXTERNAL_MUTATION_TRIGGER &&
-        edge.trigger !== "operator runs flow ragequit",
-    );
+    expect(collectWorkflowPhaseAssignmentInventory(workflowSource)).toEqual({
+      "applyFlowPrivacyDelayPolicy:approved_ready_to_withdraw": 1,
+      "applyFlowPrivacyDelayPolicy:approved_waiting_privacy_delay": 1,
+      "scheduleApprovedWorkflowPrivacyDelay:approved_ready_to_withdraw": 1,
+      "scheduleApprovedWorkflowPrivacyDelay:approved_waiting_privacy_delay": 1,
+      "attachDepositResultToSnapshot:awaiting_asp": 1,
+      "attachPendingDepositToSnapshot:depositing_publicly": 1,
+      "attachPendingWithdrawalToSnapshot:withdrawing": 1,
+      "attachWithdrawalResultToSnapshot:completed": 1,
+      "attachRagequitResultToSnapshot:completed_public_recovery": 1,
+      "inspectFundingAndDeposit:awaiting_funding": 2,
+      "inspectFundingAndDeposit:depositing_publicly": 2,
+      "continueApprovedWorkflowWithdrawal:withdrawing": 1,
+      "inspectAndAdvanceFlow:approved_waiting_privacy_delay": 2,
+      "inspectAndAdvanceFlow:paused_declined": 1,
+      "inspectAndAdvanceFlow:paused_poa_required": 1,
+      "inspectAndAdvanceFlow:awaiting_asp": 1,
+      "inspectAndAdvanceFlow:approved_ready_to_withdraw": 1,
+      "setupNewWalletWorkflow:awaiting_funding": 1,
+      "startWorkflow:depositing_publicly": 2,
+    });
 
-    expect(operationalEdges.length).toBe(10);
-    for (const edge of operationalEdges) {
-      expect(workflowSource, `${edge.from} -> ${edge.to}`).toContain(
-        `phase: "${edge.to}"`,
-      );
+    const graphEdges = new Map(
+      FLOW_PHASE_GRAPH.edges.map((edge) => [edgeKey(edge.from, edge.to), edge]),
+    );
+    const workflowTransitions: Array<{ from: FlowPhase; to: FlowPhase }> = [
+      { from: "awaiting_funding", to: "depositing_publicly" },
+      { from: "depositing_publicly", to: "awaiting_funding" },
+      { from: "depositing_publicly", to: "awaiting_asp" },
+      { from: "awaiting_asp", to: "approved_waiting_privacy_delay" },
+      { from: "awaiting_asp", to: "approved_ready_to_withdraw" },
+      { from: "awaiting_asp", to: "paused_declined" },
+      { from: "awaiting_asp", to: "paused_poa_required" },
+      { from: "paused_poa_required", to: "awaiting_asp" },
+      {
+        from: "approved_waiting_privacy_delay",
+        to: "approved_ready_to_withdraw",
+      },
+      {
+        from: "approved_ready_to_withdraw",
+        to: "approved_waiting_privacy_delay",
+      },
+      { from: "approved_ready_to_withdraw", to: "withdrawing" },
+      { from: "withdrawing", to: "completed" },
+    ];
+
+    for (const transition of workflowTransitions) {
+      expect(
+        graphEdges.has(edgeKey(transition.from, transition.to)),
+        `${transition.from} -> ${transition.to}`,
+      ).toBe(true);
+    }
+
+    for (const phase of FLOW_PHASE_VALUES) {
+      if (isTerminalFlowPhase(phase)) continue;
+      expect(
+        graphEdges.has(edgeKey(phase, "completed_public_recovery")),
+        `${phase} -> completed_public_recovery`,
+      ).toBe(true);
     }
   });
 });

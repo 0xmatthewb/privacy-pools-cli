@@ -868,12 +868,14 @@ awaiting_funding
     -> awaiting_asp
       -> approved_waiting_privacy_delay
         -> approved_ready_to_withdraw
+          -> approved_waiting_privacy_delay (see above)
           -> withdrawing
             -> completed
       -> approved_ready_to_withdraw (see above)
       -> paused_declined
       -> paused_poa_required
         -> awaiting_asp (see above)
+    -> awaiting_funding (see above)
 
 any non-terminal phase
   -> completed_public_recovery   (flow ragequit)
@@ -891,11 +893,13 @@ any non-terminal phase
 | --- | --- | --- |
 | `awaiting_funding` | `depositing_publicly` | flow step observes dedicated workflow wallet funding |
 | `depositing_publicly` | `awaiting_asp` | public deposit confirms onchain |
+| `depositing_publicly` | `awaiting_funding` | clean public deposit submission failure clears pending deposit state |
 | `awaiting_asp` | `approved_waiting_privacy_delay` | ASP status is approved and a privacy delay is active |
 | `awaiting_asp` | `approved_ready_to_withdraw` | ASP status is approved and privacy delay is complete or off |
 | `awaiting_asp` | `paused_declined` | ASP status is declined |
 | `awaiting_asp` | `paused_poa_required` | ASP status is poa_required |
 | `approved_waiting_privacy_delay` | `approved_ready_to_withdraw` | privacy delay expires |
+| `approved_ready_to_withdraw` | `approved_waiting_privacy_delay` | operator reschedules an active privacy delay |
 | `paused_poa_required` | `awaiting_asp` | operator completes PoA externally and the next status refresh observes review progress |
 | `approved_ready_to_withdraw` | `withdrawing` | relayed withdrawal is submitted |
 | `withdrawing` | `completed` | relayed private withdrawal confirms |

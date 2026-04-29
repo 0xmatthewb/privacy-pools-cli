@@ -2733,6 +2733,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
             "trigger": "public deposit confirms onchain"
           },
           {
+            "from": "depositing_publicly",
+            "to": "awaiting_funding",
+            "trigger": "clean public deposit submission failure clears pending deposit state"
+          },
+          {
             "from": "awaiting_asp",
             "to": "approved_waiting_privacy_delay",
             "trigger": "ASP status is approved and a privacy delay is active"
@@ -2756,6 +2761,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
             "from": "approved_waiting_privacy_delay",
             "to": "approved_ready_to_withdraw",
             "trigger": "privacy delay expires"
+          },
+          {
+            "from": "approved_ready_to_withdraw",
+            "to": "approved_waiting_privacy_delay",
+            "trigger": "operator reschedules an active privacy delay"
           },
           {
             "from": "paused_poa_required",
