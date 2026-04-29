@@ -41,6 +41,7 @@ export const NATIVE_COVERAGE_FAMILIES = [
       "native/shell/src/error.rs",
       "native/shell/src/http_client.rs",
       "native/shell/src/json.rs",
+      "native/shell/src/known_addresses.rs",
       "native/shell/src/output.rs",
       "native/shell/src/read_only_api.rs",
     ],

@@ -20,6 +20,7 @@ describe("native coverage policy", () => {
       "native/shell/src/error.rs",
       "native/shell/src/http_client.rs",
       "native/shell/src/json.rs",
+      "native/shell/src/known_addresses.rs",
       "native/shell/src/output.rs",
       "native/shell/src/read_only_api.rs",
       "native/shell/src/commands/activity/mod.rs",
@@ -36,6 +37,9 @@ describe("native coverage policy", () => {
     expect(ownership.multiplyMatched).toEqual([]);
     expect(ownership.matched.get("native/shell/src/root_argv.rs")).toBe(
       "native-root-argv",
+    );
+    expect(ownership.matched.get("native/shell/src/known_addresses.rs")).toBe(
+      "native-core-utils",
     );
     expect(ownership.matched.get("native/shell/src/commands/activity/mod.rs")).toBe(
       "native-activity",

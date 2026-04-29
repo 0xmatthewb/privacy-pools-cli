@@ -330,9 +330,7 @@ async function buildNativeShellManifest() {
   const helpTextByPath = Object.fromEntries(
     documentedCommandPaths.map((path) => [
       path,
-      captureBuiltCli([...path.split(" "), "--help"], {
-        CODEX_AGENT: "1",
-      }).stdout,
+      captureBuiltCli([...path.split(" "), "--help"]).stdout,
     ]),
   );
 

@@ -140,9 +140,8 @@ fn native_mode_resolution_consumes_shared_fixture() {
 
         if case.expected.streams.stdout == StreamKind::Envelope {
             let payload = parse_stdout_json(&output);
-            assert_eq!(
+            assert!(
                 payload["success"].is_boolean(),
-                true,
                 "{} stdout envelope should contain success",
                 case.name
             );

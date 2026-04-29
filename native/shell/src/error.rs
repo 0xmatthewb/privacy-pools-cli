@@ -116,6 +116,7 @@ pub struct CliError {
     pub message: ErrorText,
     pub hint: Option<Box<str>>,
     pub retryable: bool,
+    pub details: Option<Box<Value>>,
     pub next_actions: Option<Box<[Value]>>,
     pub docs_slug: Option<Box<str>>,
     pub help_topic: Option<Box<str>>,
@@ -136,6 +137,7 @@ impl CliError {
             message: ErrorText::from(message.into()),
             hint: hint.map(String::into_boxed_str),
             retryable,
+            details: None,
             next_actions: None,
             docs_slug: None,
             help_topic: None,
@@ -192,6 +194,11 @@ impl CliError {
 
     pub fn with_docs_slug(mut self, docs_slug: impl Into<String>) -> Self {
         self.docs_slug = Some(docs_slug.into().into_boxed_str());
+        self
+    }
+
+    pub fn with_details(mut self, details: Value) -> Self {
+        self.details = Some(Box::new(details));
         self
     }
 

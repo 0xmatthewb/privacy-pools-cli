@@ -413,6 +413,18 @@ pub(crate) fn is_command_global_inline_value_option(token: &str) -> bool {
     is_root_long_inline_value_option(token)
 }
 
+pub(crate) fn available_global_long_options() -> Vec<String> {
+    let mut options = root_flag_contract()
+        .value_options
+        .iter()
+        .chain(root_flag_contract().boolean_options.iter())
+        .filter(|option| option.starts_with("--"))
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    options.insert("--version".to_string());
+    options.into_iter().collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

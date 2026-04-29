@@ -249,12 +249,14 @@ describe("native package smoke", () => {
 
   nativePackageSmokeTest("packaged launcher keeps bare welcome output on stderr and only prints the banner once per session", () => {
     const termSessionId = `pp-native-package-welcome-${Date.now()}`;
+    const home = createTempHome("pp-native-package-welcome-home-");
     const env = {
       TERM_SESSION_ID: termSessionId,
     };
 
     const firstResult = runBuiltCli([], {
       cwd: snapshotRoot,
+      home,
       env,
     });
 
@@ -275,6 +277,7 @@ describe("native package smoke", () => {
 
     const secondResult = runBuiltCli([], {
       cwd: snapshotRoot,
+      home,
       env,
     });
 

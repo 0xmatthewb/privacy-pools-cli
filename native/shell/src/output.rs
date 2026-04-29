@@ -357,6 +357,9 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
         if let Some(hint) = &error.hint {
             error_payload.insert("hint".to_string(), Value::String(hint.to_string()));
         }
+        if let Some(details) = &error.details {
+            error_payload.insert("details".to_string(), details.as_ref().clone());
+        }
         if let Some(help_topic) = &error.help_topic {
             error_payload.insert(
                 "helpTopic".to_string(),

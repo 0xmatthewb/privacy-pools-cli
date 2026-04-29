@@ -70,7 +70,10 @@ pub fn handle_stats_native(
 ) -> Result<i32, CliError> {
     {
         if has_short_flag(argv, 't') {
-            return Err(crate::dispatch::commander_unknown_option_error("-t"));
+            return Err(crate::dispatch::commander_unknown_option_error(
+                "-t",
+                &["--limit"],
+            ));
         }
 
         let mode = resolve_mode(parsed);

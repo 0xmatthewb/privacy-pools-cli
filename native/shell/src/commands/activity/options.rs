@@ -58,7 +58,10 @@ pub(super) fn parse_activity_options(argv: &[String]) -> Result<ActivityCommandO
             continue;
         }
         if token.starts_with('-') {
-            return Err(commander_unknown_option_error(token));
+            return Err(commander_unknown_option_error(
+                token,
+                &["--include-testnets", "--limit", "--page"],
+            ));
         }
         if asset.is_none() {
             asset = Some(token.to_string());

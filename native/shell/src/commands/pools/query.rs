@@ -654,7 +654,10 @@ fn parse_pools_options(argv: &[String]) -> Result<PoolsCommandOptions, CliError>
             continue;
         }
         if token.starts_with('-') {
-            return Err(commander_unknown_option_error(token));
+            return Err(commander_unknown_option_error(
+                token,
+                &["--include-testnets", "--limit", "--search", "--sort"],
+            ));
         }
         unexpected_args += 1;
         index += 1;

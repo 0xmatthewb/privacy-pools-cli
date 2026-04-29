@@ -216,7 +216,31 @@ pub fn handle_completion(
     Ok(0)
 }
 
-pub fn commander_unknown_option_error(token: &str) -> CliError {
+pub fn commander_unknown_option_error(token: &str, command_options: &[&str]) -> CliError {
+    let available_options = available_options_for_error(command_options);
+    let unknown_option = token.starts_with("--").then(|| token.to_ascii_lowercase());
+    let suggestions = unknown_option
+        .as_deref()
+        .map(|option| did_you_mean_many(option, &available_options, 3, 3))
+        .unwrap_or_default();
+    let mut details = Map::new();
+    if let Some(option) = unknown_option {
+        details.insert("unknownOption".to_string(), Value::String(option));
+    }
+    details.insert(
+        "availableOptions".to_string(),
+        Value::Array(
+            available_options
+                .into_iter()
+                .map(Value::String)
+                .collect::<Vec<_>>(),
+        ),
+    );
+    details.insert(
+        "suggestions".to_string(),
+        Value::Array(suggestions.into_iter().map(Value::String).collect()),
+    );
+
     CliError::new(
         crate::error::ErrorCategory::Input,
         format!("unknown option '{token}'"),
@@ -224,6 +248,55 @@ pub fn commander_unknown_option_error(token: &str) -> CliError {
         Some("INPUT_UNKNOWN_OPTION"),
         false,
     )
+    .with_details(Value::Object(details))
+}
+
+fn available_options_for_error(command_options: &[&str]) -> Vec<String> {
+    let mut options = crate::root_argv::available_global_long_options()
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    options.extend(command_options.iter().map(|option| (*option).to_string()));
+    options.into_iter().collect()
+}
+
+fn levenshtein(a: &str, b: &str) -> usize {
+    let mut previous = (0..=b.chars().count()).collect::<Vec<_>>();
+    let mut current = vec![0; previous.len()];
+
+    for (i, left) in a.chars().enumerate() {
+        current[0] = i + 1;
+        for (j, right) in b.chars().enumerate() {
+            let substitution = if left == right { 0 } else { 1 };
+            current[j + 1] = (previous[j + 1] + 1)
+                .min(current[j] + 1)
+                .min(previous[j] + substitution);
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
+
+    previous[b.chars().count()]
+}
+
+fn did_you_mean_many(
+    input: &str,
+    candidates: &[String],
+    max_distance: usize,
+    limit: usize,
+) -> Vec<String> {
+    let lower = input.to_ascii_lowercase();
+    let mut matches = candidates
+        .iter()
+        .filter_map(|candidate| {
+            let distance = levenshtein(&lower, &candidate.to_ascii_lowercase());
+            (distance <= max_distance).then(|| (candidate.clone(), distance))
+        })
+        .collect::<Vec<_>>();
+    matches.sort_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(&right.0)));
+    matches
+        .into_iter()
+        .take(limit)
+        .map(|(candidate, _)| candidate)
+        .collect()
 }
 
 pub fn commander_too_many_arguments_error(
@@ -753,9 +826,22 @@ mod tests {
 
     #[test]
     fn commander_error_helpers_match_commander_style() {
-        let unknown = commander_unknown_option_error("--weird");
+        let unknown = commander_unknown_option_error("--weird", &["--search"]);
         assert_eq!(unknown.code, "INPUT_UNKNOWN_OPTION");
         assert!(unknown.message.contains("unknown option '--weird'"));
+        let details = unknown
+            .details
+            .as_deref()
+            .and_then(Value::as_object)
+            .expect("unknown option details");
+        assert_eq!(
+            details.get("unknownOption").and_then(Value::as_str),
+            Some("--weird"),
+        );
+        assert!(details
+            .get("availableOptions")
+            .and_then(Value::as_array)
+            .is_some_and(|options| options.contains(&Value::String("--search".to_string()))));
 
         let too_many = commander_too_many_arguments_error("pools", 1, 3);
         assert_eq!(too_many.code, "INPUT_PARSE_ERROR");

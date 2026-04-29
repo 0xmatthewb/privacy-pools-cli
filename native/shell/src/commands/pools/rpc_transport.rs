@@ -79,6 +79,18 @@ pub(super) fn rpc_batch_call(
     requests: &[(&str, &str)], // (to, data) pairs
     timeout_ms: u64,
 ) -> Result<Vec<Result<String, CliError>>, CliError> {
+    rpc_batch_call_with_post(rpc_urls, requests, timeout_ms, http_post_json)
+}
+
+fn rpc_batch_call_with_post<F>(
+    rpc_urls: &[String],
+    requests: &[(&str, &str)],
+    timeout_ms: u64,
+    mut post_json: F,
+) -> Result<Vec<Result<String, CliError>>, CliError>
+where
+    F: FnMut(&str, &Value, u64) -> Result<Value, CliError>,
+{
     if requests.is_empty() {
         return Ok(vec![]);
     }
@@ -108,7 +120,7 @@ pub(super) fn rpc_batch_call(
 
     let mut last_error = None;
     for rpc_url in rpc_urls {
-        match http_post_json(rpc_url, &batch_body, timeout_ms) {
+        match post_json(rpc_url, &batch_body, timeout_ms) {
             Ok(response) => {
                 if let Some(items) = response.as_array() {
                     let parsed = parse_batch_response(items, requests.len());
@@ -189,12 +201,9 @@ fn sequential_fallback(
 
 #[cfg(test)]
 mod extended_tests {
-    use super::{extract_rpc_call_result, parse_batch_response, rpc_batch_call};
+    use super::{extract_rpc_call_result, parse_batch_response, rpc_batch_call_with_post};
     use serde_json::json;
-    use std::io::{Read, Write};
-    use std::net::{TcpListener, TcpStream};
-    use std::thread;
-    use std::time::{Duration, Instant};
+    use std::collections::VecDeque;
 
     #[test]
     fn parse_batch_response_returns_results_in_order() {
@@ -264,129 +273,38 @@ mod extended_tests {
 
     #[test]
     fn rpc_batch_call_retries_later_urls_when_first_batch_is_partial() {
-        let first = spawn_rpc_test_server(json!([
-            {"jsonrpc": "2.0", "id": 0, "result": "0xAAAA"},
-            {"jsonrpc": "2.0", "id": 1, "error": {"message": "rate limited"}},
-        ]));
-        let second = spawn_rpc_test_server(json!([
-            {"jsonrpc": "2.0", "id": 0, "result": "0xBBBB"},
-            {"jsonrpc": "2.0", "id": 1, "result": "0xCCCC"},
-        ]));
+        let mut responses = VecDeque::from([
+            json!([
+                {"jsonrpc": "2.0", "id": 0, "result": "0xAAAA"},
+                {"jsonrpc": "2.0", "id": 1, "error": {"message": "rate limited"}},
+            ]),
+            json!([
+                {"jsonrpc": "2.0", "id": 0, "result": "0xBBBB"},
+                {"jsonrpc": "2.0", "id": 1, "result": "0xCCCC"},
+            ]),
+        ]);
+        let mut called_urls = Vec::<String>::new();
 
-        let rpc_urls = vec![first.url.clone(), second.url.clone()];
-        let results = rpc_batch_call(
+        let rpc_urls = vec![
+            "http://first.test".to_string(),
+            "http://second.test".to_string(),
+        ];
+        let results = rpc_batch_call_with_post(
             &rpc_urls,
             &[("0xpool", "0xscope"), ("0xasset", "0xsymbol")],
             1_000,
+            |rpc_url, _body, _timeout_ms| {
+                called_urls.push(rpc_url.to_string());
+                Ok(responses
+                    .pop_front()
+                    .expect("test response should exist for each attempted rpc"))
+            },
         )
         .expect("later healthy rpc should satisfy the batch");
 
+        assert_eq!(called_urls, vec!["http://first.test", "http://second.test"]);
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].as_ref().unwrap(), "0xBBBB");
         assert_eq!(results[1].as_ref().unwrap(), "0xCCCC");
-    }
-
-    struct RpcTestServer {
-        url: String,
-        handle: Option<thread::JoinHandle<()>>,
-    }
-
-    impl Drop for RpcTestServer {
-        fn drop(&mut self) {
-            if let Some(handle) = self.handle.take() {
-                let _ = handle.join();
-            }
-        }
-    }
-
-    fn spawn_rpc_test_server(response_body: serde_json::Value) -> RpcTestServer {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("test rpc listener should bind");
-        listener
-            .set_nonblocking(true)
-            .expect("test rpc listener should support nonblocking mode");
-        let address = listener
-            .local_addr()
-            .expect("test rpc listener should expose address");
-        let handle = thread::spawn(move || {
-            let body = response_body.to_string();
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(),
-                body
-            );
-            let deadline = Instant::now() + Duration::from_secs(2);
-            let mut served_connections = 0usize;
-
-            while Instant::now() <= deadline && served_connections < 2 {
-                match listener.accept() {
-                    Ok((mut stream, _)) => {
-                        let _request = read_http_request(&mut stream);
-                        stream
-                            .write_all(response.as_bytes())
-                            .expect("test rpc server should respond");
-                        let _ = stream.flush();
-                        served_connections += 1;
-                    }
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                        thread::sleep(Duration::from_millis(10));
-                    }
-                    Err(error) => panic!("test rpc server should accept a client: {error}"),
-                }
-            }
-        });
-
-        RpcTestServer {
-            url: format!("http://{address}"),
-            handle: Some(handle),
-        }
-    }
-
-    fn read_http_request(stream: &mut TcpStream) -> Vec<u8> {
-        let mut buffer = Vec::<u8>::new();
-        let mut chunk = [0u8; 2048];
-
-        loop {
-            match stream.read(&mut chunk) {
-                Ok(0) => break,
-                Ok(read) => {
-                    buffer.extend_from_slice(&chunk[..read]);
-                    if request_is_complete(&buffer) {
-                        break;
-                    }
-                }
-                Err(error)
-                    if matches!(
-                        error.kind(),
-                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
-                    ) =>
-                {
-                    break;
-                }
-                Err(error) => panic!("test rpc server failed to read request: {error}"),
-            }
-        }
-
-        buffer
-    }
-
-    fn request_is_complete(buffer: &[u8]) -> bool {
-        let Some(headers_end) = buffer.windows(4).position(|window| window == b"\r\n\r\n") else {
-            return false;
-        };
-        let headers_len = headers_end + 4;
-        let headers = String::from_utf8_lossy(&buffer[..headers_len]);
-        let content_length = headers
-            .lines()
-            .find_map(|line| line.split_once(':'))
-            .and_then(|(name, value)| {
-                if name.eq_ignore_ascii_case("content-length") {
-                    value.trim().parse::<usize>().ok()
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(0);
-
-        buffer.len() >= headers_len + content_length
     }
 }

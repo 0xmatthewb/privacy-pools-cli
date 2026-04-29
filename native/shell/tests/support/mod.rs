@@ -75,13 +75,21 @@ fn should_inherit_env(key: &OsString) -> bool {
         && !key.starts_with("PP_")
         && !matches!(
             key,
-            "CLICOLOR_FORCE"
+            "AIDER_AGENT"
+                | "CLICOLOR_FORCE"
+                | "CLAUDE_CODE"
+                | "CLAUDECODE"
                 | "COLORTERM"
                 | "COLUMNS"
+                | "CODEX_AGENT"
+                | "CODEX_SANDBOX"
+                | "CURSOR_AGENT"
                 | "FORCE_COLOR"
+                | "GEMINI_CLI"
                 | "LANG"
                 | "LC_ALL"
                 | "NO_COLOR"
+                | "OPENCODE"
                 | "TERM"
         )
 }

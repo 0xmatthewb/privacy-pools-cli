@@ -211,7 +211,12 @@ describe("native manifest conformance", () => {
 
       for (const path of GENERATED_COMMAND_PATHS) {
         const result = runCli([...path.split(" "), "--help"], {
-          env: { CODEX_AGENT: "1" },
+          env: {
+            LANG: "en_US.UTF-8",
+            TERM: "xterm-256color",
+            COLUMNS: "120",
+            NO_COLOR: undefined,
+          },
           home: createTempHome(),
           timeoutMs: 20_000,
         });
