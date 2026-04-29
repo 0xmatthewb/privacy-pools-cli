@@ -16,8 +16,6 @@ import {
   expectDirectNativeBuiltJsonParity,
   expectJsonErrorContract,
   expectJsonParity,
-  expectMachineSilenceParity,
-  expectSilentStreamParity,
   expectStreamParity,
   fixtureEnv,
   multiChainFixtureEnv,
@@ -41,6 +39,7 @@ import {
 import { CLI_ROOT } from "../helpers/paths.ts";
 
 type StreamExpectation = "empty" | "json" | "text";
+type StreamLayoutExpectation = "empty" | "envelope" | "prose";
 
 interface ModeResolutionCase {
   name: string;
@@ -51,6 +50,10 @@ interface ModeResolutionCase {
     status: number;
     stdout: StreamExpectation;
     stderr: StreamExpectation;
+    streams?: {
+      stdout: StreamLayoutExpectation;
+      stderr: StreamLayoutExpectation;
+    };
   };
 }
 
@@ -61,7 +64,7 @@ const MODE_RESOLUTION_CASES = JSON.parse(
 function expectStreamKind(
   label: string,
   value: string,
-  expected: StreamExpectation,
+  expected: StreamExpectation | StreamLayoutExpectation,
 ): void {
   const trimmed = value.trim();
   if (expected === "empty") {
@@ -70,9 +73,22 @@ function expectStreamKind(
   }
 
   expect(trimmed.length, `${label} should not be empty`).toBeGreaterThan(0);
-  if (expected === "json") {
+  if (expected === "json" || expected === "envelope") {
     expect(() => JSON.parse(trimmed), `${label} should parse as JSON`).not.toThrow();
   }
+}
+
+function resolveModeCaseEnv(
+  env: Record<string, string> | undefined,
+  fixtureUrl: string,
+): Record<string, string> | undefined {
+  if (!env) return undefined;
+  return Object.fromEntries(
+    Object.entries(env).map(([key, value]) => [
+      key,
+      value === "<fixture>" ? fixtureUrl : value,
+    ]),
+  );
 }
 
 describe("native machine contract parity", () => {
@@ -108,12 +124,6 @@ describe("native machine contract parity", () => {
 
   nativeTest("structured root help stays machine-readable", () => {
     expectJsonParity(nativeBinary, ["--json", "--help"]);
-  });
-
-  nativeTest("root help body stays identical across help modes", () => {
-    expectStreamParity(nativeBinary, ["--help"]);
-    expectJsonParity(nativeBinary, ["--json", "--help"]);
-    expectJsonParity(nativeBinary, ["--agent", "--help"]);
   });
 
   nativeTest("machine-readable version output stays identical", () => {
@@ -270,41 +280,15 @@ describe("native machine contract parity", () => {
     );
   }, 60_000);
 
-  nativeTest("quiet and machine stream contracts stay intact across native routing", () => {
-    const env = fixtureEnv(fixture!);
-    expectSilentStreamParity(nativeBinary, ["--quiet", "activity"], {
-      js: { env },
-      native: { env },
-    });
-
-    const seededHome = createSeededHome("sepolia");
-
-    expectStreamParity(
-      nativeBinary,
-      ["--quiet", "--no-banner", "status", "--no-check"],
-      {
-        js: { home: seededHome },
-        native: { home: seededHome },
-      },
-    );
-    expectMachineSilenceParity(
-      nativeBinary,
-      ["--agent", "status", "--no-check"],
-      {
-        js: { home: seededHome },
-        native: { home: seededHome },
-      },
-    );
-  });
-
   for (const testCase of MODE_RESOLUTION_CASES) {
     nativeTest(`mode resolution parity: ${testCase.name}`, () => {
       const home = testCase.seededHome
         ? createSeededHome("sepolia")
         : createTempHome(`pp-mode-resolution-${testCase.name.replaceAll(" ", "-")}-`);
+      const env = resolveModeCaseEnv(testCase.env, fixture!.url);
       const options = {
         home,
-        env: testCase.env,
+        env,
       };
       const jsResult = runBuiltCli(testCase.argv, withJsFallback(options));
       const nativeResult = runNativeBuiltCli(nativeBinary, testCase.argv, options);
@@ -312,21 +296,26 @@ describe("native machine contract parity", () => {
       expect(jsResult.status).toBe(testCase.expected.status);
       expect(nativeResult.status).toBe(testCase.expected.status);
 
-      expectStreamKind("stdout", jsResult.stdout, testCase.expected.stdout);
-      expectStreamKind("native stdout", nativeResult.stdout, testCase.expected.stdout);
-      expectStreamKind("stderr", normalizeParityStderr(jsResult.stderr), testCase.expected.stderr);
+      const streamExpectation = testCase.expected.streams ?? {
+        stdout: testCase.expected.stdout,
+        stderr: testCase.expected.stderr,
+      };
+
+      expectStreamKind("stdout", jsResult.stdout, streamExpectation.stdout);
+      expectStreamKind("native stdout", nativeResult.stdout, streamExpectation.stdout);
+      expectStreamKind("stderr", normalizeParityStderr(jsResult.stderr), streamExpectation.stderr);
       expectStreamKind(
         "native stderr",
         normalizeParityStderr(nativeResult.stderr),
-        testCase.expected.stderr,
+        streamExpectation.stderr,
       );
 
-      if (testCase.expected.stdout === "json") {
+      if (streamExpectation.stdout === "json" || streamExpectation.stdout === "envelope") {
         expect(normalizeParityJsonValue(parseJsonOutput(nativeResult.stdout))).toEqual(
           normalizeParityJsonValue(parseJsonOutput(jsResult.stdout)),
         );
       }
-      if (testCase.expected.stderr === "json") {
+      if (streamExpectation.stderr === "json" || streamExpectation.stderr === "envelope") {
         expect(normalizeParityJsonValue(JSON.parse(nativeResult.stderr.trim()))).toEqual(
           normalizeParityJsonValue(JSON.parse(jsResult.stderr.trim())),
         );

@@ -1,0 +1,7 @@
+[
+  { "argv": ["--help"], "modes": ["stream-parity"] },
+  { "argv": ["--help-brief"], "modes": ["stream-parity"] },
+  { "argv": ["--help-full"], "modes": ["stream-parity"] },
+  { "argv": ["--json", "--help"], "modes": ["json-parity"] },
+  { "argv": ["--agent", "--help"], "modes": ["json-parity"] }
+]

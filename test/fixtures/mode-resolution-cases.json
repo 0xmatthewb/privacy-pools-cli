@@ -5,7 +5,8 @@
     "expected": {
       "status": 0,
       "stdout": "text",
-      "stderr": "empty"
+      "stderr": "empty",
+      "streams": { "stdout": "prose", "stderr": "empty" }
     }
   },
   {
@@ -14,7 +15,8 @@
     "expected": {
       "status": 0,
       "stdout": "json",
-      "stderr": "empty"
+      "stderr": "empty",
+      "streams": { "stdout": "envelope", "stderr": "empty" }
     }
   },
   {
@@ -23,7 +25,8 @@
     "expected": {
       "status": 0,
       "stdout": "json",
-      "stderr": "empty"
+      "stderr": "empty",
+      "streams": { "stdout": "envelope", "stderr": "empty" }
     }
   },
   {
@@ -32,7 +35,8 @@
     "expected": {
       "status": 0,
       "stdout": "json",
-      "stderr": "empty"
+      "stderr": "empty",
+      "streams": { "stdout": "envelope", "stderr": "empty" }
     }
   },
   {
@@ -44,7 +48,8 @@
     "expected": {
       "status": 0,
       "stdout": "json",
-      "stderr": "empty"
+      "stderr": "empty",
+      "streams": { "stdout": "envelope", "stderr": "empty" }
     }
   },
   {
@@ -53,7 +58,8 @@
     "expected": {
       "status": 0,
       "stdout": "json",
-      "stderr": "empty"
+      "stderr": "empty",
+      "streams": { "stdout": "envelope", "stderr": "empty" }
     }
   },
   {
@@ -63,7 +69,8 @@
     "expected": {
       "status": 0,
       "stdout": "text",
-      "stderr": "empty"
+      "stderr": "empty",
+      "streams": { "stdout": "prose", "stderr": "empty" }
     }
   },
   {
@@ -72,7 +79,33 @@
     "expected": {
       "status": 0,
       "stdout": "empty",
-      "stderr": "text"
+      "stderr": "text",
+      "streams": { "stdout": "empty", "stderr": "prose" }
+    }
+  },
+  {
+    "name": "quiet activity suppresses human streams",
+    "argv": ["--quiet", "activity"],
+    "env": {
+      "PRIVACY_POOLS_ASP_HOST": "<fixture>",
+      "PRIVACY_POOLS_RPC_URL_SEPOLIA": "<fixture>"
+    },
+    "expected": {
+      "status": 0,
+      "stdout": "empty",
+      "stderr": "empty",
+      "streams": { "stdout": "empty", "stderr": "empty" }
+    }
+  },
+  {
+    "name": "agent status suppresses stderr and keeps envelope stdout",
+    "argv": ["--agent", "status", "--no-check"],
+    "seededHome": true,
+    "expected": {
+      "status": 0,
+      "stdout": "json",
+      "stderr": "empty",
+      "streams": { "stdout": "envelope", "stderr": "empty" }
     }
   }
 ]
