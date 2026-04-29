@@ -26,9 +26,11 @@ function collectWorkflowPhaseAssignmentInventory(
       currentFunction = functionMatch[1];
     }
 
-    const phaseMatch = line.match(/phase: "([a-z_]+)"/);
-    if (!phaseMatch?.[1]) continue;
-    const key = `${currentFunction}:${phaseMatch[1]}`;
+    const literalPhaseMatch = line.match(/phase: "([a-z_]+)"/);
+    const dynamicPhaseMatch = line.match(/phase: mutationPhase/);
+    const phase = literalPhaseMatch?.[1] ?? (dynamicPhaseMatch ? "mutationPhase" : null);
+    if (!phase) continue;
+    const key = `${currentFunction}:${phase}`;
     inventory[key] = (inventory[key] ?? 0) + 1;
   }
   return inventory;
@@ -127,13 +129,16 @@ describe("flow phase graph", () => {
       "applyFlowPrivacyDelayPolicy:approved_waiting_privacy_delay": 1,
       "scheduleApprovedWorkflowPrivacyDelay:approved_ready_to_withdraw": 1,
       "scheduleApprovedWorkflowPrivacyDelay:approved_waiting_privacy_delay": 1,
+      "saveMutatedWorkflowSnapshot:mutationPhase": 1,
       "attachDepositResultToSnapshot:awaiting_asp": 1,
       "attachPendingDepositToSnapshot:depositing_publicly": 1,
       "attachPendingWithdrawalToSnapshot:withdrawing": 1,
       "attachWithdrawalResultToSnapshot:completed": 1,
       "attachRagequitResultToSnapshot:completed_public_recovery": 1,
+      "reconcilePendingRagequitReceipt:mutationPhase": 1,
       "inspectFundingAndDeposit:awaiting_funding": 2,
       "inspectFundingAndDeposit:depositing_publicly": 2,
+      "continueApprovedWorkflowWithdrawal:mutationPhase": 2,
       "continueApprovedWorkflowWithdrawal:withdrawing": 1,
       "inspectAndAdvanceFlow:approved_waiting_privacy_delay": 2,
       "inspectAndAdvanceFlow:paused_declined": 1,
@@ -144,9 +149,6 @@ describe("flow phase graph", () => {
       "startWorkflow:depositing_publicly": 2,
     });
 
-    const graphEdges = new Map(
-      FLOW_PHASE_GRAPH.edges.map((edge) => [edgeKey(edge.from, edge.to), edge]),
-    );
     const workflowTransitions: Array<{ from: FlowPhase; to: FlowPhase }> = [
       { from: "awaiting_funding", to: "depositing_publicly" },
       { from: "depositing_publicly", to: "awaiting_funding" },
@@ -167,18 +169,31 @@ describe("flow phase graph", () => {
       { from: "approved_ready_to_withdraw", to: "withdrawing" },
       { from: "withdrawing", to: "completed" },
     ];
-
-    for (const transition of workflowTransitions) {
-      expect(
-        graphEdges.has(edgeKey(transition.from, transition.to)),
-        `${transition.from} -> ${transition.to}`,
-      ).toBe(true);
-    }
+    const workflowTransitionKeys = new Set(
+      workflowTransitions.map((transition) =>
+        edgeKey(transition.from, transition.to)
+      ),
+    );
+    const graphModeledWorkflowKeys = new Set(
+      FLOW_PHASE_GRAPH.edges
+        .filter(
+          (edge) =>
+            edge.trigger !== FLOW_EXTERNAL_MUTATION_TRIGGER &&
+            edge.trigger !== "operator runs flow ragequit",
+        )
+        .map((edge) => edgeKey(edge.from, edge.to)),
+    );
+    expect(graphModeledWorkflowKeys).toEqual(workflowTransitionKeys);
 
     for (const phase of FLOW_PHASE_VALUES) {
       if (isTerminalFlowPhase(phase)) continue;
       expect(
-        graphEdges.has(edgeKey(phase, "completed_public_recovery")),
+        FLOW_PHASE_GRAPH.edges.some(
+          (edge) =>
+            edge.from === phase &&
+            edge.to === "completed_public_recovery" &&
+            edge.trigger === "operator runs flow ragequit",
+        ),
         `${phase} -> completed_public_recovery`,
       ).toBe(true);
     }

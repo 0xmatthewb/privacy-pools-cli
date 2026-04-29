@@ -9,6 +9,14 @@ function countMatches(text: string, pattern: RegExp): number {
   return text.match(pattern)?.length ?? 0;
 }
 
+function parseStringSetLiteral(text: string, name: string): string[] {
+  const match = text.match(
+    new RegExp(`const ${name} = new Set\\(\\[([\\s\\S]*?)\\]\\);`),
+  );
+  expect(match?.[1], `${name} set literal`).toBeDefined();
+  return [...(match?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((item) => item[1]!);
+}
+
 describe("error recovery context wiring", () => {
   test("command handlers preserve chain context through central error normalization", () => {
     const depositSource = source("../../src/commands/deposit.ts");
@@ -42,6 +50,22 @@ describe("error recovery context wiring", () => {
     const setupRecoverySource = source("../../src/utils/setup-recovery.ts");
     expect(setupRecoverySource).toContain(
       "withErrorRecoveryContext(error, recoveryDetails)",
+    );
+  });
+
+  test("flow handlers keep the expected chain-scoped recovery trigger set", () => {
+    const flowSource = source("../../src/commands/flow.ts");
+    expect(
+      parseStringSetLiteral(flowSource, "FLOW_CHAIN_RECOVERY_ERROR_CODES"),
+    ).toEqual([
+      "CONTRACT_INCORRECT_ASP_ROOT",
+      "CONTRACT_UNKNOWN_STATE_ROOT",
+      "CONTRACT_NULLIFIER_ALREADY_SPENT",
+      "INPUT_NONROUND_AMOUNT",
+      "RPC_BROADCAST_CONFIRMATION_TIMEOUT",
+    ]);
+    expect(flowSource).toContain(
+      "/IncorrectASPRoot|UnknownStateRoot|NullifierAlreadySpent/;",
     );
   });
 
