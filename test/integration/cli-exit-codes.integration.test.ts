@@ -6,7 +6,8 @@
  * accidentally return the wrong exit code.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { join } from "node:path";
 import {
   CLI_CWD,
   createSeededHome,
@@ -57,6 +58,88 @@ function renderCategoricalErrorScript(script: string) {
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",
   };
+}
+
+function stripAnsi(value: string): string {
+  return value.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "");
+}
+
+async function runCliInPythonPtyUntil(params: {
+  args: string[];
+  home: string;
+  env?: Record<string, string | undefined>;
+  waitFor: RegExp;
+  input: string;
+  timeoutMs?: number;
+}): Promise<{ status: number | null; signal: NodeJS.Signals | null; output: string }> {
+  const payload = JSON.stringify({
+    command: nodeBin(),
+    args: [
+      "--import",
+      "./src/runtime/color-env-bootstrap.ts",
+      "--import",
+      "tsx",
+      "src/index.ts",
+      ...params.args,
+    ],
+    cwd: CLI_CWD,
+  });
+  const timeoutMs = params.timeoutMs ?? 20_000;
+
+  return await new Promise((resolvePromise, rejectPromise) => {
+    const proc = spawn("python3", ["-u", "scripts/lib/pty-proxy.py", payload], {
+      cwd: CLI_CWD,
+      env: buildChildProcessEnv({
+        PRIVACY_POOLS_HOME: join(params.home, ".privacy-pools"),
+        PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+        PRIVACY_POOLS_NO_UPDATE_CHECK: "1",
+        NO_COLOR: "1",
+        ...params.env,
+      }),
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let output = "";
+    let prompted = false;
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      proc.kill("SIGTERM");
+      rejectPromise(
+        new Error(`Timed out waiting for interactive prompt:\n${output}`),
+      );
+    }, timeoutMs);
+
+    const onChunk = (chunk: Buffer) => {
+      output += chunk.toString();
+      if (!prompted && params.waitFor.test(stripAnsi(output))) {
+        prompted = true;
+        proc.stdin?.write(params.input);
+      }
+    };
+
+    proc.stdout?.on("data", onChunk);
+    proc.stderr?.on("data", onChunk);
+    proc.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      rejectPromise(error);
+    });
+    proc.on("exit", (status, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (!prompted) {
+        rejectPromise(
+          new Error(`Command exited before interactive prompt appeared:\n${output}`),
+        );
+        return;
+      }
+      resolvePromise({ status, signal, output });
+    });
+  });
 }
 
 describe("exit-code matrix", () => {
@@ -186,7 +269,26 @@ describe("exit-code matrix", () => {
     expect(json.error?.code).toBe("CONTRACT_INVALID_PROOF");
   });
 
-  test("CANCELLED error → exit code 9 (prompt cancellation classifier)", () => {
+  test("CANCELLED error → exit code 9 (interactive prompt SIGINT)", async () => {
+    const home = createSeededHome("sepolia");
+    const interactive = await runCliInPythonPtyUntil({
+      args: [
+        "--no-banner",
+        "--chain",
+        "sepolia",
+        "flow",
+        "start",
+        "0.1",
+        "ETH",
+      ],
+      home,
+      env: fixtureEnv(),
+      waitFor: /recipient|withdraw/i,
+      input: "\u0003",
+    });
+    expect(interactive.status).toBe(0);
+    expect(stripAnsi(interactive.output)).toMatch(/Prompt cancelled|Operation cancelled/);
+
     const result = renderCategoricalErrorScript(`
       const cancelled = new Error('cancelled');
       cancelled.name = 'ExitPromptError';
@@ -200,7 +302,7 @@ describe("exit-code matrix", () => {
     );
     expect(json.error?.category).toBe("CANCELLED");
     expect(json.error?.code).toBe("PROMPT_CANCELLED");
-  });
+  }, 30_000);
 
   test("UNKNOWN error → exit code 1 (unexpected fixture RPC method)", () => {
     const home = createSeededHome("sepolia");
