@@ -51,11 +51,23 @@ const distJsonUtilsModulePath = join(
   "utils",
   "json.js",
 );
+const distDetectAgentModulePath = join(
+  repoRoot,
+  "dist",
+  "utils",
+  "detect-agent.js",
+);
 const sourceJsonUtilsModulePath = join(
   repoRoot,
   "src",
   "utils",
   "json.ts",
+);
+const sourceDetectAgentModulePath = join(
+  repoRoot,
+  "src",
+  "utils",
+  "detect-agent.ts",
 );
 
 const distProgramModulePath = join(
@@ -121,6 +133,9 @@ const completionShellModulePath = existsSync(distCompletionShellModulePath)
 const jsonUtilsModulePath = existsSync(distJsonUtilsModulePath)
   ? distJsonUtilsModulePath
   : sourceJsonUtilsModulePath;
+const detectAgentModulePath = existsSync(distDetectAgentModulePath)
+  ? distDetectAgentModulePath
+  : sourceDetectAgentModulePath;
 
 const runtimeContractModulePath = join(
   repoRoot,
@@ -145,6 +160,9 @@ const { COMPLETION_SHELL_CONTRACT, SUPPORTED_COMPLETION_SHELLS } = await import(
 );
 const { JSON_SCHEMA_VERSION } = await import(
   pathToFileURL(jsonUtilsModulePath).href
+);
+const { AGENT_ENV_VAR_NAMES } = await import(
+  pathToFileURL(detectAgentModulePath).href
 );
 const {
   CURRENT_MANIFEST_VERSION,
@@ -205,6 +223,9 @@ function sanitizeEnv(baseEnv = process.env) {
     }
   }
   delete env.NO_COLOR;
+  for (const key of AGENT_ENV_VAR_NAMES) {
+    delete env[key];
+  }
   env.FORCE_COLOR = "1";
   env.LANG = "en_US.UTF-8";
   env.TERM = "xterm-256color";
@@ -214,7 +235,7 @@ function sanitizeEnv(baseEnv = process.env) {
   return env;
 }
 
-function captureBuiltCli(args) {
+function captureBuiltCli(args, envOverrides = {}) {
   const tempHome = mkdtempSync(join(tmpdir(), "pp-native-manifest-"));
 
   try {
@@ -225,6 +246,7 @@ function captureBuiltCli(args) {
         cwd: repoRoot,
         env: {
           ...sanitizeEnv(),
+          ...envOverrides,
           PRIVACY_POOLS_HOME: join(tempHome, ".privacy-pools"),
         },
         encoding: "utf8",
@@ -308,7 +330,9 @@ async function buildNativeShellManifest() {
   const helpTextByPath = Object.fromEntries(
     documentedCommandPaths.map((path) => [
       path,
-      captureBuiltCli([...path.split(" "), "--help"]).stdout,
+      captureBuiltCli([...path.split(" "), "--help"], {
+        CODEX_AGENT: "1",
+      }).stdout,
     ]),
   );
 

@@ -200,27 +200,28 @@ describe("native manifest conformance", () => {
   test(
     "native manifest per-command help matches the live commander help",
     async () => {
-    const nativeManifest = JSON.parse(
-      readFileSync(nativeManifestPath, "utf8"),
-    ) as {
-      helpTextByPath: Record<string, string>;
-    };
-    expect(Object.keys(nativeManifest.helpTextByPath).sort()).toEqual(
-      [...GENERATED_COMMAND_PATHS].sort(),
-    );
-
-    for (const path of GENERATED_COMMAND_PATHS) {
-      const result = runCli([...path.split(" "), "--help"], {
-        home: createTempHome(),
-        timeoutMs: 20_000,
-      });
-      expect(result.status).toBe(0);
-      expect(result.stderr).toBe("");
-      expect(stripAnsi(nativeManifest.helpTextByPath[path]).trim()).toBe(
-        result.stdout.trim(),
+      const nativeManifest = JSON.parse(
+        readFileSync(nativeManifestPath, "utf8"),
+      ) as {
+        helpTextByPath: Record<string, string>;
+      };
+      expect(Object.keys(nativeManifest.helpTextByPath).sort()).toEqual(
+        [...GENERATED_COMMAND_PATHS].sort(),
       );
-    }
-  },
+
+      for (const path of GENERATED_COMMAND_PATHS) {
+        const result = runCli([...path.split(" "), "--help"], {
+          env: { CODEX_AGENT: "1" },
+          home: createTempHome(),
+          timeoutMs: 20_000,
+        });
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(stripAnsi(nativeManifest.helpTextByPath[path]).trim()).toBe(
+          result.stdout.trim(),
+        );
+      }
+    },
     { timeout: 120_000 },
   );
 });
