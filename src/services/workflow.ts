@@ -1728,7 +1728,7 @@ export function getFlowWarningAmount(
   }
 }
 
-export function buildPrivacyNonRoundAmountWarning(
+export function buildFlowPrivacyNonRoundAmountWarning(
   amount: bigint,
   assetDecimals: number,
   asset: string,
@@ -1786,7 +1786,7 @@ export function buildFlowAmountPrivacyWarning(
   }
 
   const { amount, estimated } = amountInfo;
-  return buildPrivacyNonRoundAmountWarning(
+  return buildFlowPrivacyNonRoundAmountWarning(
     amount,
     snapshot.assetDecimals!,
     snapshot.asset,
@@ -1831,7 +1831,7 @@ async function confirmHumanFlowStartReview(
   const chainConfig = resolveChain(chainName);
   const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
   const estimatedCommitted = amount - feeAmount;
-  const estimatedAmountPatternWarning = buildPrivacyNonRoundAmountWarning(
+  const estimatedAmountPatternWarning = buildFlowPrivacyNonRoundAmountWarning(
     estimatedCommitted,
     pool.decimals,
     pool.symbol,

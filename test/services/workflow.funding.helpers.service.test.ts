@@ -106,7 +106,7 @@ describe("workflow funding helper coverage", () => {
     const workflowHelpers = await loadWorkflowHelpers();
     const {
       getFlowWarningAmount,
-      buildPrivacyNonRoundAmountWarning,
+      buildFlowPrivacyNonRoundAmountWarning,
       buildFlowAmountPrivacyWarning,
       buildFlowPrivacyDelayWarning,
     } = workflowHelpers;
@@ -136,11 +136,11 @@ describe("workflow funding helper coverage", () => {
     });
 
     expect(
-      buildPrivacyNonRoundAmountWarning(1000000000000000000n, 18, "ETH"),
+      buildFlowPrivacyNonRoundAmountWarning(1000000000000000000n, 18, "ETH"),
     ).toBeNull();
 
     expect(
-      buildPrivacyNonRoundAmountWarning(123000000000000000n, 18, "ETH", {
+      buildFlowPrivacyNonRoundAmountWarning(123000000000000000n, 18, "ETH", {
         estimated: true,
       }),
     ).toMatchObject({
