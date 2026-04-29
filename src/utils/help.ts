@@ -758,6 +758,8 @@ export function commandHelpText(config: CommandHelpConfig): string {
     }
   }
 
+  const supportsAgentMode = config.agentFlagNames?.includes("--agent") ?? false;
+
   if (
     showAgentAppendix
     && (
@@ -783,7 +785,7 @@ export function commandHelpText(config: CommandHelpConfig): string {
     }
   }
 
-  if (config.supportsUnsigned || config.supportsDryRun) {
+  if (config.supportsUnsigned || config.supportsDryRun || supportsAgentMode) {
     lines.push("", "Modes:");
     lines.push("  --yes skips confirmation prompts.");
     if (config.supportsUnsigned) {
@@ -792,7 +794,9 @@ export function commandHelpText(config: CommandHelpConfig): string {
     if (config.supportsDryRun) {
       lines.push("  --dry-run previews only; confirmations still apply in human mode.");
     }
-    lines.push("  --agent is shorthand for --json --yes --quiet.");
+    if (supportsAgentMode) {
+      lines.push("  --agent is shorthand for --json --yes --quiet.");
+    }
   }
 
   if (config.seeAlso && config.seeAlso.length > 0) {

@@ -549,6 +549,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       flags: ["start <amount> <asset> --to <address>", "watch [workflowId|latest]", "status [workflowId|latest]", "step [workflowId|latest]", "ragequit [workflowId|latest]"],
       agentFlags:
         "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent, then use status/step/ragequit --agent",
+      agentFlagNames: ["--agent"],
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -719,6 +720,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       usage: "flow watch [workflowId|latest]",
       flags: ["[workflowId|latest]", "--privacy-delay <profile>", "--stream-json"],
       agentFlags: "not supported in --agent mode",
+      agentFlagNames: [],
       requiresInit: true,
       expectedLatencyClass: "slow",
     },

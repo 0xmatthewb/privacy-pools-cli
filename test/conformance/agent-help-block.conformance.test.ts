@@ -30,17 +30,23 @@ function standaloneFlagPattern(flag: string): RegExp {
   );
 }
 
-function expectAgentInvocationIncludesFlag(
+function expectHelpFlagTableIncludesFlag(
   help: string,
   flag: string,
 ): void {
-  const agentWorkflow = linesForSection(help, "Agent workflow:");
-  const invocation = agentWorkflow.find((line) =>
-    normalize(line).startsWith("Agent invocation:"),
+  const documentedFlagLines = [
+    ...linesForSection(help, "Options:"),
+    ...linesForSection(help, "Flag guide:"),
+    ...linesForSection(help, "Modes:"),
+  ];
+  const matchingLine = documentedFlagLines.find((line) =>
+    standaloneFlagPattern(flag).test(line),
   );
 
-  expect(invocation, "agent workflow should include a structured invocation line").toBeDefined();
-  expect(invocation!).toMatch(standaloneFlagPattern(flag));
+  expect(
+    matchingLine,
+    `${flag} should appear in the command help flag table or mode table`,
+  ).toBeDefined();
 }
 
 function expectRequiredAgentFlagInAgentWorkflow(
@@ -92,7 +98,7 @@ describe("agent help block conformance", () => {
         expect(help).toContain(normalize(agentFlags));
       }
       for (const flag of agentFlagNames) {
-        expectAgentInvocationIncludesFlag(rawHelp, flag);
+        expectHelpFlagTableIncludesFlag(rawHelp, flag);
       }
       for (const note of agentWorkflowNotes) {
         expect(help).toContain(normalize(note));

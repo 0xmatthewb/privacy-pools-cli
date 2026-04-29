@@ -825,9 +825,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentFlags": "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent, then use status/step/ragequit --agent",
       "agentFlagNames": [
-        "--agent",
-        "--privacy-delay",
-        "--to"
+        "--agent"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "fast"
@@ -871,9 +869,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "agentFlags": "not supported in --agent mode",
-      "agentFlagNames": [
-        "--agent"
-      ],
+      "agentFlagNames": [],
       "requiresInit": true,
       "expectedLatencyClass": "slow"
     },
@@ -2689,9 +2685,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "supportsUnsigned": false,
       "supportsDryRun": true,
       "agentFlagNames": [
-        "--agent",
-        "--privacy-delay",
-        "--to"
+        "--agent"
       ],
       "agentWorkflowNotes": [
         "Start with flow start <amount> <asset> --to <address> --agent, then poll with flow status <workflowId|latest> --agent and advance with flow step <workflowId|latest> --agent until the workflow completes or pauses.",
@@ -3231,9 +3225,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
-      "agentFlagNames": [
-        "--agent"
-      ],
+      "agentFlagNames": [],
       "agentWorkflowNotes": [
         "flow watch is not available in --agent mode.",
         "Use flow status to poll and flow step to advance the same saved workflow externally."

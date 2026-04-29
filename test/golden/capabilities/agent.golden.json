@@ -1613,9 +1613,7 @@
     },
     "flow": {
       "agentFlagNames": [
-        "--agent",
-        "--privacy-delay",
-        "--to"
+        "--agent"
       ],
       "agentWorkflowNotes": [
         "Start with flow start <amount> <asset> --to <address> --agent, then poll with flow status <workflowId|latest> --agent and advance with flow step <workflowId|latest> --agent until the workflow completes or pauses.",
@@ -2353,9 +2351,7 @@
       "usage": "flow step [workflowId|latest]"
     },
     "flow watch": {
-      "agentFlagNames": [
-        "--agent"
-      ],
+      "agentFlagNames": [],
       "agentWorkflowNotes": [
         "flow watch is not available in --agent mode.",
         "Use flow status to poll and flow step to advance the same saved workflow externally."
@@ -4993,9 +4989,7 @@
     },
     {
       "agentFlagNames": [
-        "--agent",
-        "--privacy-delay",
-        "--to"
+        "--agent"
       ],
       "agentFlags": "start <amount> <asset> --to <address> [--privacy-delay <profile>] --agent, then use status/step/ragequit --agent",
       "description": "Deposit and privately withdraw in one guided workflow",
@@ -5041,9 +5035,7 @@
       "usage": "flow start <amount> <asset> --to <address>"
     },
     {
-      "agentFlagNames": [
-        "--agent"
-      ],
+      "agentFlagNames": [],
       "agentFlags": "not supported in --agent mode",
       "description": "Resume a saved flow through funding, approval, privacy delay, and withdrawal",
       "expectedLatencyClass": "slow",
