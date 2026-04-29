@@ -2,7 +2,7 @@ import type { Command } from "commander";
 import { loadConfig } from "../services/config.js";
 import { handleInitCommand } from "../commands/init.js";
 import type { GlobalOptions } from "../types.js";
-import { CLIError, classifyError } from "./errors.js";
+import { CLIError, classifyError, withErrorRecoveryContext } from "./errors.js";
 import { createNextAction } from "../output/common.js";
 import { info } from "./format.js";
 import { resolveGlobalMode } from "./mode.js";
@@ -42,7 +42,9 @@ export function normalizeInitRequiredInputError(
   error: unknown,
   recoveryDetails: Record<string, unknown> = {},
 ): unknown {
-  const classified = classifyError(error, recoveryDetails);
+  const classified = Object.keys(recoveryDetails).length > 0
+    ? withErrorRecoveryContext(error, recoveryDetails)
+    : classifyError(error);
   if (!isMissingWalletSetupError(classified)) {
     return classified;
   }

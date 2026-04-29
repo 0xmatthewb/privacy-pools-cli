@@ -77,12 +77,29 @@ const FLOW_MODULE_RESTORES = [
 ] as const;
 
 const ctx = { mode: "test" };
-const startSnapshot = { workflowId: "wf-start", phase: "awaiting_asp" };
-const watchSnapshot = { workflowId: "wf-watch", phase: "completed" };
-const statusSnapshot = { workflowId: "wf-status", phase: "paused_declined" };
+const startSnapshot = {
+  workflowId: "wf-start",
+  phase: "awaiting_asp",
+  chain: "sepolia",
+  asset: "ETH",
+};
+const watchSnapshot = {
+  workflowId: "wf-watch",
+  phase: "completed",
+  chain: "sepolia",
+  asset: "ETH",
+};
+const statusSnapshot = {
+  workflowId: "wf-status",
+  phase: "paused_declined",
+  chain: "sepolia",
+  asset: "ETH",
+};
 const ragequitSnapshot = {
   workflowId: "wf-ragequit",
   phase: "completed_public_recovery",
+  chain: "sepolia",
+  asset: "ETH",
 };
 const watchLoopStartSnapshot = {
   workflowId: "wf-watch",
@@ -315,6 +332,17 @@ function clearMockCalls(fn: {
   fn.mock?.results?.splice(0);
   fn.mock?.contexts?.splice(0);
   fn.mock?.instances?.splice(0);
+}
+
+function expectPrintedRecoveryCliCommand(expected: string): void {
+  expect(printErrorMock).toHaveBeenCalledTimes(1);
+  const [error, isJson] = printErrorMock.mock.calls[0] ?? [];
+  expect(error).toBeInstanceOf(realErrors.CLIError);
+  expect(
+    (error as InstanceType<typeof realErrors.CLIError>).extra?.nextActions?.[0]
+      ?.cliCommand,
+  ).toBe(expected);
+  expect(isJson).toBe(true);
 }
 
 afterEach(() => {
@@ -1316,6 +1344,19 @@ describe("flow command handlers", () => {
     );
   });
 
+  test("watch adds saved workflow chain context to raw recovery errors", async () => {
+    getWorkflowStatusMock
+      .mockImplementationOnce(() => watchLoopStartSnapshot)
+      .mockImplementationOnce(() => watchLoopStartSnapshot);
+    stepWorkflowMock.mockImplementationOnce(async () => {
+      throw new Error("execution reverted: UnknownStateRoot");
+    });
+
+    await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true }));
+
+    expectPrintedRecoveryCliCommand("privacy-pools sync --agent --chain sepolia");
+  });
+
   test("watch surfaces proof verification failures without trying to reload the workflow", async () => {
     const proofError = new realErrors.CLIError(
       "Generated withdrawal proof failed local verification.",
@@ -1445,6 +1486,19 @@ describe("flow command handlers", () => {
     expect(maybeRecoverMissingWalletSetupMock).not.toHaveBeenCalled();
   });
 
+  test("status adds saved workflow chain context when rendering fails", async () => {
+    getWorkflowStatusMock
+      .mockImplementationOnce(() => statusSnapshot)
+      .mockImplementationOnce(() => statusSnapshot);
+    renderFlowResultMock.mockImplementationOnce(() => {
+      throw new Error("execution reverted: IncorrectASPRoot");
+    });
+
+    await handleFlowStatusCommand("wf-status", undefined, fakeCommand({ json: true }));
+
+    expectPrintedRecoveryCliCommand("privacy-pools sync --agent --chain sepolia");
+  });
+
   test("step delegates to the workflow service and renders the step action", async () => {
     const cmd = fakeCommand({ chain: "sepolia", json: true });
     const steppedSnapshot = { workflowId: "wf-step", phase: "awaiting_asp" };
@@ -1497,6 +1551,31 @@ describe("flow command handlers", () => {
       true,
     );
     expect(maybeRecoverMissingWalletSetupMock).not.toHaveBeenCalled();
+  });
+
+  test("step adds saved workflow chain context to raw recovery errors", async () => {
+    stepWorkflowMock.mockImplementationOnce(async () => {
+      throw new Error("execution reverted: IncorrectASPRoot");
+    });
+
+    await handleFlowStepCommand("wf-step", undefined, fakeCommand({ json: true }));
+
+    expectPrintedRecoveryCliCommand("privacy-pools sync --agent --chain sepolia");
+  });
+
+  test("step rebuilds classified recovery actions with saved workflow chain context", async () => {
+    stepWorkflowMock.mockImplementationOnce(async () => {
+      throw new realErrors.CLIError(
+        "State root is no longer available.",
+        "CONTRACT",
+        "Sync and retry.",
+        "CONTRACT_UNKNOWN_STATE_ROOT",
+      );
+    });
+
+    await handleFlowStepCommand("wf-step", undefined, fakeCommand({ json: true }));
+
+    expectPrintedRecoveryCliCommand("privacy-pools sync --agent --chain sepolia");
   });
 
   test("ragequit delegates to the workflow service and renders recovery output", async () => {
@@ -1606,6 +1685,18 @@ describe("flow command handlers", () => {
 
     expect(renderFlowResultMock).not.toHaveBeenCalled();
     expect(printErrorMock).toHaveBeenCalledWith(proofError, true);
+  });
+
+  test("ragequit adds saved workflow chain context to raw recovery errors", async () => {
+    ragequitWorkflowMock.mockImplementationOnce(async () => {
+      throw new Error("execution reverted: NullifierAlreadySpent");
+    });
+
+    await handleFlowRagequitCommand("wf-ragequit", undefined, fakeCommand({ json: true }));
+
+    expectPrintedRecoveryCliCommand(
+      "privacy-pools accounts --agent --chain sepolia",
+    );
   });
 
   test("ragequit cancels cleanly when the confirmation is declined", async () => {

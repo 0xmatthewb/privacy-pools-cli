@@ -680,6 +680,40 @@ async function handleFlowCommandError(
   );
 }
 
+const FLOW_CHAIN_RECOVERY_ERROR_CODES = new Set([
+  "CONTRACT_INCORRECT_ASP_ROOT",
+  "CONTRACT_UNKNOWN_STATE_ROOT",
+  "CONTRACT_NULLIFIER_ALREADY_SPENT",
+  "INPUT_NONROUND_AMOUNT",
+  "RPC_BROADCAST_CONFIRMATION_TIMEOUT",
+]);
+
+const FLOW_CHAIN_RECOVERY_REVERT_PATTERN =
+  /IncorrectASPRoot|UnknownStateRoot|NullifierAlreadySpent/;
+
+function flowErrorMayUseChainRecovery(error: unknown): boolean {
+  if (error instanceof CLIError && error.code) {
+    return FLOW_CHAIN_RECOVERY_ERROR_CODES.has(error.code);
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return FLOW_CHAIN_RECOVERY_REVERT_PATTERN.test(message);
+}
+
+function flowRecoveryDetailsForWorkflow(
+  workflowId: string | undefined,
+  error: unknown,
+): Record<string, unknown> {
+  if (!flowErrorMayUseChainRecovery(error)) {
+    return {};
+  }
+  try {
+    const snapshot = getWorkflowStatus({ workflowId });
+    return snapshot.chain ? { chain: snapshot.chain } : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function handleFlowRootCommand(
   _opts: Record<string, unknown>,
   cmd: Command,
@@ -1302,6 +1336,7 @@ export async function handleFlowRagequitCommand(
       cmd,
       json: mode.isJson,
       silent: mode.isQuiet,
+      recoveryDetails: flowRecoveryDetailsForWorkflow(workflowId, error),
     });
   }
 }
@@ -1432,6 +1467,7 @@ export async function handleFlowWatchCommand(
       cmd,
       json: mode.isJson,
       silent: mode.isQuiet,
+      recoveryDetails: flowRecoveryDetailsForWorkflow(workflowId, error),
     });
   } finally {
     if (detachController) {
@@ -1476,6 +1512,7 @@ export async function handleFlowStatusCommand(
       json: mode.isJson,
       silent: mode.isQuiet,
       allowSetupRecovery: false,
+      recoveryDetails: flowRecoveryDetailsForWorkflow(workflowId, error),
     });
   }
 }
@@ -1540,6 +1577,7 @@ export async function handleFlowStepCommand(
       json: mode.isJson,
       silent: mode.isQuiet,
       allowSetupRecovery: false,
+      recoveryDetails: flowRecoveryDetailsForWorkflow(workflowId, error),
     });
   }
 }
