@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import {
   FLOW_EXTERNAL_MUTATION_TRIGGER,
@@ -89,5 +90,24 @@ describe("flow phase graph", () => {
         },
       ]),
     );
+  });
+
+  test("keeps workflow transition targets represented in service mutations", () => {
+    const workflowSource = readFileSync(
+      new URL("../../src/services/workflow.ts", import.meta.url),
+      "utf8",
+    );
+    const operationalEdges = FLOW_PHASE_GRAPH.edges.filter(
+      (edge) =>
+        edge.trigger !== FLOW_EXTERNAL_MUTATION_TRIGGER &&
+        edge.trigger !== "operator runs flow ragequit",
+    );
+
+    expect(operationalEdges.length).toBe(10);
+    for (const edge of operationalEdges) {
+      expect(workflowSource, `${edge.from} -> ${edge.to}`).toContain(
+        `phase: "${edge.to}"`,
+      );
+    }
   });
 });

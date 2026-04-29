@@ -1278,9 +1278,6 @@
       "firstTry": "poll tx-status with the returned submission id",
       "nextActions": [
         {
-          "args": [
-            "<submissionId>"
-          ],
           "command": "tx-status",
           "parameters": [
             {

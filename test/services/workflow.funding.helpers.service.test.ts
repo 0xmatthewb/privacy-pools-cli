@@ -106,7 +106,7 @@ describe("workflow funding helper coverage", () => {
     const workflowHelpers = await loadWorkflowHelpers();
     const {
       getFlowWarningAmount,
-      buildAmountPatternLinkabilityWarning,
+      buildPrivacyNonRoundAmountWarning,
       buildFlowAmountPrivacyWarning,
       buildFlowPrivacyDelayWarning,
     } = workflowHelpers;
@@ -136,11 +136,11 @@ describe("workflow funding helper coverage", () => {
     });
 
     expect(
-      buildAmountPatternLinkabilityWarning(1000000000000000000n, 18, "ETH"),
+      buildPrivacyNonRoundAmountWarning(1000000000000000000n, 18, "ETH"),
     ).toBeNull();
 
     expect(
-      buildAmountPatternLinkabilityWarning(123000000000000000n, 18, "ETH", {
+      buildPrivacyNonRoundAmountWarning(123000000000000000n, 18, "ETH", {
         estimated: true,
       }),
     ).toMatchObject({

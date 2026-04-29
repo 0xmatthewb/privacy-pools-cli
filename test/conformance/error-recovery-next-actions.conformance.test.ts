@@ -88,6 +88,60 @@ describe("error recovery nextActions conformance", () => {
     }
   });
 
+  test("chain-scoped recovery commands preserve provided chain context", () => {
+    const cases = [
+      {
+        rawError: "execution reverted: IncorrectASPRoot",
+        code: "CONTRACT_INCORRECT_ASP_ROOT",
+        cliCommand: "privacy-pools sync --agent --chain sepolia",
+      },
+      {
+        rawError: "execution reverted: UnknownStateRoot",
+        code: "CONTRACT_UNKNOWN_STATE_ROOT",
+        cliCommand: "privacy-pools sync --agent --chain sepolia",
+      },
+      {
+        rawError: "execution reverted: NullifierAlreadySpent",
+        code: "CONTRACT_NULLIFIER_ALREADY_SPENT",
+        cliCommand: "privacy-pools accounts --agent --chain sepolia",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const classified = classifyError(
+        new Error(testCase.rawError),
+        { chain: "sepolia" },
+      );
+      expect(classified.code).toBe(testCase.code);
+      expect(classified.extra.nextActions?.[0]?.cliCommand).toBe(
+        testCase.cliCommand,
+      );
+      expect(classified.extra.nextActions?.[0]?.cliCommand).toContain(
+        "--chain sepolia",
+      );
+    }
+
+    const nonRoundAmount = new CLIError(
+      "amount may fingerprint this transaction",
+      "INPUT",
+      "retry with a round amount",
+      "INPUT_NONROUND_AMOUNT",
+      false,
+      "inline",
+      {
+        command: "deposit",
+        amount: "0.0734",
+        suggestedRoundAmount: "0.07",
+        asset: "ETH",
+        chain: "sepolia",
+      },
+    );
+
+    expect(nonRoundAmount.extra.nextActions?.[0]?.cliCommand).toContain(
+      "--chain sepolia",
+    );
+  });
+
   test("retry-only codes expose retry policy in error JSON", () => {
     clearProcessExitCode();
     const stdout = captureStdout(() => {

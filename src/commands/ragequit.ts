@@ -381,6 +381,7 @@ export async function handleRagequitCommand(
       ], activeIndex, note),
     );
   };
+  let errorRecoveryContext: Record<string, unknown> = {};
 
   try {
     emitStreamJsonEvent(streamJson, {
@@ -445,6 +446,7 @@ export async function handleRagequitCommand(
 
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+    errorRecoveryContext = { chain: chainConfig.name };
     emitStreamJsonEvent(streamJson, {
       mode: "ragequit-progress",
       operation: "ragequit",
@@ -1363,6 +1365,9 @@ export async function handleRagequitCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
+    printError(
+      normalizeInitRequiredInputError(error, errorRecoveryContext),
+      isJson || isUnsigned,
+    );
   }
 }

@@ -67,9 +67,10 @@ import { getDataService, getPublicClient } from "./sdk.js";
 import { loadMnemonic, loadPrivateKey } from "./wallet.js";
 import {
   getExternalMutationFlowPhase,
-  isPausedFlowPhase as isPausedFlowPhaseValue,
-  isTerminalFlowPhase as isTerminalFlowPhaseValue,
+  isPausedFlowPhase,
+  isTerminalFlowPhase,
 } from "./flow-phase-graph.js";
+export { isPausedFlowPhase, isTerminalFlowPhase } from "./flow-phase-graph.js";
 import {
   formatAmountDecimal,
   isRoundAmount,
@@ -83,6 +84,7 @@ import {
   classifyError,
   CLIError,
   sanitizeDiagnosticText,
+  withErrorRecoveryContext,
 } from "../utils/errors.js";
 import {
   deriveTokenPrice,
@@ -263,10 +265,6 @@ export class FlowBackRequestedError extends Error {
     super("Flow review returned to editable inputs.");
     this.name = "FlowBackRequestedError";
   }
-}
-
-function isPausedFlowPhase(phase: FlowPhase): boolean {
-  return isPausedFlowPhaseValue(phase);
 }
 
 let workflowNarrativeProgress:
@@ -1300,10 +1298,6 @@ export async function withWorkflowOperationLock<T>(
   }
 }
 
-export function isTerminalFlowPhase(phase: FlowPhase): boolean {
-  return isTerminalFlowPhaseValue(phase);
-}
-
 function parseWorkflowSnapshot(raw: string, filePath: string): FlowSnapshot {
   let parsed: unknown;
   try {
@@ -1734,7 +1728,7 @@ export function getFlowWarningAmount(
   }
 }
 
-export function buildAmountPatternLinkabilityWarning(
+export function buildPrivacyNonRoundAmountWarning(
   amount: bigint,
   assetDecimals: number,
   asset: string,
@@ -1792,7 +1786,7 @@ export function buildFlowAmountPrivacyWarning(
   }
 
   const { amount, estimated } = amountInfo;
-  return buildAmountPatternLinkabilityWarning(
+  return buildPrivacyNonRoundAmountWarning(
     amount,
     snapshot.assetDecimals!,
     snapshot.asset,
@@ -1837,7 +1831,7 @@ async function confirmHumanFlowStartReview(
   const chainConfig = resolveChain(chainName);
   const feeAmount = (amount * pool.vettingFeeBPS) / 10000n;
   const estimatedCommitted = amount - feeAmount;
-  const estimatedAmountPatternWarning = buildAmountPatternLinkabilityWarning(
+  const estimatedAmountPatternWarning = buildPrivacyNonRoundAmountWarning(
     estimatedCommitted,
     pool.decimals,
     pool.symbol,
@@ -2137,8 +2131,9 @@ function saveMutatedWorkflowSnapshot(
 export function buildFlowLastError(
   step: string,
   error: unknown,
+  recoveryDetails: Record<string, unknown> = {},
 ): FlowLastError {
-  const classified = classifyError(error);
+  const classified = classifyError(error, recoveryDetails);
   return {
     step,
     errorCode: classified.code,
@@ -2842,7 +2837,7 @@ export async function reconcilePendingDepositReceipt(
     if (error instanceof TransactionReceiptNotFoundError) {
       return null;
     }
-    throw classifyError(error);
+    throw classifyError(error, { chain: chainConfig.name });
   }
 
   if (!receipt) {
@@ -2987,7 +2982,7 @@ export async function reconcilePendingWithdrawalReceipt(
     if (error instanceof TransactionReceiptNotFoundError) {
       return null;
     }
-    throw classifyError(error);
+    throw classifyError(error, { chain: chainConfig.name });
   }
 
   if (!receipt) {
@@ -3073,7 +3068,7 @@ export async function reconcilePendingRagequitReceipt(
       }
       return null;
     }
-    throw classifyError(error);
+    throw classifyError(error, { chain: chainConfig.name });
   }
 
   if (!receipt) {
@@ -4911,7 +4906,9 @@ export async function startWorkflow(
               checkpointedSnapshot as FlowSnapshot,
               normalizeWorkflowSnapshot(
                 updateSnapshot(checkpointedSnapshot as FlowSnapshot, {
-                  lastError: buildFlowLastError("deposit", error),
+                  lastError: buildFlowLastError("deposit", error, {
+                    chain: chainConfig.name,
+                  }),
                 }),
               ),
             ),
@@ -4920,7 +4917,7 @@ export async function startWorkflow(
           // Best effort only. Surface the original error below.
         }
       }
-      throw error;
+      throw withErrorRecoveryContext(error, { chain: chainConfig.name });
     }
   }
 
@@ -4997,7 +4994,9 @@ export async function watchWorkflow(
                 latestSnapshot.phase === "approved_ready_to_withdraw"
               ? "withdraw"
               : "inspect_approval";
-      const flowLastError = buildFlowLastError(step, error);
+      const flowLastError = buildFlowLastError(step, error, {
+        chain: latestSnapshot.chain,
+      });
       const errored = updateSnapshot(latestSnapshot, {
         lastError: flowLastError,
       });
@@ -5007,7 +5006,7 @@ export async function watchWorkflow(
         // Best effort only. Preserve the original workflow error when the
         // workflow directory itself is the thing that is failing.
       }
-      throw error;
+      throw withErrorRecoveryContext(error, { chain: latestSnapshot.chain });
     }
   };
 
@@ -5073,7 +5072,7 @@ export async function watchWorkflow(
       try {
         result = await advanceWorkflowOnce();
       } catch (error) {
-        const classified = classifyError(error);
+        const classified = classifyError(error, { chain: snapshot.chain });
         if (!classified.retryable) {
           throw error;
         }
@@ -5222,7 +5221,9 @@ export async function stepWorkflow(
                 latestSnapshot.phase === "approved_ready_to_withdraw"
               ? "withdraw"
               : "inspect_approval";
-      const flowLastError = buildFlowLastError(step, error);
+      const flowLastError = buildFlowLastError(step, error, {
+        chain: latestSnapshot.chain,
+      });
       const errored = updateSnapshot(latestSnapshot, {
         lastError: flowLastError,
       });
@@ -5232,7 +5233,7 @@ export async function stepWorkflow(
         // Best effort only. Preserve the original workflow error when the
         // workflow directory itself is the thing that is failing.
       }
-      throw error;
+      throw withErrorRecoveryContext(error, { chain: latestSnapshot.chain });
     }
   });
 }
@@ -5249,8 +5250,10 @@ export async function ragequitWorkflow(
   const workflowId = resolveWorkflowId(params.workflowId);
   return withWorkflowOperationLock(workflowId, "ragequit", async () => {
     const releaseLock = acquireProcessLock();
+    let loadedSnapshot: FlowSnapshot | undefined;
     try {
       const snapshot = loadWorkflowSnapshot(workflowId);
+      loadedSnapshot = snapshot;
       const silent = params.mode.isQuiet || params.mode.isJson;
       if (!snapshot.depositTxHash || !snapshot.poolAccountId || !snapshot.poolAccountNumber) {
         throw new CLIError(
@@ -5334,6 +5337,11 @@ export async function ragequitWorkflow(
       const savedCompleted = saveWorkflowSnapshotIfChanged(snapshot, completed);
       cleanupTerminalWorkflowSecret(savedCompleted);
       return savedCompleted;
+    } catch (error) {
+      if (loadedSnapshot) {
+        throw withErrorRecoveryContext(error, { chain: loadedSnapshot.chain });
+      }
+      throw error;
     } finally {
       releaseLock();
     }

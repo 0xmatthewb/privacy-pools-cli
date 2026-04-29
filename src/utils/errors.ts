@@ -461,7 +461,7 @@ export function withErrorRecoveryContext(
   error: unknown,
   details: Record<string, unknown>,
 ): CLIError {
-  const classified = classifyError(error);
+  const classified = classifyError(error, details);
   const mergedDetails = {
     ...(classified.details ?? {}),
     ...details,
@@ -710,7 +710,10 @@ const CONTRACT_ERROR_MAP: Record<string, {
   },
 };
 
-export function classifyError(error: unknown): CLIError {
+export function classifyError(
+  error: unknown,
+  recoveryDetails: Record<string, unknown> = {},
+): CLIError {
   if (error instanceof CLIError) return error;
 
   if (isPromptCancellationError(error)) {
@@ -729,6 +732,8 @@ export function classifyError(error: unknown): CLIError {
   const rawMessage =
     error instanceof Error ? error.message : String(error);
   const message = sanitizeDiagnosticText(rawMessage);
+  const recoveryContextDetails =
+    Object.keys(recoveryDetails).length > 0 ? recoveryDetails : undefined;
 
   // Check for known contract revert reasons
   for (const [key, mapped] of Object.entries(CONTRACT_ERROR_MAP)) {
@@ -737,6 +742,7 @@ export function classifyError(error: unknown): CLIError {
         message: mapped.message,
         code: mapped.code,
         hint: mapped.hint,
+        details: recoveryContextDetails,
         docsSlug: mapped.docsSlug,
       });
     }
@@ -751,6 +757,7 @@ export function classifyError(error: unknown): CLIError {
         code: "PROOF_MERKLE_ERROR",
         hint:
           "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync --chain <chain>' and retry.",
+        details: recoveryContextDetails,
         docsSlug: "reference/sync#sync",
       });
     }
@@ -760,6 +767,7 @@ export function classifyError(error: unknown): CLIError {
         code: "PROOF_GENERATION_FAILED",
         hint:
           "Run 'privacy-pools sync' to refresh local state and retry. If it persists, verify you are using the correct recovery phrase and that the Pool Account has not already been spent.",
+        details: recoveryContextDetails,
         docsSlug: "guide/troubleshooting",
       });
     }
@@ -769,6 +777,7 @@ export function classifyError(error: unknown): CLIError {
         code: "PROOF_VERIFICATION_FAILED",
         hint:
           "Run 'privacy-pools sync' to refresh local state and retry. If it persists, reinstall the CLI to refresh the bundled circuit artifacts.",
+        details: recoveryContextDetails,
         docsSlug: "guide/troubleshooting",
       });
     }
@@ -781,6 +790,7 @@ export function classifyError(error: unknown): CLIError {
       code: "RPC_NETWORK_ERROR",
       hint:
         "Check your RPC URL and network connectivity. If the request is timing out, try --timeout <seconds>.",
+      details: recoveryContextDetails,
       docsSlug: "guide/troubleshooting",
     });
   }
@@ -794,6 +804,7 @@ export function classifyError(error: unknown): CLIError {
       code: "RPC_RATE_LIMITED",
       hint:
         "Your RPC provider is rate-limiting requests. Wait a moment and retry, or use a dedicated RPC URL with --rpc-url.",
+      details: recoveryContextDetails,
       docsSlug: "guide/troubleshooting",
     });
   }
@@ -811,6 +822,7 @@ export function classifyError(error: unknown): CLIError {
       code: "RPC_NETWORK_ERROR",
       hint:
         "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable.",
+      details: recoveryContextDetails,
       docsSlug: "guide/troubleshooting",
     });
   }
@@ -825,6 +837,7 @@ export function classifyError(error: unknown): CLIError {
       code: "CONTRACT_INSUFFICIENT_FUNDS",
       hint:
         "Your wallet does not have enough ETH to cover the deposit amount plus gas fees. Check your signer wallet balance in a block explorer or wallet app, then fund it before retrying.",
+      details: recoveryContextDetails,
       docsSlug: "guide/troubleshooting",
     });
   }
@@ -839,6 +852,7 @@ export function classifyError(error: unknown): CLIError {
       code: "CONTRACT_NONCE_ERROR",
       hint:
         "A previous transaction may be pending. Wait for it to confirm or use a wallet management tool to resolve stuck transactions.",
+      details: recoveryContextDetails,
       docsSlug: "guide/troubleshooting",
     });
   }
@@ -847,6 +861,7 @@ export function classifyError(error: unknown): CLIError {
     message,
     code: "UNKNOWN_ERROR",
     hint: `Try 'privacy-pools sync' to refresh local state, then retry. ${repositoryIssueHint()}`,
+    details: recoveryContextDetails,
     docsSlug: "guide/troubleshooting",
   });
 }

@@ -635,6 +635,7 @@ async function handleFlowCommandError(
     json: boolean;
     silent: boolean;
     allowSetupRecovery?: boolean;
+    recoveryDetails?: Record<string, unknown>;
   },
 ): Promise<void> {
   if (error instanceof PreviewScenarioRenderedError) {
@@ -673,7 +674,10 @@ async function handleFlowCommandError(
     return;
   }
 
-  printError(normalizeInitRequiredInputError(error), options.json);
+  printError(
+    normalizeInitRequiredInputError(error, options.recoveryDetails),
+    options.json,
+  );
 }
 
 export async function handleFlowRootCommand(
@@ -860,6 +864,7 @@ export async function handleFlowStartCommand(
   });
   const isVerbose = globalOpts?.verbose ?? false;
   const ctx = createOutputContext(mode, isVerbose);
+  let errorRecoveryContext: Record<string, unknown> = {};
 
   try {
     emitStreamJsonEvent(streamJson, {
@@ -990,6 +995,7 @@ export async function handleFlowStartCommand(
     }
     recipient = resolvedRecipient.address;
     const recipientChain = globalOpts.chain ?? loadConfig().defaultChain;
+    errorRecoveryContext = { chain: recipientChain };
 
     const recipientWarnings = await confirmRecipientIfNew({
       address: recipient,
@@ -1140,6 +1146,7 @@ export async function handleFlowStartCommand(
       cmd,
       json: mode.isJson,
       silent: mode.isQuiet,
+      recoveryDetails: errorRecoveryContext,
     });
   }
 }

@@ -38,10 +38,13 @@ export function isMissingWalletSetupError(error: unknown): boolean {
   );
 }
 
-export function normalizeInitRequiredInputError(error: unknown): unknown {
-  const classified = classifyError(error);
+export function normalizeInitRequiredInputError(
+  error: unknown,
+  recoveryDetails: Record<string, unknown> = {},
+): unknown {
+  const classified = classifyError(error, recoveryDetails);
   if (!isMissingWalletSetupError(classified)) {
-    return error;
+    return classified;
   }
 
   return new CLIError(

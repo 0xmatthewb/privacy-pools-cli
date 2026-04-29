@@ -212,6 +212,7 @@ export async function handleDepositCommand(
     opts.ignoreUniqueAmount === true
       ? IGNORE_UNIQUE_AMOUNT_DEPRECATION_WARNING
       : undefined;
+  let errorRecoveryContext: Record<string, unknown> = {};
   try {
     emitStreamJsonEvent(streamJson, {
       mode: "deposit-progress",
@@ -269,6 +270,7 @@ export async function handleDepositCommand(
 
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+    errorRecoveryContext = { chain: chainConfig.name };
     emitStreamJsonEvent(streamJson, {
       mode: "deposit-progress",
       operation: "deposit",
@@ -1114,6 +1116,9 @@ export async function handleDepositCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
+    printError(
+      normalizeInitRequiredInputError(error, errorRecoveryContext),
+      isJson || isUnsigned,
+    );
   }
 }

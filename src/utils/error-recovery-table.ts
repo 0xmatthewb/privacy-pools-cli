@@ -239,16 +239,17 @@ function accountsNextAction(
 }
 
 function txStatusNextAction(context: ErrorRecoveryContext): NextAction[] {
-  const submissionId = stringValue(context, ["submissionId"], "<submissionId>");
+  const submissionId = optionalString(context, ["submissionId"]);
   return [
     recoveryNextAction(
       "tx-status",
       "Poll the accepted submission instead of rebroadcasting.",
       "after_submit",
       {
-        args: [submissionId],
+        ...(submissionId ? { args: [submissionId] } : {}),
         options: { agent: true },
         parameters: [{ name: "submissionId", type: "uuid", required: true }],
+        ...(submissionId ? {} : { runnable: false }),
       },
     ),
   ];

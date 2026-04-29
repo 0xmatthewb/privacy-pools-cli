@@ -1307,7 +1307,13 @@ describe("flow command handlers", () => {
     await handleFlowWatchCommand("wf-watch", undefined, fakeCommand({ json: true }));
 
     expect(renderFlowResultMock).not.toHaveBeenCalled();
-    expect(printErrorMock).toHaveBeenCalledWith(boom, true);
+    expect(printErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "UNKNOWN_ERROR",
+        message: "watch exploded",
+      }),
+      true,
+    );
   });
 
   test("watch surfaces proof verification failures without trying to reload the workflow", async () => {
@@ -1429,7 +1435,13 @@ describe("flow command handlers", () => {
     await handleFlowStatusCommand("wf-status", undefined, fakeCommand({ json: true }));
 
     expect(renderFlowResultMock).not.toHaveBeenCalled();
-    expect(printErrorMock).toHaveBeenCalledWith(boom, true);
+    expect(printErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "UNKNOWN_ERROR",
+        message: "status exploded",
+      }),
+      true,
+    );
     expect(maybeRecoverMissingWalletSetupMock).not.toHaveBeenCalled();
   });
 
@@ -1477,7 +1489,13 @@ describe("flow command handlers", () => {
     await handleFlowStepCommand("wf-step", undefined, fakeCommand({ json: true }));
 
     expect(renderFlowResultMock).not.toHaveBeenCalled();
-    expect(printErrorMock).toHaveBeenCalledWith(boom, true);
+    expect(printErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "UNKNOWN_ERROR",
+        message: "step exploded",
+      }),
+      true,
+    );
     expect(maybeRecoverMissingWalletSetupMock).not.toHaveBeenCalled();
   });
 
