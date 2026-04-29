@@ -7,7 +7,7 @@ license: Apache-2.0
 compatibility: 'Skill invokes the privacy-pools CLI (npm package privacy-pools-cli) with Node >=22 <26. Local-CLI hosts (Claude Code, Cursor, Codex, OpenCode, Gemini CLI, OpenClaw): install with `npm i -g privacy-pools-cli`. Hosted-sandbox hosts (Bankr): agent installs the CLI inside its sandbox via execute_cli. Supports macOS, Linux, Windows.'
 metadata:
   {
-    "version": "2.0.0",
+    "version": "2.1.0",
     "author": { "name": "matthewb", "url": "https://github.com/0xmatthewb" },
     "homepage": "https://privacypools.com",
     "openclaw":
@@ -55,6 +55,7 @@ Environment preflight:
 - `PRIVACY_POOLS_HOME` / `PRIVACY_POOLS_CONFIG_DIR` selects the local profile directory when the host needs isolation.
 - `PRIVACY_POOLS_RPC_URL` or per-chain RPC overrides can recover degraded RPC health.
 - `PRIVACY_POOLS_RELAYER_HOST` can override the relayer if `status --check relayer` is degraded.
+- `init` accepts only one stdin secret per invocation. To import both an existing recovery phrase and a signer key, either pass one via `--*-file` and the other via `--*-stdin`, or run `init` first with the recovery phrase and a second `init --signer-only` for the private key.
 
 Readiness branches:
 - `recommendedMode: "setup-required"`: run `init` or ask the human to complete local secret setup.
@@ -64,41 +65,59 @@ Readiness branches:
 
 ## Quick reference
 
+### Read-only (no wallet needed)
+
 | Action | CLI (agent-friendly) | Notes |
 |--------|---------------------|-------|
-| Browse pools | `privacy-pools pools --agent` | No wallet needed |
-| Global stats | `privacy-pools protocol-stats --agent` | No wallet needed; `--chain` not supported |
-| Pool stats | `privacy-pools pool-stats ETH --agent` | No wallet needed |
-| Activity feed | `privacy-pools activity --agent` | No wallet needed |
-| Check status | `privacy-pools status --agent --check` | No wallet needed |
-| Check upgrade availability | `privacy-pools upgrade --agent --check` | Read-only unless `--yes` is also present and the install is a supported global npm install |
-| Discover capabilities | `privacy-pools capabilities --agent` | No wallet needed |
-| Describe one command | `privacy-pools describe withdraw quote --agent` | No wallet needed |
+| Browse pools | `privacy-pools pools --agent` | All CLI-supported mainnets |
+| Pool detail | `privacy-pools pools ETH --agent` | Combined stats + my funds |
+| Global stats | `privacy-pools protocol-stats --agent` | Cross-chain aggregate; `--chain` not supported |
+| Pool stats | `privacy-pools pool-stats ETH --agent` | Per-asset, per-chain |
+| Activity feed | `privacy-pools activity --agent` | Recent on-chain activity |
+| Check status | `privacy-pools status --agent --check` | Health + readiness |
+| Discover capabilities | `privacy-pools capabilities --agent` | Machine-readable command manifest |
+| Describe one command | `privacy-pools describe withdraw quote --agent` | Per-command runtime contract |
 | Describe one schema path | `privacy-pools describe envelope.nextActions --agent` | Bundled contract field introspection |
-| Initialize wallet | `privacy-pools init --agent --default-chain mainnet --show-recovery-phrase` | One-time setup |
-| Start easy flow | `privacy-pools flow start 0.1 ETH --to 0x... --agent` | Deposit now, save later private withdrawal |
-| Start easy flow (new wallet) | `privacy-pools flow start 100 USDC --to 0x... --new-wallet --export-new-wallet ./flow-wallet.txt --agent` | Generates a dedicated workflow wallet, stores it locally for the workflow, exports a backup, and returns the funding snapshot for `flow status` / `flow step` polling |
-| Poll easy flow | `privacy-pools flow status latest --agent` | Read the saved workflow snapshot without mutating it |
+| Check upgrade availability | `privacy-pools upgrade --agent --check` | Read-only unless `--yes` is also present |
+
+### Setup
+
+| Action | CLI (agent-friendly) | Notes |
+|--------|---------------------|-------|
+| Initialize new wallet | `privacy-pools init --agent --default-chain mainnet --show-recovery-phrase` | Generates and returns a fresh recovery phrase |
+| Load existing wallet (mixed sources) | `printf '%s\n' 0x<KEY> \| privacy-pools init --recovery-phrase-file ./phrase.txt --private-key-stdin --agent --default-chain mainnet` | One stdin secret per `init` run; pass the other as `--*-file` |
+| Load existing wallet (sequential init) | `cat phrase.txt \| privacy-pools init --recovery-phrase-stdin --agent --default-chain mainnet` then `printf '%s\n' 0x<KEY> \| privacy-pools init --signer-only --private-key-stdin --agent` | Two sequential `init` invocations: phrase first, then `--signer-only` for the key |
+| Force sync | `privacy-pools sync --agent` | Rarely needed (auto-sync with 2min TTL) |
+
+### Easy flow (saved workflow)
+
+| Action | CLI (agent-friendly) | Notes |
+|--------|---------------------|-------|
+| Start easy flow | `privacy-pools flow start 0.1 ETH --to 0x... --agent` | Deposit now, save private withdrawal |
+| Start easy flow (new wallet) | `privacy-pools flow start 100 USDC --to 0x... --new-wallet --export-new-wallet ./flow-wallet.txt --agent` | Generates a dedicated workflow wallet |
+| Poll easy flow | `privacy-pools flow status latest --agent` | Read snapshot without mutating |
 | Advance easy flow | `privacy-pools flow step latest --agent` | Advance at most one saved-workflow step |
-| Check easy flow | `privacy-pools flow status latest --agent` | Inspect the saved workflow snapshot |
-| Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for a declined flow, a relayer-minimum-blocked flow, a PoA-paused flow, or any saved flow where the operator intentionally stops waiting |
-| Deposit ETH | `privacy-pools deposit 0.1 ETH --agent --no-wait` | Requires init; poll `tx-status` first, then monitor ASP review |
-| Poll submitted tx | `privacy-pools tx-status <submissionId> --agent` | Read-only confirmation poll after `--no-wait` or `broadcast` |
+| Recover easy flow | `privacy-pools flow ragequit latest --agent` | Public recovery for declined / blocked / paused flows |
+
+### Manual deposit / withdrawal
+
+| Action | CLI (agent-friendly) | Notes |
+|--------|---------------------|-------|
+| Deposit ETH | `privacy-pools deposit 0.1 ETH --agent --no-wait` | Requires init; poll `tx-status`, then ASP review |
 | Deposit (unsigned) | `privacy-pools deposit 0.1 ETH --unsigned --agent` | No signer key needed |
 | Simulate deposit | `privacy-pools simulate deposit 0.1 ETH --agent` | Same JSON as `deposit --dry-run` |
-| Check accounts | `privacy-pools accounts --agent` | Dashboard view across all CLI-supported mainnet chains by default |
+| Poll submitted tx | `privacy-pools tx-status <submissionId> --agent` | Read-only confirmation poll |
+| Check accounts | `privacy-pools accounts --agent` | All CLI-supported mainnet chains by default |
 | Compact account poll | `privacy-pools accounts --agent --summary` | Counts + balances only |
-| Pending-only poll | `privacy-pools accounts --agent --chain <chain> --pending-only` | Pending approvals only; preserve --chain |
-| Withdraw (relayed) | `privacy-pools withdraw 0.05 ETH --to 0x... --agent --no-wait` | Requires init; poll `tx-status` instead of resubmitting |
-| Withdraw all | `privacy-pools withdraw --all ETH --to 0x... --agent --no-wait` | Full PA balance; poll `tx-status` |
+| Pending-only poll | `privacy-pools accounts --agent --chain <chain> --pending-only` | Preserve `--chain` |
+| Withdraw (relayed) | `privacy-pools withdraw 0.05 ETH --to 0x... --agent --no-wait` | Requires init; poll `tx-status` |
+| Withdraw all | `privacy-pools withdraw --all ETH --to 0x... --agent --no-wait` | Full PA balance |
 | Withdraw (unsigned) | `privacy-pools withdraw 0.05 ETH --to 0x... --unsigned --agent` | No signer key needed |
 | Withdrawal quote | `privacy-pools withdraw quote 0.1 ETH --to 0x... --agent` | Fee estimate |
-| Pool detail | `privacy-pools pools ETH --agent` | Combined stats + my funds |
 | Ragequit | `privacy-pools ragequit ETH --pool-account PA-1 --agent` | Emergency public recovery |
-| Broadcast signed envelope | `privacy-pools broadcast ./signed-envelope.json --agent --no-wait` | Optional inverse for full-envelope workflows; poll `tx-status` |
-| Dry-run | `privacy-pools deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
+| Broadcast signed envelope | `privacy-pools broadcast ./signed-envelope.json --agent --no-wait` | Optional inverse for full-envelope workflows |
+| Dry-run any tx | `privacy-pools deposit 0.1 ETH --dry-run --agent` | Validate without submitting |
 | Event history | `privacy-pools history --agent` | Requires init |
-| Force sync | `privacy-pools sync --agent` | Rarely needed (auto-sync with 2min TTL) |
 
 ---
 
@@ -463,7 +482,7 @@ Generated recovery decision table:
 - When using `--show-recovery-phrase` during `init`, capture the recovery phrase output programmatically and write it to a secure store. Do not log or display it to end users.
 - The config directory (`~/.privacy-pools`) contains key material. Restrict filesystem permissions (`chmod 700`).
 - Avoid setting `PRIVACY_POOLS_PRIVATE_KEY` in shared or CI environments where env vars may be logged. Prefer `--private-key-file` with a restricted-access file.
-- For non-interactive secret import, prefer `--recovery-phrase-stdin` or `--private-key-stdin` over process-list-visible flags. Use only one stdin secret source per invocation.
+- For non-interactive secret import, prefer `--recovery-phrase-stdin` or `--private-key-stdin` over process-list-visible flags. Use only one stdin secret source per invocation. See the "Setup" subsection of "Quick reference" for the supported import recipes.
 - Agents that call `init --agent --show-recovery-phrase` should pipe the `recoveryPhrase` field from the JSON response directly to a secrets manager, then discard it from memory.
 
 ---
