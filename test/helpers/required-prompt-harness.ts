@@ -54,7 +54,6 @@ const HARNESS_CASES: Record<string, RequiredPromptHarnessCase> = {
     argv: ["--no-banner", "--chain", "sepolia", "flow", "start", "0.1", "ETH"],
     promptPattern: /recipient|withdraw/i,
     seededHome: true,
-    input: "\u0003",
   },
   deposit: {
     command: "deposit",
