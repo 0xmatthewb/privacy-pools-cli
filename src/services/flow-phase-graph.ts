@@ -4,6 +4,11 @@ import {
   type FlowPhaseGraph,
 } from "../types.js";
 
+const FLOW_PHASE_PAUSED_ORDER = [
+  "paused_declined",
+  "paused_poa_required",
+] as const satisfies readonly FlowPhase[];
+
 export const FLOW_PHASE_GRAPH = {
   nodes: [...FLOW_PHASE_VALUES],
   edges: [
@@ -57,22 +62,22 @@ export const FLOW_PHASE_GRAPH = {
       to: "completed",
       trigger: "relayed private withdrawal confirms",
     },
-    ...FLOW_PHASE_VALUES.filter((phase) => !isTerminalPhase(phase)).map((phase) => ({
+    ...FLOW_PHASE_VALUES.filter((phase) => !isTerminalFlowPhase(phase)).map((phase) => ({
       from: phase,
       to: "completed_public_recovery" as FlowPhase,
       trigger: "operator runs flow ragequit",
     })),
-    ...FLOW_PHASE_VALUES.filter((phase) => !isTerminalPhase(phase)).map((phase) => ({
+    ...FLOW_PHASE_VALUES.filter((phase) => !isTerminalFlowPhase(phase)).map((phase) => ({
       from: phase,
       to: "stopped_external" as FlowPhase,
       trigger: "external spend or local workflow mutation is detected",
     })),
   ],
-  terminal: ["completed", "completed_public_recovery", "stopped_external"],
-  paused: ["paused_declined", "paused_poa_required"],
+  terminal: FLOW_PHASE_VALUES.filter(isTerminalFlowPhase),
+  paused: FLOW_PHASE_PAUSED_ORDER.filter(isPausedFlowPhase),
 } satisfies FlowPhaseGraph;
 
-export function isTerminalPhase(phase: FlowPhase): boolean {
+export function isTerminalFlowPhase(phase: FlowPhase): boolean {
   return (
     phase === "completed" ||
     phase === "completed_public_recovery" ||
@@ -80,6 +85,6 @@ export function isTerminalPhase(phase: FlowPhase): boolean {
   );
 }
 
-export function isPausedPhase(phase: FlowPhase): boolean {
+export function isPausedFlowPhase(phase: FlowPhase): boolean {
   return phase === "paused_declined" || phase === "paused_poa_required";
 }

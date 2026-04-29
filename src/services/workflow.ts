@@ -66,6 +66,10 @@ import {
 import { getDataService, getPublicClient } from "./sdk.js";
 import { loadMnemonic, loadPrivateKey } from "./wallet.js";
 import {
+  isPausedFlowPhase as isPausedFlowPhaseValue,
+  isTerminalFlowPhase as isTerminalFlowPhaseValue,
+} from "./flow-phase-graph.js";
+import {
   formatAmountDecimal,
   isRoundAmount,
   suggestRoundAmounts,
@@ -259,7 +263,7 @@ export class FlowBackRequestedError extends Error {
 }
 
 function isPausedFlowPhase(phase: FlowPhase): boolean {
-  return phase === "paused_declined" || phase === "paused_poa_required";
+  return isPausedFlowPhaseValue(phase);
 }
 
 let workflowNarrativeProgress:
@@ -1294,11 +1298,7 @@ export async function withWorkflowOperationLock<T>(
 }
 
 export function isTerminalFlowPhase(phase: FlowPhase): boolean {
-  return (
-    phase === "completed" ||
-    phase === "completed_public_recovery" ||
-    phase === "stopped_external"
-  );
+  return isTerminalFlowPhaseValue(phase);
 }
 
 function parseWorkflowSnapshot(raw: string, filePath: string): FlowSnapshot {

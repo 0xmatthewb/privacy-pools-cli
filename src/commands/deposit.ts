@@ -356,23 +356,13 @@ export async function handleDepositCommand(
     });
     validatePositive(amount, "Deposit amount");
     verbose(`Deposit amount (raw): ${amount.toString()}`, isVerbose, silent);
-    const depositWarnings = [
-      ...(buildPrivacyNonRoundAmountWarning({
-        amount,
-        decimals: pool.decimals,
-        symbol: pool.symbol,
-        escape: true,
-      })
-        ? [
-            buildPrivacyNonRoundAmountWarning({
-              amount,
-              decimals: pool.decimals,
-              symbol: pool.symbol,
-              escape: true,
-            })!,
-          ]
-        : []),
-    ];
+    const nonRoundAmountWarning = buildPrivacyNonRoundAmountWarning({
+      amount,
+      decimals: pool.decimals,
+      symbol: pool.symbol,
+      escape: true,
+    });
+    const depositWarnings = nonRoundAmountWarning ? [nonRoundAmountWarning] : [];
 
     if (amount < pool.minimumDepositAmount) {
       throw new CLIError(

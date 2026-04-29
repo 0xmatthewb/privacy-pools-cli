@@ -240,7 +240,7 @@ export async function handleStatusCommand(
                 doneText: `${healthCheckLabel} complete.`,
               })
             ) {
-              return [null, null];
+              return [null, null, null];
             }
             const [{ spinner }, { withSpinnerProgress }] = await Promise.all([
               import("../utils/format.js"),

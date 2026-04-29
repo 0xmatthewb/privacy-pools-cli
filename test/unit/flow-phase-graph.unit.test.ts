@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   FLOW_PHASE_GRAPH,
-  isPausedPhase,
-  isTerminalPhase,
+  isPausedFlowPhase,
+  isTerminalFlowPhase,
 } from "../../src/services/flow-phase-graph.ts";
 import { FLOW_PHASE_VALUES, type FlowPhase } from "../../src/types.ts";
 
@@ -10,11 +10,13 @@ describe("flow phase graph", () => {
   test("uses the canonical phase list and explicit terminal/paused sets", () => {
     expect(FLOW_PHASE_GRAPH.nodes).toEqual([...FLOW_PHASE_VALUES]);
     expect(FLOW_PHASE_GRAPH.terminal).toEqual(
-      FLOW_PHASE_VALUES.filter((phase) => isTerminalPhase(phase)),
+      FLOW_PHASE_VALUES.filter((phase) => isTerminalFlowPhase(phase)),
     );
-    expect([...FLOW_PHASE_GRAPH.paused].sort()).toEqual(
-      FLOW_PHASE_VALUES.filter((phase) => isPausedPhase(phase)).sort(),
-    );
+    expect(FLOW_PHASE_GRAPH.paused).toEqual([
+      "paused_declined",
+      "paused_poa_required",
+    ]);
+    expect(FLOW_PHASE_GRAPH.paused.every(isPausedFlowPhase)).toBe(true);
   });
 
   test("every edge connects known phases and includes an agent-readable trigger", () => {
