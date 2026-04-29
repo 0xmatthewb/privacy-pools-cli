@@ -140,6 +140,23 @@ describe("error recovery nextActions conformance", () => {
     expect(nonRoundAmount.extra.nextActions?.[0]?.cliCommand).toContain(
       "--chain sepolia",
     );
+
+    const confirmationTimeout = new CLIError(
+      "Timed out waiting for confirmation.",
+      "RPC",
+      "Poll the returned submission id instead of rebroadcasting.",
+      "RPC_BROADCAST_CONFIRMATION_TIMEOUT",
+      true,
+      "inline",
+      {
+        submissionId: "123e4567-e89b-12d3-a456-426614174000",
+        chain: "sepolia",
+      },
+    );
+
+    expect(confirmationTimeout.extra.nextActions?.[0]?.cliCommand).toBe(
+      "privacy-pools tx-status 123e4567-e89b-12d3-a456-426614174000 --agent --chain sepolia",
+    );
   });
 
   test("retry-only codes expose retry policy in error JSON", () => {

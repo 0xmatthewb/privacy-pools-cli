@@ -247,7 +247,7 @@ function txStatusNextAction(context: ErrorRecoveryContext): NextAction[] {
       "after_submit",
       {
         ...(submissionId ? { args: [submissionId] } : {}),
-        options: { agent: true },
+        options: { agent: true, ...chainOption(context) },
         parameters: [{ name: "submissionId", type: "uuid", required: true }],
         ...(submissionId ? {} : { runnable: false }),
       },

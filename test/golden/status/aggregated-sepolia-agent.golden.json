@@ -1279,6 +1279,9 @@
       "nextActions": [
         {
           "command": "tx-status",
+          "options": {
+            "chain": "sepolia"
+          },
           "parameters": [
             {
               "name": "submissionId",
