@@ -444,7 +444,7 @@ function createRegisteredCliError(params: {
   };
 }): CLIError {
   const { category, retryable } = lookupRegisteredError(params.code);
-  return withRecoveryNextActions(new CLIError(
+  return new CLIError(
     params.message,
     category,
     params.hint,
@@ -454,38 +454,6 @@ function createRegisteredCliError(params: {
     params.details,
     params.docsSlug,
     params.extra,
-  ));
-}
-
-function withRecoveryNextActions(error: CLIError): CLIError {
-  if (
-    (error.extra.nextActions && error.extra.nextActions.length > 0) ||
-    error.extra.retry
-  ) {
-    return error;
-  }
-  const nextActions = buildErrorRecoveryNextActions(error.code, {
-    ...(error.details ?? {}),
-    code: error.code,
-    category: error.category,
-  });
-  if (!nextActions || nextActions.length === 0) {
-    return error;
-  }
-  return new CLIError(
-    error.message,
-    error.category,
-    error.hint,
-    error.code,
-    error.retryable,
-    error.presentation,
-    error.details,
-    error.docsSlug,
-    {
-      ...error.extra,
-      nextActions,
-      recoverySource: "table",
-    },
   );
 }
 
@@ -743,7 +711,7 @@ const CONTRACT_ERROR_MAP: Record<string, {
 };
 
 export function classifyError(error: unknown): CLIError {
-  if (error instanceof CLIError) return withRecoveryNextActions(error);
+  if (error instanceof CLIError) return error;
 
   if (isPromptCancellationError(error)) {
     return promptCancelledError();
@@ -765,12 +733,12 @@ export function classifyError(error: unknown): CLIError {
   // Check for known contract revert reasons
   for (const [key, mapped] of Object.entries(CONTRACT_ERROR_MAP)) {
     if (rawMessage.includes(key)) {
-      return withRecoveryNextActions(createRegisteredCliError({
+      return createRegisteredCliError({
         message: mapped.message,
         code: mapped.code,
         hint: mapped.hint,
         docsSlug: mapped.docsSlug,
-      }));
+      });
     }
   }
 
@@ -778,56 +746,56 @@ export function classifyError(error: unknown): CLIError {
   if (hasCode(error)) {
     const code = (error as { code: string }).code;
     if (code === "MERKLE_ERROR") {
-      return withRecoveryNextActions(createRegisteredCliError({
+      return createRegisteredCliError({
         message: "Pool Account not found in the Merkle tree.",
         code: "PROOF_MERKLE_ERROR",
         hint:
           "The deposit may not be indexed yet, or local tree data is stale. Run 'privacy-pools sync --chain <chain>' and retry.",
         docsSlug: "reference/sync#sync",
-      }));
+      });
     }
     if (code === "PROOF_GENERATION_FAILED") {
-      return withRecoveryNextActions(createRegisteredCliError({
+      return createRegisteredCliError({
         message: "Proof generation failed.",
         code: "PROOF_GENERATION_FAILED",
         hint:
           "Run 'privacy-pools sync' to refresh local state and retry. If it persists, verify you are using the correct recovery phrase and that the Pool Account has not already been spent.",
         docsSlug: "guide/troubleshooting",
-      }));
+      });
     }
     if (code === "PROOF_VERIFICATION_FAILED") {
-      return withRecoveryNextActions(createRegisteredCliError({
+      return createRegisteredCliError({
         message: "Proof verification failed.",
         code: "PROOF_VERIFICATION_FAILED",
         hint:
           "Run 'privacy-pools sync' to refresh local state and retry. If it persists, reinstall the CLI to refresh the bundled circuit artifacts.",
         docsSlug: "guide/troubleshooting",
-      }));
+      });
     }
   }
 
   // Network/RPC errors
   if (rawMessage.includes("timeout")) {
-    return withRecoveryNextActions(createRegisteredCliError({
+    return createRegisteredCliError({
       message: `Network error: ${message}`,
       code: "RPC_NETWORK_ERROR",
       hint:
         "Check your RPC URL and network connectivity. If the request is timing out, try --timeout <seconds>.",
       docsSlug: "guide/troubleshooting",
-    }));
+    });
   }
 
   if (
     rawMessage.includes("429") ||
     rawMessage.toLowerCase().includes("rate limit")
   ) {
-    return withRecoveryNextActions(createRegisteredCliError({
+    return createRegisteredCliError({
       message: `RPC rate-limited: ${message}`,
       code: "RPC_RATE_LIMITED",
       hint:
         "Your RPC provider is rate-limiting requests. Wait a moment and retry, or use a dedicated RPC URL with --rpc-url.",
       docsSlug: "guide/troubleshooting",
-    }));
+    });
   }
 
   // Catch-all for transient transport failures (ECONNREFUSED, ENOTFOUND,
@@ -838,13 +806,13 @@ export function classifyError(error: unknown): CLIError {
     isTransientNetworkError(error) ||
     /fetch|ECONNREFUSED|ENOTFOUND|ENETUNREACH|EAI_AGAIN/.test(rawMessage)
   ) {
-    return withRecoveryNextActions(createRegisteredCliError({
+    return createRegisteredCliError({
       message: `Network error: ${message}`,
       code: "RPC_NETWORK_ERROR",
       hint:
         "Check your RPC URL and network connectivity. If using a custom --rpc-url, verify it is reachable.",
       docsSlug: "guide/troubleshooting",
-    }));
+    });
   }
 
   // Insufficient gas / funds from transaction simulation
@@ -852,13 +820,13 @@ export function classifyError(error: unknown): CLIError {
     rawMessage.includes("insufficient funds") ||
     rawMessage.includes("exceeds the balance")
   ) {
-    return withRecoveryNextActions(createRegisteredCliError({
+    return createRegisteredCliError({
       message: "Insufficient balance.",
       code: "CONTRACT_INSUFFICIENT_FUNDS",
       hint:
         "Your wallet does not have enough ETH to cover the deposit amount plus gas fees. Check your signer wallet balance in a block explorer or wallet app, then fund it before retrying.",
       docsSlug: "guide/troubleshooting",
-    }));
+    });
   }
 
   // Nonce errors (concurrent transactions or stuck tx)
@@ -866,21 +834,21 @@ export function classifyError(error: unknown): CLIError {
     rawMessage.includes("nonce") &&
     (rawMessage.includes("too low") || rawMessage.includes("already known"))
   ) {
-    return withRecoveryNextActions(createRegisteredCliError({
+    return createRegisteredCliError({
       message: `Transaction nonce conflict: ${message}`,
       code: "CONTRACT_NONCE_ERROR",
       hint:
         "A previous transaction may be pending. Wait for it to confirm or use a wallet management tool to resolve stuck transactions.",
       docsSlug: "guide/troubleshooting",
-    }));
+    });
   }
 
-  return withRecoveryNextActions(createRegisteredCliError({
+  return createRegisteredCliError({
     message,
     code: "UNKNOWN_ERROR",
     hint: `Try 'privacy-pools sync' to refresh local state, then retry. ${repositoryIssueHint()}`,
     docsSlug: "guide/troubleshooting",
-  }));
+  });
 }
 
 function hasCode(error: unknown): boolean {
