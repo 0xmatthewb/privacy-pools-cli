@@ -253,6 +253,7 @@ export {
 } from "./stats.js";
 export {
   type StructuredJsonWarning,
+  type TransactionJsonWarning,
   warningFromCode,
   mergeStructuredWarnings,
 } from "./warnings.js";

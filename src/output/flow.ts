@@ -41,6 +41,7 @@ import {
 } from "./layout.js";
 import {
   mergeStructuredWarnings,
+  type TransactionJsonWarning,
   warningFromCode,
 } from "./warnings.js";
 import { formatReviewSurface } from "./review.js";
@@ -48,13 +49,8 @@ import {
   renderFlowRail,
   type FlowRailStep,
 } from "./progress.js";
-import type { PrivacyNonRoundAmountWarning } from "../utils/amount-privacy.js";
 
-export type FlowJsonWarning = {
-  code: string;
-  category: string;
-  message: string;
-} & Partial<Pick<PrivacyNonRoundAmountWarning, "suggestedRoundAmount" | "escape">>;
+export type FlowJsonWarning = TransactionJsonWarning;
 
 export interface FlowStartReviewData {
   amount: bigint;

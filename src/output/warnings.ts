@@ -1,8 +1,14 @@
+import type { PrivacyNonRoundAmountWarning } from "../utils/amount-privacy.js";
+
 export interface StructuredJsonWarning {
   code: string;
   category: string;
   message: string;
 }
+
+export type TransactionJsonWarning =
+  | StructuredJsonWarning
+  | PrivacyNonRoundAmountWarning;
 
 type WarningSubject =
   | "deposit state"

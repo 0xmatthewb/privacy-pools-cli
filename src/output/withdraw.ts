@@ -38,9 +38,9 @@ import {
 import { formatReviewSurface } from "./review.js";
 import {
   mergeStructuredWarnings,
+  type TransactionJsonWarning,
   warningFromCode,
 } from "./warnings.js";
-import type { PrivacyNonRoundAmountWarning } from "../utils/amount-privacy.js";
 
 export interface WithdrawAnonymitySet {
   eligible: number;
@@ -48,11 +48,7 @@ export interface WithdrawAnonymitySet {
   percentage: number;
 }
 
-export type WithdrawUiWarning = {
-  code: string;
-  category: string;
-  message: string;
-} & Partial<Pick<PrivacyNonRoundAmountWarning, "suggestedRoundAmount" | "escape">>;
+export type WithdrawUiWarning = TransactionJsonWarning;
 
 export interface RelayedWithdrawalRemainderGuidance {
   summary: string;

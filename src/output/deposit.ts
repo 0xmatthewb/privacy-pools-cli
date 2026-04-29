@@ -39,11 +39,11 @@ import { formatReviewSurface } from "./review.js";
 import { formatUsdValue } from "../utils/format.js";
 import {
   mergeStructuredWarnings,
+  type TransactionJsonWarning,
   warningFromCode,
 } from "./warnings.js";
 import { FIRST_DEPOSIT_WELCOME } from "./copy.js";
 import type { DeprecationWarningPayload } from "./deprecation.js";
-import type { PrivacyNonRoundAmountWarning } from "../utils/amount-privacy.js";
 
 export interface DepositReviewData {
   amount: bigint;
@@ -182,11 +182,7 @@ export interface DepositDryRunData {
   balanceSufficient: boolean | "unknown";
   dryRunMode?: DryRunMode | null;
   deprecationWarning?: DeprecationWarningPayload;
-  warnings?: Array<{
-    code: string;
-    category: string;
-    message: string;
-  } & Partial<Pick<PrivacyNonRoundAmountWarning, "suggestedRoundAmount" | "escape">>>;
+  warnings?: TransactionJsonWarning[];
 }
 
 export interface DepositSuccessData {
@@ -215,7 +211,7 @@ export interface DepositSuccessData {
   reconciliationRequired?: boolean;
   localStateSynced?: boolean;
   warningCode?: string | null;
-  warnings?: Array<{ code: string; category: string; message: string }>;
+  warnings?: TransactionJsonWarning[];
   deprecationWarning?: DeprecationWarningPayload;
   /** True when the user explicitly passed --chain (overriding the default). */
   chainOverridden?: boolean;
