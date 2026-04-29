@@ -8,6 +8,54 @@ function normalize(value: string): string {
   return normalizeSemanticText(value).replace(/\s+/g, " ").trim();
 }
 
+function linesForSection(help: string, heading: string): string[] {
+  const lines = help.split(/\r?\n/);
+  const start = lines.findIndex((line) => normalize(line) === normalize(heading));
+  if (start === -1) return [];
+
+  const section: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (line.trim().length === 0) {
+      if (section.length > 0) break;
+      continue;
+    }
+    section.push(line);
+  }
+  return section;
+}
+
+function standaloneFlagPattern(flag: string): RegExp {
+  return new RegExp(
+    `(^|[\\s,;(|\\[])${flag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[\\s,;)|\\]])`,
+  );
+}
+
+function expectAgentInvocationIncludesFlag(
+  help: string,
+  flag: string,
+): void {
+  const agentWorkflow = linesForSection(help, "Agent workflow:");
+  const invocation = agentWorkflow.find((line) =>
+    normalize(line).startsWith("Agent invocation:"),
+  );
+
+  expect(invocation, "agent workflow should include a structured invocation line").toBeDefined();
+  expect(invocation!).toMatch(standaloneFlagPattern(flag));
+}
+
+function expectRequiredAgentFlagInAgentWorkflow(
+  help: string,
+  flag: string,
+): void {
+  const agentWorkflow = linesForSection(help, "Agent workflow:");
+  const requiredLine = agentWorkflow.find((line) =>
+    normalize(line).startsWith("Required for agents:"),
+  );
+
+  expect(requiredLine, "required agent flags should be isolated in Agent workflow").toBeDefined();
+  expect(requiredLine!).toMatch(standaloneFlagPattern(flag));
+}
+
 describe("agent help block conformance", () => {
   for (const path of STATIC_COMMAND_PATHS) {
     const metadata = getCommandMetadata(path);
@@ -35,18 +83,22 @@ describe("agent help block conformance", () => {
       });
       expect(result.status).toBe(0);
 
-      const help = normalize(result.stdout);
+      const rawHelp = result.stdout;
+      const help = normalize(rawHelp);
+      // agentFlags and agentWorkflowNotes are intentionally prose fields, so
+      // they stay semantic fragment checks. The typed sibling arrays below are
+      // matched against their distinct help surfaces instead.
       if (agentFlags) {
         expect(help).toContain(normalize(agentFlags));
       }
       for (const flag of agentFlagNames) {
-        expect(help).toContain(normalize(flag));
+        expectAgentInvocationIncludesFlag(rawHelp, flag);
       }
       for (const note of agentWorkflowNotes) {
         expect(help).toContain(normalize(note));
       }
       for (const flag of agentRequiredFlags) {
-        expect(help).toContain(normalize(`Required for agents: ${flag}`));
+        expectRequiredAgentFlagInAgentWorkflow(rawHelp, flag);
       }
       if (agentsDocMarker) {
         expect(help).toContain(normalize(agentsDocMarker));

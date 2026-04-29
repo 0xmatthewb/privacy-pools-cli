@@ -6,15 +6,24 @@ import { CLI_ROOT } from "../helpers/paths.ts";
 const FULL_ADDRESS_PATTERN = /0x[0-9a-fA-F]{40}/;
 const FULL_ETH_AMOUNT_PATTERN = /\b[0-9]+(?:\.[0-9]+)? ETH\b/;
 const USER_MESSAGE_PATTERN = /new CLIError|hint:|message:|warn\(|diagnostic|backup/i;
+// Example-only amount literals are allowed when the line is explicitly marked
+// as an example. This currently covers command guidance such as
+// src/commands/withdraw.ts and src/runtime/cli-main-helpers.ts, where the
+// amount is illustrative rather than user/private state.
 const EXAMPLE_PATTERN = /\bExample:/;
 
-const SKIPPED_RUNTIME_SOURCES = new Set([
-  "src/utils/command-catalog.ts",
-  "src/utils/command-manifest.ts",
-  "src/utils/help.ts",
-  "src/utils/known-addresses.ts",
-  "src/utils/root-help-footer.ts",
-]);
+const SKIPPED_RUNTIME_SOURCES: Record<string, string> = {
+  "src/utils/command-catalog.ts":
+    "reviewed help/example source; contains intentionally illustrative command examples such as 0.1 ETH",
+  "src/utils/command-manifest.ts":
+    "generated discovery output; source literals are audited in the generator inputs",
+  "src/utils/help.ts":
+    "reviewed root/help prose; contains intentionally illustrative command examples such as 0.1 ETH",
+  "src/utils/known-addresses.ts":
+    "canonical address-book source; sentinel literals must live here",
+  "src/utils/root-help-footer.ts":
+    "reviewed root-help footer examples; contains intentionally illustrative command examples such as 0.1 ETH",
+};
 
 function walkFiles(root: string, extensions: readonly string[]): string[] {
   const files: string[] = [];
@@ -35,8 +44,9 @@ function scanRuntimeMessageSources(): string[] {
     ...walkFiles(join(CLI_ROOT, "src", "runtime"), [".ts"]),
     ...walkFiles(join(CLI_ROOT, "src", "services"), [".ts"]),
     ...walkFiles(join(CLI_ROOT, "src", "utils"), [".ts"]),
+    join(CLI_ROOT, "src", "launcher.ts"),
     join(CLI_ROOT, "scripts", "lib", "install-verification.mjs"),
-  ].filter((file) => !SKIPPED_RUNTIME_SOURCES.has(relative(CLI_ROOT, file)));
+  ].filter((file) => !(relative(CLI_ROOT, file) in SKIPPED_RUNTIME_SOURCES));
 }
 
 describe("privacy message scan", () => {
