@@ -33,15 +33,15 @@ function nodeBin(): string {
   return process.platform === "win32" ? "node.exe" : "node";
 }
 
-function renderCategoricalErrorSnippet(expression: string) {
+function renderCategoricalErrorScript(script: string) {
   const result = spawnSync(nodeBin(), [
     "--import",
     "tsx",
     "--eval",
     [
-      "const { printError, promptCancelledError } = await import('./src/utils/errors.ts');",
-      "const { proofError, contractError } = await import('./src/utils/errors/factories.ts');",
-      `printError(${expression}, true);`,
+      "const { printError } = await import('./src/utils/errors.ts');",
+      "const { toWithdrawSolidityProof } = await import('./src/utils/unsigned.ts');",
+      script,
     ].join("\n"),
   ], {
     cwd: CLI_CWD,
@@ -149,10 +149,21 @@ describe("exit-code matrix", () => {
     expect(json.error?.category).toBe("RELAYER");
   });
 
-  test("PROOF error → exit code 6 (registered proof factory)", () => {
-    const result = renderCategoricalErrorSnippet(
-      "proofError('PROOF_MALFORMED', 'Malformed proof fixture.', 'Regenerate the proof fixture.')",
-    );
+  test("PROOF error → exit code 6 (malformed proof conversion)", () => {
+    const result = renderCategoricalErrorScript(`
+      try {
+        toWithdrawSolidityProof({
+          proof: {
+            pi_a: ["not-a-number", "2"],
+            pi_b: [["1", "2"], ["3", "4"]],
+            pi_c: ["1", "2"],
+          },
+          publicSignals: ["1", "2", "3", "4", "5", "6", "7", "8"],
+        });
+      } catch (error) {
+        printError(error, true);
+      }
+    `);
     expect(result.status).toBe(EXIT_CODE_MAP.PROOF);
     expect(result.stderr).toBe("");
     const json = parseJsonOutput<{ error?: { category?: string; code?: string } }>(
@@ -162,9 +173,9 @@ describe("exit-code matrix", () => {
     expect(json.error?.code).toBe("PROOF_MALFORMED");
   });
 
-  test("CONTRACT error → exit code 7 (registered contract factory)", () => {
-    const result = renderCategoricalErrorSnippet(
-      "contractError('CONTRACT_INVALID_PROOF', 'Contract rejected the proof.', 'Inspect the revert reason before retrying.')",
+  test("CONTRACT error → exit code 7 (known revert classifier)", () => {
+    const result = renderCategoricalErrorScript(
+      "printError(new Error('execution reverted: InvalidProof'), true);",
     );
     expect(result.status).toBe(EXIT_CODE_MAP.CONTRACT);
     expect(result.stderr).toBe("");
@@ -175,8 +186,12 @@ describe("exit-code matrix", () => {
     expect(json.error?.code).toBe("CONTRACT_INVALID_PROOF");
   });
 
-  test("CANCELLED error → exit code 9 (prompt cancellation envelope)", () => {
-    const result = renderCategoricalErrorSnippet("promptCancelledError()");
+  test("CANCELLED error → exit code 9 (prompt cancellation classifier)", () => {
+    const result = renderCategoricalErrorScript(`
+      const cancelled = new Error('cancelled');
+      cancelled.name = 'ExitPromptError';
+      printError(cancelled, true);
+    `);
     expect(EXIT_CODES.CANCELLED).toBe(9);
     expect(result.status).toBe(EXIT_CODE_MAP.CANCELLED);
     expect(result.stderr).toBe("");
