@@ -1,6 +1,31 @@
 # Agent Integration Guide
 
-This document is for AI agents, bots, and programmatic consumers of the Privacy Pools CLI. For human users, see [`README.md`](README.md) or run `privacy-pools guide`.
+Three documents serve agents at different depths:
+- [`skills/privacy-pools/SKILL.md`](skills/privacy-pools/SKILL.md) — compact quick-start, lookup tables, common workflows
+- [`AGENTS.md`](AGENTS.md) (this document) — comprehensive reference with full JSON payload schemas, integration patterns, error taxonomy
+- `privacy-pools describe <command...> --agent` — runtime contract introspection
+
+Navigate this document by section; it is not designed for end-to-end reading.
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Distribution](#distribution)
+- [Core Concepts](#core-concepts)
+- [NextActions Specification](#nextactions-specification)
+- [JSON Output Schemas](#json-output-schemas)
+- [Preflight Check](#preflight-check)
+- [Human + Agent Workflow](#human--agent-workflow)
+- [Global Flags](#global-flags)
+- [Command Reference](#command-reference)
+- [Auto-Sync Behavior](#auto-sync-behavior)
+- [Polling for ASP Approval](#polling-for-asp-approval)
+- [Crash Recovery](#crash-recovery)
+- [Unsigned Transaction Mode](#unsigned-transaction-mode)
+- [Dry-Run Mode](#dry-run-mode)
+- [Error Handling](#error-handling)
+- [Supported Chains](#supported-chains)
+- [Runtime Discovery](#runtime-discovery)
 
 For flags, configuration, and environment variables, see [`docs/reference.md`](docs/reference.md). For native runtime troubleshooting and fallback controls, see [`docs/runtime-upgrades.md`](docs/runtime-upgrades.md). For release history, see [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -487,7 +512,7 @@ privacy-pools status --agent
 
 Check `recoveryPhraseSet: true`. Most transaction commands also require `signerKeyValid: true` and `readyForDeposit: true`; if `readyForDeposit: false` because the signer is missing or invalid, set `PRIVACY_POOLS_PRIVATE_KEY` in the agent's environment before running transaction commands.
 
-For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from booleans alone. `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` remain configuration capability flags, not fund-availability checks. When `recommendedMode = "read-only"`, status detected degraded RPC or ASP health and agents should fall back to the status `nextActions`. That usually means public discovery only; if the ASP is down but RPC is healthy, public recovery (`ragequit`, `flow ragequit`, or unsigned ragequit payloads) still remains available when the affected account or workflow is already known.
+For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from booleans alone. `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` remain configuration capability flags, not fund-availability checks. When `recommendedMode = "read-only"`, status detected degraded RPC, ASP, or relayer health and agents should fall back to the status `nextActions`. That usually means public discovery only; if the ASP or relayer is down but RPC is healthy, public recovery (`ragequit`, `flow ragequit`, or unsigned ragequit payloads) still remains available when the affected account or workflow is already known.
 
 Exception: `flow start --new-wallet` creates and uses a dedicated per-workflow wallet, so it can begin without a configured global signer key as long as the recovery phrase is present.
 
@@ -618,12 +643,14 @@ Configuration and health check.
 ```bash
 privacy-pools status --agent
 privacy-pools status --agent --check
+privacy-pools status --agent --check relayer
+privacy-pools status --agent --aggregated
 ```
 
-JSON payload: `{ mode: "cli-status", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?: [{ code, message, affects[] }], warnings?: [{ code, message, affects[] }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`
+JSON payload: `{ mode: "cli-status", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, relayerHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?: [{ code, message, affects[] }], warnings?: [{ code, message, affects[] }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }], aspLive?, rpcLive?, relayerLive?, rpcBlockNumber?, pending?, recoveryTable?, phaseGraphRef? }`
 
-`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags: they indicate the wallet is set up for those operations, **not** that privately withdrawable funds exist. `recommendedMode`, `blockingIssues[]`, and `warnings[]` are the higher-level preflight contract for agents. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. When `recommendedMode = "read-only"` because RPC or ASP health is degraded, `nextActions` stays on public discovery and intentionally avoids account-state guidance until connectivity is restored. If only the ASP is down while RPC is still healthy, public recovery remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the operator already knows the affected account or workflow. `aspLive`, `rpcLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check-rpc` / `--check-asp` to run only specific checks.
-When `rpcUrl` or `aspHost` comes from a custom endpoint, the CLI redacts userinfo, query strings, and token-like path segments before printing them.
+`readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags: they indicate the wallet is set up for those operations, **not** that privately withdrawable funds exist. `recommendedMode`, `blockingIssues[]`, and `warnings[]` are the higher-level preflight contract for agents. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. When `recommendedMode = "read-only"` because RPC, ASP, or relayer health is degraded, `nextActions` stays on public discovery and intentionally avoids account-state guidance until connectivity is restored. If only the ASP or relayer is down while RPC is still healthy, public recovery remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the operator already knows the affected account or workflow. `aspLive`, `rpcLive`, `relayerLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check rpc`, `--check asp`, or `--check relayer` to run one specific probe. `--aggregated` adds pending workflows, pending submissions, pending Pool Accounts, `recoveryTable`, and `phaseGraphRef: "flow"`.
+When `rpcUrl`, `aspHost`, or `relayerHost` comes from a custom endpoint, the CLI redacts userinfo, query strings, and token-like path segments before printing them.
 
 #### `upgrade`
 
@@ -828,74 +855,65 @@ JSON payload: `{ mode: "flow", action: "start" | "watch" | "status" | "step" | "
 
 Paused workflow states are successful command results, not CLI errors. `Ctrl-C` during `flow watch` detaches cleanly without deleting the saved workflow. For ERC20 relayed withdrawals inside `flow`, the CLI requests extra gas by default, matching `withdraw`. `warnings` are advisory only and currently cover amount-linkability guidance for full non-round auto-withdrawals, explicit `--privacy-delay off`, and non-interactive recipients not previously seen in the local profile. They are most common on `flow start`, `flow watch`, and `flow status`, but the shared flow envelope can also surface them on `flow ragequit` when the saved snapshot carries a warning or reconciliation advisory. `privacyDelayConfigured = false` means a legacy workflow was normalized to `off` without an explicitly saved policy.
 
+<!-- BEGIN: phase-diagram -->
+
 **Flow state machine:**
 
-The `phase` field in the flow JSON payload tracks the workflow through the following state transitions. Agents should use `phase` to determine what action is needed next.
+The `phase` field in the flow JSON payload tracks the saved workflow state. Agents should use `phase` plus `nextActions` to determine what action is needed next.
 
 ```
-                      +-------------------+
-                      | awaiting_funding  |  (--new-wallet: waiting for ETH/token deposit)
-                      +--------+----------+
-                               |
-                               v
-                      +-------------------+
-                      |depositing_publicly|  (public deposit tx pending or unconfirmed)
-                      +--------+----------+
-                               |
-                               v
-                      +-------------------+
-                      |   awaiting_asp    |  (deposit confirmed, waiting for ASP review)
-                      +--------+----------+
-                               |
-              +----------------+----------------+
-              |                |                |
-              v                v                v
-  +-----------+---+  +---------+-------+  +----+--------------+
-  |paused_declined|  |paused_poa_      |  |approved_waiting_  |
-  |               |  |required         |  |privacy_delay      |
-  +-------+-------+  +--------+--------+  +--------+----------+
-          |                    |                    |
-          |                    |                    v
-          |                    |           +--------+----------+
-          |                    |           |approved_ready_    |
-          |                    |           |to_withdraw        |
-          |                    |           +--------+----------+
-          |                    |                    |
-          |                    |                    v
-          |                    |           +--------+----------+
-          |                    |           |    withdrawing    |
-          |                    |           +--------+----------+
-          |                    |                    |
-          v                    v                    v
-  +-------+--------------------+--------------------+-------+
-  |                    Terminal states                       |
-  |  completed  |  completed_public_recovery  |  stopped_   |
-  |             |  (via ragequit)             |  external   |
-  +---------------------------------------------------------+
+awaiting_funding
+  -> depositing_publicly
+  -> awaiting_asp
+       -> paused_declined
+       -> paused_poa_required
+       -> approved_waiting_privacy_delay
+            -> approved_ready_to_withdraw
+                 -> withdrawing
+                      -> completed
+
+any non-terminal phase
+  -> completed_public_recovery  (flow ragequit)
+  -> stopped_external           (external spend or mutation detected)
 ```
 
-**Phase descriptions:**
+**Phase sets:**
 
-| Phase | Description |
-| --- | --- |
-| `awaiting_funding` | `--new-wallet` mode: waiting for ETH and/or token funding |
-| `depositing_publicly` | Public deposit transaction is pending or being confirmed |
-| `awaiting_asp` | Deposit confirmed onchain, waiting for ASP review |
-| `approved_waiting_privacy_delay` | ASP approved, waiting through the configured privacy delay |
-| `approved_ready_to_withdraw` | Privacy delay complete (or off), ready for relayed withdrawal |
-| `withdrawing` | Relayed withdrawal submitted, waiting for confirmation |
-| `completed` | Private withdrawal confirmed; terminal |
-| `paused_declined` | ASP declined the deposit; use `flow ragequit` to recover publicly |
-| `paused_poa_required` | Proof of Association required; complete PoA externally or use `flow ragequit` |
-| `completed_public_recovery` | Public recovery (ragequit) confirmed; terminal |
-| `stopped_external` | External intervention detected (e.g., funds spent outside this workflow); terminal |
+- Terminal: `completed`, `completed_public_recovery`, `stopped_external`
+- Paused: `paused_declined`, `paused_poa_required`
 
-**Pause and recovery paths:**
+**Transitions:**
 
-- `paused_declined` -> `flow ragequit` -> `completed_public_recovery`
-- `paused_poa_required` -> complete PoA externally, then `flow status` / `flow step` resumes in agent mode or `flow watch` resumes in human mode, OR `flow ragequit` -> `completed_public_recovery`
-- Any non-terminal phase -> `flow ragequit` (optional manual public recovery) -> `completed_public_recovery`
-- Any non-terminal phase -> external spend detected -> `stopped_external`
+| From | To | Trigger |
+| --- | --- | --- |
+| `awaiting_funding` | `depositing_publicly` | flow step observes dedicated workflow wallet funding |
+| `depositing_publicly` | `awaiting_asp` | public deposit confirms onchain |
+| `awaiting_asp` | `approved_waiting_privacy_delay` | ASP status is approved and a privacy delay is active |
+| `awaiting_asp` | `approved_ready_to_withdraw` | ASP status is approved and privacy delay is complete or off |
+| `awaiting_asp` | `paused_declined` | ASP status is declined |
+| `awaiting_asp` | `paused_poa_required` | ASP status is poa_required |
+| `approved_waiting_privacy_delay` | `approved_ready_to_withdraw` | privacy delay expires |
+| `paused_poa_required` | `awaiting_asp` | operator completes PoA externally and the next status refresh observes review progress |
+| `approved_ready_to_withdraw` | `withdrawing` | relayed withdrawal is submitted |
+| `withdrawing` | `completed` | relayed private withdrawal confirms |
+| `awaiting_funding` | `completed_public_recovery` | operator runs flow ragequit |
+| `depositing_publicly` | `completed_public_recovery` | operator runs flow ragequit |
+| `awaiting_asp` | `completed_public_recovery` | operator runs flow ragequit |
+| `approved_waiting_privacy_delay` | `completed_public_recovery` | operator runs flow ragequit |
+| `approved_ready_to_withdraw` | `completed_public_recovery` | operator runs flow ragequit |
+| `withdrawing` | `completed_public_recovery` | operator runs flow ragequit |
+| `paused_poa_required` | `completed_public_recovery` | operator runs flow ragequit |
+| `paused_declined` | `completed_public_recovery` | operator runs flow ragequit |
+| `awaiting_funding` | `stopped_external` | external spend or local workflow mutation is detected |
+| `depositing_publicly` | `stopped_external` | external spend or local workflow mutation is detected |
+| `awaiting_asp` | `stopped_external` | external spend or local workflow mutation is detected |
+| `approved_waiting_privacy_delay` | `stopped_external` | external spend or local workflow mutation is detected |
+| `approved_ready_to_withdraw` | `stopped_external` | external spend or local workflow mutation is detected |
+| `withdrawing` | `stopped_external` | external spend or local workflow mutation is detected |
+| `paused_poa_required` | `stopped_external` | external spend or local workflow mutation is detected |
+| `paused_declined` | `stopped_external` | external spend or local workflow mutation is detected |
+
+<!-- END: phase-diagram -->
 
 #### `flow step`
 
@@ -1307,6 +1325,7 @@ The output contract is intentionally identical to the matching `--dry-run` comma
 | `RPC_POOL_RESOLUTION_FAILED` | RPC | Yes | See `docs/errors.md#rpc-pool-resolution-failed` |
 | `ASP_ERROR` | ASP | No | See `docs/errors.md#asp-error` |
 | `RELAYER_ERROR` | RELAYER | No | See `docs/errors.md#relayer-error` |
+| `RELAYER_FEE_EXCEEDS_MAX` | RELAYER | Yes | See `docs/errors.md#relayer-fee-exceeds-max` |
 | `RELAYER_BROADCAST_QUOTE_EXPIRED` | RELAYER | Yes | See `docs/errors.md#relayer-broadcast-quote-expired` |
 | `RELAYER_BROADCAST_RELAYER_HOST_MISMATCH` | RELAYER | No | See `docs/errors.md#relayer-broadcast-relayer-host-mismatch` |
 | `RELAYER_BROADCAST_SUBMISSION_FAILED` | RELAYER | Yes | See `docs/errors.md#relayer-broadcast-submission-failed` |

@@ -358,7 +358,7 @@ privacy-pools pool-stats ETH --agent
 ### `status`
 
 ```bash
-privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
+privacy-pools status --agent [--check <all|rpc|asp|relayer|none>] [--aggregated]
 ```
 
 ```json
@@ -378,7 +378,9 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
   "signerBalanceSymbol": "ETH",
   "entrypoint": "0x6818809eefce719e480a7526d76bd3e561526b46",
   "aspHost": "https://api.0xbow.io",
+  "relayerHost": "https://relayer.0xbow.io",
   "aspLive": true,
+  "relayerLive": true,
   "rpcLive": true,
   "rpcBlockNumber": "22153800",
   "accountFiles": [{ "chain": "mainnet", "chainId": 1 }],
@@ -398,15 +400,16 @@ privacy-pools status --agent [--check] [--check-rpc] [--check-asp]
 }
 ```
 
-Health checks run by default when a chain is selected. Pass `--no-check` to suppress them, or use `--check-rpc` / `--check-asp` to run only specific checks.
-Custom `rpcUrl` and `aspHost` values are rendered in a display-safe form: userinfo, query strings, and token-like path segments are redacted before they are printed.
+Health checks run by default when a chain is selected. Pass `--no-check` to suppress them, or use `--check rpc`, `--check asp`, or `--check relayer` to run one specific probe. Use `--aggregated` when an agent needs pending workflows, pending submissions, pending Pool Accounts, the recovery decision table, and `phaseGraphRef`.
+Custom `rpcUrl`, `aspHost`, and `relayerHost` values are rendered in a display-safe form: userinfo, query strings, and token-like path segments are redacted before they are printed.
 
-When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators. When no deposits exist, `nextActions` points to `pools`; when deposits already exist, it points to `accounts`. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from the boolean readiness flags alone. When `recommendedMode = "read-only"`, status detected degraded RPC or ASP health, so `nextActions` stays on public discovery and only non-transactional commands should be treated as safe until connectivity is restored. If only the ASP is down while RPC stays healthy, public recovery still remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the affected account or workflow is already known.
+When setup is incomplete, `nextActions` includes a canonical `init` follow-up for agent orchestrators. When no deposits exist, `nextActions` points to `pools`; when deposits already exist, it points to `accounts`. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. For machine gating, prefer `recommendedMode`, `blockingIssues[]`, and `warnings[]` over inferring from the boolean readiness flags alone. When `recommendedMode = "read-only"`, status detected degraded RPC, ASP, or relayer health, so `nextActions` stays on public discovery and only non-transactional commands should be treated as safe until connectivity is restored. If only the ASP or relayer is down while RPC stays healthy, public recovery still remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the affected account or workflow is already known.
 
 | Field | Type | When present |
 |-------|------|-------------|
-| `aspLive` | boolean | Default when chain selected; `--check` or `--check-asp` |
-| `rpcLive` | boolean | Default when chain selected; `--check` or `--check-rpc` |
+| `aspLive` | boolean | Default when chain selected; `--check`, `--check all`, or `--check asp` |
+| `relayerLive` | boolean | Default when chain selected; `--check`, `--check all`, or `--check relayer` |
+| `rpcLive` | boolean | Default when chain selected; `--check`, `--check all`, or `--check rpc` |
 | `rpcBlockNumber` | string | When `rpcLive` is true |
 
 ### `capabilities`
@@ -469,7 +472,7 @@ Representative payload (abridged):
     "firstRun": "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
-    "statusCheck": "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC or ASP health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known."
+    "statusCheck": "Run 'status --agent --check --aggregated' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC, ASP, or relayer health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP or relayer is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known."
   },
   "schemas": {
     "aspApprovalStatus": { "values": ["approved", "pending", "poa_required", "declined", "unknown"] },
@@ -1209,6 +1212,7 @@ All errors in JSON mode:
 | `RPC_POOL_RESOLUTION_FAILED` | RPC | Yes | See `docs/errors.md#rpc-pool-resolution-failed` |
 | `ASP_ERROR` | ASP | No | See `docs/errors.md#asp-error` |
 | `RELAYER_ERROR` | RELAYER | No | See `docs/errors.md#relayer-error` |
+| `RELAYER_FEE_EXCEEDS_MAX` | RELAYER | Yes | See `docs/errors.md#relayer-fee-exceeds-max` |
 | `RELAYER_BROADCAST_QUOTE_EXPIRED` | RELAYER | Yes | See `docs/errors.md#relayer-broadcast-quote-expired` |
 | `RELAYER_BROADCAST_RELAYER_HOST_MISMATCH` | RELAYER | No | See `docs/errors.md#relayer-broadcast-relayer-host-mismatch` |
 | `RELAYER_BROADCAST_SUBMISSION_FAILED` | RELAYER | Yes | See `docs/errors.md#relayer-broadcast-submission-failed` |

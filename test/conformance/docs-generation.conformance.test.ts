@@ -86,8 +86,10 @@ describe("docs generation drift detection", () => {
 
     expect(reference).toContain("| `--check [scope]` |");
     expect(reference).toContain("| `--no-check` |");
+    expect(reference).toContain("| `--aggregated` |");
     expect(reference).not.toContain("`--check-rpc`");
     expect(reference).not.toContain("`--check-asp`");
+    expect(reference).not.toContain("`--check-relayer`");
   });
 
   test("docs/reference/sync.md explains bare sync and the scoped asset form", () => {

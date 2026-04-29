@@ -1,6 +1,6 @@
 ---
 name: privacy-pools
-description: 'Deposit, withdraw, and manage funds in Privacy Pools v1 across major EVM mainnets and testnets. Use when the user mentions privacy pools, privacy pool deposit, privacy pool withdraw, privacy pool accounts, privacy pool ragequit, privacy pool exit, privacy pool flow, unsigned deposit, unsigned withdraw, or compliant withdrawal -- including browsing pools, running the easy-path flow, depositing, withdrawing, checking accounts and balances, building unsigned transaction payloads for external signers (e.g. Bankr, multisigs, MPC wallets), or querying on-chain activity.'
+description: 'Deposit, withdraw, and manage funds in Privacy Pools v1 across major EVM mainnets and testnets. Use when the user mentions Privacy Pools, Privacy Pools deposit, Privacy Pools withdraw, Pool Accounts, Privacy Pools ragequit, Privacy Pools exit, Privacy Pools flow, unsigned deposit, unsigned withdraw, or compliant withdrawal -- including browsing pools, running the easy-path flow, depositing, withdrawing, checking accounts and balances, building unsigned transaction payloads for external signers (e.g. Bankr, multisigs, MPC wallets), or querying on-chain activity.'
 tags: [crypto, defi, privacy, ethereum, arbitrum, optimism, privacy-pools]
 visibility: public
 license: Apache-2.0
@@ -39,6 +39,28 @@ metadata:
 SDK-powered CLI for [Privacy Pools v1](https://privacypools.com). Compliant, private transactions across the CLI's supported mainnet and testnet chains, including Ethereum, Arbitrum, Optimism, Sepolia, and OP Sepolia.
 
 Install: `npm i -g privacy-pools-cli`. The root package installs cleanly without unpublished native package dependencies; supported hosts use native acceleration when a release includes the host package or `PRIVACY_POOLS_CLI_BINARY` points to a verified native shell. For unreleased or source builds, use `npm i -g github:0xmatthewb/privacy-pools-cli`. Binary: `privacy-pools`. For native runtime troubleshooting or fallback controls, see `docs/runtime-upgrades.md`. If a supported published install falls back to JS because the native shell is missing or invalid, `status --agent` includes `native_acceleration_unavailable`.
+
+## Cold start for agents
+
+Run these first when you are dropped into a new host or profile:
+
+```bash
+privacy-pools status --check --agent --aggregated
+privacy-pools capabilities --agent
+privacy-pools describe flow --agent
+```
+
+Environment preflight:
+- `PRIVACY_POOLS_PRIVATE_KEY` is needed for CLI-signed deposits, withdrawals, and ragequits unless using `flow start --new-wallet`.
+- `PRIVACY_POOLS_HOME` / `PRIVACY_POOLS_CONFIG_DIR` selects the local profile directory when the host needs isolation.
+- `PRIVACY_POOLS_RPC_URL` or per-chain RPC overrides can recover degraded RPC health.
+- `PRIVACY_POOLS_RELAYER_HOST` can override the relayer if `status --check relayer` is degraded.
+
+Readiness branches:
+- `recommendedMode: "setup-required"`: run `init` or ask the human to complete local secret setup.
+- `recommendedMode: "unsigned-only"`: read-only and unsigned payloads are available; configure a signer before CLI-submitted transactions.
+- `recommendedMode: "read-only"`: follow `nextActions`; do not guess through degraded health.
+- `recommendedMode: "ready"`: use `accounts` to verify funds before withdrawing.
 
 ## Quick reference
 
@@ -323,7 +345,7 @@ Default: `mainnet`. Override with `--chain <name>` or set via `init --default-ch
 7. privacy-pools flow ragequit latest --agent                           # Public recovery if the saved flow is declined, relayer-blocked, or you intentionally choose the public path
 ```
 
-The easy-path `flow` command is the preferred happy path for demos and common agent workflows. It performs the normal public deposit, waits for ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient after approval and any configured privacy delay. New workflows default to `balanced`, which randomizes the post-approval hold between 15 and 90 minutes. `off` means no added hold, and `strict` randomizes the hold between 2 and 12 hours. Agents should orchestrate saved workflows with `flow status` plus `flow step`. Human `flow watch` remains available as an attached wrapper, may intentionally stay in `approved_waiting_privacy_delay` for the saved hold window, and `flow watch --privacy-delay ...` can persistently update the saved privacy-delay policy: `off` clears any saved hold immediately, while switching between `balanced` and `strict` resamples from the override time.
+Use `flow` when you want the CLI to remember and resume the deposit → approval → withdrawal workflow across sessions, including scheduled or long-running agent contexts where ASP review can take up to 7 days. It performs the normal public deposit, tracks ASP review, and privately withdraws the full remaining balance of that same Pool Account to the saved recipient after approval and any configured privacy delay. New workflows default to `balanced`, which randomizes the post-approval hold between 15 and 90 minutes. `off` means no added hold, and `strict` randomizes the hold between 2 and 12 hours. Agents should orchestrate saved workflows with `flow status` plus `flow step`. Human `flow watch` remains available as an attached wrapper, may intentionally stay in `approved_waiting_privacy_delay` for the saved hold window, and `flow watch --privacy-delay ...` can persistently update the saved privacy-delay policy: `off` clears any saved hold immediately, while switching between `balanced` and `strict` resamples from the override time.
 
 Flow caveats for agents:
 - `flow status` is the canonical read-only polling surface and `flow step` is the canonical one-shot advance surface for agents. `flow watch` is human-only and intentionally unavailable in `--agent`.
@@ -335,13 +357,13 @@ Flow caveats for agents:
 - `flow` spends the full remaining Pool Account balance, but the recipient receives the net amount after relayer fees and any ERC20 extra-gas funding.
 - Dedicated workflow wallets may retain leftover asset balance or gas reserve after paused or terminal states, so check them manually before assuming they are empty.
 
-If `status --agent --check` returns `recommendedMode: "read-only"`, follow the status `nextActions` rather than guessing. That usually means public discovery only. If the ASP is down but RPC is healthy, public recovery still remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the affected account or workflow is already known. Avoid `accounts`, `deposit`, `withdraw`, or `flow` advancement until RPC and ASP connectivity recover.
+If `status --agent --check` returns `recommendedMode: "read-only"`, follow the status `nextActions` rather than guessing. That usually means public discovery only. If the ASP or relayer is down but RPC is healthy, public recovery still remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the affected account or workflow is already known. Avoid `accounts`, `deposit`, `withdraw`, or `flow` advancement until RPC, ASP, and relayer connectivity recover.
 
 `flow start` follows the same machine-mode non-round amount privacy guard as `deposit`, so use round amounts in agent/non-interactive runs. A round deposit input can still become a non-round committed balance after the ASP vetting fee is deducted, so `flow start` may still emit an advisory amount-pattern warning for the later full-balance auto-withdrawal. `flow start --new-wallet` is a flow-scoped convenience path, not a general wallet manager. It generates a dedicated wallet for one workflow and requires a backup before continuing. In machine mode, the command returns an `awaiting_funding` snapshot so the agent can fund the wallet and continue with `flow status` / `flow step`; human runs stay attached and wait automatically. ETH flows require the full ETH target. ERC20 flows require both the token amount and a native ETH gas reserve in the same wallet. In machine mode, `--export-new-wallet <path>` is required so the generated private key is backed up before the flow starts. The workflow key is also stored locally under `~/.privacy-pools/workflow-secrets/` until the workflow completes, public-recovers, or is externally stopped, so the export file is a backup copy rather than the only retained secret.
 
 For saved-workflow public recovery, `flow ragequit` uses the stored workflow wallet key for `walletMode = "new_wallet"`, but configured-wallet recovery only works when the active signer still matches the original depositor address saved with the workflow. If a saved workflow is `paused_poa_required`, agents can either resume privately after the external PoA step or choose `flow ragequit` for public recovery instead.
 
-Manual path remains available when you need custom Pool Account selection, partial withdrawals, direct withdrawals, unsigned payloads, or dry-runs:
+Use manual commands (`deposit`, `accounts`, `withdraw`) when you need partial withdrawals, custom Pool Account selection, unsigned payloads, direct withdrawals, or one-shot full control:
 
 ```
 1. privacy-pools pools --agent                                          # Browse available pools (check minimumDeposit)
@@ -354,6 +376,8 @@ Manual path remains available when you need custom Pool Account selection, parti
 ```
 
 **Before depositing**, check the `minimumDeposit` field from `privacy-pools pools --agent` for the target asset. Deposit amounts below this threshold will be rejected. Minimums are per-pool and may change; always query at runtime rather than hard-coding.
+
+Account review fields: `aspStatus` values are `pending`, `approved`, `declined`, `poa_required`, and `unknown`. The broader `PoolAccountStatus` superset used by `accounts` is `pending`, `approved`, `declined`, `poa_required`, `unknown`, `spent`, and `exited`.
 
 New CLI-generated recovery phrases use 24 words by default. Imported recovery phrases may still be 12 or 24 words.
 
@@ -376,6 +400,60 @@ Recommended retry strategy:
 - `CONTRACT_NO_ROOTS_AVAILABLE` / `CONTRACT_NONCE_ERROR` / `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` / `CONTRACT_NOT_YET_RAGEQUITTEABLE`: wait 30-60s or request a fresh quote, then retry.
 - `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE`: retry when ASP connectivity is healthy, or run `privacy-pools migrate status --agent` and wait for `readinessResolved: true` before acting on this account.
 - `ACCOUNT_NOT_APPROVED`: do not retry immediately; run `accounts --agent --chain <chain>` to check `aspStatus`. If it is `pending`, keep polling `accounts --agent --chain <chain> --pending-only`. If it is `poa_required`, complete Proof of Association at [https://tornado.0xbow.io](https://tornado.0xbow.io) first. If it is `declined`, the manual recovery path is `ragequit` and the saved easy-path recovery is `flow ragequit <workflowId>`.
+
+Generated recovery decision table:
+
+<!-- BEGIN: recovery-decision-table -->
+
+| Symptom / code | First try | Fallback |
+| --- | --- | --- |
+| `ACCOUNT_MIGRATION_REQUIRED` | run migrate status across supported chains | see error.hint |
+| `ACCOUNT_MIGRATION_REVIEW_INCOMPLETE` | retry when ASP connectivity is healthy | run migrate status before acting on the account |
+| `ACCOUNT_NOT_APPROVED` | check accounts to branch on aspStatus | pending: poll; declined: ragequit; poa_required: complete PoA |
+| `ACCOUNT_WEBSITE_RECOVERY_REQUIRED` | run migrate status to confirm readiness and affected chains | complete website recovery before restoring in the CLI |
+| `CONTRACT_INCORRECT_ASP_ROOT` | sync and retry the original command | see error.hint |
+| `CONTRACT_INVALID_COMMITMENT` | sync account state and retry | see error.hint |
+| `CONTRACT_INVALID_PROCESSOOOR` | request a fresh quote and retry the default relayed path | sync if the mismatch persists |
+| `CONTRACT_INVALID_PROOF` | sync and regenerate the proof | see error.hint |
+| `CONTRACT_NO_ROOTS_AVAILABLE` | retry with backoff (fixed-backoff) | see error.hint |
+| `CONTRACT_NONCE_ERROR` | retry with backoff (exponential-backoff) | see error.hint |
+| `CONTRACT_NOT_YET_RAGEQUITTEABLE` | retry with backoff (fixed-backoff) | see error.hint |
+| `CONTRACT_NULLIFIER_ALREADY_SPENT` | reconcile account state | see error.hint |
+| `CONTRACT_RELAY_FEE_GREATER_THAN_MAX` | request a fresh quote | wait for fees to normalize |
+| `CONTRACT_SCOPE_MISMATCH` | sync and retry the original command | see error.hint |
+| `CONTRACT_UNKNOWN_STATE_ROOT` | sync and retry the original command | see error.hint |
+| `FLOW_RELAYER_MINIMUM_BLOCKED` | use saved-flow public recovery | see error.hint |
+| `INPUT_AGENT_ACCOUNTS_WATCH_UNSUPPORTED` | poll accounts --pending-only externally | see error.hint |
+| `INPUT_AGENT_FLOW_WATCH_UNSUPPORTED` | use flow status plus flow step | see error.hint |
+| `INPUT_APPROVAL_REQUIRED_NO_WAIT` | rerun deposit without --no-wait so approval can confirm | see error.hint |
+| `INPUT_DIRECT_WITHDRAW_RECIPIENT_MISMATCH` | retry the default relayed withdrawal path | see error.hint |
+| `INPUT_INIT_REQUIRED` | run init | see error.hint |
+| `INPUT_MISSING_FLOW_SUBCOMMAND` | choose flow start, status, step, or ragequit | see error.hint |
+| `INPUT_NO_SAVED_WORKFLOWS` | start a new saved flow | see error.hint |
+| `INPUT_NONROUND_AMOUNT` | retry with the suggested round amount | use --allow-non-round-amounts only when the privacy tradeoff is intentional |
+| `INPUT_REMAINDER_BELOW_RELAYER_MINIMUM` | withdraw the full balance with --all | recover the remainder publicly with ragequit if needed |
+| `INPUT_UNKNOWN_SUBMISSION` | rerun the original command with --no-wait and capture the returned submissionId | see error.hint |
+| `INPUT_WORKFLOW_NOT_FOUND` | inspect the latest saved workflow | start a new flow if no saved workflow exists |
+| `LOCK_HELD` | retry with backoff (fixed-backoff) | see error.hint |
+| `PROOF_GENERATION_FAILED` | sync local state and retry | verify the recovery phrase and account state |
+| `PROOF_MERKLE_ERROR` | sync local state and retry | see error.hint |
+| `PROOF_VERIFICATION_FAILED` | sync local state and retry | reinstall or upgrade to refresh circuit artifacts |
+| `RELAYER_BROADCAST_QUOTE_EXPIRED` | request a fresh quote and regenerate the envelope | see error.hint |
+| `RELAYER_BROADCAST_SUBMISSION_FAILED` | retry with backoff (exponential-backoff) | see error.hint |
+| `RELAYER_CONFIRMATION_RETRY_LIMIT` | retry with backoff (exponential-backoff) | see error.hint |
+| `RELAYER_FEE_EXCEEDS_MAX` | request a fresh quote | wait for fees to normalize or choose another pool |
+| `RPC_BROADCAST_CONFIRMATION_TIMEOUT` | poll tx-status with the returned submission id | inspect the submitted tx hash before retrying |
+| `RPC_BROADCAST_SUBMISSION_FAILED` | retry with backoff (exponential-backoff) | see error.hint |
+| `RPC_NETWORK_ERROR` | retry with backoff (exponential-backoff) | see error.hint |
+| `RPC_POOL_RESOLUTION_FAILED` | retry with backoff (exponential-backoff) | see error.hint |
+| `RPC_RATE_LIMITED` | retry with backoff (exponential-backoff) | see error.hint |
+| `SETUP_RECOVERY_PHRASE_MISSING` | run init | see error.hint |
+| `SETUP_REQUIRED` | run init | see error.hint |
+| `SETUP_SIGNER_KEY_MISSING` | run init --signer-only or set PRIVACY_POOLS_PRIVATE_KEY | see error.hint |
+| `UPGRADE_CHECK_FAILED` | retry with backoff (exponential-backoff) | see error.hint |
+| `UPGRADE_INSTALL_FAILED` | retry with backoff (exponential-backoff) | see error.hint |
+
+<!-- END: recovery-decision-table -->
 
 ---
 
