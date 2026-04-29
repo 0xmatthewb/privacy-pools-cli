@@ -3170,6 +3170,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "sideEffectClass": "fund_movement",
       "touchesFunds": true,
       "requiresHumanReview": true,
+      "requiredPromptExcludedReason": "saved-workflow automation resumes previously reviewed intent; flow start owns the interactive review prompt",
       "preferredSafeVariant": {
         "command": "flow status",
         "reason": "Inspect the saved workflow state before re-attaching a long-running flow."
@@ -3476,6 +3477,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "sideEffectClass": "fund_movement",
       "touchesFunds": true,
       "requiresHumanReview": true,
+      "requiredPromptExcludedReason": "saved-workflow public recovery is covered by flow start review plus ragequit confirmation coverage",
       "preferredSafeVariant": {
         "command": "flow status",
         "reason": "Inspect the saved workflow state before triggering the public recovery path."
@@ -5575,6 +5577,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "sideEffectClass": "fund_movement",
       "touchesFunds": true,
       "requiresHumanReview": true,
+      "requiredPromptExcludedReason": "broadcast submits an externally signed envelope and has no interactive prompt surface",
       "prerequisites": [],
       "examples": [
         "privacy-pools broadcast ./signed-deposit-envelope.json",

@@ -19,6 +19,7 @@ import {
   type ServerResponse,
 } from "node:http";
 import { spawn, type ChildProcess } from "node:child_process";
+import { appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { encodeAbiParameters, type Address } from "viem";
 import { buildChildProcessEnv } from "./child-env.ts";
@@ -354,6 +355,13 @@ function firstHeaderValue(value: string | string[] | undefined): string | undefi
 
 // ── Routing ──────────────────────────────────────────────────────────────────
 
+function logFixtureRequest(req: IncomingMessage, path: string): void {
+  const logPath = process.env.PP_FIXTURE_REQUEST_LOG;
+  if (!logPath) return;
+
+  appendFileSync(logPath, `${req.method ?? "GET"} ${path}\n`, "utf8");
+}
+
 function route(req: IncomingMessage, res: ServerResponse): void {
   const url = new URL(req.url ?? "/", `http://localhost`);
   const emptyPoolsMode =
@@ -362,6 +370,8 @@ function route(req: IncomingMessage, res: ServerResponse): void {
   const path = emptyPoolsMode
     ? url.pathname.slice(EMPTY_POOLS_FIXTURE_PREFIX.length) || "/"
     : url.pathname;
+
+  logFixtureRequest(req, path);
 
   let body: unknown;
 
@@ -666,14 +676,20 @@ async function waitForFixtureReady(
  * Launch the fixture server in a separate background process.
  * Returns once the server prints its port to stdout.
  */
-export function launchFixtureServer(): Promise<FixtureServer> {
+export function launchFixtureServer(
+  options: { requestLogPath?: string } = {},
+): Promise<FixtureServer> {
   const script = resolve(import.meta.dir, "fixture-server.ts");
 
   return new Promise((resolve, reject) => {
     const proc = spawn(nodeExecutable(), tsxEntrypointArgs(script), {
       stdio: ["ignore", "pipe", "ignore"],
       detached: false,
-      env: buildChildProcessEnv(),
+      env: buildChildProcessEnv({
+        ...(options.requestLogPath
+          ? { PP_FIXTURE_REQUEST_LOG: options.requestLogPath }
+          : {}),
+      }),
     });
     const cleanupProcessExit = registerProcessExitCleanup(proc);
 

@@ -233,6 +233,7 @@ export interface DetailedCommandDescriptor {
   sideEffectClass: CommandSideEffectClass;
   touchesFunds: boolean;
   requiresHumanReview: boolean;
+  requiredPromptExcludedReason?: string;
   preferredSafeVariant?: PreferredSafeVariant;
   prerequisites: string[];
   examples: Array<

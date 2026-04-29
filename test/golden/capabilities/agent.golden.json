@@ -350,6 +350,7 @@
         "--no-wait: submitted transactions return immediately with submissionId so tx-status can poll confirmation later."
       ],
       "prerequisites": [],
+      "requiredPromptExcludedReason": "broadcast submits an externally signed envelope and has no interactive prompt surface",
       "requiresHumanReview": true,
       "requiresInit": false,
       "safeReadOnly": false,
@@ -1698,6 +1699,11 @@
             "trigger": "public deposit confirms onchain"
           },
           {
+            "from": "depositing_publicly",
+            "to": "awaiting_funding",
+            "trigger": "clean public deposit submission failure clears pending deposit state"
+          },
+          {
             "from": "awaiting_asp",
             "to": "approved_waiting_privacy_delay",
             "trigger": "ASP status is approved and a privacy delay is active"
@@ -1721,6 +1727,11 @@
             "from": "approved_waiting_privacy_delay",
             "to": "approved_ready_to_withdraw",
             "trigger": "privacy delay expires"
+          },
+          {
+            "from": "approved_ready_to_withdraw",
+            "to": "approved_waiting_privacy_delay",
+            "trigger": "operator reschedules an active privacy delay"
           },
           {
             "from": "paused_poa_required",
@@ -1958,6 +1969,7 @@
       "prerequisites": [
         "init"
       ],
+      "requiredPromptExcludedReason": "saved-workflow public recovery is covered by flow start review plus ragequit confirmation coverage",
       "requiresHumanReview": true,
       "requiresInit": true,
       "safeReadOnly": false,
@@ -2423,6 +2435,7 @@
       "prerequisites": [
         "init"
       ],
+      "requiredPromptExcludedReason": "saved-workflow automation resumes previously reviewed intent; flow start owns the interactive review prompt",
       "requiresHumanReview": true,
       "requiresInit": true,
       "safeReadOnly": false,

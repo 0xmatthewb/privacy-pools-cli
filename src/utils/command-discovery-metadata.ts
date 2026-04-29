@@ -496,6 +496,7 @@ function descriptorSeed(path: CommandPath) {
     sideEffectClass,
     touchesFunds,
     requiresHumanReview: touchesFunds || path === "init" || path === "upgrade",
+    requiredPromptExcludedReason: metadata.requiredPromptExcludedReason,
     preferredSafeVariant: preferredSafeVariantFor(path),
     prerequisites: metadata.help?.prerequisites ? [metadata.help.prerequisites] : [],
     examples: metadata.help?.examples ?? [],
@@ -561,6 +562,9 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     sideEffectClass: seed.sideEffectClass,
     touchesFunds: seed.touchesFunds,
     requiresHumanReview: seed.requiresHumanReview,
+    ...(seed.requiredPromptExcludedReason
+      ? { requiredPromptExcludedReason: seed.requiredPromptExcludedReason }
+      : {}),
     preferredSafeVariant: seed.preferredSafeVariant,
     prerequisites: seed.prerequisites,
     examples: seed.examples,

@@ -443,6 +443,12 @@ export async function handleRagequitCommand(
     if (await maybeRenderPreviewScenario("ragequit")) {
       return;
     }
+    if (
+      opts.poolAccount &&
+      await maybeRenderPreviewScenario("ragequit confirm")
+    ) {
+      return;
+    }
 
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);

@@ -95,6 +95,7 @@ export interface CommandMetadata {
   safeReadOnly?: boolean;
   expectedNextActionWhen?: NextActionWhen[];
   agentsDocMarker?: string;
+  requiredPromptExcludedReason?: string;
 }
 
 const POOLS_LIST_JSON_FIELDS =
@@ -722,6 +723,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "slow",
     },
     expectedNextActionWhen: [...FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN],
+    requiredPromptExcludedReason:
+      "saved-workflow automation resumes previously reviewed intent; flow start owns the interactive review prompt",
   },
   "flow status": {
     description: "Show the saved easy-path workflow state",
@@ -829,6 +832,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       "flow_public_recovery_pending",
       "after_ragequit",
     ],
+    requiredPromptExcludedReason:
+      "saved-workflow public recovery is covered by flow start review plus ragequit confirmation coverage",
   },
   pools: {
     description: ROOT_COMMAND_DESCRIPTIONS.pools,
@@ -1801,6 +1806,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "slow",
     },
     safeReadOnly: false,
+    requiredPromptExcludedReason:
+      "broadcast submits an externally signed envelope and has no interactive prompt surface",
   },
   accounts: {
     description: ROOT_COMMAND_DESCRIPTIONS.accounts,
