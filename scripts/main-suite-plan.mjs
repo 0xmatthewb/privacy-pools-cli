@@ -106,6 +106,16 @@ export function resolveMainBatchConcurrency({
   return Math.max(1, Math.min(cap, suiteCount, boundedDetected));
 }
 
+export function resolveMainBatchRespectFixtureClass({
+  env = process.env,
+} = {}) {
+  // The default keeps the legacy gate in place: subprocess-boundary main
+  // batches (acceptance, integration) cannot overlap. Setting
+  // PP_TEST_MAIN_RESPECT_FIXTURE_CLASS=0 lifts that restriction so heavy
+  // batches can interleave on a host with enough CPU/IO headroom.
+  return env.PP_TEST_MAIN_RESPECT_FIXTURE_CLASS !== "0";
+}
+
 export function resolveIsolatedSuiteConcurrency({
   suiteCount,
   env = process.env,

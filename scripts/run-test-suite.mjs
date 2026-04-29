@@ -23,6 +23,7 @@ import { collectTestFiles } from "./test-file-collector.mjs";
 import {
   buildDefaultMainSuites,
   resolveMainBatchConcurrency,
+  resolveMainBatchRespectFixtureClass,
   resolveIsolatedSuiteConcurrency,
   suiteUsesSharedBuiltWorkspaceSnapshot,
 } from "./main-suite-plan.mjs";
@@ -468,7 +469,7 @@ async function main() {
         mainSuites,
         suiteArgs,
         resolveMainBatchConcurrency({ suiteCount: mainSuites.length }),
-        { respectFixtureClass: true },
+        { respectFixtureClass: resolveMainBatchRespectFixtureClass() },
       ),
     );
 

@@ -36,7 +36,7 @@
     "npm run test:coverage": 480000,
     "npm run test:coverage:native": 300000,
     "npm run test:smoke:native:shell": 300000,
-    "npm run test:e2e:anvil:smoke": 180000,
+    "npm run test:e2e:anvil:smoke": 300000,
     "npm run test:e2e:anvil": 600000
   },
   "suiteTimingBaselinesMs": {

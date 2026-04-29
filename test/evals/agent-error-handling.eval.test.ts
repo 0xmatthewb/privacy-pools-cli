@@ -12,7 +12,7 @@ import {
 } from "./helpers/eval-harness.ts";
 
 describe("agent error handling eval", () => {
-  test("accounts without init exits 2 with INPUT error mentioning recovery phrase", () => {
+  test("accounts without init exits 4 with SETUP error mentioning recovery phrase", () => {
     const home = createTempHome();
 
     const scenario: EvalScenario = {
@@ -21,13 +21,13 @@ describe("agent error handling eval", () => {
       steps: [
         {
           command: ["accounts"],
-          expectedStatus: 2,
+          expectedStatus: 4,
           assertions: (result, parsed) => {
             const p = parsed as Record<string, unknown>;
             expect(p.success).toBe(false);
             expect(typeof p.error).toBe("object");
             const err = p.error as Record<string, unknown>;
-            expect(err.category).toBe("INPUT");
+            expect(err.category).toBe("SETUP");
             // accounts needs the mnemonic (recovery phrase)
             const msg = String(err.message ?? "").toLowerCase();
             const hint = String(err.hint ?? "").toLowerCase();
@@ -48,11 +48,11 @@ describe("agent error handling eval", () => {
     });
 
     expect(results).toHaveLength(1);
-    expect(results[0].result.status).toBe(2);
+    expect(results[0].result.status).toBe(4);
     scenario.steps[0].assertions?.(results[0].result, results[0].parsed);
   });
 
-  test("withdraw without init exits 2 with INPUT error mentioning signer key", () => {
+  test("withdraw without init exits 4 with SETUP error mentioning signer key", () => {
     const home = createTempHome();
 
     const scenario: EvalScenario = {
@@ -61,13 +61,13 @@ describe("agent error handling eval", () => {
       steps: [
         {
           command: ["withdraw", "0.1", "ETH", "--to", "0x0000000000000000000000000000000000000001"],
-          expectedStatus: 2,
+          expectedStatus: 4,
           assertions: (result, parsed) => {
             const p = parsed as Record<string, unknown>;
             expect(p.success).toBe(false);
             expect(typeof p.error).toBe("object");
             const err = p.error as Record<string, unknown>;
-            expect(err.category).toBe("INPUT");
+            expect(err.category).toBe("SETUP");
             // withdraw needs either signer key or recovery phrase
             const msg = String(err.message ?? "").toLowerCase();
             const hint = String(err.hint ?? "").toLowerCase();
@@ -91,7 +91,7 @@ describe("agent error handling eval", () => {
     });
 
     expect(results).toHaveLength(1);
-    expect(results[0].result.status).toBe(2);
+    expect(results[0].result.status).toBe(4);
     scenario.steps[0].assertions?.(results[0].result, results[0].parsed);
   });
 

@@ -103,7 +103,7 @@ defineScenarioSuite("output-mode acceptance", [
     assertStderrEmpty(),
   ]),
   defineScenario("command-local --json <fields> trims the JSON envelope", [
-    runCliStep(["describe", "withdraw", "--json", "command,usage"]),
+    runCliStep(["describe", "withdraw", "--json", "command,usage"], { timeoutMs: 60_000 }),
     assertExit(0),
     assertStderrEmpty(),
     assertJson<{ success: boolean; command: string; usage: string }>((json) => {

@@ -31,7 +31,11 @@ npm run test:e2e:anvil:smoke   # anvil smoke subset
 npm run test:flake             # randomized non-e2e pass + targeted reruns
 npm run test:stress            # stress test (120 rounds)
 npm run test:ci                # full CI pipeline
+npm run test:parallel          # default suite with main-batch fixture-class gate lifted
+npm run test:ci:parallel       # full CI pipeline with main-batch fixture-class gate lifted
 ```
+
+`test:parallel` and `test:ci:parallel` lift the `respectFixtureClass` gate so subprocess-boundary main batches (acceptance, integration) can interleave within the existing concurrency cap (2 by default). Wall-clock benefit comes from overlapping the two heaviest batches, not from raising the cap. Underlying knobs: `PP_TEST_MAIN_RESPECT_FIXTURE_CLASS=0` (lifts the gate), `PP_TEST_MAIN_CONCURRENCY` (override the cap on a known-beefy host), `PP_TEST_ISOLATED_CONCURRENCY` (tune the isolated lane independently). These knobs are local-only by convention; CI workflows must continue using the standard `npm test` / `npm run test:ci` paths.
 
 `npm run test` uses `scripts/run-test-suite.mjs`, which delegates to `scripts/run-bun-tests.mjs` for the main batch plus the isolated suites listed in `scripts/test-suite-manifest.mjs`. Bun remains internal test tooling only; the CLI runtime itself is Node-only. For targeted Bun-runner coverage, invoke `node scripts/run-bun-tests.mjs <files...>`. Default per-test timeout is 30s unless you pass an explicit Bun timeout flag. The harness injects `PP_TEST_RUN_ID` per run and scopes temp dirs with `pp-` prefix for automatic cleanup.
 
