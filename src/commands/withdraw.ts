@@ -78,6 +78,7 @@ import {
   printError,
   CLIError,
   promptCancelledError,
+  withErrorRecoveryContext,
 } from "../utils/errors.js";
 import { printJsonSuccess } from "../utils/json.js";
 import { emitStreamJsonEvent } from "../utils/stream-json.js";
@@ -446,6 +447,7 @@ interface ValidatedRelayerQuoteForWithdrawal {
 interface RefreshExpiredRelayerQuoteForWithdrawalParams {
   fetchQuote: () => Promise<RelayerQuoteResponse>;
   maxRelayFeeBPS: bigint | string;
+  recoveryContext?: Parameters<typeof validateRelayerQuoteForWithdrawalHelper>[2];
   nowMs?: () => number;
   maxAttempts?: number;
   onRetry?: (attempt: number, maxAttempts: number) => void;
@@ -689,8 +691,13 @@ export function normalizeRelayerQuoteExpirationMs(expiration: number): number {
 export function validateRelayerQuoteForWithdrawal(
   quote: Pick<RelayerQuoteResponse, "feeBPS" | "feeCommitment">,
   maxRelayFeeBPS: bigint | string,
+  recoveryContext: Parameters<typeof validateRelayerQuoteForWithdrawalHelper>[2] = {},
 ): ValidatedRelayerQuoteForWithdrawal {
-  return validateRelayerQuoteForWithdrawalHelper(quote, maxRelayFeeBPS);
+  return validateRelayerQuoteForWithdrawalHelper(
+    quote,
+    maxRelayFeeBPS,
+    recoveryContext,
+  );
 }
 
 export async function refreshExpiredRelayerQuoteForWithdrawal(
@@ -754,6 +761,7 @@ export async function handleWithdrawCommand(
         ];
     writeWithdrawNarrative(createNarrativeSteps(labels, activeIndex, note));
   };
+  let errorRecoveryContext: Record<string, unknown> = {};
 
   try {
     emitStreamJsonEvent(streamJson, {
@@ -861,6 +869,7 @@ export async function handleWithdrawCommand(
 
     const config = loadConfig();
     const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+    errorRecoveryContext = { ...errorRecoveryContext, chain: chainConfig.name };
     const mnemonic = loadMnemonic();
     emitStreamJsonEvent(streamJson, {
       mode: "withdraw-progress",
@@ -984,6 +993,10 @@ export async function handleWithdrawCommand(
     if (opts.to) {
       const resolved = await resolveSafeRecipientAddressOrEns(opts.to, "Recipient");
       recipientAddress = resolved.address;
+      errorRecoveryContext = {
+        ...errorRecoveryContext,
+        recipient: recipientAddress,
+      };
       recipientEnsName = resolved.ensName;
       if (recipientEnsName) {
         info(`Resolved ${recipientEnsName} -> ${recipientAddress}`, advisorySilent);
@@ -1088,6 +1101,11 @@ export async function handleWithdrawCommand(
         "INPUT_MISSING_ASSET",
       );
     }
+    errorRecoveryContext = {
+      ...errorRecoveryContext,
+      asset: pool.symbol,
+      assetInput: pool.symbol,
+    };
     if (
       isDirect &&
       !isDryRun &&
@@ -1271,6 +1289,11 @@ export async function handleWithdrawCommand(
         silent,
       );
       withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+      errorRecoveryContext = {
+        ...errorRecoveryContext,
+        amount: formatUnits(withdrawalAmount, pool.decimals),
+        amountInput: formatUnits(withdrawalAmount, pool.decimals),
+      };
     } else {
       // Use a minimal positive threshold to select any PA with remaining balance.
       // The real withdrawal amount is resolved after PA selection.
@@ -1796,6 +1819,11 @@ export async function handleWithdrawCommand(
         }
         validatePositive(withdrawalAmount, "Withdrawal amount");
         withdrawalUsd = usdSuffix(withdrawalAmount, pool.decimals, tokenPrice);
+        errorRecoveryContext = {
+          ...errorRecoveryContext,
+          amount: formatUnits(withdrawalAmount, pool.decimals),
+          amountInput: formatUnits(withdrawalAmount, pool.decimals),
+        };
         if (isAllWithdrawal) {
           info(
             `Withdrawing 100% of ${selectedPoolAccount.paId}: ${formatAmount(withdrawalAmount, pool.decimals, pool.symbol)}`,
@@ -2722,6 +2750,12 @@ export async function handleWithdrawCommand(
 
         let quoteFeeBPS: bigint;
         let expirationMs: number;
+        const quoteRecoveryContext = {
+          amountInput: formatUnits(withdrawalAmount, pool.decimals),
+          assetInput: pool.symbol,
+          recipient: resolvedRecipientAddress,
+          chainName: chainConfig.name,
+        };
 
         const fetchFreshQuote = async (reason: string): Promise<void> => {
           spin.text = reason;
@@ -2747,6 +2781,7 @@ export async function handleWithdrawCommand(
               return quoteResult.quote;
             },
             maxRelayFeeBPS: pool.maxRelayFeeBPS,
+            recoveryContext: quoteRecoveryContext,
             onRetry: (attempt, max) => {
               warn(
                 `Quote expired, refreshing... (attempt ${attempt}/${max})`,
@@ -2768,6 +2803,7 @@ export async function handleWithdrawCommand(
         ({ quoteFeeBPS, expirationMs } = validateRelayerQuoteForWithdrawal(
           quote,
           pool.maxRelayFeeBPS,
+          quoteRecoveryContext,
         ));
         verbose(
           `Quote expiration: ${new Date(expirationMs).toISOString()} (${expirationMs})`,
@@ -3460,7 +3496,12 @@ export async function handleWithdrawCommand(
     if (await maybeRecoverMissingWalletSetup(error, cmd)) {
       return;
     }
-    printError(normalizeInitRequiredInputError(error), isJson || isUnsigned);
+    printError(
+      normalizeInitRequiredInputError(
+        withErrorRecoveryContext(error, errorRecoveryContext),
+      ),
+      isJson || isUnsigned,
+    );
   }
 }
 

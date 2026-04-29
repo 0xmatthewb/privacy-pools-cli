@@ -28,6 +28,58 @@ describe("docs generation drift detection", () => {
     expect(result.status).toBe(0);
   });
 
+  test("AGENTS.md flow phase diagram matches generated output", () => {
+    if (!existsSync(join(CLI_ROOT, "dist", "services", "flow-phase-graph.js"))) {
+      throw new Error(
+        "dist/services/flow-phase-graph.js not found. Run `npm run build` before running conformance tests.",
+      );
+    }
+
+    const result = spawnSync(
+      "node",
+      ["scripts/generate-flow-phase-diagram.mjs", "--check"],
+      {
+        cwd: CLI_ROOT,
+        timeout: 30_000,
+        env: buildChildProcessEnv(),
+      },
+    );
+
+    const stderr = result.stderr?.toString() ?? "";
+    if (result.status !== 0) {
+      throw new Error(
+        `AGENTS.md flow phase diagram is out of date. Run \`npm run docs:generate\` to regenerate.\n${stderr}`,
+      );
+    }
+    expect(result.status).toBe(0);
+  });
+
+  test("SKILL.md recovery decision table matches generated output", () => {
+    if (!existsSync(join(CLI_ROOT, "dist", "utils", "error-recovery-table.js"))) {
+      throw new Error(
+        "dist/utils/error-recovery-table.js not found. Run `npm run build` before running conformance tests.",
+      );
+    }
+
+    const result = spawnSync(
+      "node",
+      ["scripts/generate-recovery-table.mjs", "--check"],
+      {
+        cwd: CLI_ROOT,
+        timeout: 30_000,
+        env: buildChildProcessEnv(),
+      },
+    );
+
+    const stderr = result.stderr?.toString() ?? "";
+    if (result.status !== 0) {
+      throw new Error(
+        `SKILL.md recovery decision table is out of date. Run \`npm run docs:generate\` to regenerate.\n${stderr}`,
+      );
+    }
+    expect(result.status).toBe(0);
+  });
+
   test("AUTO-GENERATED command discovery artifacts match generator output", () => {
     if (!existsSync(join(CLI_ROOT, "dist", "program.js"))) {
       throw new Error(

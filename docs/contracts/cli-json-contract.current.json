@@ -25,10 +25,12 @@
         "availableFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
         "unknownFields": "string[]? (present on INPUT_UNKNOWN_JSON_FIELD)",
         "helpTopic": "string? (suggested privacy-pools help topic)",
-        "nextActions": "NextAction[]? (structured recovery follow-ups for agents and automation)"
+        "nextActions": "NextAction[]? (structured recovery follow-ups for agents and automation)",
+        "retry": "{ strategy, maxAttempts?, initialDelayMs?, maxDelayMs?, note? }? (retry policy for retry-only recoverable errors)"
       },
       "helpTopic": "string? (suggested privacy-pools help topic)",
-      "nextActions": "NextAction[]? (structured recovery follow-ups for agents and automation)"
+      "nextActions": "NextAction[]? (structured recovery follow-ups for agents and automation)",
+      "retry": "{ strategy, maxAttempts?, initialDelayMs?, maxDelayMs?, note? }? (mirrors error.retry when present)"
     }
   },
   "exitCodes": {
@@ -72,9 +74,11 @@
       "description": "string"
     },
     "flowWarning": {
-      "code": "\"timing_delay_disabled\"|\"amount_pattern_linkability\"|\"RECIPIENT_NEW_TO_PROFILE\"",
+      "code": "\"timing_delay_disabled\"|\"PRIVACY_NONROUND_AMOUNT\"|\"RECIPIENT_NEW_TO_PROFILE\"",
       "category": "\"privacy\"|\"recipient\"",
-      "message": "string"
+      "message": "string",
+      "suggestedRoundAmount": "string? (present for PRIVACY_NONROUND_AMOUNT when a round alternative can be suggested)",
+      "escape": "\"--allow-non-round-amounts\"? (present only on commands that honor this escape hatch)"
     },
     "previewWarning": {
       "code": "\"PREVIEW_VALIDATION_APPROXIMATE\"|\"UNSIGNED_VALIDATION_APPROXIMATE\"",

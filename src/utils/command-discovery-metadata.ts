@@ -325,7 +325,7 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
       UNKNOWN: EXIT_CODES.UNKNOWN,
     },
     description:
-      "Error responses include error.{ code, category, message, hint?, retryable? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message.",
+      "Error responses include error.{ code, category, message, hint?, retryable?, retry?, nextActions? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message.",
   },
   unsignedOutput: {
     envelopeFormat:
@@ -703,7 +703,7 @@ export function buildCapabilitiesPayload(): CapabilitiesPayload {
       .filter((path) => COMMAND_CATALOG[path].safeReadOnly)
       .map((path) => path),
     jsonOutputContract:
-      "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docUrl?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+      "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, retry?, nextActions?, error: { code, category, message, hint?, retryable?, retry?, docUrl?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
     documentation: {
       reference: "docs/reference.md",
       agentGuide: "AGENTS.md",

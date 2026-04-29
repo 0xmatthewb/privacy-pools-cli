@@ -21,22 +21,69 @@ function phaseLabel(phase) {
   return `\`${phase}\``;
 }
 
+function isGlobalEscapeEdge(edge) {
+  return edge.to === "completed_public_recovery" || edge.to === "stopped_external";
+}
+
+function renderTreeFromGraph(root = "awaiting_funding") {
+  const lines = [root];
+  const visited = new Set([root]);
+
+  function walk(phase, depth) {
+    const children = FLOW_PHASE_GRAPH.edges.filter(
+      (edge) => edge.from === phase && !isGlobalEscapeEdge(edge),
+    );
+    for (const edge of children) {
+      const repeat = visited.has(edge.to);
+      lines.push(`${"  ".repeat(depth)}-> ${edge.to}${repeat ? " (see above)" : ""}`);
+      if (!repeat) {
+        visited.add(edge.to);
+        walk(edge.to, depth + 1);
+      }
+    }
+  }
+
+  walk(root, 1);
+  return lines;
+}
+
+function sourceGroupLabel(edges) {
+  const sources = new Set(edges.map((edge) => edge.from));
+  const nonTerminal = FLOW_PHASE_GRAPH.nodes.filter(
+    (phase) => !FLOW_PHASE_GRAPH.terminal.includes(phase),
+  );
+  if (
+    sources.size === nonTerminal.length &&
+    nonTerminal.every((phase) => sources.has(phase))
+  ) {
+    return "any non-terminal phase";
+  }
+  return [...sources].join(" | ");
+}
+
 function renderDiagram() {
+  const escapeGroups = [
+    {
+      to: "completed_public_recovery",
+      label: "flow ragequit",
+    },
+    {
+      to: "stopped_external",
+      label: "external spend or mutation detected",
+    },
+  ].map((group) => ({
+    ...group,
+    edges: FLOW_PHASE_GRAPH.edges.filter((edge) => edge.to === group.to),
+  })).filter((group) => group.edges.length > 0);
+
   return [
     "```",
-    "awaiting_funding",
-    "  -> depositing_publicly",
-    "  -> awaiting_asp",
-    "       -> paused_declined",
-    "       -> paused_poa_required",
-    "       -> approved_waiting_privacy_delay",
-    "            -> approved_ready_to_withdraw",
-    "                 -> withdrawing",
-    "                      -> completed",
+    ...renderTreeFromGraph(),
     "",
-    "any non-terminal phase",
-    "  -> completed_public_recovery  (flow ragequit)",
-    "  -> stopped_external           (external spend or mutation detected)",
+    ...escapeGroups.flatMap((group, index) => [
+      ...(index === 0 ? [sourceGroupLabel(group.edges)] : []),
+      `  -> ${group.to.padEnd(27)} (${group.label})`,
+    ]),
     "```",
   ];
 }

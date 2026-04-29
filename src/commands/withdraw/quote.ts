@@ -44,9 +44,21 @@ interface ValidatedRelayerQuoteForWithdrawal {
   expirationMs: number;
 }
 
+interface RelayerQuoteRecoveryContext extends Record<string, unknown> {
+  amountInput?: string;
+  amount?: string | bigint;
+  assetInput?: string;
+  asset?: string;
+  recipient?: string;
+  recipientAddress?: string;
+  chain?: string;
+  chainName?: string;
+}
+
 interface RefreshExpiredRelayerQuoteForWithdrawalParams {
   fetchQuote: () => Promise<RelayerQuoteResponse>;
   maxRelayFeeBPS: bigint | string;
+  recoveryContext?: RelayerQuoteRecoveryContext;
   nowMs?: () => number;
   maxAttempts?: number;
   onRetry?: (attempt: number, maxAttempts: number) => void;
@@ -374,6 +386,7 @@ export function normalizeRelayerQuoteExpirationMs(expiration: number): number {
 export function validateRelayerQuoteForWithdrawal(
   quote: Pick<RelayerQuoteResponse, "feeBPS" | "feeCommitment">,
   maxRelayFeeBPS: bigint | string,
+  recoveryContext: RelayerQuoteRecoveryContext = {},
 ): ValidatedRelayerQuoteForWithdrawal {
   if (!quote.feeCommitment) {
     throw new CLIError(
@@ -403,6 +416,9 @@ export function validateRelayerQuoteForWithdrawal(
       "RELAYER",
       "Try again later when fees are lower. If privacy is not a concern, --direct withdraws without a relayer but publicly links your deposit and withdrawal addresses.",
       "RELAYER_FEE_EXCEEDS_MAX",
+      true,
+      undefined,
+      recoveryContext,
     );
   }
 
@@ -428,6 +444,7 @@ export async function refreshExpiredRelayerQuoteForWithdrawal(
     const { quoteFeeBPS, expirationMs } = validateRelayerQuoteForWithdrawal(
       quote,
       params.maxRelayFeeBPS,
+      params.recoveryContext,
     );
     if (nowMs() <= expirationMs) {
       return {

@@ -701,7 +701,7 @@ describe("workflow service", () => {
     );
     expect(warnings.map((warning) => warning.code)).toEqual([
       "timing_delay_disabled",
-      "amount_pattern_linkability",
+      "PRIVACY_NONROUND_AMOUNT",
     ]);
     expect(warnings[1]?.message).toContain("Estimated net deposited amount");
 

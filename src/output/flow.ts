@@ -48,14 +48,13 @@ import {
   renderFlowRail,
   type FlowRailStep,
 } from "./progress.js";
+import type { PrivacyNonRoundAmountWarning } from "../utils/amount-privacy.js";
 
-export interface FlowJsonWarning {
+export type FlowJsonWarning = {
   code: string;
   category: string;
   message: string;
-  suggestedRoundAmount?: string;
-  escape?: string;
-}
+} & Partial<Pick<PrivacyNonRoundAmountWarning, "suggestedRoundAmount" | "escape">>;
 
 export interface FlowStartReviewData {
   amount: bigint;

@@ -477,7 +477,7 @@ describe("flow command", () => {
 
     expect(json.success).toBe(true);
     expect(json.dryRun).toBe(true);
-    expect(json.warnings?.some((warning) => warning.code === "amount_pattern_linkability")).toBe(true);
+    expect(json.warnings?.some((warning) => warning.code === "PRIVACY_NONROUND_AMOUNT")).toBe(true);
   });
 
   test("flow status errors cleanly when no saved workflow exists", () => {
@@ -623,7 +623,7 @@ describe("flow command", () => {
     expect(json.backupConfirmed).toBeUndefined();
     expect(json.warnings?.map((warning) => warning.code)).toEqual([
       "timing_delay_disabled",
-      "amount_pattern_linkability",
+      "PRIVACY_NONROUND_AMOUNT",
     ]);
     expect(json.warnings?.every((warning) => warning.category === "privacy")).toBe(
       true,
@@ -671,7 +671,7 @@ describe("flow command", () => {
     expect(json.privacyDelayConfigured).toBe(false);
     expect(json.privacyDelayUntil).toBeNull();
     expect(json.warnings?.map((warning) => warning.code)).toEqual([
-      "amount_pattern_linkability",
+      "PRIVACY_NONROUND_AMOUNT",
     ]);
   });
 

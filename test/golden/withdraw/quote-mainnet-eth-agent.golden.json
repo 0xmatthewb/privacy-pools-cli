@@ -13,10 +13,10 @@
   "nextActions": [
     {
       "args": [
-        "0.5",
+        "0.1234",
         "ETH"
       ],
-      "cliCommand": "privacy-pools withdraw 0.5 ETH --agent --chain mainnet --to <ADDR>",
+      "cliCommand": "privacy-pools withdraw 0.1234 ETH --agent --chain mainnet --to <ADDR>",
       "command": "withdraw",
       "options": {
         "chain": "mainnet",
@@ -36,5 +36,13 @@
   },
   "relayerHost": "https://relayer.example",
   "schemaVersion": "2.0.0",
-  "success": true
+  "success": true,
+  "warnings": [
+    {
+      "category": "privacy",
+      "code": "PRIVACY_NONROUND_AMOUNT",
+      "message": "Amount 0.1234 ETH may fingerprint this transaction",
+      "suggestedRoundAmount": "0.12"
+    }
+  ]
 }

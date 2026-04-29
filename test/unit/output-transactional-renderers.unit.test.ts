@@ -1421,8 +1421,17 @@ const GOLDEN_WITHDRAW_SUCCESS: WithdrawSuccessData = {
 const GOLDEN_WITHDRAW_QUOTE_JSON: WithdrawQuoteData = {
   ...STUB_WITHDRAW_QUOTE,
   chain: "mainnet",
+  amount: 123400000000000000n,
   relayerHost: "https://relayer.example",
   quoteRefreshCount: 3,
+  warnings: [
+    {
+      code: "PRIVACY_NONROUND_AMOUNT",
+      category: "privacy",
+      message: "Amount 0.1234 ETH may fingerprint this transaction",
+      suggestedRoundAmount: "0.12",
+    },
+  ],
 };
 
 const GOLDEN_WITHDRAW_QUOTE_TEXT: WithdrawQuoteData = {

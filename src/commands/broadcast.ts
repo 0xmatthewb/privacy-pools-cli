@@ -8,6 +8,11 @@ import type { GlobalOptions } from "../types.js";
 import { CLIError, printError } from "../utils/errors.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 
+type PartialSubmittedTransaction = {
+  description?: unknown;
+  txHash?: unknown;
+};
+
 export function readBroadcastInput(
   inputRef: string,
   readStdin: () => string = () => readFileSync(0, "utf-8"),
@@ -66,6 +71,75 @@ export function readBroadcastInput(
   }
 }
 
+function maybePersistTimedOutBroadcast(error: unknown): unknown {
+  if (
+    !(error instanceof CLIError) ||
+    error.code !== "RPC_BROADCAST_CONFIRMATION_TIMEOUT"
+  ) {
+    return error;
+  }
+  const details = error.details ?? {};
+  if (typeof details.submissionId === "string") {
+    return error;
+  }
+  const submittedTransactions = Array.isArray(details.submittedTransactions)
+    ? details.submittedTransactions as PartialSubmittedTransaction[]
+    : [];
+  const transactions = submittedTransactions
+    .filter((transaction) =>
+      typeof transaction.description === "string" &&
+      typeof transaction.txHash === "string"
+    )
+    .map((transaction) => ({
+      description: transaction.description as string,
+      txHash: transaction.txHash as `0x${string}`,
+    }));
+  const chain = typeof details.chain === "string" ? details.chain : null;
+  if (!chain || transactions.length === 0) {
+    return error;
+  }
+  let submissionId: string;
+  try {
+    const submission = createSubmissionRecord({
+      operation: "broadcast",
+      sourceCommand: "broadcast",
+      chain,
+      asset: typeof details.asset === "string" ? details.asset : null,
+      recipient: typeof details.recipient === "string" ? details.recipient : null,
+      broadcastMode:
+        details.broadcastMode === "relayed" || details.broadcastMode === "onchain"
+          ? details.broadcastMode
+          : null,
+      broadcastSourceOperation:
+        details.broadcastSourceOperation === "deposit" ||
+        details.broadcastSourceOperation === "withdraw" ||
+        details.broadcastSourceOperation === "ragequit"
+          ? details.broadcastSourceOperation
+          : null,
+      transactions,
+    });
+    submissionId = submission.submissionId;
+  } catch {
+    return error;
+  }
+  return new CLIError(
+    error.message,
+    error.category,
+    error.hint,
+    error.code,
+    error.retryable,
+    error.presentation,
+    {
+      ...details,
+      submissionId,
+    },
+    error.docsSlug,
+    {
+      ...(error.extra.helpTopic ? { helpTopic: error.extra.helpTopic } : {}),
+    },
+  );
+}
+
 export async function handleBroadcastCommand(
   inputRef: string,
   opts: { validateOnly?: boolean; wait?: boolean; noWait?: boolean },
@@ -116,6 +190,6 @@ export async function handleBroadcastCommand(
       submissionId: submission?.submissionId ?? null,
     });
   } catch (error) {
-    printError(error, mode.isJson);
+    printError(maybePersistTimedOutBroadcast(error), mode.isJson);
   }
 }

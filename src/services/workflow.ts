@@ -66,6 +66,7 @@ import {
 import { getDataService, getPublicClient } from "./sdk.js";
 import { loadMnemonic, loadPrivateKey } from "./wallet.js";
 import {
+  getExternalMutationFlowPhase,
   isPausedFlowPhase as isPausedFlowPhaseValue,
   isTerminalFlowPhase as isTerminalFlowPhaseValue,
 } from "./flow-phase-graph.js";
@@ -237,6 +238,8 @@ export interface FlowWarning {
   code: string;
   category: "privacy";
   message: string;
+  suggestedRoundAmount?: string;
+  escape?: "--allow-non-round-amounts";
 }
 
 export const FLOW_PRIVACY_DELAY_DISABLED_WARNING_MESSAGE =
@@ -1743,27 +1746,36 @@ export function buildAmountPatternLinkabilityWarning(
 
   const estimated = options.estimated ?? false;
   const humanAmount = formatAmountDecimal(amount, assetDecimals);
-  const suggestions = suggestRoundAmounts(
+  const roundSuggestions = suggestRoundAmounts(
     amount,
     assetDecimals,
     asset,
     2,
-  )
-    .map((suggestion) => `${formatAmountDecimal(suggestion, assetDecimals)} ${asset}`)
-    .join(" or ");
-  const suggestionText = suggestions
-    ? ` Consider manual round partial withdrawals such as ${suggestions} if you want better amount privacy.`
+  );
+  const suggestionLabels = roundSuggestions.map(
+    (suggestion) => `${formatAmountDecimal(suggestion, assetDecimals)} ${asset}`,
+  );
+  const suggestionText = suggestionLabels.length > 0
+    ? ` Consider manual round partial withdrawals such as ${suggestionLabels.join(" or ")} if you want better amount privacy.`
     : " Consider manual round partial withdrawals if you want better amount privacy.";
   const amountIntro = estimated
     ? `Estimated net deposited amount is about ${humanAmount} ${asset}, and this saved flow will auto-withdraw that full balance.`
     : `This saved flow will auto-withdraw the full ${humanAmount} ${asset}.`;
 
   return {
-    code: "amount_pattern_linkability",
+    code: "PRIVACY_NONROUND_AMOUNT",
     category: "privacy",
     message:
       `${amountIntro} That pattern can make the withdrawal more identifiable even though the protocol breaks the direct onchain link.` +
       suggestionText,
+    ...(roundSuggestions[0] !== undefined
+      ? {
+          suggestedRoundAmount: formatAmountDecimal(
+            roundSuggestions[0],
+            assetDecimals,
+          ),
+        }
+      : {}),
   };
 }
 
@@ -2101,7 +2113,7 @@ export function classifyFlowMutation(
     (current.committedValue && poolAccount.value.toString() !== current.committedValue) ||
     (current.depositLabel && poolAccount.label.toString() !== current.depositLabel);
 
-  return externallyChanged ? "stopped_external" : null;
+  return externallyChanged ? getExternalMutationFlowPhase(current.phase) : null;
 }
 
 function saveMutatedWorkflowSnapshot(
@@ -3498,9 +3510,16 @@ export async function executeRelayedWithdrawalForFlow(
     );
   }
 
+  const quoteRecoveryContext = {
+    amountInput: formatAmountDecimal(withdrawalAmount, pool.decimals),
+    assetInput: pool.symbol,
+    recipient: snapshot.recipient,
+    chainName: chainConfig.name,
+  };
   let { quoteFeeBPS, expirationMs } = validateRelayerQuoteForWithdrawal(
     quote,
     pool.maxRelayFeeBPS,
+    quoteRecoveryContext,
   );
   let quoteRefreshCount = 0;
 
@@ -3528,6 +3547,7 @@ export async function executeRelayedWithdrawalForFlow(
         return quoteResult.quote;
       },
       maxRelayFeeBPS: pool.maxRelayFeeBPS,
+      recoveryContext: quoteRecoveryContext,
     });
     quote = refreshed.quote;
     quoteFeeBPS = refreshed.quoteFeeBPS;

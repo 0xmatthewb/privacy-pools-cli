@@ -7667,7 +7667,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "CONTRACT": 7,
         "UNKNOWN": 1
       },
-      "description": "Error responses include error.{ code, category, message, hint?, retryable? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message."
+      "description": "Error responses include error.{ code, category, message, hint?, retryable?, retry?, nextActions? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message."
     },
     "unsignedOutput": {
       "envelopeFormat": "{ schemaVersion, success, mode, operation, chain, transactions: [{ from, to, data, value, ... }], ... }",
@@ -7829,7 +7829,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "migrate status",
     "history"
   ],
-  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docUrl?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, retry?, nextActions?, error: { code, category, message, hint?, retryable?, retry?, docUrl?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "documentation": {
     "reference": "docs/reference.md",
     "agentGuide": "AGENTS.md",

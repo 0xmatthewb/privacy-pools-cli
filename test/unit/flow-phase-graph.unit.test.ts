@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  FLOW_EXTERNAL_MUTATION_TRIGGER,
   FLOW_PHASE_GRAPH,
+  getExternalMutationFlowPhase,
   isPausedFlowPhase,
   isTerminalFlowPhase,
 } from "../../src/services/flow-phase-graph.ts";
@@ -27,6 +29,38 @@ describe("flow phase graph", () => {
       expect(phases.has(edge.from), `${edge.from} -> ${edge.to}`).toBe(true);
       expect(phases.has(edge.to), `${edge.from} -> ${edge.to}`).toBe(true);
       expect(edge.trigger.trim().length, `${edge.from} -> ${edge.to}`).toBeGreaterThan(0);
+    }
+  });
+
+  test("every non-terminal phase is reachable and has graph-backed mutation recovery", () => {
+    const edgesBySource = new Map<FlowPhase, FlowPhase[]>();
+    for (const edge of FLOW_PHASE_GRAPH.edges) {
+      const current = edgesBySource.get(edge.from) ?? [];
+      current.push(edge.to);
+      edgesBySource.set(edge.from, current);
+    }
+
+    const reachable = new Set<FlowPhase>();
+    const queue: FlowPhase[] = ["awaiting_funding"];
+    while (queue.length > 0) {
+      const phase = queue.shift()!;
+      if (reachable.has(phase)) continue;
+      reachable.add(phase);
+      queue.push(...(edgesBySource.get(phase) ?? []));
+    }
+
+    expect(reachable).toEqual(new Set(FLOW_PHASE_VALUES));
+    for (const phase of FLOW_PHASE_VALUES) {
+      if (isTerminalFlowPhase(phase)) {
+        expect(getExternalMutationFlowPhase(phase)).toBeNull();
+      } else {
+        expect(getExternalMutationFlowPhase(phase)).toBe("stopped_external");
+        expect(FLOW_PHASE_GRAPH.edges).toContainEqual({
+          from: phase,
+          to: "stopped_external",
+          trigger: FLOW_EXTERNAL_MUTATION_TRIGGER,
+        });
+      }
     }
   });
 

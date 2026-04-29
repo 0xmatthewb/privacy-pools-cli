@@ -43,6 +43,7 @@ import {
 } from "./warnings.js";
 import { FIRST_DEPOSIT_WELCOME } from "./copy.js";
 import type { DeprecationWarningPayload } from "./deprecation.js";
+import type { PrivacyNonRoundAmountWarning } from "../utils/amount-privacy.js";
 
 export interface DepositReviewData {
   amount: bigint;
@@ -185,9 +186,7 @@ export interface DepositDryRunData {
     code: string;
     category: string;
     message: string;
-    suggestedRoundAmount?: string;
-    escape?: string;
-  }>;
+  } & Partial<Pick<PrivacyNonRoundAmountWarning, "suggestedRoundAmount" | "escape">>>;
 }
 
 export interface DepositSuccessData {

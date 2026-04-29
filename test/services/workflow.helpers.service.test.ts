@@ -989,7 +989,7 @@ describe("workflow helper coverage", () => {
         category: "privacy",
       }),
       expect.objectContaining({
-        code: "amount_pattern_linkability",
+        code: "PRIVACY_NONROUND_AMOUNT",
         category: "privacy",
       }),
     ]);

@@ -960,7 +960,6 @@ describe("flow command handlers", () => {
       expect.objectContaining({
         warnings: expect.arrayContaining([
           expect.objectContaining({ code: "PRIVACY_NONROUND_AMOUNT" }),
-          expect.objectContaining({ code: "amount_pattern_linkability" }),
           expect.objectContaining({ code: "timing_delay_disabled" }),
         ]),
       }),

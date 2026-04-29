@@ -9,6 +9,9 @@ const FLOW_PHASE_PAUSED_ORDER = [
   "paused_poa_required",
 ] as const satisfies readonly FlowPhase[];
 
+export const FLOW_EXTERNAL_MUTATION_TRIGGER =
+  "external spend or local workflow mutation is detected";
+
 export const FLOW_PHASE_GRAPH = {
   nodes: [...FLOW_PHASE_VALUES],
   edges: [
@@ -70,7 +73,7 @@ export const FLOW_PHASE_GRAPH = {
     ...FLOW_PHASE_VALUES.filter((phase) => !isTerminalFlowPhase(phase)).map((phase) => ({
       from: phase,
       to: "stopped_external" as FlowPhase,
-      trigger: "external spend or local workflow mutation is detected",
+      trigger: FLOW_EXTERNAL_MUTATION_TRIGGER,
     })),
   ],
   terminal: FLOW_PHASE_VALUES.filter(isTerminalFlowPhase),
@@ -87,4 +90,17 @@ export function isTerminalFlowPhase(phase: FlowPhase): boolean {
 
 export function isPausedFlowPhase(phase: FlowPhase): boolean {
   return phase === "paused_declined" || phase === "paused_poa_required";
+}
+
+export function getExternalMutationFlowPhase(
+  phase: FlowPhase,
+): FlowPhase | null {
+  return FLOW_PHASE_GRAPH.edges.some(
+    (edge) =>
+      edge.from === phase &&
+      edge.to === "stopped_external" &&
+      edge.trigger === FLOW_EXTERNAL_MUTATION_TRIGGER,
+  )
+    ? "stopped_external"
+    : null;
 }

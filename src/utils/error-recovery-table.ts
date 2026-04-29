@@ -809,6 +809,13 @@ export function buildErrorRecoveryNextActions(
   return actions.length > 0 ? actions : undefined;
 }
 
+export function getErrorRecoveryRetryPolicy(
+  code: string,
+): ErrorRetryPolicy | undefined {
+  const entry = getErrorRecoveryEntry(code);
+  return entry?.classification === "retry-only" ? entry.retry : undefined;
+}
+
 export function serializeErrorRecoveryTable(
   context: ErrorRecoveryContext = {},
 ): Record<string, SerializedErrorRecoveryEntry> {

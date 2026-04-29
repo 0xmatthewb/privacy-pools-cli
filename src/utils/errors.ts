@@ -20,7 +20,11 @@ import {
   ERROR_CODE_REGISTRY,
   type RegisteredErrorCode,
 } from "./error-code-registry.js";
-import { buildErrorRecoveryNextActions } from "./error-recovery-table.js";
+import {
+  buildErrorRecoveryNextActions,
+  getErrorRecoveryRetryPolicy,
+  type ErrorRetryPolicy,
+} from "./error-recovery-table.js";
 import { readCliPackageInfo } from "../package-info.js";
 import type { NextAction } from "../types.js";
 import {
@@ -276,6 +280,8 @@ export class CLIError extends Error {
   public readonly extra: {
     helpTopic?: string;
     nextActions?: NextAction[];
+    retry?: ErrorRetryPolicy;
+    recoverySource?: "table";
   };
 
   constructor(
@@ -290,12 +296,15 @@ export class CLIError extends Error {
     extra: {
       helpTopic?: string;
       nextActions?: NextAction[];
+      retry?: ErrorRetryPolicy;
+      recoverySource?: "table";
     } = {},
   ) {
     super(message);
     this.name = "CLIError";
+    const retry = extra.retry ?? getErrorRecoveryRetryPolicy(code);
     if (extra.nextActions && extra.nextActions.length > 0) {
-      this.extra = extra;
+      this.extra = retry ? { ...extra, retry } : extra;
       return;
     }
     const nextActions = buildErrorRecoveryNextActions(code, {
@@ -303,9 +312,14 @@ export class CLIError extends Error {
       code,
       category,
     });
-    this.extra = nextActions && nextActions.length > 0
-      ? { ...extra, nextActions }
-      : extra;
+    this.extra = {
+      ...extra,
+      ...(nextActions && nextActions.length > 0 ? { nextActions } : {}),
+      ...(nextActions && nextActions.length > 0
+        ? { recoverySource: "table" as const }
+        : {}),
+      ...(retry ? { retry } : {}),
+    };
   }
 }
 
@@ -426,6 +440,7 @@ function createRegisteredCliError(params: {
   extra?: {
     helpTopic?: string;
     nextActions?: NextAction[];
+    recoverySource?: "table";
   };
 }): CLIError {
   const { category, retryable } = lookupRegisteredError(params.code);
@@ -443,7 +458,10 @@ function createRegisteredCliError(params: {
 }
 
 function withRecoveryNextActions(error: CLIError): CLIError {
-  if (error.extra.nextActions && error.extra.nextActions.length > 0) {
+  if (
+    (error.extra.nextActions && error.extra.nextActions.length > 0) ||
+    error.extra.retry
+  ) {
     return error;
   }
   const nextActions = buildErrorRecoveryNextActions(error.code, {
@@ -466,6 +484,56 @@ function withRecoveryNextActions(error: CLIError): CLIError {
     {
       ...error.extra,
       nextActions,
+      recoverySource: "table",
+    },
+  );
+}
+
+export function withErrorRecoveryContext(
+  error: unknown,
+  details: Record<string, unknown>,
+): CLIError {
+  const classified = classifyError(error);
+  const mergedDetails = {
+    ...(classified.details ?? {}),
+    ...details,
+  };
+  const rebuiltNextActions = buildErrorRecoveryNextActions(classified.code, {
+    ...mergedDetails,
+    code: classified.code,
+    category: classified.category,
+  });
+  const shouldRebuildNextActions =
+    !classified.extra.nextActions ||
+    classified.extra.recoverySource === "table";
+  const nextActions =
+    shouldRebuildNextActions &&
+    rebuiltNextActions &&
+    rebuiltNextActions.length > 0
+      ? rebuiltNextActions
+      : classified.extra.nextActions;
+  const recoverySource =
+    shouldRebuildNextActions &&
+    rebuiltNextActions &&
+    rebuiltNextActions.length > 0
+      ? "table"
+      : classified.extra.recoverySource;
+  return new CLIError(
+    classified.message,
+    classified.category,
+    classified.hint,
+    classified.code,
+    classified.retryable,
+    classified.presentation,
+    mergedDetails,
+    classified.docsSlug,
+    {
+      ...(classified.extra.helpTopic
+        ? { helpTopic: classified.extra.helpTopic }
+        : {}),
+      ...(nextActions && nextActions.length > 0 ? { nextActions } : {}),
+      ...(classified.extra.retry ? { retry: classified.extra.retry } : {}),
+      ...(recoverySource ? { recoverySource } : {}),
     },
   );
 }
@@ -843,6 +911,7 @@ export function printError(error: unknown, json: boolean = false, quiet?: boolea
         docsSlug: classified.docsSlug,
         helpTopic: classified.extra.helpTopic,
         nextActions: classified.extra.nextActions,
+        retry: classified.extra.retry,
       },
       false
     );

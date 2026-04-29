@@ -8,6 +8,7 @@ import {
   type FlowJsonWarning,
 } from "../output/flow.js";
 import { loadConfig } from "../services/config.js";
+import { isPausedFlowPhase as isPausedFlowPhaseValue } from "../services/flow-phase-graph.js";
 import { resolvePool } from "../services/pools.js";
 import {
   loadKnownRecipientHistory,
@@ -17,7 +18,6 @@ import {
 import { getSignerAddress, loadPrivateKey } from "../services/wallet.js";
 import {
   applyFlowPrivacyDelayPolicy,
-  buildAmountPatternLinkabilityWarning,
   computeFlowWatchDelayMs,
   FlowBackRequestedError,
   FlowCancelledError,
@@ -176,10 +176,7 @@ export function flowDetachedCliError(): CLIError {
 }
 
 export function isPausedFlowPhase(snapshot: FlowSnapshot): boolean {
-  return (
-    snapshot.phase === "paused_declined" ||
-    snapshot.phase === "paused_poa_required"
-  );
+  return isPausedFlowPhaseValue(snapshot.phase);
 }
 
 export function isWatchTerminalSnapshot(snapshot: FlowSnapshot): boolean {
@@ -612,15 +609,6 @@ async function renderFlowStartDryRunForInputs(params: {
 
   const vettingFee = (amount * pool.vettingFeeBPS) / 10000n;
   const estimatedCommittedValue = amount - vettingFee;
-  const amountPatternWarning = buildAmountPatternLinkabilityWarning(
-    estimatedCommittedValue,
-    pool.decimals,
-    pool.symbol,
-    { estimated: true },
-  );
-  if (amountPatternWarning) {
-    warnings.push(amountPatternWarning);
-  }
 
   renderFlowStartDryRun(params.ctx, {
     chain: chainConfig.name,

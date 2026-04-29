@@ -40,6 +40,7 @@ import {
   mergeStructuredWarnings,
   warningFromCode,
 } from "./warnings.js";
+import type { PrivacyNonRoundAmountWarning } from "../utils/amount-privacy.js";
 
 export interface WithdrawAnonymitySet {
   eligible: number;
@@ -47,13 +48,11 @@ export interface WithdrawAnonymitySet {
   percentage: number;
 }
 
-export interface WithdrawUiWarning {
+export type WithdrawUiWarning = {
   code: string;
   category: string;
   message: string;
-  suggestedRoundAmount?: string;
-  escape?: string;
-}
+} & Partial<Pick<PrivacyNonRoundAmountWarning, "suggestedRoundAmount" | "escape">>;
 
 export interface RelayedWithdrawalRemainderGuidance {
   summary: string;

@@ -144,7 +144,7 @@ describe("workflow funding helper coverage", () => {
         estimated: true,
       }),
     ).toMatchObject({
-      code: "amount_pattern_linkability",
+      code: "PRIVACY_NONROUND_AMOUNT",
       category: "privacy",
     });
 
@@ -165,7 +165,7 @@ describe("workflow funding helper coverage", () => {
         }),
       ),
     ).toMatchObject({
-      code: "amount_pattern_linkability",
+      code: "PRIVACY_NONROUND_AMOUNT",
     });
 
     expect(

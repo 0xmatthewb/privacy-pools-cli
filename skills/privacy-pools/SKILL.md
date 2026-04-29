@@ -140,7 +140,7 @@ Errors:
 }
 ```
 
-Parse `success` first. On failure, use `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry.
+Parse `success` first. On failure, use `errorCode` for programmatic handling and `error.hint` for remediation. Check `error.retryable` before deciding to retry; retry-only errors may include `error.retry` with backoff timing.
 
 Some success payloads also include optional `nextActions[]` workflow hints in the shape `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable` is `true` (or omitted), `cliCommand` is executable as-is. When `runnable` is `false`, `cliCommand` is omitted and `parameters[]` describes the extra user input required before execution.
 

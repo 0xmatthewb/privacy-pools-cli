@@ -113,7 +113,7 @@ verified native shell.
 { "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "errorMessage": "...", "error": { ... } }
 ```
 
-Parse `success` first. On failure, read `error.code` for programmatic handling and `error.hint` for remediation. `error.docUrl` points to the stable bundled error-code reference when a deeper explanation is needed. `errorCode` and `errorMessage` remain v2 compatibility aliases and match `error.code` and `error.message`. Check `error.retryable` before deciding to retry.
+Parse `success` first. On failure, read `error.code` for programmatic handling and `error.hint` for remediation. `error.docUrl` points to the stable bundled error-code reference when a deeper explanation is needed. `errorCode` and `errorMessage` remain v2 compatibility aliases and match `error.code` and `error.message`. Check `error.retryable` before deciding to retry; retry-only errors may also include `error.retry` with backoff timing.
 
 Some success payloads also include optional `nextActions[]` workflow guidance in the form `{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }`. Treat `nextActions` as the canonical machine follow-up field. When `runnable = false`, the action is a template and needs additional user input before execution.
 
@@ -497,7 +497,8 @@ Every JSON response wraps command-specific data in a standard envelope:
     "hint": "Check your RPC URL and network connectivity.",
     "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-network-error",
     "retryable": true,
-    "nextActions": "[{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] | absent"
+    "nextActions": "[{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] | absent",
+    "retry": "{ strategy, maxAttempts?, initialDelayMs?, maxDelayMs?, note? } | absent"
   }
 }
 ```
@@ -864,17 +865,19 @@ The `phase` field in the flow JSON payload tracks the saved workflow state. Agen
 ```
 awaiting_funding
   -> depositing_publicly
-  -> awaiting_asp
-       -> paused_declined
-       -> paused_poa_required
-       -> approved_waiting_privacy_delay
-            -> approved_ready_to_withdraw
-                 -> withdrawing
-                      -> completed
+    -> awaiting_asp
+      -> approved_waiting_privacy_delay
+        -> approved_ready_to_withdraw
+          -> withdrawing
+            -> completed
+      -> approved_ready_to_withdraw (see above)
+      -> paused_declined
+      -> paused_poa_required
+        -> awaiting_asp (see above)
 
 any non-terminal phase
-  -> completed_public_recovery  (flow ragequit)
-  -> stopped_external           (external spend or mutation detected)
+  -> completed_public_recovery   (flow ragequit)
+  -> stopped_external            (external spend or mutation detected)
 ```
 
 **Phase sets:**

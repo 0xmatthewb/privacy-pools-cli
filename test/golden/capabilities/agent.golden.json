@@ -7028,7 +7028,7 @@
       "flag": "--profile <name>"
     }
   ],
-  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, error: { code, category, message, hint?, retryable?, docUrl?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
+  "jsonOutputContract": "All commands emit { schemaVersion, success, ...payload } on stdout when --json or --agent is set. Errors emit { schemaVersion, success: false, errorCode, errorMessage, retry?, nextActions?, error: { code, category, message, hint?, retryable?, retry?, docUrl?, helpTopic?, nextActions? } }. Exception: --unsigned tx emits a raw transaction array without the envelope.",
   "protocol": {
     "coreSdkPackage": "@0xbow/privacy-pools-core-sdk",
     "coreSdkVersion": "1.2.0",
@@ -7097,7 +7097,7 @@
       ]
     },
     "errorCategories": {
-      "description": "Error responses include error.{ code, category, message, hint?, retryable? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message.",
+      "description": "Error responses include error.{ code, category, message, hint?, retryable?, retry?, nextActions? }. Top-level errorCode/errorMessage remain as v2 compatibility aliases and match error.code/error.message.",
       "exitCodes": {
         "ASP": 8,
         "CONTRACT": 7,

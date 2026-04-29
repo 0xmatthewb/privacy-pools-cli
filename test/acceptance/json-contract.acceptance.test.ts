@@ -744,7 +744,12 @@ defineScenarioSuite("json-contract acceptance", [
       privacyDelayProfile: string;
       privacyDelayConfigured: boolean;
       privacyDelayUntil: string | null;
-      warnings?: Array<{ code: string; category: string; message: string }>;
+      warnings?: Array<{
+        code: string;
+        category: string;
+        message: string;
+        suggestedRoundAmount?: string;
+      }>;
       nextActions?: Array<{
         command: string;
         reason: string;
@@ -772,10 +777,11 @@ defineScenarioSuite("json-contract acceptance", [
       expect(json.privacyDelayUntil).toBe("2026-03-28T16:00:00.000Z");
       expect(json.warnings).toEqual([
         {
-          code: "amount_pattern_linkability",
+          code: "PRIVACY_NONROUND_AMOUNT",
           category: "privacy",
           message:
             "This saved flow will auto-withdraw the full 99.5 USDC. That pattern can make the withdrawal more identifiable even though the protocol breaks the direct onchain link. Consider manual round partial withdrawals such as 99 USDC if you want better amount privacy.",
+          suggestedRoundAmount: "99",
         },
       ]);
       expect(json.nextActions).toHaveLength(1);

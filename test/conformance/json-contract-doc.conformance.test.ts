@@ -163,6 +163,14 @@ describe("external JSON contract doc conformance", () => {
     expect(flow.successFields?.warnings).toContain("FlowWarning[]");
     expect(flow.successFields?.nextActions).toContain("canonical saved-workflow");
 
+    const shared = doc.shared as { flowWarning?: Record<string, string> } | undefined;
+    const flowWarningCode = shared?.flowWarning?.code ?? "";
+    expect(flowWarningCode).toContain("PRIVACY_NONROUND_AMOUNT");
+    expect(flowWarningCode).not.toContain("amount_pattern_linkability");
+    expect(shared?.flowWarning?.suggestedRoundAmount).toContain(
+      "PRIVACY_NONROUND_AMOUNT",
+    );
+
     const flowDryRun = (flow as { dryRunFields?: Record<string, unknown> }).dryRunFields;
     expect(flowDryRun?.dryRun).toBe(true);
     expect(flowDryRun?.privacyDelayRandom).toBe("boolean");

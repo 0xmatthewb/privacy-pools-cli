@@ -563,20 +563,37 @@ function buildPartialSubmissionError(
   submittedTransactions: SubmittedTransactionDetail[],
   failedAtIndex: number,
   code: string,
+  metadata: {
+    chain: string;
+    broadcastMode: BroadcastMode;
+    sourceOperation: BroadcastSourceOperation;
+    asset?: string | null;
+    recipient?: string | null;
+  },
 ): CLIError {
-  return new CLIError(
-    message,
-    category,
-    hint,
-    code,
+  const retryable =
     code === "RPC_BROADCAST_CONFIRMATION_TIMEOUT" ||
-      code === "RPC_BROADCAST_SUBMISSION_FAILED",
-    undefined,
-    {
-      submittedTransactions,
-      failedAtIndex,
-    },
-  );
+    code === "RPC_BROADCAST_SUBMISSION_FAILED";
+  const details = {
+    submittedTransactions,
+    failedAtIndex,
+    chain: metadata.chain,
+    broadcastMode: metadata.broadcastMode,
+    broadcastSourceOperation: metadata.sourceOperation,
+    asset: metadata.asset ?? null,
+    recipient: metadata.recipient ?? null,
+  };
+  return category === "RPC"
+    ? new CLIError(message, "RPC", hint, code, retryable, undefined, details)
+    : new CLIError(
+        message,
+        "CONTRACT",
+        hint,
+        code,
+        retryable,
+        undefined,
+        details,
+      );
 }
 
 function normalizedTransactionData(
@@ -741,6 +758,13 @@ async function broadcastSignedEnvelope(
   const publicClient = getPublicClient(chainConfig, rpcOverride);
   const submittedTransactions: SubmittedTransactionDetail[] = [];
   const confirmedTransactions: BroadcastTransactionResult[] = [];
+  const partialErrorMetadata = {
+    chain: chainConfig.name,
+    broadcastMode: "onchain" as const,
+    sourceOperation: envelope.operation,
+    asset: "asset" in envelope ? envelope.asset : null,
+    recipient: "recipient" in envelope ? envelope.recipient : null,
+  };
 
   for (const [index, signedTransaction] of signedTransactions.entries()) {
     const preview = envelope.transactions[index];
@@ -763,6 +787,7 @@ async function broadcastSignedEnvelope(
         submittedTransactions,
         index,
         "RPC_BROADCAST_SUBMISSION_FAILED",
+        partialErrorMetadata,
       );
     }
 
@@ -792,6 +817,7 @@ async function broadcastSignedEnvelope(
         submittedTransactions,
         index,
         "RPC_BROADCAST_CONFIRMATION_TIMEOUT",
+        partialErrorMetadata,
       );
     }
 
@@ -809,6 +835,7 @@ async function broadcastSignedEnvelope(
         submittedTransactions,
         index,
         "CONTRACT_BROADCAST_REVERTED",
+        partialErrorMetadata,
       );
     }
 
@@ -1234,6 +1261,12 @@ async function broadcastRelayedEnvelope(
       true,
       undefined,
       {
+        chain: chainConfig.name,
+        broadcastMode: "relayed",
+        broadcastSourceOperation: "withdraw",
+        asset: envelope.asset,
+        amount: envelope.amount,
+        recipient: envelope.recipient,
         submittedTransactions: [
           {
             index: 0,

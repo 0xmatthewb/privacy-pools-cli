@@ -8,8 +8,10 @@ import {
   CLIError,
   classifyError,
   printError,
+  withErrorRecoveryContext,
   type ErrorCategory,
 } from "../../src/utils/errors.ts";
+import { validateRelayerQuoteForWithdrawal } from "../../src/commands/withdraw/quote.ts";
 import { clearProcessExitCode, restoreProcessExitCode } from "../helpers/process.ts";
 
 function captureStdout(run: () => void): string {
@@ -77,7 +79,40 @@ describe("error recovery nextActions conformance", () => {
       );
 
       expect(classified.extra.nextActions?.length, code).toBeGreaterThan(0);
+      expect(JSON.stringify(classified.extra.nextActions), code).not.toMatch(/<[^>]+>/);
+      for (const action of classified.extra.nextActions ?? []) {
+        if (action.cliCommand) {
+          expect(action.cliCommand, code).not.toMatch(/<[^>]+>/);
+        }
+      }
     }
+  });
+
+  test("retry-only codes expose retry policy in error JSON", () => {
+    clearProcessExitCode();
+    const stdout = captureStdout(() => {
+      printError(
+        new CLIError(
+          "lock held",
+          "INPUT",
+          "wait and retry",
+          "LOCK_HELD",
+          true,
+        ),
+        true,
+      );
+    });
+    restoreProcessExitCode();
+
+    const json = JSON.parse(stdout);
+    expect(json.success).toBe(false);
+    expect(json.retry).toMatchObject({
+      strategy: "fixed-backoff",
+      maxAttempts: 5,
+      initialDelayMs: 1000,
+      maxDelayMs: 5000,
+    });
+    expect(json.error.retry).toEqual(json.retry);
   });
 
   test("direct CLIError construction populates recovery nextActions", () => {
@@ -101,6 +136,39 @@ describe("error recovery nextActions conformance", () => {
       cliCommand:
         "privacy-pools withdraw quote 0.1 ETH --agent --chain mainnet --to 0x0000000000000000000000000000000000000001",
     });
+  });
+
+  test("production recovery contexts render runnable high-value commands", () => {
+    const contractError = withErrorRecoveryContext(
+      new Error("execution reverted: IncorrectASPRoot"),
+      { chain: "sepolia" },
+    );
+    expect(contractError.extra.nextActions?.[0]?.cliCommand).toBe(
+      "privacy-pools sync --agent --chain sepolia",
+    );
+
+    try {
+      validateRelayerQuoteForWithdrawal(
+        {
+          feeBPS: "750",
+          feeCommitment: { expiration: Date.now() + 60_000 },
+        } as never,
+        500n,
+        {
+          amountInput: "0.1",
+          assetInput: "ETH",
+          recipient: "0x0000000000000000000000000000000000000001",
+          chainName: "mainnet",
+        },
+      );
+      throw new Error("expected relayer fee validation to fail");
+    } catch (error) {
+      const classified = classifyError(error);
+      expect(classified.code).toBe("RELAYER_FEE_EXCEEDS_MAX");
+      expect(classified.extra.nextActions?.[0]?.cliCommand).toBe(
+        "privacy-pools withdraw quote 0.1 ETH --agent --chain mainnet --to 0x0000000000000000000000000000000000000001",
+      );
+    }
   });
 
   test("JSON error output mirrors recovery nextActions at top level and nested error", () => {

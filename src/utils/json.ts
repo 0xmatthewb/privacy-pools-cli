@@ -1,5 +1,6 @@
 import jmespath from "jmespath";
 import type { NextAction } from "../types.js";
+import type { ErrorRetryPolicy } from "./error-recovery-table.js";
 import { CLIError } from "./errors.js";
 import { errorDocUrl } from "./error-code-registry.js";
 import { didYouMeanMany } from "./fuzzy.js";
@@ -439,17 +440,40 @@ export function printJsonError(
     docsSlug?: string;
     helpTopic?: string;
     nextActions?: NextAction[];
+    retry?: ErrorRetryPolicy;
     details?: Record<string, unknown>;
   },
   pretty: boolean = false,
 ): void {
-  const { details, docsSlug: _docsSlug, helpTopic, nextActions, ...errorPayload } = payload;
+  const {
+    details,
+    docsSlug: _docsSlug,
+    helpTopic,
+    nextActions,
+    retry,
+    ...errorPayload
+  } = payload;
   void _docsSlug;
   const code = payload.code ?? "UNKNOWN_ERROR";
   const docUrl = errorDocUrl(code);
   const errorObject = details
-    ? { ...errorPayload, code, docUrl, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}), details }
-    : { ...errorPayload, code, docUrl, ...(helpTopic ? { helpTopic } : {}), ...(nextActions ? { nextActions } : {}) };
+    ? {
+        ...errorPayload,
+        code,
+        docUrl,
+        ...(helpTopic ? { helpTopic } : {}),
+        ...(nextActions ? { nextActions } : {}),
+        ...(retry ? { retry } : {}),
+        details,
+      }
+    : {
+        ...errorPayload,
+        code,
+        docUrl,
+        ...(helpTopic ? { helpTopic } : {}),
+        ...(nextActions ? { nextActions } : {}),
+        ...(retry ? { retry } : {}),
+      };
   // `error.code` and `error.message` are canonical. `errorCode` and
   // `errorMessage` remain v2 compatibility aliases and must match.
   const output: Record<string, unknown> = {
@@ -459,6 +483,7 @@ export function printJsonError(
     errorMessage: payload.message,
     ...(helpTopic ? { helpTopic } : {}),
     ...(nextActions ? { nextActions } : {}),
+    ...(retry ? { retry } : {}),
     error: errorObject,
   };
 
