@@ -7,6 +7,10 @@ export type SetupErrorCode = Extract<RegisteredErrorCode, `SETUP_${string}`>;
 
 export type RpcErrorCode = Extract<RegisteredErrorCode, `RPC_${string}`>;
 
+export type ProofErrorCode = Extract<RegisteredErrorCode, `PROOF_${string}`>;
+
+export type ContractErrorCode = Extract<RegisteredErrorCode, `CONTRACT_${string}`>;
+
 export type CatchAllInputError = "INPUT_ERROR";
 
 export function inputError(
@@ -31,4 +35,20 @@ export function rpcError(
   hint: string,
 ): CLIError {
   return new CLIError(message, "RPC", hint, code);
+}
+
+export function proofError(
+  code: ProofErrorCode,
+  message: string,
+  hint: string,
+): CLIError {
+  return new CLIError(message, "PROOF", hint, code);
+}
+
+export function contractError(
+  code: ContractErrorCode,
+  message: string,
+  hint: string,
+): CLIError {
+  return new CLIError(message, "CONTRACT", hint, code);
 }

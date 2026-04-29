@@ -6,12 +6,15 @@
  * accidentally return the wrong exit code.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import {
+  CLI_CWD,
   createSeededHome,
   createTempHome,
   parseJsonOutput,
   runCli,
 } from "../helpers/cli.ts";
+import { buildChildProcessEnv } from "../helpers/child-env.ts";
 import {
   killFixtureServer,
   launchFixtureServer,
@@ -25,6 +28,36 @@ const OFFLINE_ASP_ENV = {
 const MALFORMED_RELAYER_RECIPIENT = "0x0000000000000000000000000000000000000002";
 
 const EXIT_CODE_MAP = EXIT_CODES satisfies Record<ErrorCategory, number>;
+
+function nodeBin(): string {
+  return process.platform === "win32" ? "node.exe" : "node";
+}
+
+function renderCategoricalErrorSnippet(expression: string) {
+  const result = spawnSync(nodeBin(), [
+    "--import",
+    "tsx",
+    "--eval",
+    [
+      "const { printError, promptCancelledError } = await import('./src/utils/errors.ts');",
+      "const { proofError, contractError } = await import('./src/utils/errors/factories.ts');",
+      `printError(${expression}, true);`,
+    ].join("\n"),
+  ], {
+    cwd: CLI_CWD,
+    encoding: "utf8",
+    timeout: 10_000,
+    env: buildChildProcessEnv({
+      PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
+      PRIVACY_POOLS_NO_UPDATE_CHECK: "1",
+    }),
+  });
+  return {
+    status: result.status,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
+}
 
 describe("exit-code matrix", () => {
   let fixture: FixtureServer;
@@ -114,6 +147,44 @@ describe("exit-code matrix", () => {
     expect(result.status).toBe(EXIT_CODE_MAP.RELAYER);
     const json = parseJsonOutput<{ error?: { category?: string } }>(result.stdout);
     expect(json.error?.category).toBe("RELAYER");
+  });
+
+  test("PROOF error → exit code 6 (registered proof factory)", () => {
+    const result = renderCategoricalErrorSnippet(
+      "proofError('PROOF_MALFORMED', 'Malformed proof fixture.', 'Regenerate the proof fixture.')",
+    );
+    expect(result.status).toBe(EXIT_CODE_MAP.PROOF);
+    expect(result.stderr).toBe("");
+    const json = parseJsonOutput<{ error?: { category?: string; code?: string } }>(
+      result.stdout,
+    );
+    expect(json.error?.category).toBe("PROOF");
+    expect(json.error?.code).toBe("PROOF_MALFORMED");
+  });
+
+  test("CONTRACT error → exit code 7 (registered contract factory)", () => {
+    const result = renderCategoricalErrorSnippet(
+      "contractError('CONTRACT_INVALID_PROOF', 'Contract rejected the proof.', 'Inspect the revert reason before retrying.')",
+    );
+    expect(result.status).toBe(EXIT_CODE_MAP.CONTRACT);
+    expect(result.stderr).toBe("");
+    const json = parseJsonOutput<{ error?: { category?: string; code?: string } }>(
+      result.stdout,
+    );
+    expect(json.error?.category).toBe("CONTRACT");
+    expect(json.error?.code).toBe("CONTRACT_INVALID_PROOF");
+  });
+
+  test("CANCELLED error → exit code 9 (prompt cancellation envelope)", () => {
+    const result = renderCategoricalErrorSnippet("promptCancelledError()");
+    expect(EXIT_CODES.CANCELLED).toBe(9);
+    expect(result.status).toBe(EXIT_CODE_MAP.CANCELLED);
+    expect(result.stderr).toBe("");
+    const json = parseJsonOutput<{ error?: { category?: string; code?: string } }>(
+      result.stdout,
+    );
+    expect(json.error?.category).toBe("CANCELLED");
+    expect(json.error?.code).toBe("PROMPT_CANCELLED");
   });
 
   test("UNKNOWN error → exit code 1 (unexpected fixture RPC method)", () => {
