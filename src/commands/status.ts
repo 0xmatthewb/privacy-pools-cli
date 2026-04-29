@@ -30,6 +30,7 @@ import {
   maybeRenderPreviewProgressStep,
   maybeRenderPreviewScenario,
 } from "../preview/runtime.js";
+import { probeConfigHomeWritability } from "../runtime/config-paths.js";
 
 const resolveCliPackageInfo = createCliPackageInfoResolver(import.meta.url);
 
@@ -111,6 +112,7 @@ export async function handleStatusCommand(
         ? sanitizeEndpointForDisplay(selectedChainConfig.relayerHost)
         : null,
       accountFiles: [],
+      configHomeWritabilityIssue: probeConfigHomeWritability(process.env),
       nativeRuntimeAdvisory: detectNativeRuntimeAdvisory(resolveCliPackageInfo()),
       runtime: detectActiveRuntimeKind(),
     };

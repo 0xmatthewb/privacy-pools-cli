@@ -22,6 +22,13 @@ const warningSchema = z.object({
   message: z.string(),
 });
 
+const statusIssueSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  affects: z.array(z.enum(["deposit", "withdraw", "unsigned", "discovery"])),
+  reasonCode: z.string().optional(),
+});
+
 const deprecationWarningSchema = z.object({
   code: z.string(),
   message: z.string(),
@@ -547,12 +554,13 @@ const commandPayloadSchemas: Record<CommandPath, z.ZodTypeAny> = {
     aspHost: z.string().nullable().optional(),
     relayerHost: z.string().nullable().optional(),
     accountFiles: z.array(z.record(z.unknown())).optional(),
+    configHomeWritabilityIssue: statusIssueSchema.nullable().optional(),
     readyForDeposit: z.boolean(),
     readyForWithdraw: z.boolean(),
     readyForUnsigned: z.boolean(),
     recommendedMode: z.string(),
-    blockingIssues: z.array(z.record(z.unknown())).optional(),
-    warnings: z.array(z.record(z.unknown())).optional(),
+    blockingIssues: z.array(statusIssueSchema).optional(),
+    warnings: z.array(statusIssueSchema).optional(),
     aspLive: optionalBoolean,
     rpcLive: optionalBoolean,
     relayerLive: optionalBoolean,

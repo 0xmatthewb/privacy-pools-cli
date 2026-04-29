@@ -1,0 +1,90 @@
+// normalized: CONFIG_HOME, RUNTIME
+{
+  "accountFiles": [],
+  "aspHost": null,
+  "blockingIssues": [
+    {
+      "affects": [
+        "deposit",
+        "withdraw",
+        "unsigned"
+      ],
+      "code": "home_not_writable",
+      "message": "Config home <CONFIG_HOME> is not writable. Init cannot persist your recovery phrase or signer key.",
+      "reasonCode": "parent_readonly"
+    },
+    {
+      "affects": [
+        "deposit",
+        "withdraw",
+        "unsigned"
+      ],
+      "code": "config_missing",
+      "message": "CLI configuration is missing. Run init before building or submitting wallet-dependent commands."
+    },
+    {
+      "affects": [
+        "deposit",
+        "withdraw",
+        "unsigned"
+      ],
+      "code": "recovery_phrase_missing",
+      "message": "No recovery phrase is configured. Wallet-dependent commands cannot run safely."
+    }
+  ],
+  "configDir": null,
+  "configExists": false,
+  "configHomeWritabilityIssue": {
+    "affects": [
+      "deposit",
+      "withdraw",
+      "unsigned"
+    ],
+    "code": "home_not_writable",
+    "message": "Config home <CONFIG_HOME> is not writable. Init cannot persist your recovery phrase or signer key.",
+    "reasonCode": "parent_readonly"
+  },
+  "defaultChain": null,
+  "entrypoint": null,
+  "mode": "cli-status",
+  "nextActions": [
+    {
+      "cliCommand": "privacy-pools init --agent --show-recovery-phrase",
+      "command": "init",
+      "options": {
+        "showRecoveryPhrase": true
+      },
+      "reason": "Complete CLI setup before transacting.",
+      "when": "status_not_ready"
+    },
+    {
+      "command": "init",
+      "parameters": [
+        {
+          "description": "Absolute path to a writable directory (env var, set before invocation)",
+          "name": "PRIVACY_POOLS_HOME",
+          "required": true,
+          "type": "env_var"
+        }
+      ],
+      "reason": "Set PRIVACY_POOLS_HOME to a writable directory and run init.",
+      "runnable": false,
+      "when": "home_not_writable"
+    }
+  ],
+  "readyForDeposit": false,
+  "readyForUnsigned": false,
+  "readyForWithdraw": false,
+  "recommendedMode": "setup-required",
+  "recoveryPhraseSet": false,
+  "relayerHost": null,
+  "rpcIsCustom": false,
+  "rpcUrl": null,
+  "runtime": "<RUNTIME>",
+  "schemaVersion": "2.0.0",
+  "selectedChain": null,
+  "signerAddress": null,
+  "signerKeySet": false,
+  "signerKeyValid": false,
+  "success": true
+}

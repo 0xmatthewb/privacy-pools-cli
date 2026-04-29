@@ -144,6 +144,7 @@ Each `nextActions` entry carries a `when` field from the `NextActionWhen` discri
 | `after_capabilities` | After viewing the runtime capabilities manifest |
 | `after_completion` | After viewing or installing shell completion output |
 | `has_pending` | When pending deposits exist that need ASP review monitoring |
+| `home_not_writable` | When status detects that init cannot write to the configured home |
 | `status_not_ready` | When status detects setup is incomplete (no init) |
 | `status_unsigned_no_accounts` | Status shows unsigned-only mode, no accounts yet |
 | `status_unsigned_has_accounts` | Status shows unsigned-only mode, accounts exist |
@@ -469,6 +470,7 @@ Every JSON response wraps command-specific data in a standard envelope:
   "entrypoint": "0x...",
   "aspHost": "https://...",
   "accountFiles": [{ "chain": "mainnet", "chainId": 1 }],
+  "configHomeWritabilityIssue": "{ code, message, affects, reasonCode } | absent",
   "readyForDeposit": true,
   "readyForWithdraw": true,
   "readyForUnsigned": true,
@@ -648,7 +650,7 @@ privacy-pools status --agent --check relayer
 privacy-pools status --agent --aggregated
 ```
 
-JSON payload: `{ mode: "cli-status", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, relayerHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?: [{ code, message, affects[] }], warnings?: [{ code, message, affects[] }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }], aspLive?, rpcLive?, relayerLive?, rpcBlockNumber?, pending?, recoveryTable?, phaseGraphRef? }`
+JSON payload: `{ mode: "cli-status", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, relayerHost, accountFiles: [{ chain, chainId }], configHomeWritabilityIssue?, readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?: [{ code, message, affects[], reasonCode? }], warnings?: [{ code, message, affects[], reasonCode? }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }], aspLive?, rpcLive?, relayerLive?, rpcBlockNumber?, pending?, recoveryTable?, phaseGraphRef? }`
 
 `readyForDeposit`, `readyForWithdraw`, and `readyForUnsigned` are **configuration capability** flags: they indicate the wallet is set up for those operations, **not** that privately withdrawable funds exist. `recommendedMode`, `blockingIssues[]`, and `warnings[]` are the higher-level preflight contract for agents. To verify fund availability before withdrawing on a specific chain, check `accounts --agent --chain <chain>`. Use bare `accounts --agent` only for the default multi-chain mainnet dashboard. `nextActions` provides the canonical CLI follow-up to run next: it points to `init` when setup is incomplete, to `pools` when no deposits exist, or to `accounts` when deposits already exist. If the recovery phrase is configured but no valid signer key is available, those follow-ups stay read-only while `readyForDeposit` remains `false`. When `recommendedMode = "read-only"` because RPC, ASP, or relayer health is degraded, `nextActions` stays on public discovery and intentionally avoids account-state guidance until connectivity is restored. If only the ASP or relayer is down while RPC is still healthy, public recovery remains available through `ragequit`, `flow ragequit`, or unsigned ragequit payloads when the operator already knows the affected account or workflow. `aspLive`, `rpcLive`, `relayerLive`, and `rpcBlockNumber` are included by default when a chain is selected (via `--chain` or default chain). Pass `--no-check` to suppress health checks, or use `--check rpc`, `--check asp`, or `--check relayer` to run one specific probe. `--aggregated` adds pending workflows, pending submissions, pending Pool Accounts, `recoveryTable`, and `phaseGraphRef: "flow"`.
 When `rpcUrl`, `aspHost`, or `relayerHost` comes from a custom endpoint, the CLI redacts userinfo, query strings, and token-like path segments before printing them.

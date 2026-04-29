@@ -229,6 +229,7 @@ function clearMockCalls(fn: {
 }
 
 let handleAccountsCommand: typeof import("../../src/commands/accounts.ts").handleAccountsCommand;
+let loadPendingPoolAccountSummariesForStatus: typeof import("../../src/commands/accounts.ts").loadPendingPoolAccountSummariesForStatus;
 let handleHistoryCommand: typeof import("../../src/commands/history.ts").handleHistoryCommand;
 let handleSyncCommand: typeof import("../../src/commands/sync.ts").handleSyncCommand;
 let handleMigrateStatusCommand: typeof import("../../src/commands/migrate.ts").handleMigrateStatusCommand;
@@ -304,7 +305,7 @@ async function loadReadonlyHandlers(): Promise<void> {
     })],
   ]);
 
-  ({ handleAccountsCommand } = await import(
+  ({ handleAccountsCommand, loadPendingPoolAccountSummariesForStatus } = await import(
     "../../src/commands/accounts.ts"
   ));
   ({ handleHistoryCommand } = await import(
@@ -386,6 +387,7 @@ export function registerAccountReadonlyCommandHandlerHarness(): void {
 
 export interface ReadonlyCommandHandlers {
   handleAccountsCommand: typeof import("../../src/commands/accounts.ts").handleAccountsCommand;
+  loadPendingPoolAccountSummariesForStatus: typeof import("../../src/commands/accounts.ts").loadPendingPoolAccountSummariesForStatus;
   handleHistoryCommand: typeof import("../../src/commands/history.ts").handleHistoryCommand;
   handleSyncCommand: typeof import("../../src/commands/sync.ts").handleSyncCommand;
   handleMigrateStatusCommand: typeof import("../../src/commands/migrate.ts").handleMigrateStatusCommand;
@@ -394,6 +396,7 @@ export interface ReadonlyCommandHandlers {
 export function getReadonlyCommandHandlers(): ReadonlyCommandHandlers {
   if (
     !handleAccountsCommand
+    || !loadPendingPoolAccountSummariesForStatus
     || !handleHistoryCommand
     || !handleSyncCommand
     || !handleMigrateStatusCommand
@@ -403,6 +406,7 @@ export function getReadonlyCommandHandlers(): ReadonlyCommandHandlers {
 
   return {
     handleAccountsCommand,
+    loadPendingPoolAccountSummariesForStatus,
     handleHistoryCommand,
     handleSyncCommand,
     handleMigrateStatusCommand,

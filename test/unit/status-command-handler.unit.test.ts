@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import type { Command } from "commander";
+import { chmodSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { handleStatusCommand } from "../../src/commands/status.ts";
 import {
   saveConfig,
@@ -30,6 +32,8 @@ const realProofProgress = captureModuleExports(
 const realRelayer = captureModuleExports(
   await import("../../src/services/relayer.ts"),
 );
+const canAssertChmodReadOnly =
+  process.platform !== "win32" && process.getuid?.() !== 0;
 const STATUS_MODULE_RESTORES = [
   ["../../src/services/sdk.ts", realSdk],
   ["../../src/utils/format.ts", realFormat],
@@ -51,6 +55,14 @@ function useIsolatedHome(): string {
   const home = createTrackedTempDir("pp-status-handler-test-");
   process.env.PRIVACY_POOLS_HOME = home;
   return home;
+}
+
+function restoreWritable(path: string): void {
+  try {
+    chmodSync(path, 0o700);
+  } catch {
+    // Best effort for temp-dir cleanup.
+  }
 }
 
 afterEach(() => {
@@ -90,6 +102,76 @@ describe("status command handler", () => {
     expect(json.nextActions[0].command).toBe("init");
     expect(stderr).toBe("");
   });
+
+  test.skipIf(!canAssertChmodReadOnly)(
+    "reports an unwritable config home as the first setup blocker",
+    async () => {
+      const parent = createTrackedTempDir("pp-status-handler-readonly-");
+      const configHome = join(parent, ".privacy-pools");
+      process.env.PRIVACY_POOLS_HOME = configHome;
+
+      try {
+        chmodSync(parent, 0o500);
+
+        const { json } = await captureAsyncJsonOutput(() =>
+          handleStatusCommand({ check: false }, fakeCommand({ json: true })),
+        );
+
+        expect(json.success).toBe(true);
+        expect(json.configExists).toBe(false);
+        expect(json.recommendedMode).toBe("setup-required");
+        expect(json.configHomeWritabilityIssue).toMatchObject({
+          code: "home_not_writable",
+          reasonCode: "parent_readonly",
+        });
+        expect(json.blockingIssues[0]).toMatchObject({
+          code: "home_not_writable",
+          reasonCode: "parent_readonly",
+        });
+        expect(json.nextActions.at(-1)).toMatchObject({
+          command: "init",
+          when: "home_not_writable",
+          runnable: false,
+        });
+      } finally {
+        restoreWritable(parent);
+      }
+    },
+  );
+
+  test.skipIf(!canAssertChmodReadOnly)(
+    "reports an unwritable existing config home as a warning",
+    async () => {
+      const home = useIsolatedHome();
+      mkdirSync(home, { recursive: true, mode: 0o700 });
+      saveConfig({ defaultChain: "sepolia" });
+
+      try {
+        chmodSync(home, 0o500);
+
+        const { json } = await captureAsyncJsonOutput(() =>
+          handleStatusCommand({ check: false }, fakeCommand({ json: true })),
+        );
+
+        expect(json.success).toBe(true);
+        expect(json.configExists).toBe(true);
+        expect(json.configHomeWritabilityIssue).toMatchObject({
+          code: "home_not_writable",
+          reasonCode: "exists_readonly",
+        });
+        expect(
+          json.warnings.some(
+            (issue: { code: string }) => issue.code === "home_not_writable",
+          ),
+        ).toBe(true);
+        expect(
+          json.blockingIssues.map((issue: { code: string }) => issue.code),
+        ).not.toContain("home_not_writable");
+      } finally {
+        restoreWritable(home);
+      }
+    },
+  );
 
   test("reports configured state and skips health checks when --check=false", async () => {
     const home = useIsolatedHome();

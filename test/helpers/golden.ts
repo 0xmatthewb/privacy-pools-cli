@@ -16,6 +16,8 @@ const ADDR_PATTERN = /0x[a-fA-F0-9]{40}\b/g;
 const TS_PATTERN = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\b/g;
 const LOCALHOST_PORT_PATTERN = /\bhttp:\/\/(?:127\.0\.0\.1|localhost):\d+\b/g;
 const BLOCK_LABEL_PATTERN = /\b(Block(?: number)?\s*:\s*)\d+\b/g;
+const READONLY_CONFIG_HOME_PATTERN =
+  /(?:[A-Za-z]:\\|\/)[^"'\n ]*pp-golden-readonly-home-[^"'\n ]+[\/\\]\.privacy-pools/g;
 
 const BLOCK_KEYS = new Set([
   "blockNumber",
@@ -139,6 +141,13 @@ function normalizeJsonValue(
     }
 
     let normalized = value;
+    normalized = withNormalized(
+      normalized,
+      READONLY_CONFIG_HOME_PATTERN,
+      "<CONFIG_HOME>",
+      "CONFIG_HOME",
+      applied,
+    );
     normalized = withNormalized(normalized, TS_PATTERN, "<TS>", "TS", applied);
     normalized = withNormalized(
       normalized,
@@ -166,6 +175,13 @@ function normalizeText(value: string): NormalizedGolden {
     .replace(/\n{3,}/g, "\n\n");
 
   normalized = withNormalized(normalized, TS_PATTERN, "<TS>", "TS", applied);
+  normalized = withNormalized(
+    normalized,
+    READONLY_CONFIG_HOME_PATTERN,
+    "<CONFIG_HOME>",
+    "CONFIG_HOME",
+    applied,
+  );
   normalized = withNormalized(
     normalized,
     LOCALHOST_PORT_PATTERN,

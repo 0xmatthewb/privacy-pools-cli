@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import type { ChildProcess } from "node:child_process";
 import { dirname, join } from "node:path";
 import {
@@ -36,6 +36,7 @@ export interface TestWorld {
     signerKey?: string;
     rpcOverrides?: Record<number, string>;
   }): string;
+  chmodHome(mode: number): void;
   pathFor(relativePath: string): string;
   writeFile(relativePath: string, content: string): string;
   runCli(
@@ -123,6 +124,9 @@ export function createTestWorld(
         saveSignerKey(signerKey);
       }
       return configHome;
+    },
+    chmodHome(mode: number) {
+      chmodSync(home, mode);
     },
     pathFor(relativePath: string) {
       return join(home, relativePath);

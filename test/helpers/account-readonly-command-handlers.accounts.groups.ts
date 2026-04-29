@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import { CHAINS } from "../../src/config/chains.ts";
+import { resolveGlobalMode } from "../../src/utils/mode.ts";
 import {
   captureAsyncJsonOutput,
   captureAsyncJsonOutputAllowExit,
@@ -167,6 +169,71 @@ export function registerReadonlyAccountsTests(): void {
     expect(pendingOnly.json.success).toBe(true);
     expect(pendingOnly.json.accounts).toHaveLength(1);
     expect(pendingOnly.json.accounts[0].poolAccountId).toBe("PA-2");
+  });
+
+  test("status pending summary loader returns pending Pool Account summaries", async () => {
+    useIsolatedHome("mainnet");
+    const { loadPendingPoolAccountSummariesForStatus } = getReadonlyCommandHandlers();
+
+    const summaries = await loadPendingPoolAccountSummariesForStatus({
+      chainConfig: CHAINS.mainnet,
+      mode: resolveGlobalMode({ json: true }),
+    });
+
+    expect(summaries).toEqual([
+      expect.objectContaining({
+        poolAccountNumber: 2,
+        poolAccountId: "PA-2",
+        status: "pending",
+        aspStatus: "pending",
+        asset: "ETH",
+        value: "400000000000000000",
+        label: "102",
+        chain: "mainnet",
+        chainId: CHAINS.mainnet.id,
+      }),
+    ]);
+  });
+
+  test("accounts validates and applies compact account limits", async () => {
+    useIsolatedHome("mainnet");
+    const { handleAccountsCommand } = getReadonlyCommandHandlers();
+
+    const limited = await captureAsyncJsonOutput(() =>
+      handleAccountsCommand(
+        { limit: "1" },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(limited.json.success).toBe(true);
+    expect(limited.json.accounts).toHaveLength(1);
+    expect(limited.json.accounts[0].poolAccountId).toBe("PA-1");
+
+    const invalid = await captureAsyncJsonOutputAllowExit(() =>
+      handleAccountsCommand(
+        { limit: "0" },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+    expect(invalid.json.success).toBe(false);
+    expect(invalid.json.errorCode).toBe("INPUT_INVALID_VALUE");
+    expect(invalid.exitCode).toBe(2);
+  });
+
+  test("accounts rejects refresh with cached no-sync reads", async () => {
+    useIsolatedHome("mainnet");
+    const { handleAccountsCommand } = getReadonlyCommandHandlers();
+
+    const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
+      handleAccountsCommand(
+        { sync: false, refresh: true },
+        fakeCommand({ json: true, chain: "mainnet" }),
+      ),
+    );
+
+    expect(json.success).toBe(false);
+    expect(json.errorCode).toBe("INPUT_FLAG_CONFLICT");
+    expect(exitCode).toBe(2);
   });
 
   test("accounts renders an empty JSON payload when pool discovery returns no pools", async () => {

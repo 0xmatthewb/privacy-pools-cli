@@ -1729,9 +1729,10 @@
           "accountFiles": "array<object>",
           "aspHost": "string|null",
           "aspLive": "boolean",
-          "blockingIssues": "array<object>",
+          "blockingIssues": "array<object{code,message,affects,reasonCode}>",
           "configDir": "string|null",
           "configExists": "boolean",
+          "configHomeWritabilityIssue": "object{code,message,affects,reasonCode}|null",
           "defaultChain": "string|null",
           "entrypoint": "string|null",
           "mode": "string",
@@ -1757,7 +1758,7 @@
           "signerBalanceSymbol": "string",
           "signerKeySet": "boolean",
           "signerKeyValid": "boolean",
-          "warnings": "array<object>"
+          "warnings": "array<object{code,message,affects,reasonCode}>"
         },
         "requiredSuccessFields": [
           "configDir",

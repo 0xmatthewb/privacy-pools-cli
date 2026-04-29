@@ -54,6 +54,7 @@ export interface NextActionParameter {
   name: string;
   type: string;
   required: boolean;
+  description?: string;
 }
 
 /**
@@ -72,6 +73,7 @@ export const NEXT_ACTION_WHEN_VALUES = [
   "after_ragequit",
   "after_submit",
   "has_pending",
+  "home_not_writable",
   "status_not_ready",
   "status_unsigned_no_accounts",
   "status_unsigned_has_accounts",

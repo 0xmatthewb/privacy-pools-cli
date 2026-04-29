@@ -38,6 +38,8 @@ import {
 } from "./layout.js";
 import { glyph } from "../utils/symbols.js";
 
+export type { StatusIssue } from "../types.js";
+
 export interface StatusCheckResult {
   configExists: boolean;
   configDir: string | null;
@@ -68,6 +70,7 @@ export interface StatusCheckResult {
    * "has pool accounts" without loading full account state).
    */
   accountFiles: [string, number][];
+  configHomeWritabilityIssue?: StatusIssue | null;
   nativeRuntimeAdvisory?: StatusIssue | null;
   runtime?: "native" | "js";
   aggregated?: {
@@ -108,6 +111,14 @@ export function deriveStatusPreflightGuidance(
     result.relayerLive === false;
   const blockingIssues: StatusIssue[] = [];
   const warnings: StatusIssue[] = [];
+
+  if (result.configHomeWritabilityIssue) {
+    if (!result.configExists) {
+      blockingIssues.push(result.configHomeWritabilityIssue);
+    } else {
+      warnings.push(result.configHomeWritabilityIssue);
+    }
+  }
 
   if (!result.configExists) {
     blockingIssues.push(
@@ -350,6 +361,25 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     result.configExists &&
     result.recoveryPhraseSet &&
     result.accountFiles.length === 0;
+  const homeNotWritableAction = result.configHomeWritabilityIssue && !result.configExists
+    ? createNextAction(
+        "init",
+        "Set PRIVACY_POOLS_HOME to a writable directory and run init.",
+        "home_not_writable",
+        {
+          runnable: false,
+          parameters: [
+            {
+              name: "PRIVACY_POOLS_HOME",
+              type: "env_var",
+              required: true,
+              description:
+                "Absolute path to a writable directory (env var, set before invocation)",
+            },
+          ],
+        },
+      )
+    : null;
 
   if (notReady) {
     agentNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
@@ -468,6 +498,11 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     ];
   }
 
+  if (homeNotWritableAction) {
+    agentNextActions.push(homeNotWritableAction);
+    humanNextActions.push(homeNotWritableAction);
+  }
+
   if (ctx.mode.isJson) {
     const status: Record<string, unknown> = appendNextActions({
       mode: "cli-status",
@@ -487,6 +522,9 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       runtime: result.runtime ?? "js",
       accountFiles: result.accountFiles.map(([name, chainId]) => ({ chain: name, chainId })),
     }, agentNextActions) as Record<string, unknown>;
+    if (result.configHomeWritabilityIssue) {
+      status.configHomeWritabilityIssue = result.configHomeWritabilityIssue;
+    }
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
     if (result.relayerLive !== undefined) status.relayerLive = result.relayerLive;

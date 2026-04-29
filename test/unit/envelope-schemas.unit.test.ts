@@ -112,6 +112,13 @@ describe("CLI envelope schemas", () => {
         readyForWithdraw: false,
         readyForUnsigned: false,
         recommendedMode: "setup_required",
+        configHomeWritabilityIssue: {
+          code: "home_not_writable",
+          message:
+            "Config home /tmp/readonly/.privacy-pools is not writable. Init cannot persist your recovery phrase or signer key.",
+          affects: ["deposit", "withdraw", "unsigned"],
+          reasonCode: "parent_readonly",
+        },
         blockingIssues: [],
         warnings: [],
       },

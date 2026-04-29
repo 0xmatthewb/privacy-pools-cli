@@ -558,6 +558,80 @@ describe("renderStatus parity", () => {
     );
   });
 
+  test("JSON mode: emits unwritable home as first blocker when setup is incomplete", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const homeIssue = {
+      code: "home_not_writable",
+      message:
+        "Config home /tmp/readonly/.privacy-pools is not writable. Init cannot persist your recovery phrase or signer key.",
+      affects: ["deposit", "withdraw", "unsigned"] as const,
+      reasonCode: "parent_readonly",
+    };
+    const result = {
+      ...STUB_STATUS,
+      configExists: false,
+      configDir: null,
+      recoveryPhraseSet: false,
+      signerKeySet: false,
+      signerKeyValid: false,
+      signerAddress: null,
+      accountFiles: [],
+      configHomeWritabilityIssue: homeIssue,
+    };
+    const { json } = captureJsonOutput(() => renderStatus(ctx, result));
+
+    expect(json.configHomeWritabilityIssue).toEqual(homeIssue);
+    expect(json.recommendedMode).toBe("setup-required");
+    expect(json.blockingIssues[0]).toEqual(homeIssue);
+    expect(json.blockingIssues.map((issue: { code: string }) => issue.code)).toEqual([
+      "home_not_writable",
+      "config_missing",
+      "recovery_phrase_missing",
+    ]);
+    expect(json.nextActions).toBeArrayOfSize(2);
+    expectNextAction(
+      json.nextActions[1],
+      {
+        command: "init",
+        reason: "Set PRIVACY_POOLS_HOME to a writable directory and run init.",
+        when: "home_not_writable",
+        parameters: [
+          {
+            name: "PRIVACY_POOLS_HOME",
+            type: "env_var",
+            required: true,
+            description:
+              "Absolute path to a writable directory (env var, set before invocation)",
+          },
+        ],
+        runnable: false,
+      },
+      undefined,
+    );
+  });
+
+  test("JSON mode: emits unwritable existing config home as a warning", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const homeIssue = {
+      code: "home_not_writable",
+      message:
+        "Config home /tmp/readonly/.privacy-pools is not writable. Init cannot persist your recovery phrase or signer key.",
+      affects: ["deposit", "withdraw", "unsigned"] as const,
+      reasonCode: "exists_readonly",
+    };
+    const { json } = captureJsonOutput(() =>
+      renderStatus(ctx, {
+        ...STUB_STATUS,
+        configHomeWritabilityIssue: homeIssue,
+      }),
+    );
+
+    expect(json.configHomeWritabilityIssue).toEqual(homeIssue);
+    expect(json.blockingIssues).toBeUndefined();
+    expect(json.warnings).toEqual([homeIssue]);
+    expect(json.recommendedMode).toBe("ready");
+  });
+
   test("JSON mode: keeps unsigned-only follow-ups read-only when no signer is configured", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const result = {

@@ -1,4 +1,6 @@
+import { chmodSync } from "node:fs";
 import type { CliRunOptions } from "./cli.ts";
+import { createTempHome } from "./cli.ts";
 import {
   emptyPoolsFixtureEnv,
   fixtureEnv,
@@ -12,7 +14,8 @@ export type GoldenEnvironment =
   | "fixture-relayer"
   | "empty-fixture"
   | "multi-fixture"
-  | "offline-asp";
+  | "offline-asp"
+  | "readonly-home";
 
 interface GoldenCaseBase {
   args: string[];
@@ -253,6 +256,13 @@ export const GOLDEN_JSON_CASES: readonly GoldenJsonCase[] = [
     status: 0,
   },
   {
+    name: "status/home-not-writable-agent",
+    args: ["--agent", "status", "--check", "none"],
+    env: "readonly-home",
+    format: "json",
+    status: 0,
+  },
+  {
     name: "pools/multichain-agent",
     args: ["--agent", "pools"],
     env: "multi-fixture",
@@ -391,6 +401,16 @@ export function resolveGoldenCaseRunOptions(
           PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
         },
       };
+    case "readonly-home": {
+      const home = createTempHome("pp-golden-readonly-home-");
+      if (process.platform !== "win32") {
+        chmodSync(home, 0o500);
+      }
+      return {
+        home,
+        env: textDefaults,
+      };
+    }
     case "none":
     default:
       return {

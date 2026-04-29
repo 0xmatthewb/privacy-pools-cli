@@ -11,6 +11,7 @@ export const nextActionSchema = z.object({
     name: z.string(),
     type: z.string(),
     required: z.boolean().optional(),
+    description: z.string().optional(),
   })).optional(),
   runnable: z.boolean().optional(),
 });
