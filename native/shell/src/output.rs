@@ -324,6 +324,19 @@ fn append_output_environment_warnings(object: &mut Map<String, Value>) {
     object.insert("warnings".to_string(), Value::Array(warnings));
 }
 
+fn retry_policy_json(error: &CliError) -> Option<Value> {
+    if !error.retryable {
+        return None;
+    }
+
+    Some(json!({
+        "strategy": "exponential-backoff",
+        "maxAttempts": 3,
+        "initialDelayMs": 1000,
+        "maxDelayMs": 8000,
+    }))
+}
+
 pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> ! {
     if structured {
         let mut error_payload = Map::new();
@@ -350,6 +363,10 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
                 Value::String(help_topic.to_string()),
             );
         }
+        let retry_policy = retry_policy_json(error);
+        if let Some(retry) = &retry_policy {
+            error_payload.insert("retry".to_string(), retry.clone());
+        }
         let next_actions = error.next_actions();
         if !next_actions.is_empty() {
             error_payload.insert(
@@ -365,7 +382,16 @@ pub fn print_error_and_exit(error: &CliError, structured: bool, quiet: bool) -> 
             "errorMessage": error.message.as_str(),
             "error": error_payload,
         });
-        write_stdout_text(&serde_json::to_string(&payload).expect("json error must serialize"));
+        let mut payload = match payload {
+            Value::Object(object) => object,
+            _ => unreachable!("json object literal must produce an object"),
+        };
+        if let Some(retry) = retry_policy {
+            payload.insert("retry".to_string(), retry);
+        }
+        write_stdout_text(
+            &serde_json::to_string(&Value::Object(payload)).expect("json error must serialize"),
+        );
     } else if quiet {
         write_stderr_text(&styled_danger(&format!(
             "Error [{}: {}]: {}",
