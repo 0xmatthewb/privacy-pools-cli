@@ -87,8 +87,7 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
@@ -121,10 +120,16 @@
                     "message",
                     "replacementCommand"
                   ],
-                  "additionalProperties": {}
+                  "additionalProperties": false
                 },
                 "chain": {
                   "type": "string"
+                },
+                "chains": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "asset": {
                   "type": "string"
@@ -201,7 +206,7 @@
                           ]
                         }
                       },
-                      "additionalProperties": {}
+                      "additionalProperties": false
                     },
                     {
                       "type": "null"
@@ -217,19 +222,60 @@
                       "type": "null"
                     }
                   ]
+                },
+                "perChain": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chain": {
+                        "type": "string"
+                      },
+                      "cacheTimestamp": {
+                        "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/1/properties/cacheTimestamp"
+                      },
+                      "allTime": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "last24h": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "chain",
+                      "allTime",
+                      "last24h"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
                 }
               },
               "required": [
-                "mode",
-                "command",
                 "chain",
                 "asset",
                 "pool",
-                "scope",
-                "allTime",
-                "last24h"
-              ],
-              "additionalProperties": {}
+                "scope"
+              ]
             }
           ]
         },
@@ -302,7 +348,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -337,7 +383,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "pool-stats"

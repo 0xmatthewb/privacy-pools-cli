@@ -87,13 +87,60 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "operation": {
+                  "$ref": "#/definitions/config set envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "profile": {
+                  "$ref": "#/definitions/config set envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "activeProfile": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "configDir": {
+                  "$ref": "#/definitions/config set envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "configPath": {
+                  "$ref": "#/definitions/config set envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "key": {
+                  "$ref": "#/definitions/config set envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "value": {},
+                "previousValue": {
+                  "$ref": "#/definitions/config set envelope/anyOf/0/allOf/1/properties/value"
+                },
+                "defaultChain": {
+                  "$ref": "#/definitions/config set envelope/anyOf/0/allOf/1/properties/activeProfile"
+                },
+                "profiles": {
+                  "type": "array",
+                  "items": {}
+                },
+                "settings": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "updated": {
+                  "type": "boolean"
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/config set envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              }
             }
           ]
         },
@@ -166,7 +213,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +248,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "config set"

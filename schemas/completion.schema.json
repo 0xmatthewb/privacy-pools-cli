@@ -87,13 +87,66 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "shell": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "completionScript": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "cword": {
+                  "type": "number"
+                },
+                "candidates": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "scriptPath": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "profilePath": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "scriptCreated": {
+                  "type": "boolean"
+                },
+                "scriptUpdated": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/scriptCreated"
+                },
+                "profileCreated": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/scriptCreated"
+                },
+                "profileUpdated": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/scriptCreated"
+                },
+                "bootstrapProfilePath": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "bootstrapProfileCreated": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/scriptCreated"
+                },
+                "bootstrapProfileUpdated": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/scriptCreated"
+                },
+                "reloadHint": {
+                  "$ref": "#/definitions/completion envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/completion envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              }
             }
           ]
         },
@@ -166,7 +219,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +254,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "completion"

@@ -87,13 +87,197 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "action": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "dryRun": {
+                  "type": "boolean"
+                },
+                "workflowId": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "workflowKind": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "phase": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "walletMode": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "walletAddress": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "requiredNativeFunding": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "requiredTokenFunding": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "backupConfirmed": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/dryRun"
+                },
+                "chain": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "asset": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "depositAmount": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "recipient": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "poolAccountId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "poolAccountNumber": {
+                  "type": "number"
+                },
+                "depositTxHash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "depositBlockNumber": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "depositExplorerUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "committedValue": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aspStatus": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "withdrawalTxHash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "withdrawalBlockNumber": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "withdrawalExplorerUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ragequitTxHash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ragequitBlockNumber": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ragequitExplorerUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "privacyDelayProfile": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "privacyDelayConfigured": {},
+                "privacyDelayRandom": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/dryRun"
+                },
+                "privacyDelayRangeSeconds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "privacyDelayUntil": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "nextPollAfter": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "vettingFee": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/privacyDelayConfigured"
+                },
+                "vettingFeeBPS": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "vettingFeeAmount": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "estimatedCommitted": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "estimatedCommittedValue": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "feesApply": {
+                  "$ref": "#/definitions/flow envelope/anyOf/0/allOf/1/properties/dryRun"
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/flow envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              }
             }
           ]
         },
@@ -166,7 +350,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +385,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "flow"

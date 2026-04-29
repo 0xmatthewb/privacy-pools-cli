@@ -87,13 +87,128 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "operation": {
+                  "$ref": "#/definitions/recipients add envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "chain": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "allChains": {
+                  "type": "boolean"
+                },
+                "recipients": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "$ref": "#/definitions/recipients add envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "ensName": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "label": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "chain": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "source": {
+                        "$ref": "#/definitions/recipients add envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "useCount": {
+                        "type": "number"
+                      },
+                      "lastUsedAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "recipient": {
+                  "$ref": "#/definitions/recipients add envelope/anyOf/0/allOf/1/properties/recipients/items"
+                },
+                "removed": {
+                  "$ref": "#/definitions/recipients add envelope/anyOf/0/allOf/1/properties/allChains"
+                },
+                "cleared": {
+                  "$ref": "#/definitions/recipients add envelope/anyOf/0/allOf/1/properties/allChains"
+                },
+                "count": {
+                  "$ref": "#/definitions/recipients add envelope/anyOf/0/allOf/1/properties/recipients/items/properties/useCount"
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "deprecationWarning": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "replacementCommand": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "replacementCommand"
+                  ],
+                  "additionalProperties": false
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/recipients add envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              }
             }
           ]
         },
@@ -166,7 +281,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +316,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "recipients add"

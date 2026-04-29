@@ -87,8 +87,7 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
@@ -108,7 +107,7 @@
                   "type": "string"
                 },
                 "txHash": {
-                  "type": "string"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/submissionId"
                 },
                 "amount": {
                   "type": "string"
@@ -123,13 +122,13 @@
                   "type": "number"
                 },
                 "poolAccountId": {
-                  "type": "string"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/submissionId"
                 },
                 "poolAddress": {
-                  "type": "string"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/submissionId"
                 },
                 "scope": {
-                  "type": "string"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/submissionId"
                 },
                 "blockNumber": {
                   "anyOf": [
@@ -154,7 +153,7 @@
                   "type": "boolean"
                 },
                 "localStateSynced": {
-                  "type": "boolean"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/reconciliationRequired"
                 },
                 "warningCode": {
                   "type": [
@@ -180,7 +179,7 @@
                     "required": [
                       "message"
                     ],
-                    "additionalProperties": {}
+                    "additionalProperties": false
                   }
                 },
                 "deprecationWarning": {
@@ -201,7 +200,13 @@
                     "message",
                     "replacementCommand"
                   ],
-                  "additionalProperties": {}
+                  "additionalProperties": false
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
                 },
                 "mode": {
                   "type": "string",
@@ -211,19 +216,22 @@
                   ]
                 },
                 "recipient": {
-                  "type": "string"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/submissionId"
                 },
                 "feeBPS": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "relayerHost": {
-                  "type": "string"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/submissionId"
                 },
                 "quoteRefreshCount": {
-                  "type": "number"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/poolAccountNumber"
                 },
                 "extraGas": {
-                  "type": "boolean"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/reconciliationRequired"
                 },
                 "extraGasFundAmount": {
                   "type": [
@@ -232,11 +240,12 @@
                   ]
                 },
                 "remainingBalance": {
-                  "type": "string"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/submissionId"
                 },
                 "rootMatchedAtProofTime": {
-                  "type": "boolean"
+                  "$ref": "#/definitions/withdraw envelope/anyOf/0/allOf/1/properties/reconciliationRequired"
                 },
+                "privacyCostManifest": {},
                 "anonymitySet": {
                   "type": "object",
                   "properties": {
@@ -255,7 +264,7 @@
                     "total",
                     "percentage"
                   ],
-                  "additionalProperties": {}
+                  "additionalProperties": false
                 }
               },
               "required": [
@@ -263,8 +272,7 @@
                 "amount",
                 "asset",
                 "chain"
-              ],
-              "additionalProperties": {}
+              ]
             }
           ]
         },
@@ -337,7 +345,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -372,7 +380,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "withdraw"

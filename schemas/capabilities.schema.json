@@ -87,8 +87,7 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
@@ -191,13 +190,13 @@
                       "type": "string"
                     },
                     "jsonContract": {
-                      "type": "string"
+                      "$ref": "#/definitions/capabilities envelope/anyOf/0/allOf/1/properties/documentation/properties/runtimeUpgrades"
                     },
                     "envelopeSchemas": {
-                      "type": "string"
+                      "$ref": "#/definitions/capabilities envelope/anyOf/0/allOf/1/properties/documentation/properties/runtimeUpgrades"
                     },
                     "errorCodes": {
-                      "type": "string"
+                      "$ref": "#/definitions/capabilities envelope/anyOf/0/allOf/1/properties/documentation/properties/runtimeUpgrades"
                     }
                   },
                   "required": [
@@ -205,7 +204,7 @@
                     "agentGuide",
                     "changelog"
                   ],
-                  "additionalProperties": {}
+                  "additionalProperties": false
                 },
                 "nextActions": {
                   "type": "array",
@@ -229,8 +228,7 @@
                 "runtime",
                 "safeReadOnlyCommands",
                 "jsonOutputContract"
-              ],
-              "additionalProperties": {}
+              ]
             }
           ]
         },
@@ -303,7 +301,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -338,7 +336,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "capabilities"

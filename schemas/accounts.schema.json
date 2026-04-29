@@ -87,8 +87,7 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
@@ -102,40 +101,14 @@
                     "null"
                   ]
                 },
+                "allChains": {
+                  "type": "boolean"
+                },
                 "chains": {
                   "type": "array",
                   "items": {
                     "type": "string"
                   }
-                },
-                "allChains": {
-                  "type": "boolean"
-                },
-                "lastSyncTime": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "syncSkipped": {
-                  "type": "boolean"
-                },
-                "accounts": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": {}
-                  }
-                },
-                "balances": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "additionalProperties": {}
-                  }
-                },
-                "pendingCount": {
-                  "type": "number"
                 },
                 "warnings": {
                   "type": "array",
@@ -155,8 +128,116 @@
                     "required": [
                       "message"
                     ],
-                    "additionalProperties": {}
+                    "additionalProperties": false
                   }
+                },
+                "lastSyncTime": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "syncSkipped": {
+                  "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/allChains"
+                },
+                "accounts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "poolAccountNumber": {
+                        "type": "number"
+                      },
+                      "poolAccountId": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "aspStatus": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "asset": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "scope": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "value": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "hash": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "label": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "blockNumber": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "txHash": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "explorerUrl": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "chain": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "chainId": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "balances": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "asset": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "balance": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "usdValue": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "poolAccounts": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
+                      },
+                      "chain": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountId"
+                      },
+                      "chainId": {
+                        "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "pendingCount": {
+                  "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
+                },
+                "approvedCount": {
+                  "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
+                },
+                "poaRequiredCount": {
+                  "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
+                },
+                "declinedCount": {
+                  "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
+                },
+                "unknownCount": {
+                  "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
+                },
+                "spentCount": {
+                  "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
+                },
+                "exitedCount": {
+                  "$ref": "#/definitions/accounts envelope/anyOf/0/allOf/1/properties/accounts/items/properties/poolAccountNumber"
                 },
                 "nextActions": {
                   "type": "array",
@@ -167,8 +248,7 @@
               },
               "required": [
                 "chain"
-              ],
-              "additionalProperties": {}
+              ]
             }
           ]
         },
@@ -241,7 +321,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -276,7 +356,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "accounts"

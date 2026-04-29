@@ -87,13 +87,81 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "const": "upgrade"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "currentVersion": {
+                  "$ref": "#/definitions/upgrade envelope/anyOf/0/allOf/1/properties/status"
+                },
+                "latestVersion": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "updateAvailable": {
+                  "type": "boolean"
+                },
+                "performed": {
+                  "$ref": "#/definitions/upgrade envelope/anyOf/0/allOf/1/properties/updateAvailable"
+                },
+                "command": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "installContext": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "installedVersion": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "releaseHighlights": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "externalGuidance": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "command": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/upgrade envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              }
             }
           ]
         },
@@ -166,7 +234,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +269,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "upgrade"

@@ -87,13 +87,109 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "const": "relayed-quote"
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "asset": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "string"
+                },
+                "recipient": {
+                  "type": "string"
+                },
+                "minWithdrawAmount": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "minWithdrawAmountFormatted": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "baseFeeBPS": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "quoteFeeBPS": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "feeAmount": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "netAmount": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "feeCommitmentPresent": {
+                  "type": "boolean"
+                },
+                "quoteExpiresAt": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "relayTxCost": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "relayerHost": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "quoteRefreshCount": {
+                  "type": "number"
+                },
+                "extraGas": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/feeCommitmentPresent"
+                },
+                "extraGasFundAmount": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "extraGasTxCost": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/recipient"
+                },
+                "isTestnet": {
+                  "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/1/properties/feeCommitmentPresent"
+                },
+                "anonymitySet": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/withdraw quote envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "chain",
+                "asset",
+                "amount"
+              ]
             }
           ]
         },
@@ -166,7 +262,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +297,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "withdraw quote"

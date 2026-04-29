@@ -87,13 +87,191 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "command": {
+                  "$ref": "#/definitions/stats envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "invokedAs": {
+                  "$ref": "#/definitions/stats envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "deprecationWarning": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "replacementCommand": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "replacementCommand"
+                  ],
+                  "additionalProperties": false
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "chains": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "asset": {
+                  "$ref": "#/definitions/stats envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "pool": {
+                  "$ref": "#/definitions/stats envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "scope": {
+                  "$ref": "#/definitions/stats envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "cacheTimestamp": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "allTime": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "tvl": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "tvlUsd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "avgDepositSizeUsd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalDepositsCount": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "totalWithdrawalsCount": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "totalDepositsValue": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalWithdrawalsValue": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalDepositsValueUsd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "totalWithdrawalsValueUsd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "last24h": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "perChain": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chain": {
+                        "type": "string"
+                      },
+                      "cacheTimestamp": {
+                        "$ref": "#/definitions/stats envelope/anyOf/0/allOf/1/properties/cacheTimestamp"
+                      },
+                      "allTime": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/definitions/stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "last24h": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/definitions/stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "chain",
+                      "allTime",
+                      "last24h"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "chain"
+              ]
             }
           ]
         },
@@ -166,7 +344,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +379,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "stats"

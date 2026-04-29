@@ -87,13 +87,131 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "allChains": {
+                  "type": "boolean"
+                },
+                "chains": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "status": {
+                  "$ref": "#/definitions/migrate envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "requiresMigration": {
+                  "$ref": "#/definitions/migrate envelope/anyOf/0/allOf/1/properties/allChains"
+                },
+                "requiresWebsiteRecovery": {
+                  "$ref": "#/definitions/migrate envelope/anyOf/0/allOf/1/properties/allChains"
+                },
+                "isFullyMigrated": {
+                  "$ref": "#/definitions/migrate envelope/anyOf/0/allOf/1/properties/allChains"
+                },
+                "readinessResolved": {
+                  "$ref": "#/definitions/migrate envelope/anyOf/0/allOf/1/properties/allChains"
+                },
+                "submissionSupported": {
+                  "$ref": "#/definitions/migrate envelope/anyOf/0/allOf/1/properties/allChains"
+                },
+                "requiredChainIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "migratedChainIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "missingChainIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "websiteRecoveryChainIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "unresolvedChainIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "chainReadiness": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "externalGuidance": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "command": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/migrate envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "chain"
+              ]
             }
           ]
         },
@@ -166,7 +284,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +319,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "migrate"

@@ -87,13 +87,202 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
-              "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "command": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "group": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "aliases": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "execution": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "usage": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "flags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "globalFlags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "requiresInit": {
+                      "type": "boolean"
+                    },
+                    "expectedLatencyClass": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "safeReadOnly": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "expectedNextActionWhen": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "phaseGraph": {},
+                    "phaseGraphRef": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "sideEffectClass": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "touchesFunds": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "requiresHumanReview": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "preferredSafeVariant": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/phaseGraph"
+                    },
+                    "prerequisites": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "examples": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "structuredExamples": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": {}
+                      }
+                    },
+                    "jsonFields": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "jsonVariants": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "safetyNotes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "supportsUnsigned": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "supportsDryRun": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "agentFlagNames": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "agentWorkflowNotes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "nextActions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/describe envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "const": "describe-index"
+                    },
+                    "commands": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "command": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "group": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "command",
+                          "description",
+                          "group"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "envelopeRoots": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "nextActions": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/nextActions"
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "commands",
+                    "envelopeRoots"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "schema": {},
+                    "nextActions": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/nextActions"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
             }
           ]
         },
@@ -166,7 +355,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +390,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "describe"

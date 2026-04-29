@@ -87,13 +87,74 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "const": "broadcast"
+                },
+                "broadcastMode": {
+                  "type": "string"
+                },
+                "sourceOperation": {
+                  "$ref": "#/definitions/broadcast envelope/anyOf/0/allOf/1/properties/broadcastMode"
+                },
+                "chain": {
+                  "$ref": "#/definitions/broadcast envelope/anyOf/0/allOf/1/properties/broadcastMode"
+                },
+                "validatedOnly": {
+                  "type": "boolean"
+                },
+                "submissionId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "submittedBy": {
+                  "$ref": "#/definitions/broadcast envelope/anyOf/0/allOf/1/properties/broadcastMode"
+                },
+                "transactions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "localStateUpdated": {
+                  "$ref": "#/definitions/broadcast envelope/anyOf/0/allOf/1/properties/validatedOnly"
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/broadcast envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              }
             }
           ]
         },
@@ -166,7 +227,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +262,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "broadcast"

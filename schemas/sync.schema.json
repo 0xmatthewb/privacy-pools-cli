@@ -87,13 +87,60 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "isFinal": {
+                  "type": "boolean"
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "syncedPools": {
+                  "type": "number"
+                },
+                "syncedSymbols": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "availablePoolAccounts": {
+                  "$ref": "#/definitions/sync envelope/anyOf/0/allOf/1/properties/syncedPools"
+                },
+                "previousAvailablePoolAccounts": {
+                  "$ref": "#/definitions/sync envelope/anyOf/0/allOf/1/properties/syncedPools"
+                },
+                "durationMs": {
+                  "$ref": "#/definitions/sync envelope/anyOf/0/allOf/1/properties/syncedPools"
+                },
+                "scannedFromBlock": {
+                  "type": "string"
+                },
+                "scannedToBlock": {
+                  "$ref": "#/definitions/sync envelope/anyOf/0/allOf/1/properties/scannedFromBlock"
+                },
+                "eventCounts": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                },
+                "lastSyncTime": {
+                  "$ref": "#/definitions/sync envelope/anyOf/0/allOf/1/properties/scannedFromBlock"
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/sync envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "chain"
+              ]
             }
           ]
         },
@@ -166,7 +213,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +248,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "sync"

@@ -87,13 +87,95 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "operation": {
+                  "type": "string",
+                  "const": "tx-status"
+                },
+                "submissionId": {
+                  "type": "string"
+                },
+                "sourceOperation": {
+                  "type": "string"
+                },
+                "sourceCommand": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "asset": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "poolAccountId": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "poolAccountNumber": {
+                  "type": "number"
+                },
+                "workflowId": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "recipient": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "broadcastMode": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "broadcastSourceOperation": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "createdAt": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "updatedAt": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "status": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "estimatedConfirmationSeconds": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/poolAccountNumber"
+                },
+                "pollingRecommendation": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "reconciliationRequired": {
+                  "type": "boolean"
+                },
+                "localStateSynced": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/reconciliationRequired"
+                },
+                "warningCode": {
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                },
+                "lastError": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "transactions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "operation",
+                "submissionId",
+                "chain"
+              ]
             }
           ]
         },
@@ -166,7 +248,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +283,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "tx-status"

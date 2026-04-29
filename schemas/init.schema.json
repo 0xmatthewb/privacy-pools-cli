@@ -87,13 +87,100 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "operation": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "status": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "setupMode": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "readiness": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "effectiveChain": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "defaultChain": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "signerKeySet": {
+                  "type": "boolean"
+                },
+                "mnemonicImported": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/signerKeySet"
+                },
+                "backupFilePath": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recoveryPhraseRedacted": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/signerKeySet"
+                },
+                "recoveryPhrase": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "restoreDiscovery": {},
+                "warning": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "dryRun": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/signerKeySet"
+                },
+                "recoveryPhraseSource": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "signerKeySource": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "backupCaptureMode": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "backupFileWouldWrite": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/signerKeySet"
+                },
+                "overwriteExisting": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/signerKeySet"
+                },
+                "overwritePromptRequired": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/signerKeySet"
+                },
+                "writeTargets": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "humanCommand": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "agentResumeCommand": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "secretTransferRequired": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/signerKeySet"
+                },
+                "nextStep": {
+                  "$ref": "#/definitions/init envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/init envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              }
             }
           ]
         },
@@ -166,7 +253,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +288,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "init"

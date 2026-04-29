@@ -954,7 +954,35 @@
     "generatedFrom": "src/types/envelopes/commands.ts",
     "commands": {
       "init": {
-        "successFields": {},
+        "successFields": {
+          "agentResumeCommand": "string",
+          "backupCaptureMode": "string",
+          "backupFilePath": "string|null",
+          "backupFileWouldWrite": "boolean",
+          "defaultChain": "string",
+          "dryRun": "boolean",
+          "effectiveChain": "string",
+          "humanCommand": "string",
+          "mnemonicImported": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "nextStep": "string",
+          "operation": "string",
+          "overwriteExisting": "boolean",
+          "overwritePromptRequired": "boolean",
+          "readiness": "string",
+          "recoveryPhrase": "string",
+          "recoveryPhraseRedacted": "boolean",
+          "recoveryPhraseSource": "string",
+          "restoreDiscovery": "unknown",
+          "secretTransferRequired": "boolean",
+          "setupMode": "string",
+          "signerKeySet": "boolean",
+          "signerKeySource": "string",
+          "status": "string",
+          "warning": "string",
+          "writeTargets": "array<string>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -962,7 +990,20 @@
         ]
       },
       "upgrade": {
-        "successFields": {},
+        "successFields": {
+          "command": "string|null",
+          "currentVersion": "string",
+          "externalGuidance": "object{kind,message,command}",
+          "installContext": "object",
+          "installedVersion": "string|null",
+          "latestVersion": "string|null",
+          "mode": "\"upgrade\"",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "performed": "boolean",
+          "releaseHighlights": "array<string>",
+          "status": "string",
+          "updateAvailable": "boolean"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -970,7 +1011,22 @@
         ]
       },
       "config": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -978,7 +1034,22 @@
         ]
       },
       "config list": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -986,7 +1057,22 @@
         ]
       },
       "config get": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -994,7 +1080,22 @@
         ]
       },
       "config set": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1002,7 +1103,22 @@
         ]
       },
       "config unset": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1010,7 +1126,22 @@
         ]
       },
       "config path": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1018,7 +1149,22 @@
         ]
       },
       "config profile": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1026,7 +1172,22 @@
         ]
       },
       "config profile list": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1034,7 +1195,22 @@
         ]
       },
       "config profile create": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1042,7 +1218,22 @@
         ]
       },
       "config profile active": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1050,7 +1241,22 @@
         ]
       },
       "config profile use": {
-        "successFields": {},
+        "successFields": {
+          "activeProfile": "string|null",
+          "configDir": "string",
+          "configPath": "string",
+          "defaultChain": "string|null",
+          "key": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "previousValue": "unknown",
+          "profile": "string",
+          "profiles": "array<unknown>",
+          "settings": "object",
+          "updated": "boolean",
+          "value": "unknown"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1058,7 +1264,50 @@
         ]
       },
       "flow": {
-        "successFields": {},
+        "successFields": {
+          "action": "string",
+          "aspStatus": "string",
+          "asset": "string",
+          "backupConfirmed": "boolean",
+          "chain": "string",
+          "committedValue": "string|null",
+          "depositAmount": "string",
+          "depositBlockNumber": "string|null",
+          "depositExplorerUrl": "string|null",
+          "depositTxHash": "string|null",
+          "dryRun": "boolean",
+          "estimatedCommitted": "string",
+          "estimatedCommittedValue": "string",
+          "feesApply": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "nextPollAfter": "string|null",
+          "phase": "string",
+          "poolAccountId": "string|null",
+          "poolAccountNumber": "number",
+          "privacyDelayConfigured": "unknown",
+          "privacyDelayProfile": "string",
+          "privacyDelayRandom": "boolean",
+          "privacyDelayRangeSeconds": "array<number>",
+          "privacyDelayUntil": "string|null",
+          "ragequitBlockNumber": "string|null",
+          "ragequitExplorerUrl": "string|null",
+          "ragequitTxHash": "string|null",
+          "recipient": "string|null",
+          "requiredNativeFunding": "string|null",
+          "requiredTokenFunding": "string|null",
+          "vettingFee": "unknown",
+          "vettingFeeAmount": "string",
+          "vettingFeeBPS": "string",
+          "walletAddress": "string|null",
+          "walletMode": "string",
+          "warnings": "array<object>",
+          "withdrawalBlockNumber": "string|null",
+          "withdrawalExplorerUrl": "string|null",
+          "withdrawalTxHash": "string|null",
+          "workflowId": "string",
+          "workflowKind": "string"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1066,7 +1315,16 @@
         ]
       },
       "simulate": {
-        "successFields": {},
+        "successFields": {
+          "amount": "string",
+          "asset": "string",
+          "chain": "string",
+          "dryRun": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1074,7 +1332,50 @@
         ]
       },
       "flow start": {
-        "successFields": {},
+        "successFields": {
+          "action": "string",
+          "aspStatus": "string",
+          "asset": "string",
+          "backupConfirmed": "boolean",
+          "chain": "string",
+          "committedValue": "string|null",
+          "depositAmount": "string",
+          "depositBlockNumber": "string|null",
+          "depositExplorerUrl": "string|null",
+          "depositTxHash": "string|null",
+          "dryRun": "boolean",
+          "estimatedCommitted": "string",
+          "estimatedCommittedValue": "string",
+          "feesApply": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "nextPollAfter": "string|null",
+          "phase": "string",
+          "poolAccountId": "string|null",
+          "poolAccountNumber": "number",
+          "privacyDelayConfigured": "unknown",
+          "privacyDelayProfile": "string",
+          "privacyDelayRandom": "boolean",
+          "privacyDelayRangeSeconds": "array<number>",
+          "privacyDelayUntil": "string|null",
+          "ragequitBlockNumber": "string|null",
+          "ragequitExplorerUrl": "string|null",
+          "ragequitTxHash": "string|null",
+          "recipient": "string|null",
+          "requiredNativeFunding": "string|null",
+          "requiredTokenFunding": "string|null",
+          "vettingFee": "unknown",
+          "vettingFeeAmount": "string",
+          "vettingFeeBPS": "string",
+          "walletAddress": "string|null",
+          "walletMode": "string",
+          "warnings": "array<object>",
+          "withdrawalBlockNumber": "string|null",
+          "withdrawalExplorerUrl": "string|null",
+          "withdrawalTxHash": "string|null",
+          "workflowId": "string",
+          "workflowKind": "string"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1082,7 +1383,50 @@
         ]
       },
       "flow watch": {
-        "successFields": {},
+        "successFields": {
+          "action": "string",
+          "aspStatus": "string",
+          "asset": "string",
+          "backupConfirmed": "boolean",
+          "chain": "string",
+          "committedValue": "string|null",
+          "depositAmount": "string",
+          "depositBlockNumber": "string|null",
+          "depositExplorerUrl": "string|null",
+          "depositTxHash": "string|null",
+          "dryRun": "boolean",
+          "estimatedCommitted": "string",
+          "estimatedCommittedValue": "string",
+          "feesApply": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "nextPollAfter": "string|null",
+          "phase": "string",
+          "poolAccountId": "string|null",
+          "poolAccountNumber": "number",
+          "privacyDelayConfigured": "unknown",
+          "privacyDelayProfile": "string",
+          "privacyDelayRandom": "boolean",
+          "privacyDelayRangeSeconds": "array<number>",
+          "privacyDelayUntil": "string|null",
+          "ragequitBlockNumber": "string|null",
+          "ragequitExplorerUrl": "string|null",
+          "ragequitTxHash": "string|null",
+          "recipient": "string|null",
+          "requiredNativeFunding": "string|null",
+          "requiredTokenFunding": "string|null",
+          "vettingFee": "unknown",
+          "vettingFeeAmount": "string",
+          "vettingFeeBPS": "string",
+          "walletAddress": "string|null",
+          "walletMode": "string",
+          "warnings": "array<object>",
+          "withdrawalBlockNumber": "string|null",
+          "withdrawalExplorerUrl": "string|null",
+          "withdrawalTxHash": "string|null",
+          "workflowId": "string",
+          "workflowKind": "string"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1090,7 +1434,50 @@
         ]
       },
       "flow status": {
-        "successFields": {},
+        "successFields": {
+          "action": "string",
+          "aspStatus": "string",
+          "asset": "string",
+          "backupConfirmed": "boolean",
+          "chain": "string",
+          "committedValue": "string|null",
+          "depositAmount": "string",
+          "depositBlockNumber": "string|null",
+          "depositExplorerUrl": "string|null",
+          "depositTxHash": "string|null",
+          "dryRun": "boolean",
+          "estimatedCommitted": "string",
+          "estimatedCommittedValue": "string",
+          "feesApply": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "nextPollAfter": "string|null",
+          "phase": "string",
+          "poolAccountId": "string|null",
+          "poolAccountNumber": "number",
+          "privacyDelayConfigured": "unknown",
+          "privacyDelayProfile": "string",
+          "privacyDelayRandom": "boolean",
+          "privacyDelayRangeSeconds": "array<number>",
+          "privacyDelayUntil": "string|null",
+          "ragequitBlockNumber": "string|null",
+          "ragequitExplorerUrl": "string|null",
+          "ragequitTxHash": "string|null",
+          "recipient": "string|null",
+          "requiredNativeFunding": "string|null",
+          "requiredTokenFunding": "string|null",
+          "vettingFee": "unknown",
+          "vettingFeeAmount": "string",
+          "vettingFeeBPS": "string",
+          "walletAddress": "string|null",
+          "walletMode": "string",
+          "warnings": "array<object>",
+          "withdrawalBlockNumber": "string|null",
+          "withdrawalExplorerUrl": "string|null",
+          "withdrawalTxHash": "string|null",
+          "workflowId": "string",
+          "workflowKind": "string"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1098,7 +1485,50 @@
         ]
       },
       "flow step": {
-        "successFields": {},
+        "successFields": {
+          "action": "string",
+          "aspStatus": "string",
+          "asset": "string",
+          "backupConfirmed": "boolean",
+          "chain": "string",
+          "committedValue": "string|null",
+          "depositAmount": "string",
+          "depositBlockNumber": "string|null",
+          "depositExplorerUrl": "string|null",
+          "depositTxHash": "string|null",
+          "dryRun": "boolean",
+          "estimatedCommitted": "string",
+          "estimatedCommittedValue": "string",
+          "feesApply": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "nextPollAfter": "string|null",
+          "phase": "string",
+          "poolAccountId": "string|null",
+          "poolAccountNumber": "number",
+          "privacyDelayConfigured": "unknown",
+          "privacyDelayProfile": "string",
+          "privacyDelayRandom": "boolean",
+          "privacyDelayRangeSeconds": "array<number>",
+          "privacyDelayUntil": "string|null",
+          "ragequitBlockNumber": "string|null",
+          "ragequitExplorerUrl": "string|null",
+          "ragequitTxHash": "string|null",
+          "recipient": "string|null",
+          "requiredNativeFunding": "string|null",
+          "requiredTokenFunding": "string|null",
+          "vettingFee": "unknown",
+          "vettingFeeAmount": "string",
+          "vettingFeeBPS": "string",
+          "walletAddress": "string|null",
+          "walletMode": "string",
+          "warnings": "array<object>",
+          "withdrawalBlockNumber": "string|null",
+          "withdrawalExplorerUrl": "string|null",
+          "withdrawalTxHash": "string|null",
+          "workflowId": "string",
+          "workflowKind": "string"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1106,7 +1536,50 @@
         ]
       },
       "flow ragequit": {
-        "successFields": {},
+        "successFields": {
+          "action": "string",
+          "aspStatus": "string",
+          "asset": "string",
+          "backupConfirmed": "boolean",
+          "chain": "string",
+          "committedValue": "string|null",
+          "depositAmount": "string",
+          "depositBlockNumber": "string|null",
+          "depositExplorerUrl": "string|null",
+          "depositTxHash": "string|null",
+          "dryRun": "boolean",
+          "estimatedCommitted": "string",
+          "estimatedCommittedValue": "string",
+          "feesApply": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "nextPollAfter": "string|null",
+          "phase": "string",
+          "poolAccountId": "string|null",
+          "poolAccountNumber": "number",
+          "privacyDelayConfigured": "unknown",
+          "privacyDelayProfile": "string",
+          "privacyDelayRandom": "boolean",
+          "privacyDelayRangeSeconds": "array<number>",
+          "privacyDelayUntil": "string|null",
+          "ragequitBlockNumber": "string|null",
+          "ragequitExplorerUrl": "string|null",
+          "ragequitTxHash": "string|null",
+          "recipient": "string|null",
+          "requiredNativeFunding": "string|null",
+          "requiredTokenFunding": "string|null",
+          "vettingFee": "unknown",
+          "vettingFeeAmount": "string",
+          "vettingFeeBPS": "string",
+          "walletAddress": "string|null",
+          "walletMode": "string",
+          "warnings": "array<object>",
+          "withdrawalBlockNumber": "string|null",
+          "withdrawalExplorerUrl": "string|null",
+          "withdrawalTxHash": "string|null",
+          "workflowId": "string",
+          "workflowKind": "string"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1115,18 +1588,29 @@
       },
       "pools": {
         "successFields": {
+          "asset": "string",
           "chain": "string",
           "chainSummaries": "array<object{chain,pools,error}>",
-          "nextActions": "array<unknown>",
-          "pools": "array<object{asset,tokenAddress,pool,scope,decimals,minimumDeposit,vettingFeeBPS,maxRelayFeeBPS,totalInPoolValue,totalInPoolValueUsd,totalDepositsValue,totalDepositsValueUsd,acceptedDepositsValue,acceptedDepositsValueUsd,pendingDepositsValue,pendingDepositsValueUsd,totalDepositsCount,acceptedDepositsCount,pendingDepositsCount,growth24h,pendingGrowth24h,myPoolAccountsCount,chain}>",
+          "decimals": "number",
+          "maxRelayFeeBPS": "string",
+          "minimumDeposit": "string",
+          "myFunds": "unknown",
+          "myFundsWarning": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "pool": "string",
+          "pools": "array<object{chain,asset,tokenAddress,pool,scope,decimals,minimumDeposit,vettingFeeBPS,maxRelayFeeBPS,totalInPoolValue,totalInPoolValueUsd,totalDepositsValue,totalDepositsValueUsd,acceptedDepositsValue,acceptedDepositsValueUsd,pendingDepositsValue,pendingDepositsValueUsd,totalDepositsCount,acceptedDepositsCount,pendingDepositsCount,growth24h,pendingGrowth24h,myPoolAccountsCount}>",
+          "recentActivity": "unknown",
+          "recentActivityUnavailable": "boolean",
           "requestedChain": "string|null",
+          "scope": "string",
           "search": "string|null",
           "sort": "string",
+          "tokenAddress": "string",
+          "vettingFeeBPS": "string",
           "warnings": "array<object{code,category,message}>"
         },
         "requiredSuccessFields": [
           "chain",
-          "pools",
           "search",
           "sort"
         ],
@@ -1136,16 +1620,52 @@
         ]
       },
       "activity": {
-        "successFields": {},
-        "requiredSuccessFields": [],
+        "successFields": {
+          "asset": "string",
+          "chain": "string",
+          "chainFiltered": "boolean",
+          "chains": "array<string>",
+          "events": "array<object{type,txHash,explorerUrl,reviewStatus,amountRaw,amountFormatted,poolSymbol,poolAddress,chainId,timestamp}>",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "note": "string",
+          "page": "number",
+          "perPage": "number",
+          "pool": "string",
+          "scope": "string",
+          "total": "number|null",
+          "totalEvents": "number|null",
+          "totalPages": "number|null"
+        },
+        "requiredSuccessFields": [
+          "chain",
+          "events"
+        ],
         "variants": [
           "success",
           "error"
         ]
       },
       "stats": {
-        "successFields": {},
-        "requiredSuccessFields": [],
+        "successFields": {
+          "allTime": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
+          "asset": "string",
+          "cacheTimestamp": "string|null",
+          "chain": "string",
+          "chains": "array<string>",
+          "command": "string",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "invokedAs": "string",
+          "last24h": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "perChain": "array<object{chain,cacheTimestamp,allTime,last24h}>",
+          "pool": "string",
+          "scope": "string"
+        },
+        "requiredSuccessFields": [
+          "chain"
+        ],
         "variants": [
           "success",
           "error"
@@ -1154,23 +1674,22 @@
       "protocol-stats": {
         "successFields": {
           "allTime": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
+          "asset": "string",
           "cacheTimestamp": "string|null",
           "chain": "string",
           "chains": "array<string>",
           "command": "string",
           "deprecationWarning": "object{code,message,replacementCommand}",
           "invokedAs": "string",
-          "last24h": "unknown|null",
+          "last24h": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
           "mode": "\"global-stats\"",
-          "perChain": "array<object>"
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "perChain": "array<object{chain,cacheTimestamp,allTime,last24h}>",
+          "pool": "string",
+          "scope": "string"
         },
         "requiredSuccessFields": [
-          "allTime",
-          "chain",
-          "chains",
-          "command",
-          "last24h",
-          "mode"
+          "chain"
         ],
         "variants": [
           "success",
@@ -1183,21 +1702,20 @@
           "asset": "string",
           "cacheTimestamp": "string|null",
           "chain": "string",
+          "chains": "array<string>",
           "command": "string",
           "deprecationWarning": "object{code,message,replacementCommand}",
           "invokedAs": "string",
-          "last24h": "unknown|null",
+          "last24h": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
           "mode": "\"pool-stats\"",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "perChain": "array<object{chain,cacheTimestamp,allTime,last24h}>",
           "pool": "string",
           "scope": "string"
         },
         "requiredSuccessFields": [
-          "allTime",
           "asset",
           "chain",
-          "command",
-          "last24h",
-          "mode",
           "pool",
           "scope"
         ],
@@ -1217,18 +1735,26 @@
           "defaultChain": "string|null",
           "entrypoint": "string|null",
           "mode": "string",
-          "nextActions": "array<unknown>",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "pending": "unknown",
+          "phaseGraphRef": "string",
           "readyForDeposit": "boolean",
           "readyForUnsigned": "boolean",
           "readyForWithdraw": "boolean",
           "recommendedMode": "string",
           "recoveryPhraseSet": "boolean",
+          "recoveryTable": "unknown",
+          "relayerHost": "string|null",
+          "relayerLive": "boolean",
           "rpcBlockNumber": "string",
           "rpcIsCustom": "boolean",
           "rpcLive": "boolean",
           "rpcUrl": "string|null",
           "selectedChain": "string|null",
           "signerAddress": "string|null",
+          "signerBalance": "string",
+          "signerBalanceDecimals": "number",
+          "signerBalanceSymbol": "string",
           "signerKeySet": "boolean",
           "signerKeyValid": "boolean",
           "warnings": "array<object>"
@@ -1252,8 +1778,36 @@
         ]
       },
       "tx-status": {
-        "successFields": {},
-        "requiredSuccessFields": [],
+        "successFields": {
+          "asset": "string",
+          "broadcastMode": "string",
+          "broadcastSourceOperation": "string",
+          "chain": "string",
+          "createdAt": "string",
+          "estimatedConfirmationSeconds": "number",
+          "lastError": "object",
+          "localStateSynced": "boolean",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "\"tx-status\"",
+          "pollingRecommendation": "string",
+          "poolAccountId": "string",
+          "poolAccountNumber": "number",
+          "recipient": "string",
+          "reconciliationRequired": "boolean",
+          "sourceCommand": "string",
+          "sourceOperation": "string",
+          "status": "string",
+          "submissionId": "string",
+          "transactions": "array<object>",
+          "updatedAt": "string",
+          "warningCode": "string",
+          "workflowId": "string"
+        },
+        "requiredSuccessFields": [
+          "chain",
+          "operation",
+          "submissionId"
+        ],
         "variants": [
           "success",
           "error"
@@ -1271,7 +1825,7 @@
           "exitCodes": "array<object>",
           "globalFlags": "array<object>",
           "jsonOutputContract": "string",
-          "nextActions": "array<unknown>",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
           "protocol": "object",
           "runtime": "object",
           "safeReadOnlyCommands": "array<string>",
@@ -1300,7 +1854,42 @@
         ]
       },
       "describe": {
-        "successFields": {},
+        "successFields": {
+          "agentFlagNames": "array<string>",
+          "agentWorkflowNotes": "array<string>",
+          "aliases": "array<string>",
+          "command": "string",
+          "commands": "array<object{command,description,group}>",
+          "description": "string",
+          "envelopeRoots": "array<string>",
+          "examples": "array<string>",
+          "execution": "string",
+          "expectedLatencyClass": "string",
+          "expectedNextActionWhen": "array<string>",
+          "flags": "array<string>",
+          "globalFlags": "array<string>",
+          "group": "string",
+          "jsonFields": "string",
+          "jsonVariants": "array<string>",
+          "mode": "\"describe-index\"",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "path": "string",
+          "phaseGraph": "unknown",
+          "phaseGraphRef": "string",
+          "preferredSafeVariant": "unknown",
+          "prerequisites": "array<string>",
+          "requiresHumanReview": "boolean",
+          "requiresInit": "boolean",
+          "safeReadOnly": "boolean",
+          "safetyNotes": "array<string>",
+          "schema": "unknown",
+          "sideEffectClass": "string",
+          "structuredExamples": "array<object>",
+          "supportsDryRun": "boolean",
+          "supportsUnsigned": "boolean",
+          "touchesFunds": "boolean",
+          "usage": "string"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1308,7 +1897,13 @@
         ]
       },
       "guide": {
-        "successFields": {},
+        "successFields": {
+          "help": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "topic": "string",
+          "topics": "array<object>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1329,6 +1924,7 @@
           "feesApply": "boolean",
           "label": "string|null",
           "localStateSynced": "boolean",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
           "operation": "\"deposit\"",
           "poolAccountId": "string",
           "poolAccountNumber": "number",
@@ -1366,13 +1962,15 @@
           "explorerUrl": "string|null",
           "extraGas": "boolean",
           "extraGasFundAmount": "string|null",
-          "feeBPS": "string",
+          "feeBPS": "string|null",
           "localStateSynced": "boolean",
           "mode": "\"relayed\"|\"direct\"",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
           "operation": "\"withdraw\"",
           "poolAccountId": "string",
           "poolAccountNumber": "number",
           "poolAddress": "string",
+          "privacyCostManifest": "unknown",
           "quoteRefreshCount": "number",
           "recipient": "string",
           "reconciliationRequired": "boolean",
@@ -1398,15 +1996,56 @@
         ]
       },
       "withdraw quote": {
-        "successFields": {},
-        "requiredSuccessFields": [],
+        "successFields": {
+          "amount": "string",
+          "anonymitySet": "object",
+          "asset": "string",
+          "baseFeeBPS": "string",
+          "chain": "string",
+          "extraGas": "boolean",
+          "extraGasFundAmount": "string",
+          "extraGasTxCost": "string",
+          "feeAmount": "string",
+          "feeCommitmentPresent": "boolean",
+          "isTestnet": "boolean",
+          "minWithdrawAmount": "string",
+          "minWithdrawAmountFormatted": "string",
+          "mode": "\"relayed-quote\"",
+          "netAmount": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "quoteExpiresAt": "string",
+          "quoteFeeBPS": "string",
+          "quoteRefreshCount": "number",
+          "recipient": "string",
+          "relayerHost": "string",
+          "relayTxCost": "string",
+          "warnings": "array<object{code,category,message}>"
+        },
+        "requiredSuccessFields": [
+          "amount",
+          "asset",
+          "chain"
+        ],
         "variants": [
           "success",
           "error"
         ]
       },
       "recipients": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1414,7 +2053,20 @@
         ]
       },
       "recipients list": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1422,7 +2074,20 @@
         ]
       },
       "recipients add": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1430,7 +2095,20 @@
         ]
       },
       "recipients remove": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1438,7 +2116,20 @@
         ]
       },
       "recipients clear": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1446,7 +2137,20 @@
         ]
       },
       "withdraw recipients": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1454,7 +2158,20 @@
         ]
       },
       "withdraw recipients list": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1462,7 +2179,20 @@
         ]
       },
       "withdraw recipients add": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1470,7 +2200,20 @@
         ]
       },
       "withdraw recipients remove": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1478,7 +2221,20 @@
         ]
       },
       "withdraw recipients clear": {
-        "successFields": {},
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string|null",
+          "cleared": "boolean",
+          "count": "number",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "string",
+          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
+          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
+          "removed": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1486,15 +2242,55 @@
         ]
       },
       "ragequit": {
-        "successFields": {},
-        "requiredSuccessFields": [],
+        "successFields": {
+          "amount": "string",
+          "asset": "string",
+          "blockNumber": "string|number|null",
+          "chain": "string",
+          "deprecationWarning": "object{code,message,replacementCommand}",
+          "destinationAddress": "string",
+          "explorerUrl": "string|null",
+          "localStateSynced": "boolean",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "\"ragequit\"",
+          "poolAccountId": "string",
+          "poolAccountNumber": "number",
+          "poolAddress": "string",
+          "privacyCostManifest": "unknown",
+          "reconciliationRequired": "boolean",
+          "scope": "string",
+          "status": "\"submitted\"|\"confirmed\"",
+          "submissionId": "string",
+          "txHash": "string",
+          "warningCode": "string|null",
+          "warnings": "array<object{code,category,message}>"
+        },
+        "requiredSuccessFields": [
+          "amount",
+          "asset",
+          "chain",
+          "operation"
+        ],
         "variants": [
           "success",
           "error"
         ]
       },
       "simulate deposit": {
-        "successFields": {},
+        "successFields": {
+          "amount": "string",
+          "asset": "string",
+          "chain": "string",
+          "dryRun": "boolean",
+          "estimatedCommitted": "string",
+          "feesApply": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "\"deposit\"",
+          "vettingFeeAmount": "string",
+          "vettingFeeBPS": "string",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1502,7 +2298,28 @@
         ]
       },
       "simulate withdraw": {
-        "successFields": {},
+        "successFields": {
+          "amount": "string",
+          "anonymitySet": "object",
+          "asset": "string",
+          "chain": "string",
+          "dryRun": "boolean",
+          "extraGas": "boolean",
+          "feeBPS": "string",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "\"withdraw\"",
+          "poolAccountId": "string",
+          "poolAccountNumber": "number",
+          "proofPublicSignals": "unknown",
+          "quoteExpiresAt": "string",
+          "quoteRefreshCount": "number",
+          "recipient": "string",
+          "relayerHost": "string",
+          "selectedCommitmentLabel": "string",
+          "selectedCommitmentValue": "string",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1510,7 +2327,19 @@
         ]
       },
       "simulate ragequit": {
-        "successFields": {},
+        "successFields": {
+          "amount": "string",
+          "asset": "string",
+          "chain": "string",
+          "destinationAddress": "string",
+          "dryRun": "boolean",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "operation": "\"ragequit\"",
+          "poolAccountId": "string",
+          "poolAccountNumber": "number",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1518,7 +2347,19 @@
         ]
       },
       "broadcast": {
-        "successFields": {},
+        "successFields": {
+          "broadcastMode": "string",
+          "chain": "string",
+          "localStateUpdated": "boolean",
+          "mode": "\"broadcast\"",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "sourceOperation": "string",
+          "submissionId": "string|null",
+          "submittedBy": "string",
+          "transactions": "array<object>",
+          "validatedOnly": "boolean",
+          "warnings": "array<object{code,category,message}>"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",
@@ -1527,16 +2368,22 @@
       },
       "accounts": {
         "successFields": {
-          "accounts": "array<object>",
+          "accounts": "array<object{poolAccountNumber,poolAccountId,status,aspStatus,asset,scope,value,hash,label,blockNumber,txHash,explorerUrl,chain,chainId}>",
           "allChains": "boolean",
-          "balances": "array<object>",
+          "approvedCount": "number",
+          "balances": "array<object{asset,balance,usdValue,poolAccounts,chain,chainId}>",
           "chain": "string",
           "chains": "array<string>",
+          "declinedCount": "number",
+          "exitedCount": "number",
           "lastSyncTime": "string|null",
-          "nextActions": "array<unknown>",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
           "pendingCount": "number",
+          "poaRequiredCount": "number",
           "requestedChain": "string|null",
+          "spentCount": "number",
           "syncSkipped": "boolean",
+          "unknownCount": "number",
           "warnings": "array<object{code,category,message}>"
         },
         "requiredSuccessFields": [
@@ -1548,39 +2395,129 @@
         ]
       },
       "migrate": {
-        "successFields": {},
-        "requiredSuccessFields": [],
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string",
+          "chainReadiness": "array<object>",
+          "chains": "array<string>",
+          "externalGuidance": "object{kind,message,command}",
+          "isFullyMigrated": "boolean",
+          "migratedChainIds": "array<number>",
+          "missingChainIds": "array<number>",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "readinessResolved": "boolean",
+          "requiredChainIds": "array<number>",
+          "requiresMigration": "boolean",
+          "requiresWebsiteRecovery": "boolean",
+          "status": "string",
+          "submissionSupported": "boolean",
+          "unresolvedChainIds": "array<number>",
+          "warnings": "array<object{code,category,message}>",
+          "websiteRecoveryChainIds": "array<number>"
+        },
+        "requiredSuccessFields": [
+          "chain"
+        ],
         "variants": [
           "success",
           "error"
         ]
       },
       "migrate status": {
-        "successFields": {},
-        "requiredSuccessFields": [],
+        "successFields": {
+          "allChains": "boolean",
+          "chain": "string",
+          "chainReadiness": "array<object>",
+          "chains": "array<string>",
+          "externalGuidance": "object{kind,message,command}",
+          "isFullyMigrated": "boolean",
+          "migratedChainIds": "array<number>",
+          "missingChainIds": "array<number>",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "readinessResolved": "boolean",
+          "requiredChainIds": "array<number>",
+          "requiresMigration": "boolean",
+          "requiresWebsiteRecovery": "boolean",
+          "status": "string",
+          "submissionSupported": "boolean",
+          "unresolvedChainIds": "array<number>",
+          "warnings": "array<object{code,category,message}>",
+          "websiteRecoveryChainIds": "array<number>"
+        },
+        "requiredSuccessFields": [
+          "chain"
+        ],
         "variants": [
           "success",
           "error"
         ]
       },
       "history": {
-        "successFields": {},
-        "requiredSuccessFields": [],
+        "successFields": {
+          "chain": "string",
+          "events": "array<object{type,asset,poolAddress,poolAccountNumber,poolAccountId,value,blockNumber,txHash,explorerUrl}>",
+          "lastSyncTime": "string|null",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "page": "number",
+          "perPage": "number",
+          "syncSkipped": "boolean",
+          "total": "number|null",
+          "totalPages": "number|null"
+        },
+        "requiredSuccessFields": [
+          "chain",
+          "events"
+        ],
         "variants": [
           "success",
           "error"
         ]
       },
       "sync": {
-        "successFields": {},
-        "requiredSuccessFields": [],
+        "successFields": {
+          "availablePoolAccounts": "number",
+          "chain": "string",
+          "durationMs": "number",
+          "eventCounts": "object",
+          "isFinal": "boolean",
+          "lastSyncTime": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "previousAvailablePoolAccounts": "number",
+          "scannedFromBlock": "string",
+          "scannedToBlock": "string",
+          "syncedPools": "number",
+          "syncedSymbols": "array<string>"
+        },
+        "requiredSuccessFields": [
+          "chain"
+        ],
         "variants": [
           "success",
           "error"
         ]
       },
       "completion": {
-        "successFields": {},
+        "successFields": {
+          "bootstrapProfileCreated": "boolean",
+          "bootstrapProfilePath": "string",
+          "bootstrapProfileUpdated": "boolean",
+          "candidates": "array<string>",
+          "completionScript": "string",
+          "cword": "number",
+          "mode": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "profileCreated": "boolean",
+          "profilePath": "string",
+          "profileUpdated": "boolean",
+          "reloadHint": "string",
+          "scriptCreated": "boolean",
+          "scriptPath": "string",
+          "scriptUpdated": "boolean",
+          "shell": "string"
+        },
         "requiredSuccessFields": [],
         "variants": [
           "success",

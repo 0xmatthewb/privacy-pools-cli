@@ -87,8 +87,7 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
@@ -125,7 +124,7 @@
                       "pools",
                       "error"
                     ],
-                    "additionalProperties": {}
+                    "additionalProperties": false
                   }
                 },
                 "search": {
@@ -142,6 +141,9 @@
                   "items": {
                     "type": "object",
                     "properties": {
+                      "chain": {
+                        "type": "string"
+                      },
                       "asset": {
                         "type": "string"
                       },
@@ -225,9 +227,6 @@
                       },
                       "myPoolAccountsCount": {
                         "type": "number"
-                      },
-                      "chain": {
-                        "type": "string"
                       }
                     },
                     "required": [
@@ -243,8 +242,42 @@
                       "totalDepositsCount",
                       "pendingDepositsCount"
                     ],
-                    "additionalProperties": {}
+                    "additionalProperties": false
                   }
+                },
+                "asset": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                },
+                "tokenAddress": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                },
+                "pool": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                },
+                "scope": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                },
+                "decimals": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/myPoolAccountsCount"
+                },
+                "minimumDeposit": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                },
+                "vettingFeeBPS": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                },
+                "maxRelayFeeBPS": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                },
+                "myFunds": {},
+                "myFundsWarning": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                },
+                "recentActivity": {
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/myFunds"
+                },
+                "recentActivityUnavailable": {
+                  "type": "boolean"
                 },
                 "warnings": {
                   "type": "array",
@@ -264,7 +297,7 @@
                     "required": [
                       "message"
                     ],
-                    "additionalProperties": {}
+                    "additionalProperties": false
                   }
                 },
                 "nextActions": {
@@ -277,10 +310,8 @@
               "required": [
                 "chain",
                 "search",
-                "sort",
-                "pools"
-              ],
-              "additionalProperties": {}
+                "sort"
+              ]
             }
           ]
         },
@@ -353,7 +384,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -388,7 +419,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "pools"

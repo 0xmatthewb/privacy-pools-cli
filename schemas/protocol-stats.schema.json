@@ -87,8 +87,7 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
@@ -121,7 +120,7 @@
                     "message",
                     "replacementCommand"
                   ],
-                  "additionalProperties": {}
+                  "additionalProperties": false
                 },
                 "chain": {
                   "type": "string"
@@ -131,6 +130,15 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "asset": {
+                  "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/invokedAs"
+                },
+                "pool": {
+                  "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/invokedAs"
+                },
+                "scope": {
+                  "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/invokedAs"
                 },
                 "cacheTimestamp": {
                   "type": [
@@ -198,7 +206,7 @@
                           ]
                         }
                       },
-                      "additionalProperties": {}
+                      "additionalProperties": false
                     },
                     {
                       "type": "null"
@@ -219,19 +227,52 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "additionalProperties": {}
+                    "properties": {
+                      "chain": {
+                        "type": "string"
+                      },
+                      "cacheTimestamp": {
+                        "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/cacheTimestamp"
+                      },
+                      "allTime": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "last24h": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "chain",
+                      "allTime",
+                      "last24h"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 }
               },
               "required": [
-                "mode",
-                "command",
-                "chain",
-                "chains",
-                "allTime",
-                "last24h"
-              ],
-              "additionalProperties": {}
+                "chain"
+              ]
             }
           ]
         },
@@ -304,7 +345,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -339,7 +380,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "protocol-stats"

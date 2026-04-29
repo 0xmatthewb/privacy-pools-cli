@@ -14,7 +14,24 @@ const { commandEnvelopeSchemas } = await import(
   pathToFileURL(join(repoRoot, "dist", "types", "envelopes", "commands.js")).href
 );
 
-function typeSummary(schema) {
+function resolveJsonPointer(root, pointer) {
+  if (!pointer.startsWith("#/")) return undefined;
+  return pointer
+    .slice(2)
+    .split("/")
+    .map((part) => part.replace(/~1/g, "/").replace(/~0/g, "~"))
+    .reduce((value, key) => value?.[key], root);
+}
+
+function dereference(root, schema) {
+  if (!schema || typeof schema !== "object" || typeof schema.$ref !== "string") {
+    return schema;
+  }
+  return resolveJsonPointer(root, schema.$ref) ?? schema;
+}
+
+function typeSummary(schema, root = schema) {
+  schema = dereference(root, schema);
   if (!schema || typeof schema !== "object") return "unknown";
   if (typeof schema.const !== "undefined") return JSON.stringify(schema.const);
   if (Array.isArray(schema.enum)) {
@@ -23,7 +40,7 @@ function typeSummary(schema) {
   if (Array.isArray(schema.type)) return schema.type.join("|");
   if (typeof schema.type === "string") {
     if (schema.type === "array") {
-      return `array<${typeSummary(schema.items)}>`;
+      return `array<${typeSummary(schema.items, root)}>`;
     }
     if (schema.type === "object") {
       const keys = Object.keys(schema.properties ?? {});
@@ -32,37 +49,74 @@ function typeSummary(schema) {
     return schema.type;
   }
   if (Array.isArray(schema.anyOf)) {
-    return schema.anyOf.map(typeSummary).join("|");
+    return schema.anyOf.map((item) => typeSummary(item, root)).join("|");
   }
   if (Array.isArray(schema.oneOf)) {
-    return schema.oneOf.map(typeSummary).join("|");
+    return schema.oneOf.map((item) => typeSummary(item, root)).join("|");
   }
   if (Array.isArray(schema.allOf)) {
-    return schema.allOf.map(typeSummary).join("&");
+    return schema.allOf.map((item) => typeSummary(item, root)).join("&");
   }
   return "unknown";
 }
 
-function successPayloadSchema(command, schema) {
+function collectProperties(schema, root, result = {}) {
+  schema = dereference(root, schema);
+  if (!schema || typeof schema !== "object") return result;
+  if (schema.properties && typeof schema.properties === "object") {
+    Object.assign(result, schema.properties);
+  }
+  for (const key of ["anyOf", "oneOf", "allOf"]) {
+    if (!Array.isArray(schema[key])) continue;
+    for (const item of schema[key]) {
+      collectProperties(item, root, result);
+    }
+  }
+  return result;
+}
+
+function collectRequired(schema, root, result = new Set()) {
+  schema = dereference(root, schema);
+  if (!schema || typeof schema !== "object") return result;
+  for (const field of schema.required ?? []) {
+    result.add(field);
+  }
+  if (Array.isArray(schema.allOf)) {
+    for (const item of schema.allOf) {
+      collectRequired(item, root, result);
+    }
+  }
+  return result;
+}
+
+function successPayloadContract(command, schema) {
   const jsonSchema = zodToJsonSchema(schema, {
     name: `${command} envelope`,
     target: "jsonSchema7",
   });
   const definition = jsonSchema.definitions?.[`${command} envelope`];
   const successVariant = definition?.anyOf?.[0];
-  return successVariant?.allOf?.[1] ?? { properties: {}, required: [] };
+  const payloadSchema = successVariant?.allOf?.[1] ?? { properties: {}, required: [] };
+  return {
+    properties: collectProperties(payloadSchema, jsonSchema),
+    required: [...collectRequired(payloadSchema, jsonSchema)],
+    root: jsonSchema,
+  };
 }
 
 export function generateJsonContractSection() {
   const commands = {};
   for (const [command, schema] of Object.entries(commandEnvelopeSchemas)) {
-    const payloadSchema = successPayloadSchema(command, schema);
+    const payloadSchema = successPayloadContract(command, schema);
     const properties = payloadSchema.properties ?? {};
     commands[command] = {
       successFields: Object.fromEntries(
         Object.entries(properties)
           .sort(([left], [right]) => left.localeCompare(right))
-          .map(([field, fieldSchema]) => [field, typeSummary(fieldSchema)]),
+          .map(([field, fieldSchema]) => [
+            field,
+            typeSummary(fieldSchema, payloadSchema.root),
+          ]),
       ),
       requiredSuccessFields: [...(payloadSchema.required ?? [])].sort(),
       variants: ["success", "error"],

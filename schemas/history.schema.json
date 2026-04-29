@@ -87,13 +87,91 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "page": {
+                  "type": "number"
+                },
+                "perPage": {
+                  "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/page"
+                },
+                "total": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "totalPages": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "lastSyncTime": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "syncSkipped": {
+                  "type": "boolean"
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "asset": {
+                        "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "poolAddress": {
+                        "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "poolAccountNumber": {
+                        "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/page"
+                      },
+                      "poolAccountId": {
+                        "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "value": {
+                        "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "blockNumber": {
+                        "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "txHash": {
+                        "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "explorerUrl": {
+                        "$ref": "#/definitions/history envelope/anyOf/0/allOf/1/properties/mode"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/history envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "chain",
+                "events"
+              ]
             }
           ]
         },
@@ -166,7 +244,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +279,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "history"

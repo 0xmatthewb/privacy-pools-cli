@@ -87,13 +87,93 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "operation": {
+                  "type": "string",
+                  "const": "withdraw"
+                },
+                "mode": {
+                  "type": "string"
+                },
+                "dryRun": {
+                  "type": "boolean"
+                },
+                "chain": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "asset": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "amount": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                },
+                "recipient": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "poolAccountNumber": {
+                  "type": "number"
+                },
+                "poolAccountId": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "selectedCommitmentLabel": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "selectedCommitmentValue": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "proofPublicSignals": {},
+                "feeBPS": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "quoteExpiresAt": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "relayerHost": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "quoteRefreshCount": {
+                  "$ref": "#/definitions/simulate withdraw envelope/anyOf/0/allOf/1/properties/poolAccountNumber"
+                },
+                "extraGas": {
+                  "type": "boolean"
+                },
+                "anonymitySet": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
             }
           ]
         },
@@ -166,7 +246,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +281,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "simulate withdraw"

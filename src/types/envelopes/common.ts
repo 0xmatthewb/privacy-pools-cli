@@ -1,9 +1,5 @@
 import { z } from "zod";
 
-function extensibleObject<T extends z.ZodRawShape>(shape: T): z.ZodObject<T, "strip", z.ZodTypeAny, z.objectOutputType<T, z.ZodTypeAny>, z.objectInputType<T, z.ZodTypeAny>> {
-  return z.object(shape).catchall(z.unknown());
-}
-
 export const nextActionSchema = z.object({
   command: z.string(),
   reason: z.string(),
@@ -24,7 +20,7 @@ export const errorEnvelopeSchema = z.object({
   success: z.literal(false),
   errorCode: z.string(),
   errorMessage: z.string(),
-  error: extensibleObject({
+  error: z.object({
     code: z.string(),
     category: z.string(),
     message: z.string(),
@@ -42,13 +38,13 @@ export const errorEnvelopeSchema = z.object({
   helpTopic: z.string().optional(),
   nextActions: z.array(nextActionSchema).optional(),
   retry: z.record(z.unknown()).optional(),
-}).catchall(z.unknown());
+});
 
 export const successEnvelopeSchema = z.object({
   schemaVersion: z.string(),
   success: z.literal(true),
   nextActions: z.array(nextActionSchema).optional(),
-}).catchall(z.unknown());
+});
 
 export const cliEnvelopeSchema = z.union([
   successEnvelopeSchema,

@@ -87,8 +87,7 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
@@ -141,6 +140,15 @@
                     "null"
                   ]
                 },
+                "signerBalance": {
+                  "$ref": "#/definitions/status envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "signerBalanceDecimals": {
+                  "type": "number"
+                },
+                "signerBalanceSymbol": {
+                  "$ref": "#/definitions/status envelope/anyOf/0/allOf/1/properties/mode"
+                },
                 "entrypoint": {
                   "type": [
                     "string",
@@ -148,6 +156,12 @@
                   ]
                 },
                 "aspHost": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "relayerHost": {
                   "type": [
                     "string",
                     "null"
@@ -186,20 +200,30 @@
                     "additionalProperties": {}
                   }
                 },
+                "aspLive": {
+                  "$ref": "#/definitions/status envelope/anyOf/0/allOf/1/properties/rpcIsCustom"
+                },
+                "rpcLive": {
+                  "$ref": "#/definitions/status envelope/anyOf/0/allOf/1/properties/rpcIsCustom"
+                },
+                "relayerLive": {
+                  "$ref": "#/definitions/status envelope/anyOf/0/allOf/1/properties/rpcIsCustom"
+                },
+                "rpcBlockNumber": {
+                  "$ref": "#/definitions/status envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "pending": {},
+                "recoveryTable": {
+                  "$ref": "#/definitions/status envelope/anyOf/0/allOf/1/properties/pending"
+                },
+                "phaseGraphRef": {
+                  "$ref": "#/definitions/status envelope/anyOf/0/allOf/1/properties/mode"
+                },
                 "nextActions": {
                   "type": "array",
                   "items": {
                     "$ref": "#/definitions/status envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
-                },
-                "aspLive": {
-                  "type": "boolean"
-                },
-                "rpcLive": {
-                  "type": "boolean"
-                },
-                "rpcBlockNumber": {
-                  "type": "string"
                 }
               },
               "required": [
@@ -214,8 +238,7 @@
                 "readyForWithdraw",
                 "readyForUnsigned",
                 "recommendedMode"
-              ],
-              "additionalProperties": {}
+              ]
             }
           ]
         },
@@ -288,7 +311,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -323,7 +346,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "status"

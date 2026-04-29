@@ -87,13 +87,115 @@
               "required": [
                 "schemaVersion",
                 "success"
-              ],
-              "additionalProperties": {}
+              ]
             },
             {
               "type": "object",
-              "properties": {},
-              "additionalProperties": {}
+              "properties": {
+                "mode": {
+                  "type": "string"
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "chains": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "page": {
+                  "type": "number"
+                },
+                "perPage": {
+                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/page"
+                },
+                "total": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "totalEvents": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "totalPages": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "chainFiltered": {
+                  "type": "boolean"
+                },
+                "note": {
+                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "asset": {
+                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "pool": {
+                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "scope": {
+                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "txHash": {
+                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "explorerUrl": {
+                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "reviewStatus": {
+                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "amountRaw": {
+                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "amountFormatted": {
+                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "poolSymbol": {
+                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "poolAddress": {
+                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "chainId": {
+                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/page"
+                      },
+                      "timestamp": {
+                        "type": [
+                          "string",
+                          "number"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "nextActions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/activity envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                  }
+                }
+              },
+              "required": [
+                "chain",
+                "events"
+              ]
             }
           ]
         },
@@ -166,7 +268,7 @@
                 "category",
                 "message"
               ],
-              "additionalProperties": {}
+              "additionalProperties": false
             },
             "availableFields": {
               "type": "array",
@@ -201,7 +303,7 @@
             "errorMessage",
             "error"
           ],
-          "additionalProperties": {}
+          "additionalProperties": false
         }
       ],
       "description": "activity"
