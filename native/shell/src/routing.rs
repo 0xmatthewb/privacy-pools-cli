@@ -277,6 +277,7 @@ pub(crate) fn manifest_allows_native_mode(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::known_addresses::ZERO_ADDRESS_CHECKSUMMED;
     use crate::root_argv::parse_root_argv;
     use serde_json::json;
     use std::env;
@@ -347,7 +348,7 @@ mod tests {
                 "defaultRpcUrls": {},
                 "chainNames": [],
                 "mainnetChainNames": [],
-                "nativeAssetAddress": "0x0000000000000000000000000000000000000000",
+                "nativeAssetAddress": ZERO_ADDRESS_CHECKSUMMED,
                 "knownPools": {},
                 "explorerUrls": {},
                 "chains": {}

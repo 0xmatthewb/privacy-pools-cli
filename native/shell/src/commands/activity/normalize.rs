@@ -158,6 +158,7 @@ fn normalize_asp_approval_status(raw_status: Option<&str>) -> &'static str {
 mod tests {
     use super::normalize_activity_events;
     use crate::contract::Manifest;
+    use crate::known_addresses::ZERO_ADDRESS_CHECKSUMMED;
     use serde_json::json;
 
     fn manifest() -> Manifest {
@@ -188,7 +189,7 @@ mod tests {
                 "defaultRpcUrls": {},
                 "chainNames": [],
                 "mainnetChainNames": [],
-                "nativeAssetAddress": "0x0000000000000000000000000000000000000000",
+                "nativeAssetAddress": ZERO_ADDRESS_CHECKSUMMED,
                 "knownPools": {},
                 "explorerUrls": { "1": "https://etherscan.io" },
                 "chains": {}
