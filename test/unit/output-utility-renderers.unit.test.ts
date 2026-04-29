@@ -458,12 +458,63 @@ describe("renderStatus parity", () => {
       {
         command: "pools",
         reason:
-          "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
+          "Connectivity checks are degraded. Stay on public pool discovery until RPC, ASP, and relayer health recover.",
         when: "status_degraded_health",
         options: { agent: true, chain: "sepolia" },
       },
       "privacy-pools pools --agent --chain sepolia",
     );
+  });
+
+  test("JSON mode: includes relayer health and aggregated bootstrap payload", () => {
+    const ctx = createOutputContext(makeMode({ isJson: true }));
+    const result: StatusCheckResult = {
+      ...STUB_STATUS,
+      rpcLive: true,
+      aspLive: true,
+      relayerLive: false,
+      relayerHost: "https://relayer.example",
+      aggregated: {
+        pending: {
+          workflows: [],
+          submissions: [],
+          poolAccounts: [],
+        },
+        recoveryTable: {
+          LOCK_HELD: {
+            classification: "retry-only",
+            symptom: "LOCK_HELD is retryable",
+            firstTry: "retry with backoff",
+            retry: { strategy: "fixed-backoff" },
+          },
+        },
+        phaseGraphRef: "flow",
+      },
+    };
+    const { json } = captureJsonOutput(() => renderStatus(ctx, result));
+
+    expect(json.relayerHost).toBe("https://relayer.example");
+    expect(json.relayerLive).toBe(false);
+    expect(json.pending).toEqual({
+      workflows: [],
+      submissions: [],
+      poolAccounts: [],
+    });
+    expect(json.phaseGraphRef).toBe("flow");
+    expect(json.recoveryTable.LOCK_HELD.classification).toBe("retry-only");
+    expect(json.warnings).toEqual([
+      {
+        code: "relayer_unreachable",
+        message:
+          "The configured relayer endpoint is unreachable. Private relayed withdrawals may be degraded; public recovery remains available when RPC is healthy.",
+        affects: ["withdraw", "unsigned"],
+      },
+    ]);
+    expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
+      "pools",
+      "ragequit",
+      "flow ragequit",
+    ]);
   });
 
   test("JSON mode: emits init remediation in nextActions when setup is incomplete", () => {
@@ -646,8 +697,8 @@ describe("renderStatus parity", () => {
     const { stderr } = captureOutput(() => renderStatus(ctx, STUB_STATUS));
 
     expect(stderr).toMatch(/Checks:\s+skipped/);
-    expect(stderr).toContain("--check to force both");
-    expect(stderr).toContain("--no-check to disable both");
+    expect(stderr).toContain("--check to force all");
+    expect(stderr).toContain("--no-check to disable them");
   });
 
   test("human mode: shows setup complete when config+mnemonic+signer present", () => {

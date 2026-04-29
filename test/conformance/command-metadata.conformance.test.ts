@@ -12,6 +12,7 @@ import {
   GLOBAL_FLAG_METADATA,
   listCommandPaths,
 } from "../../src/utils/command-metadata.ts";
+import { buildCommandDescriptor } from "../../src/utils/command-discovery-metadata.ts";
 import { ROOT_GLOBAL_FLAG_METADATA } from "../../src/utils/root-global-flags.ts";
 import { NEXT_ACTION_WHEN_VALUES } from "../../src/types.ts";
 
@@ -191,11 +192,25 @@ describe("command metadata conformance", () => {
     expect(poolsJsonVariants).toContain("recentActivity");
     expect(poolsAgentWorkflow).toContain("may be null");
     expect(poolsAgentWorkflow).toContain("totalInPoolValue*");
-    expect(statusFlags).toEqual(["--check [scope]", "--no-check"]);
+    expect(statusFlags).toEqual(["--check [scope]", "--no-check", "--aggregated"]);
     expect(syncOverview).toContain("Bare `privacy-pools sync` re-syncs every discovered pool");
     expect(syncExamples).toContain("privacy-pools sync");
     expect(syncExamples).toContain("privacy-pools sync ETH --agent");
     expect(withdrawQuoteFields).toContain("baseFeeBPS");
     expect(withdrawQuoteFields).toContain("relayTxCost");
+  });
+
+  test("flow describe metadata exposes one canonical phase graph", () => {
+    const flow = buildCommandDescriptor("flow");
+    const flowStatus = buildCommandDescriptor("flow status");
+
+    expect(flow.phaseGraph?.nodes).toContain("awaiting_asp");
+    expect(flow.phaseGraph?.terminal).toEqual([
+      "completed",
+      "completed_public_recovery",
+      "stopped_external",
+    ]);
+    expect(flowStatus.phaseGraph).toBeUndefined();
+    expect(flowStatus.phaseGraphRef).toBe("flow");
   });
 });

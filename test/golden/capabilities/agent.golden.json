@@ -4,7 +4,7 @@
     "firstRun": "Proof generation uses bundled checksum-verified circuit artifacts shipped with the CLI. The first proof may spend a moment verifying them; subsequent proofs are typically ~10-30s.",
     "metaFlag": "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
     "polling": "After depositing, poll 'accounts --agent --chain <chain> --pending-only' while the Pool Account remains pending. Reviewed entries disappear from --pending-only results; once gone, re-run 'accounts --agent --chain <chain>' to confirm whether aspStatus is 'approved', 'declined', or 'poa_required'. Withdraw only after approval; ragequit if declined; complete Proof of Association at https://tornado.0xbow.io first if poa_required. Always preserve the same --chain scope for both polling and confirmation. Most deposits are approved within 1 hour, but some may take longer (up to 7 days). Follow nextActions from the deposit response for the canonical polling command.",
-    "statusCheck": "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC or ASP health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known.",
+    "statusCheck": "Run 'status --agent --check --aggregated' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC, ASP, or relayer health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP or relayer is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known.",
     "unsignedMode": "--unsigned builds transaction payloads without signing or submitting. Use --unsigned tx for a raw transaction array (no envelope). Requires init (recovery phrase) for deposit secret generation, but does NOT require a signer key. The 'from' field is included for signer-aware workflows: it is null when the signer is unconstrained, and set to the required caller address when the protocol requires one. 'broadcast' is an optional first-party inverse for full-envelope workflows; Bankr and custom signers can keep using their own submission logic unchanged.",
     "withdrawQuote": "Use 'withdraw quote <amount> <asset> --agent' to check relayer fees before committing to a withdrawal."
   },
@@ -1529,6 +1529,7 @@
       "examples": [
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
+        "privacy-pools describe flow --agent",
         "privacy-pools describe protocol-stats --agent",
         "privacy-pools describe envelope.nextActions --agent",
         "privacy-pools describe envelope.commands.status.successFields --agent"
@@ -1568,7 +1569,7 @@
         "--profile <name>"
       ],
       "group": "advanced",
-      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples: [{ description, command, category? }], jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentFlagNames?, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
+      "jsonFields": "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, phaseGraph?, phaseGraphRef?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples: [{ description, command, category? }], jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentFlagNames?, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
       "jsonVariants": [],
       "prerequisites": [],
       "requiresHumanReview": false,
@@ -1588,16 +1589,20 @@
           "description": "Example 2"
         },
         {
-          "command": "privacy-pools describe protocol-stats --agent",
+          "command": "privacy-pools describe flow --agent",
           "description": "Example 3"
         },
         {
-          "command": "privacy-pools describe envelope.nextActions --agent",
+          "command": "privacy-pools describe protocol-stats --agent",
           "description": "Example 4"
         },
         {
-          "command": "privacy-pools describe envelope.commands.status.successFields --agent",
+          "command": "privacy-pools describe envelope.nextActions --agent",
           "description": "Example 5"
+        },
+        {
+          "command": "privacy-pools describe envelope.commands.status.successFields --agent",
+          "description": "Example 6"
         }
       ],
       "supportsDryRun": false,
@@ -1680,6 +1685,162 @@
       "jsonVariants": [
         "flow start --dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }"
       ],
+      "phaseGraph": {
+        "edges": [
+          {
+            "from": "awaiting_funding",
+            "to": "depositing_publicly",
+            "trigger": "flow step observes dedicated workflow wallet funding"
+          },
+          {
+            "from": "depositing_publicly",
+            "to": "awaiting_asp",
+            "trigger": "public deposit confirms onchain"
+          },
+          {
+            "from": "awaiting_asp",
+            "to": "approved_waiting_privacy_delay",
+            "trigger": "ASP status is approved and a privacy delay is active"
+          },
+          {
+            "from": "awaiting_asp",
+            "to": "approved_ready_to_withdraw",
+            "trigger": "ASP status is approved and privacy delay is complete or off"
+          },
+          {
+            "from": "awaiting_asp",
+            "to": "paused_declined",
+            "trigger": "ASP status is declined"
+          },
+          {
+            "from": "awaiting_asp",
+            "to": "paused_poa_required",
+            "trigger": "ASP status is poa_required"
+          },
+          {
+            "from": "approved_waiting_privacy_delay",
+            "to": "approved_ready_to_withdraw",
+            "trigger": "privacy delay expires"
+          },
+          {
+            "from": "paused_poa_required",
+            "to": "awaiting_asp",
+            "trigger": "operator completes PoA externally and the next status refresh observes review progress"
+          },
+          {
+            "from": "approved_ready_to_withdraw",
+            "to": "withdrawing",
+            "trigger": "relayed withdrawal is submitted"
+          },
+          {
+            "from": "withdrawing",
+            "to": "completed",
+            "trigger": "relayed private withdrawal confirms"
+          },
+          {
+            "from": "awaiting_funding",
+            "to": "completed_public_recovery",
+            "trigger": "operator runs flow ragequit"
+          },
+          {
+            "from": "depositing_publicly",
+            "to": "completed_public_recovery",
+            "trigger": "operator runs flow ragequit"
+          },
+          {
+            "from": "awaiting_asp",
+            "to": "completed_public_recovery",
+            "trigger": "operator runs flow ragequit"
+          },
+          {
+            "from": "approved_waiting_privacy_delay",
+            "to": "completed_public_recovery",
+            "trigger": "operator runs flow ragequit"
+          },
+          {
+            "from": "approved_ready_to_withdraw",
+            "to": "completed_public_recovery",
+            "trigger": "operator runs flow ragequit"
+          },
+          {
+            "from": "withdrawing",
+            "to": "completed_public_recovery",
+            "trigger": "operator runs flow ragequit"
+          },
+          {
+            "from": "paused_poa_required",
+            "to": "completed_public_recovery",
+            "trigger": "operator runs flow ragequit"
+          },
+          {
+            "from": "paused_declined",
+            "to": "completed_public_recovery",
+            "trigger": "operator runs flow ragequit"
+          },
+          {
+            "from": "awaiting_funding",
+            "to": "stopped_external",
+            "trigger": "external spend or local workflow mutation is detected"
+          },
+          {
+            "from": "depositing_publicly",
+            "to": "stopped_external",
+            "trigger": "external spend or local workflow mutation is detected"
+          },
+          {
+            "from": "awaiting_asp",
+            "to": "stopped_external",
+            "trigger": "external spend or local workflow mutation is detected"
+          },
+          {
+            "from": "approved_waiting_privacy_delay",
+            "to": "stopped_external",
+            "trigger": "external spend or local workflow mutation is detected"
+          },
+          {
+            "from": "approved_ready_to_withdraw",
+            "to": "stopped_external",
+            "trigger": "external spend or local workflow mutation is detected"
+          },
+          {
+            "from": "withdrawing",
+            "to": "stopped_external",
+            "trigger": "external spend or local workflow mutation is detected"
+          },
+          {
+            "from": "paused_poa_required",
+            "to": "stopped_external",
+            "trigger": "external spend or local workflow mutation is detected"
+          },
+          {
+            "from": "paused_declined",
+            "to": "stopped_external",
+            "trigger": "external spend or local workflow mutation is detected"
+          }
+        ],
+        "nodes": [
+          "awaiting_funding",
+          "depositing_publicly",
+          "awaiting_asp",
+          "approved_waiting_privacy_delay",
+          "approved_ready_to_withdraw",
+          "withdrawing",
+          "completed",
+          "completed_public_recovery",
+          "paused_poa_required",
+          "paused_declined",
+          "stopped_external"
+        ],
+        "paused": [
+          "paused_declined",
+          "paused_poa_required"
+        ],
+        "terminal": [
+          "completed",
+          "completed_public_recovery",
+          "stopped_external"
+        ]
+      },
       "prerequisites": [
         "init for start/watch/ragequit; saved workflow for status"
       ],
@@ -1789,6 +1950,7 @@
       "jsonVariants": [
         "--stream-json progress events: { mode: \"flow-progress\", action: \"ragequit\", event: \"stage\", stage, workflowId?, phase? }"
       ],
+      "phaseGraphRef": "flow",
       "preferredSafeVariant": {
         "command": "flow status",
         "reason": "Inspect the saved workflow state before triggering the public recovery path."
@@ -1928,6 +2090,7 @@
         "--dry-run: { mode: \"flow\", action: \"start\", dryRun: true, chain, asset, depositAmount, recipient, walletMode, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, vettingFee, vettingFeeAmount, vettingFeeBPS, estimatedCommittedValue, estimatedCommitted, feesApply, warnings?, nextActions? }",
         "--stream-json progress events: { mode: \"flow-progress\", action: \"start\", event: \"stage\", stage, workflowId?, phase? }"
       ],
+      "phaseGraphRef": "flow",
       "prerequisites": [
         "init"
       ],
@@ -2051,6 +2214,7 @@
       "group": "transaction",
       "jsonFields": "{ mode: \"flow\", action: \"status\", workflowId, workflowKind, phase, nextPollAfter|null, walletMode, walletAddress|null, requiredNativeFunding|null, requiredTokenFunding|null, backupConfirmed?, chain, asset, depositAmount, recipient, poolAccountId|null, poolAccountNumber|null, depositTxHash|null, depositBlockNumber|null, depositExplorerUrl|null, committedValue|null, aspStatus?, privacyDelayProfile, privacyDelayConfigured, privacyDelayRandom, privacyDelayRangeSeconds, privacyDelayUntil|null, withdrawTxHash|null, withdrawBlockNumber|null, withdrawExplorerUrl|null, ragequitTxHash|null, ragequitBlockNumber|null, ragequitExplorerUrl|null, relayerHost?, quoteRefreshCount?, reconciliationRequired?, localStateSynced?, warningCode?, warnings?: [{ code, category: \"privacy\"|\"recipient\", message }], lastError?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
+      "phaseGraphRef": "flow",
       "prerequisites": [
         "saved workflow (usually created after init)"
       ],
@@ -2142,6 +2306,7 @@
       "jsonVariants": [
         "--stream-json progress events: { mode: \"flow-progress\", action: \"step\", event: \"stage\", stage, workflowId?, phase? }"
       ],
+      "phaseGraphRef": "flow",
       "prerequisites": [
         "saved workflow (usually created after init)"
       ],
@@ -2250,6 +2415,7 @@
       "jsonVariants": [
         "--stream-json: { mode: \"flow\", action: \"watch\", event: \"phase_change\", workflowId, previousPhase, phase, nextActions? } lines as the workflow advances, followed by the final snapshot with isFinal: true"
       ],
+      "phaseGraphRef": "flow",
       "preferredSafeVariant": {
         "command": "flow status",
         "reason": "Inspect the saved workflow state before re-attaching a long-running flow."
@@ -3969,6 +4135,7 @@
     "status": {
       "agentFlagNames": [
         "--agent",
+        "--aggregated",
         "--check",
         "--no-check"
       ],
@@ -3983,6 +4150,7 @@
             "privacy-pools status",
             "privacy-pools status --check",
             "privacy-pools status --check asp",
+            "privacy-pools status --check relayer",
             "privacy-pools status --no-check"
           ]
         },
@@ -3990,6 +4158,7 @@
           "category": "Agent / CI",
           "commands": [
             "privacy-pools status --agent --check rpc",
+            "privacy-pools status --agent --aggregated",
             "privacy-pools status --chain mainnet --rpc-url https://..."
           ]
         }
@@ -4003,7 +4172,8 @@
       "expectedLatencyClass": "fast",
       "flags": [
         "--check [scope]",
-        "--no-check"
+        "--no-check",
+        "--aggregated"
       ],
       "globalFlags": [
         "-c, --chain <name>",
@@ -4029,7 +4199,7 @@
         "--profile <name>"
       ],
       "group": "getting-started",
-      "jsonFields": "{ mode: \"cli-status\", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+      "jsonFields": "{ mode: \"cli-status\", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, relayerHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, relayerLive?, rpcBlockNumber?, pending?, recoveryTable?, phaseGraphRef? }",
       "jsonVariants": [],
       "prerequisites": [],
       "requiresHumanReview": false,
@@ -4057,12 +4227,22 @@
         },
         {
           "category": "Basic",
+          "command": "privacy-pools status --check relayer",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
           "command": "privacy-pools status --no-check",
           "description": "Basic"
         },
         {
           "category": "Agent / CI",
           "command": "privacy-pools status --agent --check rpc",
+          "description": "Agent / CI"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools status --agent --aggregated",
           "description": "Agent / CI"
         },
         {
@@ -5010,15 +5190,17 @@
     {
       "agentFlagNames": [
         "--agent",
+        "--aggregated",
         "--check",
         "--no-check"
       ],
-      "agentFlags": "--agent [--check <all|rpc|asp|none>] [--no-check]",
+      "agentFlags": "--agent [--check <all|rpc|asp|relayer|none>] [--no-check] [--aggregated]",
       "description": "Check account setup and network status",
       "expectedLatencyClass": "fast",
       "flags": [
         "--check [scope]",
-        "--no-check"
+        "--no-check",
+        "--aggregated"
       ],
       "group": "getting-started",
       "name": "status",
@@ -6285,6 +6467,12 @@
       "retryable": false
     },
     {
+      "category": "RELAYER",
+      "code": "RELAYER_FEE_EXCEEDS_MAX",
+      "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#relayer-fee-exceeds-max",
+      "retryable": true
+    },
+    {
       "category": "RPC",
       "code": "RPC_BROADCAST_CONFIRMATION_TIMEOUT",
       "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#rpc-broadcast-confirmation-timeout",
@@ -7005,7 +7193,7 @@
       "warningShape": "{ code, message, affects: (\"deposit\"|\"withdraw\"|\"unsigned\"|\"discovery\")[], reasonCode?: string }"
     },
     "statusRecommendedMode": {
-      "description": "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only means status detected degraded RPC or ASP health, so public discovery is the default safe path until connectivity is restored. When only the ASP is degraded but RPC remains healthy, public recovery may still be available if the affected account or workflow is already known.",
+      "description": "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only means status detected degraded RPC, ASP, or relayer health, so public discovery is the default safe path until connectivity is restored. When only the ASP or relayer is degraded but RPC remains healthy, public recovery may still be available if the affected account or workflow is already known.",
       "values": [
         "setup-required",
         "read-only",

@@ -28,6 +28,7 @@ import {
   type CommandPath,
 } from "./command-catalog.js";
 import { DEPOSIT_APPROVAL_TIMELINE_COPY } from "./approval-timing.js";
+import { FLOW_PHASE_GRAPH } from "../services/flow-phase-graph.js";
 
 export type { CommandCapabilityMetadata, CommandMetadata, CommandPath } from "./command-catalog.js";
 export { COMMAND_PATHS } from "./command-catalog.js";
@@ -298,7 +299,7 @@ const AGENT_NOTES: Record<string, string> = {
   metaFlag:
     "--agent is equivalent to --json --yes --quiet. Use it to suppress all stderr output and skip prompts.",
   statusCheck:
-    "Run 'status --agent' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC or ASP health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known.",
+    "Run 'status --agent --check --aggregated' before transacting. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. Those flags confirm the wallet is set up, NOT that withdrawable funds exist. Check 'accounts --agent --chain <chain>' to verify fund availability before withdrawing on a specific chain. Use bare 'accounts --agent' only for the default multi-chain mainnet dashboard. When recommendedMode is read-only because RPC, ASP, or relayer health is degraded, follow status nextActions back to public discovery and avoid account-state guidance until connectivity is restored. If only the ASP or relayer is down while RPC stays healthy, public recovery still remains available through ragequit, flow ragequit, or unsigned ragequit payloads when the affected account or workflow is already known.",
 };
 
 export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
@@ -360,7 +361,7 @@ export const CAPABILITIES_SCHEMAS: Record<string, Record<string, unknown>> = {
   statusRecommendedMode: {
     values: ["setup-required", "read-only", "unsigned-only", "ready"],
     description:
-      "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only means status detected degraded RPC or ASP health, so public discovery is the default safe path until connectivity is restored. When only the ASP is degraded but RPC remains healthy, public recovery may still be available if the affected account or workflow is already known.",
+      "High-level preflight recommendation derived from the current wallet/configuration state. setup-required means init or recovery setup is incomplete. unsigned-only means read-only and unsigned transaction building are safe but a valid signer is unavailable. ready means the wallet is configured for deposits and withdrawals. read-only means status detected degraded RPC, ASP, or relayer health, so public discovery is the default safe path until connectivity is restored. When only the ASP or relayer is degraded but RPC remains healthy, public recovery may still be available if the affected account or workflow is already known.",
   },
   statusIssues: {
     blockingIssueShape:
@@ -574,6 +575,8 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     ...(seed.expectedNextActionWhen
       ? { expectedNextActionWhen: seed.expectedNextActionWhen }
       : {}),
+    ...(path === "flow" ? { phaseGraph: FLOW_PHASE_GRAPH } : {}),
+    ...(path.startsWith("flow ") ? { phaseGraphRef: "flow" } : {}),
     ...(seed.agentRequiredFlags ? { agentRequiredFlags: seed.agentRequiredFlags } : {}),
   };
 }

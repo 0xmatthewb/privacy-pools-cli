@@ -20,10 +20,14 @@ import { accentBold, faint, statusFailed, statusHealthy, statusPending } from ".
 import { CHAINS, MAINNET_CHAIN_NAMES, isTestnetChain } from "../config/chains.js";
 import type {
   NextActionOptionValue,
+  PoolAccountSummary,
   StatusIssue,
   StatusIssueAffect,
   StatusRecommendedMode,
 } from "../types.js";
+import type { FlowSnapshot } from "../services/workflow.js";
+import type { SubmissionRecord } from "../services/submissions.js";
+import type { SerializedErrorRecoveryEntry } from "../utils/error-recovery-table.js";
 import {
   formatCallout,
   formatKeyValueRows,
@@ -47,15 +51,17 @@ export interface StatusCheckResult {
   signerAddress: string | null;
   entrypoint: string | null;
   aspHost: string | null;
+  relayerHost?: string | null;
   /** Health check results (only present when checks are run). */
   aspLive?: boolean;
   rpcLive?: boolean;
+  relayerLive?: boolean;
   rpcBlockNumber?: bigint;
   signerBalance?: bigint;
   signerBalanceDecimals?: number;
   signerBalanceSymbol?: string;
   /** Whether each health check was enabled. */
-  healthChecksEnabled?: { rpc: boolean; asp: boolean };
+  healthChecksEnabled?: { rpc: boolean; asp: boolean; relayer: boolean };
   /**
    * Account files that exist, as [chainName, chainId] tuples.
    * Non-empty means the user has deposited before (lightweight proxy for
@@ -64,6 +70,15 @@ export interface StatusCheckResult {
   accountFiles: [string, number][];
   nativeRuntimeAdvisory?: StatusIssue | null;
   runtime?: "native" | "js";
+  aggregated?: {
+    pending: {
+      workflows: FlowSnapshot[];
+      submissions: SubmissionRecord[];
+      poolAccounts: PoolAccountSummary[];
+    };
+    recoveryTable: Record<string, SerializedErrorRecoveryEntry>;
+    phaseGraphRef: "flow";
+  };
 }
 
 interface StatusPreflightGuidance {
@@ -88,7 +103,9 @@ export function deriveStatusPreflightGuidance(
     result.configExists && result.recoveryPhraseSet && result.signerKeyValid;
   const readyForUnsigned = result.configExists && result.recoveryPhraseSet;
   const transactingHealthDegraded =
-    result.rpcLive === false || result.aspLive === false;
+    result.rpcLive === false ||
+    result.aspLive === false ||
+    result.relayerLive === false;
   const blockingIssues: StatusIssue[] = [];
   const warnings: StatusIssue[] = [];
 
@@ -152,6 +169,16 @@ export function deriveStatusPreflightGuidance(
     );
   }
 
+  if (result.relayerLive === false) {
+    warnings.push(
+      makeStatusIssue(
+        "relayer_unreachable",
+        "The configured relayer endpoint is unreachable. Private relayed withdrawals may be degraded; public recovery remains available when RPC is healthy.",
+        ["withdraw", "unsigned"],
+      ),
+    );
+  }
+
   if (
     result.configExists &&
     result.recoveryPhraseSet &&
@@ -203,7 +230,9 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
   const unsignedOnly = readyForUnsigned && !readyForDeposit;
   const degradedReadOnly = preflight.recommendedMode === "read-only";
   const rpcDegraded = result.rpcLive === false;
-  const aspOnlyDegraded = result.aspLive === false && !rpcDegraded;
+  const serviceOnlyDegraded =
+    !rpcDegraded &&
+    (result.aspLive === false || result.relayerLive === false);
   const chainOverridden = result.selectedChain !== null && result.selectedChain !== result.defaultChain;
 
   // ── Deposit reachability for next-step guidance ───────────────────────
@@ -328,17 +357,17 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     humanNextActions = [createNextAction("init", "Complete CLI setup before transacting.", "status_not_ready",
       { options: initHumanChainOpts })];
   } else if (degradedReadOnly) {
-    if (aspOnlyDegraded) {
+    if (serviceOnlyDegraded) {
       agentNextActions = [
         createNextAction(
           "pools",
-          "ASP checks are degraded. Stay on public discovery until private-review connectivity recovers.",
+          "ASP or relayer checks are degraded. Stay on public discovery until private workflow connectivity recovers.",
           "status_degraded_health",
           { options: { agent: true, ...poolsAgentChainOpts } },
         ),
         createNextAction(
           "ragequit",
-          "Public recovery still works while the ASP is down when RPC is healthy, including unsigned ragequit payloads, but you must supply the asset and --pool-account.",
+          "Public recovery still works while ASP or relayer health is degraded when RPC is healthy, including unsigned ragequit payloads, but you must supply the asset and --pool-account.",
           "status_degraded_health",
           {
             options: { agent: true },
@@ -351,7 +380,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         ),
         createNextAction(
           "flow ragequit",
-          "Saved workflows can still use the public recovery path while the ASP is down.",
+          "Saved workflows can still use the public recovery path while ASP or relayer health is degraded.",
           "status_degraded_health",
           {
             options: { agent: true },
@@ -363,7 +392,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       humanNextActions = [
         createNextAction(
           "pools",
-          "ASP checks are degraded. Stay on public discovery until private-review connectivity recovers.",
+          "ASP or relayer checks are degraded. Stay on public discovery until private workflow connectivity recovers.",
           "status_degraded_health",
           { options: poolsHumanChainOpts },
         ),
@@ -372,7 +401,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       agentNextActions = [
         createNextAction(
           "pools",
-          "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
+          "Connectivity checks are degraded. Stay on public pool discovery until RPC, ASP, and relayer health recover.",
           "status_degraded_health",
           { options: { agent: true, ...poolsAgentChainOpts } },
         ),
@@ -380,7 +409,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       humanNextActions = [
         createNextAction(
           "pools",
-          "Connectivity checks are degraded. Stay on public pool discovery until RPC and ASP health recover.",
+          "Connectivity checks are degraded. Stay on public pool discovery until RPC, ASP, and relayer health recover.",
           "status_degraded_health",
           { options: poolsHumanChainOpts },
         ),
@@ -454,11 +483,13 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       signerAddress: result.signerAddress,
       entrypoint: result.entrypoint,
       aspHost: result.aspHost,
+      relayerHost: result.relayerHost ?? null,
       runtime: result.runtime ?? "js",
       accountFiles: result.accountFiles.map(([name, chainId]) => ({ chain: name, chainId })),
     }, agentNextActions) as Record<string, unknown>;
     if (result.aspLive !== undefined) status.aspLive = result.aspLive;
     if (result.rpcLive !== undefined) status.rpcLive = result.rpcLive;
+    if (result.relayerLive !== undefined) status.relayerLive = result.relayerLive;
     if (result.rpcBlockNumber !== undefined) status.rpcBlockNumber = result.rpcBlockNumber.toString();
     if (result.signerBalance !== undefined) {
       status.signerBalance = result.signerBalance.toString();
@@ -478,6 +509,11 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     status.recommendedMode = preflight.recommendedMode;
     if (preflight.blockingIssues) status.blockingIssues = preflight.blockingIssues;
     if (preflight.warnings) status.warnings = preflight.warnings;
+    if (result.aggregated) {
+      status.pending = result.aggregated.pending;
+      status.recoveryTable = result.aggregated.recoveryTable;
+      status.phaseGraphRef = result.aggregated.phaseGraphRef;
+    }
     printJsonSuccess(status);
     return;
   }
@@ -488,8 +524,10 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       result.rpcLive === undefined ? "unchecked" : result.rpcLive ? "healthy" : "unreachable";
     const aspLabel =
       result.aspLive === undefined ? "unchecked" : result.aspLive ? "healthy" : "unreachable";
+    const relayerLabel =
+      result.relayerLive === undefined ? "unchecked" : result.relayerLive ? "healthy" : "unreachable";
     process.stdout.write(
-      `status=${preflight.recommendedMode} chain=${chainLabel} rpc=${rpcLabel} asp=${aspLabel} deposits=${result.accountFiles.length}\n`,
+      `status=${preflight.recommendedMode} chain=${chainLabel} rpc=${rpcLabel} asp=${aspLabel} relayer=${relayerLabel} deposits=${result.accountFiles.length}\n`,
     );
     return;
   }
@@ -514,6 +552,11 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         : result.aspLive
         ? "0xBow ASP healthy"
         : "0xBow ASP unreachable",
+      result.relayerLive === undefined
+        ? "relayer not checked"
+        : result.relayerLive
+        ? "relayer healthy"
+        : "relayer unreachable",
       result.accountFiles.length > 0
         ? `saved deposit state on ${result.accountFiles.length} chain${result.accountFiles.length === 1 ? "" : "s"}`
         : "no saved deposits",
@@ -584,7 +627,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       ...(ctx.isVerbose && result.healthChecksEnabled
         ? [{
             label: "Health checks",
-            value: `rpc=${result.healthChecksEnabled.rpc ? "enabled" : "disabled"}, asp=${result.healthChecksEnabled.asp ? "enabled" : "disabled"}`,
+            value: `rpc=${result.healthChecksEnabled.rpc ? "enabled" : "disabled"}, asp=${result.healthChecksEnabled.asp ? "enabled" : "disabled"}, relayer=${result.healthChecksEnabled.relayer ? "enabled" : "disabled"}`,
           }]
         : []),
       ...(result.selectedChain && result.aspHost
@@ -599,6 +642,22 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
               result.aspLive === undefined
                 ? "muted" as const
                 : result.aspLive
+                ? "success" as const
+                : "warning" as const,
+          }]
+        : []),
+      ...(result.selectedChain && result.relayerHost
+        ? [{
+            label: `Relayer (${result.relayerHost})`,
+            value: result.relayerLive === undefined
+              ? "not checked"
+              : result.relayerLive
+              ? "healthy"
+              : "unreachable",
+            valueTone:
+              result.relayerLive === undefined
+                ? "muted" as const
+                : result.relayerLive
                 ? "success" as const
                 : "warning" as const,
           }]
@@ -621,10 +680,11 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
         : []),
       ...(result.selectedChain &&
       result.aspLive === undefined &&
-      result.rpcLive === undefined
+      result.rpcLive === undefined &&
+      result.relayerLive === undefined
         ? [{
             label: "Checks",
-            value: "skipped. Checks run by default when a chain is selected; use --check to force both or --no-check to disable both.",
+            value: "skipped. Checks run by default when a chain is selected; use --check to force all or --no-check to disable them.",
             valueTone: "muted" as const,
           }]
         : []),
@@ -657,7 +717,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
       process.stderr.write(
         formatCallout(
           "read-only",
-          "Stay on public discovery until RPC and 0xBow ASP connectivity recover.",
+          "Stay on public discovery until RPC, 0xBow ASP, and relayer connectivity recover.",
         ),
       );
     }
@@ -685,7 +745,7 @@ export function renderStatus(ctx: OutputContext, result: StatusCheckResult): voi
     }
 
     const warningLines = preflight.warnings?.map((issue) => issue.message) ?? [];
-    if (aspOnlyDegraded) {
+    if (serviceOnlyDegraded) {
       warningLines.push(
         "Public recovery remains available while RPC is healthy: use ragequit (or flow ragequit for saved workflows) if you already know the affected account or workflow.",
       );

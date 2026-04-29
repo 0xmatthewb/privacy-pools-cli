@@ -27,10 +27,14 @@ const realFormat = captureModuleExports(await import("../../src/utils/format.ts"
 const realProofProgress = captureModuleExports(
   await import("../../src/utils/proof-progress.ts"),
 );
+const realRelayer = captureModuleExports(
+  await import("../../src/services/relayer.ts"),
+);
 const STATUS_MODULE_RESTORES = [
   ["../../src/services/sdk.ts", realSdk],
   ["../../src/utils/format.ts", realFormat],
   ["../../src/utils/proof-progress.ts", realProofProgress],
+  ["../../src/services/relayer.ts", realRelayer],
 ] as const;
 
 function fakeCommand(
@@ -286,6 +290,38 @@ describe("status command handler", () => {
     expect(json.rpcBlockNumber).toBeUndefined();
     expect(json.signerBalance).toBeUndefined();
     expect(getBalanceMock).not.toHaveBeenCalled();
+  });
+
+  test("reports relayer health and degrades recommended mode when relayer probe fails", async () => {
+    useIsolatedHome();
+    saveConfig({ defaultChain: "sepolia" });
+    saveMnemonicToFile(
+      "test test test test test test test test test test test junk",
+    );
+    saveSignerKey("0x" + "44".repeat(32));
+    const checkRelayerLivenessMock = mock(async () => false);
+
+    mock.module("../../src/services/relayer.ts", () => ({
+      ...realRelayer,
+      checkRelayerLiveness: checkRelayerLivenessMock,
+    }));
+
+    const { json } = await captureAsyncJsonOutput(() =>
+      handleStatusCommand(
+        { check: "relayer" },
+        fakeCommand({ json: true, chain: "sepolia" }),
+      ),
+    );
+
+    expect(json.success).toBe(true);
+    expect(json.relayerLive).toBe(false);
+    expect(json.rpcLive).toBeUndefined();
+    expect(json.aspLive).toBeUndefined();
+    expect(json.recommendedMode).toBe("read-only");
+    expect(json.warnings.map((warning: { code: string }) => warning.code)).toContain(
+      "relayer_unreachable",
+    );
+    expect(checkRelayerLivenessMock).toHaveBeenCalledTimes(1);
   });
 
   test("shows a human-mode spinner while health checks run", async () => {

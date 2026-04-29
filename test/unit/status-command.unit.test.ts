@@ -13,8 +13,10 @@ describe("status command shell", () => {
       expect.arrayContaining([
         { flags: "--check [scope]", hidden: false },
         { flags: "--no-check", hidden: false },
+        { flags: "--aggregated", hidden: false },
         { flags: "--check-rpc", hidden: true },
         { flags: "--check-asp", hidden: true },
+        { flags: "--check-relayer", hidden: true },
       ]),
     );
   });

@@ -2,7 +2,7 @@
  * Lightweight ASP fixture HTTP server for integration tests.
  *
  * Returns canned responses for the ASP endpoints that read-only commands
- * (activity, stats, pools, status --check-asp) call, plus a lightweight
+ * (activity, stats, pools, status --check asp) call, plus a lightweight
  * relayer fixture for withdraw quote integration tests.
  *
  * Because integration tests use spawnSync (which blocks the event loop),

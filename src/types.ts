@@ -130,6 +130,19 @@ export interface NextAction {
   runnable?: boolean;
 }
 
+export interface FlowPhaseGraphEdge {
+  from: FlowPhase;
+  to: FlowPhase;
+  trigger: string;
+}
+
+export interface FlowPhaseGraph {
+  nodes: FlowPhase[];
+  edges: FlowPhaseGraphEdge[];
+  terminal: FlowPhase[];
+  paused: FlowPhase[];
+}
+
 export type InitSetupMode =
   | "create"
   | "restore"
@@ -236,8 +249,27 @@ export interface DetailedCommandDescriptor {
   agentFlagNames?: string[];
   agentWorkflowNotes: string[];
   expectedNextActionWhen?: NextActionWhen[];
+  phaseGraph?: FlowPhaseGraph;
+  phaseGraphRef?: string;
   /** Flags that agents must supply for unattended execution (no interactive fallback). */
   agentRequiredFlags?: string[];
+}
+
+export interface PoolAccountSummary {
+  poolAccountNumber: number;
+  poolAccountId: string;
+  status: string;
+  aspStatus: string;
+  asset: string;
+  scope: string;
+  value: string;
+  hash: string;
+  label: string;
+  blockNumber: string;
+  txHash: string;
+  explorerUrl: string | null;
+  chain?: string;
+  chainId?: number;
 }
 
 export interface ProtocolProfile {

@@ -8,7 +8,7 @@ Detailed reference for the `privacy-pools status` command family. Back to the [i
 
 Check account setup and network status
 
-A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. When a chain is selected, status runs both RPC and ASP health checks by default. RPC checks blockchain node reachability. ASP checks 0xBow Association Set Provider connectivity. Use --check all to force both, --check rpc / --check asp to run one check, or --check none / --no-check to disable them. When status falls back to recommendedMode = read-only because RPC health is degraded, nextActions stays on public discovery and avoids account-state guidance until connectivity is restored. When only the ASP is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow.
+A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit. Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only. When a chain is selected, status runs RPC, ASP, and relayer health checks by default. RPC checks blockchain node reachability. ASP checks 0xBow Association Set Provider connectivity. Relayer checks private-withdrawal relay reachability. Use --check all to force every probe, --check rpc / --check asp / --check relayer to run one check, or --check none / --no-check to disable them. When status falls back to recommendedMode = read-only because RPC, ASP, or relayer health is degraded, nextActions stays on public discovery and avoids account-state guidance until connectivity is restored. When only the ASP or relayer is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow. Use --aggregated when an agent needs a single bootstrap payload with pending workflows, pending submissions, pending Pool Accounts, the recovery decision table, and phaseGraphRef.
 
 **Basic:**
 
@@ -16,6 +16,7 @@ A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relay
 privacy-pools status
 privacy-pools status --check
 privacy-pools status --check asp
+privacy-pools status --check relayer
 privacy-pools status --no-check
 ```
 
@@ -23,13 +24,15 @@ privacy-pools status --no-check
 
 ```bash
 privacy-pools status --agent --check rpc
+privacy-pools status --agent --aggregated
 privacy-pools status --chain mainnet --rpc-url https://...
 ```
 
 
 | Flag | Description |
 |------|-------------|
-| `--check [scope]` | Run health checks: all (default), rpc for blockchain node reachability, asp for 0xBow Association Set Provider connectivity, or none |
-| `--no-check` | Disable the default RPC and ASP health checks |
+| `--check [scope]` | Run health checks: all (default), rpc for blockchain node reachability, asp for 0xBow Association Set Provider connectivity, relayer for withdrawal relay connectivity, or none |
+| `--no-check` | Disable the default RPC, ASP, and relayer health checks |
+| `--aggregated` | Include pending workflows, submissions, Pool Accounts, recovery table, and phase graph reference |
 
-**JSON output:** `{ mode: "cli-status", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }`
+**JSON output:** `{ mode: "cli-status", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, relayerHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, relayerLive?, rpcBlockNumber?, pending?, recoveryTable?, phaseGraphRef? }`

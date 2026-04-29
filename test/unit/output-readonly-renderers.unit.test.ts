@@ -612,7 +612,7 @@ describe("read-only output renderers", () => {
         aspLive: true,
         rpcLive: true,
         rpcBlockNumber: 12345678n,
-        healthChecksEnabled: { rpc: true, asp: true },
+        healthChecksEnabled: { rpc: true, asp: true, relayer: true },
         accountFiles: [
           ["mainnet", 1],
           ["sepolia", 11155111],
@@ -652,7 +652,7 @@ describe("read-only output renderers", () => {
         aspLive: false,
         rpcLive: true,
         rpcBlockNumber: 77n,
-        healthChecksEnabled: { rpc: true, asp: true },
+        healthChecksEnabled: { rpc: true, asp: true, relayer: true },
         accountFiles: [],
       }),
     );

@@ -9,14 +9,18 @@ export function createStatusCommand(): Command {
     .description(metadata.description)
     .option(
       "--check [scope]",
-      "Run health checks: all (default), rpc for blockchain node reachability, asp for 0xBow Association Set Provider connectivity, or none",
+      "Run health checks: all (default), rpc for blockchain node reachability, asp for 0xBow Association Set Provider connectivity, relayer for withdrawal relay connectivity, or none",
     )
-    .option("--no-check", "Disable the default RPC and ASP health checks")
+    .option("--no-check", "Disable the default RPC, ASP, and relayer health checks")
+    .option("--aggregated", "Include pending workflows, submissions, Pool Accounts, recovery table, and phase graph reference")
     .addOption(
       new Option("--check-rpc", "Run only the RPC health check").hideHelp(),
     )
     .addOption(
       new Option("--check-asp", "Run only the ASP health check").hideHelp(),
+    )
+    .addOption(
+      new Option("--check-relayer", "Run only the relayer health check").hideHelp(),
     )
     .addHelpText("after", commandHelpText(metadata.help ?? {}))
     .action(

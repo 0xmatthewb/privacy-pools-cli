@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { Address } from "viem";
 import {
   CHAINS,
+  explorerTxUrl,
   getAllChainsWithOverrides,
   getDefaultReadOnlyChains,
   MULTI_CHAIN_SCOPE_ALL_MAINNETS,
@@ -43,7 +44,7 @@ import { spinner, verbose, deriveTokenPrice } from "../utils/format.js";
 import { withSpinnerProgress } from "../utils/proof-progress.js";
 import { CLIError, classifyError, printError } from "../utils/errors.js";
 import { inputError } from "../utils/errors/factories.js";
-import type { ChainConfig, GlobalOptions } from "../types.js";
+import type { ChainConfig, GlobalOptions, PoolAccountSummary } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
 import {
   buildAllPoolAccountRefs,
@@ -254,6 +255,50 @@ export function formatAccountsLoadingText(
   if (completedChains === undefined || totalChains === undefined)
     return baseText;
   return `${baseText} (${completedChains}/${totalChains} complete)`;
+}
+
+function mapPendingPoolAccountSummaries(
+  groups: AccountPoolGroup[],
+): PoolAccountSummary[] {
+  return groups.flatMap((group) =>
+    group.poolAccounts
+      .filter((poolAccount) => poolAccount.aspStatus === "pending")
+      .map((poolAccount) => ({
+        poolAccountNumber: poolAccount.paNumber,
+        poolAccountId: poolAccount.paId,
+        status: poolAccount.status,
+        aspStatus: poolAccount.aspStatus,
+        asset: group.symbol,
+        scope: group.scope.toString(),
+        value: poolAccount.value.toString(),
+        hash: poolAccount.commitment.hash.toString(),
+        label: poolAccount.commitment.label.toString(),
+        blockNumber: poolAccount.blockNumber.toString(),
+        txHash: poolAccount.txHash,
+        explorerUrl: explorerTxUrl(group.chainId, poolAccount.txHash),
+        chain: group.chain,
+        chainId: group.chainId,
+      })),
+  );
+}
+
+export async function loadPendingPoolAccountSummariesForStatus(params: {
+  chainConfig: ChainConfig;
+  rpcUrl?: string;
+  mode: ReturnType<typeof resolveGlobalMode>;
+  isVerbose?: boolean;
+}): Promise<PoolAccountSummary[]> {
+  const mnemonic = loadMnemonic();
+  const loaded = await loadAccountsForChain(params.chainConfig, {
+    opts: { pendingOnly: true },
+    rpcUrl: params.rpcUrl,
+    showPerChainProgress: false,
+    silent: true,
+    mode: params.mode,
+    isVerbose: params.isVerbose ?? false,
+    mnemonic,
+  });
+  return mapPendingPoolAccountSummaries(loaded.groups);
 }
 
 function normalizeStatusFilter(

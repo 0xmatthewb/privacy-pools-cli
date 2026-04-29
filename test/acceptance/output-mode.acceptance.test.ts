@@ -118,7 +118,7 @@ defineScenarioSuite("output-mode acceptance", [
     assertExit(0),
     assertStdout((stdout) => {
       expect(stdout.trim()).toBe(
-        "status=ready chain=sepolia rpc=unchecked asp=unchecked deposits=0",
+        "status=ready chain=sepolia rpc=unchecked asp=unchecked relayer=unchecked deposits=0",
       );
     }),
     assertStderrEmpty(),

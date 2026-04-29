@@ -143,6 +143,27 @@ export function getRelayerHosts(chainConfig: ChainConfig): string[] {
   return [...new Set(hosts.map((host) => host.trim()).filter((host) => host.length > 0))];
 }
 
+export async function checkRelayerLiveness(chainConfig: ChainConfig): Promise<boolean> {
+  const relayerHosts = getRelayerHosts(chainConfig);
+  for (const relayerHost of relayerHosts) {
+    for (const path of ["/health/liveness", "/relayer/health/liveness"]) {
+      try {
+        const res = await fetch(`${relayerHost}${path}`, {
+          signal: AbortSignal.timeout(Math.min(getNetworkTimeoutMs(), 10_000)),
+        });
+        if (!res.ok) continue;
+        const data = await res.json().catch(() => null) as { status?: unknown } | null;
+        if (data === null || data.status === undefined || data.status === "ok") {
+          return true;
+        }
+      } catch {
+        // Try the next conventional health path or fail over to the next relayer.
+      }
+    }
+  }
+  return false;
+}
+
 interface RelayerDetailsCandidate {
   relayerUrl: string;
   details: RelayerDetailsResponse;

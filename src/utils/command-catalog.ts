@@ -995,29 +995,32 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       overview: [
         "A Pool Account (e.g. PA-1) is your onchain deposit. Withdraw privately via relayer or recover publicly via ragequit.",
         "Use recommendedMode plus blockingIssues[]/warnings[] for machine gating, and keep readyForDeposit/readyForWithdraw/readyForUnsigned as configuration capability flags only.",
-        "When a chain is selected, status runs both RPC and ASP health checks by default. RPC checks blockchain node reachability. ASP checks 0xBow Association Set Provider connectivity. Use --check all to force both, --check rpc / --check asp to run one check, or --check none / --no-check to disable them.",
-        "When status falls back to recommendedMode = read-only because RPC health is degraded, nextActions stays on public discovery and avoids account-state guidance until connectivity is restored.",
-        "When only the ASP is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow.",
+        "When a chain is selected, status runs RPC, ASP, and relayer health checks by default. RPC checks blockchain node reachability. ASP checks 0xBow Association Set Provider connectivity. Relayer checks private-withdrawal relay reachability. Use --check all to force every probe, --check rpc / --check asp / --check relayer to run one check, or --check none / --no-check to disable them.",
+        "When status falls back to recommendedMode = read-only because RPC, ASP, or relayer health is degraded, nextActions stays on public discovery and avoids account-state guidance until connectivity is restored.",
+        "When only the ASP or relayer is degraded but RPC is healthy, status still keeps nextActions on public discovery, while warning that public recovery remains available through ragequit or flow ragequit if the operator already knows the affected account or workflow.",
+        "Use --aggregated when an agent needs a single bootstrap payload with pending workflows, pending submissions, pending Pool Accounts, the recovery decision table, and phaseGraphRef.",
       ],
       examples: [
         { category: "Basic", commands: [
           "privacy-pools status",
           "privacy-pools status --check",
           "privacy-pools status --check asp",
+          "privacy-pools status --check relayer",
           "privacy-pools status --no-check",
         ]},
         { category: "Agent / CI", commands: [
           "privacy-pools status --agent --check rpc",
+          "privacy-pools status --agent --aggregated",
           "privacy-pools status --chain mainnet --rpc-url https://...",
         ]},
       ],
       jsonFields:
-        "{ mode: \"cli-status\", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, rpcBlockNumber? }",
+        "{ mode: \"cli-status\", configExists, configDir, defaultChain, selectedChain, rpcUrl, rpcIsCustom, recoveryPhraseSet, signerKeySet, signerKeyValid, signerAddress, signerBalance?, signerBalanceDecimals?, signerBalanceSymbol?, entrypoint, aspHost, relayerHost, accountFiles: [{ chain, chainId }], readyForDeposit, readyForWithdraw, readyForUnsigned, recommendedMode, blockingIssues?, warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }], aspLive?, rpcLive?, relayerLive?, rpcBlockNumber?, pending?, recoveryTable?, phaseGraphRef? }",
       seeAlso: ["init","sync","upgrade"],
     },
     capabilities: {
-      flags: ["--check [scope]", "--no-check"],
-      agentFlags: "--agent [--check <all|rpc|asp|none>] [--no-check]",
+      flags: ["--check [scope]", "--no-check", "--aggregated"],
+      agentFlags: "--agent [--check <all|rpc|asp|relayer|none>] [--no-check] [--aggregated]",
       requiresInit: false,
       expectedLatencyClass: "fast",
     },
@@ -1087,12 +1090,13 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       examples: [
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
+        "privacy-pools describe flow --agent",
         "privacy-pools describe protocol-stats --agent",
         "privacy-pools describe envelope.nextActions --agent",
         "privacy-pools describe envelope.commands.status.successFields --agent",
       ],
       jsonFields:
-        "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples: [{ description, command, category? }], jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentFlagNames?, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
+        "{ mode: \"describe-index\", commands: [{ command, description, group }], envelopeRoots: string[], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } when no command path is provided; { command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, phaseGraph?, phaseGraphRef?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples: [{ description, command, category? }], jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentFlagNames?, agentWorkflowNotes, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe <command...>; or { path, schema, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] } for describe envelope.<path>",
       seeAlso: ["capabilities","guide"],
     },
     capabilities: {

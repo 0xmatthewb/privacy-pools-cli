@@ -392,10 +392,12 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
       completionCommand("tx-status"),
       completionCommand("status", {
         options: [
+          completionOption("--aggregated"),
           completionOption("--check [scope]"),
           completionOption("--no-check"),
           completionOption("--check-rpc"),
           completionOption("--check-asp"),
+          completionOption("--check-relayer"),
         ],
       }),
       completionCommand("activity", {

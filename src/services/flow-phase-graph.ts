@@ -1,0 +1,85 @@
+import {
+  FLOW_PHASE_VALUES,
+  type FlowPhase,
+  type FlowPhaseGraph,
+} from "../types.js";
+
+export const FLOW_PHASE_GRAPH = {
+  nodes: [...FLOW_PHASE_VALUES],
+  edges: [
+    {
+      from: "awaiting_funding",
+      to: "depositing_publicly",
+      trigger: "flow step observes dedicated workflow wallet funding",
+    },
+    {
+      from: "depositing_publicly",
+      to: "awaiting_asp",
+      trigger: "public deposit confirms onchain",
+    },
+    {
+      from: "awaiting_asp",
+      to: "approved_waiting_privacy_delay",
+      trigger: "ASP status is approved and a privacy delay is active",
+    },
+    {
+      from: "awaiting_asp",
+      to: "approved_ready_to_withdraw",
+      trigger: "ASP status is approved and privacy delay is complete or off",
+    },
+    {
+      from: "awaiting_asp",
+      to: "paused_declined",
+      trigger: "ASP status is declined",
+    },
+    {
+      from: "awaiting_asp",
+      to: "paused_poa_required",
+      trigger: "ASP status is poa_required",
+    },
+    {
+      from: "approved_waiting_privacy_delay",
+      to: "approved_ready_to_withdraw",
+      trigger: "privacy delay expires",
+    },
+    {
+      from: "paused_poa_required",
+      to: "awaiting_asp",
+      trigger: "operator completes PoA externally and the next status refresh observes review progress",
+    },
+    {
+      from: "approved_ready_to_withdraw",
+      to: "withdrawing",
+      trigger: "relayed withdrawal is submitted",
+    },
+    {
+      from: "withdrawing",
+      to: "completed",
+      trigger: "relayed private withdrawal confirms",
+    },
+    ...FLOW_PHASE_VALUES.filter((phase) => !isTerminalPhase(phase)).map((phase) => ({
+      from: phase,
+      to: "completed_public_recovery" as FlowPhase,
+      trigger: "operator runs flow ragequit",
+    })),
+    ...FLOW_PHASE_VALUES.filter((phase) => !isTerminalPhase(phase)).map((phase) => ({
+      from: phase,
+      to: "stopped_external" as FlowPhase,
+      trigger: "external spend or local workflow mutation is detected",
+    })),
+  ],
+  terminal: ["completed", "completed_public_recovery", "stopped_external"],
+  paused: ["paused_declined", "paused_poa_required"],
+} satisfies FlowPhaseGraph;
+
+export function isTerminalPhase(phase: FlowPhase): boolean {
+  return (
+    phase === "completed" ||
+    phase === "completed_public_recovery" ||
+    phase === "stopped_external"
+  );
+}
+
+export function isPausedPhase(phase: FlowPhase): boolean {
+  return phase === "paused_declined" || phase === "paused_poa_required";
+}

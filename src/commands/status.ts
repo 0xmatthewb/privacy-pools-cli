@@ -37,6 +37,8 @@ interface StatusCommandOptions {
   check?: boolean | string;
   checkAsp?: boolean;
   checkRpc?: boolean;
+  checkRelayer?: boolean;
+  aggregated?: boolean;
 }
 
 export { createStatusCommand } from "../command-shells/status.js";
@@ -105,13 +107,16 @@ export async function handleStatusCommand(
       aspHost: selectedChainConfig
         ? sanitizeEndpointForDisplay(selectedChainConfig.aspHost)
         : null,
+      relayerHost: selectedChainConfig
+        ? sanitizeEndpointForDisplay(selectedChainConfig.relayerHost)
+        : null,
       accountFiles: [],
       nativeRuntimeAdvisory: detectNativeRuntimeAdvisory(resolveCliPackageInfo()),
       runtime: detectActiveRuntimeKind(),
     };
 
     // Health checks — run by default when a chain is selected.
-    // --check, --check-rpc, and --check-asp still work for explicit control.
+    // --check, --check-rpc, --check-asp, and --check-relayer still work for explicit control.
     if (selectedChainConfig) {
       const checkScope = typeof opts.check === "string"
         ? opts.check.trim().toLowerCase()
@@ -125,18 +130,20 @@ export async function handleStatusCommand(
         checkScope !== "all" &&
         checkScope !== "rpc" &&
         checkScope !== "asp" &&
+        checkScope !== "relayer" &&
         checkScope !== "none"
       ) {
         throw new CLIError(
           `Unknown --check scope: ${checkScope}.`,
           "INPUT",
-          "Use one of: all, rpc, asp, none.",
+          "Use one of: all, rpc, asp, relayer, none.",
         );
       }
       const explicitOpt =
         opts.check !== undefined ||
         opts.checkAsp !== undefined ||
-        opts.checkRpc !== undefined;
+        opts.checkRpc !== undefined ||
+        opts.checkRelayer !== undefined;
       const shouldCheckAll = explicitOpt
         ? checkScope === "all"
         : true;
@@ -150,13 +157,22 @@ export async function handleStatusCommand(
         : checkScope === "rpc"
           ? true
           : shouldCheckAll || opts.checkRpc === true;
+      const shouldCheckRelayer = checkScope === "none"
+        ? false
+        : checkScope === "relayer"
+          ? true
+          : shouldCheckAll || opts.checkRelayer === true;
 
-      result.healthChecksEnabled = { rpc: shouldCheckRpc, asp: shouldCheckAsp };
+      result.healthChecksEnabled = {
+        rpc: shouldCheckRpc,
+        asp: shouldCheckAsp,
+        relayer: shouldCheckRelayer,
+      };
       const shouldShowProgress =
         !mode.isQuiet &&
         !mode.isJson &&
         !mode.isCsv &&
-        (shouldCheckRpc || shouldCheckAsp);
+        (shouldCheckRpc || shouldCheckAsp || shouldCheckRelayer);
 
       const aspCheck = shouldCheckAsp
         ? (async () => {
@@ -201,14 +217,22 @@ export async function handleStatusCommand(
             blockNumber?: bigint;
             signerBalance?: bigint;
           }>(null);
+      const relayerCheck = shouldCheckRelayer
+        ? (async () => {
+            const { checkRelayerLiveness } = await import("../services/relayer.js");
+            return checkRelayerLiveness(selectedChainConfig);
+          })()
+        : Promise.resolve<null | boolean>(null);
 
       const healthCheckLabel =
-        shouldCheckRpc && shouldCheckAsp
+        shouldCheckRpc && shouldCheckAsp && shouldCheckRelayer
           ? "Checking chain health"
+          : shouldCheckRelayer && !shouldCheckRpc && !shouldCheckAsp
+          ? "Checking relayer health"
           : shouldCheckRpc
           ? "Checking RPC health"
           : "Checking ASP health";
-      const [aspLive, rpcStatus] = shouldShowProgress
+      const [aspLive, rpcStatus, relayerLive] = shouldShowProgress
         ? await (async () => {
             if (
               await maybeRenderPreviewProgressStep("status.health-check", {
@@ -226,13 +250,13 @@ export async function handleStatusCommand(
             spin.start();
             try {
               return await withSpinnerProgress(spin, healthCheckLabel, () =>
-                Promise.all([aspCheck, rpcCheck])
+                Promise.all([aspCheck, rpcCheck, relayerCheck])
               );
             } finally {
               spin.stop();
             }
           })()
-        : await Promise.all([aspCheck, rpcCheck]);
+        : await Promise.all([aspCheck, rpcCheck, relayerCheck]);
 
       if (aspLive !== null) {
         result.aspLive = aspLive;
@@ -248,6 +272,10 @@ export async function handleStatusCommand(
           result.signerBalanceSymbol =
             selectedChainConfig.chain.nativeCurrency.symbol;
         }
+      }
+
+      if (relayerLive !== null) {
+        result.relayerLive = relayerLive;
       }
     }
 
@@ -265,6 +293,62 @@ export async function handleStatusCommand(
         // Other commands can still surface the targeted repair guidance when
         // they actually need to load that account state.
       }
+    }
+
+    if (opts.aggregated) {
+      const { serializeErrorRecoveryTable } = await import("../utils/error-recovery-table.js");
+      const { listSavedWorkflowIds, loadWorkflowSnapshot, isTerminalFlowPhase } =
+        await import("../services/workflow.js");
+      const { listSubmissionIds, loadSubmissionRecord } =
+        await import("../services/submissions.js");
+      const { loadPendingPoolAccountSummariesForStatus } =
+        await import("./accounts.js");
+      const workflows = listSavedWorkflowIds()
+        .map((workflowId) => {
+          try {
+            return loadWorkflowSnapshot(workflowId);
+          } catch {
+            return null;
+          }
+        })
+        .filter((snapshot): snapshot is NonNullable<typeof snapshot> =>
+          snapshot !== null && !isTerminalFlowPhase(snapshot.phase),
+        );
+      const submissions = listSubmissionIds()
+        .map((submissionId) => {
+          try {
+            return loadSubmissionRecord(submissionId);
+          } catch {
+            return null;
+          }
+        })
+        .filter((submission): submission is NonNullable<typeof submission> =>
+          submission !== null && submission.status === "submitted",
+        );
+      let poolAccounts: Awaited<ReturnType<typeof loadPendingPoolAccountSummariesForStatus>> = [];
+      if (selectedChainConfig && hasMnemonic) {
+        try {
+          poolAccounts = await loadPendingPoolAccountSummariesForStatus({
+            chainConfig: selectedChainConfig,
+            rpcUrl: globalOpts?.rpcUrl,
+            mode,
+            isVerbose,
+          });
+        } catch {
+          poolAccounts = [];
+        }
+      }
+      result.aggregated = {
+        pending: {
+          workflows,
+          submissions,
+          poolAccounts,
+        },
+        recoveryTable: serializeErrorRecoveryTable({
+          chain: selectedChainConfig?.name,
+        }),
+        phaseGraphRef: "flow",
+      };
     }
 
     renderStatus(ctx, result);
