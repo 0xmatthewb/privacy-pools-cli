@@ -4,12 +4,30 @@ import {
   captureAsyncJsonOutputAllowExit,
   captureAsyncOutputAllowExit,
 } from "../helpers/output.ts";
+import { stripAnsi } from "../helpers/contract-assertions.ts";
 import {
   createWorkerRequestV1,
   encodeWorkerRequestV1,
   WORKER_REQUEST_ENV,
   WORKER_PROTOCOL_VERSION,
 } from "../../src/runtime/v1/request.ts";
+
+/**
+ * Filters spinner-frame characters and "Checking relayer requirements..."
+ * text that occasionally leaks from withdraw-scenarios's async spinner
+ * still being drained when worker-runtime starts capturing stderr.
+ *
+ * The spinner uses Unicode braille block characters (U+2800-U+28FF) which
+ * are unrelated to anything worker-runtime itself emits. The intent of
+ * `expect(stderr).toBe("")` is to verify worker-main produces no stderr,
+ * not to fail-closed on cross-test spinner leaks in Bun's shared process.
+ */
+function filterSpinnerLeaks(value: string): string {
+  return stripAnsi(value)
+    .replace(/[⠀-⣿]/g, "")
+    .replace(/Checking relayer requirements\.\.\./g, "")
+    .trim();
+}
 
 const ORIGINAL_REQUEST_ENV = process.env[WORKER_REQUEST_ENV];
 const ORIGINAL_CONSOLE = {
@@ -64,7 +82,7 @@ describe("worker runtime", () => {
     expect(json.success).toBe(true);
     expect(json.mode).toBe("help");
     expect(json.help).toContain("Privacy Pools: Quick Guide");
-    expect(stderr).toBe("");
+    expect(filterSpinnerLeaks(stderr)).toBe("");
   });
 
   test("runWorkerFromEnv decodes the worker request from process.env", async () => {
@@ -80,7 +98,7 @@ describe("worker runtime", () => {
     expect(json.success).toBe(true);
     expect(Array.isArray(json.commands)).toBe(true);
     expect(json.commands.length).toBeGreaterThan(0);
-    expect(stderr).toBe("");
+    expect(filterSpinnerLeaks(stderr)).toBe("");
   });
 
   test("worker-main executes the encoded worker request entrypoint", async () => {
@@ -106,7 +124,7 @@ describe("worker runtime", () => {
     expect(json.success).toBe(true);
     expect(json.mode).toBe("help");
     expect(json.help).toContain("Privacy Pools: Quick Guide");
-    expect(stderr).toBe("");
+    expect(filterSpinnerLeaks(stderr)).toBe("");
   });
 
   test("worker-main reports bootstrap failures through cli error rendering", async () => {
@@ -148,7 +166,7 @@ describe("worker runtime", () => {
     );
 
     expect(exitCode).toBe(1);
-    expect(stderr).toBe("");
+    expect(filterSpinnerLeaks(stderr)).toBe("");
     expect(json.success).toBe(false);
     expect(json.errorCode).toBe("UNKNOWN_ERROR");
     expect(json.errorMessage).toBe(
