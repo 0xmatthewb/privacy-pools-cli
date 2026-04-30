@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { STATIC_COMMAND_PATHS } from "../../src/utils/command-discovery-static.ts";
 import { getCommandMetadata } from "../../src/utils/command-metadata.ts";
-import { runCli } from "../helpers/cli.ts";
+import { runBuiltCli } from "../helpers/cli.ts";
 import { normalizeSemanticText } from "../helpers/contract-assertions.ts";
 
 function normalize(value: string): string {
@@ -82,7 +82,7 @@ describe("agent help block conformance", () => {
     }
 
     test(`${path} help derives agent block from metadata`, () => {
-      const result = runCli([...path.split(" "), "--help-full", "--help"], {
+      const result = runBuiltCli([...path.split(" "), "--help-full", "--help"], {
         env: {
           PRIVACY_POOLS_NO_UPDATE_CHECK: "1",
         },

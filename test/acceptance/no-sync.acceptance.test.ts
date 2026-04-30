@@ -7,7 +7,7 @@ import { ACCOUNT_FILE_VERSION, serialize } from "../../src/services/account.ts";
 import {
   TEST_MNEMONIC,
   parseJsonOutput,
-  runCli,
+  runBuiltCli,
 } from "../helpers/cli.ts";
 import {
   killFixtureServer,
@@ -312,7 +312,7 @@ defineScenarioSuite("no-sync acceptance", [
         });
 
         try {
-          const accountsResult = runCli(
+          const accountsResult = runBuiltCli(
             ["--json", "--chain", "sepolia", "accounts"],
             {
               home: ctx.home,
@@ -337,7 +337,7 @@ defineScenarioSuite("no-sync acceptance", [
             }),
           ]);
 
-          const historyResult = runCli(
+          const historyResult = runBuiltCli(
             ["--json", "--chain", "sepolia", "history"],
             {
               home: ctx.home,

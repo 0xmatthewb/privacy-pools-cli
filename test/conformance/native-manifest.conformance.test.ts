@@ -6,7 +6,7 @@ import {
   CHAIN_NAMES,
   MAINNET_CHAIN_NAMES,
 } from "../../src/config/chains.ts";
-import { createTempHome, parseJsonOutput, runCli } from "../helpers/cli.ts";
+import { createTempHome, parseJsonOutput, runBuiltCli } from "../helpers/cli.ts";
 import {
   ensureNativeShellBinary,
   nativeTest,
@@ -87,7 +87,7 @@ describe("native manifest conformance", () => {
       [...GENERATED_COMMAND_PATHS].sort(),
     );
     expect(nativeManifest.structuredRootHelp).toContain("Usage: privacy-pools");
-    const liveGuide = runCli(["guide"], {
+    const liveGuide = runBuiltCli(["guide"], {
       home: createTempHome(),
       env: {
         LANG: "en_US.UTF-8",
@@ -210,7 +210,7 @@ describe("native manifest conformance", () => {
       );
 
       for (const path of GENERATED_COMMAND_PATHS) {
-        const result = runCli([...path.split(" "), "--help"], {
+        const result = runBuiltCli([...path.split(" "), "--help"], {
           env: {
             LANG: "en_US.UTF-8",
             TERM: "xterm-256color",

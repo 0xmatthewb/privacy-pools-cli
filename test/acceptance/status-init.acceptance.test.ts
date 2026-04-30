@@ -30,7 +30,7 @@ defineScenarioSuite("status/init acceptance", [
     [
       async (ctx) => {
         const { privateKeyPath } = writeTestSecretFiles(ctx.home);
-        ctx.lastResult = ctx.runCli(
+        ctx.lastResult = ctx.runBuiltCli(
           [
             "--json",
             "init",

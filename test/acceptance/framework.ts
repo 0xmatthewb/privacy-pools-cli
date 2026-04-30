@@ -91,7 +91,7 @@ export function runCliStep(
   options: Omit<CliRunOptions, "home" | "env"> = {},
 ): ScenarioStep {
   return (ctx) => {
-    ctx.lastResult = ctx.runCli(args, options);
+    ctx.lastResult = ctx.runBuiltCli(args, options);
   };
 }
 

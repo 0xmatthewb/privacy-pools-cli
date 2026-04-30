@@ -10,7 +10,7 @@ import {
   invokableSafeInvocationRows,
   loadSafeInvocationRows,
 } from "../helpers/safe-invocations.ts";
-import { parseJsonOutput, runCli } from "../helpers/cli.ts";
+import { parseJsonOutput, runBuiltCli } from "../helpers/cli.ts";
 
 const SAFE_FUZZ_COMMANDS = new Set([
   "init",
@@ -108,7 +108,7 @@ describe("nextActions schema fuzz conformance", () => {
 
     for (const { row, mode } of invocations) {
       const args = argvForMode(row, mode);
-      const result = runCli(args, { timeoutMs: 10_000 });
+      const result = runBuiltCli(args, { timeoutMs: 10_000 });
       expect(result.timedOut, `${row.command} ${mode}`).toBe(false);
       expect(result.stderr, `${row.command} ${mode}`).toBe("");
       expect(result.stdout.trim(), `${row.command} ${mode}`).not.toBe("");

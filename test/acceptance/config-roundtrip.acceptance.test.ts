@@ -1,6 +1,6 @@
 import { expect } from "bun:test";
 import { join } from "node:path";
-import { runCli, writeTestSecretFiles } from "../helpers/cli.ts";
+import { runBuiltCli, writeTestSecretFiles } from "../helpers/cli.ts";
 import {
   assertExit,
   assertJson,
@@ -52,7 +52,7 @@ function buildConfigRoundtripInitArgs(
 defineScenarioSuite("config roundtrip acceptance", [
   defineScenario("init persists default chain and status reads it back", [
     async (ctx) => {
-      ctx.lastResult = runCli(buildConfigRoundtripInitArgs(ctx.home, { chain: "sepolia" }), {
+      ctx.lastResult = runBuiltCli(buildConfigRoundtripInitArgs(ctx.home, { chain: "sepolia" }), {
         home: ctx.home,
         timeoutMs: 60_000,
       });
@@ -68,7 +68,7 @@ defineScenarioSuite("config roundtrip acceptance", [
   ]),
   defineScenario("chain overrides do not mutate the stored default", [
     async (ctx) => {
-      ctx.lastResult = runCli(buildConfigRoundtripInitArgs(ctx.home, { chain: "sepolia" }), {
+      ctx.lastResult = runBuiltCli(buildConfigRoundtripInitArgs(ctx.home, { chain: "sepolia" }), {
         home: ctx.home,
         timeoutMs: 60_000,
       });
@@ -87,14 +87,14 @@ defineScenarioSuite("config roundtrip acceptance", [
   ]),
   defineScenario("re-init overwrites the previous config", [
     async (ctx) => {
-      ctx.lastResult = runCli(buildConfigRoundtripInitArgs(ctx.home, { chain: "sepolia" }), {
+      ctx.lastResult = runBuiltCli(buildConfigRoundtripInitArgs(ctx.home, { chain: "sepolia" }), {
         home: ctx.home,
         timeoutMs: 60_000,
       });
     },
     assertExit(0),
     async (ctx) => {
-      ctx.lastResult = runCli(
+      ctx.lastResult = runBuiltCli(
         buildConfigRoundtripInitArgs(ctx.home, {
           chain: "mainnet",
           privateKey:

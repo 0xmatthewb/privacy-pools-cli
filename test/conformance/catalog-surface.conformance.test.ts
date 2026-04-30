@@ -13,7 +13,7 @@ import {
   type DeprecationMode,
 } from "../../src/utils/deprecations.ts";
 import { CLI_ROOT } from "../helpers/paths.ts";
-import { parseJsonOutput, runCli } from "../helpers/cli.ts";
+import { parseJsonOutput, runBuiltCli } from "../helpers/cli.ts";
 
 const COMMAND_SURFACES = new Set<CommandSurface>([
   "root-command",
@@ -67,7 +67,7 @@ function expectDeprecationWarning(
   expectation: DeprecationExpectation,
 ): void {
   expect(entry.testArgv, entry.id).toBeDefined();
-  const result = runCli(argvForDeprecationMode(entry.testArgv!, mode), {
+  const result = runBuiltCli(argvForDeprecationMode(entry.testArgv!, mode), {
     env: {
       PRIVACY_POOLS_NO_UPDATE_CHECK: "1",
     },

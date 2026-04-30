@@ -12,7 +12,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
-import { parseJsonOutput, runCli } from "../helpers/cli.ts";
+import { parseJsonOutput, runBuiltCli } from "../helpers/cli.ts";
 import {
   argvForMode,
   assertSafeInvocationInventoryCoverage,
@@ -129,7 +129,7 @@ describe("output boundary conformance", () => {
 
     for (const row of invokableSafeInvocationRows(safeInvocationRows)) {
       for (const mode of row.modes ?? []) {
-        const result = runCli(argvForMode(row, mode), {
+        const result = runBuiltCli(argvForMode(row, mode), {
           timeoutMs: 20_000,
           env: {
             PRIVACY_POOLS_NO_UPDATE_CHECK: "1",

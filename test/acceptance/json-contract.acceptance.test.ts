@@ -20,6 +20,7 @@ import {
   assertStderrEmpty,
   defineScenario,
   defineScenarioSuite,
+  runBuiltCliStep,
   runCliStep,
   seedHome,
   writeFile,
@@ -319,7 +320,8 @@ defineScenarioSuite("json-contract acceptance", [
     }),
   ]),
   defineScenario("upgrade check keeps the source-checkout manual JSON contract", [
-    runCliStep(["--json", "upgrade", "--check"], {
+    runBuiltCliStep(["--json", "upgrade", "--check"], {
+      binPath: "scripts/start-built-cli.mjs",
       timeoutMs: 10_000,
       env: UPDATE_REGISTRY_ENV,
     }),

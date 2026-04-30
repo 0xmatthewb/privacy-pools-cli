@@ -75,7 +75,7 @@ const distProgramModulePath = join(
   "dist",
   "program.js",
 );
-const sourceCliPath = join(repoRoot, "src", "index.ts");
+const distCliPath = join(repoRoot, "dist", "index.js");
 
 const manifestModulePath = join(
   repoRoot,
@@ -241,7 +241,7 @@ function captureBuiltCli(args, envOverrides = {}) {
   try {
     const result = spawnSync(
       "node",
-      ["--import", "tsx", sourceCliPath, ...args],
+      [distCliPath, ...args],
       {
         cwd: repoRoot,
         env: {
