@@ -449,7 +449,11 @@ jobs:
     runs-on: ${{ matrix.runner }}
     needs:
       - prepare-js-artifacts
-    timeout-minutes: 20
+    # 30 min accommodates Windows runners where Defender + cmd.exe shell:true
+    # overhead pushes verify-release-install past the 20 min ceiling. Linux/
+    # macOS lanes routinely complete in 3-7 min; the higher cap is a passive
+    # ceiling, not a target.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
