@@ -145,6 +145,12 @@ function defaultRunCommand(
     encoding: "utf8",
     timeout: 120_000,
     maxBuffer: 10 * 1024 * 1024,
+    // Node 20+ tightened .cmd/.bat spawning per CVE-2024-27980; on Windows
+    // npm.cmd cannot be spawned without shell:true. Without this, the
+    // upgrade flow's `npm root -g` call returns EINVAL, the install
+    // context detector falls back to "local_project", and the spawned
+    // upgrade verifier reports manual/declined despite a global install.
+    shell: process.platform === "win32",
   });
 
   return {
