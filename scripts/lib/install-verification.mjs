@@ -197,7 +197,11 @@ export function runNpmInstallWithRetry(args, options = {}) {
     const result = spawnSyncImpl(npmCommand, args, {
       cwd: options.cwd,
       encoding: "utf8",
-      timeout: options.timeout ?? 180_000,
+      // 720s default on Windows accommodates Defender scanning + cmd.exe
+      // shell:true overhead for `npm install -g`. Linux/macOS keep 180s.
+      // Caller can still pass options.timeout to override.
+      timeout: options.timeout ??
+        (process.platform === "win32" ? 720_000 : 180_000),
       maxBuffer: options.maxBuffer ?? 10 * 1024 * 1024,
       env: options.env,
       // Node 20+ tightened .cmd/.bat spawning per CVE-2024-27980; Windows
