@@ -1,9 +1,9 @@
 // normalized: ADDR
 
-  Withdrew privately 0.5 ETH -> <ADDR> - PA-2 - Block 19000001
+  Withdrew privately 0.5 ETH -> <ADDR> · PA-2 · Block 19000001
     https://etherscan.io/tx/0x1122
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Summary:
   Mode:              relayed
   Pool Account:      PA-2
@@ -17,11 +17,11 @@ Summary:
   You receive:       0.4975 ETH
   Remaining in PA-2: 0.5 ETH
 
-  | Success:
-  | The relayed withdrawal path completed. Re-check accounts if you want to confirm the remaining balance.
+  │ Success:
+  │ The relayed withdrawal path completed. Re-check accounts if you want to confirm the remaining balance.
 
-  | Privacy note:
-  | Estimated anonymity set at this amount: 42 of 128 deposits (32.8%; larger is more private).
+  │ Privacy note:
+  │ Estimated anonymity set at this amount: 42 of 128 deposits (32.8%; larger is more private).
 
 Next steps:
   privacy-pools accounts --chain mainnet

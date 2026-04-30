@@ -60,15 +60,41 @@ function renderAgentJson(render: (ctx: ReturnType<typeof createOutputContext>) =
   return parseCapturedJson(stdout);
 }
 
+function withUnicodeTerminalEnv<T>(callback: () => T): T {
+  const previous = {
+    TERM: process.env.TERM,
+    LANG: process.env.LANG,
+    LC_ALL: process.env.LC_ALL,
+  };
+
+  process.env.TERM = "xterm-256color";
+  process.env.LANG = "en_US.UTF-8";
+  process.env.LC_ALL = "en_US.UTF-8";
+
+  try {
+    return callback();
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
 function renderHumanText(render: (ctx: ReturnType<typeof createOutputContext>) => void): string {
-  const ctx = createOutputContext(
-    makeMode(),
-    false,
-    { suppressUrgentRecommendations: true },
-  );
-  const { stdout, stderr } = captureOutput(() => render(ctx));
-  expect(stdout).toBe("");
-  return stderr;
+  return withUnicodeTerminalEnv(() => {
+    const ctx = createOutputContext(
+      makeMode(),
+      false,
+      { suppressUrgentRecommendations: true },
+    );
+    const { stdout, stderr } = captureOutput(() => render(ctx));
+    expect(stdout).toBe("");
+    return stderr;
+  });
 }
 
 // ── renderInitResult parity ─────────────────────────────────────────────────

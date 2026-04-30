@@ -1,20 +1,20 @@
 // normalized: ADDR
 
-+ Dry-run: validation succeeded. Re-run without --dry-run to submit.
-+-- Withdrawal dry-run ------------------------------------------------------+
-|   Mode:                 relayed                                            |
-|   Amount:               0.5 ETH                                            |
-|   Recipient:            <ADDR>         |
-|   Pool Account:         PA-2                                               |
-|   Relayer fee:          0.50%                                              |
-|   Relayer:              https://relayer.example                            |
-|   Quote refreshes:      0                                                  |
-|   Pool Account balance: 0.5 ETH                                            |
-|   Root check:           matched latest root                                |
-|   Anonymity set:        42 of 128 deposits (32.8%; larger is more private) |
-|   Read-only note:                                                          |
-|     No transaction was submitted and no local account state was changed.   |
-+----------------------------------------------------------------------------+
+✓ Dry-run: validation succeeded. Re-run without --dry-run to submit.
+╭── Withdrawal dry-run ──────────────────────────────────────────────────────╮
+│   Mode:                 relayed                                            │
+│   Amount:               0.5 ETH                                            │
+│   Recipient:            <ADDR>         │
+│   Pool Account:         PA-2                                               │
+│   Relayer fee:          0.50%                                              │
+│   Relayer:              https://relayer.example                            │
+│   Quote refreshes:      0                                                  │
+│   Pool Account balance: 0.5 ETH                                            │
+│   Root check:           matched latest root                                │
+│   Anonymity set:        42 of 128 deposits (32.8%; larger is more private) │
+│   Read-only note:                                                          │
+│     No transaction was submitted and no local account state was changed.   │
+╰────────────────────────────────────────────────────────────────────────────╯
 
 Next steps:
   privacy-pools withdraw 0.5 ETH --chain mainnet --to <ADDR> --pool-account PA-2

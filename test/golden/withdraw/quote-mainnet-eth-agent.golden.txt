@@ -1,6 +1,6 @@
 // normalized: ADDR
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Withdrawal quote:
   Asset:                 ETH
   Withdraw amount:       0.1234 ETH
@@ -13,8 +13,8 @@ Withdrawal quote:
   Relayer:               https://relayer.example
   Quote refreshes:       3
 
-  | Warning:
-  | Amount 0.1234 ETH may fingerprint this transaction
+  │ Warning:
+  │ Amount 0.1234 ETH may fingerprint this transaction
 
 Next steps:
   privacy-pools withdraw 0.1234 ETH --to <ADDR>

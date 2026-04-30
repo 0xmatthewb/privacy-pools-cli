@@ -1,12 +1,12 @@
 // normalized: NONE
 
-  Deposited 0.1 ETH -> mainnet ETH pool - PA-1 - Block 19000000
+  Deposited 0.1 ETH -> mainnet ETH pool · PA-1 · Block 19000000
     https://etherscan.io/tx/0xaabb
 
-  | Success:
-  | Welcome to Privacy Pools — this is your first deposit on this chain. Your Pool Account is now under ASP review.
+  │ Success:
+  │ Welcome to Privacy Pools — this is your first deposit on this chain. Your Pool Account is now under ASP review.
 
-------------------------------------------------------------------------------------------------------------------------
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Summary:
   Chain:         mainnet
   Pool Account:  PA-1
@@ -15,10 +15,10 @@ Summary:
   Tx:            0xaabbccdd...7890aabb
   Explorer:      https://etherscan.io/tx/0xaabb
 
-  | Warning:
-  | The ASP will validate that this deposit is coming from a good actor (not a flagged account). Private withdrawal
-  | unlocks after approval.
-  | Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
+  │ Warning:
+  │ The ASP will validate that this deposit is coming from a good actor (not a flagged account). Private withdrawal
+  │ unlocks after approval.
+  │ Most deposits are approved within 1 hour, but some may take longer (up to 7 days).
 
 Next steps:
   privacy-pools accounts --chain mainnet --pending-only
