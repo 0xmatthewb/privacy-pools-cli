@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { createSeededHome, createTempHome, runCli } from "../helpers/cli.ts";
+import { createSeededHome, createTempHome, runBuiltCli } from "../helpers/cli.ts";
 
 describe("prompt cancellation integration", () => {
   test("non-tty human init fails as missing interactive input", () => {
     const home = createTempHome();
-    const result = runCli(["--no-banner", "init"], {
+    const result = runBuiltCli(["--no-banner", "init"], {
       home,
       input: "",
       timeoutMs: 10_000,
@@ -28,7 +28,7 @@ describe("prompt cancellation integration", () => {
     const home = createSeededHome("mainnet");
 
     for (const command of ["deposit", "withdraw", "ragequit"]) {
-      const result = runCli(["--no-banner", command], {
+      const result = runBuiltCli(["--no-banner", command], {
         home,
         input: "",
         timeoutMs: 10_000,

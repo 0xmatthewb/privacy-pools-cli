@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { buildTestInitArgs, createTempHome, runCli } from "../helpers/cli.ts";
+import { buildTestInitArgs, createTempHome, runBuiltCli } from "../helpers/cli.ts";
 
 describe("init rpc override integration", () => {
   test("persists --rpc-url for explicit --default-chain", () => {
     const home = createTempHome();
     const rpcUrl = "http://127.0.0.1:8545";
 
-    const result = runCli(
+    const result = runBuiltCli(
       buildTestInitArgs(home, {
         chain: "sepolia",
         rpcUrl,
@@ -32,7 +32,7 @@ describe("init rpc override integration", () => {
     const home = createTempHome();
     const rpcUrl = "http://127.0.0.1:9545";
 
-    const result = runCli(
+    const result = runBuiltCli(
       buildTestInitArgs(home, { rpcUrl }),
       { home }
     );
