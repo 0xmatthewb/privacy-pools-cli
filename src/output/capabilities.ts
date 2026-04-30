@@ -51,7 +51,11 @@ export function renderCapabilities(
   ];
 
   if (ctx.mode.isJson) {
-    printJsonSuccess(appendNextActions({ ...payload }, agentNextActions));
+    printJsonSuccess(appendNextActions({
+      mode: "capabilities",
+      operation: "capabilities",
+      ...payload,
+    }, agentNextActions));
     return;
   }
 

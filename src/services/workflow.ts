@@ -1456,7 +1456,7 @@ export function resolveLatestWorkflowId(): string {
           createNextAction(
             "flow start",
             "Create a saved workflow before requesting the latest workflow.",
-            "flow_manual_followup",
+            "transfer_manual_followup",
             {
               options: { agent: true },
               runnable: false,

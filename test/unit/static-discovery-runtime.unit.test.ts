@@ -471,7 +471,7 @@ describe("static discovery runtime", () => {
     expect(json.success).toBe(true);
     expect(json.command).toBe("flow");
     expect(json.topic).toBeUndefined();
-    expect(json.expectedNextActionWhen).toContain("flow_resume");
+    expect(json.expectedNextActionWhen).toContain("transfer_resume");
   });
 
   test("static describe resolves envelope schema paths in both JSON and human modes", async () => {

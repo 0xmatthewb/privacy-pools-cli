@@ -300,9 +300,9 @@ Recommended Flow:
 JSON Contract:
   Use --json for machine-readable output. Use --agent for --json --yes --quiet.
   Successful commands emit:
-  { "schemaVersion": "2.0.0", "success": true, ...payload }
+  { "schemaVersion": "3.0.0", "success": true, ...payload }
   Failed commands emit:
-  { "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "error": { ... } }
+  { "schemaVersion": "3.0.0", "success": false, "errorCode": "...", "error": { ... } }
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Filtering:

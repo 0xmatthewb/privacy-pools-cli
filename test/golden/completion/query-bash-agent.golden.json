@@ -1,5 +1,6 @@
 // normalized: NONE
 {
+  "action": "query",
   "candidates": [
     "--agent",
     "--chain",
@@ -59,7 +60,7 @@
     "withdraw"
   ],
   "cword": 1,
-  "mode": "completion-query",
+  "mode": "completion",
   "nextActions": [
     {
       "cliCommand": "privacy-pools completion --agent --install",
@@ -71,7 +72,8 @@
       "when": "after_completion"
     }
   ],
-  "schemaVersion": "2.0.0",
+  "operation": "completion.query",
+  "schemaVersion": "3.0.0",
   "shell": "bash",
   "success": true
 }

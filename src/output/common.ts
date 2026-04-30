@@ -219,7 +219,7 @@ function urgentActionCoveredByExisting(
 
 function urgentRecommendationLabel(action: NextAction): string {
   switch (action.when) {
-    case "flow_resume":
+    case "transfer_resume":
       return "pending workflow";
     case "after_submit":
       return "interrupted tx";

@@ -115,7 +115,7 @@
       "vettingFeeBPS": "50"
     }
   ],
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "search": null,
   "sort": "tvl-desc",
   "success": true

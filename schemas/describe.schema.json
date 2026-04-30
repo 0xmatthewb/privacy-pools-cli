@@ -15,6 +15,15 @@
                   "type": "boolean",
                   "const": true
                 },
+                "mode": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "operation": {
+                  "type": "string"
+                },
                 "nextActions": {
                   "type": "array",
                   "items": {
@@ -85,11 +94,63 @@
                     ],
                     "additionalProperties": false
                   }
+                },
+                "acceptedAcknowledgements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "severity": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "severity"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "freshness": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chain": {
+                        "type": "string"
+                      },
+                      "lastSyncAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ageSeconds": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "isStale": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "chain",
+                      "isStale"
+                    ],
+                    "additionalProperties": false
+                  }
                 }
               },
               "required": [
                 "schemaVersion",
-                "success"
+                "success",
+                "mode",
+                "operation"
               ]
             },
             {
@@ -213,6 +274,45 @@
                         "type": "string"
                       }
                     },
+                    "agentSupported": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "humanInteractive": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "mutatesFunds": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "mutatesLocalState": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "streamJsonSupported": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "csvSupported": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "commandType": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "sharedHelpHandler": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/requiresInit"
+                    },
+                    "agentUnsupportedFlags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "agentUnsupportedFlagCombos": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
                     "nextActions": {
                       "type": "array",
                       "items": {
@@ -226,8 +326,13 @@
                   "type": "object",
                   "properties": {
                     "mode": {
-                      "type": "string",
-                      "const": "describe-index"
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "action": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
+                    },
+                    "operation": {
+                      "$ref": "#/definitions/describe envelope/anyOf/0/allOf/1/anyOf/0/properties/command"
                     },
                     "commands": {
                       "type": "array",
@@ -263,7 +368,6 @@
                     }
                   },
                   "required": [
-                    "mode",
                     "commands",
                     "envelopeRoots"
                   ],
@@ -384,6 +488,29 @@
             "retry": {
               "type": "object",
               "additionalProperties": {}
+            },
+            "requiredAcknowledgements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "severity": {
+                    "type": "string"
+                  },
+                  "summary": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "severity",
+                  "summary"
+                ],
+                "additionalProperties": false
+              }
             }
           },
           "required": [

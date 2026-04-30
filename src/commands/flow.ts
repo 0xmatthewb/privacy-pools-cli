@@ -926,7 +926,7 @@ export async function handleFlowStartCommand(
             createNextAction(
               "flow status",
               "Poll the saved workflow state without running an internal watch loop.",
-              "flow_resume",
+              "transfer_resume",
               {
                 options: { agent: true },
                 parameters: [
@@ -938,7 +938,7 @@ export async function handleFlowStartCommand(
             createNextAction(
               "flow step",
               "Advance the saved workflow with one unit of work at a time.",
-              "flow_resume",
+              "transfer_resume",
               {
                 options: { agent: true },
                 parameters: [
@@ -984,7 +984,7 @@ export async function handleFlowStartCommand(
             createNextAction(
               "flow start",
               "Provide the withdrawal recipient address before creating the saved flow.",
-              "flow_manual_followup",
+              "transfer_manual_followup",
               {
                 args: [amount, asset],
                 options: { agent: true },
@@ -1162,7 +1162,7 @@ export async function handleFlowStartCommand(
                 createNextAction(
                   "flow start",
                   "Correct the flow start inputs and retry.",
-                  "flow_manual_followup",
+                  "transfer_manual_followup",
                   {
                     args: [amount, asset],
                     options: { agent: true },
@@ -1264,7 +1264,7 @@ export async function handleFlowRagequitCommand(
             createNextAction(
               "flow status",
               "Inspect the saved workflow on the private path before choosing public recovery.",
-              "flow_resume",
+              "transfer_resume",
               {
                 args: [snapshot.workflowId],
                 options: { agent: true },
@@ -1273,7 +1273,7 @@ export async function handleFlowRagequitCommand(
             createNextAction(
               "flow step",
               "Advance the saved workflow on the private path instead of choosing public recovery.",
-              "flow_resume",
+              "transfer_resume",
               {
                 args: [snapshot.workflowId],
                 options: { agent: true },
@@ -1378,7 +1378,7 @@ export async function handleFlowWatchCommand(
             createNextAction(
               "flow status",
               "Poll the saved workflow state without running an internal watch loop.",
-              "flow_resume",
+              "transfer_resume",
               {
                 options: { agent: true },
                 parameters: [
@@ -1390,7 +1390,7 @@ export async function handleFlowWatchCommand(
             createNextAction(
               "flow step",
               "Advance the saved workflow with one unit of work at a time.",
-              "flow_resume",
+              "transfer_resume",
               {
                 options: { agent: true },
                 parameters: [

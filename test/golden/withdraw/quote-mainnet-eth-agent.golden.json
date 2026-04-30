@@ -1,5 +1,6 @@
 // normalized: ADDR, TS, WEI
 {
+  "action": "quote",
   "amount": "<WEI>",
   "asset": "ETH",
   "baseFeeBPS": "45",
@@ -8,7 +9,7 @@
   "feeCommitmentPresent": true,
   "minWithdrawAmount": "<WEI>",
   "minWithdrawAmountFormatted": "0.1 ETH",
-  "mode": "relayed-quote",
+  "mode": "withdraw",
   "netAmount": "<WEI>",
   "nextActions": [
     {
@@ -26,6 +27,7 @@
       "when": "after_quote"
     }
   ],
+  "operation": "withdraw.quote",
   "quoteExpiresAt": "<TS>",
   "quoteFeeBPS": "50",
   "quoteRefreshCount": 3,
@@ -35,7 +37,7 @@
     "gas": "0"
   },
   "relayerHost": "https://relayer.example",
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "success": true,
   "warnings": [
     {

@@ -606,6 +606,8 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, Generat
 };
 
 export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
+  "mode": "capabilities",
+  "operation": "capabilities",
   "commands": [
     {
       "name": "init",
@@ -639,7 +641,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--staged"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": true,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "upgrade",
@@ -657,7 +666,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--yes"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "medium"
+      "expectedLatencyClass": "medium",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config",
@@ -676,7 +692,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config list",
@@ -689,7 +712,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config get",
@@ -705,7 +735,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--reveal"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config set",
@@ -723,7 +760,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stdin"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config unset",
@@ -739,7 +783,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config path",
@@ -752,7 +803,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config profile",
@@ -761,7 +819,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "config profile <command>",
       "flags": [],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config profile list",
@@ -774,7 +839,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config profile create",
@@ -787,7 +859,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config profile active",
@@ -800,7 +879,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "config profile use",
@@ -809,7 +895,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "usage": "config profile use <name>",
       "flags": [],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "flow",
@@ -828,7 +921,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "flow start",
@@ -856,7 +956,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "flow watch",
@@ -871,7 +978,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlags": "not supported in --agent mode",
       "agentFlagNames": [],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": false,
+      "humanInteractive": true,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "flow status",
@@ -886,7 +1000,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "flow step",
@@ -903,7 +1024,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "flow ragequit",
@@ -922,7 +1050,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "simulate",
@@ -939,7 +1074,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "simulate deposit",
@@ -954,7 +1096,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "simulate withdraw",
@@ -976,7 +1125,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "simulate ragequit",
@@ -992,7 +1148,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "pools",
@@ -1014,7 +1177,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--sort"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "medium"
+      "expectedLatencyClass": "medium",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     {
       "name": "status",
@@ -1034,7 +1204,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--no-check"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "tx-status",
@@ -1047,7 +1224,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "activity",
@@ -1068,7 +1252,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--page"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "medium"
+      "expectedLatencyClass": "medium",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     {
       "name": "protocol-stats",
@@ -1088,7 +1279,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "medium"
+      "expectedLatencyClass": "medium",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     {
       "name": "pool-stats",
@@ -1108,7 +1306,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "medium"
+      "expectedLatencyClass": "medium",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     {
       "name": "describe",
@@ -1123,7 +1328,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "deposit",
@@ -1146,7 +1358,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "withdraw",
@@ -1175,7 +1394,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "recipients",
@@ -1198,7 +1424,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "recipients list",
@@ -1221,7 +1454,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     {
       "name": "recipients add",
@@ -1234,7 +1474,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "recipients remove",
@@ -1250,7 +1497,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "recipients clear",
@@ -1263,7 +1517,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "withdraw quote",
@@ -1278,7 +1539,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "medium"
+      "expectedLatencyClass": "medium",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "broadcast",
@@ -1296,7 +1564,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--validate-only"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "accounts",
@@ -1323,7 +1598,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     {
       "name": "migrate",
@@ -1339,7 +1621,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--include-testnets"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "migrate status",
@@ -1355,7 +1644,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--include-testnets"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "history",
@@ -1372,7 +1668,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     {
       "name": "sync",
@@ -1389,7 +1692,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "ragequit",
@@ -1410,7 +1720,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--stream-json"
       ],
       "requiresInit": true,
-      "expectedLatencyClass": "slow"
+      "expectedLatencyClass": "slow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "guide",
@@ -1427,7 +1744,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "completion",
@@ -1445,7 +1769,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--install"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     {
       "name": "capabilities",
@@ -1458,9 +1789,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent"
       ],
       "requiresInit": false,
-      "expectedLatencyClass": "fast"
+      "expectedLatencyClass": "fast",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     }
   ],
+  "namespaces": [],
   "commandDetails": {
     "init": {
       "command": "init",
@@ -1642,7 +1981,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentWorkflowNotes": [
         "When generating a new recovery phrase in machine mode, pass --show-recovery-phrase or --backup-file so the phrase is captured before init completes.",
         "When loading an existing recovery phrase, inspect restoreDiscovery and nextActions instead of assuming the account is immediately ready to transact."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": true,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "upgrade": {
       "command": "upgrade",
@@ -1756,7 +2102,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentWorkflowNotes": [
         "In machine modes, upgrade is check-only unless --yes is explicitly present.",
         "Treat status = ready as an available update on a supported global npm install, status = manual as an available update requiring manual follow-up, and status = upgraded as a completed install that still requires a fresh CLI invocation."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config": {
       "command": "config",
@@ -1846,7 +2199,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config list": {
       "command": "config list",
@@ -1915,7 +2275,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config get": {
       "command": "config get",
@@ -1997,7 +2364,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent",
         "--reveal"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config set": {
       "command": "config set",
@@ -2083,7 +2457,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--file",
         "--stdin"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config unset": {
       "command": "config unset",
@@ -2165,7 +2546,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config path": {
       "command": "config path",
@@ -2234,7 +2622,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config profile": {
       "command": "config profile",
@@ -2305,7 +2700,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config profile list": {
       "command": "config profile list",
@@ -2374,7 +2776,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config profile create": {
       "command": "config profile create",
@@ -2443,7 +2852,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config profile active": {
       "command": "config profile active",
@@ -2512,7 +2928,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "config profile use": {
       "command": "config profile use",
@@ -2578,7 +3001,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "supportsUnsigned": false,
       "supportsDryRun": false,
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "flow": {
       "command": "flow",
@@ -2689,17 +3119,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentWorkflowNotes": [
         "Start with flow start <amount> <asset> --to <address> --agent, then poll with flow status <workflowId|latest> --agent and advance with flow step <workflowId|latest> --agent until the workflow completes or pauses.",
-        "If flow status or flow step returns flow_declined or flow_public_recovery_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
-        "If flow status or flow step returns flow_public_recovery_optional, prefer completing the private path unless the operator explicitly chooses public recovery."
+        "If flow status or flow step returns transfer_declined or transfer_ragequit_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
+        "If flow status or flow step returns transfer_ragequit_optional, prefer completing the private path unless the operator explicitly chooses public recovery."
       ],
       "expectedNextActionWhen": [
         "after_dry_run",
-        "flow_resume",
-        "flow_public_recovery_required",
-        "flow_declined",
-        "flow_public_recovery_pending",
-        "flow_public_recovery_optional",
-        "flow_manual_followup"
+        "transfer_resume",
+        "transfer_ragequit_required",
+        "transfer_declined",
+        "transfer_ragequit_pending",
+        "transfer_ragequit_optional",
+        "transfer_manual_followup"
       ],
       "phaseGraph": {
         "nodes": [
@@ -2866,7 +3296,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "paused_declined",
           "paused_poa_required"
         ]
-      }
+      },
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "simulate": {
       "command": "simulate",
@@ -2950,7 +3387,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentWorkflowNotes": [
         "Treat simulate as a convenience alias for --dry-run, not as a new machine contract. Existing after_dry_run nextActions remain unchanged."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "flow start": {
       "command": "flow start",
@@ -3106,17 +3550,24 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "expectedNextActionWhen": [
         "after_dry_run",
-        "flow_resume",
-        "flow_public_recovery_required",
-        "flow_declined",
-        "flow_public_recovery_pending",
-        "flow_public_recovery_optional",
-        "flow_manual_followup"
+        "transfer_resume",
+        "transfer_ragequit_required",
+        "transfer_declined",
+        "transfer_ragequit_pending",
+        "transfer_ragequit_optional",
+        "transfer_manual_followup"
       ],
       "phaseGraphRef": "flow",
       "agentRequiredFlags": [
         "--to"
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "flow watch": {
       "command": "flow watch",
@@ -3231,14 +3682,21 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Use flow status to poll and flow step to advance the same saved workflow externally."
       ],
       "expectedNextActionWhen": [
-        "flow_resume",
-        "flow_public_recovery_required",
-        "flow_declined",
-        "flow_public_recovery_pending",
-        "flow_public_recovery_optional",
-        "flow_manual_followup"
+        "transfer_resume",
+        "transfer_ragequit_required",
+        "transfer_declined",
+        "transfer_ragequit_pending",
+        "transfer_ragequit_optional",
+        "transfer_manual_followup"
       ],
-      "phaseGraphRef": "flow"
+      "phaseGraphRef": "flow",
+      "agentSupported": false,
+      "humanInteractive": true,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "flow status": {
       "command": "flow status",
@@ -3318,14 +3776,21 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentWorkflowNotes": [],
       "expectedNextActionWhen": [
-        "flow_resume",
-        "flow_public_recovery_required",
-        "flow_declined",
-        "flow_public_recovery_pending",
-        "flow_public_recovery_optional",
-        "flow_manual_followup"
+        "transfer_resume",
+        "transfer_ragequit_required",
+        "transfer_declined",
+        "transfer_ragequit_pending",
+        "transfer_ragequit_optional",
+        "transfer_manual_followup"
       ],
-      "phaseGraphRef": "flow"
+      "phaseGraphRef": "flow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "flow step": {
       "command": "flow step",
@@ -3414,14 +3879,21 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentWorkflowNotes": [],
       "expectedNextActionWhen": [
-        "flow_resume",
-        "flow_public_recovery_required",
-        "flow_declined",
-        "flow_public_recovery_pending",
-        "flow_public_recovery_optional",
-        "flow_manual_followup"
+        "transfer_resume",
+        "transfer_ragequit_required",
+        "transfer_declined",
+        "transfer_ragequit_pending",
+        "transfer_ragequit_optional",
+        "transfer_manual_followup"
       ],
-      "phaseGraphRef": "flow"
+      "phaseGraphRef": "flow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "flow ragequit": {
       "command": "flow ragequit",
@@ -3520,10 +3992,17 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentWorkflowNotes": [],
       "expectedNextActionWhen": [
-        "flow_public_recovery_pending",
+        "transfer_ragequit_pending",
         "after_ragequit"
       ],
-      "phaseGraphRef": "flow"
+      "phaseGraphRef": "flow",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "pools": {
       "command": "pools",
@@ -3659,7 +4138,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
         "Registry-backed aggregate fields may be null when upstream data is unavailable for that pool/chain: totalInPoolValue*, totalDeposits*, acceptedDeposits*, pendingDeposits*, *Count, growth24h, and pendingGrowth24h.",
         "Human-readable output is written to stderr; only structured JSON (--json/--agent) writes machine payloads to stdout."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     "activity": {
       "command": "activity",
@@ -3769,7 +4255,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit",
         "--page"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     "protocol-stats": {
       "command": "protocol-stats",
@@ -3846,7 +4339,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent",
         "--limit"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     "pool-stats": {
       "command": "pool-stats",
@@ -3924,7 +4424,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent",
         "--limit"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     "status": {
       "command": "status",
@@ -4048,7 +4555,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--check",
         "--no-check"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "tx-status": {
       "command": "tx-status",
@@ -4120,7 +4634,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentWorkflowNotes": [],
       "expectedNextActionWhen": [
         "after_submit"
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "capabilities": {
       "command": "capabilities",
@@ -4190,7 +4711,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "describe": {
       "command": "describe",
@@ -4282,7 +4810,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "guide": {
       "command": "guide",
@@ -4366,7 +4901,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "deposit": {
       "command": "deposit",
@@ -4513,7 +5055,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "With --no-wait, poll tx-status <submissionId> until the deposit transaction confirms, then use flow status <workflowId> or accounts --chain <chain> to follow ASP review.",
         "Poll accounts --chain <chain> --pending-only while the Pool Account remains pending; when it disappears from pending results, re-run accounts --chain <chain> to confirm whether aspStatus became approved, declined, or requires Proof of Association. Withdraw only after approval; ragequit if declined; complete Proof of Association at https://tornado.0xbow.io first if needed. Always preserve the same --chain scope for both polling and confirmation.",
         "If the deposit transaction was submitted but confirmation timed out or the CLI was interrupted afterward, run sync --chain <chain> before retrying so local state can detect the onchain deposit."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "withdraw": {
       "command": "withdraw",
@@ -4677,7 +5226,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentRequiredFlags": [
         "--to"
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "withdraw quote": {
       "command": "withdraw quote",
@@ -4758,7 +5314,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentWorkflowNotes": [
         "Quotes expire quickly; submit the withdrawal promptly after quoting if the fee is acceptable. Check runnable=false on nextActions for template commands that still need required user input.",
         "Preferred order is withdraw quote <amount> <asset>; withdraw quote <asset> <amount> remains supported for compatibility."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "recipients": {
       "command": "recipients",
@@ -4849,7 +5412,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentWorkflowNotes": [
         "Use this read-only list to offer previously used recipients before prompting for a new address."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "recipients list": {
       "command": "recipients list",
@@ -4934,7 +5504,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentWorkflowNotes": [
         "Use this read-only list to offer previously used recipients before prompting for a new address."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     "recipients add": {
       "command": "recipients add",
@@ -5004,7 +5581,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "recipients remove": {
       "command": "recipients remove",
@@ -5075,7 +5659,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "recipients clear": {
       "command": "recipients clear",
@@ -5145,7 +5736,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "ragequit": {
       "command": "ragequit",
@@ -5268,7 +5866,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentRequiredFlags": [
         "--pool-account"
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "simulate deposit": {
       "command": "simulate deposit",
@@ -5348,7 +5953,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "expectedNextActionWhen": [
         "after_dry_run"
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "simulate withdraw": {
       "command": "simulate withdraw",
@@ -5438,7 +6050,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentRequiredFlags": [
         "--to"
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "simulate ragequit": {
       "command": "simulate ragequit",
@@ -5522,7 +6141,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentRequiredFlags": [
         "--pool-account"
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "broadcast": {
       "command": "broadcast",
@@ -5619,7 +6245,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Keep using your existing Bankr or custom signer path if you already have one. broadcast is optional and does not change the current --unsigned contract.",
         "For first-party envelope workflows, the canonical sequence is: build with --unsigned, sign outside the CLI, then return with broadcast.",
         "With --no-wait, use tx-status <submissionId> to poll confirmation without re-broadcasting."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": true,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "accounts": {
       "command": "accounts",
@@ -5776,7 +6409,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "Without --chain, accounts aggregates all CLI-supported mainnet chains by default. Use --include-testnets to include supported testnets.",
         "Use --summary or --pending-only to reduce JSON size for polling loops.",
         "When a Pool Account disappears from --pending-only results, re-run accounts without --pending-only to confirm whether it was approved, declined, or requires Proof of Association (https://tornado.0xbow.io) before choosing withdraw or ragequit."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     "migrate": {
       "command": "migrate",
@@ -5855,7 +6495,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent",
         "--include-testnets"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "migrate status": {
       "command": "migrate status",
@@ -5939,7 +6586,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       ],
       "agentWorkflowNotes": [
         "Use this after init/import when the CLI warns that a legacy pre-upgrade account may need website migration or website-based recovery."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "history": {
       "command": "history",
@@ -6040,7 +6694,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentFlagNames": [
         "--agent"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
     },
     "sync": {
       "command": "sync",
@@ -6125,7 +6786,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "agentWorkflowNotes": [
         "Use sync after deposit, withdraw, or ragequit confirmation timeouts before retrying. It rebuilds local account state from onchain events and prevents duplicate recovery attempts against already-confirmed transactions.",
         "Default sync --agent stays as one final JSON envelope. Add --stream-json when your runner needs progress heartbeats during long syncs; the terminal result line includes isFinal = true."
-      ]
+      ],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": true,
+      "csvSupported": false,
+      "commandType": "concrete"
     },
     "completion": {
       "command": "completion",
@@ -6220,7 +6888,14 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--agent",
         "--install"
       ],
-      "agentWorkflowNotes": []
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": true,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
     }
   },
   "executionRoutes": {
@@ -7719,12 +8394,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "accounts_empty",
         "accounts_other_chain_activity",
         "accounts_restore_check",
-        "flow_manual_followup",
-        "flow_public_recovery_pending",
-        "flow_public_recovery_required",
-        "flow_resume",
-        "flow_public_recovery_optional",
-        "flow_declined"
+        "transfer_manual_followup",
+        "transfer_ragequit_pending",
+        "transfer_ragequit_required",
+        "transfer_resume",
+        "transfer_ragequit_optional",
+        "transfer_declined"
       ],
       "description": "Canonical workflow guidance for agents. Follow these command suggestions instead of parsing natural-language output. Current nextActions are emitted only when the CLI has a low-ambiguity follow-up to recommend. JSON nextActions are emitted in --agent mode even though --agent implies --quiet; quiet only suppresses human-oriented stderr sections. Ordering is deterministic and priority-ordered: primary private/resume paths first, required public recovery before optional public recovery, optional public recovery after private paths, and deposit templates last. When runnable is omitted or true, the command is fully specified and can be executed as shown. When runnable is false, cliCommand is omitted and parameters[] describes the missing user input before execution."
     },
@@ -7795,7 +8470,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
   },
   "runtime": {
     "cliVersion": "2.0.0",
-    "jsonSchemaVersion": "2.0.0",
+    "jsonSchemaVersion": "3.0.0",
     "accountFileVersion": 3,
     "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1",
@@ -7803,7 +8478,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "runtime": "js",
     "workerProtocolVersion": "1",
     "manifestVersion": "1",
-    "nativeBridgeVersion": "1"
+    "nativeBridgeVersion": "2"
   },
   "safeReadOnlyCommands": [
     "config",
@@ -7841,7 +8516,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "agentGuide": "AGENTS.md",
     "changelog": "CHANGELOG.md",
     "runtimeUpgrades": "docs/runtime-upgrades.md",
-    "jsonContract": "docs/contracts/cli-json-contract.v2.0.0.json",
+    "jsonContract": "docs/contracts/cli-json-contract.v3.0.0.json",
     "envelopeSchemas": "schemas/index.json",
     "errorCodes": "docs/errors.md"
   }

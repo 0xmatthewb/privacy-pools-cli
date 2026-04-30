@@ -10,6 +10,6 @@
   },
   "errorCode": "INPUT_FLAG_CONFLICT",
   "errorMessage": "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "success": false
 }

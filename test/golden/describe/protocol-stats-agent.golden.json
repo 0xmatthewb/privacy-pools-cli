@@ -4,6 +4,7 @@
     "--agent",
     "--limit"
   ],
+  "agentSupported": true,
   "agentWorkflowNotes": [],
   "aliases": [
     "stats",
@@ -21,6 +22,8 @@
     "mode"
   ],
   "command": "protocol-stats",
+  "commandType": "concrete",
+  "csvSupported": true,
   "description": "View aggregate network statistics",
   "examples": [
     "privacy-pools protocol-stats",
@@ -62,8 +65,12 @@
     "--profile <name>"
   ],
   "group": "monitoring",
+  "humanInteractive": false,
   "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
   "jsonVariants": [],
+  "mode": "describe",
+  "mutatesFunds": false,
+  "mutatesLocalState": false,
   "nextActions": [
     {
       "cliCommand": "privacy-pools protocol-stats --agent",
@@ -72,6 +79,7 @@
       "when": "after_describe"
     }
   ],
+  "operation": "describe",
   "prerequisites": [],
   "requiresHumanReview": false,
   "requiresInit": false,
@@ -79,8 +87,9 @@
   "safetyNotes": [
     "Exit code categories are documented in 'privacy-pools guide exit-codes'."
   ],
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "sideEffectClass": "read_only",
+  "streamJsonSupported": false,
   "structuredExamples": [
     {
       "command": "privacy-pools protocol-stats",

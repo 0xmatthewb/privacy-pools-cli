@@ -8,6 +8,7 @@
   "dryRunMode": "rpc",
   "estimatedCommitted": "99500000000000000",
   "feesApply": true,
+  "mode": "deposit",
   "nextActions": [
     {
       "args": [
@@ -27,7 +28,7 @@
   "poolAccountId": "PA-1",
   "poolAccountNumber": 1,
   "precommitment": "12345678901234567890",
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "success": true,
   "vettingFeeAmount": "500000000000000",
   "vettingFeeBPS": "50",

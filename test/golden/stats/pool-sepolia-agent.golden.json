@@ -1,5 +1,6 @@
 // normalized: ADDR, TS, WEI
 {
+  "action": "stats",
   "allTime": {
     "totalDepositsCount": 100,
     "totalDepositsValue": "<WEI>",
@@ -26,7 +27,7 @@
     "totalWithdrawalsCount": 2,
     "totalWithdrawalsValue": "<WEI>"
   },
-  "mode": "pool-stats",
+  "mode": "pools",
   "nextActions": [
     {
       "args": [
@@ -41,8 +42,9 @@
       "when": "after_pool_stats"
     }
   ],
+  "operation": "pools.stats",
   "pool": "<ADDR>",
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "scope": "12345",
   "success": true
 }

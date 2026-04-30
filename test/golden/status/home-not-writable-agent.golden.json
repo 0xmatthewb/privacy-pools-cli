@@ -46,7 +46,7 @@
   },
   "defaultChain": null,
   "entrypoint": null,
-  "mode": "cli-status",
+  "mode": "status",
   "nextActions": [
     {
       "cliCommand": "privacy-pools init --agent --show-recovery-phrase",
@@ -72,6 +72,7 @@
       "when": "home_not_writable"
     }
   ],
+  "operation": "status",
   "readyForDeposit": false,
   "readyForUnsigned": false,
   "readyForWithdraw": false,
@@ -81,7 +82,7 @@
   "rpcIsCustom": false,
   "rpcUrl": null,
   "runtime": "<RUNTIME>",
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "selectedChain": null,
   "signerAddress": null,
   "signerKeySet": false,

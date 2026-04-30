@@ -33,6 +33,9 @@ export function renderConfigList(ctx: OutputContext, result: ConfigListResult): 
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: "config",
+      action: "list",
+      operation: "config.list",
       defaultChain: result.defaultChain,
       recoveryPhraseSet: result.recoveryPhraseSet,
       signerKeySet: result.signerKeySet,
@@ -90,6 +93,9 @@ export function renderConfigGet(ctx: OutputContext, result: ConfigGetResult): vo
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: "config",
+      action: "get",
+      operation: "config.get",
       key: result.key,
       value: result.redacted ? undefined : result.value,
       set: result.value !== null,
@@ -126,6 +132,9 @@ export function renderConfigSet(ctx: OutputContext, result: ConfigSetResult): vo
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: "config",
+      action: result.action === "unset" ? "unset" : "set",
+      operation: result.action === "unset" ? "config.unset" : "config.set",
       key: result.key,
       updated: result.changed ?? true,
       changed: result.changed ?? true,
@@ -162,7 +171,12 @@ export function renderConfigPath(ctx: OutputContext, configDir: string): void {
   guardCsvUnsupported(ctx, "config path");
 
   if (ctx.mode.isJson) {
-    printJsonSuccess(appendNextActions({ configDir }, [
+    printJsonSuccess(appendNextActions({
+      mode: "config",
+      action: "path",
+      operation: "config.path",
+      configDir,
+    }, [
       createNextAction("config list", "Inspect the active configuration that lives in this directory.", "after_config_list", { options: { agent: true } }),
     ]));
     return;
@@ -187,6 +201,9 @@ export function renderConfigProfileList(
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: "config",
+      action: "profile.list",
+      operation: "config.profile.list",
       profiles: ["default", ...profiles],
       active,
     }, [
@@ -225,6 +242,9 @@ export function renderConfigProfileCreate(
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: "config",
+      action: "profile.create",
+      operation: "config.profile.create",
       profile: name,
       created: true,
       profileDir,
@@ -258,6 +278,9 @@ export function renderConfigProfileActive(
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: "config",
+      action: "profile.active",
+      operation: "config.profile.active",
       profile: active,
       configDir,
     }, [
@@ -287,6 +310,9 @@ export function renderConfigProfileUse(
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: "config",
+      action: "profile.use",
+      operation: "config.profile.use",
       profile: active,
       active: true,
       configDir,

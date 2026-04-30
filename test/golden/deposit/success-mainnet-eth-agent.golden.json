@@ -11,6 +11,7 @@
   "feesApply": false,
   "label": "789",
   "localStateSynced": true,
+  "mode": "deposit",
   "nextActions": [
     {
       "cliCommand": "privacy-pools accounts --agent --chain mainnet --pending-only",
@@ -42,7 +43,7 @@
   "poolAccountNumber": 1,
   "poolAddress": "<ADDR>",
   "reconciliationRequired": false,
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "scope": "42",
   "status": "confirmed",
   "submissionId": null,

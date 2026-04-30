@@ -1,5 +1,6 @@
 // normalized: ADDR, HASH, TS
 {
+  "action": "activity",
   "chain": "sepolia",
   "chains": [
     "sepolia"
@@ -18,7 +19,7 @@
       "type": "deposit"
     }
   ],
-  "mode": "global-activity",
+  "mode": "pools",
   "nextActions": [
     {
       "cliCommand": "privacy-pools activity --agent --page 2 --limit 12 --chain sepolia",
@@ -32,9 +33,10 @@
       "when": "after_activity"
     }
   ],
+  "operation": "pools.activity",
   "page": 1,
   "perPage": 12,
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "success": true,
   "total": 13,
   "totalEvents": 13,

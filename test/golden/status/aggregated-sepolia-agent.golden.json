@@ -27,7 +27,7 @@
   "configExists": false,
   "defaultChain": null,
   "entrypoint": "<ADDR>",
-  "mode": "cli-status",
+  "mode": "status",
   "nextActions": [
     {
       "cliCommand": "privacy-pools init --agent --chain sepolia --show-recovery-phrase --default-chain sepolia",
@@ -40,6 +40,7 @@
       "when": "status_not_ready"
     }
   ],
+  "operation": "status",
   "pending": {
     "poolAccounts": [],
     "submissions": [],
@@ -122,7 +123,7 @@
           ],
           "reason": "If accounts shows the Pool Account was declined, recover it publicly.",
           "runnable": false,
-          "when": "flow_public_recovery_optional"
+          "when": "transfer_ragequit_optional"
         }
       ],
       "symptom": "selected Pool Account is not approved for private withdrawal"
@@ -444,7 +445,7 @@
           "cliCommand": "privacy-pools flow ragequit latest --agent",
           "command": "flow ragequit",
           "reason": "Recover the saved workflow publicly because relayed private withdrawal is blocked.",
-          "when": "flow_public_recovery_required"
+          "when": "transfer_ragequit_required"
         }
       ],
       "symptom": "saved flow cannot use the relayer minimum-safe private path"
@@ -487,7 +488,7 @@
           "cliCommand": "privacy-pools flow status latest --agent",
           "command": "flow status",
           "reason": "Read the saved workflow snapshot without attaching a watcher.",
-          "when": "flow_resume"
+          "when": "transfer_resume"
         },
         {
           "args": [
@@ -496,7 +497,7 @@
           "cliCommand": "privacy-pools flow step latest --agent",
           "command": "flow step",
           "reason": "Advance the saved workflow by one actionable step.",
-          "when": "flow_resume"
+          "when": "transfer_resume"
         }
       ],
       "symptom": "flow watch was requested in agent mode"
@@ -528,7 +529,7 @@
           ],
           "reason": "Retry without --no-wait so the CLI can confirm token approval before submitting the deposit.",
           "runnable": false,
-          "when": "flow_manual_followup"
+          "when": "transfer_manual_followup"
         }
       ],
       "symptom": "ERC-20 approval is required before deposit submission"
@@ -814,7 +815,7 @@
           ],
           "reason": "Create a saved workflow before requesting workflow status.",
           "runnable": false,
-          "when": "flow_manual_followup"
+          "when": "transfer_manual_followup"
         }
       ],
       "symptom": "flow was called without a subcommand in machine mode"
@@ -857,7 +858,7 @@
           ],
           "reason": "Retry with the nearest lower round amount to reduce amount fingerprinting.",
           "runnable": false,
-          "when": "flow_manual_followup"
+          "when": "transfer_manual_followup"
         },
         {
           "args": [
@@ -883,7 +884,7 @@
           ],
           "reason": "Retry with the explicit non-round amount override only if the operator accepts the privacy tradeoff.",
           "runnable": false,
-          "when": "flow_manual_followup"
+          "when": "transfer_manual_followup"
         }
       ],
       "symptom": "amount may fingerprint this transaction"
@@ -923,7 +924,7 @@
           ],
           "reason": "Create a saved workflow before requesting workflow status.",
           "runnable": false,
-          "when": "flow_manual_followup"
+          "when": "transfer_manual_followup"
         }
       ],
       "symptom": "latest workflow was requested but no workflow is saved locally"
@@ -993,7 +994,7 @@
           ],
           "reason": "Withdraw the full Pool Account balance to avoid leaving a relayer-blocked remainder.",
           "runnable": false,
-          "when": "flow_manual_followup"
+          "when": "transfer_manual_followup"
         }
       ],
       "symptom": "withdrawal would leave dust below the relayer minimum"
@@ -1071,7 +1072,7 @@
           "cliCommand": "privacy-pools flow status latest --agent",
           "command": "flow status",
           "reason": "Inspect the most recent saved workflow.",
-          "when": "flow_resume"
+          "when": "transfer_resume"
         }
       ],
       "symptom": "requested workflow id is not saved locally"
@@ -1437,7 +1438,7 @@
   "rpcLive": true,
   "rpcUrl": "http://127.0.0.1:<PORT>",
   "runtime": "<RUNTIME>",
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "selectedChain": "sepolia",
   "signerAddress": null,
   "signerKeySet": false,

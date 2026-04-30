@@ -25,9 +25,14 @@ fn global_public_commands_succeed_against_the_rust_fixture() {
     assert!(stderr_string(&activity).trim().is_empty());
     let activity_payload = parse_stdout_json(&activity);
     assert_eq!(activity_payload["success"], Value::Bool(true));
+    assert_eq!(activity_payload["mode"], Value::String("pools".to_string()));
     assert_eq!(
-        activity_payload["mode"],
-        Value::String("global-activity".to_string())
+        activity_payload["action"],
+        Value::String("activity".to_string())
+    );
+    assert_eq!(
+        activity_payload["operation"],
+        Value::String("pools.activity".to_string())
     );
     assert_eq!(
         activity_payload["chain"],
@@ -46,9 +51,14 @@ fn global_public_commands_succeed_against_the_rust_fixture() {
     assert!(stderr_string(&stats).trim().is_empty());
     let stats_payload = parse_stdout_json(&stats);
     assert_eq!(stats_payload["success"], Value::Bool(true));
+    assert_eq!(stats_payload["mode"], Value::String("pools".to_string()));
     assert_eq!(
-        stats_payload["mode"],
-        Value::String("global-stats".to_string())
+        stats_payload["action"],
+        Value::String("stats".to_string())
+    );
+    assert_eq!(
+        stats_payload["operation"],
+        Value::String("pools.stats".to_string())
     );
     assert_eq!(
         stats_payload["cacheTimestamp"],
@@ -282,7 +292,15 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
     assert_eq!(stats_pool_payload["success"], Value::Bool(true));
     assert_eq!(
         stats_pool_payload["mode"],
-        Value::String("pool-stats".to_string())
+        Value::String("pools".to_string())
+    );
+    assert_eq!(
+        stats_pool_payload["action"],
+        Value::String("stats".to_string())
+    );
+    assert_eq!(
+        stats_pool_payload["operation"],
+        Value::String("pools.stats".to_string())
     );
     assert_eq!(
         stats_pool_payload["asset"],
@@ -298,9 +316,14 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
     assert!(stderr_string(&activity).trim().is_empty());
     let activity_payload = parse_stdout_json(&activity);
     assert_eq!(activity_payload["success"], Value::Bool(true));
+    assert_eq!(activity_payload["mode"], Value::String("pools".to_string()));
     assert_eq!(
-        activity_payload["mode"],
-        Value::String("pool-activity".to_string())
+        activity_payload["action"],
+        Value::String("activity".to_string())
+    );
+    assert_eq!(
+        activity_payload["operation"],
+        Value::String("pools.activity".to_string())
     );
     assert_eq!(activity_payload["asset"], Value::String("ETH".to_string()));
     assert_eq!(
@@ -569,7 +592,15 @@ fn explicit_native_read_only_subroutes_stay_covered_in_rust() {
     assert_eq!(pool_activity_payload["success"], Value::Bool(true));
     assert_eq!(
         pool_activity_payload["mode"],
-        Value::String("pool-activity".to_string())
+        Value::String("pools".to_string())
+    );
+    assert_eq!(
+        pool_activity_payload["action"],
+        Value::String("activity".to_string())
+    );
+    assert_eq!(
+        pool_activity_payload["operation"],
+        Value::String("pools.activity".to_string())
     );
     assert_eq!(
         pool_activity_payload["chain"],
@@ -591,7 +622,15 @@ fn explicit_native_read_only_subroutes_stay_covered_in_rust() {
     assert_eq!(stats_global_payload["success"], Value::Bool(true));
     assert_eq!(
         stats_global_payload["mode"],
-        Value::String("global-stats".to_string())
+        Value::String("pools".to_string())
+    );
+    assert_eq!(
+        stats_global_payload["action"],
+        Value::String("stats".to_string())
+    );
+    assert_eq!(
+        stats_global_payload["operation"],
+        Value::String("pools.stats".to_string())
     );
     assert_eq!(
         stats_global_payload["chain"],

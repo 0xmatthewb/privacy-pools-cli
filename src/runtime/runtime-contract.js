@@ -13,8 +13,8 @@ export const CURRENT_WORKER_PROTOCOL_VERSION = "1";
 /** @type {"1"} */
 export const CURRENT_MANIFEST_VERSION = "1";
 
-/** @type {"1"} */
-export const CURRENT_NATIVE_BRIDGE_VERSION = "1";
+/** @type {"2"} */
+export const CURRENT_NATIVE_BRIDGE_VERSION = "2";
 
 /** @type {"PRIVACY_POOLS_WORKER_REQUEST_B64"} */
 export const CURRENT_RUNTIME_REQUEST_ENV = "PRIVACY_POOLS_WORKER_REQUEST_B64";

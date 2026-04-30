@@ -101,12 +101,12 @@ export const NEXT_ACTION_WHEN_VALUES = [
   "accounts_empty",
   "accounts_other_chain_activity",
   "accounts_restore_check",
-  "flow_manual_followup",
-  "flow_public_recovery_pending",
-  "flow_public_recovery_required",
-  "flow_resume",
-  "flow_public_recovery_optional",
-  "flow_declined",
+  "transfer_manual_followup",
+  "transfer_ragequit_pending",
+  "transfer_ragequit_required",
+  "transfer_resume",
+  "transfer_ragequit_optional",
+  "transfer_declined",
 ] as const;
 
 export type NextActionWhen = (typeof NEXT_ACTION_WHEN_VALUES)[number];
@@ -130,6 +130,24 @@ export interface NextAction {
    * Defaults to `true` when omitted for backward compatibility.
    */
   runnable?: boolean;
+}
+
+export interface AcknowledgementRequest {
+  id: string;
+  severity: string;
+  summary: string;
+}
+
+export interface AcknowledgementRecord {
+  id: string;
+  severity: string;
+}
+
+export interface FreshnessRecord {
+  chain: string;
+  lastSyncAt?: string | null;
+  ageSeconds?: number | null;
+  isStale: boolean;
 }
 
 export interface FlowPhaseGraphEdge {
@@ -217,6 +235,16 @@ export interface CapabilityCommandSummary {
   agentFlagNames?: string[];
   requiresInit: boolean;
   expectedLatencyClass?: CommandLatencyClass;
+  agentSupported?: boolean;
+  humanInteractive?: boolean;
+  mutatesFunds?: boolean;
+  mutatesLocalState?: boolean;
+  streamJsonSupported?: boolean;
+  csvSupported?: boolean;
+  commandType?: "concrete" | "parent";
+  sharedHelpHandler?: boolean;
+  agentUnsupportedFlags?: string[];
+  agentUnsupportedFlagCombos?: string[][];
 }
 
 export interface DetailedCommandDescriptor {
@@ -256,6 +284,16 @@ export interface DetailedCommandDescriptor {
   phaseGraphRef?: string;
   /** Flags that agents must supply for unattended execution (no interactive fallback). */
   agentRequiredFlags?: string[];
+  agentSupported?: boolean;
+  humanInteractive?: boolean;
+  mutatesFunds?: boolean;
+  mutatesLocalState?: boolean;
+  streamJsonSupported?: boolean;
+  csvSupported?: boolean;
+  commandType?: "concrete" | "parent";
+  sharedHelpHandler?: boolean;
+  agentUnsupportedFlags?: string[];
+  agentUnsupportedFlagCombos?: string[][];
 }
 
 export interface PoolAccountSummary {
@@ -372,7 +410,10 @@ export interface CapabilityErrorCodeDescriptor {
 }
 
 export interface CapabilitiesPayload {
+  mode?: "capabilities";
+  operation?: "capabilities";
   commands: CapabilityCommandSummary[];
+  namespaces?: CapabilityCommandSummary[];
   commandDetails: Record<string, DetailedCommandDescriptor>;
   executionRoutes: Record<string, CommandExecutionDescriptor>;
   globalFlags: Array<{ flag: string; description: string }>;

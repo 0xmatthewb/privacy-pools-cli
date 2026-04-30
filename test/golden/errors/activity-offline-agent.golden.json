@@ -22,6 +22,6 @@
     "maxDelayMs": 8000,
     "strategy": "exponential-backoff"
   },
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "success": false
 }

@@ -385,8 +385,8 @@ defineScenarioSuite("json-contract acceptance", [
         "flow step",
       ]);
       expect(json.error.nextActions?.map((action) => action.when)).toEqual([
-        "flow_resume",
-        "flow_resume",
+        "transfer_resume",
+        "transfer_resume",
       ]);
       expect(json.error.nextActions?.every((action) => action.runnable === false)).toBe(
         true,
@@ -789,7 +789,7 @@ defineScenarioSuite("json-contract acceptance", [
       expect(json.nextActions).toHaveLength(1);
       expect(json.nextActions?.[0]).toMatchObject({
         command: "flow status",
-        when: "flow_resume",
+        when: "transfer_resume",
         args: ["wf-json-flow"],
         cliCommand: "privacy-pools flow status wf-json-flow --agent",
       });

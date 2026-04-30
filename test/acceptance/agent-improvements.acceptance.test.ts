@@ -106,12 +106,12 @@ defineScenarioSuite("agent improvements acceptance", [
     }>((json) => {
       expect(json.expectedNextActionWhen).toEqual([
         "after_dry_run",
-        "flow_resume",
-        "flow_public_recovery_required",
-        "flow_declined",
-        "flow_public_recovery_pending",
-        "flow_public_recovery_optional",
-        "flow_manual_followup",
+        "transfer_resume",
+        "transfer_ragequit_required",
+        "transfer_declined",
+        "transfer_ragequit_pending",
+        "transfer_ragequit_optional",
+        "transfer_manual_followup",
       ]);
       expect(json.jsonVariants.some((variant) => variant.includes("flow start --dry-run"))).toBe(true);
       expect(json.agentWorkflowNotes.some((note) => note.includes("flow start"))).toBe(true);

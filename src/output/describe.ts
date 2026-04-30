@@ -109,6 +109,8 @@ export function renderCommandDescription(
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: "describe",
+      operation: "describe",
       ...descriptor,
       availableJsonFields: extractAvailableJsonFields(descriptor.jsonFields ?? undefined),
     }, agentNextActions));
@@ -157,7 +159,9 @@ export function renderCommandDescriptionIndex(
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
-      mode: "describe-index",
+      mode: "describe",
+      action: "index",
+      operation: "describe.index",
       commands,
       envelopeRoots,
     }, nextActions));
@@ -222,6 +226,9 @@ export function renderSchemaDescription(
 
   if (ctx.mode.isJson) {
     printJsonSuccess(appendNextActions({
+      mode: "describe",
+      action: "schema",
+      operation: "describe.schema",
       path: descriptor.path,
       schema: descriptor.schema,
     }, nextActions));

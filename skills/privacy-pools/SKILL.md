@@ -133,19 +133,19 @@ All commands also accept `--json`, `--yes`, and `--quiet` individually.
 
 ---
 
-## 2. JSON output contract (v2.0.0)
+## 2. JSON output contract (v3.0.0)
 
 Every response when `--json` or `--agent` is set:
 
 ```json
-{ "schemaVersion": "2.0.0", "success": true, ...payload }
+{ "schemaVersion": "3.0.0", "success": true, ...payload }
 ```
 
 Errors:
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "success": false,
   "errorCode": "INPUT_ERROR",
   "errorMessage": "Unknown chain: foo",
@@ -177,7 +177,7 @@ privacy-pools deposit 0.1 ETH --unsigned --agent
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "success": true,
   "mode": "unsigned",
   "operation": "deposit",

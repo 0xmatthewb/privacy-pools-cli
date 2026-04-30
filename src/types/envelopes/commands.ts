@@ -393,13 +393,25 @@ const commandDetailSchema = z.object({
   supportsDryRun: optionalBoolean,
   agentFlagNames: z.array(z.string()).optional(),
   agentWorkflowNotes: z.array(z.string()).optional(),
+  agentSupported: optionalBoolean,
+  humanInteractive: optionalBoolean,
+  mutatesFunds: optionalBoolean,
+  mutatesLocalState: optionalBoolean,
+  streamJsonSupported: optionalBoolean,
+  csvSupported: optionalBoolean,
+  commandType: optionalString,
+  sharedHelpHandler: optionalBoolean,
+  agentUnsupportedFlags: z.array(z.string()).optional(),
+  agentUnsupportedFlagCombos: z.array(z.array(z.string())).optional(),
   nextActions: optionalNextActions,
 });
 
 const describeSchema = z.union([
   commandDetailSchema,
   z.object({
-    mode: z.literal("describe-index"),
+    mode: optionalString,
+    action: optionalString,
+    operation: optionalString,
     commands: z.array(z.object({
       command: z.string(),
       description: z.string(),
@@ -525,11 +537,11 @@ const commandPayloadSchemas: Record<CommandPath, z.ZodTypeAny> = {
   activity: activitySchema,
   stats: statsSchema,
   "protocol-stats": statsSchema.extend({
-    mode: z.literal("global-stats").optional(),
+    mode: optionalString,
     command: z.string().optional(),
   }),
   "pool-stats": statsSchema.extend({
-    mode: z.literal("pool-stats").optional(),
+    mode: optionalString,
     command: z.string().optional(),
     asset: z.string(),
     pool: z.string(),
@@ -571,7 +583,7 @@ const commandPayloadSchemas: Record<CommandPath, z.ZodTypeAny> = {
     nextActions: optionalNextActions,
   }),
   "tx-status": z.object({
-    operation: z.literal("tx-status"),
+    operation: optionalString,
     submissionId: z.string(),
     sourceOperation: optionalString,
     sourceCommand: optionalString,
@@ -597,6 +609,7 @@ const commandPayloadSchemas: Record<CommandPath, z.ZodTypeAny> = {
   }),
   capabilities: z.object({
     commands: z.array(z.record(z.unknown())),
+    namespaces: z.array(z.record(z.unknown())).optional(),
     commandDetails: z.record(z.record(z.unknown())),
     executionRoutes: z.record(z.record(z.unknown())),
     globalFlags: z.array(z.record(z.unknown())),
@@ -642,7 +655,8 @@ const commandPayloadSchemas: Record<CommandPath, z.ZodTypeAny> = {
   }),
   withdraw: transactionResultBaseSchema.extend({
     operation: z.literal("withdraw"),
-    mode: z.enum(["relayed", "direct"]).optional(),
+    mode: optionalString,
+    withdrawMode: z.enum(["relayed", "direct"]).optional(),
     recipient: optionalString,
     feeBPS: z.string().nullable().optional(),
     relayerHost: optionalString,
@@ -659,7 +673,7 @@ const commandPayloadSchemas: Record<CommandPath, z.ZodTypeAny> = {
     }).optional(),
   }),
   "withdraw quote": z.object({
-    mode: z.literal("relayed-quote").optional(),
+    mode: optionalString,
     chain: z.string(),
     asset: z.string(),
     amount: z.string(),
@@ -727,7 +741,7 @@ const commandPayloadSchemas: Record<CommandPath, z.ZodTypeAny> = {
     destinationAddress: optionalString,
   }),
   broadcast: z.object({
-    mode: z.literal("broadcast").optional(),
+    mode: optionalString,
     broadcastMode: optionalString,
     sourceOperation: optionalString,
     chain: optionalString,

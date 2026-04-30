@@ -172,14 +172,16 @@ export function isFullHelpRequested(
 }
 
 export function buildGuidePayload(topic?: string): {
-  mode: "help";
+  mode: "guide";
+  operation: "guide";
   topic?: string;
   topics: GuideTopicSummary[];
   help: string;
 } {
   const resolvedTopic = resolveGuideTopic(topic) ?? topic;
   return {
-    mode: "help",
+    mode: "guide",
+    operation: "guide",
     ...(resolvedTopic ? { topic: resolvedTopic } : {}),
     topics: GUIDE_TOPICS.map(({ name, description }) => ({ name, description })),
     help: guideText(topic),
@@ -457,9 +459,9 @@ const guideSections: Record<string, () => string[]> = {
     chalk.bold("JSON Contract"),
     "  Use --json for machine-readable output. Use --agent for --json --yes --quiet.",
     "  Successful commands emit:",
-    `  ${notice('{ "schemaVersion": "2.0.0", "success": true, ...payload }')}`,
+    `  ${notice('{ "schemaVersion": "3.0.0", "success": true, ...payload }')}`,
     "  Failed commands emit:",
-    `  ${notice('{ "schemaVersion": "2.0.0", "success": false, "errorCode": "...", "error": { ... } }')}`,
+    `  ${notice('{ "schemaVersion": "3.0.0", "success": false, "errorCode": "...", "error": { ... } }')}`,
     "",
     chalk.bold("Filtering"),
     `  ${notice("--json <fields>")}       Select top-level fields by comma-separated name.`,

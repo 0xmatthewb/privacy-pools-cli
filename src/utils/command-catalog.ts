@@ -76,7 +76,19 @@ export type CommandSurface =
 export type CapabilityEntry = CapabilitiesPayload["commands"][number];
 
 export interface CommandCapabilityMetadata
-  extends Omit<CapabilityEntry, "name" | "description" | "aliases" | "group"> {
+  extends Omit<
+    CapabilityEntry,
+    | "name"
+    | "description"
+    | "aliases"
+    | "group"
+    | "agentSupported"
+    | "humanInteractive"
+    | "mutatesFunds"
+    | "mutatesLocalState"
+    | "streamJsonSupported"
+    | "csvSupported"
+  > {
   name?: string;
   /** Structured flag names parsed from the agent invocation surface. */
   agentFlagNames?: string[];
@@ -102,12 +114,12 @@ const POOLS_LIST_JSON_FIELDS =
   "{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }";
 
 const FLOW_RUNTIME_EXPECTED_NEXT_ACTION_WHEN: NextActionWhen[] = [
-  "flow_resume",
-  "flow_public_recovery_required",
-  "flow_declined",
-  "flow_public_recovery_pending",
-  "flow_public_recovery_optional",
-  "flow_manual_followup",
+  "transfer_resume",
+  "transfer_ragequit_required",
+  "transfer_declined",
+  "transfer_ragequit_pending",
+  "transfer_ragequit_optional",
+  "transfer_manual_followup",
 ];
 
 const FLOW_START_EXPECTED_NEXT_ACTION_WHEN: NextActionWhen[] = [
@@ -539,8 +551,8 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       supportsDryRun: true,
       agentWorkflowNotes: [
         "Start with flow start <amount> <asset> --to <address> --agent, then poll with flow status <workflowId|latest> --agent and advance with flow step <workflowId|latest> --agent until the workflow completes or pauses.",
-        "If flow status or flow step returns flow_declined or flow_public_recovery_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
-        "If flow status or flow step returns flow_public_recovery_optional, prefer completing the private path unless the operator explicitly chooses public recovery.",
+        "If flow status or flow step returns transfer_declined or transfer_ragequit_required, flow ragequit <workflowId|latest> --agent is the canonical saved-workflow public recovery path.",
+        "If flow status or flow step returns transfer_ragequit_optional, prefer completing the private path unless the operator explicitly chooses public recovery.",
       ],
       seeAlso: ["flow start","flow status","flow step","flow ragequit"],
     },
@@ -831,7 +843,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       expectedLatencyClass: "slow",
     },
     expectedNextActionWhen: [
-      "flow_public_recovery_pending",
+      "transfer_ragequit_pending",
       "after_ragequit",
     ],
     requiredPromptExcludedReason:

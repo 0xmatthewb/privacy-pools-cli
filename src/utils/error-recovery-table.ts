@@ -282,7 +282,7 @@ function flowStartTemplate(): NextAction[] {
     recoveryNextAction(
       "flow start",
       "Create a saved workflow before requesting workflow status.",
-      "flow_manual_followup",
+      "transfer_manual_followup",
       {
         options: { agent: true },
         runnable: false,
@@ -325,7 +325,7 @@ function nonRoundAmountNextActions(context: ErrorRecoveryContext): NextAction[] 
   const retryWithRoundAmount = recoveryNextAction(
     command,
     "Retry with the nearest lower round amount to reduce amount fingerprinting.",
-    "flow_manual_followup",
+    "transfer_manual_followup",
     {
       args: [suggestedAmount, asset],
       options: baseOptions,
@@ -335,7 +335,7 @@ function nonRoundAmountNextActions(context: ErrorRecoveryContext): NextAction[] 
   const escape = recoveryNextAction(
     command,
     "Retry with the explicit non-round amount override only if the operator accepts the privacy tradeoff.",
-    "flow_manual_followup",
+    "transfer_manual_followup",
     {
       args: [originalAmount, asset],
       options: { ...baseOptions, allowNonRoundAmounts: true },
@@ -367,7 +367,7 @@ function accountNotApprovedNextActions(context: ErrorRecoveryContext): NextActio
       recoveryNextAction(
         "ragequit",
         "Recover a declined Pool Account publicly to the original depositor.",
-        "flow_public_recovery_required",
+        "transfer_ragequit_required",
         {
           args: [asset],
           options: { agent: true, ...chainOption(context), poolAccount },
@@ -395,7 +395,7 @@ function accountNotApprovedNextActions(context: ErrorRecoveryContext): NextActio
     recoveryNextAction(
       "ragequit",
       "If accounts shows the Pool Account was declined, recover it publicly.",
-      "flow_public_recovery_optional",
+      "transfer_ragequit_optional",
       {
         args: [asset],
         options: { agent: true, ...chainOption(context), poolAccount },
@@ -427,7 +427,7 @@ const ACTIONABLE_RECOVERY_ENTRIES = {
       recoveryNextAction(
         "flow status",
         "Read the saved workflow snapshot without attaching a watcher.",
-        "flow_resume",
+        "transfer_resume",
         {
           args: ["latest"],
           options: { agent: true },
@@ -436,7 +436,7 @@ const ACTIONABLE_RECOVERY_ENTRIES = {
       recoveryNextAction(
         "flow step",
         "Advance the saved workflow by one actionable step.",
-        "flow_resume",
+        "transfer_resume",
         {
           args: ["latest"],
           options: { agent: true },
@@ -451,7 +451,7 @@ const ACTIONABLE_RECOVERY_ENTRIES = {
       recoveryNextAction(
         "deposit",
         "Retry without --no-wait so the CLI can confirm token approval before submitting the deposit.",
-        "flow_manual_followup",
+        "transfer_manual_followup",
         {
           args: [
             stringValue(context, ["amountInput", "amount"], "<amount>"),
@@ -500,7 +500,7 @@ const ACTIONABLE_RECOVERY_ENTRIES = {
       recoveryNextAction(
         "withdraw",
         "Withdraw the full Pool Account balance to avoid leaving a relayer-blocked remainder.",
-        "flow_manual_followup",
+        "transfer_manual_followup",
         {
           args: [stringValue(context, ["asset", "assetSymbol"], "<asset>")],
           options: {
@@ -539,7 +539,7 @@ const ACTIONABLE_RECOVERY_ENTRIES = {
       recoveryNextAction(
         "flow status",
         "Inspect the most recent saved workflow.",
-        "flow_resume",
+        "transfer_resume",
         { args: ["latest"], options: { agent: true } },
       ),
     ],
@@ -590,7 +590,7 @@ const ACTIONABLE_RECOVERY_ENTRIES = {
       recoveryNextAction(
         "flow ragequit",
         "Recover the saved workflow publicly because relayed private withdrawal is blocked.",
-        "flow_public_recovery_required",
+        "transfer_ragequit_required",
         {
           args: [stringValue(context, ["workflowId"], "latest")],
           options: { agent: true },

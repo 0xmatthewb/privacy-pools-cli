@@ -15,6 +15,15 @@
                   "type": "boolean",
                   "const": true
                 },
+                "mode": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "operation": {
+                  "type": "string"
+                },
                 "nextActions": {
                   "type": "array",
                   "items": {
@@ -85,67 +94,118 @@
                     ],
                     "additionalProperties": false
                   }
+                },
+                "acceptedAcknowledgements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "severity": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "severity"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "freshness": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chain": {
+                        "type": "string"
+                      },
+                      "lastSyncAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ageSeconds": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "isStale": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "chain",
+                      "isStale"
+                    ],
+                    "additionalProperties": false
+                  }
                 }
               },
               "required": [
                 "schemaVersion",
-                "success"
+                "success",
+                "mode",
+                "operation"
               ]
             },
             {
               "type": "object",
               "properties": {
                 "operation": {
-                  "type": "string",
-                  "const": "tx-status"
+                  "type": "string"
                 },
                 "submissionId": {
                   "type": "string"
                 },
                 "sourceOperation": {
-                  "type": "string"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "sourceCommand": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "chain": {
                   "type": "string"
                 },
                 "asset": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "poolAccountId": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "poolAccountNumber": {
                   "type": "number"
                 },
                 "workflowId": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "recipient": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "broadcastMode": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "broadcastSourceOperation": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "createdAt": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "updatedAt": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "status": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "estimatedConfirmationSeconds": {
                   "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/poolAccountNumber"
                 },
                 "pollingRecommendation": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "reconciliationRequired": {
                   "type": "boolean"
@@ -154,7 +214,7 @@
                   "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/reconciliationRequired"
                 },
                 "warningCode": {
-                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/sourceOperation"
+                  "$ref": "#/definitions/tx-status envelope/anyOf/0/allOf/1/properties/operation"
                 },
                 "lastError": {
                   "type": "object",
@@ -175,7 +235,6 @@
                 }
               },
               "required": [
-                "operation",
                 "submissionId",
                 "chain"
               ]
@@ -277,6 +336,29 @@
             "retry": {
               "type": "object",
               "additionalProperties": {}
+            },
+            "requiredAcknowledgements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "severity": {
+                    "type": "string"
+                  },
+                  "summary": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "severity",
+                  "summary"
+                ],
+                "additionalProperties": false
+              }
             }
           },
           "required": [

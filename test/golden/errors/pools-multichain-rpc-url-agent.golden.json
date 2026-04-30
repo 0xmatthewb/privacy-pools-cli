@@ -10,6 +10,6 @@
   },
   "errorCode": "INPUT_FLAG_CONFLICT",
   "errorMessage": "--rpc-url cannot be combined with multi-chain queries.",
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "success": false
 }

@@ -124,12 +124,12 @@ describe("flow command", () => {
         {
           command: "flow status",
           reasonContains: "Fund the dedicated workflow wallet",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
         {
           command: "flow step",
           reasonContains: "Attempt the next saved-workflow step",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
       ],
       overrides: {
@@ -144,12 +144,12 @@ describe("flow command", () => {
         {
           command: "flow status",
           reasonContains: "public deposit confirms",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
         {
           command: "flow step",
           reasonContains: "Advance the saved workflow one unit of work",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
       ],
       overrides: {
@@ -164,7 +164,7 @@ describe("flow command", () => {
         {
           command: "flow status",
           reasonContains: "ASP review resolves",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
       ],
       overrides: {
@@ -179,7 +179,7 @@ describe("flow command", () => {
         {
           command: "flow status",
           reasonContains: "holding until",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
       ],
       overrides: {
@@ -196,12 +196,12 @@ describe("flow command", () => {
         {
           command: "flow status",
           reasonContains: "before advancing the private withdrawal",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
         {
           command: "flow step",
           reasonContains: "Advance the saved workflow into the private withdrawal",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
       ],
       overrides: {
@@ -216,12 +216,12 @@ describe("flow command", () => {
         {
           command: "flow status",
           reasonContains: "while the private withdrawal is still confirming",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
         {
           command: "flow step",
           reasonContains: "Advance the saved workflow one unit of work",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
       ],
       overrides: {
@@ -260,7 +260,7 @@ describe("flow command", () => {
         {
           command: "flow ragequit",
           reasonContains: "canonical saved-workflow public recovery path",
-          when: "flow_declined",
+          when: "transfer_declined",
         },
       ],
       overrides: {
@@ -275,12 +275,12 @@ describe("flow command", () => {
         {
           command: "flow status",
           reasonContains: "Complete Proof of Association",
-          when: "flow_resume",
+          when: "transfer_resume",
         },
         {
           command: "flow ragequit",
           reasonContains: "recover publicly without completing Proof of Association",
-          when: "flow_public_recovery_optional",
+          when: "transfer_ragequit_optional",
         },
       ],
       overrides: {
@@ -295,7 +295,7 @@ describe("flow command", () => {
         {
           command: "accounts",
           reasonContains: "choose the manual follow-up from the current account state",
-          when: "flow_manual_followup",
+          when: "transfer_manual_followup",
           args: [],
           options: { chain: "sepolia" },
         },
@@ -570,7 +570,7 @@ describe("flow command", () => {
       reason: expect.stringContaining(
         "canonical saved-workflow public recovery path",
       ),
-      when: "flow_declined",
+      when: "transfer_declined",
       args: ["wf-123"],
     });
     expect(
@@ -735,7 +735,7 @@ describe("flow command", () => {
       reason: expect.stringContaining(
         "canonical saved-workflow public recovery path",
       ),
-      when: "flow_declined",
+      when: "transfer_declined",
       args: ["wf-latest"],
     });
     expect(

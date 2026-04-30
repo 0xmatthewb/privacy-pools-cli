@@ -1,4 +1,4 @@
-import { JSON_SCHEMA_VERSION } from "./json.js";
+import { printJsonSuccess } from "./json.js";
 
 export const PROOF_STREAM_STAGES = [
   "loading_circuits",
@@ -13,13 +13,7 @@ export function emitStreamJsonEvent(
   event: Record<string, unknown>,
 ): void {
   if (!enabled) return;
-  process.stdout.write(
-    `${JSON.stringify({
-      schemaVersion: JSON_SCHEMA_VERSION,
-      success: true,
-      ...event,
-    })}\n`,
-  );
+  printJsonSuccess(event);
 }
 
 export function emitProofStreamStage(

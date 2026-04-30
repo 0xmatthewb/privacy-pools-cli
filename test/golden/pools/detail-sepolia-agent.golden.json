@@ -57,7 +57,7 @@
       "type": "deposit"
     }
   ],
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "scope": "12345",
   "success": true,
   "tokenAddress": "<ADDR>",

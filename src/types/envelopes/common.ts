@@ -16,6 +16,24 @@ export const nextActionSchema = z.object({
   runnable: z.boolean().optional(),
 });
 
+export const acknowledgementRequestSchema = z.object({
+  id: z.string(),
+  severity: z.string(),
+  summary: z.string(),
+});
+
+export const acknowledgementRecordSchema = z.object({
+  id: z.string(),
+  severity: z.string(),
+});
+
+export const freshnessRecordSchema = z.object({
+  chain: z.string(),
+  lastSyncAt: z.string().nullable().optional(),
+  ageSeconds: z.number().nullable().optional(),
+  isStale: z.boolean(),
+});
+
 export const errorEnvelopeSchema = z.object({
   schemaVersion: z.string(),
   success: z.literal(false),
@@ -39,12 +57,18 @@ export const errorEnvelopeSchema = z.object({
   helpTopic: z.string().optional(),
   nextActions: z.array(nextActionSchema).optional(),
   retry: z.record(z.unknown()).optional(),
+  requiredAcknowledgements: z.array(acknowledgementRequestSchema).optional(),
 });
 
 export const successEnvelopeSchema = z.object({
   schemaVersion: z.string(),
   success: z.literal(true),
+  mode: z.string(),
+  action: z.string().optional(),
+  operation: z.string(),
   nextActions: z.array(nextActionSchema).optional(),
+  acceptedAcknowledgements: z.array(acknowledgementRecordSchema).optional(),
+  freshness: z.array(freshnessRecordSchema).optional(),
 });
 
 export const cliEnvelopeSchema = z.union([

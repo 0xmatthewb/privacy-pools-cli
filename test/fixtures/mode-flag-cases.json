@@ -18,7 +18,7 @@
     "argv": ["status", "--json", "--output", "wide", "--no-check"],
     "status": 0,
     "stderr": "empty",
-    "json": { "success": true, "mode": "cli-status" }
+    "json": { "success": true, "mode": "status", "operation": "status" }
   },
   {
     "name": "agent web advisory stays in envelope",

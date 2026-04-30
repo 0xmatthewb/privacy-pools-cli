@@ -6,7 +6,7 @@ import { errorDocUrl } from "./error-code-registry.js";
 import { didYouMeanMany } from "./fuzzy.js";
 import { peekWebOutputStatus } from "./web-output-status.js";
 
-export const JSON_SCHEMA_VERSION = "2.0.0";
+export const JSON_SCHEMA_VERSION = "3.0.0";
 
 export function jsonContractDocRelativePath(
   schemaVersion: string = JSON_SCHEMA_VERSION,
@@ -370,6 +370,152 @@ function writeStructuredValue(
   );
 }
 
+const ROOT_ENVELOPE_MODES = new Set([
+  "init",
+  "status",
+  "guide",
+  "transfer",
+  "deposit",
+  "withdraw",
+  "ragequit",
+  "accounts",
+  "pools",
+  "recipients",
+  "tx",
+  "migrate",
+  "config",
+  "completion",
+  "upgrade",
+  "capabilities",
+  "describe",
+]);
+
+const LEGACY_OPERATION_MAP: Record<string, string> = {
+  "init-pending": "init.handoff",
+  "init-staged": "init.create",
+  "tx-status": "tx.status",
+  broadcast: "tx.broadcast",
+  "withdraw-quote": "withdraw.quote",
+  "relayed-quote": "withdraw.quote",
+  "pool-stats": "pools.stats",
+  "protocol-stats": "pools.stats",
+  "global-stats": "pools.stats",
+  stats: "pools.stats",
+  "pool-activity": "pools.activity",
+  "global-activity": "pools.activity",
+  activity: "pools.activity",
+  "private-history": "accounts.history",
+  history: "accounts.history",
+  sync: "accounts.sync",
+  "sync-progress": "accounts.sync",
+  flow: "transfer",
+  "flow-progress": "transfer",
+  help: "describe.help",
+  version: "status.version",
+  "cli-status": "status",
+  "migration-status": "migrate.status",
+  "recipient-history": "recipients",
+  "completion-script": "completion.script",
+  "completion-query": "completion.query",
+  "completion-install": "completion.install",
+  direct: "withdraw",
+  relayed: "withdraw",
+};
+
+const OPERATION_ROOT_MAP: Record<string, string> = {
+  accounts: "accounts",
+  capabilities: "capabilities",
+  completion: "completion",
+  config: "config",
+  deposit: "deposit",
+  describe: "describe",
+  guide: "guide",
+  init: "init",
+  migrate: "migrate",
+  pools: "pools",
+  ragequit: "ragequit",
+  recipients: "recipients",
+  status: "status",
+  transfer: "transfer",
+  tx: "tx",
+  upgrade: "upgrade",
+  withdraw: "withdraw",
+};
+
+function canonicalOperationFromLegacy(
+  rawOperation: string | undefined,
+  rawMode: string | undefined,
+  rawAction: string | undefined,
+): string | undefined {
+  if (rawOperation) {
+    if (rawOperation === "broadcast") return "tx.broadcast";
+    if (rawOperation === "tx-status") return "tx.status";
+    if (rawOperation === "withdraw-quote") return "withdraw.quote";
+    if (rawOperation === "history") return "accounts.history";
+    if (rawOperation === "sync") return "accounts.sync";
+    if (rawOperation === "flow" && rawAction) return `transfer.${rawAction}`;
+    if (rawOperation.startsWith("flow.")) {
+      return rawOperation.replace(/^flow\./, "transfer.");
+    }
+    if (rawOperation.includes(".")) return rawOperation;
+    if (OPERATION_ROOT_MAP[rawOperation]) return rawOperation;
+  }
+
+  if (rawMode && ROOT_ENVELOPE_MODES.has(rawMode)) {
+    return rawAction ? `${rawMode}.${rawAction}` : rawMode;
+  }
+
+  if (rawMode) {
+    const mapped = LEGACY_OPERATION_MAP[rawMode];
+    if (mapped) {
+      if (mapped === "transfer" && rawAction) return `transfer.${rawAction}`;
+      return mapped;
+    }
+  }
+
+  if (rawOperation && LEGACY_OPERATION_MAP[rawOperation]) {
+    return LEGACY_OPERATION_MAP[rawOperation];
+  }
+
+  return rawOperation;
+}
+
+function applyEnvelopeMetadata(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const rawMode = typeof payload.mode === "string" ? payload.mode : undefined;
+  const rawAction = typeof payload.action === "string" ? payload.action : undefined;
+  const rawOperation =
+    typeof payload.operation === "string" ? payload.operation : undefined;
+  const operation = canonicalOperationFromLegacy(rawOperation, rawMode, rawAction);
+  if (!operation) return payload;
+
+  const [mode, ...actionParts] = operation.split(".");
+  if (!mode || !ROOT_ENVELOPE_MODES.has(mode)) return payload;
+
+  const action = actionParts.length > 0 ? actionParts.join(".") : undefined;
+  const normalized: Record<string, unknown> = { ...payload };
+  if (
+    rawMode &&
+    rawMode !== mode &&
+    (rawMode === "direct" || rawMode === "relayed") &&
+    normalized.withdrawMode === undefined
+  ) {
+    normalized.withdrawMode = rawMode;
+  }
+  if (rawMode === "unsigned" && normalized.unsigned === undefined) {
+    normalized.unsigned = true;
+  }
+  normalized.mode = mode;
+  if (action) {
+    normalized.action = action;
+  } else {
+    delete normalized.action;
+  }
+  normalized.operation = action ? `${mode}.${action}` : mode;
+  return normalized;
+}
+
 function maybeWriteTemplateOutput(payload: Record<string, unknown>): boolean {
   if (!_template) return false;
   const rendered = renderTemplateSection(_template, payload, payload);
@@ -381,7 +527,9 @@ export function printJsonSuccess(
   payload: object,
   pretty: boolean = false,
 ): void {
-  let data: Record<string, unknown> = payload as Record<string, unknown>;
+  let data: Record<string, unknown> = applyEnvelopeMetadata(
+    payload as Record<string, unknown>,
+  );
 
   let output: Record<string, unknown> = {
     schemaVersion: JSON_SCHEMA_VERSION,
@@ -442,6 +590,7 @@ export function printJsonError(
     nextActions?: NextAction[];
     retry?: ErrorRetryPolicy;
     details?: Record<string, unknown>;
+    requiredAcknowledgements?: unknown[];
   },
   pretty: boolean = false,
 ): void {
@@ -451,6 +600,7 @@ export function printJsonError(
     helpTopic,
     nextActions,
     retry,
+    requiredAcknowledgements,
     ...errorPayload
   } = payload;
   void _docsSlug;
@@ -484,6 +634,7 @@ export function printJsonError(
     ...(helpTopic ? { helpTopic } : {}),
     ...(nextActions ? { nextActions } : {}),
     ...(retry ? { retry } : {}),
+    ...(requiredAcknowledgements ? { requiredAcknowledgements } : {}),
     error: errorObject,
   };
 

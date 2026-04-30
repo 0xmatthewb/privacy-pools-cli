@@ -1,5 +1,6 @@
 // normalized: TS, WEI
 {
+  "action": "stats",
   "allTime": {
     "totalDepositsCount": 100,
     "totalDepositsValue": "<WEI>",
@@ -30,7 +31,7 @@
     "totalWithdrawalsCount": 2,
     "totalWithdrawalsValue": "<WEI>"
   },
-  "mode": "global-stats",
+  "mode": "pools",
   "nextActions": [
     {
       "cliCommand": "privacy-pools pools --agent",
@@ -39,6 +40,7 @@
       "when": "after_stats"
     }
   ],
-  "schemaVersion": "2.0.0",
+  "operation": "pools.stats",
+  "schemaVersion": "3.0.0",
   "success": true
 }

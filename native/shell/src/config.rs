@@ -393,7 +393,7 @@ mod tests {
             manifest_version: "1.0.0".to_string(),
             runtime_version: "runtime/v1".to_string(),
             cli_version: "1.0.0".to_string(),
-            json_schema_version: "2.0.0".to_string(),
+            json_schema_version: "3.0.0".to_string(),
             command_paths: vec![],
             alias_map: HashMap::new(),
             root_help: String::new(),

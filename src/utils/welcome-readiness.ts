@@ -495,7 +495,7 @@ export function getUrgentRecommendations(
       createRecommendationAction(
         "flow status",
         `Saved workflow ${activeWorkflow.workflowId} is still ${activeWorkflow.phase.replaceAll("_", " ")}; inspect it before starting another action.`,
-        "flow_resume",
+        "transfer_resume",
         {
           args: [activeWorkflow.workflowId],
           options: { agent: true },

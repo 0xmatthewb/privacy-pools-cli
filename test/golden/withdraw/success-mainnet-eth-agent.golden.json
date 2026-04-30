@@ -12,7 +12,7 @@
   "explorerUrl": "https://etherscan.io/tx/0x1122",
   "feeBPS": "50",
   "localStateSynced": true,
-  "mode": "relayed",
+  "mode": "withdraw",
   "nextActions": [
     {
       "cliCommand": "privacy-pools accounts --agent --chain mainnet",
@@ -35,11 +35,12 @@
   "relayerHost": "https://relayer.example",
   "remainingBalance": "<WEI>",
   "rootMatchedAtProofTime": true,
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "scope": "42",
   "status": "confirmed",
   "submissionId": null,
   "success": true,
   "txHash": "<HASH>",
-  "warningCode": null
+  "warningCode": null,
+  "withdrawMode": "relayed"
 }

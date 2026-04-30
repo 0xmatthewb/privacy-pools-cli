@@ -273,8 +273,130 @@ fn error_doc_url(code: &str) -> String {
     )
 }
 
+fn canonical_operation(raw_operation: Option<&str>, raw_mode: Option<&str>, raw_action: Option<&str>) -> Option<String> {
+    if let Some(operation) = raw_operation {
+        match operation {
+            "broadcast" => return Some("tx.broadcast".to_string()),
+            "tx-status" => return Some("tx.status".to_string()),
+            "withdraw-quote" => return Some("withdraw.quote".to_string()),
+            "history" => return Some("accounts.history".to_string()),
+            "sync" => return Some("accounts.sync".to_string()),
+            "flow" => {
+                return Some(match raw_action {
+                    Some(action) => format!("transfer.{action}"),
+                    None => "transfer".to_string(),
+                });
+            }
+            value if value.starts_with("flow.") => {
+                return Some(value.replacen("flow.", "transfer.", 1));
+            }
+            value if value.contains('.') => return Some(value.to_string()),
+            value => {
+                let roots = [
+                    "accounts", "capabilities", "completion", "config", "deposit", "describe",
+                    "guide", "init", "migrate", "pools", "ragequit", "recipients", "status",
+                    "transfer", "tx", "upgrade", "withdraw",
+                ];
+                if roots.contains(&value) {
+                    return Some(value.to_string());
+                }
+            }
+        }
+    }
+
+    if let Some(mode) = raw_mode {
+        let roots = [
+            "accounts", "capabilities", "completion", "config", "deposit", "describe", "guide",
+            "init", "migrate", "pools", "ragequit", "recipients", "status", "transfer", "tx",
+            "upgrade", "withdraw",
+        ];
+        if roots.contains(&mode) {
+            return Some(match raw_action {
+                Some(action) => format!("{mode}.{action}"),
+                None => mode.to_string(),
+            });
+        }
+        let mapped = match mode {
+            "init-pending" => Some("init.handoff"),
+            "init-staged" => Some("init.create"),
+            "tx-status" => Some("tx.status"),
+            "broadcast" => Some("tx.broadcast"),
+            "withdraw-quote" | "relayed-quote" => Some("withdraw.quote"),
+            "pool-stats" | "protocol-stats" | "global-stats" | "stats" => Some("pools.stats"),
+            "pool-activity" | "global-activity" | "activity" => Some("pools.activity"),
+            "private-history" | "history" => Some("accounts.history"),
+            "sync" | "sync-progress" => Some("accounts.sync"),
+            "flow" | "flow-progress" => Some("transfer"),
+            "help" => Some("describe.help"),
+            "version" => Some("status.version"),
+            "cli-status" => Some("status"),
+            "migration-status" => Some("migrate.status"),
+            "recipient-history" => Some("recipients"),
+            "completion-script" => Some("completion.script"),
+            "completion-query" => Some("completion.query"),
+            "completion-install" => Some("completion.install"),
+            "direct" | "relayed" => Some("withdraw"),
+            _ => None,
+        };
+        if let Some(mapped) = mapped {
+            if mapped == "transfer" {
+                return Some(match raw_action {
+                    Some(action) => format!("transfer.{action}"),
+                    None => "transfer".to_string(),
+                });
+            }
+            return Some(mapped.to_string());
+        }
+    }
+
+    None
+}
+
+fn apply_envelope_metadata(object: &mut Map<String, Value>) {
+    let raw_mode = object.get("mode").and_then(Value::as_str).map(str::to_string);
+    let raw_action = object.get("action").and_then(Value::as_str).map(str::to_string);
+    let raw_operation = object.get("operation").and_then(Value::as_str).map(str::to_string);
+    let Some(operation) = canonical_operation(
+        raw_operation.as_deref(),
+        raw_mode.as_deref(),
+        raw_action.as_deref(),
+    ) else {
+        return;
+    };
+    let mut parts = operation.split('.');
+    let Some(mode) = parts.next() else {
+        return;
+    };
+    let roots = [
+        "accounts", "capabilities", "completion", "config", "deposit", "describe", "guide",
+        "init", "migrate", "pools", "ragequit", "recipients", "status", "transfer", "tx",
+        "upgrade", "withdraw",
+    ];
+    if !roots.contains(&mode) {
+        return;
+    }
+    let action = parts.collect::<Vec<_>>().join(".");
+    if let Some(raw_mode) = raw_mode.as_deref() {
+        if (raw_mode == "direct" || raw_mode == "relayed") && !object.contains_key("withdrawMode") {
+            object.insert("withdrawMode".to_string(), Value::String(raw_mode.to_string()));
+        }
+        if raw_mode == "unsigned" && !object.contains_key("unsigned") {
+            object.insert("unsigned".to_string(), Value::Bool(true));
+        }
+    }
+    object.insert("mode".to_string(), Value::String(mode.to_string()));
+    if action.is_empty() {
+        object.remove("action");
+        object.insert("operation".to_string(), Value::String(mode.to_string()));
+    } else {
+        object.insert("action".to_string(), Value::String(action.clone()));
+        object.insert("operation".to_string(), Value::String(format!("{mode}.{action}")));
+    }
+}
+
 pub fn print_json_success(payload: Value) {
-    let source = payload.as_object().cloned().unwrap_or_default();
+    let mut source = payload.as_object().cloned().unwrap_or_default();
+    apply_envelope_metadata(&mut source);
     let mut object = Map::new();
     object.insert(
         "schemaVersion".to_string(),

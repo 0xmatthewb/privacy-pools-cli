@@ -360,7 +360,7 @@ describe("urgent next-step recommendations", () => {
 
     expect(result.nextActions?.[0]).toMatchObject({
       command: "flow status",
-      when: "flow_resume",
+      when: "transfer_resume",
     });
     expect(result.nextActions?.[1]).toMatchObject({
       command: "accounts",

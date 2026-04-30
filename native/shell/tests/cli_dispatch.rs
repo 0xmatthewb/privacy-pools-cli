@@ -42,7 +42,8 @@ fn machine_mode_beats_csv_for_native_discovery_commands() {
     assert!(stderr_string(&guide).trim().is_empty());
     let guide_json = parse_stdout_json(&guide);
     assert_eq!(guide_json["success"], Value::Bool(true));
-    assert_eq!(guide_json["mode"], Value::String("help".to_string()));
+    assert_eq!(guide_json["mode"], Value::String("guide".to_string()));
+    assert_eq!(guide_json["operation"], Value::String("guide".to_string()));
     assert!(guide_json["topics"].is_array());
 
     let capabilities = run_native(&["--json", "--output", "csv", "capabilities"]);
@@ -98,7 +99,11 @@ fn completion_contracts_hold_for_human_and_agent_modes() {
     assert_eq!(payload["success"], Value::Bool(true));
     assert_eq!(
         payload["mode"],
-        Value::String("completion-script".to_string())
+        Value::String("completion".to_string())
+    );
+    assert_eq!(
+        payload["operation"],
+        Value::String("completion.script".to_string())
     );
     assert!(payload["completionScript"]
         .as_str()

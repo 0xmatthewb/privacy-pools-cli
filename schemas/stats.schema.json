@@ -15,6 +15,15 @@
                   "type": "boolean",
                   "const": true
                 },
+                "mode": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "operation": {
+                  "type": "string"
+                },
                 "nextActions": {
                   "type": "array",
                   "items": {
@@ -85,11 +94,63 @@
                     ],
                     "additionalProperties": false
                   }
+                },
+                "acceptedAcknowledgements": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "severity": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "severity"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "freshness": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chain": {
+                        "type": "string"
+                      },
+                      "lastSyncAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ageSeconds": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "isStale": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "chain",
+                      "isStale"
+                    ],
+                    "additionalProperties": false
+                  }
                 }
               },
               "required": [
                 "schemaVersion",
-                "success"
+                "success",
+                "mode",
+                "operation"
               ]
             },
             {
@@ -373,6 +434,29 @@
             "retry": {
               "type": "object",
               "additionalProperties": {}
+            },
+            "requiredAcknowledgements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "severity": {
+                    "type": "string"
+                  },
+                  "summary": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "severity",
+                  "summary"
+                ],
+                "additionalProperties": false
+              }
             }
           },
           "required": [

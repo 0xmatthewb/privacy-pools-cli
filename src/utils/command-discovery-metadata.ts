@@ -430,6 +430,26 @@ const FUND_MOVEMENT_COMMANDS = new Set<CommandPath>([
   "broadcast",
 ]);
 
+const CSV_SUPPORTED_COMMAND_PATHS = new Set<CommandPath>([
+  "pools",
+  "activity",
+  "protocol-stats",
+  "pool-stats",
+  "stats",
+  "accounts",
+  "history",
+  "recipients list",
+]);
+
+const HUMAN_INTERACTIVE_COMMANDS = new Set<CommandPath>([
+  "init",
+  "flow watch",
+]);
+
+const AGENT_UNSUPPORTED_COMMANDS = new Set<CommandPath>([
+  "flow watch",
+]);
+
 const PREFERRED_SAFE_VARIANTS: Partial<Record<CommandPath, PreferredSafeVariant>> = {
   upgrade: {
     command: "upgrade --check",
@@ -482,6 +502,10 @@ function descriptorSeed(path: CommandPath) {
 
   const sideEffectClass = sideEffectClassFor(path);
   const touchesFunds = sideEffectClass === "fund_movement";
+  const commandType = capabilities.commandType ?? "concrete";
+  const streamJsonSupported = (capabilities.flags ?? []).includes("--stream-json");
+  const mutatesLocalState =
+    sideEffectClass === "local_state_write" || sideEffectClass === "fund_movement";
 
   return {
     description: metadata.description,
@@ -513,6 +537,17 @@ function descriptorSeed(path: CommandPath) {
     agentWorkflowNotes: metadata.help?.agentWorkflowNotes ?? [],
     expectedNextActionWhen: metadata.expectedNextActionWhen,
     agentRequiredFlags: capabilities.agentRequiredFlags,
+    agentSupported:
+      commandType === "parent" ? true : !AGENT_UNSUPPORTED_COMMANDS.has(path),
+    humanInteractive: HUMAN_INTERACTIVE_COMMANDS.has(path),
+    mutatesFunds: touchesFunds,
+    mutatesLocalState,
+    streamJsonSupported,
+    csvSupported: CSV_SUPPORTED_COMMAND_PATHS.has(path),
+    commandType,
+    sharedHelpHandler: capabilities.sharedHelpHandler,
+    agentUnsupportedFlags: capabilities.agentUnsupportedFlags,
+    agentUnsupportedFlagCombos: capabilities.agentUnsupportedFlagCombos,
   };
 }
 
@@ -582,6 +617,20 @@ export function buildCommandDescriptor(path: CommandPath): DetailedCommandDescri
     ...(path === "flow" ? { phaseGraph: FLOW_PHASE_GRAPH } : {}),
     ...(path.startsWith("flow ") ? { phaseGraphRef: "flow" } : {}),
     ...(seed.agentRequiredFlags ? { agentRequiredFlags: seed.agentRequiredFlags } : {}),
+    agentSupported: seed.agentSupported,
+    humanInteractive: seed.humanInteractive,
+    mutatesFunds: seed.mutatesFunds,
+    mutatesLocalState: seed.mutatesLocalState,
+    streamJsonSupported: seed.streamJsonSupported,
+    csvSupported: seed.csvSupported,
+    commandType: seed.commandType,
+    ...(seed.sharedHelpHandler ? { sharedHelpHandler: seed.sharedHelpHandler } : {}),
+    ...(seed.agentUnsupportedFlags
+      ? { agentUnsupportedFlags: seed.agentUnsupportedFlags }
+      : {}),
+    ...(seed.agentUnsupportedFlagCombos
+      ? { agentUnsupportedFlagCombos: seed.agentUnsupportedFlagCombos }
+      : {}),
   };
 }
 
@@ -655,25 +704,49 @@ export function getDocumentedAgentMarkers(): string[] {
 }
 
 export function buildCapabilitiesPayload(): CapabilitiesPayload {
+  const visibleOrderedPaths = CAPABILITIES_COMMAND_ORDER.filter(
+    (path) => !HIDDEN_DISCOVERY_COMMANDS.has(path),
+  );
+  const capabilitySummaryFor = (path: CommandPath): CapabilitiesPayload["commands"][number] => {
+    const metadata = getCommandMetadata(path);
+    const seed = descriptorSeed(path);
+    return {
+      name: metadata.capabilities?.name ?? path,
+      description: metadata.description,
+      group: seed.group,
+      aliases: metadata.aliases,
+      usage: seed.usage,
+      flags: seed.flags,
+      agentFlags: metadata.capabilities?.agentFlags,
+      agentFlagNames: metadata.capabilities?.agentFlagNames,
+      requiresInit: seed.requiresInit,
+      expectedLatencyClass: seed.expectedLatencyClass,
+      agentSupported: seed.agentSupported,
+      humanInteractive: seed.humanInteractive,
+      mutatesFunds: seed.mutatesFunds,
+      mutatesLocalState: seed.mutatesLocalState,
+      streamJsonSupported: seed.streamJsonSupported,
+      csvSupported: seed.csvSupported,
+      commandType: seed.commandType,
+      ...(seed.sharedHelpHandler ? { sharedHelpHandler: seed.sharedHelpHandler } : {}),
+      ...(seed.agentUnsupportedFlags
+        ? { agentUnsupportedFlags: seed.agentUnsupportedFlags }
+        : {}),
+      ...(seed.agentUnsupportedFlagCombos
+        ? { agentUnsupportedFlagCombos: seed.agentUnsupportedFlagCombos }
+        : {}),
+    };
+  };
+
   return {
-    commands: CAPABILITIES_COMMAND_ORDER.filter(
-      (path) => !HIDDEN_DISCOVERY_COMMANDS.has(path),
-    ).map((path) => {
-      const metadata = getCommandMetadata(path);
-      const seed = descriptorSeed(path);
-      return {
-        name: metadata.capabilities?.name ?? path,
-        description: metadata.description,
-        group: seed.group,
-        aliases: metadata.aliases,
-        usage: seed.usage,
-        flags: seed.flags,
-        agentFlags: metadata.capabilities?.agentFlags,
-        agentFlagNames: metadata.capabilities?.agentFlagNames,
-        requiresInit: seed.requiresInit,
-        expectedLatencyClass: seed.expectedLatencyClass,
-      };
-    }),
+    mode: "capabilities",
+    operation: "capabilities",
+    commands: visibleOrderedPaths
+      .filter((path) => descriptorSeed(path).commandType !== "parent")
+      .map(capabilitySummaryFor),
+    namespaces: visibleOrderedPaths
+      .filter((path) => descriptorSeed(path).commandType === "parent")
+      .map(capabilitySummaryFor),
     commandDetails: Object.fromEntries(
       listCommandPaths().map((path) => [path, buildCommandDescriptor(path)]),
     ),

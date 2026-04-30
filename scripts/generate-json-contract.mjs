@@ -7,7 +7,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
 const contractPaths = [
   join(repoRoot, "docs", "contracts", "cli-json-contract.current.json"),
-  join(repoRoot, "docs", "contracts", "cli-json-contract.v2.0.0.json"),
+  join(repoRoot, "docs", "contracts", "cli-json-contract.v3.0.0.json"),
 ];
 
 const { commandEnvelopeSchemas } = await import(

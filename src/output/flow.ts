@@ -527,7 +527,7 @@ function buildStoppedExternalAgentNextAction(snapshot: FlowSnapshot) {
   return createNextAction(
     "accounts",
     `This saved workflow stopped after ${snapshot.poolAccountId ?? "the Pool Account"} changed externally. Inspect the latest account state, then choose the manual follow-up from the current account state.`,
-    "flow_manual_followup",
+    "transfer_manual_followup",
     {
       options: { agent: true, chain: snapshot.chain },
     },
@@ -538,7 +538,7 @@ function buildStoppedExternalHumanNextAction(snapshot: FlowSnapshot) {
   return createNextAction(
     "accounts",
     `Inspect ${snapshot.poolAccountId ?? "the affected Pool Account"} on ${snapshot.chain}, then choose the manual follow-up from the current account state.`,
-    "flow_manual_followup",
+    "transfer_manual_followup",
     {
       options: { chain: snapshot.chain },
     },
@@ -549,7 +549,7 @@ function buildFlowReconciliationAgentNextAction(snapshot: FlowSnapshot) {
   return createNextAction(
     "sync",
     "This workflow was confirmed onchain, but local state still needs reconciliation before you rely on the saved snapshot.",
-    "flow_manual_followup",
+    "transfer_manual_followup",
     {
       args: [snapshot.asset],
       options: { agent: true, chain: snapshot.chain },
@@ -561,7 +561,7 @@ function buildFlowReconciliationHumanNextAction(snapshot: FlowSnapshot) {
   return createNextAction(
     "sync",
     "This workflow was confirmed onchain, but local state still needs reconciliation before you rely on the saved snapshot.",
-    "flow_manual_followup",
+    "transfer_manual_followup",
     {
       args: [snapshot.asset],
       options: { chain: snapshot.chain },
@@ -576,7 +576,7 @@ function buildAgentFlowStatusNextAction(
   return createNextAction(
     "flow status",
     reason,
-    "flow_resume",
+    "transfer_resume",
     {
       args: [snapshot.workflowId],
       options: { agent: true },
@@ -591,7 +591,7 @@ function buildAgentFlowStepNextAction(
   return createNextAction(
     "flow step",
     reason,
-    "flow_resume",
+    "transfer_resume",
     {
       args: [snapshot.workflowId],
       options: { agent: true },
@@ -609,7 +609,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
       createNextAction(
         "flow ragequit",
         "A public recovery transaction was already submitted. Re-run flow ragequit to wait for confirmation.",
-        "flow_public_recovery_pending",
+        "transfer_ragequit_pending",
         {
           args: [snapshot.workflowId],
           options: { agent: true },
@@ -624,7 +624,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
       createNextAction(
         "flow ragequit",
         relayerMinimumRecoveryReason(snapshot),
-        "flow_public_recovery_required",
+        "transfer_ragequit_required",
         {
           args: [snapshot.workflowId],
           options: { agent: true },
@@ -718,7 +718,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
             snapshot,
             "Use flow ragequit instead if you want to recover publicly without completing Proof of Association.",
           ),
-          "flow_public_recovery_optional",
+          "transfer_ragequit_optional",
           {
             args: [snapshot.workflowId],
             options: { agent: true },
@@ -734,7 +734,7 @@ function buildAgentNextActions(snapshot: FlowSnapshot) {
             snapshot,
             "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path.",
           ),
-          "flow_declined",
+          "transfer_declined",
           {
             args: [snapshot.workflowId],
             options: { agent: true },
@@ -761,7 +761,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
       createNextAction(
         "flow ragequit",
         "A public recovery transaction was already submitted, so re-run flow ragequit to wait for confirmation.",
-        "flow_public_recovery_pending",
+        "transfer_ragequit_pending",
         {
           args: [snapshot.workflowId],
         },
@@ -775,7 +775,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
       createNextAction(
         "flow ragequit",
         relayerMinimumRecoveryCallout(snapshot),
-        "flow_public_recovery_required",
+        "transfer_ragequit_required",
         {
           args: [snapshot.workflowId],
         },
@@ -790,7 +790,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         createNextAction(
           "flow watch",
           awaitingFundingReason(snapshot),
-          "flow_resume",
+          "transfer_resume",
           {
             args: [snapshot.workflowId],
           },
@@ -802,7 +802,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
-          "flow_resume",
+          "transfer_resume",
           {
             args: [snapshot.workflowId],
           },
@@ -815,7 +815,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
-          "flow_resume",
+          "transfer_resume",
           {
             args: [snapshot.workflowId],
           },
@@ -827,7 +827,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         createNextAction(
           "flow watch",
           privacyDelayWaitingReason(snapshot),
-          "flow_resume",
+          "transfer_resume",
           {
             args: [snapshot.workflowId],
           },
@@ -839,7 +839,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         createNextAction(
           "flow watch",
           "Resume this saved workflow and continue toward the private withdrawal.",
-          "flow_resume",
+          "transfer_resume",
           {
             args: [snapshot.workflowId],
           },
@@ -851,7 +851,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         createNextAction(
           "flow watch",
           `Complete Proof of Association at ${POA_PORTAL_URL}, then re-run the watcher to continue privately.`,
-          "flow_resume",
+          "transfer_resume",
           {
             args: [snapshot.workflowId],
           },
@@ -859,7 +859,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         createNextAction(
           "flow ragequit",
           "Use flow ragequit instead if you want to recover publicly without completing Proof of Association.",
-          "flow_public_recovery_optional",
+          "transfer_ragequit_optional",
           {
             args: [snapshot.workflowId],
           },
@@ -871,7 +871,7 @@ function buildHumanNextActions(snapshot: FlowSnapshot) {
         createNextAction(
           "flow ragequit",
           "This workflow was declined, so run flow ragequit to recover publicly to the original deposit address.",
-          "flow_declined",
+          "transfer_declined",
           {
             args: [snapshot.workflowId],
           },

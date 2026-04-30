@@ -137,7 +137,7 @@ describe("renderFlowResult", () => {
       {
         command: "flow status",
         reason: "Poll the saved workflow until ASP review resolves.",
-        when: "flow_resume",
+        when: "transfer_resume",
         args: ["wf-123"],
         options: { agent: true },
       },
@@ -236,7 +236,7 @@ describe("renderFlowResult", () => {
         command: "flow ragequit",
         reason:
           "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path. This configured-wallet workflow still requires the original depositor signer.",
-        when: "flow_declined",
+        when: "transfer_declined",
         args: ["wf-123"],
         options: {
           agent: true,
@@ -269,7 +269,7 @@ describe("renderFlowResult", () => {
             phase === "depositing_publicly"
               ? "Poll the saved workflow until the public deposit confirms and account state is ready."
               : "Poll the saved workflow while the private withdrawal is still confirming.",
-          when: "flow_resume",
+          when: "transfer_resume",
           args: ["wf-123"],
           options: { agent: true },
         },
@@ -280,7 +280,7 @@ describe("renderFlowResult", () => {
         {
           command: "flow step",
           reason: "Advance the saved workflow one unit of work without running an internal watch loop.",
-          when: "flow_resume",
+          when: "transfer_resume",
           args: ["wf-123"],
           options: { agent: true },
         },
@@ -317,7 +317,7 @@ describe("renderFlowResult", () => {
         command: "flow ragequit",
         reason:
           "This saved workflow cannot continue privately because the full remaining balance is below the relayer minimum. Use flow ragequit for public recovery instead. This configured-wallet workflow still requires the original depositor signer.",
-        when: "flow_public_recovery_required",
+        when: "transfer_ragequit_required",
         args: ["wf-123"],
         options: { agent: true },
       },
@@ -399,7 +399,7 @@ describe("renderFlowResult", () => {
         command: "flow status",
         reason:
           `Complete Proof of Association at ${POA_PORTAL_URL} first, then re-check this workflow.`,
-        when: "flow_resume",
+        when: "transfer_resume",
         args: ["wf-123"],
         options: { agent: true },
       },
@@ -411,7 +411,7 @@ describe("renderFlowResult", () => {
         command: "flow ragequit",
         reason:
           "Use flow ragequit instead if you want to recover publicly without completing Proof of Association. This configured-wallet workflow still requires the original depositor signer.",
-        when: "flow_public_recovery_optional",
+        when: "transfer_ragequit_optional",
         args: ["wf-123"],
         options: { agent: true },
       },
@@ -851,7 +851,7 @@ describe("renderFlowResult", () => {
         command: "flow status",
         reason:
           "Fund the dedicated workflow wallet with 456 USDC and 0.123 ETH first, then re-run flow watch to continue.",
-        when: "flow_resume",
+        when: "transfer_resume",
         args: ["wf-123"],
         options: { agent: true },
       },
@@ -863,7 +863,7 @@ describe("renderFlowResult", () => {
         command: "flow step",
         reason:
           "Attempt the next saved-workflow step after funding reaches the dedicated wallet.",
-        when: "flow_resume",
+        when: "transfer_resume",
         args: ["wf-123"],
         options: { agent: true },
       },
@@ -892,7 +892,7 @@ describe("renderFlowResult", () => {
         command: "flow ragequit",
         reason:
           "This workflow was declined. flow ragequit is the canonical saved-workflow public recovery path. This configured-wallet workflow still requires the original depositor signer.",
-        when: "flow_declined",
+        when: "transfer_declined",
         args: ["wf-123"],
         options: { agent: true },
       },
@@ -920,7 +920,7 @@ describe("renderFlowResult", () => {
         command: "accounts",
         reason:
           "This saved workflow stopped after PA-1 changed externally. Inspect the latest account state, then choose the manual follow-up from the current account state.",
-        when: "flow_manual_followup",
+        when: "transfer_manual_followup",
         options: { agent: true, chain: "sepolia" },
       },
       "privacy-pools accounts --agent --chain sepolia",

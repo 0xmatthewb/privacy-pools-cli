@@ -1,7 +1,9 @@
 // normalized: NONE
 {
-  "mode": "version",
-  "schemaVersion": "2.0.0",
+  "action": "version",
+  "mode": "status",
+  "operation": "status.version",
+  "schemaVersion": "3.0.0",
   "success": true,
   "version": "2.0.0"
 }

@@ -11,7 +11,7 @@
   "dryRun": true,
   "dryRunMode": "rpc",
   "feeBPS": "50",
-  "mode": "relayed",
+  "mode": "withdraw",
   "nextActions": [
     {
       "args": [
@@ -37,7 +37,7 @@
   "recipient": "<ADDR>",
   "relayerHost": "https://relayer.example",
   "rootMatchedAtProofTime": true,
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "selectedCommitmentLabel": "789",
   "selectedCommitmentValue": "500000000000000000",
   "success": true,
@@ -47,5 +47,6 @@
       "code": "PREVIEW_VALIDATION_APPROXIMATE",
       "message": "Dry-run validation is approximate until the transaction is signed and submitted."
     }
-  ]
+  ],
+  "withdrawMode": "relayed"
 }
