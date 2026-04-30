@@ -344,7 +344,10 @@ export function runInstalledCli(installRoot, homeDir, args, options = {}) {
   const result = spawnSync(invocation.command, invocation.args, {
     cwd: installRoot,
     encoding: "utf8",
-    timeout: options.timeout ?? 60_000,
+    // 120s default accommodates cold launcher start on slow CI runners
+    // (notably macos-15-intel where install + first --version routinely
+    // exceed the previous 60s ceiling).
+    timeout: options.timeout ?? 120_000,
     maxBuffer: 10 * 1024 * 1024,
     shell: invocation.shell,
     env: installCliEnv(homeDir, options.env),
