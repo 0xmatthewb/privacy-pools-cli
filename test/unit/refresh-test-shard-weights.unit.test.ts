@@ -147,4 +147,63 @@ describe("refresh test shard weights script", () => {
       "./test/unit/b.unit.test.ts": 200,
     });
   });
+
+  test("writes non-main targets into nested manifest sections", () => {
+    const root = createTrackedTempDir("pp-shard-refresh-");
+    const outputPath = join(root, "weights.json");
+    const reportPath = join(root, "report.json");
+
+    writeFileSync(
+      outputPath,
+      `${JSON.stringify({
+        "./test/unit/existing.unit.test.ts": 100,
+      }, null, 2)}\n`,
+      "utf8",
+    );
+    writeFileSync(
+      reportPath,
+      `${JSON.stringify({
+        kind: "suite",
+        heading: "suite runtimes",
+        fileSummaries: [
+          {
+            path: "./test/conformance/a.conformance.test.ts",
+            estimatedDurationMs: 750,
+            sampleCount: 1,
+          },
+        ],
+      }, null, 2)}\n`,
+      "utf8",
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        "scripts/ci/refresh-test-shard-weights.mjs",
+        "--target",
+        "conformance",
+        "--report",
+        reportPath,
+        "--output",
+        outputPath,
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+      },
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+
+    const weights = JSON.parse(readFileSync(outputPath, "utf8"));
+    expect(weights).toEqual({
+      "./test/unit/existing.unit.test.ts": 100,
+      conformance: {
+        weights: {
+          "./test/conformance/a.conformance.test.ts": 750,
+        },
+      },
+    });
+  });
 });

@@ -15,6 +15,8 @@ const SHARD_WEIGHT_MANIFEST = resolve(
   ROOT,
   "scripts/ci/test-shard-weights.json",
 );
+const FRONTEND_PARITY_MARKER = "@frontend-parity";
+const ONLINE_MARKER = "@online";
 const BUILD_CONFIG_RULES = ["tsconfig.json"];
 const PACKAGED_ARTIFACT_RULES = [
   "assets/",
@@ -414,30 +416,106 @@ export function collectLinuxCoreTestFiles(rootDir = ROOT) {
   return uniqueSorted([...mainFiles, ...isolatedFiles]);
 }
 
-let cachedShardWeights;
+function testFileHasMarker(rootDir, filePath, marker) {
+  return readFileSync(resolve(rootDir, filePath), "utf8").includes(marker);
+}
 
-function loadShardWeights() {
-  if (cachedShardWeights !== undefined) {
-    return cachedShardWeights;
+export function collectConformanceTestFiles({
+  rootDir = ROOT,
+  mode = "core",
+  excludeTags = [],
+} = {}) {
+  const allFiles = collectTestFiles("./test/conformance", rootDir);
+  const frontendFiles = allFiles.filter((filePath) =>
+    testFileHasMarker(rootDir, filePath, FRONTEND_PARITY_MARKER)
+  );
+  const coreFiles = allFiles.filter((filePath) =>
+    !testFileHasMarker(rootDir, filePath, FRONTEND_PARITY_MARKER)
+  );
+  const selected = mode === "all"
+    ? allFiles
+    : mode === "frontend"
+      ? frontendFiles
+      : mode === "core"
+        ? coreFiles
+        : null;
+
+  if (!selected) {
+    throw new Error(
+      `Unknown conformance shard target "${mode}". Use core, frontend, or all.`,
+    );
+  }
+  if (selected.length === 0) {
+    throw new Error(`Conformance shard target "${mode}" selected no files.`);
+  }
+
+  const excluded = new Set(excludeTags.map((tag) => tag.trim()).filter(Boolean));
+  if (!excluded.has("online")) {
+    return uniqueSorted(selected);
+  }
+
+  return uniqueSorted(
+    selected.filter((filePath) =>
+      !testFileHasMarker(rootDir, filePath, ONLINE_MARKER)
+    ),
+  );
+}
+
+let cachedShardWeightManifest;
+const cachedShardWeightsByTarget = new Map();
+
+function loadShardWeightManifest() {
+  if (cachedShardWeightManifest !== undefined) {
+    return cachedShardWeightManifest;
   }
 
   try {
-    const parsed = JSON.parse(readFileSync(SHARD_WEIGHT_MANIFEST, "utf8"));
-    cachedShardWeights = Object.fromEntries(
-      Object.entries(parsed).map(([filePath, weight]) => [
-        normalizePath(filePath),
-        Number(weight),
-      ]),
+    cachedShardWeightManifest = JSON.parse(
+      readFileSync(SHARD_WEIGHT_MANIFEST, "utf8"),
     );
   } catch {
-    cachedShardWeights = {};
+    cachedShardWeightManifest = {};
   }
 
-  return cachedShardWeights;
+  return cachedShardWeightManifest;
 }
 
-export function resolveFileWeight(filePath, rootDir = ROOT) {
-  const configuredWeight = loadShardWeights()[normalizePath(filePath)];
+function readTargetWeightEntries(target) {
+  const manifest = loadShardWeightManifest();
+  if (target === "main") {
+    return Object.entries(manifest).filter(([, weight]) =>
+      Number.isFinite(Number(weight))
+    );
+  }
+
+  const nested = manifest[target];
+  const weights = nested?.weights ?? nested;
+  if (!weights || typeof weights !== "object" || Array.isArray(weights)) {
+    return [];
+  }
+
+  return Object.entries(weights).filter(([, weight]) =>
+    Number.isFinite(Number(weight))
+  );
+}
+
+function loadShardWeights(target = "main") {
+  if (cachedShardWeightsByTarget.has(target)) {
+    return cachedShardWeightsByTarget.get(target);
+  }
+
+  const weights = Object.fromEntries(
+    readTargetWeightEntries(target).map(([filePath, weight]) => [
+      normalizePath(filePath),
+      Number(weight),
+    ]),
+  );
+  cachedShardWeightsByTarget.set(target, weights);
+  return weights;
+}
+
+export function resolveFileWeight(filePath, rootDir = ROOT, target = "main") {
+  const configuredWeight = loadShardWeights(target)[normalizePath(filePath)];
   if (Number.isFinite(configuredWeight) && configuredWeight > 0) {
     return configuredWeight;
   }
@@ -447,12 +525,12 @@ export function resolveFileWeight(filePath, rootDir = ROOT) {
   return contents.split("\n").length;
 }
 
-export function buildFileShards(files, count, rootDir = ROOT) {
+export function buildFileShards(files, count, rootDir = ROOT, target = "main") {
   const shardCount = Math.max(1, count);
   const weighted = uniqueSorted(files)
     .map((filePath) => ({
       filePath,
-      weight: resolveFileWeight(filePath, rootDir),
+      weight: resolveFileWeight(filePath, rootDir, target),
     }))
     .sort((left, right) => {
       if (right.weight !== left.weight) return right.weight - left.weight;

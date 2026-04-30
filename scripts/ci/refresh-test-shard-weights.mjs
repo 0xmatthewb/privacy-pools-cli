@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,6 +10,7 @@ function parseArgs(argv) {
   const parsed = {
     reports: [],
     output: DEFAULT_OUTPUT,
+    target: "main",
   };
 
   for (let index = 2; index < argv.length; index += 1) {
@@ -28,6 +29,14 @@ function parseArgs(argv) {
         throw new Error("--output requires a value");
       }
       parsed.output = resolve(ROOT, outputPath);
+      continue;
+    }
+    if (token === "--target") {
+      const target = argv[++index]?.trim();
+      if (!target) {
+        throw new Error("--target requires a value");
+      }
+      parsed.target = target;
     }
   }
 
@@ -111,7 +120,31 @@ const nextWeights = Object.fromEntries(
     .sort((left, right) => left[0].localeCompare(right[0])),
 );
 
-writeFileSync(args.output, `${JSON.stringify(nextWeights, null, 2)}\n`, "utf8");
+function readExistingManifest(outputPath) {
+  if (!existsSync(outputPath)) {
+    return {};
+  }
+  return JSON.parse(readFileSync(outputPath, "utf8"));
+}
+
+function buildNextManifest() {
+  if (args.target === "main") {
+    return nextWeights;
+  }
+
+  return {
+    ...readExistingManifest(args.output),
+    [args.target]: {
+      weights: nextWeights,
+    },
+  };
+}
+
+writeFileSync(
+  args.output,
+  `${JSON.stringify(buildNextManifest(), null, 2)}\n`,
+  "utf8",
+);
 process.stdout.write(
-  `Updated shard weights for ${Object.keys(nextWeights).length} test file(s): ${args.output}\n`,
+  `Updated shard weights for ${Object.keys(nextWeights).length} test file(s) (${args.target}): ${args.output}\n`,
 );
