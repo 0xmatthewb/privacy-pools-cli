@@ -396,6 +396,8 @@ jobs:
   native-unit:
     name: native-unit
     runs-on: ubuntu-latest
+    needs:
+      - prepare-js-artifacts
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -430,6 +432,18 @@ jobs:
           workspaces: native/shell
           shared-key: native-shell-debug-linux
           save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Download prepared JS dist
+        # Several integration test binaries (golden_parity, mode_resolution_parity,
+        # public_readonly) call live_bridge_env(), which asserts that
+        # dist/runtime/v1/worker-main.js exists so the native shell can launch
+        # the JS worker for cross-runtime parity. Without this artifact the
+        # tests panic immediately at the existence check (support/mod.rs:190).
+        if: steps.select.outputs.should_run == 'true'
+        uses: actions/download-artifact@v6
+        with:
+          name: ci-js-dist
+          path: dist
 
       - name: Run native Rust lint checks
         if: steps.select.outputs.should_run == 'true'
