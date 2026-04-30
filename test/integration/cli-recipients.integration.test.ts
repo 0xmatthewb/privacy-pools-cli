@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createTempHome, parseJsonOutput, runCli } from "../helpers/cli.ts";
+import { createTempHome, parseJsonOutput, runBuiltCli } from "../helpers/cli.ts";
 
 interface RecipientEnvelope {
   success: boolean;
@@ -24,7 +24,7 @@ describe("recipients command integration", () => {
     const first = "0x1111111111111111111111111111111111111111";
     const second = "0x2222222222222222222222222222222222222222";
 
-    const addFirst = runCli(
+    const addFirst = runBuiltCli(
       ["--agent", "recipients", "add", first, "treasury"],
       { home },
     );
@@ -36,7 +36,7 @@ describe("recipients command integration", () => {
       recipient: { address: first, label: "treasury" },
     });
 
-    const listOne = runCli(["--agent", "recipients", "list"], { home });
+    const listOne = runBuiltCli(["--agent", "recipients", "list"], { home });
     expect(listOne.status).toBe(0);
     expect(parseJsonOutput<RecipientEnvelope>(listOne.stdout)).toMatchObject({
       success: true,
@@ -47,7 +47,7 @@ describe("recipients command integration", () => {
     });
     expect(parseJsonOutput<RecipientEnvelope>(listOne.stdout).recipients?.[0]?.updatedAt).toBeUndefined();
 
-    const removeByLabel = runCli(
+    const removeByLabel = runBuiltCli(
       ["--agent", "recipients", "remove", "treasury"],
       { home },
     );
@@ -59,13 +59,13 @@ describe("recipients command integration", () => {
       removed: true,
     });
 
-    const addSecond = runCli(
+    const addSecond = runBuiltCli(
       ["--agent", "recipients", "add", second, "vitalik.eth"],
       { home },
     );
     expect(addSecond.status).toBe(0);
 
-    const removeByStoredName = runCli(
+    const removeByStoredName = runBuiltCli(
       ["--agent", "recipients", "rm", "vitalik.eth"],
       { home },
     );
@@ -77,13 +77,13 @@ describe("recipients command integration", () => {
       removed: true,
     });
 
-    const addBeforeClear = runCli(
+    const addBeforeClear = runBuiltCli(
       ["--agent", "recipients", "add", second, "ops"],
       { home },
     );
     expect(addBeforeClear.status).toBe(0);
 
-    const clear = runCli(["--agent", "recipients", "clear"], { home });
+    const clear = runBuiltCli(["--agent", "recipients", "clear"], { home });
     expect(clear.status).toBe(0);
     expect(parseJsonOutput<RecipientEnvelope>(clear.stdout)).toMatchObject({
       success: true,
@@ -91,7 +91,7 @@ describe("recipients command integration", () => {
       removedCount: 1,
     });
 
-    const listEmpty = runCli(["--agent", "recipients"], { home });
+    const listEmpty = runBuiltCli(["--agent", "recipients"], { home });
     expect(listEmpty.status).toBe(0);
     expect(parseJsonOutput<RecipientEnvelope>(listEmpty.stdout)).toMatchObject({
       success: true,
