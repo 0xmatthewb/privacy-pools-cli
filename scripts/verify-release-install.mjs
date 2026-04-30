@@ -56,6 +56,11 @@ function resolveGlobalPath(prefix, kind) {
       timeout: 60_000,
       maxBuffer: 10 * 1024 * 1024,
       env: npmProcessEnv(prefix),
+      // Node 20+ tightened .cmd/.bat spawning per CVE-2024-27980; Windows
+      // requires shell:true to invoke npm.cmd, otherwise spawnSync returns
+      // EINVAL (observed on win32-x64-msvc and win32-arm64-msvc lanes
+      // after the prior packTarball/runNpmInstallWithRetry fix).
+      shell: process.platform === "win32",
     },
   );
 
