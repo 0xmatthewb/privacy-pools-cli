@@ -106,16 +106,6 @@ jobs:
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
 
-      - name: Cache TypeScript incremental build
-        if: steps.select.outputs.should_run == 'true' && matrix.shard == 1
-        uses: actions/cache@v4
-        with:
-          path: .tsbuildinfo
-          key: tsbuildinfo-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tsconfig.json') }}-${{ hashFiles('src/**/*.ts', 'src/**/*.js') }}
-          restore-keys: |
-            tsbuildinfo-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tsconfig.json') }}-
-            tsbuildinfo-${{ runner.os }}-
-
       - name: Typecheck
         if: steps.select.outputs.should_run == 'true' && matrix.shard == 1
         run: npm run typecheck
@@ -178,16 +168,6 @@ jobs:
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
         run: npm ci
-
-      - name: Cache TypeScript incremental build
-        if: steps.select.outputs.should_run == 'true'
-        uses: actions/cache@v4
-        with:
-          path: .tsbuildinfo
-          key: tsbuildinfo-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tsconfig.json') }}-${{ hashFiles('src/**/*.ts', 'src/**/*.js') }}
-          restore-keys: |
-            tsbuildinfo-${{ runner.os }}-${{ hashFiles('package-lock.json', 'tsconfig.json') }}-
-            tsbuildinfo-${{ runner.os }}-
 
       - name: Prepare JS artifacts
         if: steps.select.outputs.should_run == 'true'

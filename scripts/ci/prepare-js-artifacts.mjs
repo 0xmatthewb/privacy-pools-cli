@@ -61,7 +61,6 @@ mkdirSync(tarballRoot, { recursive: true });
 mkdirSync(npmStateRoot, { recursive: true });
 
 rmSync(join(ROOT, "dist"), { recursive: true, force: true });
-rmSync(join(ROOT, ".tsbuildinfo"), { recursive: true, force: true });
 run(npmCommand, ["run", "build"]);
 
 if (!existsSync(join(distDir, "index.js"))) {
