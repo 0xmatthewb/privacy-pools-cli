@@ -29,10 +29,15 @@ for (const key of ["CI", "GITHUB_ACTIONS", "BUILDKITE"]) {
 
 // Force a deterministic terminal width for renderers that branch on
 // getOutputWidthClass() (narrow vs wide layout). GitHub Actions runners
-// report a small column count (~70), which flips human-mode output to the
-// stacked layout and breaks renderStatus/withdraw/history exact-match
-// assertions. PRIVACY_POOLS_CLI_PREVIEW_COLUMNS is the highest-priority
-// width source (src/utils/terminal.ts); COLUMNS is a fallback for any
-// helper that reads it directly.
-process.env.PRIVACY_POOLS_CLI_PREVIEW_COLUMNS = "120";
+// report a small column count (~70) via process.stdout.columns, which
+// flips human-mode output to the stacked layout and breaks
+// renderStatus/withdraw/history exact-match assertions.
+//
+// We set COLUMNS (not PRIVACY_POOLS_CLI_PREVIEW_COLUMNS) because the
+// latter has higher priority in src/utils/terminal.ts and would
+// override per-test narrow-mode simulation (banner.render
+// narrow-tty, output-csv printTable narrow). COLUMNS=120 wins
+// against process.stdout.columns but stays subordinate to
+// PRIVACY_POOLS_CLI_PREVIEW_COLUMNS, which tests can set
+// explicitly when they want to simulate a specific width.
 process.env.COLUMNS = "120";

@@ -93,6 +93,12 @@ function beginOutputCapture(): {
   // earlier tests that flipped it (via --no-progress mode resolution) don't
   // leak through to capture-using tests that expect spinner output to fire.
   setSuppressProgress(false);
+  // resolveGlobalMode is called inside captured fns and re-derives noProgress
+  // from PRIVACY_POOLS_NO_PROGRESS, which can leak across files in Bun's
+  // shared-process model. Strip it so the captured fn sees a clean env.
+  // The two tests that exercise NO_PROGRESS behavior (root-argv.unit and
+  // mode.unit) don't use captureOutput, so this strip is safe.
+  delete process.env.PRIVACY_POOLS_NO_PROGRESS;
 
   const ownerToken = outputCaptureContext.getStore() ?? Symbol("output-capture");
   if (activeOutputCapture && activeOutputCapture.ownerToken !== ownerToken) {
