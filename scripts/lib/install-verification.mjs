@@ -707,7 +707,10 @@ export function assertInstalledInitViaStdin({
     ],
     {
       input: `${privateKey}\n`,
-      timeout: 60_000,
+      // Match the runInstalledCli default; cold launcher start + first init
+      // routinely exceed 60s on slow runners (notably macos-15-intel, also
+      // observed on darwin-arm64 in CI run 25146413002).
+      timeout: 120_000,
     },
   );
   const initPayload = parseJson(

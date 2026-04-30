@@ -546,7 +546,10 @@ try {
     ],
     {
       input: `${TEST_PRIVATE_KEY}\n`,
-      timeout: 60_000,
+      // Match the runInstalledCli default; cold launcher start + first init
+      // can exceed 60s on slow runners (anvil-e2e-smoke hit ETIMEDOUT here
+      // in CI run 25146413002).
+      timeout: 120_000,
     },
   );
   const initPayload = parseJson(
@@ -869,7 +872,10 @@ try {
     ],
     {
       input: `${TEST_PRIVATE_KEY}\n`,
-      timeout: 60_000,
+      // Match the runInstalledCli default; cold launcher start + first init
+      // can exceed 60s on slow runners (anvil-e2e-smoke hit ETIMEDOUT here
+      // in CI run 25146413002).
+      timeout: 120_000,
     },
   );
   const jsFallbackInitPayload = parseJson(

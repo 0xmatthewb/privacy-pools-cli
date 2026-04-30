@@ -408,6 +408,12 @@ function runGlobalCli(prefix, homeDir, args, env = {}) {
       NO_COLOR: "1",
       PRIVACY_POOLS_HOME: homeDir,
       npm_config_prefix: prefix,
+      // Strip CI-detection env keys so the spawned upgrade verification
+      // doesn't short-circuit into the "ci" install context. The verifier
+      // simulates a real user upgrade flow and needs the non-CI branch.
+      CI: undefined,
+      GITHUB_ACTIONS: undefined,
+      BUILDKITE: undefined,
       ...env,
     }),
   });
