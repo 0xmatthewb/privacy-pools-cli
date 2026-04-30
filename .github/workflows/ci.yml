@@ -53,6 +53,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 # Only allow reading the repo — no write access needed here.
 permissions:
@@ -452,19 +453,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version:
-          - "25.x"
         include:
           - label: linux-x64-gnu
             runner: ubuntu-latest
+            node-version: "25.x"
           - label: win32-x64-msvc
             runner: windows-latest
+            node-version: "25.x"
           - label: win32-arm64-msvc
             runner: windows-11-arm
+            node-version: "25.x"
           - label: darwin-arm64
             runner: macos-latest
+            node-version: "25.x"
           - label: darwin-x64
             runner: macos-15-intel
+            node-version: "25.x"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
