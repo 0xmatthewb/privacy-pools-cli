@@ -93,6 +93,13 @@ async function runBunProcess(args, timeoutMs) {
     stdio: ["inherit", "pipe", "pipe"],
     env: buildTestRunnerEnv({
       PP_TEST_RUN_ID: runId,
+      // Force a deterministic terminal width for renderers that branch on
+      // getOutputWidthClass(). Setting COLUMNS in the spawned env bypasses
+      // any uncertainty about whether the bunfig preload-guard fires (it
+      // depends on cwd and bunfig.toml resolution, both of which can vary
+      // between CI invocations: linux-core shard via test-shards.mjs vs
+      // coverage-guard via check-coverage.mjs).
+      COLUMNS: "120",
     }),
   });
 
