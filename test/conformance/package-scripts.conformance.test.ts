@@ -27,6 +27,7 @@ function expectScriptContains(name: string, fragments: string[]): void {
 describe("package scripts conformance", () => {
   test("top-level test wrapper remains the shared suite runner", () => {
     expect(getScript("test")).toBe("node scripts/run-test-suite.mjs");
+    expect(getScript("test:affected")).toBe("node scripts/run-test-affected.mjs");
   });
 
   test("published package includes bundled circuit artifacts", () => {

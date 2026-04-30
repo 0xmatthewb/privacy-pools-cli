@@ -36,12 +36,38 @@ describe("run-bun-tests outer watchdog", () => {
         encoding: "utf8",
         timeout: 15_000,
         maxBuffer: 10 * 1024 * 1024,
+        env: {
+          ...process.env,
+          PP_TEST_ALLOW_DIRECT: "1",
+        },
       },
     );
 
     expect(result.status).toBe(0);
     expect(`${result.stdout}\n${result.stderr}`).toContain("2 pass");
     expect(`${result.stdout}\n${result.stderr}`).toContain("0 fail");
+  });
+
+  test("direct bun test is guarded unless explicitly allowed", () => {
+    const result = spawnSync(
+      "bun",
+      ["test", "./test/fixtures/bun-exit-code-leak.fixture.ts"],
+      {
+        cwd: CLI_ROOT,
+        encoding: "utf8",
+        timeout: 15_000,
+        maxBuffer: 10 * 1024 * 1024,
+        env: {
+          ...process.env,
+          PP_TEST_ALLOW_DIRECT: undefined,
+          PP_TEST_RUN_ID: undefined,
+        },
+      },
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Direct `bun test` invocation detected.");
+    expect(result.stderr).toContain("node scripts/run-bun-tests.mjs <files...>");
   });
 
   test("propagates real failing Bun exits without summary-based normalization", () => {

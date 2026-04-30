@@ -1,4 +1,5 @@
 [test]
+preload = "./test/helpers/bun-preload-guard.ts"
 coverageSkipTestFiles = true
 pathIgnorePatterns = [
   "dist",

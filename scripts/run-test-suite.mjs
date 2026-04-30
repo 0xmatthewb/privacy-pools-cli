@@ -124,6 +124,13 @@ function buildSuiteInvocationArgs(suite, forwardedSuiteArgs) {
   ) {
     suiteArgs.push("--timeout", String(suite.timeoutMs));
   }
+  if (
+    suite.tags?.includes("unit")
+    && !hasExplicitTimeoutArg(forwardedSuiteArgs)
+    && !hasExplicitTimeoutArg(suiteArgs)
+  ) {
+    suiteArgs.push("--timeout", "10000");
+  }
 
   return [...suiteArgs, ...forwardedSuiteArgs];
 }

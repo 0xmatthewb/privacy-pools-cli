@@ -40,6 +40,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-test-suite.mjs",
     "test:offline": "node scripts/run-test-suite.mjs --exclude-tag online && npm run build && node scripts/run-conformance-suite.mjs core --exclude-tag online",
+    "test:affected": "node scripts/run-test-affected.mjs",
     "test:parallel": "PP_TEST_MAIN_RESPECT_FIXTURE_CLASS=0 node scripts/run-test-suite.mjs",
     "test:install": "node scripts/run-test-profile.mjs install",
     "test:native:fmt": "cargo fmt --manifest-path native/shell/Cargo.toml --check",
