@@ -49,7 +49,7 @@ The preferred test harness primitives are:
 - `test/helpers/golden.ts` for normalized `.golden.txt` / `.golden.json` contracts in `test/golden/`
 - `test/helpers/strict-stubs.ts` for fail-closed outbound expectations
 
-Default isolated suites are intentionally enumerated in `scripts/test-suite-manifest.mjs`; there are 16 as of v2.0.0. Coverage-only isolation keeps its own explicit list in the same manifest.
+Default isolated suites are intentionally enumerated in `scripts/test-suite-manifest.mjs`; there are 17 as of v2.0.0. Coverage-only isolation keeps its own explicit list in the same manifest.
 `init-discovery-service` remains isolated in the default lane because it mocks SDK, pool, account, and account-storage modules before import and must stay contained from other service suites.
 
 To run a single test file: `node scripts/run-bun-tests.mjs ./test/unit/some-file.unit.test.ts`

@@ -155,6 +155,8 @@ export const LAUNCHER_RUNTIME_TEST =
   "./test/unit/launcher-runtime.unit.test.ts";
 export const LAUNCHER_ROUTING_TEST =
   "./test/unit/launcher-routing.unit.test.ts";
+export const UPGRADE_COMMAND_TEST =
+  "./test/unit/upgrade-command.unit.test.ts";
 export const INIT_INTERACTIVE_CANCEL_INVALID_TEST =
   "./test/unit/init-command-interactive.cancel-invalid.unit.test.ts";
 export const INIT_INTERACTIVE_GENERATE_BACKUP_TEST =
@@ -679,6 +681,17 @@ export const ISOLATED_SUITES = [
     tags: ["unit", "runtime", "launcher"],
     reason:
       "Bun's lcov writer is deterministic for the launcher/runtime source suite only when it runs in its own coverage process",
+  }),
+  defineIsolatedSuite({
+    label: "upgrade-command",
+    tests: [UPGRADE_COMMAND_TEST],
+    timeoutMs: 120_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    fixtureClass: "upgrade-mock-graph",
+    tags: ["unit", "upgrade"],
+    reason:
+      "captureModuleExports() over seven modules combined with mock.restore()/mock.module() reinstalls in beforeEach leaks Bun's shared module cache; cumulative pressure across 12 tests OOM-killed linux-core shard 3 on free Ubuntu runners",
   }),
 ];
 
