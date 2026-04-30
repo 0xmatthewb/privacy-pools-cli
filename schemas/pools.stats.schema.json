@@ -1,7 +1,7 @@
 {
-  "$ref": "#/definitions/pool-stats envelope",
+  "$ref": "#/definitions/pools stats envelope",
   "definitions": {
-    "pool-stats envelope": {
+    "pools stats envelope": {
       "anyOf": [
         {
           "allOf": [
@@ -159,12 +159,6 @@
                 "mode": {
                   "type": "string"
                 },
-                "command": {
-                  "type": "string"
-                },
-                "invokedAs": {
-                  "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/1/properties/mode"
-                },
                 "chain": {
                   "type": "string"
                 },
@@ -175,13 +169,13 @@
                   }
                 },
                 "asset": {
-                  "type": "string"
+                  "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/1/properties/mode"
                 },
                 "pool": {
-                  "type": "string"
+                  "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/1/properties/mode"
                 },
                 "scope": {
-                  "type": "string"
+                  "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/1/properties/mode"
                 },
                 "cacheTimestamp": {
                   "type": [
@@ -259,7 +253,7 @@
                 "last24h": {
                   "anyOf": [
                     {
-                      "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                      "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
                     },
                     {
                       "type": "null"
@@ -275,12 +269,12 @@
                         "type": "string"
                       },
                       "cacheTimestamp": {
-                        "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/1/properties/cacheTimestamp"
+                        "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/1/properties/cacheTimestamp"
                       },
                       "allTime": {
                         "anyOf": [
                           {
-                            "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                            "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
                           },
                           {
                             "type": "null"
@@ -290,7 +284,7 @@
                       "last24h": {
                         "anyOf": [
                           {
-                            "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
+                            "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
                           },
                           {
                             "type": "null"
@@ -309,15 +303,12 @@
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 }
               },
               "required": [
-                "chain",
-                "asset",
-                "pool",
-                "scope"
+                "chain"
               ]
             }
           ]
@@ -366,7 +357,7 @@
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 },
                 "retry": {
@@ -411,7 +402,7 @@
             "nextActions": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/pool-stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                "$ref": "#/definitions/pools stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
               }
             },
             "retry": {
@@ -452,7 +443,7 @@
           "additionalProperties": false
         }
       ],
-      "description": "pool-stats"
+      "description": "pools stats"
     }
   },
   "$schema": "http://json-schema.org/draft-07/schema#"

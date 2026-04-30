@@ -120,13 +120,13 @@ describe("utility command handlers", () => {
   test("describe returns command metadata for a valid command path", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       handleDescribeCommand(
-        ["stats", "global"],
+        ["pools", "stats"],
         fakeCommand({ json: true }),
       ),
     );
 
     expect(json.success).toBe(true);
-    expect(json.command).toBe("protocol-stats");
+    expect(json.command).toBe("pools stats");
     expect(json.safeReadOnly).toBe(true);
     expect(json.examples).toEqual(expect.any(Array));
     expect(stderr).toBe("");

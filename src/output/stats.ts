@@ -1,7 +1,7 @@
 /**
- * Output renderer for the `stats` command family.
+ * Output renderer for the `pools stats` command family.
  *
- * `src/commands/stats.ts` delegates final output here.
+ * `src/commands/pools.ts` delegates final output here.
  * Statistics fetching, alias handling, subcommand routing, and spinner remain
  * in the command handler.
  */
@@ -34,9 +34,6 @@ export interface ChainStatsEntry {
 }
 
 export interface GlobalStatsRenderData {
-  mode: "global-stats";
-  command: "protocol-stats";
-  invokedAs?: "stats" | "stats global";
   chain: string;
   chains?: string[];
   cacheTimestamp: string | null;
@@ -46,9 +43,6 @@ export interface GlobalStatsRenderData {
 }
 
 export interface PoolStatsRenderData {
-  mode: "pool-stats";
-  command: "pool-stats";
-  invokedAs?: "stats pool";
   chain: string;
   asset: string;
   pool: string;
@@ -145,14 +139,14 @@ export function renderGlobalStats(
 ): void {
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
-      mode: data.mode,
-      command: data.command,
+      mode: "pools",
+      action: "stats",
+      operation: "pools.stats",
       chain: data.chain,
       ...(data.chains ? { chains: data.chains } : {}),
       cacheTimestamp: data.cacheTimestamp,
       allTime: normalizeCrossAssetStats(data.allTime),
       last24h: normalizeCrossAssetStats(data.last24h),
-      ...(data.invokedAs ? { invokedAs: data.invokedAs } : {}),
     };
     if (data.perChain) {
       payload.perChain = data.perChain;
@@ -259,7 +253,7 @@ export function renderPoolStats(
   if (ctx.mode.isJson) {
     const agentNextActions = [
       createNextAction(
-        "pools",
+        "pools show",
         "Open the detailed view for this pool.",
         "after_pool_stats",
         {
@@ -271,8 +265,9 @@ export function renderPoolStats(
     printJsonSuccess(
       appendNextActions(
         {
-          mode: data.mode,
-          command: data.command,
+          mode: "pools",
+          action: "stats",
+          operation: "pools.stats",
           chain: data.chain,
           asset: data.asset,
           pool: data.pool,
@@ -280,7 +275,6 @@ export function renderPoolStats(
           cacheTimestamp: data.cacheTimestamp,
           allTime: data.allTime,
           last24h: data.last24h,
-          ...(data.invokedAs ? { invokedAs: data.invokedAs } : {}),
         },
         agentNextActions,
       ),
@@ -325,7 +319,7 @@ export function renderPoolStats(
     renderStatsBlocks(data.allTime, data.last24h);
   }
   renderNextSteps(ctx, [
-    createNextAction("pools", "Open the detailed view for this pool.", "after_pool_stats", {
+    createNextAction("pools show", "Open the detailed view for this pool.", "after_pool_stats", {
       args: [data.asset],
       options: { chain: data.chain },
     }),

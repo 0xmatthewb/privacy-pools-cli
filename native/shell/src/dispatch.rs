@@ -713,10 +713,11 @@ mod tests {
     fn completion_queries_filter_and_sort_candidates() {
         let manifest = manifest();
         let candidates =
-            query_completion_candidates(&argv(&["privacy-pools", "stats", "p"]), Some(2), manifest);
+            query_completion_candidates(&argv(&["privacy-pools", "pools", "s"]), Some(2), manifest);
 
-        assert!(candidates.contains(&"pool".to_string()));
-        assert!(!candidates.contains(&"global".to_string()));
+        assert!(candidates.contains(&"show".to_string()));
+        assert!(candidates.contains(&"stats".to_string()));
+        assert!(!candidates.contains(&"activity".to_string()));
     }
 
     #[test]
@@ -751,18 +752,18 @@ mod tests {
     fn completion_helpers_cover_word_normalization_and_context() {
         let command_name = "privacy-pools".to_string();
         let normalized = normalize_completion_words(
-            &argv(&["privacy-pools", "stats"]),
+            &argv(&["privacy-pools", "pools", "stats"]),
             &command_name,
             std::slice::from_ref(&command_name),
         );
-        assert_eq!(normalized, argv(&["privacy-pools", "stats"]));
+        assert_eq!(normalized, argv(&["privacy-pools", "pools", "stats"]));
 
         let inserted = normalize_completion_words(
-            &argv(&["stats"]),
+            &argv(&["pools", "stats"]),
             &command_name,
             std::slice::from_ref(&command_name),
         );
-        assert_eq!(inserted, argv(&["privacy-pools", "stats"]));
+        assert_eq!(inserted, argv(&["privacy-pools", "pools", "stats"]));
 
         assert_eq!(normalize_completion_cword(Some(99), 2), 2);
         assert_eq!(normalize_completion_cword(None, 0), 0);

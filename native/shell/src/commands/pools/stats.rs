@@ -15,8 +15,6 @@ use serde_json::{json, Map, Value};
 
 #[derive(Debug, Clone)]
 struct GlobalStatsRenderData {
-    command: String,
-    invoked_as: Option<String>,
     chain: String,
     chains: Vec<String>,
     cache_timestamp: Value,
@@ -26,8 +24,6 @@ struct GlobalStatsRenderData {
 
 #[derive(Debug, Clone)]
 struct PoolStatsRenderData {
-    command: String,
-    invoked_as: Option<String>,
     chain: String,
     asset: String,
     pool: String,
@@ -52,30 +48,16 @@ pub fn handle_stats_native(
 
         let mode = resolve_mode(parsed);
         let stats_tokens = stats_non_option_tokens(argv);
-        let root_token = stats_tokens.first().map(String::as_str);
-        let is_pool = matches!(root_token, Some("pool-stats"))
-            || (matches!(root_token, Some("stats"))
-                && matches!(stats_tokens.get(1).map(String::as_str), Some("pool")));
-        let invoked_as = match root_token {
-            Some("stats") if is_pool => Some("stats pool"),
-            Some("stats") if matches!(stats_tokens.get(1).map(String::as_str), Some("global")) => {
-                Some("stats global")
-            }
-            Some("stats") => Some("stats global"),
-            _ => None,
-        };
+        let is_pool = matches!(
+            stats_tokens.as_slice(),
+            [root, subcommand, _asset] if root == "pools" && subcommand == "stats"
+        );
 
         if is_pool {
-            let asset = match root_token {
-                Some("pool-stats") => stats_tokens.get(1),
-                Some("stats") => stats_tokens.get(2),
-                _ => None,
-            }
-            .cloned()
-            .ok_or_else(|| {
+            let asset = stats_tokens.get(2).cloned().ok_or_else(|| {
                 CliError::input_with_code(
                     "Missing asset argument.",
-                    Some("Example: privacy-pools pool-stats ETH".to_string()),
+                    Some("Example: privacy-pools pools stats ETH".to_string()),
                     "INPUT_MISSING_ASSET",
                 )
             })?;
@@ -104,8 +86,6 @@ pub fn handle_stats_native(
             render_pool_stats_output(
                 &mode,
                 PoolStatsRenderData {
-                    command: "pool-stats".to_string(),
-                    invoked_as: invoked_as.map(str::to_string),
                     chain: chain.name,
                     asset: pool.symbol,
                     pool: pool.pool_address,
@@ -132,7 +112,7 @@ pub fn handle_stats_native(
             return Err(CliError::input_with_code(
                 "Global statistics are aggregated across all chains. The --chain flag is not supported for this subcommand.",
                 Some(
-                    "For chain-specific data use: privacy-pools pool-stats <symbol> --chain <chain>"
+                    "For chain-specific data use: privacy-pools pools stats <symbol> --chain <chain>"
                         .to_string(),
                 ),
                 "INPUT_FLAG_CONFLICT",
@@ -156,8 +136,6 @@ pub fn handle_stats_native(
         render_global_stats_output(
             &mode,
             GlobalStatsRenderData {
-                command: "protocol-stats".to_string(),
-                invoked_as: invoked_as.map(str::to_string),
                 chain: "all-mainnets".to_string(),
                 chains: chains
                     .iter()
@@ -228,9 +206,10 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
     if mode.is_json() {
         let mut options = Map::new();
         options.insert("agent".to_string(), Value::Bool(true));
-        let mut payload = json!({
-            "mode": "global-stats",
-            "command": data.command,
+        let payload = json!({
+            "mode": "pools",
+            "action": "stats",
+            "operation": "pools.stats",
             "chain": data.chain,
             "chains": data.chains,
             "cacheTimestamp": data.cache_timestamp,
@@ -245,9 +224,6 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
                 None,
             )],
         });
-        if let Some(invoked_as) = data.invoked_as {
-            payload["invokedAs"] = Value::String(invoked_as);
-        }
         print_json_success(payload);
         return;
     }
@@ -291,9 +267,10 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
         options.insert("agent".to_string(), Value::Bool(true));
         options.insert("chain".to_string(), Value::String(data.chain.clone()));
         let args = [data.asset.as_str()];
-        let mut payload = json!({
-            "mode": "pool-stats",
-            "command": data.command,
+        let payload = json!({
+            "mode": "pools",
+            "action": "stats",
+            "operation": "pools.stats",
             "chain": data.chain,
             "asset": data.asset,
             "pool": data.pool,
@@ -302,7 +279,7 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
             "allTime": data.all_time,
             "last24h": data.last_24h,
             "nextActions": [build_next_action(
-                "pools",
+                "pools show",
                 "Open the detailed view for this pool.",
                 "after_pool_stats",
                 Some(&args),
@@ -310,9 +287,6 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
                 None,
             )],
         });
-        if let Some(invoked_as) = data.invoked_as {
-            payload["invokedAs"] = Value::String(invoked_as);
-        }
         print_json_success(payload);
         return;
     }
@@ -344,7 +318,7 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
     options.insert("chain".to_string(), Value::String(data.chain.clone()));
     let args = [data.asset.as_str()];
     render_next_steps(&[build_next_action(
-        "pools",
+        "pools show",
         "Open the detailed view for this pool.",
         "after_pool_stats",
         Some(&args),

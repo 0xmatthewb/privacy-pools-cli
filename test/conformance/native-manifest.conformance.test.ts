@@ -168,11 +168,11 @@ describe("native manifest conformance", () => {
         expectedCode: "INPUT_FLAG_CONFLICT",
       },
       {
-        args: ["--agent", "protocol-stats", "--chain", "mainnet"],
+        args: ["--agent", "--chain", "mainnet", "pools", "stats"],
         expectedCode: "INPUT_FLAG_CONFLICT",
       },
       {
-        args: ["--agent", "pool-stats"],
+        args: ["--agent", "pools", "show"],
         expectedCode: "INPUT_MISSING_ASSET",
       },
     ];

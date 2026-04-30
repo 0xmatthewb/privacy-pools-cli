@@ -3,6 +3,8 @@ import type { Address } from "viem";
 import {
   getDefaultReadOnlyChains,
   getAllChainsWithOverrides,
+  MULTI_CHAIN_SCOPE_ALL_CHAINS,
+  MULTI_CHAIN_SCOPE_ALL_MAINNETS,
 } from "../config/chains.js";
 import { resolveChain } from "../utils/validation.js";
 import { loadConfig } from "../services/config.js";
@@ -16,7 +18,10 @@ import {
   withSuppressedSdkStdoutSync,
 } from "../services/account.js";
 import {
+  fetchGlobalEvents,
+  fetchGlobalStatistics,
   fetchPoolEvents,
+  fetchPoolStatistics,
   formatIncompleteAspReviewDataMessage,
   loadAspDepositReviewState,
 } from "../services/asp.js";
@@ -37,11 +42,16 @@ import type { PoolAccountRef } from "../utils/pool-accounts.js";
 import type {
   ChainConfig,
   GlobalOptions,
+  GlobalStatisticsResponse,
+  PoolStatisticsResponse,
   PoolStats,
   AspPublicEvent,
 } from "../types.js";
 import { resolveGlobalMode } from "../utils/mode.js";
-import { normalizeActivityEvent } from "../utils/public-activity.js";
+import {
+  normalizeActivityEvent,
+  parseNumberish as parseNumberishValue,
+} from "../utils/public-activity.js";
 import {
   SUPPORTED_SORT_MODES,
   type PoolsSortMode,
@@ -56,6 +66,8 @@ import {
   renderPools,
   renderPoolDetail,
 } from "../output/pools.js";
+import { renderActivity } from "../output/activity.js";
+import { renderGlobalStats, renderPoolStats } from "../output/stats.js";
 import type {
   PoolDetailActivityEvent,
   PoolWithChain,
@@ -69,6 +81,14 @@ interface PoolsCommandOptions {
   sort?: string;
 }
 
+interface PoolsActivityCommandOptions {
+  includeTestnets?: boolean;
+  page?: string;
+  limit?: string;
+}
+
+interface PoolsStatsCommandOptions {}
+
 interface ChainPoolsResult {
   chainConfig: ChainConfig;
   pools: PoolStats[];
@@ -76,6 +96,8 @@ interface ChainPoolsResult {
 }
 
 export { createPoolsCommand } from "../command-shells/pools.js";
+export { parseUsd, parseCount } from "../output/stats.js";
+export { parseNumberishValue as parseNumberish };
 
 function parseSortMode(raw: string | undefined): PoolsSortMode {
   const normalized = raw?.trim().toLowerCase() ?? "default";
@@ -100,6 +122,44 @@ function parseOptionalLimit(raw: string | undefined): number | undefined {
     );
   }
   return parsed;
+}
+
+export function parsePositiveInt(
+  raw: string | undefined,
+  fieldName: string,
+): number {
+  const fallback = fieldName === "page" ? 1 : 12;
+  const parsed = Number(raw ?? fallback);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw inputError(
+      "INPUT_INVALID_VALUE",
+      `Invalid --${fieldName} value: ${raw}.`,
+      `--${fieldName} must be a positive integer.`,
+    );
+  }
+  return parsed;
+}
+
+function normalizeAspPage(
+  rawPage: number | null,
+  requestedPage: number,
+): number {
+  if (rawPage === null) return requestedPage;
+  if (requestedPage > 0 && rawPage === requestedPage - 1) {
+    return rawPage + 1;
+  }
+  return rawPage <= 0 ? requestedPage : rawPage;
+}
+
+function deriveKnownTotalPages(
+  total: number | null,
+  perPage: number,
+  reportedTotalPages: number | null,
+): number | null {
+  if (total !== null && perPage > 0) {
+    return Math.max(1, Math.ceil(total / perPage));
+  }
+  return reportedTotalPages;
 }
 
 function getRootGlobalOptions(cmd: Command): GlobalOptions {
@@ -362,6 +422,156 @@ function sortPools(
   return sorted;
 }
 
+async function renderPoolDetailForAsset(
+  asset: string,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = getRootGlobalOptions(cmd);
+  const mode = resolveGlobalMode(globalOpts);
+  const ctx = createOutputContext(mode);
+  const silent = isSilent(ctx) || mode.isWide;
+  const isVerbose = globalOpts?.verbose ?? false;
+
+  try {
+    const config = loadConfig();
+    const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+
+    const spin = spinner(
+      `Fetching ${asset} pool details on ${chainConfig.name}...`,
+      silent,
+    );
+    if (
+      await maybeRenderPreviewProgressStep("pools.detail.fetch", {
+        spinnerText: `Fetching ${asset} pool details on ${chainConfig.name}...`,
+        doneText: `${asset} pool details loaded.`,
+      })
+    ) {
+      return;
+    }
+    spin.start();
+
+    const pool = await resolvePool(chainConfig, asset, globalOpts?.rpcUrl);
+    const tokenPrice = deriveTokenPrice(pool);
+
+    // Try to load wallet and accounts (non-fatal).
+    let walletState: "available" | "setup_required" | "load_failed" = "setup_required";
+    let myPoolAccounts: PoolAccountRef[] | null = null;
+    let myFundsWarning: string | null = null;
+    const lastSyncTime = loadSyncMeta(chainConfig.id)?.lastSyncTime ?? null;
+    try {
+      const mnemonic = loadMnemonic();
+      const dataService = await getDataService(
+        chainConfig,
+        pool.pool,
+        globalOpts?.rpcUrl,
+      );
+      const accountService = await initializeAccountService(
+        dataService,
+        mnemonic,
+        [
+          {
+            chainId: chainConfig.id,
+            address: pool.pool as Address,
+            scope: pool.scope,
+            deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
+          },
+        ],
+        chainConfig.id,
+        true,
+        true,
+        true,
+      );
+      const spendable = withSuppressedSdkStdoutSync(() =>
+        accountService.getSpendableCommitments(),
+      );
+      const poolCommitments = spendable.get(pool.scope) ?? [];
+      const activeLabels = collectActiveLabels(poolCommitments);
+      const aspReviewState = await loadAspDepositReviewState(
+        chainConfig,
+        pool.scope,
+        activeLabels,
+      );
+      if (aspReviewState.hasIncompleteReviewData) {
+        myFundsWarning = formatIncompleteAspReviewDataMessage("pool-detail");
+      }
+      myPoolAccounts = buildPoolAccountRefs(
+        accountService.account,
+        pool.scope,
+        poolCommitments,
+        aspReviewState.approvedLabels,
+        aspReviewState.reviewStatuses,
+      );
+      walletState = "available";
+    } catch (error) {
+      if (isPoolDetailInitRequiredError(error)) {
+        walletState = "setup_required";
+      } else {
+        walletState = "load_failed";
+        const classified = classifyError(error);
+        verbose(
+          `Pool detail wallet-state load failed: ${classified.code}: ${classified.message}` +
+            (classified.hint ? ` | ${classified.hint}` : ""),
+          isVerbose,
+          silent,
+        );
+        myFundsWarning = formatPoolDetailMyFundsWarning(
+          error,
+          chainConfig.name,
+        );
+      }
+    }
+
+    // Try to fetch recent activity (non-fatal).
+    let recentActivity: PoolDetailActivityEvent[] | null = null;
+    let recentActivityUnavailable = false;
+    try {
+      const eventsPage = await fetchPoolEvents(chainConfig, pool.scope, 1, 5);
+      const events = Array.isArray(eventsPage.events)
+        ? eventsPage.events
+        : [];
+      recentActivity = events.map((event: AspPublicEvent) => {
+        const normalized = normalizeActivityEvent(
+          event,
+          pool.symbol,
+          pool.decimals,
+        );
+        return {
+          type: normalized.type,
+          amount: normalized.amountFormatted,
+          amountRaw: normalized.amountRaw,
+          timeLabel: normalized.timeLabel,
+          timestamp: normalized.timestampMs === null
+            ? null
+            : new Date(normalized.timestampMs).toISOString(),
+          txHash: normalized.txHash,
+          status: normalized.reviewStatus,
+        };
+      });
+    } catch {
+      recentActivityUnavailable = true;
+    }
+
+    spin.stop();
+
+    renderPoolDetail(ctx, {
+      chain: chainConfig.name,
+      requestedChain: globalOpts?.chain && globalOpts.chain !== chainConfig.name
+        ? globalOpts.chain
+        : null,
+      pool,
+      tokenPrice,
+      walletState,
+      myPoolAccounts,
+      myFundsWarning,
+      lastSyncTime,
+      recentActivity,
+      recentActivityUnavailable,
+    });
+  } catch (error) {
+    printError(error, mode.isJson);
+  }
+}
+
 export async function handlePoolsCommand(
   asset: string | undefined,
   opts: PoolsCommandOptions,
@@ -377,146 +587,15 @@ export async function handlePoolsCommand(
     return;
   }
 
-  // ── Detail view: `pools <asset>` ──────────────────────────────────
   if (asset) {
-    try {
-      const config = loadConfig();
-      const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
-
-      const spin = spinner(
-        `Fetching ${asset} pool details on ${chainConfig.name}...`,
-        silent,
-      );
-      if (
-        await maybeRenderPreviewProgressStep("pools.detail.fetch", {
-          spinnerText: `Fetching ${asset} pool details on ${chainConfig.name}...`,
-          doneText: `${asset} pool details loaded.`,
-        })
-      ) {
-        return;
-      }
-      spin.start();
-
-      const pool = await resolvePool(chainConfig, asset, globalOpts?.rpcUrl);
-      const tokenPrice = deriveTokenPrice(pool);
-
-      // Try to load wallet and accounts (non-fatal).
-      let walletState: "available" | "setup_required" | "load_failed" = "setup_required";
-      let myPoolAccounts: PoolAccountRef[] | null = null;
-      let myFundsWarning: string | null = null;
-      const lastSyncTime = loadSyncMeta(chainConfig.id)?.lastSyncTime ?? null;
-      try {
-        const mnemonic = loadMnemonic();
-        const dataService = await getDataService(
-          chainConfig,
-          pool.pool,
-          globalOpts?.rpcUrl,
-        );
-        const accountService = await initializeAccountService(
-          dataService,
-          mnemonic,
-          [
-            {
-              chainId: chainConfig.id,
-              address: pool.pool as Address,
-              scope: pool.scope,
-              deploymentBlock: pool.deploymentBlock ?? chainConfig.startBlock,
-            },
-          ],
-          chainConfig.id,
-          true,
-          true,
-          true,
-        );
-        const spendable = withSuppressedSdkStdoutSync(() =>
-          accountService.getSpendableCommitments(),
-        );
-        const poolCommitments = spendable.get(pool.scope) ?? [];
-        const activeLabels = collectActiveLabels(poolCommitments);
-        const aspReviewState = await loadAspDepositReviewState(
-          chainConfig,
-          pool.scope,
-          activeLabels,
-        );
-        if (aspReviewState.hasIncompleteReviewData) {
-          myFundsWarning = formatIncompleteAspReviewDataMessage("pool-detail");
-        }
-        myPoolAccounts = buildPoolAccountRefs(
-          accountService.account,
-          pool.scope,
-          poolCommitments,
-          aspReviewState.approvedLabels,
-          aspReviewState.reviewStatuses,
-        );
-        walletState = "available";
-      } catch (error) {
-        if (isPoolDetailInitRequiredError(error)) {
-          walletState = "setup_required";
-        } else {
-          walletState = "load_failed";
-          const classified = classifyError(error);
-          verbose(
-            `Pool detail wallet-state load failed: ${classified.code}: ${classified.message}` +
-              (classified.hint ? ` | ${classified.hint}` : ""),
-            isVerbose,
-            silent,
-          );
-          myFundsWarning = formatPoolDetailMyFundsWarning(
-            error,
-            chainConfig.name,
-          );
-        }
-      }
-
-      // Try to fetch recent activity (non-fatal).
-      let recentActivity: PoolDetailActivityEvent[] | null = null;
-      let recentActivityUnavailable = false;
-      try {
-        const eventsPage = await fetchPoolEvents(chainConfig, pool.scope, 1, 5);
-        const events = Array.isArray(eventsPage.events)
-          ? eventsPage.events
-          : [];
-        recentActivity = events.map((event: AspPublicEvent) => {
-          const normalized = normalizeActivityEvent(
-            event,
-            pool.symbol,
-            pool.decimals,
-          );
-          return {
-            type: normalized.type,
-            amount: normalized.amountFormatted,
-            amountRaw: normalized.amountRaw,
-            timeLabel: normalized.timeLabel,
-            timestamp: normalized.timestampMs === null
-              ? null
-              : new Date(normalized.timestampMs).toISOString(),
-            txHash: normalized.txHash,
-            status: normalized.reviewStatus,
-          };
-        });
-      } catch {
-        recentActivityUnavailable = true;
-      }
-
-      spin.stop();
-
-      renderPoolDetail(ctx, {
-        chain: chainConfig.name,
-        requestedChain: globalOpts?.chain && globalOpts.chain !== chainConfig.name
-          ? globalOpts.chain
-          : null,
-        pool,
-        tokenPrice,
-        walletState,
-        myPoolAccounts,
-        myFundsWarning,
-        lastSyncTime,
-        recentActivity,
-        recentActivityUnavailable,
-      });
-    } catch (error) {
-      printError(error, mode.isJson);
-    }
+    printError(
+      inputError(
+        "INPUT_UNKNOWN_COMMAND",
+        `Pool detail moved to 'pools show'.`,
+        `Use: privacy-pools pools show ${asset}`,
+      ),
+      mode.isJson,
+    );
     return;
   }
 
@@ -653,4 +732,282 @@ export async function handlePoolsListAliasCommand(
   cmd: Command,
 ): Promise<void> {
   await handlePoolsCommand(undefined, opts, cmd);
+}
+
+export async function handlePoolsShowCommand(
+  asset: string,
+  _opts: unknown,
+  cmd: Command,
+): Promise<void> {
+  await renderPoolDetailForAsset(asset, cmd);
+}
+
+export async function handlePoolsActivityCommand(
+  positionalAsset: string | undefined,
+  opts: PoolsActivityCommandOptions,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = getRootGlobalOptions(cmd);
+  const mode = resolveGlobalMode(globalOpts);
+  const isJson = mode.isJson;
+  const isQuiet = mode.isQuiet;
+  const silent = isQuiet || isJson || mode.isWide;
+
+  const resolvedAsset = positionalAsset;
+  try {
+    if (await maybeRenderPreviewScenario("activity")) {
+      return;
+    }
+
+    const page = parsePositiveInt(opts.page, "page");
+    const perPage = parsePositiveInt(opts.limit, "limit");
+    const explicitChain = globalOpts?.chain;
+    const includeTestnets = opts.includeTestnets === true;
+
+    const config = loadConfig();
+    const ctx = createOutputContext(mode);
+    if (
+      await maybeRenderPreviewProgressStep("activity.fetch", {
+        spinnerText: "Fetching public activity...",
+        doneText: "Activity loaded.",
+      })
+    ) {
+      return;
+    }
+    const spin = spinner("Fetching public activity...", silent);
+    spin.start();
+
+    // Asset filter requires a single chain for pool resolution.
+    if (resolvedAsset) {
+      const chainConfig = resolveChain(explicitChain, config.defaultChain);
+      const pool = await resolvePool(
+        chainConfig,
+        resolvedAsset,
+        globalOpts?.rpcUrl,
+      );
+      const response = await fetchPoolEvents(
+        chainConfig,
+        pool.scope,
+        page,
+        perPage,
+      );
+      spin.stop();
+
+      const eventsRaw = Array.isArray(response.events) ? response.events : [];
+      const events = eventsRaw.map((event) =>
+        normalizeActivityEvent(event, pool.symbol),
+      );
+      const responsePerPage = parseNumberishValue(response.perPage) ?? perPage;
+      const total = parseNumberishValue(response.total) ?? null;
+      const totalPages = deriveKnownTotalPages(
+        total,
+        responsePerPage,
+        parseNumberishValue(response.totalPages) ?? null,
+      );
+
+      renderActivity(ctx, {
+        mode: "pool-activity",
+        chain: chainConfig.name,
+        page: normalizeAspPage(parseNumberishValue(response.page), page),
+        perPage: responsePerPage,
+        total,
+        totalPages,
+        events,
+        asset: pool.symbol,
+        pool: pool.pool,
+        scope: pool.scope.toString(),
+      });
+      return;
+    }
+
+    // Global activity: the ASP global endpoint returns cross-chain data,
+    // so call it exactly once per ASP host.
+    if (!explicitChain) {
+      const chainsToQuery = includeTestnets
+        ? getAllChainsWithOverrides()
+        : getDefaultReadOnlyChains();
+      const chainNames = chainsToQuery.map((chain) => chain.name);
+      if (!includeTestnets) {
+        const representativeChain = chainsToQuery[0];
+        const response = await fetchGlobalEvents(
+          representativeChain,
+          page,
+          perPage,
+        );
+        spin.stop();
+
+        const eventsRaw = Array.isArray(response.events) ? response.events : [];
+        const events = eventsRaw.map((event) => normalizeActivityEvent(event));
+        const responsePerPage = parseNumberishValue(response.perPage) ?? perPage;
+        const total = parseNumberishValue(response.total) ?? null;
+        const totalPages = deriveKnownTotalPages(
+          total,
+          responsePerPage,
+          parseNumberishValue(response.totalPages) ?? null,
+        );
+
+        renderActivity(ctx, {
+          mode: "global-activity",
+          chain: MULTI_CHAIN_SCOPE_ALL_MAINNETS,
+          chains: chainNames,
+          page: normalizeAspPage(parseNumberishValue(response.page), page),
+          perPage: responsePerPage,
+          total,
+          totalPages,
+          events,
+        });
+        return;
+      }
+
+      const representativeChains = [...new Map(
+        chainsToQuery.map((chainConfig) => [chainConfig.aspHost, chainConfig] as const),
+      ).values()];
+      const fetchWindow = Math.max(page * perPage, perPage);
+      const responses = await Promise.all(
+        representativeChains.map((chainConfig) =>
+          fetchGlobalEvents(chainConfig, 1, fetchWindow),
+        ),
+      );
+      spin.stop();
+
+      const events = responses
+        .flatMap((response) => Array.isArray(response.events) ? response.events : [])
+        .map((event) => normalizeActivityEvent(event))
+        .sort((left, right) => {
+          const leftTs = left.timestampMs ?? 0;
+          const rightTs = right.timestampMs ?? 0;
+          return rightTs - leftTs;
+        })
+        .slice((page - 1) * perPage, page * perPage);
+
+      renderActivity(ctx, {
+        mode: "global-activity",
+        chain: MULTI_CHAIN_SCOPE_ALL_CHAINS,
+        chains: chainNames,
+        page,
+        perPage,
+        total: null,
+        totalPages: null,
+        events,
+        note: "Pagination totals are unavailable when aggregating mainnet and testnet activity together. Results may be sparse.",
+      });
+      return;
+    }
+
+    // Single-chain global activity keeps ASP pagination metadata.
+    const chainConfig = resolveChain(explicitChain, config.defaultChain);
+    const response = await fetchGlobalEvents(chainConfig, page, perPage);
+    spin.stop();
+
+    const eventsRaw = Array.isArray(response.events) ? response.events : [];
+    const events = eventsRaw.map((event) => normalizeActivityEvent(event));
+    const responsePerPage = parseNumberishValue(response.perPage) ?? perPage;
+    const total = parseNumberishValue(response.total) ?? null;
+    const totalPages = deriveKnownTotalPages(
+      total,
+      responsePerPage,
+      parseNumberishValue(response.totalPages) ?? null,
+    );
+
+    renderActivity(ctx, {
+      mode: "global-activity",
+      chain: chainConfig.name,
+      page: normalizeAspPage(parseNumberishValue(response.page), page),
+      perPage: responsePerPage,
+      total,
+      totalPages,
+      events,
+    });
+  } catch (error) {
+    printError(error, isJson);
+  }
+}
+
+export async function handlePoolsStatsCommand(
+  positionalAsset: string | undefined,
+  _opts: PoolsStatsCommandOptions,
+  cmd: Command,
+): Promise<void> {
+  const globalOpts = getRootGlobalOptions(cmd);
+  const mode = resolveGlobalMode(globalOpts);
+  const isJson = mode.isJson;
+  const silent = isJson || mode.isQuiet || mode.isWide;
+
+  try {
+    if (positionalAsset) {
+      const config = loadConfig();
+      const chainConfig = resolveChain(globalOpts?.chain, config.defaultChain);
+      const pool = await resolvePool(
+        chainConfig,
+        positionalAsset,
+        globalOpts?.rpcUrl,
+      );
+
+      if (
+        await maybeRenderPreviewProgressStep("stats.pool.fetch", {
+          spinnerText: "Fetching pool statistics...",
+          doneText: "Pool statistics loaded.",
+        })
+      ) {
+        return;
+      }
+      const spin = spinner("Fetching pool statistics...", silent);
+      spin.start();
+      const stats: PoolStatisticsResponse = await fetchPoolStatistics(
+        chainConfig,
+        pool.scope,
+      );
+      spin.stop();
+
+      const ctx = createOutputContext(mode);
+      renderPoolStats(ctx, {
+        chain: chainConfig.name,
+        asset: pool.symbol,
+        pool: pool.pool,
+        scope: pool.scope.toString(),
+        cacheTimestamp: stats.cacheTimestamp ?? null,
+        allTime: stats.pool?.allTime ?? null,
+        last24h: stats.pool?.last24h ?? null,
+      });
+      return;
+    }
+
+    const explicitChain = globalOpts?.chain;
+    if (explicitChain) {
+      throw inputError(
+        "INPUT_FLAG_CONFLICT",
+        "Global pool statistics are aggregated across all chains. The --chain flag is not supported without an asset.",
+        "For chain-specific data use: privacy-pools pools stats <symbol> --chain <chain>",
+      );
+    }
+
+    const chainsToQuery = getDefaultReadOnlyChains();
+    const chainNames = chainsToQuery.map((chain) => chain.name);
+    const representativeChain = chainsToQuery[0];
+    if (
+      await maybeRenderPreviewProgressStep("stats.global.fetch", {
+        spinnerText: "Fetching global statistics...",
+        doneText: "Global statistics loaded.",
+      })
+    ) {
+      return;
+    }
+    const spin = spinner("Fetching global statistics...", silent);
+    spin.start();
+
+    const stats: GlobalStatisticsResponse =
+      await fetchGlobalStatistics(representativeChain);
+    spin.stop();
+
+    const ctx = createOutputContext(mode);
+    renderGlobalStats(ctx, {
+      chain: MULTI_CHAIN_SCOPE_ALL_MAINNETS,
+      chains: chainNames,
+      cacheTimestamp: stats.cacheTimestamp ?? null,
+      allTime: stats.allTime ?? null,
+      last24h: stats.last24h ?? null,
+    });
+  } catch (error) {
+    printError(error, isJson);
+  }
 }

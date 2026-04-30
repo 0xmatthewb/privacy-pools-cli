@@ -23,9 +23,9 @@ describe("native coverage policy", () => {
       "native/shell/src/known_addresses.rs",
       "native/shell/src/output.rs",
       "native/shell/src/read_only_api.rs",
-      "native/shell/src/commands/activity/mod.rs",
-      "native/shell/src/commands/activity/render.rs",
-      "native/shell/src/commands/stats.rs",
+      "native/shell/src/commands/pools/activity/mod.rs",
+      "native/shell/src/commands/pools/activity/render.rs",
+      "native/shell/src/commands/pools/stats.rs",
       "native/shell/src/commands/pools/query.rs",
       "native/shell/src/commands/pools/rpc_transport.rs",
       "native/shell/src/test_env.rs",
@@ -41,7 +41,7 @@ describe("native coverage policy", () => {
     expect(ownership.matched.get("native/shell/src/known_addresses.rs")).toBe(
       "native-core-utils",
     );
-    expect(ownership.matched.get("native/shell/src/commands/activity/mod.rs")).toBe(
+    expect(ownership.matched.get("native/shell/src/commands/pools/activity/mod.rs")).toBe(
       "native-activity",
     );
     expect(ownership.matched.get("native/shell/src/commands/pools/query.rs")).toBe(

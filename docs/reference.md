@@ -25,11 +25,8 @@ Command-family index for the Privacy Pools CLI. For a quick overview, see the [R
 ### Monitoring
 
 - [`accounts`](reference/accounts.md) - List your own Pool Accounts (deposits, balances, statuses)
-- [`pools`](reference/pools.md) - Browse available pools
+- [`pools`](reference/pools.md) - Browse pools, public activity, and stats
 - [`history`](reference/history.md) - View your deposit and withdrawal history
-- [`activity`](reference/activity.md) - Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol
-- [`protocol-stats`](reference/protocol-stats.md) - View aggregate network statistics
-- [`pool-stats`](reference/pool-stats.md) - View statistics for one pool
 - [`sync`](reference/sync.md) - Sync account state with the latest onchain data
 - [`tx-status`](reference/tx-status.md) - Check async transaction submission status
 
@@ -119,13 +116,12 @@ flattened.
 | Command | CSV |
 |---------|-----|
 | `pools` | Yes |
+| `pools activity` | Yes |
+| `pools stats` | Yes |
+| `pools show` | No |
 | `accounts` | Yes |
-| `activity` | Yes |
-| `protocol-stats` | Yes |
-| `pool-stats` | Yes |
-| `stats` | Yes |
 | `history` | Yes |
-| `recipients` | Yes |
+| `recipients list` | Yes |
 | `deposit` | No |
 | `withdraw` | No |
 | `ragequit` | No |

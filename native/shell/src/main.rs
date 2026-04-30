@@ -16,33 +16,31 @@ mod routing;
 mod test_env;
 
 use bridge::forward_to_js_worker;
-use commands::activity::handle_activity_native;
+use commands::pools::activity::handle_activity_native;
 use commands::pools::handle_pools_native;
-use commands::stats::handle_stats_native;
+use commands::pools::stats::handle_stats_native;
 use contract::{manifest, runtime_contract};
 use dispatch::{handle_capabilities, handle_completion, handle_describe, handle_guide};
 use error::CliError;
 use output::{emit_help, emit_version, print_error_and_exit, set_suppress_headers};
 use root_argv::{
-    output_format_choices_text, parse_root_argv, read_long_option_value, root_argv_slice,
-    ParsedRootArgv,
+    all_non_option_tokens, output_format_choices_text, parse_root_argv, read_long_option_value,
+    root_argv_slice, ParsedRootArgv,
 };
 use routing::{
-    activity_native_mode, is_known_root_command, manifest_allows_native_mode, pools_native_mode,
-    resolve_help_path, stats_native_mode,
+    is_known_root_command, manifest_allows_native_mode, pools_native_mode, resolve_help_path,
 };
 use std::env;
 
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const CLI_VERSION: &str = env!("CLI_VERSION");
-const CSV_SUPPORTED_COMMANDS: [&str; 7] = [
+const CSV_SUPPORTED_COMMANDS: [&str; 6] = [
     "pools",
+    "pools activity",
+    "pools stats",
     "accounts",
-    "activity",
-    "protocol-stats",
-    "pool-stats",
-    "stats",
-    "history",
+    "accounts history",
+    "recipients list",
 ];
 
 fn main() {
@@ -199,16 +197,13 @@ fn run(argv: &[String], parsed: &ParsedRootArgv) -> Result<i32, CliError> {
         "completion" if manifest_allows_native_mode("completion", "default", manifest) => {
             handle_completion(argv, parsed, manifest)
         }
-        "activity" if activity_native_mode(argv, parsed, manifest).is_some() => {
-            handle_activity_native(argv, parsed, manifest)
-        }
-        "stats" | "protocol-stats" | "pool-stats"
-            if stats_native_mode(argv, parsed, manifest).is_some() =>
-        {
-            handle_stats_native(argv, parsed, manifest)
-        }
         "pools" if pools_native_mode(argv, parsed, manifest).is_some() => {
-            handle_pools_native(argv, parsed, manifest)
+            let tokens = all_non_option_tokens(argv);
+            match tokens.get(1).map(String::as_str) {
+                Some("activity") => handle_activity_native(argv, parsed, manifest),
+                Some("stats") => handle_stats_native(argv, parsed, manifest),
+                _ => handle_pools_native(argv, parsed, manifest),
+            }
         }
         _ if is_known_root_command(first_command, manifest) => forward_to_js_worker(argv),
         _ => Err(CliError::input(

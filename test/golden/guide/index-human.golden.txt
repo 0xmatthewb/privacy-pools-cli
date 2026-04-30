@@ -47,7 +47,7 @@ Quick Start:
   privacy-pools accounts --chain mainnet                       (then confirm approved vs declined vs POA Needed)
   privacy-pools withdraw 0.05 ETH --to 0xRecipient --pool-account PA-1
   Transaction commands use your default chain (set during init).
-  Public dashboards like pools/activity/protocol-stats default to CLI-supported mainnet chains.
+  Public dashboards like pools, pools activity, and pools stats default to CLI-supported mainnet chains.
   Use --include-testnets to include supported testnets, or --chain to scope one network.
   Accounts is wallet-dependent: use --chain to keep approval checks on the same network as the deposit.
 
@@ -83,7 +83,7 @@ Workflow:
  12. history        View transaction history
   *  status         Check setup and connection health (checks run by default)
   *  upgrade        Check npm for updates or upgrade this CLI
-  *  activity       Public onchain feed (for your history, use 'history')
+  *  pools activity Public onchain feed (for your history, use 'history')
   *  ragequit       Self-custody guarantee. Publicly recovers funds to deposit address
   *  withdraw quote Check relayer fees before withdrawing
   'migrate status' is read-only. The CLI does not submit migration transactions; use the website for actual migration or website-based recovery.

@@ -96,8 +96,7 @@ describe("CLI envelope schemas", () => {
         explorerUrl: "https://example.invalid/tx/0xabc",
       },
       pools: readGoldenJson("pools/sepolia-agent.golden.json"),
-      "pool-stats": readGoldenJson("stats/pool-sepolia-agent.golden.json"),
-      "protocol-stats": readGoldenJson("stats/global-agent.golden.json"),
+      "pools stats": readGoldenJson("pools/stats-pool-sepolia-agent.golden.json"),
       status: {
         schemaVersion: "3.0.0",
         success: true,

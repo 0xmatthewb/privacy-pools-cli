@@ -18,8 +18,6 @@
     "arbitrum",
     "optimism"
   ],
-  "command": "protocol-stats",
-  "invokedAs": "stats global",
   "last24h": {
     "totalDepositsCount": 5,
     "totalDepositsValue": "<WEI>",

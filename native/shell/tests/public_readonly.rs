@@ -20,7 +20,7 @@ fn global_public_commands_succeed_against_the_rust_fixture() {
     let asp_host = fixture.base_url().to_string();
     let env = [("PRIVACY_POOLS_ASP_HOST", asp_host.as_str())];
 
-    let activity = run_native_with_env(&["activity", "--agent"], &env);
+    let activity = run_native_with_env(&["pools", "activity", "--agent"], &env);
     assert!(activity.status.success());
     assert!(stderr_string(&activity).trim().is_empty());
     let activity_payload = parse_stdout_json(&activity);
@@ -46,16 +46,13 @@ fn global_public_commands_succeed_against_the_rust_fixture() {
         1
     );
 
-    let stats = run_native_with_env(&["stats", "--agent"], &env);
+    let stats = run_native_with_env(&["pools", "stats", "--agent"], &env);
     assert!(stats.status.success());
     assert!(stderr_string(&stats).trim().is_empty());
     let stats_payload = parse_stdout_json(&stats);
     assert_eq!(stats_payload["success"], Value::Bool(true));
     assert_eq!(stats_payload["mode"], Value::String("pools".to_string()));
-    assert_eq!(
-        stats_payload["action"],
-        Value::String("stats".to_string())
-    );
+    assert_eq!(stats_payload["action"], Value::String("stats".to_string()));
     assert_eq!(
         stats_payload["operation"],
         Value::String("pools.stats".to_string())
@@ -75,22 +72,22 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
         ("LANG", "en_US.UTF-8"),
     ];
 
-    let human_activity = run_native_with_env(&["activity"], &env);
+    let human_activity = run_native_with_env(&["pools", "activity"], &env);
     assert!(human_activity.status.success());
     assert!(stdout_string(&human_activity).is_empty());
     assert!(stderr_string(&human_activity).contains("Global activity"));
 
-    let csv_activity = run_native_with_env(&["--output", "csv", "activity"], &env);
+    let csv_activity = run_native_with_env(&["--output", "csv", "pools", "activity"], &env);
     assert!(csv_activity.status.success());
     assert_csv_stderr_allows_progress(&csv_activity, "Fetching public activity...");
     assert!(stdout_string(&csv_activity).contains("Type,Pool,Amount,Status,Time,Tx"));
 
-    let human_stats = run_native_with_env(&["stats"], &env);
+    let human_stats = run_native_with_env(&["pools", "stats"], &env);
     assert!(human_stats.status.success());
     assert!(stdout_string(&human_stats).is_empty());
     assert!(stderr_string(&human_stats).contains("Global statistics (all-mainnets):"));
 
-    let csv_stats = run_native_with_env(&["--output", "csv", "stats"], &env);
+    let csv_stats = run_native_with_env(&["--output", "csv", "pools", "stats"], &env);
     assert!(csv_stats.status.success());
     assert_csv_stderr_allows_progress(&csv_stats, "Fetching global statistics...");
     assert!(stdout_string(&csv_stats).contains("Metric,All Time,Last 24h"));
@@ -99,7 +96,7 @@ fn global_public_commands_render_human_and_csv_output_against_the_rust_fixture()
 #[test]
 fn retryable_native_read_only_errors_include_next_actions() {
     let output = run_native_with_env(
-        &["activity", "--agent"],
+        &["pools", "activity", "--agent"],
         &[("PRIVACY_POOLS_ASP_HOST", "http://127.0.0.1:1")],
     );
 
@@ -115,7 +112,7 @@ fn retryable_native_read_only_errors_include_next_actions() {
     assert_eq!(payload["error"]["retryable"], Value::Bool(true));
     assert_eq!(
         payload["error"]["nextActions"][0]["command"],
-        Value::String("activity".to_string())
+        Value::String("pools activity".to_string())
     );
     assert_eq!(
         payload["error"]["nextActions"][0]["when"],
@@ -123,7 +120,7 @@ fn retryable_native_read_only_errors_include_next_actions() {
     );
     assert_eq!(
         payload["error"]["nextActions"][0]["cliCommand"],
-        Value::String("privacy-pools activity --agent --page 1 --limit 12".to_string())
+        Value::String("privacy-pools pools activity --agent --page 1 --limit 12".to_string())
     );
 }
 
@@ -152,13 +149,15 @@ fn native_wide_output_changes_human_read_only_layouts() {
     assert!(wide_pools_stderr.contains("Scope"));
     assert!(wide_pools_stderr.contains("12345"));
 
-    let default_activity = run_native_with_env(&["--chain", "sepolia", "activity"], &env);
+    let default_activity = run_native_with_env(&["--chain", "sepolia", "pools", "activity"], &env);
     assert!(default_activity.status.success());
     let default_activity_stderr = stderr_string(&default_activity);
     assert!(!default_activity_stderr.contains("Pool Address"));
 
     let wide_activity = run_native_with_env(
-        &["--output", "wide", "--chain", "sepolia", "activity"],
+        &[
+            "--output", "wide", "--chain", "sepolia", "pools", "activity",
+        ],
         &env,
     );
     assert!(wide_activity.status.success());
@@ -167,14 +166,14 @@ fn native_wide_output_changes_human_read_only_layouts() {
     assert!(wide_activity_stderr.contains("Chain"));
     assert!(wide_activity_stderr.contains("11155111"));
 
-    let default_stats = run_native_with_env(&["stats"], &env);
+    let default_stats = run_native_with_env(&["pools", "stats"], &env);
     assert!(default_stats.status.success());
     let default_stats_stderr = stderr_string(&default_stats);
     assert!(default_stats_stderr.contains("All time:"));
     assert!(default_stats_stderr.contains("Last 24h:"));
     assert!(!default_stats_stderr.contains("Metric   All Time   Last 24h"));
 
-    let wide_stats = run_native_with_env(&["--output", "wide", "stats"], &env);
+    let wide_stats = run_native_with_env(&["--output", "wide", "pools", "stats"], &env);
     assert!(wide_stats.status.success());
     let wide_stats_stderr = stderr_string(&wide_stats);
     assert!(wide_stats_stderr.contains("Metric"));
@@ -191,7 +190,7 @@ fn native_activity_human_output_uses_text_labels() {
         ("LANG", "en_US.UTF-8"),
     ];
 
-    let human_activity = run_native_with_env(&["activity"], &env);
+    let human_activity = run_native_with_env(&["pools", "activity"], &env);
     assert!(human_activity.status.success());
     assert!(stdout_string(&human_activity).is_empty());
     let stderr = stderr_string(&human_activity);
@@ -214,7 +213,7 @@ fn empty_public_read_only_states_offer_next_steps() {
         ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
     ];
 
-    let activity = run_native_with_env(&["--chain", "sepolia", "activity"], &env);
+    let activity = run_native_with_env(&["--chain", "sepolia", "pools", "activity"], &env);
     assert!(
         activity.status.success(),
         "activity stderr: {}\nactivity stdout: {}",
@@ -236,7 +235,10 @@ fn explicit_chain_activity_keeps_filtered_json_and_human_notes_stable() {
     let asp_host = fixture.base_url().to_string();
     let env = [("PRIVACY_POOLS_ASP_HOST", asp_host.as_str())];
 
-    let agent = run_native_with_env(&["--chain", "sepolia", "activity", "--agent"], &env);
+    let agent = run_native_with_env(
+        &["--chain", "sepolia", "pools", "activity", "--agent"],
+        &env,
+    );
     assert!(agent.status.success());
     assert!(stderr_string(&agent).trim().is_empty());
     let payload = parse_stdout_json(&agent);
@@ -251,13 +253,13 @@ fn explicit_chain_activity_keeps_filtered_json_and_human_notes_stable() {
     assert_eq!(payload["totalPages"], Value::Number(2.into()));
     assert_eq!(payload["note"], Value::Null);
 
-    let human = run_native_with_env(&["--chain", "sepolia", "activity"], &env);
+    let human = run_native_with_env(&["--chain", "sepolia", "pools", "activity"], &env);
     assert!(human.status.success());
     assert!(stdout_string(&human).is_empty());
     let stderr = stderr_string(&human);
     assert!(stderr.contains("Global activity (sepolia):"));
     assert!(stderr.contains("Page 1 of 2"));
-    assert!(stderr.contains("privacy-pools activity --page 2"));
+    assert!(stderr.contains("privacy-pools pools activity --page 2"));
 }
 
 #[test]
@@ -283,7 +285,7 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
     );
 
     let stats_pool = run_native_with_env(
-        &["--chain", "sepolia", "stats", "pool", "ETH", "--agent"],
+        &["--chain", "sepolia", "pools", "stats", "ETH", "--agent"],
         &env,
     );
     assert!(stats_pool.status.success());
@@ -311,7 +313,10 @@ fn pool_read_only_commands_succeed_against_the_rust_fixture() {
         Value::String("12345".to_string())
     );
 
-    let activity = run_native_with_env(&["--chain", "sepolia", "activity", "ETH", "--agent"], &env);
+    let activity = run_native_with_env(
+        &["--chain", "sepolia", "pools", "activity", "ETH", "--agent"],
+        &env,
+    );
     assert!(activity.status.success());
     assert!(stderr_string(&activity).trim().is_empty());
     let activity_payload = parse_stdout_json(&activity);
@@ -345,7 +350,7 @@ fn native_pool_detail_recent_activity_uses_text_labels() {
         ("LANG", "en_US.UTF-8"),
     ];
 
-    let pool_detail = run_native_with_env(&["--chain", "sepolia", "pools", "ETH"], &env);
+    let pool_detail = run_native_with_env(&["--chain", "sepolia", "pools", "show", "ETH"], &env);
     assert!(pool_detail.status.success());
     assert!(stdout_string(&pool_detail).is_empty());
     let stderr = stderr_string(&pool_detail);
@@ -539,7 +544,8 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     assert!(stdout_string(&human_pools).is_empty());
     assert!(stderr_string(&human_pools).contains("Pools on sepolia:"));
 
-    let human_pool_detail = run_native_with_env(&["--chain", "sepolia", "pools", "ETH"], &env);
+    let human_pool_detail =
+        run_native_with_env(&["--chain", "sepolia", "pools", "show", "ETH"], &env);
     assert!(human_pool_detail.status.success());
     assert!(stdout_string(&human_pool_detail).is_empty());
     let human_pool_detail_stderr = stderr_string(&human_pool_detail);
@@ -558,14 +564,14 @@ fn pool_read_only_commands_render_human_and_csv_output_against_the_rust_fixture(
     assert!(stdout_string(&csv_pools).contains("Asset,Total Deposits Count,Pool Balance (raw)"));
 
     let human_stats_pool =
-        run_native_with_env(&["--chain", "sepolia", "stats", "pool", "ETH"], &env);
+        run_native_with_env(&["--chain", "sepolia", "pools", "stats", "ETH"], &env);
     assert!(human_stats_pool.status.success());
     assert!(stdout_string(&human_stats_pool).is_empty());
     assert!(stderr_string(&human_stats_pool).contains("Pool statistics for ETH on sepolia:"));
 
     let csv_stats_pool = run_native_with_env(
         &[
-            "--output", "csv", "--chain", "sepolia", "stats", "pool", "ETH",
+            "--output", "csv", "--chain", "sepolia", "pools", "stats", "ETH",
         ],
         &env,
     );
@@ -584,8 +590,10 @@ fn explicit_native_read_only_subroutes_stay_covered_in_rust() {
         ("PRIVACY_POOLS_RPC_URL_SEPOLIA", rpc_url.as_str()),
     ];
 
-    let pool_activity =
-        run_native_with_env(&["--chain", "sepolia", "activity", "ETH", "--agent"], &env);
+    let pool_activity = run_native_with_env(
+        &["--chain", "sepolia", "pools", "activity", "ETH", "--agent"],
+        &env,
+    );
     assert!(pool_activity.status.success());
     assert!(stderr_string(&pool_activity).trim().is_empty());
     let pool_activity_payload = parse_stdout_json(&pool_activity);
@@ -615,7 +623,7 @@ fn explicit_native_read_only_subroutes_stay_covered_in_rust() {
         Value::String("12345".to_string())
     );
 
-    let stats_global = run_native_with_env(&["stats", "global", "--agent"], &env);
+    let stats_global = run_native_with_env(&["pools", "stats", "--agent"], &env);
     assert!(stats_global.status.success());
     assert!(stderr_string(&stats_global).trim().is_empty());
     let stats_global_payload = parse_stdout_json(&stats_global);
@@ -643,7 +651,7 @@ fn explicit_native_read_only_subroutes_stay_covered_in_rust() {
 fn invalid_native_read_only_flag_combinations_fail_cleanly() {
     let fixture = launch_fixture_server();
     let stats_global = run_native_with_env(
-        &["--agent", "--chain", "sepolia", "stats", "global"],
+        &["--agent", "--chain", "sepolia", "pools", "stats"],
         &[("PRIVACY_POOLS_ASP_HOST", fixture.base_url())],
     );
     assert_eq!(stats_global.status.code(), Some(2));
@@ -661,7 +669,7 @@ fn invalid_native_read_only_flag_combinations_fail_cleanly() {
     assert!(stats_global_payload["error"]["hint"]
         .as_str()
         .unwrap_or_default()
-        .contains("For chain-specific data use: privacy-pools pool-stats"),);
+        .contains("For chain-specific data use: privacy-pools pools stats"),);
 
     let pools_with_rpc_url =
         run_native_with_env(&["--agent", "pools", "--rpc-url", fixture.base_url()], &[]);
@@ -703,7 +711,7 @@ fn invalid_native_read_only_flag_combinations_fail_cleanly() {
 #[test]
 fn network_failures_keep_machine_readable_error_contracts() {
     let env = [("PRIVACY_POOLS_ASP_HOST", "http://127.0.0.1:9")];
-    let output = run_native_with_env(&["activity", "--agent"], &env);
+    let output = run_native_with_env(&["pools", "activity", "--agent"], &env);
 
     assert_eq!(output.status.code(), Some(3));
     assert!(stderr_string(&output).trim().is_empty());

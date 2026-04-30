@@ -14,8 +14,6 @@
   "asset": "ETH",
   "cacheTimestamp": "<TS>",
   "chain": "sepolia",
-  "command": "pool-stats",
-  "invokedAs": "stats pool",
   "last24h": {
     "totalDepositsCount": 5,
     "totalDepositsValue": "<WEI>",
@@ -28,8 +26,8 @@
       "args": [
         "ETH"
       ],
-      "cliCommand": "privacy-pools pools ETH --agent --chain sepolia",
-      "command": "pools",
+      "cliCommand": "privacy-pools pools show ETH --agent --chain sepolia",
+      "command": "pools show",
       "options": {
         "chain": "sepolia"
       },

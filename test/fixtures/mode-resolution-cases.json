@@ -84,8 +84,8 @@
     }
   },
   {
-    "name": "quiet activity suppresses human streams",
-    "argv": ["--quiet", "activity"],
+    "name": "quiet pools activity suppresses human streams",
+    "argv": ["--quiet", "pools", "activity"],
     "env": {
       "PRIVACY_POOLS_ASP_HOST": "<fixture>",
       "PRIVACY_POOLS_RPC_URL_SEPOLIA": "<fixture>"

@@ -277,7 +277,7 @@ budgets rather than strict SLAs:
 For CLI startup work, prefer command-family budgets over one global benchmark:
 
 - `static/local`: root help, version, generated discovery, completion query
-- `native public read-only`: `pools`, `activity`, `protocol-stats`, `pool-stats`
+- `native public read-only`: `pools`, `pools activity`, `pools stats`
 - `js read-only/config`: `status --json --no-check`, upgrade/config inspection
 - `transactional/proof-heavy`: deposit/withdraw/ragequit/flow, where network and proving costs dominate
 
@@ -307,8 +307,8 @@ CI notes:
   - read-only routing/mode resolution (`routing`)
   - native host/dispatch (`bridge`, `dispatch`, `main`)
   - native core utilities (`config`, `contract`, `error`, `http_client`, `json`, `output`, `read_only_api`)
-  - native activity command ownership (`commands/activity/**`)
-  - native stats command ownership (`commands/stats.rs`)
+  - native pools activity command ownership (`commands/pools/activity/**`)
+  - native pools stats command ownership (`commands/pools/stats.rs`)
 - The native coverage gate now also fails closed if any executable `native/shell/src/**` file is not owned by exactly one native coverage family. Test-only support such as `native/shell/src/test_env.rs` is excluded from that ownership check.
 - `commands/pools/**` is now also enforced at `>= 85%`, so a green local profile means every executable native-shell ownership family is under a blocking native coverage floor, not just the root/host/core/activity/stats subset.
 - `scripts/run-test-profile.mjs` is the shared source of truth for the higher-level repo test profiles (`test:install`, `test:conformance`, `test:ci`, `test:release`, `test:all`) so gate ordering only has to change in one place.

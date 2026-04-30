@@ -120,7 +120,7 @@ const fetchGlobalEventsMock = mock(async () => ({
 }));
 const maybeRenderPreviewProgressStepMock = mock(async () => false);
 
-let handleActivityCommand: typeof import("../../src/commands/activity.ts").handleActivityCommand;
+let handleActivityCommand: typeof import("../../src/commands/pools.ts").handlePoolsActivityCommand;
 
 function fakeCommand(globalOpts: Record<string, unknown> = {}): Command {
   return {
@@ -151,7 +151,7 @@ async function loadActivityHandler(): Promise<void> {
     })],
   ]);
 
-  ({ handleActivityCommand } = await import("../../src/commands/activity.ts"));
+  ({ handlePoolsActivityCommand: handleActivityCommand } = await import("../../src/commands/pools.ts"));
 }
 
 describe("activity command handler", () => {

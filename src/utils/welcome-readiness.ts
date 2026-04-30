@@ -151,7 +151,6 @@ const NON_ACTIONABLE_WORKFLOW_PHASES = new Set<string>([
 
 const KNOWN_ROOT_COMMANDS = new Set([
   "accounts",
-  "activity",
   "broadcast",
   "capabilities",
   "completion",
@@ -163,9 +162,7 @@ const KNOWN_ROOT_COMMANDS = new Set([
   "history",
   "init",
   "migrate",
-  "pool-stats",
   "pools",
-  "protocol-stats",
   "ragequit",
   "simulate",
   "status",

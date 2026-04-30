@@ -323,8 +323,8 @@ describe("native machine contract parity", () => {
     });
   }
 
-  nativeTest("stats pool input validation keeps the same structured error contract", () => {
-    const args = ["--json", "stats", "pool", "--chain", "sepolia"];
+  nativeTest("pools stats input validation keeps the same structured error contract", () => {
+    const args = ["--json", "pools", "stats", "--chain", "sepolia"];
     const env = { PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9" };
     const jsResult = runBuiltCli(args, withJsFallback({ env }));
     const nativeResult = runNativeBuiltCli(nativeBinary, args, { env });
@@ -332,9 +332,9 @@ describe("native machine contract parity", () => {
     for (const result of [jsResult, nativeResult]) {
       expectJsonErrorContract(result, {
         status: 2,
-        errorCode: "INPUT_MISSING_ASSET",
+        errorCode: "INPUT_FLAG_CONFLICT",
         category: "INPUT",
-        message: "asset",
+        message: "chain",
       });
       expect(normalizeParityStderr(result.stderr)).toBe("");
     }

@@ -387,7 +387,6 @@ describe("stats CSV", () => {
   test("renderGlobalStats: perChain CSV includes Chain column", () => {
     const ctx = createOutputContext(csvMode());
     const data: GlobalStatsRenderData = {
-      mode: "global-stats",
       chain: "all",
       chains: ["sepolia", "mainnet"],
       cacheTimestamp: null,
@@ -406,7 +405,6 @@ describe("stats CSV", () => {
   test("renderPoolStats: CSV outputs stats rows", () => {
     const ctx = createOutputContext(csvMode());
     const data: PoolStatsRenderData = {
-      mode: "pool-stats",
       chain: "sepolia",
       asset: "ETH",
       pool: "0x1111",

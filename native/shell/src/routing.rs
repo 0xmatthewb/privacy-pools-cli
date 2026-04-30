@@ -1,6 +1,6 @@
 use crate::contract::Manifest;
 use crate::root_argv::{
-    all_non_option_tokens, is_command_global_boolean_option, is_command_global_inline_value_option,
+    is_command_global_boolean_option, is_command_global_inline_value_option,
     is_command_global_value_option, ParsedRootArgv,
 };
 
@@ -67,13 +67,19 @@ fn pools_non_option_tokens(argv: &[String]) -> Vec<String> {
             tokens.extend(argv.iter().skip(index + 1).cloned());
             break;
         }
-        if token == "--search" || token == "--sort" || token == "--limit" {
+        if token == "--search"
+            || token == "--sort"
+            || token == "--limit"
+            || token == "--page"
+            || token == "-n"
+        {
             index += 2;
             continue;
         }
         if token.starts_with("--search=")
             || token.starts_with("--sort=")
             || token.starts_with("--limit=")
+            || token.starts_with("--page=")
             || token == "--include-testnets"
             || is_command_global_inline_value_option(token)
             || is_command_global_boolean_option(token)
@@ -95,22 +101,6 @@ fn pools_non_option_tokens(argv: &[String]) -> Vec<String> {
     tokens
 }
 
-pub(crate) fn activity_native_mode(
-    _argv: &[String],
-    parsed: &ParsedRootArgv,
-    manifest: &Manifest,
-) -> Option<&'static str> {
-    if parsed.is_help_like {
-        return None;
-    }
-    let native_mode = match resolve_mode(parsed).format {
-        OutputFormat::Json => "structured",
-        OutputFormat::Csv => "csv",
-        OutputFormat::Table => "default",
-    };
-    manifest_allows_native_mode("activity", native_mode, manifest).then_some(native_mode)
-}
-
 pub(crate) fn pools_native_mode(
     argv: &[String],
     parsed: &ParsedRootArgv,
@@ -122,47 +112,44 @@ pub(crate) fn pools_native_mode(
 
     let non_option_tokens = pools_non_option_tokens(argv);
     let mode = resolve_mode(parsed);
-    let native_mode = match (mode.format, non_option_tokens.len()) {
-        (OutputFormat::Table, 2) => "default-detail",
-        (OutputFormat::Json, 1) => "structured-list",
-        (OutputFormat::Csv, 1) => "csv-list",
-        (OutputFormat::Table, 1) => "default-list",
+    let (command_path, native_mode) = match non_option_tokens.as_slice() {
+        [root] if root == "pools" => {
+            let native_mode = match mode.format {
+                OutputFormat::Json => "structured-list",
+                OutputFormat::Csv => "csv-list",
+                OutputFormat::Table => "default-list",
+            };
+            ("pools", native_mode)
+        }
+        [root, subcommand, _asset] if root == "pools" && subcommand == "show" => {
+            let native_mode = match mode.format {
+                OutputFormat::Json => "structured-detail",
+                OutputFormat::Table => "default-detail",
+                OutputFormat::Csv => return None,
+            };
+            ("pools show", native_mode)
+        }
+        [root, subcommand] | [root, subcommand, _]
+            if root == "pools" && subcommand == "activity" =>
+        {
+            let native_mode = match mode.format {
+                OutputFormat::Json => "structured",
+                OutputFormat::Csv => "csv",
+                OutputFormat::Table => "default",
+            };
+            ("pools activity", native_mode)
+        }
+        [root, subcommand] | [root, subcommand, _] if root == "pools" && subcommand == "stats" => {
+            let native_mode = match mode.format {
+                OutputFormat::Json => "structured",
+                OutputFormat::Csv => "csv",
+                OutputFormat::Table => "default",
+            };
+            ("pools stats", native_mode)
+        }
         _ => return None,
     };
-    manifest_allows_native_mode("pools", native_mode, manifest).then_some(native_mode)
-}
-
-pub(crate) fn stats_native_mode(
-    argv: &[String],
-    parsed: &ParsedRootArgv,
-    manifest: &Manifest,
-) -> Option<&'static str> {
-    if parsed.is_help_like {
-        return None;
-    }
-
-    let command_path = resolve_command_path_prefix(&all_non_option_tokens(argv), manifest)?;
-    let mode = resolve_mode(parsed);
-    match command_path.as_str() {
-        "protocol-stats" => {
-            let native_mode = match mode.format {
-                OutputFormat::Json => "structured",
-                OutputFormat::Csv => "csv",
-                OutputFormat::Table => "default",
-            };
-            manifest_allows_native_mode("protocol-stats", native_mode, manifest)
-                .then_some(native_mode)
-        }
-        "pool-stats" => {
-            let native_mode = match mode.format {
-                OutputFormat::Json => "structured",
-                OutputFormat::Csv => "csv",
-                OutputFormat::Table => "default",
-            };
-            manifest_allows_native_mode("pool-stats", native_mode, manifest).then_some(native_mode)
-        }
-        _ => None,
-    }
+    manifest_allows_native_mode(command_path, native_mode, manifest).then_some(native_mode)
 }
 
 pub(crate) fn resolve_help_path(parsed: &ParsedRootArgv, manifest: &Manifest) -> Option<String> {
@@ -225,6 +212,7 @@ pub(crate) fn resolve_command_path(tokens: &[String], manifest: &Manifest) -> Op
     None
 }
 
+#[cfg(test)]
 pub(crate) fn resolve_command_path_prefix(
     tokens: &[String],
     manifest: &Manifest,
@@ -305,26 +293,22 @@ mod tests {
             "cliVersion": "2.0.0",
             "jsonSchemaVersion": "2.0.0",
             "commandPaths": [
-                "activity",
                 "flow",
                 "pools",
+                "pools show",
+                "pools activity",
+                "pools stats",
                 "ragequit",
-                "protocol-stats",
-                "pool-stats",
                 "guide",
                 "capabilities",
                 "describe",
                 "completion"
             ],
-            "aliasMap": {
-                "stats": "protocol-stats",
-                "stats global": "protocol-stats",
-                "stats pool": "pool-stats"
-            },
+            "aliasMap": {},
             "rootHelp": "help",
             "structuredRootHelp": "structured help",
             "helpTextByPath": {
-                "activity": "Usage: privacy-pools activity",
+                "pools activity": "Usage: privacy-pools pools activity",
                 "flow": "Usage: privacy-pools flow",
                 "guide": "Guide help",
                 "ragequit": "Usage: privacy-pools ragequit"
@@ -356,14 +340,14 @@ mod tests {
             "routes": {
                 "staticLocalCommands": ["guide", "capabilities", "describe", "completion"],
                 "directNativeCommands": ["guide", "capabilities", "describe", "completion"],
-                "helpCommandPaths": ["activity", "flow", "guide", "capabilities", "describe", "completion", "pools", "ragequit", "protocol-stats", "pool-stats"],
+                "helpCommandPaths": ["flow", "guide", "capabilities", "describe", "completion", "pools", "pools show", "pools activity", "pools stats", "ragequit"],
                 "commandRoutes": {
-                    "activity": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
                     "flow": { "owner": "js-runtime", "nativeModes": ["help"] },
-                    "pools": { "owner": "hybrid", "nativeModes": ["default-list", "default-detail", "csv-list", "structured-list", "help"] },
+                    "pools": { "owner": "hybrid", "nativeModes": ["default-list", "csv-list", "structured-list", "help"] },
+                    "pools show": { "owner": "hybrid", "nativeModes": ["default-detail", "structured-detail", "help"] },
+                    "pools activity": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
+                    "pools stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
                     "ragequit": { "owner": "js-runtime", "nativeModes": ["help"] },
-                    "protocol-stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
-                    "pool-stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] },
                     "guide": { "owner": "native-shell", "nativeModes": ["default", "help"] },
                     "capabilities": { "owner": "native-shell", "nativeModes": ["default", "help"] },
                     "describe": { "owner": "native-shell", "nativeModes": ["default", "help"] },
@@ -396,38 +380,48 @@ mod tests {
     }
 
     #[test]
-    fn stats_native_mode_prefers_structured_mode_for_agent_csv_mix() {
+    fn pools_stats_native_mode_prefers_structured_mode_for_agent_csv_mix() {
         let manifest = test_manifest();
-        let args = argv(&["--agent", "--output", "csv", "stats"]);
+        let args = argv(&["--agent", "--output", "csv", "pools", "stats"]);
         let parsed = parse_root_argv(&args);
         assert_eq!(
-            stats_native_mode(&args, &parsed, &manifest),
+            pools_native_mode(&args, &parsed, &manifest),
             Some("structured")
         );
     }
 
     #[test]
-    fn pools_native_mode_handles_detail_view_in_human_mode_only() {
+    fn pools_native_mode_handles_show_view() {
         let manifest = test_manifest();
-        let args = argv(&["pools", "ETH"]);
+        let args = argv(&["pools", "show", "ETH"]);
         let parsed = parse_root_argv(&args);
         assert_eq!(
             pools_native_mode(&args, &parsed, &manifest),
             Some("default-detail")
         );
 
-        let json_args = argv(&["--json", "pools", "ETH"]);
+        let json_args = argv(&["--json", "pools", "show", "ETH"]);
         let json_parsed = parse_root_argv(&json_args);
-        assert_eq!(pools_native_mode(&json_args, &json_parsed, &manifest), None);
+        assert_eq!(
+            pools_native_mode(&json_args, &json_parsed, &manifest),
+            Some("structured-detail")
+        );
+
+        let old_detail_args = argv(&["pools", "ETH"]);
+        let old_detail_parsed = parse_root_argv(&old_detail_args);
+        assert_eq!(
+            pools_native_mode(&old_detail_args, &old_detail_parsed, &manifest),
+            None
+        );
     }
 
     #[test]
     fn resolve_command_path_prefix_prefers_longest_match() {
         let manifest = test_manifest();
-        let tokens = argv(&["stats", "pool", "ETH"]);
+        let tokens = argv(&["pools", "stats", "ETH"]);
         assert_eq!(
             resolve_command_path_prefix(&tokens, &manifest),
-            Some("pool-stats".to_string())
+            Some("pools stats".to_string())
         );
     }
 
@@ -446,7 +440,7 @@ mod tests {
     #[test]
     fn resolve_mode_preserves_wide_format_for_human_output() {
         with_agent_env_cleared(|| {
-            let parsed = parse_root_argv(&argv(&["--output", "wide", "activity"]));
+            let parsed = parse_root_argv(&argv(&["--output", "wide", "pools", "activity"]));
             let mode = resolve_mode(&parsed);
             assert!(!mode.is_json());
             assert!(!mode.is_csv());
@@ -472,27 +466,24 @@ mod tests {
     }
 
     #[test]
-    fn activity_native_mode_handles_table_csv_and_help_cases() {
+    fn pools_activity_native_mode_handles_table_csv_and_help_cases() {
         with_agent_env_cleared(|| {
             let manifest = test_manifest();
 
-            let human = parse_root_argv(&argv(&["activity"]));
+            let human_args = argv(&["pools", "activity"]);
+            let human = parse_root_argv(&human_args);
             assert_eq!(
-                activity_native_mode(&argv(&["activity"]), &human, &manifest),
+                pools_native_mode(&human_args, &human, &manifest),
                 Some("default")
             );
 
-            let csv = parse_root_argv(&argv(&["--output", "csv", "activity"]));
-            assert_eq!(
-                activity_native_mode(&argv(&["--output", "csv", "activity"]), &csv, &manifest),
-                Some("csv")
-            );
+            let csv_args = argv(&["--output", "csv", "pools", "activity"]);
+            let csv = parse_root_argv(&csv_args);
+            assert_eq!(pools_native_mode(&csv_args, &csv, &manifest), Some("csv"));
 
-            let help = parse_root_argv(&argv(&["activity", "--help"]));
-            assert_eq!(
-                activity_native_mode(&argv(&["activity", "--help"]), &help, &manifest),
-                None
-            );
+            let help_args = argv(&["pools", "activity", "--help"]);
+            let help = parse_root_argv(&help_args);
+            assert_eq!(pools_native_mode(&help_args, &help, &manifest), None);
         });
     }
 
@@ -520,27 +511,27 @@ mod tests {
     }
 
     #[test]
-    fn stats_native_mode_covers_global_pool_and_unknown_commands() {
+    fn pools_native_mode_covers_stats_global_pool_and_unknown_commands() {
         let manifest = test_manifest();
 
-        let global_args = argv(&["stats", "global"]);
+        let global_args = argv(&["pools", "stats"]);
         let global_parsed = parse_root_argv(&global_args);
         assert_eq!(
-            stats_native_mode(&global_args, &global_parsed, &manifest),
+            pools_native_mode(&global_args, &global_parsed, &manifest),
             Some("default")
         );
 
-        let pool_args = argv(&["--output", "csv", "stats", "pool", "ETH"]);
+        let pool_args = argv(&["--output", "csv", "pools", "stats", "ETH"]);
         let pool_parsed = parse_root_argv(&pool_args);
         assert_eq!(
-            stats_native_mode(&pool_args, &pool_parsed, &manifest),
+            pools_native_mode(&pool_args, &pool_parsed, &manifest),
             Some("csv")
         );
 
         let unknown_args = argv(&["status"]);
         let unknown_parsed = parse_root_argv(&unknown_args);
         assert_eq!(
-            stats_native_mode(&unknown_args, &unknown_parsed, &manifest),
+            pools_native_mode(&unknown_args, &unknown_parsed, &manifest),
             None
         );
     }
@@ -559,8 +550,8 @@ mod tests {
         );
 
         assert_eq!(
-            resolve_command_path(&argv(&["stats", "global"]), &manifest),
-            Some("protocol-stats".to_string())
+            resolve_command_path(&argv(&["pools", "stats"]), &manifest),
+            Some("pools stats".to_string())
         );
         assert_eq!(
             resolve_command_path(&argv(&["ragequit"]), &manifest),
@@ -579,13 +570,13 @@ mod tests {
         assert!(!is_known_root_command("status", &manifest));
 
         assert!(manifest_allows_native_mode(
-            "activity",
+            "pools activity",
             "structured",
             &manifest
         ));
         assert!(!manifest_allows_native_mode("flow", "default", &manifest));
         assert!(!manifest_allows_native_mode(
-            "stats",
+            "activity",
             "structured",
             &manifest
         ));

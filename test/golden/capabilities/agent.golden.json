@@ -185,123 +185,6 @@
       "touchesFunds": false,
       "usage": "accounts"
     },
-    "activity": {
-      "agentFlagNames": [
-        "--agent",
-        "--include-testnets",
-        "--limit",
-        "--page"
-      ],
-      "agentSupported": true,
-      "agentWorkflowNotes": [],
-      "aliases": [],
-      "command": "activity",
-      "commandType": "concrete",
-      "csvSupported": true,
-      "description": "Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol",
-      "examples": [
-        {
-          "category": "Basic",
-          "commands": [
-            "privacy-pools activity",
-            "privacy-pools activity --page 2 --limit 20",
-            "privacy-pools activity --include-testnets",
-            "privacy-pools activity ETH"
-          ]
-        },
-        {
-          "category": "Agent / CI",
-          "commands": [
-            "privacy-pools activity USDC --agent --chain mainnet"
-          ]
-        }
-      ],
-      "execution": {
-        "nativeModes": [
-          "default",
-          "csv",
-          "structured",
-          "help"
-        ],
-        "owner": "hybrid"
-      },
-      "expectedLatencyClass": "medium",
-      "flags": [
-        "[asset]",
-        "--include-testnets",
-        "--page <n>",
-        "--limit <n>"
-      ],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "group": "monitoring",
-      "humanInteractive": false,
-      "jsonFields": "{ mode, chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      "jsonVariants": [],
-      "mutatesFunds": false,
-      "mutatesLocalState": false,
-      "prerequisites": [],
-      "requiresHumanReview": false,
-      "requiresInit": false,
-      "safeReadOnly": true,
-      "safetyNotes": [
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "sideEffectClass": "read_only",
-      "streamJsonSupported": false,
-      "structuredExamples": [
-        {
-          "category": "Basic",
-          "command": "privacy-pools activity",
-          "description": "Basic"
-        },
-        {
-          "category": "Basic",
-          "command": "privacy-pools activity --page 2 --limit 20",
-          "description": "Basic"
-        },
-        {
-          "category": "Basic",
-          "command": "privacy-pools activity --include-testnets",
-          "description": "Basic"
-        },
-        {
-          "category": "Basic",
-          "command": "privacy-pools activity ETH",
-          "description": "Basic"
-        },
-        {
-          "category": "Agent / CI",
-          "command": "privacy-pools activity USDC --agent --chain mainnet",
-          "description": "Agent / CI"
-        }
-      ],
-      "supportsDryRun": false,
-      "supportsUnsigned": false,
-      "touchesFunds": false,
-      "usage": "activity"
-    },
     "broadcast": {
       "agentFlagNames": [
         "--agent",
@@ -1651,7 +1534,7 @@
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
         "privacy-pools describe flow --agent",
-        "privacy-pools describe protocol-stats --agent",
+        "privacy-pools describe pools stats --agent",
         "privacy-pools describe envelope.nextActions --agent",
         "privacy-pools describe envelope.commands.status.successFields --agent"
       ],
@@ -1718,7 +1601,7 @@
           "description": "Example 3"
         },
         {
-          "command": "privacy-pools describe protocol-stats --agent",
+          "command": "privacy-pools describe pools stats --agent",
           "description": "Example 4"
         },
         {
@@ -3203,91 +3086,6 @@
       "touchesFunds": false,
       "usage": "migrate status"
     },
-    "pool-stats": {
-      "agentFlagNames": [
-        "--agent",
-        "--limit"
-      ],
-      "agentSupported": true,
-      "agentWorkflowNotes": [],
-      "aliases": [
-        "stats pool"
-      ],
-      "command": "pool-stats",
-      "commandType": "concrete",
-      "csvSupported": true,
-      "description": "View statistics for one pool",
-      "examples": [
-        "privacy-pools pool-stats ETH",
-        "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10"
-      ],
-      "execution": {
-        "nativeModes": [
-          "default",
-          "csv",
-          "structured",
-          "help"
-        ],
-        "owner": "hybrid"
-      },
-      "expectedLatencyClass": "medium",
-      "flags": [
-        "<symbol|address>",
-        "--limit <n>"
-      ],
-      "globalFlags": [
-        "-c, --chain <name>",
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "group": "monitoring",
-      "humanInteractive": false,
-      "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
-      "jsonVariants": [],
-      "mutatesFunds": false,
-      "mutatesLocalState": false,
-      "prerequisites": [],
-      "requiresHumanReview": false,
-      "requiresInit": false,
-      "safeReadOnly": true,
-      "safetyNotes": [
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "sideEffectClass": "read_only",
-      "streamJsonSupported": false,
-      "structuredExamples": [
-        {
-          "command": "privacy-pools pool-stats ETH",
-          "description": "Example 1"
-        },
-        {
-          "command": "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10",
-          "description": "Example 2"
-        }
-      ],
-      "supportsDryRun": false,
-      "supportsUnsigned": false,
-      "touchesFunds": false,
-      "usage": "pool-stats <symbol|address>"
-    },
     "pools": {
       "agentFlagNames": [
         "--agent",
@@ -3306,14 +3104,14 @@
       "command": "pools",
       "commandType": "concrete",
       "csvSupported": true,
-      "description": "Browse available pools",
+      "description": "Browse pools, public activity, and stats",
       "examples": [
         {
           "category": "Basic",
           "commands": [
             "privacy-pools pools",
-            "privacy-pools pools ETH",
-            "privacy-pools pools BOLD --chain mainnet"
+            "privacy-pools pools show ETH",
+            "privacy-pools pools show BOLD --chain mainnet"
           ]
         },
         {
@@ -3334,7 +3132,6 @@
       "execution": {
         "nativeModes": [
           "default-list",
-          "default-detail",
           "csv-list",
           "structured-list",
           "help"
@@ -3374,10 +3171,7 @@
       "group": "monitoring",
       "humanInteractive": false,
       "jsonFields": "{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      "jsonVariants": [
-        "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
-        "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }"
-      ],
+      "jsonVariants": [],
       "mutatesFunds": false,
       "mutatesLocalState": false,
       "prerequisites": [],
@@ -3397,12 +3191,12 @@
         },
         {
           "category": "Basic",
-          "command": "privacy-pools pools ETH",
+          "command": "privacy-pools pools show ETH",
           "description": "Basic"
         },
         {
           "category": "Basic",
-          "command": "privacy-pools pools BOLD --chain mainnet",
+          "command": "privacy-pools pools show BOLD --chain mainnet",
           "description": "Basic"
         },
         {
@@ -3431,24 +3225,36 @@
       "touchesFunds": false,
       "usage": "pools"
     },
-    "protocol-stats": {
+    "pools activity": {
       "agentFlagNames": [
         "--agent",
-        "--limit"
+        "--include-testnets",
+        "--limit",
+        "--page"
       ],
       "agentSupported": true,
       "agentWorkflowNotes": [],
-      "aliases": [
-        "stats",
-        "stats global"
-      ],
-      "command": "protocol-stats",
+      "aliases": [],
+      "command": "pools activity",
       "commandType": "concrete",
       "csvSupported": true,
-      "description": "View aggregate network statistics",
+      "description": "Browse public pool activity",
       "examples": [
-        "privacy-pools protocol-stats",
-        "privacy-pools protocol-stats --agent --limit 10"
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools pools activity",
+            "privacy-pools pools activity --page 2 --limit 20",
+            "privacy-pools pools activity --include-testnets",
+            "privacy-pools pools activity ETH"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools pools activity USDC --agent --chain mainnet"
+          ]
+        }
       ],
       "execution": {
         "nativeModes": [
@@ -3461,9 +3267,13 @@
       },
       "expectedLatencyClass": "medium",
       "flags": [
+        "[asset]",
+        "--include-testnets",
+        "--page <n>",
         "--limit <n>"
       ],
       "globalFlags": [
+        "-c, --chain <name>",
         "-j, --json",
         "--json-fields <fields>",
         "--template <template>",
@@ -3487,7 +3297,7 @@
       ],
       "group": "monitoring",
       "humanInteractive": false,
-      "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+      "jsonFields": "{ mode: \"pools\", action: \"activity\", operation: \"pools.activity\", chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
       "mutatesFunds": false,
       "mutatesLocalState": false,
@@ -3502,18 +3312,228 @@
       "streamJsonSupported": false,
       "structuredExamples": [
         {
-          "command": "privacy-pools protocol-stats",
-          "description": "Example 1"
+          "category": "Basic",
+          "command": "privacy-pools pools activity",
+          "description": "Basic"
         },
         {
-          "command": "privacy-pools protocol-stats --agent --limit 10",
-          "description": "Example 2"
+          "category": "Basic",
+          "command": "privacy-pools pools activity --page 2 --limit 20",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools pools activity --include-testnets",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools pools activity ETH",
+          "description": "Basic"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools pools activity USDC --agent --chain mainnet",
+          "description": "Agent / CI"
         }
       ],
       "supportsDryRun": false,
       "supportsUnsigned": false,
       "touchesFunds": false,
-      "usage": "protocol-stats"
+      "usage": "pools activity [asset]"
+    },
+    "pools show": {
+      "agentFlagNames": [
+        "--agent"
+      ],
+      "agentSupported": true,
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "pools show",
+      "commandType": "concrete",
+      "csvSupported": false,
+      "description": "Show detail for one public pool",
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools pools show ETH",
+            "privacy-pools pools show BOLD --chain mainnet"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools pools show USDC --agent --chain mainnet"
+          ]
+        }
+      ],
+      "execution": {
+        "nativeModes": [
+          "default-detail",
+          "structured-detail",
+          "help"
+        ],
+        "owner": "hybrid"
+      },
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "<asset>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "humanInteractive": false,
+      "jsonFields": "{ mode: \"pools\", action: \"show\", operation: \"pools.show\", chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
+      "jsonVariants": [
+        "myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }"
+      ],
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "streamJsonSupported": false,
+      "structuredExamples": [
+        {
+          "category": "Basic",
+          "command": "privacy-pools pools show ETH",
+          "description": "Basic"
+        },
+        {
+          "category": "Basic",
+          "command": "privacy-pools pools show BOLD --chain mainnet",
+          "description": "Basic"
+        },
+        {
+          "category": "Agent / CI",
+          "command": "privacy-pools pools show USDC --agent --chain mainnet",
+          "description": "Agent / CI"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "pools show <asset>"
+    },
+    "pools stats": {
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
+      "agentSupported": true,
+      "agentWorkflowNotes": [],
+      "aliases": [],
+      "command": "pools stats",
+      "commandType": "concrete",
+      "csvSupported": true,
+      "description": "View public protocol or pool statistics",
+      "examples": [
+        "privacy-pools pools stats",
+        "privacy-pools pools stats --agent --limit 10",
+        "privacy-pools pools stats ETH",
+        "privacy-pools pools stats USDC --agent --chain mainnet --limit 10"
+      ],
+      "execution": {
+        "nativeModes": [
+          "default",
+          "csv",
+          "structured",
+          "help"
+        ],
+        "owner": "hybrid"
+      },
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "[asset]",
+        "--limit <n>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "group": "monitoring",
+      "humanInteractive": false,
+      "jsonFields": "{ mode: \"pools\", action: \"stats\", operation: \"pools.stats\", chain, chains?, asset?, pool?, scope?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+      "jsonVariants": [],
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "prerequisites": [],
+      "requiresHumanReview": false,
+      "requiresInit": false,
+      "safeReadOnly": true,
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "sideEffectClass": "read_only",
+      "streamJsonSupported": false,
+      "structuredExamples": [
+        {
+          "command": "privacy-pools pools stats",
+          "description": "Example 1"
+        },
+        {
+          "command": "privacy-pools pools stats --agent --limit 10",
+          "description": "Example 2"
+        },
+        {
+          "command": "privacy-pools pools stats ETH",
+          "description": "Example 3"
+        },
+        {
+          "command": "privacy-pools pools stats USDC --agent --chain mainnet --limit 10",
+          "description": "Example 4"
+        }
+      ],
+      "supportsDryRun": false,
+      "supportsUnsigned": false,
+      "touchesFunds": false,
+      "usage": "pools stats [asset]"
     },
     "ragequit": {
       "agentFlagNames": [
@@ -5663,7 +5683,7 @@
       "agentSupported": true,
       "commandType": "concrete",
       "csvSupported": true,
-      "description": "Browse available pools",
+      "description": "Browse pools, public activity, and stats",
       "expectedLatencyClass": "medium",
       "flags": [
         "--include-testnets",
@@ -5679,6 +5699,80 @@
       "requiresInit": false,
       "streamJsonSupported": false,
       "usage": "pools"
+    },
+    {
+      "agentFlagNames": [
+        "--agent"
+      ],
+      "agentFlags": "--agent <asset>",
+      "agentSupported": true,
+      "commandType": "concrete",
+      "csvSupported": false,
+      "description": "Show detail for one public pool",
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "<asset>"
+      ],
+      "group": "monitoring",
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "name": "pools show",
+      "requiresInit": false,
+      "streamJsonSupported": false,
+      "usage": "pools show <asset>"
+    },
+    {
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets",
+        "--limit",
+        "--page"
+      ],
+      "agentFlags": "--agent [<asset>] [--include-testnets] [--page <n>] [--limit <n>]",
+      "agentSupported": true,
+      "commandType": "concrete",
+      "csvSupported": true,
+      "description": "Browse public pool activity",
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "[asset]",
+        "--include-testnets",
+        "--page <n>",
+        "--limit <n>"
+      ],
+      "group": "monitoring",
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "name": "pools activity",
+      "requiresInit": false,
+      "streamJsonSupported": false,
+      "usage": "pools activity [asset]"
+    },
+    {
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
+      ],
+      "agentFlags": "--agent [<asset>] [--limit <n>]",
+      "agentSupported": true,
+      "commandType": "concrete",
+      "csvSupported": true,
+      "description": "View public protocol or pool statistics",
+      "expectedLatencyClass": "medium",
+      "flags": [
+        "[asset]",
+        "--limit <n>"
+      ],
+      "group": "monitoring",
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "name": "pools stats",
+      "requiresInit": false,
+      "streamJsonSupported": false,
+      "usage": "pools stats [asset]"
     },
     {
       "agentFlagNames": [
@@ -5726,88 +5820,6 @@
       "requiresInit": false,
       "streamJsonSupported": false,
       "usage": "tx-status <submissionId>"
-    },
-    {
-      "agentFlagNames": [
-        "--agent",
-        "--include-testnets",
-        "--limit",
-        "--page"
-      ],
-      "agentFlags": "--agent [<asset>] [--include-testnets] [--page <n>] [--limit <n>]",
-      "agentSupported": true,
-      "commandType": "concrete",
-      "csvSupported": true,
-      "description": "Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol",
-      "expectedLatencyClass": "medium",
-      "flags": [
-        "[asset]",
-        "--include-testnets",
-        "--page <n>",
-        "--limit <n>"
-      ],
-      "group": "monitoring",
-      "humanInteractive": false,
-      "mutatesFunds": false,
-      "mutatesLocalState": false,
-      "name": "activity",
-      "requiresInit": false,
-      "streamJsonSupported": false,
-      "usage": "activity"
-    },
-    {
-      "agentFlagNames": [
-        "--agent",
-        "--limit"
-      ],
-      "agentFlags": "--agent [--limit <n>]",
-      "agentSupported": true,
-      "aliases": [
-        "stats",
-        "stats global"
-      ],
-      "commandType": "concrete",
-      "csvSupported": true,
-      "description": "View aggregate network statistics",
-      "expectedLatencyClass": "medium",
-      "flags": [
-        "--limit <n>"
-      ],
-      "group": "monitoring",
-      "humanInteractive": false,
-      "mutatesFunds": false,
-      "mutatesLocalState": false,
-      "name": "protocol-stats",
-      "requiresInit": false,
-      "streamJsonSupported": false,
-      "usage": "protocol-stats"
-    },
-    {
-      "agentFlagNames": [
-        "--agent",
-        "--limit"
-      ],
-      "agentFlags": "--agent [--limit <n>]",
-      "agentSupported": true,
-      "aliases": [
-        "stats pool"
-      ],
-      "commandType": "concrete",
-      "csvSupported": true,
-      "description": "View statistics for one pool",
-      "expectedLatencyClass": "medium",
-      "flags": [
-        "<symbol|address>",
-        "--limit <n>"
-      ],
-      "group": "monitoring",
-      "humanInteractive": false,
-      "mutatesFunds": false,
-      "mutatesLocalState": false,
-      "name": "pool-stats",
-      "requiresInit": false,
-      "streamJsonSupported": false,
-      "usage": "pool-stats <symbol|address>"
     },
     {
       "agentFlagNames": [
@@ -7222,15 +7234,6 @@
       ],
       "owner": "js-runtime"
     },
-    "activity": {
-      "nativeModes": [
-        "default",
-        "csv",
-        "structured",
-        "help"
-      ],
-      "owner": "hybrid"
-    },
     "broadcast": {
       "nativeModes": [
         "help"
@@ -7397,7 +7400,16 @@
       ],
       "owner": "js-runtime"
     },
-    "pool-stats": {
+    "pools": {
+      "nativeModes": [
+        "default-list",
+        "csv-list",
+        "structured-list",
+        "help"
+      ],
+      "owner": "hybrid"
+    },
+    "pools activity": {
       "nativeModes": [
         "default",
         "csv",
@@ -7406,17 +7418,15 @@
       ],
       "owner": "hybrid"
     },
-    "pools": {
+    "pools show": {
       "nativeModes": [
-        "default-list",
         "default-detail",
-        "csv-list",
-        "structured-list",
+        "structured-detail",
         "help"
       ],
       "owner": "hybrid"
     },
-    "protocol-stats": {
+    "pools stats": {
       "nativeModes": [
         "default",
         "csv",
@@ -7721,9 +7731,9 @@
     "simulate",
     "flow status",
     "pools",
-    "activity",
-    "protocol-stats",
-    "pool-stats",
+    "pools show",
+    "pools activity",
+    "pools stats",
     "status",
     "tx-status",
     "capabilities",

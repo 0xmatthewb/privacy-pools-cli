@@ -197,12 +197,12 @@ Some success payloads also include optional `nextActions[]` guidance with the sh
 
 ```bash
 privacy-pools pools --agent [--include-testnets] [--search <query>] [--sort <mode>]
-privacy-pools pools ETH --agent                    # detail view for a specific pool
+privacy-pools pools show ETH --agent               # detail view for a specific pool
 ```
 
 Defaults to all CLI-supported mainnet chains when no `--chain` is specified. Default sort is `tvl-desc` (highest pool balance first).
 
-**Detail view** (`privacy-pools pools <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON mode returns `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. Does not support CSV.
+**Detail view** (`privacy-pools pools show <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON mode returns `{ mode: "pools", action: "show", operation: "pools.show", chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. Does not support CSV.
 
 **Single chain** (with `--chain`):
 
@@ -255,10 +255,10 @@ Defaults to all CLI-supported mainnet chains when no `--chain` is specified. Def
 
 All numeric token amounts are in wei (strings). USD values, counts, and growth rates are nullable.
 
-### `activity`
+### `pools activity`
 
 ```bash
-privacy-pools activity [asset] --agent [--limit <n>] [--page <n>]
+privacy-pools pools activity [asset] --agent [--limit <n>] [--page <n>]
 ```
 
 Defaults to all CLI-supported mainnet chains when no `--chain` is specified.
@@ -267,7 +267,9 @@ Defaults to all CLI-supported mainnet chains when no `--chain` is specified.
 
 ```json
 {
-  "mode": "global-activity",
+  "mode": "pools",
+  "action": "activity",
+  "operation": "pools.activity",
   "chain": "all-mainnets",
   "chains": ["mainnet", "arbitrum", "optimism"],
   "page": 1,
@@ -293,21 +295,23 @@ Defaults to all CLI-supported mainnet chains when no `--chain` is specified.
 
 When querying multiple chains (no `--chain` specified), `chain` is `"all-mainnets"` and `chains` lists the queried chain names. With a specific `--chain` but no positional asset, events are filtered client-side: `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
 
-**Per-pool** (positional asset): `mode` is `"pool-activity"` and root includes `asset`, `pool`, and `scope`. Pagination totals are accurate (server-side filtering).
+**Per-pool** (positional asset): root includes `asset`, `pool`, and `scope`. Pagination totals are accurate (server-side filtering).
 
 `timestamp` is an ISO 8601 string or `null`. `total` and `totalPages` may be null (always null when `chainFiltered: true`).
 
-### `protocol-stats`
+### `pools stats`
 
 ```bash
-privacy-pools protocol-stats --agent
+privacy-pools pools stats --agent
 ```
 
-Always returns aggregate cross-chain statistics. The `--chain` flag is **not** supported; use `pool-stats <symbol> --chain <chain>` for chain-specific data.
+With no asset, returns aggregate cross-chain statistics. The `--chain` flag is **not** supported for aggregate stats; use `pools stats <symbol> --chain <chain>` for chain-specific data.
 
 ```json
 {
-  "mode": "global-stats",
+  "mode": "pools",
+  "action": "stats",
+  "operation": "pools.stats",
   "chain": "all-mainnets",
   "chains": ["mainnet", "arbitrum", "optimism"],
   "cacheTimestamp": "2025-01-15T12:00:00Z",
@@ -336,15 +340,17 @@ Always returns aggregate cross-chain statistics. The `--chain` flag is **not** s
 
 `chain` is always `"all-mainnets"`. `chains` lists the queried chain names. `perChain` contains per-chain breakdowns. `cacheTimestamp`, `allTime`, and `last24h` may be null. The `allTime`/`last24h` objects come from the ASP service and may contain additional fields.
 
-### `pool-stats`
+**Per-pool**:
 
 ```bash
-privacy-pools pool-stats ETH --agent
+privacy-pools pools stats ETH --agent
 ```
 
 ```json
 {
-  "mode": "pool-stats",
+  "mode": "pools",
+  "action": "stats",
+  "operation": "pools.stats",
   "chain": "mainnet",
   "asset": "ETH",
   "pool": "0x...",
@@ -441,7 +447,7 @@ Representative payload (abridged):
     }
   },
   "executionRoutes": {
-    "pool-stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] }
+    "pools stats": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] }
   },
   "globalFlags": [
     { "flag": "--agent", "description": "Machine-friendly mode (alias for --json --yes --quiet)" }
@@ -502,7 +508,7 @@ Representative payload (abridged):
     "workflowSnapshotVersion": "2",
     "workflowSecretVersion": "1"
   },
-  "safeReadOnlyCommands": ["flow", "flow status", "pools", "activity", "protocol-stats", "pool-stats", "status", "capabilities", "describe", "guide", "accounts", "history", "migrate", "migrate status", "completion"],
+  "safeReadOnlyCommands": ["flow", "flow status", "pools", "pools activity", "pools stats", "status", "capabilities", "describe", "guide", "accounts", "history", "migrate", "migrate status", "completion"],
   "supportedChains": [
     { "name": "mainnet", "chainId": 1, "testnet": false },
     { "name": "arbitrum", "chainId": 42161, "testnet": false },
@@ -527,7 +533,7 @@ Representative payload (abridged):
 
 ```bash
 privacy-pools describe withdraw quote --agent
-privacy-pools describe protocol-stats --agent
+privacy-pools describe pools stats --agent
 ```
 
 Machine/runtime introspection surface for agents. Prefer `guide` for human walkthroughs and conceptual help. Use `describe envelope.<path>` when you want bundled contract fields instead of command metadata.

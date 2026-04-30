@@ -387,16 +387,16 @@ describe("urgent next-step recommendations", () => {
     useNextStepsHome("pp-next-urgent-init-contextual-", false);
 
     const result = appendNextActions(
-      { operation: "activity" },
-      [createNextAction("activity", "Open the next page.", "after_activity", {
+      { operation: "pools.activity" },
+      [createNextAction("pools activity", "Open the next page.", "after_activity", {
         options: { page: 2, limit: 5, agent: true },
       })],
-      { commandPath: "activity", mode: makeMode({ isJson: true }) },
+      { commandPath: "pools activity", mode: makeMode({ isJson: true }) },
     );
 
     expect(result.nextActions).toHaveLength(1);
     expect(result.nextActions?.[0]).toMatchObject({
-      command: "activity",
+      command: "pools activity",
       when: "after_activity",
       options: { page: 2, limit: 5 },
     });
@@ -499,7 +499,6 @@ const STUB_POOL_DETAIL: PoolDetailRenderData = {
 };
 
 const STUB_GLOBAL_STATS: GlobalStatsRenderData = {
-  mode: "global-stats",
   chain: "all-mainnets",
   chains: ["mainnet", "arbitrum", "optimism"],
   cacheTimestamp: "2025-01-01T00:00:00.000Z",
@@ -518,7 +517,6 @@ const STUB_GLOBAL_STATS: GlobalStatsRenderData = {
 };
 
 const STUB_POOL_STATS: PoolStatsRenderData = {
-  mode: "pool-stats",
   chain: "sepolia",
   asset: "ETH",
   pool: "0x" + "11".repeat(20),

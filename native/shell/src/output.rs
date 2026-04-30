@@ -273,7 +273,11 @@ fn error_doc_url(code: &str) -> String {
     )
 }
 
-fn canonical_operation(raw_operation: Option<&str>, raw_mode: Option<&str>, raw_action: Option<&str>) -> Option<String> {
+fn canonical_operation(
+    raw_operation: Option<&str>,
+    raw_mode: Option<&str>,
+    raw_action: Option<&str>,
+) -> Option<String> {
     if let Some(operation) = raw_operation {
         match operation {
             "broadcast" => return Some("tx.broadcast".to_string()),
@@ -293,9 +297,23 @@ fn canonical_operation(raw_operation: Option<&str>, raw_mode: Option<&str>, raw_
             value if value.contains('.') => return Some(value.to_string()),
             value => {
                 let roots = [
-                    "accounts", "capabilities", "completion", "config", "deposit", "describe",
-                    "guide", "init", "migrate", "pools", "ragequit", "recipients", "status",
-                    "transfer", "tx", "upgrade", "withdraw",
+                    "accounts",
+                    "capabilities",
+                    "completion",
+                    "config",
+                    "deposit",
+                    "describe",
+                    "guide",
+                    "init",
+                    "migrate",
+                    "pools",
+                    "ragequit",
+                    "recipients",
+                    "status",
+                    "transfer",
+                    "tx",
+                    "upgrade",
+                    "withdraw",
                 ];
                 if roots.contains(&value) {
                     return Some(value.to_string());
@@ -306,9 +324,23 @@ fn canonical_operation(raw_operation: Option<&str>, raw_mode: Option<&str>, raw_
 
     if let Some(mode) = raw_mode {
         let roots = [
-            "accounts", "capabilities", "completion", "config", "deposit", "describe", "guide",
-            "init", "migrate", "pools", "ragequit", "recipients", "status", "transfer", "tx",
-            "upgrade", "withdraw",
+            "accounts",
+            "capabilities",
+            "completion",
+            "config",
+            "deposit",
+            "describe",
+            "guide",
+            "init",
+            "migrate",
+            "pools",
+            "ragequit",
+            "recipients",
+            "status",
+            "transfer",
+            "tx",
+            "upgrade",
+            "withdraw",
         ];
         if roots.contains(&mode) {
             return Some(match raw_action {
@@ -322,8 +354,6 @@ fn canonical_operation(raw_operation: Option<&str>, raw_mode: Option<&str>, raw_
             "tx-status" => Some("tx.status"),
             "broadcast" => Some("tx.broadcast"),
             "withdraw-quote" | "relayed-quote" => Some("withdraw.quote"),
-            "pool-stats" | "protocol-stats" | "global-stats" | "stats" => Some("pools.stats"),
-            "pool-activity" | "global-activity" | "activity" => Some("pools.activity"),
             "private-history" | "history" => Some("accounts.history"),
             "sync" | "sync-progress" => Some("accounts.sync"),
             "flow" | "flow-progress" => Some("transfer"),
@@ -353,9 +383,18 @@ fn canonical_operation(raw_operation: Option<&str>, raw_mode: Option<&str>, raw_
 }
 
 fn apply_envelope_metadata(object: &mut Map<String, Value>) {
-    let raw_mode = object.get("mode").and_then(Value::as_str).map(str::to_string);
-    let raw_action = object.get("action").and_then(Value::as_str).map(str::to_string);
-    let raw_operation = object.get("operation").and_then(Value::as_str).map(str::to_string);
+    let raw_mode = object
+        .get("mode")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let raw_action = object
+        .get("action")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    let raw_operation = object
+        .get("operation")
+        .and_then(Value::as_str)
+        .map(str::to_string);
     let Some(operation) = canonical_operation(
         raw_operation.as_deref(),
         raw_mode.as_deref(),
@@ -368,9 +407,23 @@ fn apply_envelope_metadata(object: &mut Map<String, Value>) {
         return;
     };
     let roots = [
-        "accounts", "capabilities", "completion", "config", "deposit", "describe", "guide",
-        "init", "migrate", "pools", "ragequit", "recipients", "status", "transfer", "tx",
-        "upgrade", "withdraw",
+        "accounts",
+        "capabilities",
+        "completion",
+        "config",
+        "deposit",
+        "describe",
+        "guide",
+        "init",
+        "migrate",
+        "pools",
+        "ragequit",
+        "recipients",
+        "status",
+        "transfer",
+        "tx",
+        "upgrade",
+        "withdraw",
     ];
     if !roots.contains(&mode) {
         return;
@@ -378,7 +431,10 @@ fn apply_envelope_metadata(object: &mut Map<String, Value>) {
     let action = parts.collect::<Vec<_>>().join(".");
     if let Some(raw_mode) = raw_mode.as_deref() {
         if (raw_mode == "direct" || raw_mode == "relayed") && !object.contains_key("withdrawMode") {
-            object.insert("withdrawMode".to_string(), Value::String(raw_mode.to_string()));
+            object.insert(
+                "withdrawMode".to_string(),
+                Value::String(raw_mode.to_string()),
+            );
         }
         if raw_mode == "unsigned" && !object.contains_key("unsigned") {
             object.insert("unsigned".to_string(), Value::Bool(true));
@@ -390,7 +446,10 @@ fn apply_envelope_metadata(object: &mut Map<String, Value>) {
         object.insert("operation".to_string(), Value::String(mode.to_string()));
     } else {
         object.insert("action".to_string(), Value::String(action.clone()));
-        object.insert("operation".to_string(), Value::String(format!("{mode}.{action}")));
+        object.insert(
+            "operation".to_string(),
+            Value::String(format!("{mode}.{action}")),
+        );
     }
 }
 

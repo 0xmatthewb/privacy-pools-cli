@@ -83,13 +83,13 @@ describe("renderPoolsEmpty parity", () => {
     expect(json.pools).toEqual([]);
     expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
       "status",
-      "activity",
+      "pools activity",
     ]);
     expect(json.nextActions[0].cliCommand).toBe(
       "privacy-pools status --agent --chain sepolia",
     );
     expect(json.nextActions[1].cliCommand).toBe(
-      "privacy-pools activity --agent --chain sepolia",
+      "privacy-pools pools activity --agent --chain sepolia",
     );
     expect(stderr).toBe("");
   });
@@ -113,10 +113,10 @@ describe("renderPoolsEmpty parity", () => {
     expect(json.chainSummaries).toEqual(data.chainSummaries);
     expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
       "status",
-      "activity",
+      "pools activity",
     ]);
     expect(json.nextActions[0].cliCommand).toBe("privacy-pools status --agent");
-    expect(json.nextActions[1].cliCommand).toBe("privacy-pools activity --agent");
+    expect(json.nextActions[1].cliCommand).toBe("privacy-pools pools activity --agent");
   });
 
   test("human mode: emits no-pools message to stderr", () => {
@@ -137,7 +137,7 @@ describe("renderPoolsEmpty parity", () => {
     expect(stderr).toContain("Try checking status on sepolia");
     expect(stderr).toContain("Next steps:");
     expect(stderr).toContain("privacy-pools status --chain sepolia");
-    expect(stderr).toContain("privacy-pools activity --chain sepolia");
+    expect(stderr).toContain("privacy-pools pools activity --chain sepolia");
   });
 
   test("quiet mode: emits nothing", () => {
@@ -199,14 +199,14 @@ describe("renderPools parity", () => {
     const json = parseCapturedJson(stdout);
     expect(json.nextActions.map((action: { command: string }) => action.command)).toEqual([
       "accounts",
-      "pools",
+      "pools show",
       "deposit",
     ]);
     expect(json.nextActions[0].cliCommand).toBe(
       "privacy-pools accounts --agent --chain sepolia",
     );
     expect(json.nextActions[1].cliCommand).toBe(
-      "privacy-pools pools ETH --agent --chain sepolia",
+      "privacy-pools pools show ETH --agent --chain sepolia",
     );
     expect(json.nextActions[2].runnable).toBe(false);
   });

@@ -3,12 +3,12 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import type { Command } from "commander";
-import { handleActivityCommand } from "../../src/commands/activity.ts";
 import {
-  handleGlobalStatsCommand,
-  handlePoolStatsCommand,
-} from "../../src/commands/stats.ts";
-import { handlePoolsCommand } from "../../src/commands/pools.ts";
+  handlePoolsActivityCommand,
+  handlePoolsCommand,
+  handlePoolsShowCommand,
+  handlePoolsStatsCommand,
+} from "../../src/commands/pools.ts";
 import { saveConfig } from "../../src/services/config.ts";
 import {
   captureAsyncJsonOutput,
@@ -324,7 +324,7 @@ describe("public read-only command handlers", () => {
       saveConfig({ defaultChain: "sepolia", rpcOverrides: {} });
 
       const { json } = await captureAsyncJsonOutput(() =>
-        handlePoolsCommand(
+        handlePoolsShowCommand(
           "ETHX",
           {},
           fakeCommand({ json: true, chain: "sepolia" }),
@@ -349,7 +349,7 @@ describe("public read-only command handlers", () => {
       saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
 
       const { json } = await captureAsyncJsonOutput(() =>
-        handleActivityCommand(undefined, {}, fakeCommand({ json: true })),
+        handlePoolsActivityCommand(undefined, {}, fakeCommand({ json: true })),
       );
 
       expect(json.success).toBe(true);
@@ -373,7 +373,7 @@ describe("public read-only command handlers", () => {
       saveConfig({ defaultChain: "sepolia", rpcOverrides: {} });
 
       const { json } = await captureAsyncJsonOutput(() =>
-        handleActivityCommand(
+        handlePoolsActivityCommand(
           "ETHX",
           { page: "1", limit: "5" },
           fakeCommand({ json: true, chain: "sepolia" }),
@@ -392,7 +392,7 @@ describe("public read-only command handlers", () => {
     }
   });
 
-  test("stats global returns cross-chain protocol data", async () => {
+  test("pools stats returns cross-chain protocol data", async () => {
     const server = await startPublicMockServer([1, 10, 42161]);
     try {
       process.env.PRIVACY_POOLS_HOME = createTrackedTempDir("pp-public-cmds-");
@@ -400,7 +400,7 @@ describe("public read-only command handlers", () => {
       saveConfig({ defaultChain: "mainnet", rpcOverrides: {} });
 
       const { json } = await captureAsyncJsonOutput(() =>
-        handleGlobalStatsCommand({}, fakeStatsSubcommand({ json: true })),
+        handlePoolsStatsCommand(undefined, {}, fakeStatsSubcommand({ json: true })),
       );
 
       expect(json.success).toBe(true);
@@ -415,7 +415,7 @@ describe("public read-only command handlers", () => {
     }
   });
 
-  test("stats pool returns per-pool statistics for a resolved asset", async () => {
+  test("pools stats returns per-pool statistics for a resolved asset", async () => {
     const server = await startPublicMockServer([11155111]);
     try {
       process.env.PRIVACY_POOLS_HOME = createTrackedTempDir("pp-public-cmds-");
@@ -424,7 +424,7 @@ describe("public read-only command handlers", () => {
       saveConfig({ defaultChain: "sepolia", rpcOverrides: {} });
 
       const { json } = await captureAsyncJsonOutput(() =>
-        handlePoolStatsCommand(
+        handlePoolsStatsCommand(
           "ETHX",
           {},
           fakeStatsSubcommand({ json: true, chain: "sepolia" }),
@@ -443,9 +443,9 @@ describe("public read-only command handlers", () => {
     }
   });
 
-  test("stats global fails with a structured INPUT error when --chain is set", async () => {
+  test("pools stats fails with a structured INPUT error when --chain is set", async () => {
     const { json, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      handleGlobalStatsCommand({}, fakeStatsSubcommand({ json: true, chain: "mainnet" })),
+      handlePoolsStatsCommand(undefined, {}, fakeStatsSubcommand({ json: true, chain: "mainnet" })),
     );
 
     expect(json.success).toBe(false);

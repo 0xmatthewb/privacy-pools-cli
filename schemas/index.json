@@ -86,20 +86,16 @@
       "schema": "schemas/pools.schema.json"
     },
     {
-      "command": "activity",
-      "schema": "schemas/activity.schema.json"
+      "command": "pools show",
+      "schema": "schemas/pools.show.schema.json"
     },
     {
-      "command": "stats",
-      "schema": "schemas/stats.schema.json"
+      "command": "pools activity",
+      "schema": "schemas/pools.activity.schema.json"
     },
     {
-      "command": "protocol-stats",
-      "schema": "schemas/protocol-stats.schema.json"
-    },
-    {
-      "command": "pool-stats",
-      "schema": "schemas/pool-stats.schema.json"
+      "command": "pools stats",
+      "schema": "schemas/pools.stats.schema.json"
     },
     {
       "command": "status",

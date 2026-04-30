@@ -27,7 +27,7 @@ fn build_pools_empty_json_payload(data: &PoolsRenderData) -> Value {
             None,
         ),
         build_next_action(
-            "activity",
+            "pools activity",
             if data.all_chains {
                 "Review public activity before depositing."
             } else {
@@ -135,7 +135,7 @@ pub(super) fn render_pools_empty_output(mode: &NativeMode, data: PoolsRenderData
         activity_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
     }
     next_actions.push(build_next_action(
-        "activity",
+        "pools activity",
         if data.all_chains {
             "Review public activity before depositing."
         } else {
@@ -330,7 +330,7 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
             activity_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
         }
         next_actions.push(build_next_action(
-            "activity",
+            "pools activity",
             if data.all_chains {
                 "Review public activity before depositing."
             } else {
@@ -408,7 +408,7 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
             detail_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
         }
         next_actions.push(build_next_action(
-            "pools",
+            "pools show",
             "Open the detailed view for this pool.",
             "after_pools",
             Some(&detail_args),
@@ -422,7 +422,7 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
         activity_options.insert("chain".to_string(), Value::String(data.chain_name.clone()));
     }
     next_actions.push(build_next_action(
-        "activity",
+        "pools activity",
         "Review recent public activity before depositing.",
         "after_pools",
         None,

@@ -70,7 +70,7 @@ describe("cli output policy regressions", () => {
     const withdraw = runCli(["withdraw", "--agent"]);
     const withdrawAmountOnly = runCli(["withdraw", "0.01", "--agent"]);
     const withdrawNoRecipient = runCli(["withdraw", "0.01", "ETH", "--agent"]);
-    const poolStats = runCli(["pool-stats", "--agent"]);
+    const poolsShow = runCli(["pools", "show", "--agent"]);
 
     expect(parseJsonOutput<{ errorCode: string; error: { hint: string } }>(
       deposit.stdout,
@@ -98,7 +98,7 @@ describe("cli output policy regressions", () => {
       withdrawNoRecipient.stdout,
     ).errorCode).toBe("INPUT_MISSING_RECIPIENT");
     expect(parseJsonOutput<{ errorCode: string }>(
-      poolStats.stdout,
+      poolsShow.stdout,
     ).errorCode).toBe("INPUT_MISSING_ASSET");
   });
 

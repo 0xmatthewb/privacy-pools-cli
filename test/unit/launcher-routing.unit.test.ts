@@ -705,13 +705,13 @@ describe("launcher routing", () => {
 
     expect(
       launcherTestInternals.invocationRequiresJsWorker(
-        parseRootArgv(["stats", "pool", "ETH"]),
+        parseRootArgv(["pools", "stats", "ETH"]),
       ),
     ).toBe(false);
 
     expect(
       launcherTestInternals.invocationRequiresJsWorker(
-        parseRootArgv(["pools", "ETH"]),
+        parseRootArgv(["pools", "show", "ETH"]),
       ),
     ).toBe(false);
 
@@ -804,7 +804,7 @@ describe("launcher routing", () => {
 
     try {
       const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-        runLauncher(PKG, ["--agent", "stats"]),
+        runLauncher(PKG, ["--agent", "pools", "stats"]),
       );
 
       expect(exitCode).toBe(1);

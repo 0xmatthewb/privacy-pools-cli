@@ -53,27 +53,16 @@ describe("command metadata conformance", () => {
 
     expect(runtimeCommands.map((entry) => entry.path)).toEqual([
       ...COMMAND_PATHS,
-      "stats global",
-      "stats pool",
     ].sort());
 
     for (const entry of runtimeCommands) {
-      if (
-        entry.path === "protocol-stats"
-        || entry.path === "pool-stats"
-        || entry.path === "stats global"
-        || entry.path === "stats pool"
-      ) {
-        expect(entry.aliases).toEqual([]);
-        continue;
-      }
       const metadata = getCommandMetadata(entry.path as (typeof COMMAND_PATHS)[number]);
       expect(entry.aliases).toEqual(metadata.aliases ?? []);
     }
 
-    expect(runtimeCommands.some((entry) => entry.path === "stats")).toBe(true);
-    expect(runtimeCommands.some((entry) => entry.path === "stats global")).toBe(true);
-    expect(runtimeCommands.some((entry) => entry.path === "stats pool")).toBe(true);
+    expect(runtimeCommands.some((entry) => entry.path === "pools show")).toBe(true);
+    expect(runtimeCommands.some((entry) => entry.path === "pools activity")).toBe(true);
+    expect(runtimeCommands.some((entry) => entry.path === "pools stats")).toBe(true);
   });
 
   test("capabilities payload stays derived from command metadata and execution metadata", () => {
@@ -85,8 +74,10 @@ describe("command metadata conformance", () => {
     }
 
     expect(payload.executionRoutes["pools"]).toEqual(getCommandExecutionMetadata("pools"));
+    expect(payload.executionRoutes["pools activity"]).toEqual(getCommandExecutionMetadata("pools activity"));
+    expect(payload.executionRoutes["pools stats"]).toEqual(getCommandExecutionMetadata("pools stats"));
     expect(payload.commandDetails["withdraw"]?.execution.owner).toBe("js-runtime");
-    expect(payload.commandDetails["pool-stats"]?.execution.owner).toBe("hybrid");
+    expect(payload.commandDetails["pools stats"]?.execution.owner).toBe("hybrid");
     expect(payload.commandDetails["capabilities"]?.execution.owner).toBe("native-shell");
     expect(payload.commandDetails["withdraw"]?.sideEffectClass).toBe("fund_movement");
     expect(payload.commandDetails["withdraw"]?.touchesFunds).toBe(true);
@@ -105,8 +96,8 @@ describe("command metadata conformance", () => {
       payload.commandDetails["flow"]?.expectedNextActionWhen,
     );
     expect(payload.safeReadOnlyCommands).toContain("flow status");
-    expect(payload.safeReadOnlyCommands).toContain("protocol-stats");
-    expect(payload.safeReadOnlyCommands).toContain("pool-stats");
+    expect(payload.safeReadOnlyCommands).toContain("pools activity");
+    expect(payload.safeReadOnlyCommands).toContain("pools stats");
     expect(payload.safeReadOnlyCommands).not.toContain("stats");
     expect(payload.exitCodes).toEqual(CAPABILITY_EXIT_CODES);
     for (const exitCode of payload.exitCodes) {
@@ -128,10 +119,13 @@ describe("command metadata conformance", () => {
     expect(rootOptions).toEqual(metadata);
   });
 
-  test("hidden compatibility aliases stay out of primary capabilities discovery", () => {
+  test("removed public-data root commands stay out of primary capabilities discovery", () => {
     const payload = buildCapabilitiesPayload();
 
     expect(listCommandPaths()).not.toContain("stats");
+    expect(listCommandPaths()).not.toContain("activity");
+    expect(listCommandPaths()).not.toContain("protocol-stats");
+    expect(listCommandPaths()).not.toContain("pool-stats");
     expect(payload.commands.map((command) => command.name)).not.toContain("stats");
     expect(Object.keys(payload.commandDetails)).not.toContain("stats");
   });
@@ -147,7 +141,7 @@ describe("command metadata conformance", () => {
   test("metadata preserves structural JSON variants for multi-mode commands", () => {
     const accountsJsonVariants = getCommandMetadata("accounts").help?.jsonVariants ?? [];
     const poolsJsonFields = getCommandMetadata("pools").help?.jsonFields ?? [];
-    const poolsJsonVariants = (getCommandMetadata("pools").help?.jsonVariants ?? []).join(" ");
+    const poolsShowJsonFields = getCommandMetadata("pools show").help?.jsonFields ?? "";
     const poolsAgentWorkflow = (getCommandMetadata("pools").help?.agentWorkflowNotes ?? []).join(" ");
     const statusFlags = getCommandMetadata("status").capabilities?.flags ?? [];
     const syncOverview = (getCommandMetadata("sync").help?.overview ?? []).join(" ");
@@ -182,8 +176,8 @@ describe("command metadata conformance", () => {
     expect(poolsJsonFields).toContain("pendingGrowth24h");
     expect(poolsJsonFields).toContain("nextActions");
     expect(poolsJsonFields).toContain("cliCommand");
-    expect(poolsJsonVariants).toContain("myFundsWarning");
-    expect(poolsJsonVariants).toContain("recentActivity");
+    expect(poolsShowJsonFields).toContain("myFundsWarning");
+    expect(poolsShowJsonFields).toContain("recentActivity");
     expect(poolsAgentWorkflow).toContain("may be null");
     expect(poolsAgentWorkflow).toContain("totalInPoolValue*");
     expect(statusFlags).toEqual(["--check [scope]", "--no-check", "--aggregated"]);

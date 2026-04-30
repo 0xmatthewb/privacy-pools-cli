@@ -35,7 +35,6 @@
       "-V",
       "-y",
       "accounts",
-      "activity",
       "broadcast",
       "capabilities",
       "completion",
@@ -47,13 +46,10 @@
       "history",
       "init",
       "migrate",
-      "pool-stats",
       "pools",
-      "protocol-stats",
       "ragequit",
       "recipients",
       "simulate",
-      "stats",
       "status",
       "sync",
       "tx-status",
@@ -92,9 +88,9 @@
     "expected": ["--json=quoteExpiresAt", "--json=quoteFeeBPS"]
   },
   {
-    "name": "stats alias subcommand prefix",
-    "words": ["privacy-pools", "stats", "p"],
+    "name": "pools subcommand prefix",
+    "words": ["privacy-pools", "pools", "s"],
     "cword": 2,
-    "expected": ["pool"]
+    "expected": ["show", "stats"]
   }
 ]

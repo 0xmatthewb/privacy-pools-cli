@@ -6,18 +6,18 @@ Detailed reference for the `privacy-pools pools` command family. Back to the [in
 
 ## `pools`
 
-Browse available pools
+Browse pools, public activity, and stats
 
 **Usage:** `privacy-pools pools [asset] [options]`
 
-Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --include-testnets to include supported testnets. Aggregate registry-backed value, count, and growth fields may be null when upstream data is unavailable for a specific pool or chain. Deprecated or wind-down pool badges are only shown when the upstream registry exposes an explicit lifecycle status. Current CLI-supported sources do not expose a canonical status signal, so the pools output intentionally leaves lifecycle badges unchanged for now.
+Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --include-testnets to include supported testnets. Use `pools show <asset>` for one pool, `pools activity [asset]` for public events, and `pools stats [asset]` for protocol or pool statistics. Aggregate registry-backed value, count, and growth fields may be null when upstream data is unavailable for a specific pool or chain. Deprecated or wind-down pool badges are only shown when the upstream registry exposes an explicit lifecycle status. Current CLI-supported sources do not expose a canonical status signal, so the pools output intentionally leaves lifecycle badges unchanged for now.
 
 **Basic:**
 
 ```bash
 privacy-pools pools
-privacy-pools pools ETH
-privacy-pools pools BOLD --chain mainnet
+privacy-pools pools show ETH
+privacy-pools pools show BOLD --chain mainnet
 ```
 
 **Search and sort:**
@@ -44,6 +44,82 @@ privacy-pools pools --agent --chain mainnet
 
 **JSON output:** `{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
 
+## `pools show`
+
+Show detail for one public pool
+
+**Usage:** `privacy-pools pools show <asset> [options]`
+
+Shows pool metadata, aggregate public stats, recent public activity, and your cached funds for a single asset. Use this detail view before depositing or when an agent needs the canonical pool address and scope for an asset.
+
+**Basic:**
+
+```bash
+privacy-pools pools show ETH
+privacy-pools pools show BOLD --chain mainnet
+```
+
+**Agent / CI:**
+
+```bash
+privacy-pools pools show USDC --agent --chain mainnet
+```
+
+
+**JSON output:** `{ mode: "pools", action: "show", operation: "pools.show", chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }`
+
 **JSON variants:**
-- `detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }`
-- `detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }`
+- `myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }`
+
+## `pools activity`
+
+Browse public pool activity
+
+**Usage:** `privacy-pools pools activity [asset] [options]`
+
+Shows the public onchain event feed across Privacy Pools, including deposits and withdrawals from all participants. Bare `pools activity` stays on CLI-supported mainnet chains by default. Use --include-testnets to aggregate supported mainnet and testnet activity together. For your own private transaction history, use 'history' instead.
+
+**Basic:**
+
+```bash
+privacy-pools pools activity
+privacy-pools pools activity --page 2 --limit 20
+privacy-pools pools activity --include-testnets
+privacy-pools pools activity ETH
+```
+
+**Agent / CI:**
+
+```bash
+privacy-pools pools activity USDC --agent --chain mainnet
+```
+
+
+| Flag | Description |
+|------|-------------|
+| `--include-testnets` | Include supported testnets (default: CLI-supported mainnet chains only) |
+| `--page <n>` | Page number |
+| `-n, --limit <n>` | Items per page |
+
+**JSON output:** `{ mode: "pools", action: "activity", operation: "pools.activity", chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }`
+
+## `pools stats`
+
+View public protocol or pool statistics
+
+**Usage:** `privacy-pools pools stats [asset] [options]`
+
+Without an asset, returns aggregate cross-chain statistics. The --chain flag is not supported for the aggregate view; use `pools stats <symbol> --chain <chain>` for a chain-specific pool view. With an asset, returns the aggregate report for one pool. --limit is accepted for list-command consistency; stats output remains an aggregate summary and does not truncate allTime/last24h summary objects.
+
+```bash
+privacy-pools pools stats
+privacy-pools pools stats --agent --limit 10
+privacy-pools pools stats ETH
+privacy-pools pools stats USDC --agent --chain mainnet --limit 10
+```
+
+| Flag | Description |
+|------|-------------|
+| `-n, --limit <n>` | Limit repeated rows in tabular stats output |
+
+**JSON output:** `{ mode: "pools", action: "stats", operation: "pools.stats", chain, chains?, asset?, pool?, scope?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }`

@@ -17,7 +17,7 @@ const COMMON_WORKFLOWS = [
 
 const COMMON_PAIRS = [
   ["Your state", "privacy-pools accounts"],
-  ["Network state", "privacy-pools activity"],
+  ["Network state", "privacy-pools pools activity"],
 ] as const;
 
 const COMMAND_GROUPS = ROOT_COMMAND_GROUPS.map(

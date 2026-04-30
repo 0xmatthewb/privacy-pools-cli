@@ -34,13 +34,12 @@ flattened.
 | Command | CSV |
 |---------|-----|
 | `pools` | Yes |
+| `pools activity` | Yes |
+| `pools stats` | Yes |
+| `pools show` | No |
 | `accounts` | Yes |
-| `activity` | Yes |
-| `protocol-stats` | Yes |
-| `pool-stats` | Yes |
-| `stats` | Yes |
 | `history` | Yes |
-| `recipients` | Yes |
+| `recipients list` | Yes |
 | `deposit` | No |
 | `withdraw` | No |
 | `ragequit` | No |

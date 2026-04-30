@@ -31,9 +31,9 @@ export const GENERATED_COMMAND_PATHS = [
   "flow step",
   "flow ragequit",
   "pools",
-  "activity",
-  "protocol-stats",
-  "pool-stats",
+  "pools show",
+  "pools activity",
+  "pools stats",
   "status",
   "tx-status",
   "capabilities",
@@ -84,9 +84,9 @@ export const GENERATED_ROUTE_COMMAND_PATHS = [
   "flow step",
   "flow ragequit",
   "pools",
-  "activity",
-  "protocol-stats",
-  "pool-stats",
+  "pools show",
+  "pools activity",
+  "pools stats",
   "status",
   "tx-status",
   "capabilities",
@@ -144,27 +144,7 @@ export const GENERATED_ROOT_COMMANDS = [
   {
     "name": "pools",
     "aliases": [],
-    "description": "Browse available pools"
-  },
-  {
-    "name": "activity",
-    "aliases": [],
-    "description": "Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol"
-  },
-  {
-    "name": "protocol-stats",
-    "aliases": [
-      "stats",
-      "stats global"
-    ],
-    "description": "View aggregate network statistics"
-  },
-  {
-    "name": "pool-stats",
-    "aliases": [
-      "stats pool"
-    ],
-    "description": "View statistics for one pool"
+    "description": "Browse pools, public activity, and stats"
   },
   {
     "name": "status",
@@ -250,11 +230,7 @@ export const GENERATED_STATIC_LOCAL_COMMANDS = [
   "completion"
 ] as const;
 
-export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = {
-  "stats": "protocol-stats",
-  "stats global": "protocol-stats",
-  "stats pool": "pool-stats"
-};
+export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = {};
 
 export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, GeneratedCommandRoute> = {
   "init": {
@@ -381,13 +357,20 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, Generat
     "owner": "hybrid",
     "nativeModes": [
       "default-list",
-      "default-detail",
       "csv-list",
       "structured-list",
       "help"
     ]
   },
-  "activity": {
+  "pools show": {
+    "owner": "hybrid",
+    "nativeModes": [
+      "default-detail",
+      "structured-detail",
+      "help"
+    ]
+  },
+  "pools activity": {
     "owner": "hybrid",
     "nativeModes": [
       "default",
@@ -396,16 +379,7 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, Generat
       "help"
     ]
   },
-  "protocol-stats": {
-    "owner": "hybrid",
-    "nativeModes": [
-      "default",
-      "csv",
-      "structured",
-      "help"
-    ]
-  },
-  "pool-stats": {
+  "pools stats": {
     "owner": "hybrid",
     "nativeModes": [
       "default",
@@ -1115,7 +1089,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     {
       "name": "pools",
-      "description": "Browse available pools",
+      "description": "Browse pools, public activity, and stats",
       "group": "monitoring",
       "usage": "pools",
       "flags": [
@@ -1131,6 +1105,80 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "--limit",
         "--search",
         "--sort"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "medium",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
+    },
+    {
+      "name": "pools show",
+      "description": "Show detail for one public pool",
+      "group": "monitoring",
+      "usage": "pools show <asset>",
+      "flags": [
+        "<asset>"
+      ],
+      "agentFlags": "--agent <asset>",
+      "agentFlagNames": [
+        "--agent"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "medium",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
+    },
+    {
+      "name": "pools activity",
+      "description": "Browse public pool activity",
+      "group": "monitoring",
+      "usage": "pools activity [asset]",
+      "flags": [
+        "[asset]",
+        "--include-testnets",
+        "--page <n>",
+        "--limit <n>"
+      ],
+      "agentFlags": "--agent [<asset>] [--include-testnets] [--page <n>] [--limit <n>]",
+      "agentFlagNames": [
+        "--agent",
+        "--include-testnets",
+        "--limit",
+        "--page"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "medium",
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": true,
+      "commandType": "concrete"
+    },
+    {
+      "name": "pools stats",
+      "description": "View public protocol or pool statistics",
+      "group": "monitoring",
+      "usage": "pools stats [asset]",
+      "flags": [
+        "[asset]",
+        "--limit <n>"
+      ],
+      "agentFlags": "--agent [<asset>] [--limit <n>]",
+      "agentFlagNames": [
+        "--agent",
+        "--limit"
       ],
       "requiresInit": false,
       "expectedLatencyClass": "medium",
@@ -1187,88 +1235,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "mutatesLocalState": false,
       "streamJsonSupported": false,
       "csvSupported": false,
-      "commandType": "concrete"
-    },
-    {
-      "name": "activity",
-      "description": "Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol",
-      "group": "monitoring",
-      "usage": "activity",
-      "flags": [
-        "[asset]",
-        "--include-testnets",
-        "--page <n>",
-        "--limit <n>"
-      ],
-      "agentFlags": "--agent [<asset>] [--include-testnets] [--page <n>] [--limit <n>]",
-      "agentFlagNames": [
-        "--agent",
-        "--include-testnets",
-        "--limit",
-        "--page"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "medium",
-      "agentSupported": true,
-      "humanInteractive": false,
-      "mutatesFunds": false,
-      "mutatesLocalState": false,
-      "streamJsonSupported": false,
-      "csvSupported": true,
-      "commandType": "concrete"
-    },
-    {
-      "name": "protocol-stats",
-      "description": "View aggregate network statistics",
-      "group": "monitoring",
-      "aliases": [
-        "stats",
-        "stats global"
-      ],
-      "usage": "protocol-stats",
-      "flags": [
-        "--limit <n>"
-      ],
-      "agentFlags": "--agent [--limit <n>]",
-      "agentFlagNames": [
-        "--agent",
-        "--limit"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "medium",
-      "agentSupported": true,
-      "humanInteractive": false,
-      "mutatesFunds": false,
-      "mutatesLocalState": false,
-      "streamJsonSupported": false,
-      "csvSupported": true,
-      "commandType": "concrete"
-    },
-    {
-      "name": "pool-stats",
-      "description": "View statistics for one pool",
-      "group": "monitoring",
-      "aliases": [
-        "stats pool"
-      ],
-      "usage": "pool-stats <symbol|address>",
-      "flags": [
-        "<symbol|address>",
-        "--limit <n>"
-      ],
-      "agentFlags": "--agent [--limit <n>]",
-      "agentFlagNames": [
-        "--agent",
-        "--limit"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "medium",
-      "agentSupported": true,
-      "humanInteractive": false,
-      "mutatesFunds": false,
-      "mutatesLocalState": false,
-      "streamJsonSupported": false,
-      "csvSupported": true,
       "commandType": "concrete"
     },
     {
@@ -3951,14 +3917,13 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     },
     "pools": {
       "command": "pools",
-      "description": "Browse available pools",
+      "description": "Browse pools, public activity, and stats",
       "group": "monitoring",
       "aliases": [],
       "execution": {
         "owner": "hybrid",
         "nativeModes": [
           "default-list",
-          "default-detail",
           "csv-list",
           "structured-list",
           "help"
@@ -4006,8 +3971,8 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "category": "Basic",
           "commands": [
             "privacy-pools pools",
-            "privacy-pools pools ETH",
-            "privacy-pools pools BOLD --chain mainnet"
+            "privacy-pools pools show ETH",
+            "privacy-pools pools show BOLD --chain mainnet"
           ]
         },
         {
@@ -4034,12 +3999,12 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         {
           "description": "Basic",
           "category": "Basic",
-          "command": "privacy-pools pools ETH"
+          "command": "privacy-pools pools show ETH"
         },
         {
           "description": "Basic",
           "category": "Basic",
-          "command": "privacy-pools pools BOLD --chain mainnet"
+          "command": "privacy-pools pools show BOLD --chain mainnet"
         },
         {
           "description": "Search and sort",
@@ -4063,10 +4028,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         }
       ],
       "jsonFields": "{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      "jsonVariants": [
-        "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
-        "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }"
-      ],
+      "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
       ],
@@ -4092,9 +4054,109 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "csvSupported": true,
       "commandType": "concrete"
     },
-    "activity": {
-      "command": "activity",
-      "description": "Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol",
+    "pools show": {
+      "command": "pools show",
+      "description": "Show detail for one public pool",
+      "group": "monitoring",
+      "aliases": [],
+      "execution": {
+        "owner": "hybrid",
+        "nativeModes": [
+          "default-detail",
+          "structured-detail",
+          "help"
+        ]
+      },
+      "usage": "pools show <asset>",
+      "flags": [
+        "<asset>"
+      ],
+      "globalFlags": [
+        "-c, --chain <name>",
+        "-j, --json",
+        "--json-fields <fields>",
+        "--template <template>",
+        "-o, --output <format>",
+        "-y, --yes",
+        "--web",
+        "--help-brief",
+        "--help-full",
+        "-r, --rpc-url <url>",
+        "--agent",
+        "-q, --quiet",
+        "--no-banner",
+        "-v, --verbose",
+        "--no-progress",
+        "--no-header",
+        "--timeout <seconds>",
+        "--jmes <expression>",
+        "--jq <expression>",
+        "--no-color",
+        "--profile <name>"
+      ],
+      "requiresInit": false,
+      "expectedLatencyClass": "medium",
+      "safeReadOnly": true,
+      "sideEffectClass": "read_only",
+      "touchesFunds": false,
+      "requiresHumanReview": false,
+      "prerequisites": [],
+      "examples": [
+        {
+          "category": "Basic",
+          "commands": [
+            "privacy-pools pools show ETH",
+            "privacy-pools pools show BOLD --chain mainnet"
+          ]
+        },
+        {
+          "category": "Agent / CI",
+          "commands": [
+            "privacy-pools pools show USDC --agent --chain mainnet"
+          ]
+        }
+      ],
+      "structuredExamples": [
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools pools show ETH"
+        },
+        {
+          "description": "Basic",
+          "category": "Basic",
+          "command": "privacy-pools pools show BOLD --chain mainnet"
+        },
+        {
+          "description": "Agent / CI",
+          "category": "Agent / CI",
+          "command": "privacy-pools pools show USDC --agent --chain mainnet"
+        }
+      ],
+      "jsonFields": "{ mode: \"pools\", action: \"show\", operation: \"pools.show\", chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
+      "jsonVariants": [
+        "myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }"
+      ],
+      "safetyNotes": [
+        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
+      ],
+      "supportsUnsigned": false,
+      "supportsDryRun": false,
+      "agentFlagNames": [
+        "--agent"
+      ],
+      "agentWorkflowNotes": [],
+      "agentSupported": true,
+      "humanInteractive": false,
+      "mutatesFunds": false,
+      "mutatesLocalState": false,
+      "streamJsonSupported": false,
+      "csvSupported": false,
+      "commandType": "concrete"
+    },
+    "pools activity": {
+      "command": "pools activity",
+      "description": "Browse public pool activity",
       "group": "monitoring",
       "aliases": [],
       "execution": {
@@ -4106,7 +4168,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "help"
         ]
       },
-      "usage": "activity",
+      "usage": "pools activity [asset]",
       "flags": [
         "[asset]",
         "--include-testnets",
@@ -4147,16 +4209,16 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         {
           "category": "Basic",
           "commands": [
-            "privacy-pools activity",
-            "privacy-pools activity --page 2 --limit 20",
-            "privacy-pools activity --include-testnets",
-            "privacy-pools activity ETH"
+            "privacy-pools pools activity",
+            "privacy-pools pools activity --page 2 --limit 20",
+            "privacy-pools pools activity --include-testnets",
+            "privacy-pools pools activity ETH"
           ]
         },
         {
           "category": "Agent / CI",
           "commands": [
-            "privacy-pools activity USDC --agent --chain mainnet"
+            "privacy-pools pools activity USDC --agent --chain mainnet"
           ]
         }
       ],
@@ -4164,30 +4226,30 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         {
           "description": "Basic",
           "category": "Basic",
-          "command": "privacy-pools activity"
+          "command": "privacy-pools pools activity"
         },
         {
           "description": "Basic",
           "category": "Basic",
-          "command": "privacy-pools activity --page 2 --limit 20"
+          "command": "privacy-pools pools activity --page 2 --limit 20"
         },
         {
           "description": "Basic",
           "category": "Basic",
-          "command": "privacy-pools activity --include-testnets"
+          "command": "privacy-pools pools activity --include-testnets"
         },
         {
           "description": "Basic",
           "category": "Basic",
-          "command": "privacy-pools activity ETH"
+          "command": "privacy-pools pools activity ETH"
         },
         {
           "description": "Agent / CI",
           "category": "Agent / CI",
-          "command": "privacy-pools activity USDC --agent --chain mainnet"
+          "command": "privacy-pools pools activity USDC --agent --chain mainnet"
         }
       ],
-      "jsonFields": "{ mode, chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      "jsonFields": "{ mode: \"pools\", action: \"activity\", operation: \"pools.activity\", chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -4209,14 +4271,11 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "csvSupported": true,
       "commandType": "concrete"
     },
-    "protocol-stats": {
-      "command": "protocol-stats",
-      "description": "View aggregate network statistics",
+    "pools stats": {
+      "command": "pools stats",
+      "description": "View public protocol or pool statistics",
       "group": "monitoring",
-      "aliases": [
-        "stats",
-        "stats global"
-      ],
+      "aliases": [],
       "execution": {
         "owner": "hybrid",
         "nativeModes": [
@@ -4226,92 +4285,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "help"
         ]
       },
-      "usage": "protocol-stats",
+      "usage": "pools stats [asset]",
       "flags": [
-        "--limit <n>"
-      ],
-      "globalFlags": [
-        "-j, --json",
-        "--json-fields <fields>",
-        "--template <template>",
-        "-o, --output <format>",
-        "-y, --yes",
-        "--web",
-        "--help-brief",
-        "--help-full",
-        "-r, --rpc-url <url>",
-        "--agent",
-        "-q, --quiet",
-        "--no-banner",
-        "-v, --verbose",
-        "--no-progress",
-        "--no-header",
-        "--timeout <seconds>",
-        "--jmes <expression>",
-        "--jq <expression>",
-        "--no-color",
-        "--profile <name>"
-      ],
-      "requiresInit": false,
-      "expectedLatencyClass": "medium",
-      "safeReadOnly": true,
-      "sideEffectClass": "read_only",
-      "touchesFunds": false,
-      "requiresHumanReview": false,
-      "prerequisites": [],
-      "examples": [
-        "privacy-pools protocol-stats",
-        "privacy-pools protocol-stats --agent --limit 10"
-      ],
-      "structuredExamples": [
-        {
-          "description": "Example 1",
-          "command": "privacy-pools protocol-stats"
-        },
-        {
-          "description": "Example 2",
-          "command": "privacy-pools protocol-stats --agent --limit 10"
-        }
-      ],
-      "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
-      "jsonVariants": [],
-      "safetyNotes": [
-        "Exit code categories are documented in 'privacy-pools guide exit-codes'."
-      ],
-      "supportsUnsigned": false,
-      "supportsDryRun": false,
-      "agentFlagNames": [
-        "--agent",
-        "--limit"
-      ],
-      "agentWorkflowNotes": [],
-      "agentSupported": true,
-      "humanInteractive": false,
-      "mutatesFunds": false,
-      "mutatesLocalState": false,
-      "streamJsonSupported": false,
-      "csvSupported": true,
-      "commandType": "concrete"
-    },
-    "pool-stats": {
-      "command": "pool-stats",
-      "description": "View statistics for one pool",
-      "group": "monitoring",
-      "aliases": [
-        "stats pool"
-      ],
-      "execution": {
-        "owner": "hybrid",
-        "nativeModes": [
-          "default",
-          "csv",
-          "structured",
-          "help"
-        ]
-      },
-      "usage": "pool-stats <symbol|address>",
-      "flags": [
-        "<symbol|address>",
+        "[asset]",
         "--limit <n>"
       ],
       "globalFlags": [
@@ -4345,20 +4321,30 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "requiresHumanReview": false,
       "prerequisites": [],
       "examples": [
-        "privacy-pools pool-stats ETH",
-        "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10"
+        "privacy-pools pools stats",
+        "privacy-pools pools stats --agent --limit 10",
+        "privacy-pools pools stats ETH",
+        "privacy-pools pools stats USDC --agent --chain mainnet --limit 10"
       ],
       "structuredExamples": [
         {
           "description": "Example 1",
-          "command": "privacy-pools pool-stats ETH"
+          "command": "privacy-pools pools stats"
         },
         {
           "description": "Example 2",
-          "command": "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10"
+          "command": "privacy-pools pools stats --agent --limit 10"
+        },
+        {
+          "description": "Example 3",
+          "command": "privacy-pools pools stats ETH"
+        },
+        {
+          "description": "Example 4",
+          "command": "privacy-pools pools stats USDC --agent --chain mainnet --limit 10"
         }
       ],
-      "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
+      "jsonFields": "{ mode: \"pools\", action: \"stats\", operation: \"pools.stats\", chain, chains?, asset?, pool?, scope?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -4715,7 +4701,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
         "privacy-pools describe flow --agent",
-        "privacy-pools describe protocol-stats --agent",
+        "privacy-pools describe pools stats --agent",
         "privacy-pools describe envelope.nextActions --agent",
         "privacy-pools describe envelope.commands.status.successFields --agent"
       ],
@@ -4734,7 +4720,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 4",
-          "command": "privacy-pools describe protocol-stats --agent"
+          "command": "privacy-pools describe pools stats --agent"
         },
         {
           "description": "Example 5",
@@ -6957,13 +6943,20 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "owner": "hybrid",
       "nativeModes": [
         "default-list",
-        "default-detail",
         "csv-list",
         "structured-list",
         "help"
       ]
     },
-    "activity": {
+    "pools show": {
+      "owner": "hybrid",
+      "nativeModes": [
+        "default-detail",
+        "structured-detail",
+        "help"
+      ]
+    },
+    "pools activity": {
       "owner": "hybrid",
       "nativeModes": [
         "default",
@@ -6972,16 +6965,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "help"
       ]
     },
-    "protocol-stats": {
-      "owner": "hybrid",
-      "nativeModes": [
-        "default",
-        "csv",
-        "structured",
-        "help"
-      ]
-    },
-    "pool-stats": {
+    "pools stats": {
       "owner": "hybrid",
       "nativeModes": [
         "default",
@@ -8426,9 +8410,9 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
     "simulate",
     "flow status",
     "pools",
-    "activity",
-    "protocol-stats",
-    "pool-stats",
+    "pools show",
+    "pools activity",
+    "pools stats",
     "status",
     "tx-status",
     "capabilities",

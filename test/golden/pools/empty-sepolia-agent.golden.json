@@ -13,8 +13,8 @@
       "when": "no_pools_found"
     },
     {
-      "cliCommand": "privacy-pools activity --agent --chain sepolia",
-      "command": "activity",
+      "cliCommand": "privacy-pools pools activity --agent --chain sepolia",
+      "command": "pools activity",
       "options": {
         "chain": "sepolia"
       },

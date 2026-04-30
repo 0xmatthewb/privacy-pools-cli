@@ -97,10 +97,7 @@ fn completion_contracts_hold_for_human_and_agent_modes() {
     assert!(stderr_string(&agent).trim().is_empty());
     let payload = parse_stdout_json(&agent);
     assert_eq!(payload["success"], Value::Bool(true));
-    assert_eq!(
-        payload["mode"],
-        Value::String("completion".to_string())
-    );
+    assert_eq!(payload["mode"], Value::String("completion".to_string()));
     assert_eq!(
         payload["operation"],
         Value::String("completion.script".to_string())

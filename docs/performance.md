@@ -45,7 +45,7 @@ It keeps the setup intentionally lightweight:
 - no external benchmark runner
 - isolated temp home for `status --json --no-check` in the JS lane
 - local fixture-backed ASP/RPC paths for public read-only commands
-- chain-scoped pool-stats fixtures plus matching RPC stubs for the default
+- chain-scoped `pools stats` fixtures plus matching RPC stubs for the default
   multi-mainnet `pools --agent` success path
 
 The default command matrix covers:
@@ -59,10 +59,10 @@ The default command matrix covers:
 - `status --json --no-check`
 - `pools --agent`
 - `pools --agent --chain sepolia`
-- `activity --agent`
-- `activity ETH --agent --chain sepolia`
-- `stats --agent`
-- `pool-stats ETH --agent --chain sepolia`
+- `pools activity --agent`
+- `pools activity ETH --agent --chain sepolia`
+- `pools stats --agent`
+- `pools stats ETH --agent --chain sepolia`
 
 Treat those families as distinct budgets rather than one global number:
 

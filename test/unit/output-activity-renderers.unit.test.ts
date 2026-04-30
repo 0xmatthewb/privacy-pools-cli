@@ -135,7 +135,7 @@ describe("renderActivity pool-activity parity", () => {
     const { stderr } = captureOutput(() => renderActivity(ctx, data));
 
     expect(stderr).toContain("Page 1 of 3");
-    expect(stderr).toContain("privacy-pools activity --page 2");
+    expect(stderr).toContain("privacy-pools pools activity --page 2");
   });
 
   test("human mode: omits 'next' hint on last page", () => {
@@ -169,7 +169,7 @@ describe("renderActivity pool-activity parity", () => {
     const json = JSON.parse(stdout.trim());
     expect(json.nextActions.length).toBe(1);
     const action = json.nextActions[0];
-    expect(action.command).toBe("activity");
+    expect(action.command).toBe("pools activity");
     expect(action.options.page).toBe(2);
     // limit must be carried to preserve window size across pages
     expect(action.options.limit).toBe(20);
@@ -192,9 +192,9 @@ describe("renderActivity pool-activity parity", () => {
     const json = JSON.parse(stdout.trim());
     expect(json.nextActions).toHaveLength(1);
     expect(json.nextActions[0]).toMatchObject({
-      command: "pools",
+      command: "pools show",
       when: "after_activity",
-      cliCommand: "privacy-pools pools --agent --chain sepolia",
+      cliCommand: "privacy-pools pools show ETH --agent --chain sepolia",
     });
   });
 
@@ -209,9 +209,9 @@ describe("renderActivity pool-activity parity", () => {
     const json = JSON.parse(stdout.trim());
     expect(json.nextActions).toHaveLength(1);
     expect(json.nextActions[0]).toMatchObject({
-      command: "pools",
+      command: "pools show",
       when: "after_activity",
-      cliCommand: "privacy-pools pools --agent --chain sepolia",
+      cliCommand: "privacy-pools pools show ETH --agent --chain sepolia",
     });
   });
 });

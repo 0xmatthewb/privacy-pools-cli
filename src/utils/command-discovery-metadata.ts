@@ -36,9 +36,7 @@ export { COMMAND_PATHS } from "./command-catalog.js";
 const CLI_PACKAGE_INFO = readCliPackageInfo(import.meta.url);
 const EXIT_CODES_GUIDE_NOTE =
   "Exit code categories are documented in 'privacy-pools guide exit-codes'.";
-const HIDDEN_DISCOVERY_COMMANDS = new Set<CommandPath>([
-  "stats",
-]);
+const HIDDEN_DISCOVERY_COMMANDS = new Set<CommandPath>();
 const AGENT_FLAG_PATTERN = /--[a-z0-9][a-z0-9-]*/gi;
 
 export interface GlobalFlagMetadata {
@@ -70,18 +68,7 @@ function defaultExecutionMetadata(path: CommandPath): CommandExecutionDescriptor
     };
   }
 
-  if (path === "stats") {
-    return {
-      owner: "hybrid",
-      nativeModes: ["default", "csv", "structured-default", "structured-global", "help"],
-    };
-  }
-
-  if (
-    path === "protocol-stats"
-    || path === "pool-stats"
-    || path === "activity"
-  ) {
+  if (path === "pools activity" || path === "pools stats") {
     return {
       owner: "hybrid",
       nativeModes: ["default", "csv", "structured", "help"],
@@ -91,7 +78,14 @@ function defaultExecutionMetadata(path: CommandPath): CommandExecutionDescriptor
   if (path === "pools") {
     return {
       owner: "hybrid",
-      nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
+      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
+    };
+  }
+
+  if (path === "pools show") {
+    return {
+      owner: "hybrid",
+      nativeModes: ["default-detail", "structured-detail", "help"],
     };
   }
 
@@ -140,11 +134,11 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "simulate withdraw",
   "simulate ragequit",
   "pools",
+  "pools show",
+  "pools activity",
+  "pools stats",
   "status",
   "tx-status",
-  "activity",
-  "protocol-stats",
-  "pool-stats",
   "describe",
   "deposit",
   "withdraw",
@@ -247,10 +241,7 @@ export const CAPABILITY_EXIT_CODES: CapabilityExitCodeDescriptor[] = [
 
 const CHAIN_GLOBAL_FLAG = "-c, --chain <name>";
 
-const CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS = new Set<CommandPath>([
-  "stats",
-  "protocol-stats",
-]);
+const CHAIN_UNSUPPORTED_DESCRIPTOR_COMMANDS = new Set<CommandPath>();
 
 function supportedGlobalFlagMetadata(path: CommandPath): GlobalFlagMetadata[] {
   return GLOBAL_FLAG_METADATA.filter((entry) => {
@@ -372,10 +363,9 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
   "config get",
   "config path",
   "pools",
-  "activity",
-  "stats",
-  "protocol-stats",
-  "pool-stats",
+  "pools show",
+  "pools activity",
+  "pools stats",
   "status",
   "flow status",
   "migrate",
@@ -417,10 +407,8 @@ const FUND_MOVEMENT_COMMANDS = new Set<CommandPath>([
 
 const CSV_SUPPORTED_COMMAND_PATHS = new Set<CommandPath>([
   "pools",
-  "activity",
-  "protocol-stats",
-  "pool-stats",
-  "stats",
+  "pools activity",
+  "pools stats",
   "accounts",
   "history",
   "recipients list",

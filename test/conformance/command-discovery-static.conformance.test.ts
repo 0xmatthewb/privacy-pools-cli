@@ -30,7 +30,7 @@ describe("command discovery static conformance", () => {
   const sentinelCommands = [
     "guide",
     "pools",
-    "pool-stats",
+    "pools stats",
     "withdraw",
     "flow watch",
   ] as const;
@@ -77,11 +77,7 @@ describe("command discovery static conformance", () => {
       "describe",
       "completion",
     ]);
-    expect(GENERATED_COMMAND_ALIAS_MAP).toEqual({
-      stats: "protocol-stats",
-      "stats global": "protocol-stats",
-      "stats pool": "pool-stats",
-    });
+    expect(GENERATED_COMMAND_ALIAS_MAP).toEqual({});
     expect(GENERATED_COMMAND_PATHS).toContain("guide");
     expect(GENERATED_COMMAND_PATHS).toContain("pools");
     expect(GENERATED_COMMAND_PATHS).toContain("withdraw");
@@ -92,13 +88,17 @@ describe("command discovery static conformance", () => {
     });
     expect(GENERATED_COMMAND_ROUTES.pools).toEqual({
       owner: "hybrid",
-      nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
+      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
     });
-    expect(GENERATED_COMMAND_ROUTES["protocol-stats"]).toEqual({
+    expect(GENERATED_COMMAND_ROUTES["pools show"]).toEqual({
+      owner: "hybrid",
+      nativeModes: ["default-detail", "structured-detail", "help"],
+    });
+    expect(GENERATED_COMMAND_ROUTES["pools activity"]).toEqual({
       owner: "hybrid",
       nativeModes: ["default", "csv", "structured", "help"],
     });
-    expect(GENERATED_COMMAND_ROUTES["pool-stats"]).toEqual({
+    expect(GENERATED_COMMAND_ROUTES["pools stats"]).toEqual({
       owner: "hybrid",
       nativeModes: ["default", "csv", "structured", "help"],
     });

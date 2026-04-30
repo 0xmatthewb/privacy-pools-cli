@@ -25,10 +25,6 @@ const nativeManifest = JSON.parse(
 };
 
 const EXPECTED_NON_JS_ROUTES = {
-  activity: {
-    owner: "hybrid",
-    nativeModes: ["default", "csv", "structured", "help"],
-  },
   capabilities: {
     owner: "native-shell",
     nativeModes: ["default", "help"],
@@ -47,13 +43,17 @@ const EXPECTED_NON_JS_ROUTES = {
   },
   pools: {
     owner: "hybrid",
-    nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
+    nativeModes: ["default-list", "csv-list", "structured-list", "help"],
   },
-  "protocol-stats": {
+  "pools show": {
+    owner: "hybrid",
+    nativeModes: ["default-detail", "structured-detail", "help"],
+  },
+  "pools activity": {
     owner: "hybrid",
     nativeModes: ["default", "csv", "structured", "help"],
   },
-  "pool-stats": {
+  "pools stats": {
     owner: "hybrid",
     nativeModes: ["default", "csv", "structured", "help"],
   },
@@ -109,25 +109,25 @@ describe("native safety boundary conformance", () => {
     }
   });
 
-  test("pools stays nativeized only for public list mode, not detail mode", () => {
+  test("pools namespace stays nativeized only for public read-only modes", () => {
     expect(GENERATED_COMMAND_ROUTES.pools).toEqual({
       owner: "hybrid",
-      nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
+      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
     });
 
     expect(nativeManifest.routes.commandRoutes.pools).toEqual({
       owner: "hybrid",
-      nativeModes: ["default-list", "default-detail", "csv-list", "structured-list", "help"],
+      nativeModes: ["default-list", "csv-list", "structured-list", "help"],
     });
   });
 
-  test("pool-stats keeps native ownership limited to public render-only modes", () => {
-    expect(GENERATED_COMMAND_ROUTES["pool-stats"]).toEqual({
+  test("pools stats keeps native ownership limited to public render-only modes", () => {
+    expect(GENERATED_COMMAND_ROUTES["pools stats"]).toEqual({
       owner: "hybrid",
       nativeModes: ["default", "csv", "structured", "help"],
     });
 
-    expect(nativeManifest.routes.commandRoutes["pool-stats"]).toEqual({
+    expect(nativeManifest.routes.commandRoutes["pools stats"]).toEqual({
       owner: "hybrid",
       nativeModes: ["default", "csv", "structured", "help"],
     });

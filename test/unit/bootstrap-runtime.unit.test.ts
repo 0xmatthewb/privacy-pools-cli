@@ -1160,9 +1160,9 @@ describe("bootstrap runtime coverage", () => {
           code: "commander.missingArgument",
           message: "error: missing argument '<asset>'",
         },
-        { rootCommand: "pool-stats" },
+        { rootCommand: "pools" },
       )?.hint,
-    ).toContain("pool-stats ETH");
+    ).toContain("pools show ETH");
 
     const poolFlag = cliMainTestInternals.mapCommanderError(
       {
@@ -1178,9 +1178,9 @@ describe("bootstrap runtime coverage", () => {
         code: "commander.unknownOption",
         message: "error: unknown option '--asset'",
       },
-      { rootCommand: "stats", program: programWithOptions as any },
+      { rootCommand: "pools", program: programWithOptions as any },
     );
-    expect(assetFlag?.hint).toContain("pool-stats <asset>");
+    expect(assetFlag?.hint).toContain("pools show <asset>");
 
     const suggestedFlag = cliMainTestInternals.mapCommanderError(
       {

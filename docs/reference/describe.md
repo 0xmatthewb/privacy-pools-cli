@@ -10,13 +10,13 @@ Describe a command's flags, args, and output schema
 
 **Usage:** `privacy-pools describe [command] [options]`
 
-Machine/runtime introspection surface for agents. Use spaced command paths such as `withdraw quote` or `protocol-stats` to inspect prerequisites, flags, risk metadata, and JSON field notes. Prefer `guide` for human walkthroughs and conceptual help. Use `describe envelope.<path>` when you want bundled contract fields instead of command metadata. Single-token schema lookups such as `nextActions` or `shared.nextAction` resolve automatically, while explicit `describe envelope.<path>` stays the clearest form for deeper paths.
+Machine/runtime introspection surface for agents. Use spaced command paths such as `withdraw quote` or `pools stats` to inspect prerequisites, flags, risk metadata, and JSON field notes. Prefer `guide` for human walkthroughs and conceptual help. Use `describe envelope.<path>` when you want bundled contract fields instead of command metadata. Single-token schema lookups such as `nextActions` or `shared.nextAction` resolve automatically, while explicit `describe envelope.<path>` stays the clearest form for deeper paths.
 
 ```bash
 privacy-pools describe withdraw
 privacy-pools describe withdraw quote --agent
 privacy-pools describe flow --agent
-privacy-pools describe protocol-stats --agent
+privacy-pools describe pools stats --agent
 privacy-pools describe envelope.nextActions --agent
 privacy-pools describe envelope.commands.status.successFields --agent
 ```

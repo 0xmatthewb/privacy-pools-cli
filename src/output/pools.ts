@@ -200,7 +200,7 @@ function buildPoolsEmptyNextActions(
       actionConfig,
     ),
     createNextAction(
-      "activity",
+      "pools activity",
       data.allChains
         ? "Review public activity before depositing."
         : "Review public activity on this chain before depositing.",
@@ -319,14 +319,14 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
     ...(ownedPools.length === 1
       ? [
           createNextAction(
-            "pools",
+            "pools show",
             "Open the detailed view for the pool that already has your funds.",
             "after_pools",
             {
               args: [ownedPools[0]!.pool.symbol],
               options: {
                 agent: true,
-                ...(allChains ? { includeTestnets: true } : { chain: chainName }),
+                chain: allChains ? ownedPools[0]!.chain : chainName,
               },
             },
           ),
@@ -347,7 +347,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   const humanNextActions = [
     ...(filteredPools.length === 1
       ? [
-          createNextAction("pools", "Open the detailed view for this pool.", "after_pools", {
+          createNextAction("pools show", "Open the detailed view for this pool.", "after_pools", {
             args: [filteredPools[0]!.pool.symbol],
             options: {
               chain: allChains ? filteredPools[0]!.chain : chainName,
@@ -355,7 +355,7 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
           }),
         ]
       : []),
-    createNextAction("activity", "Review recent public activity before depositing.", "after_pools", {
+    createNextAction("pools activity", "Review recent public activity before depositing.", "after_pools", {
       options: allChains ? { includeTestnets: true } : { chain: chainName },
     }),
   ];
@@ -716,7 +716,7 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
     ];
   };
 
-  guardCsvUnsupported(ctx, "pools <asset>");
+  guardCsvUnsupported(ctx, "pools show");
 
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {

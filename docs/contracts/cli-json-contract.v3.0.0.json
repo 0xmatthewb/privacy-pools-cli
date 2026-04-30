@@ -714,9 +714,11 @@
         "explorerUrl": "string|null"
       }
     },
-    "activity": {
+    "pools activity": {
       "successFields": {
-        "mode": "\"pool-activity\"|\"global-activity\"",
+        "mode": "\"pools\"",
+        "action": "\"activity\"",
+        "operation": "\"pools.activity\"",
         "chain": "string (\"all-mainnets\" for cross-chain global activity, selected chain name otherwise)",
         "chains": "string[]? (global-activity with multiple chains)",
         "page": "number",
@@ -747,11 +749,11 @@
         "timestamp": "iso8601-string|null"
       }
     },
-    "stats": {
+    "pools stats": {
       "globalStats": {
-        "mode": "\"global-stats\"",
-        "command": "\"protocol-stats\"",
-        "invokedAs": "\"stats\"|\"stats global\"|undefined",
+        "mode": "\"pools\"",
+        "action": "\"stats\"",
+        "operation": "\"pools.stats\"",
         "chain": "string",
         "chains": "string[]? (multi-chain mode)",
         "cacheTimestamp": "iso8601-string|null",
@@ -760,9 +762,9 @@
         "perChain": "ChainStatsEntry[]? (multi-chain mode)"
       },
       "poolStats": {
-        "mode": "\"pool-stats\"",
-        "command": "\"pool-stats\"",
-        "invokedAs": "\"stats pool\"|undefined",
+        "mode": "\"pools\"",
+        "action": "\"stats\"",
+        "operation": "\"pools.stats\"",
         "chain": "string",
         "asset": "string",
         "pool": "0x-prefixed-address",
@@ -1629,16 +1631,48 @@
           "warnings": "array<object{code,category,message}>"
         },
         "requiredSuccessFields": [
-          "chain",
-          "search",
-          "sort"
+          "chain"
         ],
         "variants": [
           "success",
           "error"
         ]
       },
-      "activity": {
+      "pools show": {
+        "successFields": {
+          "asset": "string",
+          "chain": "string",
+          "chainSummaries": "array<object{chain,pools,error}>",
+          "decimals": "number",
+          "maxRelayFeeBPS": "string",
+          "minimumDeposit": "string",
+          "myFunds": "unknown",
+          "myFundsWarning": "string",
+          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
+          "pool": "string",
+          "pools": "array<object{chain,asset,tokenAddress,pool,scope,decimals,minimumDeposit,vettingFeeBPS,maxRelayFeeBPS,totalInPoolValue,totalInPoolValueUsd,totalDepositsValue,totalDepositsValueUsd,acceptedDepositsValue,acceptedDepositsValueUsd,pendingDepositsValue,pendingDepositsValueUsd,totalDepositsCount,acceptedDepositsCount,pendingDepositsCount,growth24h,pendingGrowth24h,myPoolAccountsCount}>",
+          "recentActivity": "unknown",
+          "recentActivityUnavailable": "boolean",
+          "requestedChain": "string|null",
+          "scope": "string",
+          "search": "string|null",
+          "sort": "string",
+          "tokenAddress": "string",
+          "vettingFeeBPS": "string",
+          "warnings": "array<object{code,category,message}>"
+        },
+        "requiredSuccessFields": [
+          "asset",
+          "chain",
+          "pool",
+          "scope"
+        ],
+        "variants": [
+          "success",
+          "error"
+        ]
+      },
+      "pools activity": {
         "successFields": {
           "asset": "string",
           "chain": "string",
@@ -1665,15 +1699,13 @@
           "error"
         ]
       },
-      "stats": {
+      "pools stats": {
         "successFields": {
           "allTime": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
           "asset": "string",
           "cacheTimestamp": "string|null",
           "chain": "string",
           "chains": "array<string>",
-          "command": "string",
-          "invokedAs": "string",
           "last24h": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
           "mode": "string",
           "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
@@ -1683,57 +1715,6 @@
         },
         "requiredSuccessFields": [
           "chain"
-        ],
-        "variants": [
-          "success",
-          "error"
-        ]
-      },
-      "protocol-stats": {
-        "successFields": {
-          "allTime": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
-          "asset": "string",
-          "cacheTimestamp": "string|null",
-          "chain": "string",
-          "chains": "array<string>",
-          "command": "string",
-          "invokedAs": "string",
-          "last24h": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
-          "mode": "string",
-          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
-          "perChain": "array<object{chain,cacheTimestamp,allTime,last24h}>",
-          "pool": "string",
-          "scope": "string"
-        },
-        "requiredSuccessFields": [
-          "chain"
-        ],
-        "variants": [
-          "success",
-          "error"
-        ]
-      },
-      "pool-stats": {
-        "successFields": {
-          "allTime": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
-          "asset": "string",
-          "cacheTimestamp": "string|null",
-          "chain": "string",
-          "chains": "array<string>",
-          "command": "string",
-          "invokedAs": "string",
-          "last24h": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
-          "mode": "string",
-          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
-          "perChain": "array<object{chain,cacheTimestamp,allTime,last24h}>",
-          "pool": "string",
-          "scope": "string"
-        },
-        "requiredSuccessFields": [
-          "asset",
-          "chain",
-          "pool",
-          "scope"
         ],
         "variants": [
           "success",

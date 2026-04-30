@@ -181,12 +181,12 @@ describe("launcher runtime coverage", () => {
     ).toBe(false);
     expect(
       launcherTestInternals.invocationRequiresJsWorker(
-        parseRootArgv(["stats", "global", "--json"]),
+        parseRootArgv(["pools", "stats", "--json"]),
       ),
     ).toBe(false);
     expect(
       launcherTestInternals.invocationRequiresJsWorker(
-        parseRootArgv(["activity", "--output", "csv"]),
+        parseRootArgv(["pools", "activity", "--output", "csv"]),
       ),
     ).toBe(false);
     expect(
@@ -207,12 +207,12 @@ describe("launcher runtime coverage", () => {
   test("resolveLaunchTarget honors disable-native by forcing the js worker route", () => {
     const target = launcherTestInternals.resolveLaunchTarget(
       PKG,
-      ["stats"],
+      ["pools", "stats"],
       {
         PRIVACY_POOLS_CLI_DISABLE_NATIVE: "1",
       },
       {
-        parsed: parseRootArgv(["stats"]),
+        parsed: parseRootArgv(["pools", "stats"]),
       },
     );
 
@@ -223,13 +223,13 @@ describe("launcher runtime coverage", () => {
   test("resolveLaunchTarget forwards native bridge metadata without leaking signer secrets", () => {
     const target = launcherTestInternals.resolveLaunchTarget(
       PKG,
-      ["stats"],
+      ["pools", "stats"],
       {
         PRIVACY_POOLS_CLI_BINARY: "/tmp/privacy-pools-native",
         PRIVACY_POOLS_PRIVATE_KEY: `0x${"11".repeat(32)}`,
       },
       {
-        parsed: parseRootArgv(["stats"]),
+        parsed: parseRootArgv(["pools", "stats"]),
       },
     );
 
@@ -244,10 +244,10 @@ describe("launcher runtime coverage", () => {
   test("resolveLaunchTarget prefers a verified installed native binary when one is available", () => {
     const target = launcherTestInternals.resolveLaunchTarget(
       PKG,
-      ["stats"],
+      ["pools", "stats"],
       {},
       {
-        parsed: parseRootArgv(["stats"]),
+        parsed: parseRootArgv(["pools", "stats"]),
         resolveInstalledNativeBinary: () => "/tmp/verified-native",
       },
     );
@@ -702,7 +702,7 @@ describe("launcher runtime coverage", () => {
 
     try {
       const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-        runLauncher(PKG, ["--agent", "stats"]),
+        runLauncher(PKG, ["--agent", "pools", "stats"]),
       );
 
       expect(exitCode).toBe(1);

@@ -1,9 +1,11 @@
 // normalized: ADDR, HASH, TS
 {
   "action": "activity",
-  "chain": "sepolia",
+  "chain": "all-mainnets",
   "chains": [
-    "sepolia"
+    "mainnet",
+    "arbitrum",
+    "optimism"
   ],
   "events": [
     {
@@ -22,10 +24,9 @@
   "mode": "pools",
   "nextActions": [
     {
-      "cliCommand": "privacy-pools activity --agent --page 2 --limit 12 --chain sepolia",
-      "command": "activity",
+      "cliCommand": "privacy-pools pools activity --agent --page 2 --limit 12",
+      "command": "pools activity",
       "options": {
-        "chain": "sepolia",
         "limit": 12,
         "page": 2
       },

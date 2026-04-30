@@ -84,16 +84,8 @@ const fetchPoolStatisticsMock = mock(async () => ({
 }));
 const maybeRenderPreviewProgressStepMock = mock(async () => false);
 
-let handleDeprecatedStatsDefaultAliasCommand:
-  typeof import("../../src/commands/stats.ts").handleDeprecatedStatsDefaultAliasCommand;
-let handleDeprecatedStatsGlobalAliasCommand:
-  typeof import("../../src/commands/stats.ts").handleDeprecatedStatsGlobalAliasCommand;
-let handleDeprecatedStatsPoolAliasCommand:
-  typeof import("../../src/commands/stats.ts").handleDeprecatedStatsPoolAliasCommand;
-let handlePoolStatsCommand:
-  typeof import("../../src/commands/stats.ts").handlePoolStatsCommand;
-let handleProtocolStatsCommand:
-  typeof import("../../src/commands/stats.ts").handleProtocolStatsCommand;
+let handlePoolsStatsCommand:
+  typeof import("../../src/commands/pools.ts").handlePoolsStatsCommand;
 
 function fakeCommand(
   globalOpts: Record<string, unknown> = {},
@@ -136,13 +128,9 @@ async function loadStatsHandler(): Promise<void> {
     })],
   ]);
 
-  ({
-    handleDeprecatedStatsDefaultAliasCommand,
-    handleDeprecatedStatsGlobalAliasCommand,
-    handleDeprecatedStatsPoolAliasCommand,
-    handlePoolStatsCommand,
-    handleProtocolStatsCommand,
-  } = await import(`../../src/commands/stats.ts?stats-handler=${Date.now()}`));
+  ({ handlePoolsStatsCommand } = await import(
+    `../../src/commands/pools.ts?stats-handler=${Date.now()}`
+  ));
 }
 
 describe("stats command handler", () => {
@@ -161,9 +149,10 @@ describe("stats command handler", () => {
     restoreModuleImplementations(STATS_HANDLER_MODULE_RESTORES);
   });
 
-  test("renders global stats compatibility routes without deprecation metadata", async () => {
+  test("renders global stats without deprecation metadata", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
-      handleDeprecatedStatsDefaultAliasCommand(
+      handlePoolsStatsCommand(
+        undefined,
         {},
         fakeCommand({ json: true }),
       ),
@@ -173,26 +162,16 @@ describe("stats command handler", () => {
     expect(json.mode).toBe("pools");
     expect(json.action).toBe("stats");
     expect(json.operation).toBe("pools.stats");
-    expect(json.command).toBe("protocol-stats");
-    expect(json.invokedAs).toBe("stats");
+    expect(json.command).toBeUndefined();
+    expect(json.invokedAs).toBeUndefined();
     expect(fetchGlobalStatisticsMock).toHaveBeenCalledTimes(1);
     expect(stderr).toBe("");
-
-    fetchGlobalStatisticsMock.mockClear();
-    const globalAlias = await captureAsyncJsonOutput(() =>
-      handleDeprecatedStatsGlobalAliasCommand(
-        {},
-        fakeCommand({ json: true }),
-      ),
-    );
-    expect(globalAlias.json.success).toBe(true);
-    expect(globalAlias.json.invokedAs).toBe("stats global");
-    expect(fetchGlobalStatisticsMock).toHaveBeenCalledTimes(1);
   });
 
-  test("fails closed when protocol-stats is given an explicit chain", async () => {
+  test("fails closed when global pools stats is given an explicit chain", async () => {
     const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      handleProtocolStatsCommand(
+      handlePoolsStatsCommand(
+        undefined,
         {},
         fakeCommand({ json: true, chain: "mainnet" }),
       ),
@@ -208,9 +187,9 @@ describe("stats command handler", () => {
     expect(exitCode).toBe(2);
   });
 
-  test("renders pool stats compatibility routes and supports optsWithGlobals", async () => {
+  test("renders pool stats and supports optsWithGlobals", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
-      handleDeprecatedStatsPoolAliasCommand(
+      handlePoolsStatsCommand(
         "ETH",
         {},
         fakeCommand({ json: true, chain: "mainnet" }, { useOptsWithGlobals: true }),
@@ -221,8 +200,8 @@ describe("stats command handler", () => {
     expect(json.mode).toBe("pools");
     expect(json.action).toBe("stats");
     expect(json.operation).toBe("pools.stats");
-    expect(json.command).toBe("pool-stats");
-    expect(json.invokedAs).toBe("stats pool");
+    expect(json.command).toBeUndefined();
+    expect(json.invokedAs).toBeUndefined();
     expect(json.chain).toBe("mainnet");
     expect(json.asset).toBe("ETH");
     expect(resolvePoolMock).toHaveBeenCalledWith(
@@ -234,32 +213,14 @@ describe("stats command handler", () => {
     expect(stderr).toBe("");
   });
 
-  test("fails closed when pool-stats is missing its asset argument", async () => {
-    const { json, stderr, exitCode } = await captureAsyncJsonOutputAllowExit(() =>
-      handlePoolStatsCommand(
-        undefined,
-        {},
-        fakeCommand({ json: true }),
-      ),
-    );
-
-    expect(json.success).toBe(false);
-    expect(json.errorCode).toBe("INPUT_MISSING_ASSET");
-    expect(json.error.message ?? json.errorMessage).toContain(
-      "Missing asset argument",
-    );
-    expect(resolvePoolMock).not.toHaveBeenCalled();
-    expect(stderr).toBe("");
-    expect(exitCode).toBe(2);
-  });
-
   test("returns early when preview rendering takes over stats fetches", async () => {
     maybeRenderPreviewProgressStepMock.mockImplementationOnce(
       async (step: string) => step === "stats.global.fetch",
     );
 
     const { stdout, stderr } = await captureAsyncOutput(() =>
-      handleProtocolStatsCommand(
+      handlePoolsStatsCommand(
+        undefined,
         {},
         fakeCommand({}),
       ),
@@ -276,7 +237,7 @@ describe("stats command handler", () => {
     );
 
     const { stdout, stderr } = await captureAsyncOutput(() =>
-      handlePoolStatsCommand(
+      handlePoolsStatsCommand(
         "ETH",
         {},
         fakeCommand({ chain: "mainnet" }),

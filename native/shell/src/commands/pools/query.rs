@@ -29,10 +29,8 @@ pub(crate) fn handle_pools_native(
 ) -> Result<i32, CliError> {
     {
         let mode = resolve_mode(parsed);
-        if !mode.is_json() && !mode.is_csv() {
-            if let Some(asset) = detail_asset_from_argv(argv) {
-                return handle_pools_detail_native(argv, &mode, &asset);
-            }
+        if let Some(asset) = detail_asset_from_argv(argv) {
+            return handle_pools_detail_native(argv, &mode, &asset);
         }
         let opts = parse_pools_options(argv)?;
         let config = load_config()?;
@@ -248,6 +246,11 @@ fn handle_pools_detail_native(
         ));
     }
 
+    if mode.is_json() {
+        print!("{stdout}");
+        return Ok(0);
+    }
+
     render_pool_detail_output(mode, parse_pool_detail_render_data(&payload)?);
     Ok(0)
 }
@@ -285,8 +288,8 @@ fn detail_asset_from_argv(argv: &[String]) -> Option<String> {
         index += 1;
     }
 
-    if positional.len() == 1 && !matches!(positional[0].as_str(), "list" | "ls") {
-        return positional.into_iter().next();
+    if positional.len() == 2 && positional[0] == "show" {
+        return positional.into_iter().nth(1);
     }
     None
 }
@@ -822,6 +825,7 @@ mod tests {
             detail_asset_from_argv(&[
                 "privacy-pools".to_string(),
                 "pools".to_string(),
+                "show".to_string(),
                 "ETH".to_string(),
             ]),
             Some("ETH".to_string())

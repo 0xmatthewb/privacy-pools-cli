@@ -101,21 +101,17 @@ export function isCsv(ctx: OutputContext): boolean {
 /** Commands that support `--output csv` output. */
 const CSV_SUPPORTED_COMMANDS = [
   "pools",
+  "pools activity",
+  "pools stats",
   "accounts",
-  "activity",
   "recipients",
-  "protocol-stats",
-  "pool-stats",
-  "stats",
   "history",
 ];
 const NAME_SUPPORTED_COMMANDS = [
   "pools",
+  "pools activity",
+  "pools stats",
   "accounts",
-  "activity",
-  "protocol-stats",
-  "pool-stats",
-  "stats",
   "history",
 ];
 

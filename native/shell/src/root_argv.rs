@@ -697,13 +697,13 @@ mod tests {
             "--chain",
             "mainnet",
             "--rpc-url=https://rpc.example",
+            "pools",
             "stats",
-            "pool",
         ]);
 
         assert_eq!(
             all_non_option_tokens(&args),
-            vec!["stats".to_string(), "pool".to_string()]
+            vec!["pools".to_string(), "stats".to_string()]
         );
         assert_eq!(
             read_short_option_value(&argv(&["-c", "mainnet"]), "-c"),

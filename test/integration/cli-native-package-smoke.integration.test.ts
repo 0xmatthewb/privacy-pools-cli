@@ -524,7 +524,7 @@ describe("native package smoke", () => {
       success: true,
     });
 
-    const humanStatsResult = runBuiltCli(["stats"], {
+    const humanStatsResult = runBuiltCli(["pools", "stats"], {
       cwd: snapshotRoot,
       env,
     });
@@ -535,7 +535,7 @@ describe("native package smoke", () => {
       patterns: [/mainnet/i],
     });
 
-    const csvStatsResult = runBuiltCli(["--output", "csv", "stats"], {
+    const csvStatsResult = runBuiltCli(["--output", "csv", "pools", "stats"], {
       cwd: snapshotRoot,
       env,
     });
@@ -546,7 +546,7 @@ describe("native package smoke", () => {
       "Last 24h",
     ]);
 
-    const humanActivityResult = runBuiltCli(["activity"], {
+    const humanActivityResult = runBuiltCli(["pools", "activity"], {
       cwd: snapshotRoot,
       env,
     });

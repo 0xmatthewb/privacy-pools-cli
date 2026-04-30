@@ -233,7 +233,19 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-n, --limit <n>"),
           completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
         ],
-        subcommands: [],
+        subcommands: [
+          completionCommand("show"),
+          completionCommand("activity", {
+            options: [
+              completionOption("--include-testnets"),
+              completionOption("--page <n>"),
+              completionOption("-n, --limit <n>"),
+            ],
+          }),
+          completionCommand("stats", {
+            options: [completionOption("-n, --limit <n>")],
+          }),
+        ],
       }),
       completionCommand("deposit", {
         options: [
@@ -354,29 +366,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--check-rpc"),
           completionOption("--check-asp"),
           completionOption("--check-relayer"),
-        ],
-      }),
-      completionCommand("activity", {
-        options: [
-          completionOption("--include-testnets"),
-          completionOption("--page <n>"),
-          completionOption("-n, --limit <n>"),
-        ],
-      }),
-      completionCommand("protocol-stats", {
-        options: [completionOption("-n, --limit <n>")],
-      }),
-      completionCommand("pool-stats", {
-        options: [completionOption("-n, --limit <n>")],
-      }),
-      completionCommand("stats", {
-        subcommands: [
-          completionCommand("global", {
-            options: [completionOption("-n, --limit <n>")],
-          }),
-          completionCommand("pool", {
-            options: [completionOption("-n, --limit <n>")],
-          }),
         ],
       }),
       completionCommand("guide", {

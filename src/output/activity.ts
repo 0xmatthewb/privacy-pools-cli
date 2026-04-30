@@ -1,7 +1,7 @@
 /**
- * Output renderer for the `activity` command.
+ * Output renderer for `pools activity`.
  *
- * `src/commands/activity.ts` delegates final output here.
+ * `src/commands/pools.ts` delegates final output here.
  * Event fetching, normalization, pagination, and spinner remain in
  * the command handler.
  */
@@ -125,37 +125,45 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
   const paginationOptions: Record<string, string | number | boolean> = {
     page: data.page + 1,
     limit: data.perPage,
-    ...(data.mode === "pool-activity" && data.asset ? { asset: data.asset } : {}),
     ...(data.chain !== "all-mainnets" ? { chain: data.chain } : {}),
   };
+  const paginationArgs = data.mode === "pool-activity" && data.asset
+    ? [data.asset]
+    : undefined;
   const fallbackAgentNextActions = data.mode === "pool-activity" && data.asset
-    ? [createNextAction("pools", "Return to pool discovery after reviewing this activity page.", "after_activity", {
+    ? [createNextAction("pools show", "Return to the pool detail view after reviewing this activity page.", "after_activity", {
+        args: [data.asset],
         options: { agent: true, chain: data.chain },
       })]
     : [createNextAction("accounts", "Inspect current Pool Account balances after reviewing public activity.", "after_activity", {
         options: { agent: true, ...(data.chain !== "all-mainnets" ? { chain: data.chain } : {}) },
       })];
   const fallbackHumanNextActions = data.mode === "pool-activity" && data.asset
-    ? [createNextAction("pools", "Return to pool discovery after reviewing this activity page.", "after_activity", {
+    ? [createNextAction("pools show", "Return to the pool detail view after reviewing this activity page.", "after_activity", {
+        args: [data.asset],
         options: { chain: data.chain },
       })]
     : [createNextAction("accounts", "Inspect current Pool Account balances after reviewing public activity.", "after_activity", {
         options: data.chain !== "all-mainnets" ? { chain: data.chain } : undefined,
       })];
   const agentNextActions = hasNextPage
-    ? [createNextAction("activity", "View the next page.", "after_activity", {
+    ? [createNextAction("pools activity", "View the next page.", "after_activity", {
+        ...(paginationArgs ? { args: paginationArgs } : {}),
         options: { agent: true, ...paginationOptions },
       })]
     : fallbackAgentNextActions;
   const humanNextActions = hasNextPage
-    ? [createNextAction("activity", "View the next page.", "after_activity", {
+    ? [createNextAction("pools activity", "View the next page.", "after_activity", {
+        ...(paginationArgs ? { args: paginationArgs } : {}),
         options: paginationOptions,
       })]
     : fallbackHumanNextActions;
 
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
-      mode: data.mode,
+      mode: "pools",
+      action: "activity",
+      operation: "pools.activity",
       chain: data.chain,
       chains: data.chains ?? [data.chain],
       page: data.page,
@@ -322,7 +330,7 @@ export function renderActivity(ctx: OutputContext, data: ActivityRenderData): vo
       `\n  ${muted(`Page ${data.page} of ${data.totalPages}`)}` +
         (data.total !== null ? muted(`${inlineSeparator()}${data.total} events`) : "") +
         (data.page < data.totalPages
-          ? `\n  ${muted(`privacy-pools activity --page ${data.page + 1}`)}`
+          ? `\n  ${muted(`privacy-pools pools activity --page ${data.page + 1}`)}`
           : "") +
         "\n",
     );

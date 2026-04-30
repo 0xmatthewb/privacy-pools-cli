@@ -561,13 +561,12 @@ CSV output is intentionally limited to listing and read-only reporting commands 
 | Command | CSV |
 | ---- | ---- |
 | `pools` | Yes |
+| `pools activity` | Yes |
+| `pools stats` | Yes |
+| `pools show` | No |
 | `accounts` | Yes |
-| `activity` | Yes |
-| `protocol-stats` | Yes |
-| `pool-stats` | Yes |
-| `stats` | Yes |
 | `history` | Yes |
-| `recipients` | Yes |
+| `recipients list` | Yes |
 | `deposit` | No |
 | `withdraw` | No |
 | `ragequit` | No |
@@ -589,7 +588,9 @@ privacy-pools pools --agent
 privacy-pools pools --agent --include-testnets
 privacy-pools pools --agent --search ETH
 privacy-pools pools --agent --sort tvl-desc
-privacy-pools pools ETH --agent             # detail view for a specific pool
+privacy-pools pools show ETH --agent        # detail view for a specific pool
+privacy-pools pools activity --agent
+privacy-pools pools stats --agent
 ```
 
 JSON payload (single chain): `{ chain, chainSummaries?: [{ chain, pools, error }], search, sort, pools: [{ chain?, asset, tokenAddress, pool, scope, decimals, minimumDeposit, vettingFeeBPS, maxRelayFeeBPS, totalInPoolValue, totalInPoolValueUsd, totalDepositsValue, totalDepositsValueUsd, acceptedDepositsValue, acceptedDepositsValueUsd, pendingDepositsValue, pendingDepositsValueUsd, totalDepositsCount, acceptedDepositsCount, pendingDepositsCount, growth24h, pendingGrowth24h, myPoolAccountsCount? }], warnings?, nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
@@ -600,48 +601,41 @@ In pools JSON, `asset` is the symbol to use in follow-up CLI commands and `token
 
 With `--include-testnets`, each pool includes a `chain` field and the root keeps `chain: "all-chains"` plus `chainSummaries: [{ chain, pools, error }]` and optional `warnings`.
 
-**Detail view** (`pools <asset>`): Shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON payload: `{ chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. `recentActivityUnavailable: true` means the CLI attempted the fetch but could not load it. Supports `--json` and `--chain`. Does not support `--output csv`.
+#### `pools show`
 
-#### `activity`
+Detail view for one pool: `pools show <asset>` shows pool stats, your funds (if wallet state can be loaded), and recent activity for a single pool. JSON payload: `{ mode: "pools", action: "show", operation: "pools.show", chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }`. `myFunds.balance` is total remaining balance across active Pool Accounts in that pool; private withdrawal still requires `status/aspStatus = "approved"`. When `myFunds` is `null`, `myFundsWarning` may explain why wallet state could not be loaded. `recentActivityUnavailable: true` means the CLI attempted the fetch but could not load it. Supports `--json` and `--chain`. Does not support `--output csv`.
+
+#### `pools activity`
 
 Public onchain activity feed. When no `--chain` is specified, defaults to querying all CLI-supported mainnet chains.
 
 ```bash
-privacy-pools activity --agent
-privacy-pools activity ETH --agent --limit 20
+privacy-pools pools activity --agent
+privacy-pools pools activity ETH --agent --limit 20
 ```
 
-JSON payload (global): `{ mode: "global-activity", chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
+JSON payload (global): `{ mode: "pools", action: "activity", operation: "pools.activity", chain, chains?, page, perPage, total, totalPages, chainFiltered?, note?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand, args?, options?, runnable? }] }`
 
 When querying all CLI-supported mainnet chains (no `--chain`), `chain` is `"all-mainnets"` and `chains` lists the chain names queried (e.g. `["mainnet","arbitrum","optimism"]`).
 
 When filtering by `--chain` without a positional asset, events are filtered client-side. In this case `total` and `totalPages` are `null`, `chainFiltered` is `true`, and a `note` field explains the limitation.
 
-With a positional asset (`activity ETH`), mode is `"pool-activity"` and adds `asset`, `pool`, and `scope` fields. Pagination totals are accurate (server-side filtering).
+With a positional asset (`pools activity ETH`), the payload adds `asset`, `pool`, and `scope` fields. Pagination totals are accurate (server-side filtering).
 
-#### `protocol-stats`
+#### `pools stats`
 
-Protocol-wide statistics. Always shows aggregate cross-chain data. The `--chain` flag is **not** supported for `protocol-stats`; use `pool-stats <symbol> --chain <chain>` for chain-specific data.
+Protocol-wide or per-pool statistics. Without an asset, it shows aggregate cross-chain data. The `--chain` flag is **not** supported for the aggregate view; use `pools stats <symbol> --chain <chain>` for chain-specific data.
 
 ```bash
-privacy-pools protocol-stats --agent
+privacy-pools pools stats --agent
+privacy-pools pools stats ETH --agent --chain mainnet
 ```
 
-JSON payload: `{ mode: "global-stats", command: "protocol-stats", invokedAs?, chain: "all-mainnets", chains, cacheTimestamp, allTime, last24h, perChain? }`
+JSON payload: `{ mode: "pools", action: "stats", operation: "pools.stats", chain, chains?, asset?, pool?, scope?, cacheTimestamp, allTime, last24h, perChain? }`
 
 `chains` lists the chain names queried and `perChain` contains per-chain `{ chain, cacheTimestamp, allTime, last24h }` entries.
 
 `allTime` and `last24h` are objects provided by the ASP. Expected fields: `tvlUsd`, `avgDepositSizeUsd`, `totalDepositsCount`, `totalWithdrawalsCount`, `totalDepositsValue`, `totalWithdrawalsValue`, `totalDepositsValueUsd`, `totalWithdrawalsValueUsd`.
-
-#### `pool-stats`
-
-Per-pool statistics.
-
-```bash
-privacy-pools pool-stats ETH --agent
-```
-
-JSON payload: `{ mode: "pool-stats", command: "pool-stats", invokedAs?, chain, asset, pool, scope, cacheTimestamp, allTime, last24h }`
 
 #### `status`
 
@@ -700,7 +694,7 @@ Describe one command for machine/runtime introspection.
 
 ```bash
 privacy-pools describe withdraw quote --agent
-privacy-pools describe protocol-stats --agent
+privacy-pools describe pools stats --agent
 ```
 
 JSON payload: `{ mode: "describe-index", commands: [{ command, description, group }], envelopeRoots: string[] }` when no command path is provided; `{ command, description, group, aliases, usage, flags, globalFlags, requiresInit, expectedLatencyClass, safeReadOnly, expectedNextActionWhen?, sideEffectClass, touchesFunds, requiresHumanReview, preferredSafeVariant?, prerequisites, examples, structuredExamples, jsonFields, jsonVariants, safetyNotes, supportsUnsigned, supportsDryRun, agentWorkflowNotes }` for `describe <command...>`; or `{ path, schema }` for `describe envelope.<path>`.
@@ -747,9 +741,9 @@ Representative JSON payloads:
 
 `config set default-chain <chain>` persists the active profile's default chain under the CLI config home. It is profile-wide state, not a workspace/session-scoped context switch. Use per-command `--chain <name>` when one repo or one shell session needs to target a different network temporarily.
 
-Filter conventions stay intentionally mixed: use positional asset arguments for pool-specific public views (`activity ETH`, `pool-stats ETH`, `pools ETH` detail), and use flags for list refinement or state filters (`--search`, `--status`, `--pending-only`, `--page`, `--limit`).
+Filter conventions stay intentionally mixed: use positional asset arguments for pool-specific public views (`pools activity ETH`, `pools stats ETH`, `pools show ETH`), and use flags for list refinement or state filters (`--search`, `--status`, `--pending-only`, `--page`, `--limit`).
 
-List and report commands accept `--limit <n>` where they can return repeated rows or events. Aggregate stats commands (`protocol-stats`, `pool-stats`) accept the flag for command-surface consistency; their JSON payloads remain aggregate summaries.
+List and report commands accept `--limit <n>` where they can return repeated rows or events. `pools stats` accepts the flag for command-surface consistency; its JSON payloads remain aggregate summaries.
 
 #### `completion`
 
@@ -1104,8 +1098,7 @@ Query commands auto-sync with a 2-minute freshness TTL. If data was synced withi
 | ragequit   | Yes         | N/A           |
 | sync       | Always      | N/A           |
 | pools      | No          | N/A (public)  |
-| activity   | No          | N/A (public)  |
-| protocol-stats / pool-stats | No | N/A (public) |
+| pools activity / pools stats | No | N/A (public) |
 
 ## Polling for ASP Approval
 

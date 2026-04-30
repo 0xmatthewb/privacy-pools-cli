@@ -1,7 +1,7 @@
 {
-  "$ref": "#/definitions/activity envelope",
+  "$ref": "#/definitions/pools show envelope",
   "definitions": {
-    "activity envelope": {
+    "pools show envelope": {
       "anyOf": [
         {
           "allOf": [
@@ -156,109 +156,226 @@
             {
               "type": "object",
               "properties": {
-                "mode": {
-                  "type": "string"
-                },
                 "chain": {
                   "type": "string"
                 },
-                "chains": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "page": {
-                  "type": "number"
-                },
-                "perPage": {
-                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/page"
-                },
-                "total": {
+                "requestedChain": {
                   "type": [
-                    "number",
+                    "string",
                     "null"
                   ]
                 },
-                "totalEvents": {
-                  "type": [
-                    "number",
-                    "null"
-                  ]
-                },
-                "totalPages": {
-                  "type": [
-                    "number",
-                    "null"
-                  ]
-                },
-                "chainFiltered": {
-                  "type": "boolean"
-                },
-                "note": {
-                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                },
-                "asset": {
-                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                },
-                "pool": {
-                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                },
-                "scope": {
-                  "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                },
-                "events": {
+                "chainSummaries": {
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
-                      "type": {
-                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      "chain": {
+                        "type": "string"
                       },
-                      "txHash": {
-                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
+                      "pools": {
+                        "type": "number"
                       },
-                      "explorerUrl": {
-                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                      },
-                      "reviewStatus": {
-                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                      },
-                      "amountRaw": {
-                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                      },
-                      "amountFormatted": {
-                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                      },
-                      "poolSymbol": {
-                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                      },
-                      "poolAddress": {
-                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/mode"
-                      },
-                      "chainId": {
-                        "$ref": "#/definitions/activity envelope/anyOf/0/allOf/1/properties/page"
-                      },
-                      "timestamp": {
+                      "error": {
                         "type": [
                           "string",
-                          "number"
+                          "null"
                         ]
                       }
                     },
+                    "required": [
+                      "chain",
+                      "pools",
+                      "error"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "search": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sort": {
+                  "type": "string"
+                },
+                "pools": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chain": {
+                        "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/sort"
+                      },
+                      "asset": {
+                        "type": "string"
+                      },
+                      "tokenAddress": {
+                        "type": "string"
+                      },
+                      "pool": {
+                        "type": "string"
+                      },
+                      "scope": {
+                        "type": "string"
+                      },
+                      "decimals": {
+                        "type": "number"
+                      },
+                      "minimumDeposit": {
+                        "type": "string"
+                      },
+                      "vettingFeeBPS": {
+                        "type": "string"
+                      },
+                      "maxRelayFeeBPS": {
+                        "type": "string"
+                      },
+                      "totalInPoolValue": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "totalInPoolValueUsd": {
+                        "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValue"
+                      },
+                      "totalDepositsValue": {
+                        "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "totalDepositsValueUsd": {
+                        "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "acceptedDepositsValue": {
+                        "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "acceptedDepositsValueUsd": {
+                        "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "pendingDepositsValue": {
+                        "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "pendingDepositsValueUsd": {
+                        "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/pools/items/properties/totalInPoolValueUsd"
+                      },
+                      "totalDepositsCount": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "acceptedDepositsCount": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "pendingDepositsCount": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "growth24h": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "pendingGrowth24h": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "myPoolAccountsCount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "asset",
+                      "tokenAddress",
+                      "pool",
+                      "scope",
+                      "decimals",
+                      "minimumDeposit",
+                      "vettingFeeBPS",
+                      "maxRelayFeeBPS",
+                      "totalInPoolValue",
+                      "totalDepositsCount",
+                      "pendingDepositsCount"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "asset": {
+                  "type": "string"
+                },
+                "tokenAddress": {
+                  "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/sort"
+                },
+                "pool": {
+                  "type": "string"
+                },
+                "scope": {
+                  "type": "string"
+                },
+                "decimals": {
+                  "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/pools/items/properties/myPoolAccountsCount"
+                },
+                "minimumDeposit": {
+                  "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/sort"
+                },
+                "vettingFeeBPS": {
+                  "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/sort"
+                },
+                "maxRelayFeeBPS": {
+                  "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/sort"
+                },
+                "myFunds": {},
+                "myFundsWarning": {
+                  "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/sort"
+                },
+                "recentActivity": {
+                  "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/1/properties/myFunds"
+                },
+                "recentActivityUnavailable": {
+                  "type": "boolean"
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message"
+                    ],
                     "additionalProperties": false
                   }
                 },
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/activity envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 }
               },
               "required": [
                 "chain",
-                "events"
+                "asset",
+                "pool",
+                "scope"
               ]
             }
           ]
@@ -307,7 +424,7 @@
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/activity envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 },
                 "retry": {
@@ -352,7 +469,7 @@
             "nextActions": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/activity envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                "$ref": "#/definitions/pools show envelope/anyOf/0/allOf/0/properties/nextActions/items"
               }
             },
             "retry": {
@@ -393,7 +510,7 @@
           "additionalProperties": false
         }
       ],
-      "description": "activity"
+      "description": "pools show"
     }
   },
   "$schema": "http://json-schema.org/draft-07/schema#"

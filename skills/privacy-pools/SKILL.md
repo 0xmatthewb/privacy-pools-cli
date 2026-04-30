@@ -70,10 +70,10 @@ Readiness branches:
 | Action | CLI (agent-friendly) | Notes |
 |--------|---------------------|-------|
 | Browse pools | `privacy-pools pools --agent` | All CLI-supported mainnets |
-| Pool detail | `privacy-pools pools ETH --agent` | Combined stats + my funds |
-| Global stats | `privacy-pools protocol-stats --agent` | Cross-chain aggregate; `--chain` not supported |
-| Pool stats | `privacy-pools pool-stats ETH --agent` | Per-asset, per-chain |
-| Activity feed | `privacy-pools activity --agent` | Recent on-chain activity |
+| Pool detail | `privacy-pools pools show ETH --agent` | Combined stats + my funds |
+| Global stats | `privacy-pools pools stats --agent` | Cross-chain aggregate; `--chain` not supported |
+| Pool stats | `privacy-pools pools stats ETH --agent` | Per-asset, per-chain |
+| Activity feed | `privacy-pools pools activity --agent` | Recent on-chain activity |
 | Check status | `privacy-pools status --agent --check` | Health + readiness |
 | Discover capabilities | `privacy-pools capabilities --agent` | Machine-readable command manifest |
 | Describe one command | `privacy-pools describe withdraw quote --agent` | Per-command runtime contract |
@@ -348,7 +348,7 @@ The CLI loads `.env` from the config directory (`~/.privacy-pools/.env`), not fr
 | `sepolia` | 11155111 | Yes |
 | `op-sepolia` | 11155420 | Yes |
 
-Default: `mainnet`. Override with `--chain <name>` or set via `init --default-chain <name>`. Read-only commands (`pools`, `activity`) default to all CLI-supported mainnet chains when no `--chain` is specified. `protocol-stats` always returns cross-chain aggregates and does not accept `--chain`; use `pool-stats <symbol> --chain <chain>` for chain-specific data.
+Default: `mainnet`. Override with `--chain <name>` or set via `init --default-chain <name>`. Read-only public discovery commands (`pools`, `pools activity`, `pools stats`) default to all CLI-supported mainnet chains when no `--chain` is specified. `pools stats` without an asset always returns cross-chain aggregates and does not accept `--chain`; use `pools stats <symbol> --chain <chain>` for chain-specific data.
 
 ---
 

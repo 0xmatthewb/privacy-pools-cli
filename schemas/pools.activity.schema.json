@@ -1,7 +1,7 @@
 {
-  "$ref": "#/definitions/protocol-stats envelope",
+  "$ref": "#/definitions/pools activity envelope",
   "definitions": {
-    "protocol-stats envelope": {
+    "pools activity envelope": {
       "anyOf": [
         {
           "allOf": [
@@ -159,12 +159,6 @@
                 "mode": {
                   "type": "string"
                 },
-                "command": {
-                  "type": "string"
-                },
-                "invokedAs": {
-                  "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/mode"
-                },
                 "chain": {
                   "type": "string"
                 },
@@ -174,147 +168,97 @@
                     "type": "string"
                   }
                 },
-                "asset": {
-                  "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/mode"
+                "page": {
+                  "type": "number"
                 },
-                "pool": {
-                  "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/mode"
+                "perPage": {
+                  "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/page"
                 },
-                "scope": {
-                  "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/mode"
-                },
-                "cacheTimestamp": {
+                "total": {
                   "type": [
-                    "string",
+                    "number",
                     "null"
                   ]
                 },
-                "allTime": {
-                  "anyOf": [
-                    {
-                      "type": "object",
-                      "properties": {
-                        "tvl": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "tvlUsd": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "avgDepositSizeUsd": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "totalDepositsCount": {
-                          "type": [
-                            "number",
-                            "null"
-                          ]
-                        },
-                        "totalWithdrawalsCount": {
-                          "type": [
-                            "number",
-                            "null"
-                          ]
-                        },
-                        "totalDepositsValue": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "totalWithdrawalsValue": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "totalDepositsValueUsd": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "totalWithdrawalsValueUsd": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        }
-                      },
-                      "additionalProperties": false
-                    },
-                    {
-                      "type": "null"
-                    }
+                "totalEvents": {
+                  "type": [
+                    "number",
+                    "null"
                   ]
                 },
-                "last24h": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
-                    },
-                    {
-                      "type": "null"
-                    }
+                "totalPages": {
+                  "type": [
+                    "number",
+                    "null"
                   ]
                 },
-                "perChain": {
+                "chainFiltered": {
+                  "type": "boolean"
+                },
+                "note": {
+                  "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "asset": {
+                  "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "pool": {
+                  "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "scope": {
+                  "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
+                },
+                "events": {
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
-                      "chain": {
-                        "type": "string"
+                      "type": {
+                        "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
                       },
-                      "cacheTimestamp": {
-                        "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/cacheTimestamp"
+                      "txHash": {
+                        "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
                       },
-                      "allTime": {
-                        "anyOf": [
-                          {
-                            "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
+                      "explorerUrl": {
+                        "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
                       },
-                      "last24h": {
-                        "anyOf": [
-                          {
-                            "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/allTime/anyOf/0"
-                          },
-                          {
-                            "type": "null"
-                          }
+                      "reviewStatus": {
+                        "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "amountRaw": {
+                        "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "amountFormatted": {
+                        "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "poolSymbol": {
+                        "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "poolAddress": {
+                        "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/mode"
+                      },
+                      "chainId": {
+                        "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/1/properties/page"
+                      },
+                      "timestamp": {
+                        "type": [
+                          "string",
+                          "number"
                         ]
                       }
                     },
-                    "required": [
-                      "chain",
-                      "allTime",
-                      "last24h"
-                    ],
                     "additionalProperties": false
                   }
                 },
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 }
               },
               "required": [
-                "chain"
+                "chain",
+                "events"
               ]
             }
           ]
@@ -363,7 +307,7 @@
                 "nextActions": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                    "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/0/properties/nextActions/items"
                   }
                 },
                 "retry": {
@@ -408,7 +352,7 @@
             "nextActions": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/0/properties/nextActions/items"
+                "$ref": "#/definitions/pools activity envelope/anyOf/0/allOf/0/properties/nextActions/items"
               }
             },
             "retry": {
@@ -449,7 +393,7 @@
           "additionalProperties": false
         }
       ],
-      "description": "protocol-stats"
+      "description": "pools activity"
     }
   },
   "$schema": "http://json-schema.org/draft-07/schema#"

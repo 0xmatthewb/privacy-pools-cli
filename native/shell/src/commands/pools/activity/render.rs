@@ -16,7 +16,12 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
             .is_some_and(|total_pages| data.page < total_pages);
 
         let mut payload = Map::new();
-        payload.insert("mode".to_string(), Value::String(data.mode.to_string()));
+        payload.insert("mode".to_string(), Value::String("pools".to_string()));
+        payload.insert("action".to_string(), Value::String("activity".to_string()));
+        payload.insert(
+            "operation".to_string(),
+            Value::String("pools.activity".to_string()),
+        );
         payload.insert("chain".to_string(), Value::String(data.chain.clone()));
         if let Some(chains) = data.chains {
             payload.insert(
@@ -59,19 +64,19 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
             opts.insert("agent".to_string(), Value::Bool(true));
             opts.insert("page".to_string(), Value::Number((data.page + 1).into()));
             opts.insert("limit".to_string(), Value::Number(data.per_page.into()));
-            if data.mode == "pool-activity" {
-                if let Some(ref asset) = asset_for_pagination {
-                    opts.insert("asset".to_string(), Value::String(asset.clone()));
-                }
-            }
+            let next_args = if data.mode == "pool-activity" {
+                asset_for_pagination.as_deref().map(|asset| [asset])
+            } else {
+                None
+            };
             if data.chain != "all-mainnets" {
                 opts.insert("chain".to_string(), Value::String(data.chain.clone()));
             }
             vec![build_next_action(
-                "activity",
+                "pools activity",
                 "View the next page.",
                 "after_activity",
-                None,
+                next_args.as_ref().map(|args| args.as_slice()),
                 Some(&opts),
                 None,
             )]
@@ -79,11 +84,12 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
             let mut opts = Map::new();
             opts.insert("agent".to_string(), Value::Bool(true));
             opts.insert("chain".to_string(), Value::String(data.chain.clone()));
+            let detail_args = asset_for_pagination.as_deref().map(|asset| [asset]);
             vec![build_next_action(
-                "pools",
+                "pools show",
                 "Return to pool discovery after reviewing this activity page.",
                 "after_activity",
-                None,
+                detail_args.as_ref().map(|args| args.as_slice()),
                 Some(&opts),
                 None,
             )]
@@ -204,7 +210,11 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
             Vec::new()
         };
         next_actions.push(build_next_action(
-            "pools",
+            if data.mode == "pool-activity" {
+                "pools show"
+            } else {
+                "pools"
+            },
             if data.mode == "pool-activity" {
                 "Open the pool detail view for this asset."
             } else {
@@ -274,7 +284,7 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
                 .map(|total| format!(" · {total} events"))
                 .unwrap_or_default();
             let next_line = if data.page < total_pages {
-                format!("\n  privacy-pools activity --page {}", data.page + 1)
+                format!("\n  privacy-pools pools activity --page {}", data.page + 1)
             } else {
                 String::new()
             };
@@ -287,19 +297,19 @@ pub(super) fn render_activity_output(mode: &NativeMode, data: ActivityRenderData
             let mut opts = Map::new();
             opts.insert("page".to_string(), Value::Number((data.page + 1).into()));
             opts.insert("limit".to_string(), Value::Number(data.per_page.into()));
-            if data.mode == "pool-activity" {
-                if let Some(asset) = data.asset.as_ref() {
-                    opts.insert("asset".to_string(), Value::String(asset.clone()));
-                }
-            }
+            let next_args = if data.mode == "pool-activity" {
+                data.asset.as_deref().map(|asset| [asset])
+            } else {
+                None
+            };
             if data.chain != "all-mainnets" {
                 opts.insert("chain".to_string(), Value::String(data.chain.clone()));
             }
             next_actions.push(build_next_action(
-                "activity",
+                "pools activity",
                 "View the next page.",
                 "after_activity",
-                None,
+                next_args.as_ref().map(|args| args.as_slice()),
                 Some(&opts),
                 None,
             ));

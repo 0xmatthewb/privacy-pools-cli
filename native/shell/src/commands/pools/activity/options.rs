@@ -18,9 +18,9 @@ pub(super) fn parse_activity_options(argv: &[String]) -> Result<ActivityCommandO
     let mut per_page = None;
     let mut unexpected_args = 0;
     let mut index = argv
-        .iter()
-        .position(|token| token == "activity")
-        .map(|value| value + 1)
+        .windows(2)
+        .position(|tokens| tokens[0] == "pools" && tokens[1] == "activity")
+        .map(|value| value + 2)
         .unwrap_or(argv.len());
 
     while index < argv.len() {
@@ -73,7 +73,7 @@ pub(super) fn parse_activity_options(argv: &[String]) -> Result<ActivityCommandO
 
     if unexpected_args > 0 {
         return Err(commander_too_many_arguments_error(
-            "activity",
+            "pools activity",
             0,
             unexpected_args,
         ));
@@ -118,6 +118,7 @@ mod tests {
         let parsed = parse_activity_options(&argv(&[
             "privacy-pools",
             "--json",
+            "pools",
             "activity",
             "ETH",
             "--page=2",
@@ -133,8 +134,14 @@ mod tests {
 
     #[test]
     fn rejects_invalid_page_values() {
-        let error = parse_activity_options(&argv(&["privacy-pools", "activity", "--page", "0"]))
-            .expect_err("invalid page");
+        let error = parse_activity_options(&argv(&[
+            "privacy-pools",
+            "pools",
+            "activity",
+            "--page",
+            "0",
+        ]))
+        .expect_err("invalid page");
         assert!(error.message.contains("Invalid --page value"));
     }
 
@@ -145,6 +152,7 @@ mod tests {
             "--chain",
             "sepolia",
             "--json",
+            "pools",
             "activity",
         ]))
         .expect("defaults");
@@ -156,22 +164,35 @@ mod tests {
 
     #[test]
     fn rejects_deprecated_asset_flag() {
-        let error = parse_activity_options(&argv(&["privacy-pools", "activity", "--asset", "ETH"]))
-            .expect_err("deprecated asset flag");
+        let error = parse_activity_options(&argv(&[
+            "privacy-pools",
+            "pools",
+            "activity",
+            "--asset",
+            "ETH",
+        ]))
+        .expect_err("deprecated asset flag");
         assert!(error.message.contains("unknown option '--asset'"));
     }
 
     #[test]
     fn rejects_unknown_options() {
-        let error = parse_activity_options(&argv(&["privacy-pools", "activity", "--bogus"]))
-            .expect_err("unknown option");
+        let error =
+            parse_activity_options(&argv(&["privacy-pools", "pools", "activity", "--bogus"]))
+                .expect_err("unknown option");
         assert!(error.message.contains("unknown option"));
     }
 
     #[test]
     fn rejects_positionals_after_double_dash() {
-        let error = parse_activity_options(&argv(&["privacy-pools", "activity", "--", "extra"]))
-            .expect_err("unexpected positional");
+        let error = parse_activity_options(&argv(&[
+            "privacy-pools",
+            "pools",
+            "activity",
+            "--",
+            "extra",
+        ]))
+        .expect_err("unexpected positional");
         assert!(error.message.contains("too many arguments"));
     }
 }

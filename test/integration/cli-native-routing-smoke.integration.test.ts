@@ -116,8 +116,8 @@ describe("native routing smoke", () => {
     expect(result.stderr).toBe("");
   });
 
-  nativeTest("stats pool stays native-owned when option values follow the command path", () => {
-    const args = ["--json", "--chain", "sepolia", "stats", "pool", "ETH"];
+  nativeTest("pools stats stays native-owned when option values follow the command path", () => {
+    const args = ["--json", "--chain", "sepolia", "pools", "stats", "ETH"];
     const env = {
       PRIVACY_POOLS_ASP_HOST: "http://127.0.0.1:9",
       PRIVACY_POOLS_RPC_URL_SEPOLIA: fixture!.url,
@@ -146,7 +146,7 @@ describe("native routing smoke", () => {
     );
     expectJsonParity(
       nativeBinary,
-      ["--agent", "activity", "-t", "1"],
+      ["--agent", "pools", "activity", "-t", "1"],
       {
         js: { env: fixtureEnv(fixture!) },
         native: { env: fixtureEnv(fixture!) },
@@ -154,7 +154,7 @@ describe("native routing smoke", () => {
     );
     expectJsonParity(
       nativeBinary,
-      ["--agent", "stats", "-t", "1"],
+      ["--agent", "pools", "stats", "-t", "1"],
       {
         js: { env: fixtureEnv(fixture!) },
         native: { env: fixtureEnv(fixture!) },
@@ -166,11 +166,11 @@ describe("native routing smoke", () => {
     const env = fixtureEnv(fixture!);
 
     for (const { args, expectedText } of [
-      { args: ["stats"], expectedText: "All Time" },
-      { args: ["--output", "csv", "stats"], expectedText: "Metric,All Time,Last 24h" },
-      { args: ["--chain", "sepolia", "stats", "pool", "ETH"] },
-      { args: ["activity"] },
-      { args: ["--output", "csv", "activity"], expectedText: "Type,Pool,Amount" },
+      { args: ["pools", "stats"], expectedText: "All Time" },
+      { args: ["--output", "csv", "pools", "stats"], expectedText: "Metric,All Time,Last 24h" },
+      { args: ["--chain", "sepolia", "pools", "stats", "ETH"] },
+      { args: ["pools", "activity"] },
+      { args: ["--output", "csv", "pools", "activity"], expectedText: "Type,Pool,Amount" },
       { args: ["--chain", "sepolia", "pools"] },
       { args: ["--output", "csv", "--chain", "sepolia", "pools"], expectedText: null },
     ]) {

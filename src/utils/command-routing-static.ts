@@ -29,9 +29,9 @@ export const GENERATED_COMMAND_PATHS = [
   "flow step",
   "flow ragequit",
   "pools",
-  "activity",
-  "protocol-stats",
-  "pool-stats",
+  "pools show",
+  "pools activity",
+  "pools stats",
   "status",
   "tx-status",
   "capabilities",
@@ -82,9 +82,9 @@ export const GENERATED_ROUTE_COMMAND_PATHS = [
   "flow step",
   "flow ragequit",
   "pools",
-  "activity",
-  "protocol-stats",
-  "pool-stats",
+  "pools show",
+  "pools activity",
+  "pools stats",
   "status",
   "tx-status",
   "capabilities",
@@ -125,11 +125,7 @@ export const GENERATED_STATIC_LOCAL_COMMANDS = [
   "completion"
 ] as const;
 
-export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = {
-  "stats": "protocol-stats",
-  "stats global": "protocol-stats",
-  "stats pool": "pool-stats"
-};
+export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = {};
 
 export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, GeneratedCommandRoute> = {
   "init": {
@@ -256,13 +252,20 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, Generat
     "owner": "hybrid",
     "nativeModes": [
       "default-list",
-      "default-detail",
       "csv-list",
       "structured-list",
       "help"
     ]
   },
-  "activity": {
+  "pools show": {
+    "owner": "hybrid",
+    "nativeModes": [
+      "default-detail",
+      "structured-detail",
+      "help"
+    ]
+  },
+  "pools activity": {
     "owner": "hybrid",
     "nativeModes": [
       "default",
@@ -271,16 +274,7 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, Generat
       "help"
     ]
   },
-  "protocol-stats": {
-    "owner": "hybrid",
-    "nativeModes": [
-      "default",
-      "csv",
-      "structured",
-      "help"
-    ]
-  },
-  "pool-stats": {
+  "pools stats": {
     "owner": "hybrid",
     "nativeModes": [
       "default",
@@ -550,6 +544,27 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     ]
   },
   {
+    "route": "pools show",
+    "tokens": [
+      "pools",
+      "show"
+    ]
+  },
+  {
+    "route": "pools activity",
+    "tokens": [
+      "pools",
+      "activity"
+    ]
+  },
+  {
+    "route": "pools stats",
+    "tokens": [
+      "pools",
+      "stats"
+    ]
+  },
+  {
     "route": "withdraw quote",
     "tokens": [
       "withdraw",
@@ -646,24 +661,6 @@ export const GENERATED_TOKENIZED_COMMAND_ROUTES: readonly GeneratedTokenizedComm
     "route": "pools",
     "tokens": [
       "pools"
-    ]
-  },
-  {
-    "route": "activity",
-    "tokens": [
-      "activity"
-    ]
-  },
-  {
-    "route": "protocol-stats",
-    "tokens": [
-      "protocol-stats"
-    ]
-  },
-  {
-    "route": "pool-stats",
-    "tokens": [
-      "pool-stats"
     ]
   },
   {

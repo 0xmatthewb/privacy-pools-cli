@@ -103,10 +103,7 @@ npm run start -- --help
 
 | Command | Description | Wallet required? |
 |---------|-------------|:---:|
-| `pools` | Browse available pools and assets | |
-| `activity` | Public activity feed | |
-| `protocol-stats` | Aggregate cross-chain protocol statistics | |
-| `pool-stats` | Per-pool statistics for one asset | |
+| `pools` | Browse available pools, public activity, and stats | |
 | `status` | Configuration and connectivity health | |
 | `tx-status` | Check async transaction submission status | |
 | `config` | View and manage CLI configuration | |
@@ -126,10 +123,9 @@ npm run start -- --help
 | `migrate` | Read-only legacy migration or recovery readiness on supported chains | Yes |
 | `history` | Chronological event log | Yes |
 | `sync` | Force-sync account state from onchain | Yes |
-| `stats` | Deprecated compatibility namespace for protocol and pool stats | |
 | `completion` | Generate shell completions (bash/zsh/fish/powershell) | |
 
-Most commands accept `--chain <name>` to override your default chain. `protocol-stats` is the exception because it is always cross-chain; use `pool-stats <symbol> --chain <chain>` for chain-specific stats. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
+Most commands accept `--chain <name>` to override your default chain. `pools stats` without an asset is the exception because it is always cross-chain; use `pools stats <symbol> --chain <chain>` for chain-specific stats. For detailed flags, examples, and JSON payloads, see [docs/reference.md](docs/reference.md).
 
 ## Agent / Machine Mode
 

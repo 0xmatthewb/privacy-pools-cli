@@ -129,34 +129,29 @@ List your own Pool Accounts (deposits, balances, statuses)
 Usage: \fBprivacy\-pools accounts [options]\fR
 .TP
 .B pools
-Browse available pools
+Browse pools, public activity, and stats
 .br
 Usage: \fBprivacy\-pools pools [asset] [options]\fR
+.TP
+.B pools show
+Show detail for one public pool
+.br
+Usage: \fBprivacy\-pools pools show <asset> [options]\fR
+.TP
+.B pools activity
+Browse public pool activity
+.br
+Usage: \fBprivacy\-pools pools activity [asset] [options]\fR
+.TP
+.B pools stats
+View public protocol or pool statistics
+.br
+Usage: \fBprivacy\-pools pools stats [asset] [options]\fR
 .TP
 .B history
 View your deposit and withdrawal history
 .br
 Usage: \fBprivacy\-pools history [options]\fR
-.TP
-.B activity
-Browse the public activity feed (deposits, withdrawals, ragequits) across the protocol
-.br
-Usage: \fBprivacy\-pools activity [asset] [options]\fR
-.TP
-.B protocol\-stats
-View aggregate network statistics
-.br
-Usage: \fBprivacy\-pools protocol\-stats [options]\fR
-.TP
-.B pool\-stats
-View statistics for one pool
-.br
-Usage: \fBprivacy\-pools pool\-stats [asset] [options]\fR
-.TP
-.B stats
-Deprecated compatibility alias for protocol\-stats and pool\-stats
-.br
-Usage: \fBprivacy\-pools stats [options]\fR
 .TP
 .B sync
 Sync account state with the latest onchain data

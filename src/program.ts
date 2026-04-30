@@ -28,10 +28,6 @@ const ROOT_COMMAND_NAMES = [
   "sync",
   "tx-status",
   "status",
-  "activity",
-  "protocol-stats",
-  "pool-stats",
-  "stats",
   "guide",
   "capabilities",
   "describe",
@@ -112,13 +108,6 @@ const ROOT_COMMAND_LOADERS: Record<RootCommandName, () => Promise<Command>> = {
     (await import("./command-shells/tx-status.js")).createTxStatusCommand(),
   status: async () =>
     (await import("./command-shells/status.js")).createStatusCommand(),
-  activity: async () =>
-    (await import("./command-shells/activity.js")).createActivityCommand(),
-  "protocol-stats": async () =>
-    (await import("./command-shells/stats.js")).createProtocolStatsCommand(),
-  "pool-stats": async () =>
-    (await import("./command-shells/stats.js")).createPoolStatsCommand(),
-  stats: async () => (await import("./command-shells/stats.js")).createStatsCommand(),
   guide: async () => (await import("./command-shells/guide.js")).createGuideCommand(),
   capabilities: async () =>
     (await import("./command-shells/capabilities.js")).createCapabilitiesCommand(),
@@ -146,10 +135,6 @@ const ROOT_COMMAND_HANDLER_IDS: Record<RootCommandName, string> = {
   sync: "command-shells/sync.js#createSyncCommand",
   "tx-status": "command-shells/tx-status.js#createTxStatusCommand",
   status: "command-shells/status.js#createStatusCommand",
-  activity: "command-shells/activity.js#createActivityCommand",
-  "protocol-stats": "command-shells/stats.js#createProtocolStatsCommand",
-  "pool-stats": "command-shells/stats.js#createPoolStatsCommand",
-  stats: "command-shells/stats.js#createStatsCommand",
   guide: "command-shells/guide.js#createGuideCommand",
   capabilities: "command-shells/capabilities.js#createCapabilitiesCommand",
   describe: "command-shells/describe.js#createDescribeCommand",

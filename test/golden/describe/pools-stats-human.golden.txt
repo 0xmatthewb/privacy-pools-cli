@@ -1,23 +1,24 @@
 // normalized: NONE
 
-Command: protocol-stats
+Command: pools stats
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Summary:
-  Description:      View aggregate network statistics
+  Description:      View public protocol or pool statistics
   Group:            Monitoring
-  Usage:            privacy-pools protocol-stats
+  Usage:            privacy-pools pools stats [asset]
   Requires init:    no
   Safe read-only:   yes
   Expected latency: medium
-  Aliases:          stats, stats global
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Flags:
+  [asset]
   --limit <n>
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Global flags:
+  -c, --chain <name>
   -j, --json
   --json-fields <fields>
   --template <template>
@@ -42,18 +43,26 @@ Global flags:
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Structured examples:
 Example 1:
-  privacy-pools protocol-stats
+  privacy-pools pools stats
 Example 2:
-  privacy-pools protocol-stats --agent --limit 10
+  privacy-pools pools stats --agent --limit 10
+Example 3:
+  privacy-pools pools stats ETH
+Example 4:
+  privacy-pools pools stats USDC --agent --chain mainnet --limit 10
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 JSON fields:
-  { mode: "global-stats", command: "protocol-stats", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }
+  { mode: "pools", action: "stats", operation: "pools.stats", chain, chains?, asset?, pool?, scope?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Safety notes:
   Exit code categories are documented in 'privacy-pools guide exit-codes'.
 
-Next steps:
-  privacy-pools protocol-stats
-    Run this command path now that its contract and prerequisites are loaded.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Related envelope paths:
+  envelope.commands.pools stats.globalStats
+  envelope.commands.pools stats.poolStats
+  envelope.commands.pools stats.timeBasedStatisticsFields
+  envelope.commands.pools stats.chainStatsEntryFields
+

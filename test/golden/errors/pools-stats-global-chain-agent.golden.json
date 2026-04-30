@@ -1,0 +1,15 @@
+// normalized: NONE
+{
+  "error": {
+    "category": "INPUT",
+    "code": "INPUT_FLAG_CONFLICT",
+    "docUrl": "https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#input-flag-conflict",
+    "hint": "For chain-specific data use: privacy-pools pools stats <symbol> --chain <chain>",
+    "message": "Global pool statistics are aggregated across all chains. The --chain flag is not supported without an asset.",
+    "retryable": false
+  },
+  "errorCode": "INPUT_FLAG_CONFLICT",
+  "errorMessage": "Global pool statistics are aggregated across all chains. The --chain flag is not supported without an asset.",
+  "schemaVersion": "3.0.0",
+  "success": false
+}

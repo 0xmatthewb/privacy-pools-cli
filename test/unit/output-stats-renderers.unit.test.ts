@@ -33,7 +33,6 @@ const STUB_GLOBAL_STATS: GlobalStatsRenderData = {
 };
 
 const STUB_POOL_STATS: PoolStatsRenderData = {
-  mode: "pool-stats",
   chain: "sepolia",
   asset: "ETH",
   pool: "0x1111111111111111111111111111111111111111",
@@ -117,7 +116,7 @@ describe("renderGlobalStats parity", () => {
 // ── renderPoolStats parity ───────────────────────────────────────────────────
 
 describe("renderPoolStats parity", () => {
-  test("JSON mode: emits pool-stats envelope", () => {
+  test("JSON mode: emits pools.stats envelope", () => {
     const ctx = createOutputContext(makeMode({ isJson: true }));
     const { stdout, stderr } = captureOutput(() => renderPoolStats(ctx, STUB_POOL_STATS));
 

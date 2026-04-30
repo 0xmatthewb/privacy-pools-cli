@@ -34,10 +34,9 @@ export type CommandPath =
   | "simulate withdraw"
   | "simulate ragequit"
   | "pools"
-  | "activity"
-  | "stats"
-  | "protocol-stats"
-  | "pool-stats"
+  | "pools show"
+  | "pools activity"
+  | "pools stats"
   | "status"
   | "tx-status"
   | "capabilities"
@@ -849,14 +848,15 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     help: {
       overview: [
         "Lists the public Privacy Pools registry and asset metadata. By default, bare `pools` queries the CLI-supported mainnet chains together; pass --chain to scope a single network or --include-testnets to include supported testnets.",
+        "Use `pools show <asset>` for one pool, `pools activity [asset]` for public events, and `pools stats [asset]` for protocol or pool statistics.",
         "Aggregate registry-backed value, count, and growth fields may be null when upstream data is unavailable for a specific pool or chain.",
         "Deprecated or wind-down pool badges are only shown when the upstream registry exposes an explicit lifecycle status. Current CLI-supported sources do not expose a canonical status signal, so the pools output intentionally leaves lifecycle badges unchanged for now.",
       ],
       examples: [
         { category: "Basic", commands: [
           "privacy-pools pools",
-          "privacy-pools pools ETH",
-          "privacy-pools pools BOLD --chain mainnet",
+          "privacy-pools pools show ETH",
+          "privacy-pools pools show BOLD --chain mainnet",
         ]},
         { category: "Search and sort", commands: [
           "privacy-pools pools --include-testnets --sort tvl-desc",
@@ -868,18 +868,14 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         ]},
       ],
       jsonFields: POOLS_LIST_JSON_FIELDS,
-      jsonVariants: [
-        "detail (<asset>): { chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
-        "detail myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }",
-      ],
       agentWorkflowNotes: [
         "In pools JSON, 'asset' is the symbol for CLI follow-up commands and 'tokenAddress' is the contract address.",
         "Registry-backed aggregate fields may be null when upstream data is unavailable for that pool/chain: totalInPoolValue*, totalDeposits*, acceptedDeposits*, pendingDeposits*, *Count, growth24h, and pendingGrowth24h.",
         "Human-readable output is written to stderr; only structured JSON (--json/--agent) writes machine payloads to stdout.",
       ],
-      seeAlso: ["deposit","protocol-stats","activity"],
+      seeAlso: ["pools show","pools activity","pools stats","deposit"],
     },
-      capabilities: {
+    capabilities: {
       flags: ["--include-testnets", "--search <query>", "--sort <mode>", "--limit <n>"],
       agentFlags: "--agent [--include-testnets] [--search <query>] [--sort <mode>] [--limit <n>]",
       requiresInit: false,
@@ -889,117 +885,102 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
 
     agentsDocMarker: "#### `pools`",
   },
-  activity: {
-    description: ROOT_COMMAND_DESCRIPTIONS.activity,
-    surface: "root-command",
+  "pools show": {
+    description: "Show detail for one public pool",
+    surface: "subcommand",
+    help: {
+      overview: [
+        "Shows pool metadata, aggregate public stats, recent public activity, and your cached funds for a single asset.",
+        "Use this detail view before depositing or when an agent needs the canonical pool address and scope for an asset.",
+      ],
+      examples: [
+        { category: "Basic", commands: [
+          "privacy-pools pools show ETH",
+          "privacy-pools pools show BOLD --chain mainnet",
+        ]},
+        { category: "Agent / CI", commands: [
+          "privacy-pools pools show USDC --agent --chain mainnet",
+        ]},
+      ],
+      jsonFields:
+        "{ mode: \"pools\", action: \"show\", operation: \"pools.show\", chain, asset, tokenAddress, pool, scope, ..., myFunds?, myFundsWarning?, recentActivity?, recentActivityUnavailable? }",
+      jsonVariants: [
+        "myFunds: { balance, usdValue, poolAccounts, pendingCount, poaRequiredCount, declinedCount, accounts: [{ id, status, aspStatus, value }] }",
+      ],
+      seeAlso: ["pools","pools activity","pools stats","deposit"],
+    },
+    capabilities: {
+      usage: "pools show <asset>",
+      flags: ["<asset>"],
+      agentFlags: "--agent <asset>",
+      requiresInit: false,
+      expectedLatencyClass: "medium",
+    },
+    safeReadOnly: true,
+    agentsDocMarker: "#### `pools show`",
+  },
+  "pools activity": {
+    description: "Browse public pool activity",
+    surface: "subcommand",
     help: {
       overview: [
         "Shows the public onchain event feed across Privacy Pools, including deposits and withdrawals from all participants.",
-        "Bare `activity` stays on CLI-supported mainnet chains by default. Use --include-testnets to aggregate supported mainnet and testnet activity together.",
+        "Bare `pools activity` stays on CLI-supported mainnet chains by default. Use --include-testnets to aggregate supported mainnet and testnet activity together.",
         "For your own private transaction history, use 'history' instead.",
       ],
       examples: [
         { category: "Basic", commands: [
-          "privacy-pools activity",
-          "privacy-pools activity --page 2 --limit 20",
-          "privacy-pools activity --include-testnets",
-          "privacy-pools activity ETH",
+          "privacy-pools pools activity",
+          "privacy-pools pools activity --page 2 --limit 20",
+          "privacy-pools pools activity --include-testnets",
+          "privacy-pools pools activity ETH",
         ]},
         { category: "Agent / CI", commands: [
-          "privacy-pools activity USDC --agent --chain mainnet",
+          "privacy-pools pools activity USDC --agent --chain mainnet",
         ]},
       ],
       jsonFields:
-        "{ mode, chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
-      seeAlso: ["history","protocol-stats","pools"],
+        "{ mode: \"pools\", action: \"activity\", operation: \"pools.activity\", chain, chains?, page, perPage, total, totalEvents, totalPages, chainFiltered?, note?, asset?, pool?, scope?, events: [{ type, txHash, explorerUrl, reviewStatus, amountRaw, amountFormatted, poolSymbol, poolAddress, chainId, timestamp }], nextActions?: [{ command, reason, when, cliCommand?, args?, options?, parameters?, runnable? }] }",
+      seeAlso: ["history","pools","pools show","pools stats"],
     },
     capabilities: {
+      usage: "pools activity [asset]",
       flags: ["[asset]", "--include-testnets", "--page <n>", "--limit <n>"],
       agentFlags: "--agent [<asset>] [--include-testnets] [--page <n>] [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
     safeReadOnly: true,
-
-    agentsDocMarker: "#### `activity`",
+    agentsDocMarker: "#### `pools activity`",
   },
-  stats: {
-    description: "Deprecated compatibility alias for protocol-stats and pool-stats",
-    surface: "deprecated-compat",
+  "pools stats": {
+    description: "View public protocol or pool statistics",
+    surface: "subcommand",
     help: {
       overview: [
-        "Deprecated compatibility alias. Use 'protocol-stats' for aggregate network metrics or 'pool-stats <symbol>' for one pool.",
+        "Without an asset, returns aggregate cross-chain statistics. The --chain flag is not supported for the aggregate view; use `pools stats <symbol> --chain <chain>` for a chain-specific pool view.",
+        "With an asset, returns the aggregate report for one pool.",
+        "--limit is accepted for list-command consistency; stats output remains an aggregate summary and does not truncate allTime/last24h summary objects.",
       ],
       examples: [
-        "privacy-pools protocol-stats",
-        "privacy-pools pool-stats ETH",
-        "privacy-pools stats pool ETH  # compatibility alias",
-      ],
-      seeAlso: ["protocol-stats","pool-stats","pools","activity"],
-    },
-    capabilities: {
-      usage: "stats",
-      flags: ["global", "pool <symbol|address>"],
-      agentFlags: "compatibility alias; prefer protocol-stats or pool-stats <symbol>",
-      requiresInit: false,
-      expectedLatencyClass: "medium",
-    },
-    safeReadOnly: true,
-  },
-  "protocol-stats": {
-    description: ROOT_COMMAND_DESCRIPTIONS["protocol-stats"],
-    surface: "root-command",
-    aliases: ["stats", "stats global"],
-    help: {
-      overview: [
-        "Always returns aggregate cross-chain statistics. The --chain flag is not supported; use pool-stats <symbol> --chain <chain> for chain-specific data.",
-        "--limit is accepted for list-command consistency; protocol-stats remains an aggregate report and does not truncate the allTime/last24h summary objects.",
-      ],
-      examples: [
-        "privacy-pools protocol-stats",
-        "privacy-pools protocol-stats --agent --limit 10",
+        "privacy-pools pools stats",
+        "privacy-pools pools stats --agent --limit 10",
+        "privacy-pools pools stats ETH",
+        "privacy-pools pools stats USDC --agent --chain mainnet --limit 10",
       ],
       jsonFields:
-        "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
-      seeAlso: ["pool-stats","pools"],
+        "{ mode: \"pools\", action: \"stats\", operation: \"pools.stats\", chain, chains?, asset?, pool?, scope?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+      seeAlso: ["pools","pools show","pools activity"],
     },
     capabilities: {
-      usage: "protocol-stats",
-      flags: ["--limit <n>"],
-      agentFlags: "--agent [--limit <n>]",
+      usage: "pools stats [asset]",
+      flags: ["[asset]", "--limit <n>"],
+      agentFlags: "--agent [<asset>] [--limit <n>]",
       requiresInit: false,
       expectedLatencyClass: "medium",
     },
     safeReadOnly: true,
-
-    agentsDocMarker: "#### `protocol-stats`",
-  },
-  "pool-stats": {
-    description: ROOT_COMMAND_DESCRIPTIONS["pool-stats"],
-    surface: "root-command",
-    aliases: ["stats pool"],
-    help: {
-      overview: [
-        "--limit is accepted for list-command consistency; pool-stats remains an aggregate report for one pool.",
-      ],
-      examples: [
-        "privacy-pools pool-stats ETH",
-        "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10",
-      ],
-      jsonFields:
-        "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
-      seeAlso: ["protocol-stats","pools","activity"],
-    },
-    capabilities: {
-      usage: "pool-stats <symbol|address>",
-      flags: ["<symbol|address>", "--limit <n>"],
-      agentFlags: "--agent [--limit <n>]",
-      requiresInit: false,
-      expectedLatencyClass: "medium",
-    },
-    safeReadOnly: true,
-
-    agentsDocMarker: "#### `pool-stats`",
+    agentsDocMarker: "#### `pools stats`",
   },
   status: {
     description: ROOT_COMMAND_DESCRIPTIONS.status,
@@ -1096,7 +1077,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     surface: "root-command",
     help: {
       overview: [
-        "Machine/runtime introspection surface for agents. Use spaced command paths such as `withdraw quote` or `protocol-stats` to inspect prerequisites, flags, risk metadata, and JSON field notes.",
+        "Machine/runtime introspection surface for agents. Use spaced command paths such as `withdraw quote` or `pools stats` to inspect prerequisites, flags, risk metadata, and JSON field notes.",
         "Prefer `guide` for human walkthroughs and conceptual help. Use `describe envelope.<path>` when you want bundled contract fields instead of command metadata.",
         "Single-token schema lookups such as `nextActions` or `shared.nextAction` resolve automatically, while explicit `describe envelope.<path>` stays the clearest form for deeper paths.",
       ],
@@ -1104,7 +1085,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools describe withdraw",
         "privacy-pools describe withdraw quote --agent",
         "privacy-pools describe flow --agent",
-        "privacy-pools describe protocol-stats --agent",
+        "privacy-pools describe pools stats --agent",
         "privacy-pools describe envelope.nextActions --agent",
         "privacy-pools describe envelope.commands.status.successFields --agent",
       ],
@@ -1819,7 +1800,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
       jsonVariants: [
         "--no-sync: same fields, plus lastSyncTime? when cached local history was used and syncSkipped = true.",
       ],
-      seeAlso: ["accounts","activity"],
+      seeAlso: ["accounts","pools activity"],
     },
     capabilities: {
       flags: ["--no-sync", "--page <n>", "--limit <n>"],

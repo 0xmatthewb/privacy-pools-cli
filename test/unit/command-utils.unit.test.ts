@@ -7,8 +7,9 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { parseUsd, parseCount } from "../../src/commands/stats.ts";
-import { parsePositiveInt, parseNumberish } from "../../src/commands/activity.ts";
+import { parsePositiveInt, parseNumberish } from "../../src/commands/pools.ts";
+import { parseCount } from "../../src/output/stats.ts";
+import { parseUsd } from "../../src/utils/format.ts";
 import { parseGasFeeOverrides } from "../../src/utils/gas-fees.ts";
 import { CLIError } from "../../src/utils/errors.ts";
 

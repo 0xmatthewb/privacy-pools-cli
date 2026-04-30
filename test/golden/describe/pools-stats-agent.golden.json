@@ -6,27 +6,29 @@
   ],
   "agentSupported": true,
   "agentWorkflowNotes": [],
-  "aliases": [
-    "stats",
-    "stats global"
-  ],
+  "aliases": [],
   "availableJsonFields": [
+    "action",
     "allTime",
+    "asset",
     "cacheTimestamp",
     "chain",
     "chains",
-    "command",
-    "invokedAs",
     "last24h",
-    "mode"
+    "mode",
+    "operation",
+    "pool",
+    "scope"
   ],
-  "command": "protocol-stats",
+  "command": "pools stats",
   "commandType": "concrete",
   "csvSupported": true,
-  "description": "View aggregate network statistics",
+  "description": "View public protocol or pool statistics",
   "examples": [
-    "privacy-pools protocol-stats",
-    "privacy-pools protocol-stats --agent --limit 10"
+    "privacy-pools pools stats",
+    "privacy-pools pools stats --agent --limit 10",
+    "privacy-pools pools stats ETH",
+    "privacy-pools pools stats USDC --agent --chain mainnet --limit 10"
   ],
   "execution": {
     "nativeModes": [
@@ -39,9 +41,11 @@
   },
   "expectedLatencyClass": "medium",
   "flags": [
+    "[asset]",
     "--limit <n>"
   ],
   "globalFlags": [
+    "-c, --chain <name>",
     "-j, --json",
     "--json-fields <fields>",
     "--template <template>",
@@ -65,16 +69,23 @@
   ],
   "group": "monitoring",
   "humanInteractive": false,
-  "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+  "jsonFields": "{ mode: \"pools\", action: \"stats\", operation: \"pools.stats\", chain, chains?, asset?, pool?, scope?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
   "jsonVariants": [],
   "mode": "describe",
   "mutatesFunds": false,
   "mutatesLocalState": false,
   "nextActions": [
     {
-      "cliCommand": "privacy-pools protocol-stats --agent",
-      "command": "protocol-stats",
+      "command": "pools stats",
+      "parameters": [
+        {
+          "name": "asset",
+          "required": false,
+          "type": "text"
+        }
+      ],
       "reason": "Run this command path now that its contract and prerequisites are loaded.",
+      "runnable": false,
       "when": "after_describe"
     }
   ],
@@ -91,17 +102,25 @@
   "streamJsonSupported": false,
   "structuredExamples": [
     {
-      "command": "privacy-pools protocol-stats",
+      "command": "privacy-pools pools stats",
       "description": "Example 1"
     },
     {
-      "command": "privacy-pools protocol-stats --agent --limit 10",
+      "command": "privacy-pools pools stats --agent --limit 10",
       "description": "Example 2"
+    },
+    {
+      "command": "privacy-pools pools stats ETH",
+      "description": "Example 3"
+    },
+    {
+      "command": "privacy-pools pools stats USDC --agent --chain mainnet --limit 10",
+      "description": "Example 4"
     }
   ],
   "success": true,
   "supportsDryRun": false,
   "supportsUnsigned": false,
   "touchesFunds": false,
-  "usage": "protocol-stats"
+  "usage": "pools stats [asset]"
 }

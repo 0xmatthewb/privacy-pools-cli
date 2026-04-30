@@ -167,7 +167,7 @@ mod tests {
             "runtimeVersion": "1",
             "cliVersion": "2.0.0",
             "jsonSchemaVersion": "2.0.0",
-            "commandPaths": ["activity"],
+            "commandPaths": ["pools activity"],
             "aliasMap": {},
             "rootHelp": "help",
             "structuredRootHelp": "structured help",
@@ -195,9 +195,9 @@ mod tests {
                 "chains": {}
             },
             "routes": {
-                "helpCommandPaths": ["activity"],
+                "helpCommandPaths": ["pools activity"],
                 "commandRoutes": {
-                    "activity": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] }
+                    "pools activity": { "owner": "hybrid", "nativeModes": ["default", "csv", "structured", "help"] }
                 }
             },
             "capabilitiesPayload": {}

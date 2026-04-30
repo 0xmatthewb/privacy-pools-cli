@@ -110,6 +110,13 @@ function isHybridInvocationNative(
     return nativeModes.includes("default-list");
   }
 
+  if (route === "pools show") {
+    if (parsed.isStructuredOutputMode) {
+      return nativeModes.includes("structured-detail");
+    }
+    return nativeModes.includes("default-detail");
+  }
+
   if (parsed.isStructuredOutputMode) {
     return nativeModes.some((mode) => mode.startsWith("structured"));
   }

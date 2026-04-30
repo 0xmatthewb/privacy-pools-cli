@@ -1,3 +1,6 @@
+pub mod activity;
+pub mod stats;
+
 mod helpers;
 mod model;
 mod query;

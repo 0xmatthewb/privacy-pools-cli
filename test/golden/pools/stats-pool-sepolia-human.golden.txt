@@ -16,5 +16,5 @@ Summary:
   Total Withdrawals   50         2
 
 Next steps:
-  privacy-pools pools ETH --chain sepolia
+  privacy-pools pools show ETH --chain sepolia
     Open the detailed view for this pool.

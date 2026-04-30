@@ -105,10 +105,9 @@ function commanderUnknownOptionHint(
       case "deposit":
       case "withdraw":
       case "ragequit":
-      case "activity":
         return "Use the asset as a positional argument instead of --asset.";
-      case "stats":
-        return "Use the asset as the positional argument to 'pool-stats <asset>' instead of --asset.";
+      case "pools":
+        return "Use the asset as a positional argument, such as 'pools show <asset>' or 'pools activity <asset>'.";
       default:
         return "Use the asset as a positional argument instead of --asset.";
     }
@@ -177,11 +176,11 @@ function commandSpecificMissingArgumentError(
     }
   }
 
-  if (context?.rootCommand === "pool-stats" && missingName === "asset") {
+  if (context?.rootCommand === "pools" && missingName === "asset") {
     return new CLIError(
       "Missing asset argument.",
       "INPUT",
-      "Example: privacy-pools pool-stats ETH",
+      "Example: privacy-pools pools show ETH",
       "INPUT_MISSING_ASSET",
     );
   }

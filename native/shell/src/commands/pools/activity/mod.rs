@@ -219,7 +219,7 @@ pub fn handle_activity_native(
 
             let asset_args = opts.asset.as_deref().map(|asset| [asset]);
             error.push_next_action(crate::output::build_next_action(
-                "activity",
+                "pools activity",
                 "Retry the public activity query.",
                 "after_activity",
                 asset_args.as_ref().map(|args| args.as_slice()),

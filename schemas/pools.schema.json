@@ -206,7 +206,7 @@
                     "type": "object",
                     "properties": {
                       "chain": {
-                        "type": "string"
+                        "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/sort"
                       },
                       "asset": {
                         "type": "string"
@@ -310,32 +310,32 @@
                   }
                 },
                 "asset": {
-                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/sort"
                 },
                 "tokenAddress": {
-                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/sort"
                 },
                 "pool": {
-                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/sort"
                 },
                 "scope": {
-                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/sort"
                 },
                 "decimals": {
                   "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/myPoolAccountsCount"
                 },
                 "minimumDeposit": {
-                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/sort"
                 },
                 "vettingFeeBPS": {
-                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/sort"
                 },
                 "maxRelayFeeBPS": {
-                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/sort"
                 },
                 "myFunds": {},
                 "myFundsWarning": {
-                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/pools/items/properties/chain"
+                  "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/sort"
                 },
                 "recentActivity": {
                   "$ref": "#/definitions/pools envelope/anyOf/0/allOf/1/properties/myFunds"
@@ -372,9 +372,7 @@
                 }
               },
               "required": [
-                "chain",
-                "search",
-                "sort"
+                "chain"
               ]
             }
           ]

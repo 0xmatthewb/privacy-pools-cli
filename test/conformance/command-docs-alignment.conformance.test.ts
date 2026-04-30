@@ -86,7 +86,7 @@ describe("command docs alignment", () => {
         path: "init",
         markers: ["setupMode", "readiness", "restoreDiscovery", "nextActions"],
       },
-      { path: "activity", markers: ["reviewStatus"] },
+      { path: "pools activity", markers: ["reviewStatus"] },
       { path: "status", markers: ["recommendedMode", "nextActions"] },
       { path: "accounts", markers: ["balances", "nextActions"] },
       { path: "migrate status", markers: ["readiness"] },
