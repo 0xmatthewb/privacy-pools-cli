@@ -59,6 +59,12 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
         command.env(key, value);
     }
     command.args(args);
+    // Force stdin to /dev/null so the subprocess sees EOF immediately if it
+    // ever reads stdin. Without this, on CI runners where the parent's stdin
+    // is connected to cargo-test's pipe, a subprocess that reads stdin can
+    // block indefinitely (observed cli_dispatch hang in CI runs 25146413002
+    // and 25147410567).
+    command.stdin(std::process::Stdio::null());
     command.output().expect("native shell should execute")
 }
 
