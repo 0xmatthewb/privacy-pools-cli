@@ -209,7 +209,7 @@ fn normalize_json_value(
             }
             Value::Object(normalized)
         }
-        Value::Number(number) if key.is_some_and(is_block_key) => {
+        Value::Number(_) if key.is_some_and(is_block_key) => {
             applied.insert("BLOCK");
             Value::String("<BLOCK>".to_string())
         }
