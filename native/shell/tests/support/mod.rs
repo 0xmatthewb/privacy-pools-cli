@@ -63,6 +63,12 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
         command.env(key, value);
     }
     command.args(args);
+    // Diagnostic: emit start/end markers to stderr so CI logs surface which
+    // test was running when a job is killed externally (no panic, no test
+    // summary — just job termination). This has surfaced silent native-unit
+    // failures across multiple CI runs where neither cargo's test summary
+    // nor wait_timeout panics appear in the log.
+    eprintln!("[native-test] starting argv={:?}", args);
     // Force stdin to /dev/null so the subprocess sees EOF immediately if it
     // ever reads stdin. Without this, on CI runners where the parent's stdin
     // is connected to cargo-test's pipe, a subprocess that reads stdin can
@@ -117,6 +123,14 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
     let stderr = stderr_handle
         .and_then(|h| h.join().ok())
         .unwrap_or_default();
+
+    eprintln!(
+        "[native-test] completed argv={:?} status={:?} stdout_bytes={} stderr_bytes={}",
+        args,
+        status.code(),
+        stdout.len(),
+        stderr.len()
+    );
 
     Output {
         status,
