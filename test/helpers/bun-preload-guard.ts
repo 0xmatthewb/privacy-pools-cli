@@ -41,3 +41,18 @@ for (const key of ["CI", "GITHUB_ACTIONS", "BUILDKITE"]) {
 // PRIVACY_POOLS_CLI_PREVIEW_COLUMNS, which tests can set
 // explicitly when they want to simulate a specific width.
 process.env.COLUMNS = "120";
+
+// Defense in depth: clear any test-leaked own-property descriptor on
+// process.stderr.columns / process.stdout.columns before tests run.
+// format-matrix.unit.test.ts has historically left a 72-col getter in
+// place when originalColumns was undefined (CI runners have no TTY);
+// that leak made getTerminalColumns() fall through to a stale 72 in
+// downstream tests and pushed renderers into narrow layout despite
+// COLUMNS=120 being set. The format-matrix.unit.test.ts restore was
+// fixed too, but this preload-time wipe is cheap insurance for any
+// future leak.
+for (const stream of [process.stderr, process.stdout] as const) {
+  if (Object.getOwnPropertyDescriptor(stream, "columns")) {
+    Reflect.deleteProperty(stream, "columns");
+  }
+}

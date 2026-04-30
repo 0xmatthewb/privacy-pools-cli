@@ -137,7 +137,14 @@ describe("format utils matrix", () => {
       ],
     );
 
-    if (originalColumns !== undefined) {
+    // Always restore. The prior conditional skipped restore when
+    // originalColumns was undefined (no TTY in CI), leaving the test's
+    // forced 72-col getter in place for every subsequent test in the same
+    // bun process — which flipped renderStatus into narrow layout and
+    // broke unrelated unit tests downstream.
+    if (originalColumns === undefined) {
+      Reflect.deleteProperty(process.stderr, "columns");
+    } else {
       Object.defineProperty(process.stderr, "columns", {
         configurable: true,
         get: () => originalColumns,

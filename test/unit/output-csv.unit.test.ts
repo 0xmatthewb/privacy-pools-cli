@@ -17,9 +17,20 @@ function csvMode() {
   return makeMode({ isCsv: true, format: "csv" });
 }
 
+// Capture COLUMNS at module load (after bun-preload-guard sets it to 120)
+// so we can restore it after tests that simulate narrow mode override it
+// with COLUMNS=40. Unconditionally deleting would leave the env unset for
+// neighboring tests, which then fall through to process.stderr.columns
+// (potentially leaked from format-matrix.unit.test.ts).
+const ORIGINAL_COLUMNS = process.env.COLUMNS;
+
 afterEach(() => {
   setSuppressHeaders(false);
-  delete process.env.COLUMNS;
+  if (ORIGINAL_COLUMNS === undefined) {
+    delete process.env.COLUMNS;
+  } else {
+    process.env.COLUMNS = ORIGINAL_COLUMNS;
+  }
 });
 
 // ── printCsv utility ─────────────────────────────────────────────────────────
