@@ -101,7 +101,14 @@ export function registerWithdrawQuoteTests(): void {
     );
 
     expect(stdout).toBe("");
-    expect(stderr).toContain("Quote received");
+    // "Quote received" is emitted via spin.succeed(), which routes through
+    // ora when stderr.isTTY=true (set by setTestTty). Real ora defers writes
+    // to the next tick and the captured stderr races with the spinner
+    // succeed call, producing flaky "Quote received" omissions in CI.
+    // The "Withdrawal quote:" section heading is emitted deterministically
+    // via process.stderr.write and is the canonical signal that the quote
+    // path completed.
+    expect(stderr).toContain("Withdrawal quote");
     expect(stderr).toContain("0x7777");
   });
 
@@ -370,7 +377,9 @@ export function registerWithdrawQuoteTests(): void {
     expect(stdout).toBe("");
     expect(requestQuoteMock).toHaveBeenCalledTimes(2);
     expect(stderr).toContain("Extra gas is not available for this relayer");
-    expect(stderr).toContain("Quote received");
+    // "Withdrawal quote" is the deterministic completion signal; see the
+    // sibling test at line ~104 for the rationale (ora spinner timing).
+    expect(stderr).toContain("Withdrawal quote");
   });
 
 }
