@@ -25,6 +25,7 @@ export const RUNNER_ENV_INTERNAL_ONLY_PREFIXES = [
   "PP_INSTALL_",
   "PP_LOCAL_REGISTRY_",
   "PP_SYNC_RPC_",
+  "PP_TEST_AFFECTED_",
 ];
 
 export function isAllowedRunnerEnvKey(key) {

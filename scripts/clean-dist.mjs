@@ -5,9 +5,14 @@ import { fileURLToPath } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
 
-rmSync(join(repoRoot, "dist"), {
-  recursive: true,
-  force: true,
-  maxRetries: 10,
-  retryDelay: 50,
-});
+// Remove dist and the TypeScript incremental cache together. tsc with
+// `incremental: true` skips emit when the cache says outputs are current,
+// so wiping dist alone leaves the next build with an empty dist directory.
+for (const target of ["dist", ".tsbuildinfo"]) {
+  rmSync(join(repoRoot, target), {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 50,
+  });
+}
