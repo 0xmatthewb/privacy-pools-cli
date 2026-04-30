@@ -154,7 +154,21 @@ describe("cli main internal helpers", () => {
     expect(cliMainTestInternals.configHome()).toBe("/tmp/pp-config");
 
     delete process.env.PRIVACY_POOLS_CONFIG_DIR;
-    expect(cliMainTestInternals.configHome()).toContain(".privacy-pools");
+    // XDG_CONFIG_HOME would otherwise route configHome to ~/.config/privacy-pools
+    // on hosts that set it (e.g. GitHub Actions runners), which doesn't include
+    // the legacy ".privacy-pools" segment this test asserts. Strip it so the
+    // fallback path is exercised deterministically.
+    const savedXdg = process.env.XDG_CONFIG_HOME;
+    delete process.env.XDG_CONFIG_HOME;
+    try {
+      expect(cliMainTestInternals.configHome()).toContain(".privacy-pools");
+    } finally {
+      if (savedXdg === undefined) {
+        delete process.env.XDG_CONFIG_HOME;
+      } else {
+        process.env.XDG_CONFIG_HOME = savedXdg;
+      }
+    }
   });
 
   test("maybeLoadConfigEnv skips help-like paths and loads dotenv for runtime commands only", async () => {

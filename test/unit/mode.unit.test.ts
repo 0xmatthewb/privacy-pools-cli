@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { resolveGlobalMode, setModeArgv } from "../../src/utils/mode.ts";
 import { resetJsonOutputConfig } from "../../src/utils/json.ts";
 
@@ -7,9 +7,19 @@ const ORIGINAL_ENV = {
   PRIVACY_POOLS_QUIET: process.env.PRIVACY_POOLS_QUIET,
   PRIVACY_POOLS_YES: process.env.PRIVACY_POOLS_YES,
   PRIVACY_POOLS_NO_PROGRESS: process.env.PRIVACY_POOLS_NO_PROGRESS,
+  CI: process.env.CI,
+  GITHUB_ACTIONS: process.env.GITHUB_ACTIONS,
 };
 
 describe("resolveGlobalMode", () => {
+  beforeEach(() => {
+    // The CI/GITHUB_ACTIONS detection in resolveGlobalMode would otherwise
+    // force skipPrompts=true on Actions runners; strip them so the per-test
+    // expectations are deterministic regardless of host environment.
+    delete process.env.CI;
+    delete process.env.GITHUB_ACTIONS;
+  });
+
   afterEach(() => {
     setModeArgv([]);
     resetJsonOutputConfig();

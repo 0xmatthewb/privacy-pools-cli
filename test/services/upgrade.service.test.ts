@@ -1,6 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+
+const SAVED_CI_ENV = {
+  CI: process.env.CI,
+  GITHUB_ACTIONS: process.env.GITHUB_ACTIONS,
+} as const;
 import type { CliPackageInfo } from "../../src/package-info.ts";
 import {
   detectUpgradeInstallContext,
@@ -50,6 +55,25 @@ function manualResult(overrides: Partial<UpgradeResult> = {}): UpgradeResult {
 }
 
 describe("upgrade service", () => {
+  beforeAll(() => {
+    // detectUpgradeInstallContext short-circuits on CI before other heuristics;
+    // strip the runner-set env so the install-context tests can exercise the
+    // remaining branches deterministically. Tests that want to assert the CI
+    // branch can pass deps.env explicitly.
+    delete process.env.CI;
+    delete process.env.GITHUB_ACTIONS;
+  });
+
+  afterAll(() => {
+    for (const [key, value] of Object.entries(SAVED_CI_ENV)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  });
+
   test("detects source checkouts before attempting npm global resolution", () => {
     const packageRoot = createTrackedTempDir("pp-upgrade-source-");
     mkdirSync(join(packageRoot, ".git"), { recursive: true });

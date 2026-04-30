@@ -12,6 +12,9 @@ export function buildChildProcessEnv(
     if (value === undefined) continue;
     if (STRIPPED_PREFIXES.some((prefix) => key.startsWith(prefix))) continue;
     if (STRIPPED_ENV_VARS.has(key)) continue;
+    // Strip CI-detection env vars so subprocess tests run with deterministic
+    // mode/upgrade-context behavior regardless of host CI runner.
+    if (key === "CI" || key === "GITHUB_ACTIONS" || key === "BUILDKITE") continue;
     env[key] = value;
   }
 
