@@ -153,7 +153,10 @@ fn direct_binary_js_owned_commands_fail_cleanly_in_agent_mode() {
     );
 }
 
-#[cfg_attr(target_os = "linux", ignore = "hangs on Linux CI; see FIXME at direct_binary_js_owned_commands_fail_cleanly_in_agent_mode")]
+#[cfg_attr(
+    target_os = "linux",
+    ignore = "hangs on Linux CI; see FIXME at direct_binary_js_owned_commands_fail_cleanly_in_agent_mode"
+)]
 #[test]
 fn malformed_bridge_descriptor_fails_cleanly_in_agent_mode() {
     let contract = runtime_contract_fixture();
@@ -172,7 +175,10 @@ fn malformed_bridge_descriptor_fails_cleanly_in_agent_mode() {
         .contains("Failed to decode JS bridge descriptor"),);
 }
 
-#[cfg_attr(target_os = "linux", ignore = "hangs on Linux CI; see FIXME at direct_binary_js_owned_commands_fail_cleanly_in_agent_mode")]
+#[cfg_attr(
+    target_os = "linux",
+    ignore = "hangs on Linux CI; see FIXME at direct_binary_js_owned_commands_fail_cleanly_in_agent_mode"
+)]
 #[test]
 fn incomplete_bridge_descriptor_fails_cleanly_in_agent_mode() {
     let contract = runtime_contract_fixture();
@@ -199,7 +205,10 @@ fn incomplete_bridge_descriptor_fails_cleanly_in_agent_mode() {
     );
 }
 
-#[cfg_attr(target_os = "linux", ignore = "hangs on Linux CI; see FIXME at direct_binary_js_owned_commands_fail_cleanly_in_agent_mode")]
+#[cfg_attr(
+    target_os = "linux",
+    ignore = "hangs on Linux CI; see FIXME at direct_binary_js_owned_commands_fail_cleanly_in_agent_mode"
+)]
 #[test]
 fn bridge_runtime_and_worker_env_mismatches_fail_cleanly() {
     let contract = runtime_contract_fixture();
