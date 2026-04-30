@@ -484,6 +484,10 @@ jobs:
 
       - name: Select supported-native-smoke
         id: select
+        # Force bash so the `>> "$GITHUB_OUTPUT"` redirection writes UTF-8.
+        # Without this, Windows runners use pwsh, which emits UTF-16-LE and
+        # GitHub Actions reads the output as empty (silently skipping the lane).
+        shell: bash
         run: node scripts/ci/select-jobs.mjs --job supported-native-smoke >> "$GITHUB_OUTPUT"
 
       - name: Skip supported-native-smoke
