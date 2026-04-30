@@ -143,7 +143,11 @@ function defaultRunCommand(
     cwd: options.cwd,
     env: options.env,
     encoding: "utf8",
-    timeout: 120_000,
+    // 360s on Windows (vs 120s elsewhere) accommodates Defender scanning
+    // npm install + cmd.exe shell:true overhead. Linux/macOS routinely
+    // complete `npm root -g` and `npm install -g` well under 30s; Windows
+    // CI lanes hit ETIMEDOUT at the 120s ceiling consistently.
+    timeout: process.platform === "win32" ? 360_000 : 120_000,
     maxBuffer: 10 * 1024 * 1024,
     // Node 20+ tightened .cmd/.bat spawning per CVE-2024-27980; on Windows
     // npm.cmd cannot be spawned without shell:true. Without this, the
