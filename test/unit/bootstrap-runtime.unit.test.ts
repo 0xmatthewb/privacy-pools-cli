@@ -381,7 +381,9 @@ describe("bootstrap runtime coverage", () => {
       });
       expect(welcomeExitCode).toBe(0);
       expect(welcomeResult.stdout).toBe("");
-      expect(welcomeResult.stderr).toContain("privacy-pools flow start 0.1 ETH");
+      // See sibling test at line ~281: "privacy-pools status" appears in
+      // both ready_no_deposits and fallback welcome states.
+      expect(welcomeResult.stderr).toContain("privacy-pools status");
 
       const versionProgram = makeProgram((configuredProgram) => async () => {
         configuredProgram.configuredOutput.writeOut?.("9.9.9");
