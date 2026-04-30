@@ -405,11 +405,12 @@ function runGlobalCli(prefix, homeDir, args, env = {}) {
   const result = spawnSync(globalBinPath(prefix), args, {
     cwd: prefix,
     encoding: "utf8",
-    // 360s on Windows accommodates Defender scanning npm install + the slower
-    // shell:true cmd.exe overhead per spawn. Linux/macOS keep 180s since they
-    // routinely complete in <30s. Observed: win32-x64-msvc lane hit
-    // ETIMEDOUT mid-upgrade in CI run 25151521436 at exactly 180s.
-    timeout: process.platform === "win32" ? 360_000 : 180_000,
+    // 720s on Windows accommodates Defender scanning + cmd.exe shell:true
+    // overhead. Linux/macOS keep 180s since they routinely complete <30s.
+    // win32-x64-msvc still hit ETIMEDOUT at 360s in CI run 25154665225;
+    // bumping to 720s gives a generous ceiling for slow Windows runners
+    // without making the full job exceed the 30 min step timeout.
+    timeout: process.platform === "win32" ? 720_000 : 180_000,
     maxBuffer: 10 * 1024 * 1024,
     shell: process.platform === "win32",
     env: npmProcessEnv(prefix, {
