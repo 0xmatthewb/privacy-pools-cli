@@ -127,9 +127,7 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
                     if let Some(h) = stderr_handle {
                         let _ = h.join();
                     }
-                    panic!(
-                        "native shell test subprocess hung beyond {timeout:?}; argv={args:?}"
-                    );
+                    panic!("native shell test subprocess hung beyond {timeout:?}; argv={args:?}");
                 }
                 thread::sleep(poll_interval);
             }
