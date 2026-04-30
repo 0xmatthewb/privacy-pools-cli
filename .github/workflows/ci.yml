@@ -433,6 +433,17 @@ jobs:
           shared-key: native-shell-debug-linux
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      - name: Install dependencies
+        # The pools detail tests (and any other golden case that lands on the
+        # native -> JS worker handoff via forward_to_js_worker) actually fork
+        # `node dist/runtime/v1/worker-main.js`, which loads
+        # @0xbow/privacy-pools-core-sdk and viem. Those resolve via Node's
+        # bare-import lookup into <repo>/node_modules, so dist alone is not
+        # enough — npm ci must run too. Without this step the worker exits
+        # with ERR_MODULE_NOT_FOUND and the native shell returns status 1.
+        if: steps.select.outputs.should_run == 'true'
+        run: npm ci
+
       - name: Download prepared JS dist
         # Several integration test binaries (golden_parity, mode_resolution_parity,
         # public_readonly) call live_bridge_env(), which asserts that
