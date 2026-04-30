@@ -68,7 +68,19 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
     // their own CI flakes; rely on the per-test #[ignore] gates above plus
     // the GHA job-level timeout-minutes ceiling for runaway protection.
     command.stdin(Stdio::null());
-    command.output().expect("native shell should execute")
+    // Diagnostic markers so CI logs surface which test was running on a
+    // job kill. Direct stderr writes — visible under RUST_TEST_NOCAPTURE=1
+    // even when libtest would otherwise capture test output.
+    eprintln!("[native-test] starting argv={:?}", args);
+    let output = command.output().expect("native shell should execute");
+    eprintln!(
+        "[native-test] completed argv={:?} status={:?} stdout_bytes={} stderr_bytes={}",
+        args,
+        output.status.code(),
+        output.stdout.len(),
+        output.stderr.len()
+    );
+    output
 }
 
 fn native_subprocess_lock() -> &'static Mutex<()> {
