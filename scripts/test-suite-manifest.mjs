@@ -693,6 +693,28 @@ export const ISOLATED_SUITES = [
     reason:
       "captureModuleExports() over seven modules combined with mock.restore()/mock.module() reinstalls in beforeEach leaks Bun's shared module cache; cumulative pressure across 12 tests OOM-killed linux-core shard 3 on free Ubuntu runners",
   }),
+  defineIsolatedSuite({
+    label: "withdraw-handler-interactive",
+    tests: [WITHDRAW_HANDLER_INTERACTIVE_TEST],
+    timeoutMs: 180_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    fixtureClass: "withdraw-mock-graph",
+    tags: ["unit", "withdraw"],
+    reason:
+      "transitively imports withdraw-command-handler.shared.ts which installs ~43 mock.module() overlays; loading this on top of cumulative shard 3 pressure OOM-killed the runner immediately after the iter 19 upgrade-command isolation moved the previous fault point here",
+  }),
+  defineIsolatedSuite({
+    label: "withdraw-handler-validation",
+    tests: [WITHDRAW_HANDLER_VALIDATION_TEST],
+    timeoutMs: 180_000,
+    isolateInDefaultTest: true,
+    isolateInCoverage: true,
+    fixtureClass: "withdraw-mock-graph",
+    tags: ["unit", "withdraw"],
+    reason:
+      "shares the same 43-mock harness as withdraw-command-handler.interactive; isolated proactively to keep shard 3 below the OOM ceiling without needing another iteration to discover the next domino",
+  }),
 ];
 
 export const DEFAULT_TEST_ISOLATED_SUITES = ISOLATED_SUITES.filter(

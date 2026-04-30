@@ -29,7 +29,10 @@
     "ragequit-handler-human-confirmation-coverage": 120000,
     "bootstrap-runtime": 120000,
     "launcher-routing": 120000,
-    "launcher-runtime": 120000
+    "launcher-runtime": 120000,
+    "upgrade-command": 120000,
+    "withdraw-handler-interactive": 180000,
+    "withdraw-handler-validation": 180000
   },
   "profileStepBudgetsMs": {
     "npm run test:install": 900000,
