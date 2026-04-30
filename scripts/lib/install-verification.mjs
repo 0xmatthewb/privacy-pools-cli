@@ -200,6 +200,10 @@ export function runNpmInstallWithRetry(args, options = {}) {
       timeout: options.timeout ?? 180_000,
       maxBuffer: options.maxBuffer ?? 10 * 1024 * 1024,
       env: options.env,
+      // Node 20+ tightened .cmd/.bat spawning per CVE-2024-27980; Windows
+      // requires shell:true to invoke npm.cmd, otherwise spawnSync returns
+      // EINVAL (observed on win32-x64-msvc and win32-arm64-msvc lanes).
+      shell: process.platform === "win32",
     });
 
     if (!result.error && result.status === 0) {
@@ -232,6 +236,10 @@ export function packTarball(cwd, destinationDir, options = {}) {
     timeout: options.timeout ?? 300_000,
     maxBuffer: options.maxBuffer ?? 10 * 1024 * 1024,
     env: npmProcessEnv(options.npmStateRoot ?? destinationDir, options.env),
+    // Node 20+ tightened .cmd/.bat spawning per CVE-2024-27980; Windows
+    // requires shell:true to invoke npm.cmd, otherwise spawnSync returns
+    // EINVAL (observed on win32-x64-msvc and win32-arm64-msvc lanes).
+    shell: process.platform === "win32",
   });
 
   if (packResult.error) {
