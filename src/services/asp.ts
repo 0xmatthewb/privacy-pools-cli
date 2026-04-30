@@ -64,9 +64,19 @@ function isRetryableAspError(error: unknown): boolean {
   return error instanceof RetryableAspHttpError || isTransientNetworkError(error);
 }
 
+// When the user requests an aggressive --timeout (under the cumulative cost
+// of the default backoff schedule), retries can't honor the deadline anyway
+// and instead delay the inevitable failure. Suppress retries entirely below
+// that threshold so offline scenarios fail fast against a closed port rather
+// than burning ~7-8s on backoff before surfacing the error.
+const ASP_RETRY_MIN_TIMEOUT_MS = 5_000;
+
 function aspRetryConfig(): RetryConfig {
+  const networkTimeoutMs = getNetworkTimeoutMs();
+  const maxRetries =
+    networkTimeoutMs < ASP_RETRY_MIN_TIMEOUT_MS ? 0 : ASP_MAX_RETRIES;
   return {
-    maxRetries: ASP_MAX_RETRIES,
+    maxRetries,
     delayMs: (attempt: number) => ASP_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1)),
     isRetryable: isRetryableAspError,
     onExhausted: (error: unknown): never => {
