@@ -26,3 +26,13 @@ if (!allowDirect && !runId) {
 for (const key of ["CI", "GITHUB_ACTIONS", "BUILDKITE"]) {
   delete process.env[key];
 }
+
+// Force a deterministic terminal width for renderers that branch on
+// getOutputWidthClass() (narrow vs wide layout). GitHub Actions runners
+// report a small column count (~70), which flips human-mode output to the
+// stacked layout and breaks renderStatus/withdraw/history exact-match
+// assertions. PRIVACY_POOLS_CLI_PREVIEW_COLUMNS is the highest-priority
+// width source (src/utils/terminal.ts); COLUMNS is a fallback for any
+// helper that reads it directly.
+process.env.PRIVACY_POOLS_CLI_PREVIEW_COLUMNS = "120";
+process.env.COLUMNS = "120";

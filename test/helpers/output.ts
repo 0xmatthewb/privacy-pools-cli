@@ -9,6 +9,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { expect } from "bun:test";
 import type { ResolvedGlobalMode } from "../../src/output/common.ts";
+import { setSuppressProgress } from "../../src/utils/format.ts";
 import { configureNextActionGlobals } from "../../src/utils/next-action-globals.ts";
 import { restoreProcessExitCode } from "./process.ts";
 
@@ -88,6 +89,11 @@ function beginOutputCapture(): {
   restore: () => void;
   read: () => { stdout: string; stderr: string };
 } {
+  // Reset the module-scoped suppressProgress flag in src/utils/format.ts so
+  // earlier tests that flipped it (via --no-progress mode resolution) don't
+  // leak through to capture-using tests that expect spinner output to fire.
+  setSuppressProgress(false);
+
   const ownerToken = outputCaptureContext.getStore() ?? Symbol("output-capture");
   if (activeOutputCapture && activeOutputCapture.ownerToken !== ownerToken) {
     throw new Error(
