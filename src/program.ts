@@ -9,8 +9,6 @@ import {
 } from "./utils/root-global-flags.js";
 import { allNonOptionTokens } from "./utils/root-argv.js";
 import { isGuideTopic } from "./utils/help.js";
-import { setCommandAliasDeprecationWarning } from "./utils/root-alias-metadata.js";
-import { deprecationWarningFor } from "./utils/deprecations.js";
 
 const ROOT_COMMAND_NAMES = [
   "init",
@@ -48,20 +46,9 @@ type CommandSpec = {
   loader: () => Promise<Command>;
 };
 
-type AliasSpec = {
-  name: string;
-  aliasOf: RootCommandName;
-  deprecationWarning?: {
-    code: string;
-    message: string;
-    replacementCommand: string;
-  };
-};
-
 class CommandRegistry {
   private readonly byName = new Map<RootCommandName, CommandSpec>();
   private readonly byHandlerId = new Map<string, RootCommandName>();
-  private readonly aliases = new Map<string, AliasSpec>();
 
   register(spec: CommandSpec): void {
     if (this.byName.has(spec.name)) {
@@ -71,35 +58,18 @@ class CommandRegistry {
     if (existing) {
       throw new Error(
         `Handler '${spec.handlerId}' is already registered as '${existing}'. ` +
-          "Use registerAlias() when a duplicate surface is intentional.",
+          "Each root command must have a unique handler.",
       );
     }
     this.byName.set(spec.name, spec);
     this.byHandlerId.set(spec.handlerId, spec.name);
   }
 
-  registerAlias(spec: AliasSpec): void {
-    if (this.byName.has(spec.name as RootCommandName) || this.aliases.has(spec.name)) {
-      throw new Error(`Root command alias '${spec.name}' is already registered.`);
-    }
-    if (!this.byName.has(spec.aliasOf)) {
-      throw new Error(`Root command alias '${spec.name}' targets unknown '${spec.aliasOf}'.`);
-    }
-    this.aliases.set(spec.name, spec);
-  }
-
   resolve(token: string | undefined): RootCommandName | null {
     if (!token) return null;
-    const alias = this.aliases.get(token);
-    if (alias) return alias.aliasOf;
     return this.byName.has(token as RootCommandName)
       ? (token as RootCommandName)
       : null;
-  }
-
-  alias(token: string | undefined): AliasSpec | null {
-    if (!token) return null;
-    return this.aliases.get(token) ?? null;
   }
 
   loader(name: RootCommandName): () => Promise<Command> {
@@ -194,11 +164,6 @@ for (const name of ROOT_COMMAND_NAMES) {
     loader: ROOT_COMMAND_LOADERS[name],
   });
 }
-ROOT_COMMAND_REGISTRY.registerAlias({
-  name: "recents",
-  aliasOf: "recipients",
-  deprecationWarning: deprecationWarningFor("root-recents"),
-});
 
 function resolveRootCommandName(token: string | undefined): RootCommandName | null {
   if (!token) return null;
@@ -226,15 +191,11 @@ function resolveRootCommandsForInvocation(argv: string[] | undefined): RootComma
 async function addRootCommands(
   program: Command,
   commandNames: readonly RootCommandName[],
-  aliasSpec: AliasSpec | null = null,
 ): Promise<void> {
   const commands = await Promise.all(
     commandNames.map((name) => ROOT_COMMAND_REGISTRY.loader(name)()),
   );
   for (const command of commands) {
-    if (command.name() === aliasSpec?.aliasOf) {
-      setCommandAliasDeprecationWarning(command, aliasSpec.deprecationWarning);
-    }
     program.addCommand(command);
   }
 }
@@ -389,13 +350,7 @@ export async function createRootProgram(
   const commandNames = loadAllCommands
     ? ROOT_COMMAND_NAMES
     : resolveRootCommandsForInvocation(argv);
-  const [firstToken, secondToken] = allNonOptionTokens(argv ?? []);
-  const aliasToken = firstToken === "help" ? secondToken : firstToken;
-  await addRootCommands(
-    program,
-    commandNames,
-    ROOT_COMMAND_REGISTRY.alias(aliasToken),
-  );
+  await addRootCommands(program, commandNames);
   applyExitOverrideRecursively(program);
 
   return program;

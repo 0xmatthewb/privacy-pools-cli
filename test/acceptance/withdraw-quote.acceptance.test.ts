@@ -60,6 +60,8 @@ defineScenarioSuite("withdraw quote acceptance", [
     assertNextActionsStep(["withdraw"]),
     assertJson<{
       mode: string;
+      action: string;
+      operation: string;
       chain: string;
       asset: string;
       amount: string;
@@ -80,7 +82,9 @@ defineScenarioSuite("withdraw quote acceptance", [
         options?: Record<string, unknown>;
       }>;
     }>((json) => {
-      expect(json.mode).toBe("relayed-quote");
+      expect(json.mode).toBe("withdraw");
+      expect(json.action).toBe("quote");
+      expect(json.operation).toBe("withdraw.quote");
       expect(json.chain).toBe("sepolia");
       expect(json.asset).toBe("ETH");
       expect(json.amount).toBe("100000000000000000");

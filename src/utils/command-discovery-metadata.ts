@@ -38,11 +38,6 @@ const EXIT_CODES_GUIDE_NOTE =
   "Exit code categories are documented in 'privacy-pools guide exit-codes'.";
 const HIDDEN_DISCOVERY_COMMANDS = new Set<CommandPath>([
   "stats",
-  "withdraw recipients",
-  "withdraw recipients list",
-  "withdraw recipients add",
-  "withdraw recipients remove",
-  "withdraw recipients clear",
 ]);
 const AGENT_FLAG_PATTERN = /--[a-z0-9][a-z0-9-]*/gi;
 
@@ -158,11 +153,6 @@ export const CAPABILITIES_COMMAND_ORDER: CommandPath[] = [
   "recipients add",
   "recipients remove",
   "recipients clear",
-  "withdraw recipients",
-  "withdraw recipients list",
-  "withdraw recipients add",
-  "withdraw recipients remove",
-  "withdraw recipients clear",
   "withdraw quote",
   "broadcast",
   "accounts",
@@ -391,8 +381,6 @@ const READ_ONLY_COMMANDS = new Set<CommandPath>([
   "migrate",
   "migrate status",
   "withdraw quote",
-  "withdraw recipients",
-  "withdraw recipients list",
   "recipients",
   "recipients list",
   "simulate",
@@ -415,9 +403,6 @@ const LOCAL_STATE_WRITE_COMMANDS = new Set<CommandPath>([
   "recipients add",
   "recipients remove",
   "recipients clear",
-  "withdraw recipients add",
-  "withdraw recipients remove",
-  "withdraw recipients clear",
 ]);
 
 const FUND_MOVEMENT_COMMANDS = new Set<CommandPath>([

@@ -1239,8 +1239,9 @@ describe("flow command handlers", () => {
     expect(JSON.parse(lines[0]!)).toMatchObject({
       schemaVersion: JSON_SCHEMA_VERSION,
       success: true,
-      mode: "flow",
+      mode: "transfer",
       action: "watch",
+      operation: "transfer.watch",
       event: "phase_change",
       workflowId: "wf-watch",
       previousPhase: "awaiting_asp",
@@ -1249,8 +1250,9 @@ describe("flow command handlers", () => {
     expect(typeof JSON.parse(lines[0]!).ts).toBe("string");
     expect(JSON.parse(lines[1]!)).toMatchObject({
       success: true,
-      mode: "flow",
+      mode: "transfer",
       action: "watch",
+      operation: "transfer.watch",
       workflowId: "wf-watch",
       phase: "completed",
     });

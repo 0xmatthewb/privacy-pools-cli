@@ -24,8 +24,9 @@ import { createTestWorld, type TestWorld } from "../helpers/test-world.ts";
 
 interface RecipientEnvelope {
   success: boolean;
-  mode: "recipient-history";
-  operation: "add" | "list" | "remove" | "clear";
+  mode: "recipients";
+  action?: "add" | "list" | "remove" | "clear";
+  operation: "recipients.add" | "recipients.list" | "recipients.remove" | "recipients.clear";
   chain?: string;
   count?: number;
   removed?: boolean;
@@ -47,10 +48,6 @@ interface RecipientEnvelope {
     updatedAt?: string;
   }>;
   nextActions?: Array<{ command: string; runnable?: boolean }>;
-  deprecationWarning?: {
-    code: string;
-    replacementCommand: string;
-  };
   errorCode?: string;
 }
 
@@ -149,7 +146,9 @@ describe("withdraw recipient command handlers", () => {
     expect(addFirst.stderr).toBe("");
     expect(addFirst.json).toMatchObject({
       success: true,
-      operation: "add",
+      mode: "recipients",
+      action: "add",
+      operation: "recipients.add",
       recipient: {
         address: first,
         label: "treasury",
@@ -182,7 +181,9 @@ describe("withdraw recipient command handlers", () => {
     );
     expect(listMainnet.json).toMatchObject({
       success: true,
-      operation: "list",
+      mode: "recipients",
+      action: "list",
+      operation: "recipients.list",
       chain: "mainnet",
       count: 1,
       recipients: [{ address: first, label: "treasury", chain: "mainnet" }],
@@ -218,7 +219,9 @@ describe("withdraw recipient command handlers", () => {
     );
     expect(removeByLabel.json).toMatchObject({
       success: true,
-      operation: "remove",
+      mode: "recipients",
+      action: "remove",
+      operation: "recipients.remove",
       address: first,
       removed: true,
     });
@@ -235,7 +238,9 @@ describe("withdraw recipient command handlers", () => {
     );
     expect(clearOptimism.json).toMatchObject({
       success: true,
-      operation: "clear",
+      mode: "recipients",
+      action: "clear",
+      operation: "recipients.clear",
       removedCount: 1,
     });
     expect(loadRecipientHistoryEntries()).toEqual([]);
@@ -254,7 +259,9 @@ describe("withdraw recipient command handlers", () => {
 
     expect(empty.json).toMatchObject({
       success: true,
-      operation: "list",
+      mode: "recipients",
+      action: "list",
+      operation: "recipients.list",
       count: 0,
       recipients: [],
     });
@@ -318,76 +325,6 @@ describe("withdraw recipient command handlers", () => {
     expect(csv.stdout).toContain("Address,Label,ENS,Chain");
     expect(csv.stdout).toContain(`${first},vault,,mainnet`);
     expect(csv.stderr).toBe("");
-  });
-
-  test("withdraw-recipient aliases carry deprecation metadata", async () => {
-    const address = "0x4444444444444444444444444444444444444444";
-    await captureAsyncJsonOutputAllowExit(() =>
-      handleWithdrawRecipientsAddCommand(
-        address,
-        "legacy",
-        {},
-        fakeRecipientCommand({ agent: true, chain: "mainnet" }, [
-          "withdraw",
-          "recipients",
-          "add",
-        ]),
-      ),
-    );
-
-    process.argv = [
-      "node",
-      "privacy-pools",
-      "withdraw",
-      "recipients",
-      "list",
-    ];
-    const list = await captureAsyncJsonOutputAllowExit<RecipientEnvelope>(() =>
-      handleWithdrawRecipientsListCommand(
-        {},
-        fakeRecipientCommand({ agent: true, chain: "mainnet" }, [
-          "withdraw",
-          "recipients",
-          "list",
-        ]),
-      ),
-    );
-
-    expect(list.json.deprecationWarning).toMatchObject({
-      code: "COMMAND_ALIAS_DEPRECATED",
-      replacementCommand: "privacy-pools recipients",
-    });
-  });
-
-  test("recents aliases carry deprecation metadata for root and nested commands", async () => {
-    process.argv = ["node", "privacy-pools", "recents", "list"];
-    const root = await captureAsyncJsonOutputAllowExit<RecipientEnvelope>(() =>
-      handleWithdrawRecipientsListCommand(
-        {},
-        fakeRecipientCommand({ agent: true, chain: "mainnet" }, [
-          "recipients",
-          "list",
-        ]),
-      ),
-    );
-    expect(root.json.deprecationWarning?.replacementCommand).toBe(
-      "privacy-pools recipients",
-    );
-
-    process.argv = ["node", "privacy-pools", "withdraw", "recents", "list"];
-    const nested = await captureAsyncJsonOutputAllowExit<RecipientEnvelope>(() =>
-      handleWithdrawRecipientsListCommand(
-        {},
-        fakeRecipientCommand({ agent: true, chain: "mainnet" }, [
-          "withdraw",
-          "recipients",
-          "list",
-        ]),
-      ),
-    );
-    expect(nested.json.deprecationWarning?.replacementCommand).toBe(
-      "privacy-pools withdraw recipients",
-    );
   });
 
   test("human add, remove, and clear render status messages", async () => {

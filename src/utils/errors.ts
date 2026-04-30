@@ -27,10 +27,6 @@ import {
 } from "./error-recovery-table.js";
 import { readCliPackageInfo } from "../package-info.js";
 import type { NextAction } from "../types.js";
-import {
-  formatDeprecationWarningCallout,
-  type DeprecationWarningPayload,
-} from "../output/deprecation.js";
 
 export type ErrorCategory =
   | "CANCELLED"
@@ -401,25 +397,6 @@ function renderBoxedError(error: CLIError): string {
     .map((line) => `${vertical} ${padDisplay(line, borderWidth - 2)} ${vertical}`)
     .join("\n");
   return `\n${dangerTone(top)}\n${middle}\n${dangerTone(bottom)}\n`;
-}
-
-function extractDeprecationWarning(
-  details: Record<string, unknown> | undefined,
-): DeprecationWarningPayload | null {
-  const value = details?.deprecationWarning;
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "code" in value &&
-    "message" in value &&
-    "replacementCommand" in value &&
-    typeof (value as { code?: unknown }).code === "string" &&
-    typeof (value as { message?: unknown }).message === "string" &&
-    typeof (value as { replacementCommand?: unknown }).replacementCommand === "string"
-  ) {
-    return value as DeprecationWarningPayload;
-  }
-  return null;
 }
 
 function lookupRegisteredError(code: RegisteredErrorCode) {
@@ -924,10 +901,6 @@ export function printError(error: unknown, json: boolean = false, quiet?: boolea
           notice(formatHelpTopicReference(classified.extra.helpTopic)) + "\n",
         );
       }
-    }
-    const deprecationWarning = extractDeprecationWarning(classified.details);
-    if (deprecationWarning) {
-      process.stderr.write(formatDeprecationWarningCallout(deprecationWarning));
     }
   }
 

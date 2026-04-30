@@ -194,8 +194,9 @@ function assertFlowWatchStreamOutput() {
     expect(phaseChange).toMatchObject({
       schemaVersion: JSON_SCHEMA_VERSION,
       success: true,
-      mode: "flow",
+      mode: "transfer",
       action: "watch",
+      operation: "transfer.watch",
       event: "phase_change",
       workflowId: FLOW_STREAM_WORKFLOW_ID,
       previousPhase: "awaiting_asp",
@@ -207,8 +208,9 @@ function assertFlowWatchStreamOutput() {
     expect(finalSnapshot).toMatchObject({
       schemaVersion: JSON_SCHEMA_VERSION,
       success: true,
-      mode: "flow",
+      mode: "transfer",
       action: "watch",
+      operation: "transfer.watch",
       workflowId: FLOW_STREAM_WORKFLOW_ID,
       phase: "stopped_external",
       chain: "sepolia",
@@ -495,6 +497,8 @@ defineScenarioSuite("json-contract acceptance", [
     assertJson<{
       schemaVersion: string;
       success: boolean;
+      mode: string;
+      action?: string;
       operation: string;
       submissionId: string;
       sourceOperation: string;
@@ -511,7 +515,9 @@ defineScenarioSuite("json-contract acceptance", [
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(true);
-      expect(json.operation).toBe("tx-status");
+      expect(json.mode).toBe("tx");
+      expect(json.action).toBe("status");
+      expect(json.operation).toBe("tx.status");
       expect(json.submissionId).toBe("sub-json-status-submitted");
       expect(json.sourceOperation).toBe("broadcast");
       expect(json.sourceCommand).toBe("broadcast");
@@ -544,6 +550,8 @@ defineScenarioSuite("json-contract acceptance", [
     assertJson<{
       schemaVersion: string;
       success: boolean;
+      mode: string;
+      action?: string;
       operation: string;
       submissionId: string;
       sourceOperation: string;
@@ -559,7 +567,9 @@ defineScenarioSuite("json-contract acceptance", [
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(true);
-      expect(json.operation).toBe("tx-status");
+      expect(json.mode).toBe("tx");
+      expect(json.action).toBe("status");
+      expect(json.operation).toBe("tx.status");
       expect(json.submissionId).toBe("sub-json-status-confirmed");
       expect(json.sourceOperation).toBe("withdraw");
       expect(json.workflowId).toBeNull();
@@ -733,6 +743,7 @@ defineScenarioSuite("json-contract acceptance", [
       success: boolean;
       mode: string;
       action: string;
+      operation: string;
       workflowId: string;
       phase: string;
       walletMode: string;
@@ -762,8 +773,9 @@ defineScenarioSuite("json-contract acceptance", [
     }>((json) => {
       expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("flow");
+      expect(json.mode).toBe("transfer");
       expect(json.action).toBe("status");
+      expect(json.operation).toBe("transfer.status");
       expect(json.workflowId).toBe("wf-json-flow");
       expect(json.phase).toBe("approved_waiting_privacy_delay");
       expect(json.walletMode).toBe("configured");

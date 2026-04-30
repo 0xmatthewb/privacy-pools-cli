@@ -356,7 +356,7 @@ describe("exit-code matrix", () => {
     }>(
       result.stdout,
     );
-    expect(json.mode).toBe("describe-index");
+    expect(json.mode).toBe("describe");
     expect(json.commands?.some((entry) => entry.command === "withdraw")).toBe(true);
     expect(json.envelopeRoots).toEqual(expect.arrayContaining(["commands", "nextActions"]));
   });

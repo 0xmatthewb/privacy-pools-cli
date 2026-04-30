@@ -23,7 +23,9 @@ export function registerReadonlyMigrateStatusTests(): void {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("migration-status");
+    expect(json.mode).toBe("migrate");
+    expect(json.action).toBe("status");
+    expect(json.operation).toBe("migrate.status");
     expect(json.chain).toBe("mainnet");
     expect(json.status).toBe("migration_required");
     expect(json.requiresMigration).toBe(true);

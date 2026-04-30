@@ -30,7 +30,7 @@ defineScenarioSuite("help acceptance", [
       expect(stdout).toContain("status");
       expect(stdout).toContain("pools");
       expect(stdout).toContain("withdraw");
-      expect(stdout).toContain("recipients|recents");
+      expect(stdout).toContain("recipients");
       expect(stdout).toContain("ragequit");
       expect(stdout).toContain("completion");
     }),
@@ -111,9 +111,9 @@ defineScenarioSuite("help acceptance", [
     assertExit(0),
     assertStderrEmpty(),
     assertStdout((stdout) => {
-      expect(stdout).toContain("Usage: privacy-pools recipients|recents");
+      expect(stdout).toContain("Usage: privacy-pools recipients");
       expect(stdout).toContain("add <address-or-ens> [label]");
-      expect(stdout).toContain("remove|rm <address-or-ens>");
+      expect(stdout).toContain("remove <address-or-ens>");
     }),
   ]),
   defineScenario("ragequit full help exposes the updated crisis guidance and structured output help", [
@@ -143,8 +143,10 @@ defineScenarioSuite("help acceptance", [
     runCliStep(["--json", "--help"]),
     assertExit(0),
     assertStderrEmpty(),
-    assertJson<{ mode: string; help: string }>((json) => {
-      expect(json.mode).toBe("help");
+    assertJson<{ mode: string; action: string; operation: string; help: string }>((json) => {
+      expect(json.mode).toBe("describe");
+      expect(json.action).toBe("help");
+      expect(json.operation).toBe("describe.help");
       expect(typeof json.help).toBe("string");
       expect(json.help).toContain("privacy-pools");
     }),
@@ -153,8 +155,10 @@ defineScenarioSuite("help acceptance", [
     runCliStep(["--json", "--version"]),
     assertExit(0),
     assertStderrEmpty(),
-    assertJson<{ mode: string; version: string }>((json) => {
-      expect(json.mode).toBe("version");
+    assertJson<{ mode: string; action: string; operation: string; version: string }>((json) => {
+      expect(json.mode).toBe("status");
+      expect(json.action).toBe("version");
+      expect(json.operation).toBe("status.version");
       expect(json.version).toMatch(/^\d+\.\d+\.\d+$/);
     }),
   ]),

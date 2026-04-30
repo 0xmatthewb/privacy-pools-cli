@@ -50,11 +50,6 @@ export type CommandPath =
   | "recipients add"
   | "recipients remove"
   | "recipients clear"
-  | "withdraw recipients"
-  | "withdraw recipients list"
-  | "withdraw recipients add"
-  | "withdraw recipients remove"
-  | "withdraw recipients clear"
   | "withdraw quote"
   | "ragequit"
   | "broadcast"
@@ -364,7 +359,6 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   "config unset": {
     description: "Clear a single configuration key",
     surface: "subcommand",
-    aliases: ["remove"],
     help: {
       overview: [
         "Clears a stored configuration key without editing config.json by hand.",
@@ -374,7 +368,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools config unset rpc-override.mainnet",
         "privacy-pools config unset default-chain",
         "privacy-pools config unset recovery-phrase",
-        "privacy-pools config remove signer-key",
+        "privacy-pools config unset signer-key",
       ],
       safetyNotes: [
         "config unset signer-key only removes the local fallback file. If PRIVACY_POOLS_PRIVATE_KEY is set in the environment, unset it there too.",
@@ -966,7 +960,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools protocol-stats --agent --limit 10",
       ],
       jsonFields:
-        "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+        "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
       seeAlso: ["pool-stats","pools"],
     },
     capabilities: {
@@ -993,7 +987,7 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
         "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10",
       ],
       jsonFields:
-        "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
+        "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
       seeAlso: ["protocol-stats","pools","activity"],
     },
     capabilities: {
@@ -1343,7 +1337,6 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   recipients: {
     description: ROOT_COMMAND_DESCRIPTIONS.recipients,
     surface: "root-command",
-    aliases: ["recents"],
     help: {
       overview: [
         "Shows the local withdrawal recipient history. Successful withdrawals are remembered automatically, and you can add labels manually for repeated recipients.",
@@ -1376,12 +1369,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   "recipients list": {
     description: "List remembered withdrawal recipients",
     surface: "subcommand",
-    aliases: ["ls"],
     help: {
       examples: [
         "privacy-pools recipients list",
         "privacy-pools recipients list --limit 10",
-        "privacy-pools recents",
       ],
       jsonFields:
         "{ mode: \"recipient-history\", operation: \"list\", chain, count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }] }",
@@ -1425,11 +1416,10 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
   "recipients remove": {
     description: "Remove a recipient from the local withdrawal address book",
     surface: "subcommand",
-    aliases: ["rm"],
     help: {
       examples: [
         "privacy-pools recipients remove 0xRecipient...",
-        "privacy-pools recipients rm treasury.eth",
+        "privacy-pools recipients remove treasury.eth",
       ],
       jsonFields:
         "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
@@ -1460,137 +1450,6 @@ export const COMMAND_CATALOG: Record<CommandPath, CommandMetadata> = {
     },
     capabilities: {
       usage: "recipients clear",
-      flags: [],
-      agentFlags: "--agent",
-      requiresInit: false,
-      expectedLatencyClass: "fast",
-    },
-  },
-  "withdraw recipients": {
-    description: "List remembered withdrawal recipients",
-    surface: "deprecated-compat",
-    aliases: ["recents"],
-    deprecated: true,
-    help: {
-      overview: [
-        "Shows the local withdrawal recipient history. Successful withdrawals are remembered automatically, and you can add labels manually for repeated recipients.",
-      ],
-      examples: [
-        "privacy-pools withdraw recipients",
-        "privacy-pools withdraw recipients --limit 10",
-        "privacy-pools withdraw recipients add 0xRecipient... treasury",
-        "privacy-pools withdraw recipients remove 0xRecipient...",
-      ],
-      jsonFields:
-        "{ mode: \"recipient-history\", operation, chain?, count?, recipients?: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }], recipient? }",
-      safetyNotes: [
-        "Recipient history is local advisory metadata only. Always review the final --to address before submitting a withdrawal.",
-      ],
-      agentWorkflowNotes: [
-        "Use this read-only list to offer previously used recipients before prompting for a new address.",
-      ],
-      seeAlso: ["withdraw", "withdraw recipients add", "withdraw recipients remove"],
-    },
-    capabilities: {
-      usage: "withdraw recipients",
-      flags: ["--limit <n>", "--all-chains", "--include-metadata"],
-      agentFlags: "--agent [--limit <n>] [--all-chains] [--include-metadata]",
-      requiresInit: false,
-      expectedLatencyClass: "fast",
-    },
-    safeReadOnly: true,
-  },
-  "withdraw recipients list": {
-    description: "List remembered withdrawal recipients",
-    surface: "deprecated-compat",
-    aliases: ["ls"],
-    deprecated: true,
-    help: {
-      examples: [
-        "privacy-pools withdraw recipients list",
-        "privacy-pools withdraw recipients list --limit 10",
-        "privacy-pools withdraw recents",
-      ],
-      jsonFields:
-        "{ mode: \"recipient-history\", operation: \"list\", chain, count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }] }",
-      agentWorkflowNotes: [
-        "Use this read-only list to offer previously used recipients before prompting for a new address.",
-      ],
-      seeAlso: ["withdraw", "withdraw recipients"],
-    },
-    capabilities: {
-      usage: "withdraw recipients list",
-      flags: ["--limit <n>", "--all-chains", "--include-metadata"],
-      agentFlags: "--agent [--limit <n>] [--all-chains] [--include-metadata]",
-      requiresInit: false,
-      expectedLatencyClass: "fast",
-    },
-    safeReadOnly: true,
-  },
-  "withdraw recipients add": {
-    description: "Add a recipient to the local withdrawal address book",
-    surface: "deprecated-compat",
-    deprecated: true,
-    help: {
-      examples: [
-        "privacy-pools withdraw recipients add 0xRecipient... treasury",
-        "privacy-pools withdraw recipients add vitalik.eth donations",
-      ],
-      jsonFields:
-        "{ mode: \"recipient-history\", operation: \"add\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } }",
-      safetyNotes: [
-        "Adding a recipient does not authorize a withdrawal. The withdrawal command still performs recipient review before submission.",
-      ],
-      seeAlso: ["withdraw recipients", "withdraw recipients remove"],
-    },
-    capabilities: {
-      usage: "withdraw recipients add <address-or-ens> [label]",
-      flags: [],
-      agentFlags: "--agent",
-      requiresInit: false,
-      expectedLatencyClass: "fast",
-    },
-  },
-  "withdraw recipients remove": {
-    description: "Remove a recipient from the local withdrawal address book",
-    surface: "deprecated-compat",
-    aliases: ["rm"],
-    deprecated: true,
-    help: {
-      examples: [
-        "privacy-pools withdraw recipients remove 0xRecipient...",
-        "privacy-pools withdraw recipients rm treasury.eth",
-      ],
-      jsonFields:
-        "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",
-      seeAlso: ["withdraw recipients", "withdraw recipients add"],
-    },
-    capabilities: {
-      usage: "withdraw recipients remove <address-or-ens>",
-      flags: [],
-      agentFlags: "--agent",
-      requiresInit: false,
-      expectedLatencyClass: "fast",
-    },
-  },
-  "withdraw recipients clear": {
-    description: "Clear all remembered withdrawal recipients",
-    surface: "deprecated-compat",
-    deprecated: true,
-    help: {
-      examples: [
-        "privacy-pools withdraw recipients clear",
-        "privacy-pools withdraw recipients clear --yes",
-      ],
-      jsonFields:
-        "{ mode: \"recipient-history\", operation: \"clear\", removedCount }",
-      safetyNotes: [
-        "This only clears local recipient metadata. It does not affect accounts, workflows, or onchain state.",
-      ],
-      seeAlso: ["withdraw recipients", "withdraw recipients add"],
-    },
-    capabilities: {
-      usage: "withdraw recipients clear",
       flags: [],
       agentFlags: "--agent",
       requiresInit: false,

@@ -1,6 +1,7 @@
 // normalized: NONE
 {
   "chain": "sepolia",
+  "mode": "pools",
   "nextActions": [
     {
       "command": "deposit",
@@ -24,6 +25,7 @@
       "when": "after_pools"
     }
   ],
+  "operation": "pools",
   "pools": [],
   "schemaVersion": "3.0.0",
   "search": "NOPE",

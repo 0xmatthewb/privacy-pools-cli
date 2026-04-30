@@ -752,7 +752,6 @@
         "mode": "\"global-stats\"",
         "command": "\"protocol-stats\"",
         "invokedAs": "\"stats\"|\"stats global\"|undefined",
-        "deprecationWarning": "{ code: \"COMMAND_ALIAS_DEPRECATED\", message: string, replacementCommand: string }|undefined",
         "chain": "string",
         "chains": "string[]? (multi-chain mode)",
         "cacheTimestamp": "iso8601-string|null",
@@ -764,7 +763,6 @@
         "mode": "\"pool-stats\"",
         "command": "\"pool-stats\"",
         "invokedAs": "\"stats pool\"|undefined",
-        "deprecationWarning": "{ code: \"COMMAND_ALIAS_DEPRECATED\", message: string, replacementCommand: string }|undefined",
         "chain": "string",
         "asset": "string",
         "pool": "0x-prefixed-address",
@@ -1675,7 +1673,6 @@
           "chain": "string",
           "chains": "array<string>",
           "command": "string",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "invokedAs": "string",
           "last24h": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
           "mode": "string",
@@ -1700,7 +1697,6 @@
           "chain": "string",
           "chains": "array<string>",
           "command": "string",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "invokedAs": "string",
           "last24h": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
           "mode": "string",
@@ -1725,7 +1721,6 @@
           "chain": "string",
           "chains": "array<string>",
           "command": "string",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "invokedAs": "string",
           "last24h": "object{tvl,tvlUsd,avgDepositSizeUsd,totalDepositsCount,totalWithdrawalsCount,totalDepositsValue,totalWithdrawalsValue,totalDepositsValueUsd,totalWithdrawalsValueUsd}|null",
           "mode": "string",
@@ -1952,7 +1947,6 @@
           "blockNumber": "string|number|null",
           "chain": "string",
           "committedValue": "string|null",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "estimatedCommitted": "string|null",
           "explorerUrl": "string|null",
           "feesApply": "boolean",
@@ -1992,7 +1986,6 @@
           "asset": "string",
           "blockNumber": "string|number|null",
           "chain": "string",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "explorerUrl": "string|null",
           "extraGas": "boolean",
           "extraGasFundAmount": "string|null",
@@ -2072,7 +2065,6 @@
           "chain": "string|null",
           "cleared": "boolean",
           "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "mode": "string",
           "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
           "operation": "string",
@@ -2093,7 +2085,6 @@
           "chain": "string|null",
           "cleared": "boolean",
           "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "mode": "string",
           "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
           "operation": "string",
@@ -2114,7 +2105,6 @@
           "chain": "string|null",
           "cleared": "boolean",
           "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "mode": "string",
           "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
           "operation": "string",
@@ -2135,7 +2125,6 @@
           "chain": "string|null",
           "cleared": "boolean",
           "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "mode": "string",
           "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
           "operation": "string",
@@ -2156,112 +2145,6 @@
           "chain": "string|null",
           "cleared": "boolean",
           "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
-          "mode": "string",
-          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
-          "operation": "string",
-          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
-          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
-          "removed": "boolean",
-          "warnings": "array<object{code,category,message}>"
-        },
-        "requiredSuccessFields": [],
-        "variants": [
-          "success",
-          "error"
-        ]
-      },
-      "withdraw recipients": {
-        "successFields": {
-          "allChains": "boolean",
-          "chain": "string|null",
-          "cleared": "boolean",
-          "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
-          "mode": "string",
-          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
-          "operation": "string",
-          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
-          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
-          "removed": "boolean",
-          "warnings": "array<object{code,category,message}>"
-        },
-        "requiredSuccessFields": [],
-        "variants": [
-          "success",
-          "error"
-        ]
-      },
-      "withdraw recipients list": {
-        "successFields": {
-          "allChains": "boolean",
-          "chain": "string|null",
-          "cleared": "boolean",
-          "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
-          "mode": "string",
-          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
-          "operation": "string",
-          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
-          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
-          "removed": "boolean",
-          "warnings": "array<object{code,category,message}>"
-        },
-        "requiredSuccessFields": [],
-        "variants": [
-          "success",
-          "error"
-        ]
-      },
-      "withdraw recipients add": {
-        "successFields": {
-          "allChains": "boolean",
-          "chain": "string|null",
-          "cleared": "boolean",
-          "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
-          "mode": "string",
-          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
-          "operation": "string",
-          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
-          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
-          "removed": "boolean",
-          "warnings": "array<object{code,category,message}>"
-        },
-        "requiredSuccessFields": [],
-        "variants": [
-          "success",
-          "error"
-        ]
-      },
-      "withdraw recipients remove": {
-        "successFields": {
-          "allChains": "boolean",
-          "chain": "string|null",
-          "cleared": "boolean",
-          "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
-          "mode": "string",
-          "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
-          "operation": "string",
-          "recipient": "object{address,ensName,label,chain,source,useCount,lastUsedAt}",
-          "recipients": "array<object{address,ensName,label,chain,source,useCount,lastUsedAt}>",
-          "removed": "boolean",
-          "warnings": "array<object{code,category,message}>"
-        },
-        "requiredSuccessFields": [],
-        "variants": [
-          "success",
-          "error"
-        ]
-      },
-      "withdraw recipients clear": {
-        "successFields": {
-          "allChains": "boolean",
-          "chain": "string|null",
-          "cleared": "boolean",
-          "count": "number",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "mode": "string",
           "nextActions": "array<object{command,reason,when,cliCommand,args,options,parameters,runnable}>",
           "operation": "string",
@@ -2282,7 +2165,6 @@
           "asset": "string",
           "blockNumber": "string|number|null",
           "chain": "string",
-          "deprecationWarning": "object{code,message,replacementCommand}",
           "destinationAddress": "string",
           "explorerUrl": "string|null",
           "localStateSynced": "boolean",

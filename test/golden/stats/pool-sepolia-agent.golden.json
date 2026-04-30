@@ -15,11 +15,6 @@
   "cacheTimestamp": "<TS>",
   "chain": "sepolia",
   "command": "pool-stats",
-  "deprecationWarning": {
-    "code": "COMMAND_ALIAS_DEPRECATED",
-    "message": "Command 'stats pool' is deprecated and will be removed in the next minor release. Use 'privacy-pools pool-stats ETH' instead.",
-    "replacementCommand": "privacy-pools pool-stats ETH"
-  },
   "invokedAs": "stats pool",
   "last24h": {
     "totalDepositsCount": 5,

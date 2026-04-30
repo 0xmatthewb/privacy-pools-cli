@@ -42,6 +42,8 @@ fn build_pools_empty_json_payload(data: &PoolsRenderData) -> Value {
 
     if data.all_chains {
         json!({
+            "mode": "pools",
+            "operation": "pools",
             "chain": data.chain_name,
             "search": data.search,
             "sort": data.sort,
@@ -51,6 +53,8 @@ fn build_pools_empty_json_payload(data: &PoolsRenderData) -> Value {
         })
     } else {
         json!({
+            "mode": "pools",
+            "operation": "pools",
             "chain": data.chain_name,
             "search": data.search,
             "sort": data.sort,
@@ -152,6 +156,8 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
 
         if data.all_chains {
             let mut payload = Map::new();
+            payload.insert("mode".to_string(), Value::String("pools".to_string()));
+            payload.insert("operation".to_string(), Value::String("pools".to_string()));
             payload.insert("chain".to_string(), Value::String(data.chain_name));
             payload.insert(
                 "search".to_string(),
@@ -192,6 +198,8 @@ pub(super) fn render_pools_output(mode: &NativeMode, data: PoolsRenderData) {
             print_json_success(Value::Object(payload));
         } else {
             let mut payload = Map::new();
+            payload.insert("mode".to_string(), Value::String("pools".to_string()));
+            payload.insert("operation".to_string(), Value::String("pools".to_string()));
             payload.insert("chain".to_string(), Value::String(data.chain_name));
             payload.insert(
                 "search".to_string(),
@@ -1248,6 +1256,8 @@ mod extended_tests {
         });
 
         assert_eq!(payload["chain"], Value::String("sepolia".to_string()));
+        assert_eq!(payload["mode"], Value::String("pools".to_string()));
+        assert_eq!(payload["operation"], Value::String("pools".to_string()));
         assert_eq!(payload["pools"], Value::Array(vec![]));
         assert_eq!(
             payload["nextActions"][0]["command"],

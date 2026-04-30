@@ -10,7 +10,6 @@ export function createRecipientsCommand(): Command {
   const removeMetadata = getCommandMetadata("recipients remove");
   const clearMetadata = getCommandMetadata("recipients clear");
   const command = new Command("recipients")
-    .alias("recents")
     .description(metadata.description)
     .option("-n, --limit <n>", "Limit recipients returned")
     .option("--all-chains", "List remembered recipients across all chains")
@@ -25,7 +24,6 @@ export function createRecipientsCommand(): Command {
 
   command
     .command("list")
-    .alias("ls")
     .description(listMetadata.description)
     .option("-n, --limit <n>", "Limit recipients returned")
     .option("--all-chains", "List remembered recipients across all chains")
@@ -53,7 +51,6 @@ export function createRecipientsCommand(): Command {
 
   command
     .command("remove")
-    .alias("rm")
     .description(removeMetadata.description)
     .argument("<address-or-ens>", "Recipient address or ENS name")
     .addHelpText("after", commandHelpText(removeMetadata.help ?? {}))

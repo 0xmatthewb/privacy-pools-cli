@@ -51,7 +51,9 @@ describe("renderGlobalStats parity", () => {
     const { stdout, stderr } = captureOutput(() => renderGlobalStats(ctx, STUB_GLOBAL_STATS));
 
     const json = JSON.parse(stdout.trim());
-    expect(json.mode).toBe("global-stats");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("stats");
+    expect(json.operation).toBe("pools.stats");
     expect(json.chain).toBe("sepolia");
     expect(json.cacheTimestamp).toBe("2025-01-01T00:00:00.000Z");
     expect(json.allTime).toEqual(expect.any(Object));
@@ -120,7 +122,9 @@ describe("renderPoolStats parity", () => {
     const { stdout, stderr } = captureOutput(() => renderPoolStats(ctx, STUB_POOL_STATS));
 
     const json = JSON.parse(stdout.trim());
-    expect(json.mode).toBe("pool-stats");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("stats");
+    expect(json.operation).toBe("pools.stats");
     expect(json.chain).toBe("sepolia");
     expect(json.asset).toBe("ETH");
     expect(json.pool).toBe("0x1111111111111111111111111111111111111111");

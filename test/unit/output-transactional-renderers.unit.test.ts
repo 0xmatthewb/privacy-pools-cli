@@ -238,8 +238,9 @@ describe("renderInitResult parity", () => {
     );
     expect(parseCapturedJson(stage.stdout)).toMatchObject({
       success: true,
-      mode: "init-staged",
-      operation: "init",
+      mode: "init",
+      action: "create",
+      operation: "init.create",
       stage: "preflight",
       configExists: false,
     });
@@ -277,7 +278,7 @@ describe("renderInitResult parity", () => {
 
     const pending: InitPendingResult = {
       mode: "init-pending",
-      operation: "init",
+      operation: "init.handoff",
       status: "pending_human_action",
       effectiveChain: "sepolia",
       configExists: false,
@@ -297,7 +298,9 @@ describe("renderInitResult parity", () => {
     const pendingJson = parseCapturedJson(pendingOutput.stdout);
     expect(pendingJson).toMatchObject({
       success: true,
-      mode: "init-pending",
+      mode: "init",
+      action: "handoff",
+      operation: "init.handoff",
       status: "pending_human_action",
       effectiveChain: "sepolia",
       rpcUrl: "https://rpc.example",
@@ -831,7 +834,9 @@ describe("renderWithdrawDryRun parity", () => {
     const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("direct");
+    expect(json.mode).toBe("withdraw");
+    expect(json.operation).toBe("withdraw");
+    expect(json.withdrawMode).toBe("direct");
     expect(json.dryRun).toBe(true);
     expect(json.amount).toBe("500000000000000000");
     expect(json.asset).toBe("ETH");
@@ -876,7 +881,9 @@ describe("renderWithdrawDryRun parity", () => {
     );
 
     const json = parseCapturedJson(stdout);
-    expect(json.mode).toBe("relayed");
+    expect(json.mode).toBe("withdraw");
+    expect(json.operation).toBe("withdraw");
+    expect(json.withdrawMode).toBe("relayed");
     expect(json.dryRun).toBe(true);
     expect(json.feeBPS).toBe("50");
     expect(json.quoteExpiresAt).toBe("2099-06-01T00:00:00.000Z");
@@ -1003,7 +1010,8 @@ describe("renderWithdrawSuccess parity", () => {
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
     expect(json.operation).toBe("withdraw");
-    expect(json.mode).toBe("direct");
+    expect(json.mode).toBe("withdraw");
+    expect(json.withdrawMode).toBe("direct");
     expect(json.txHash).toBe(STUB_WITHDRAW_SUCCESS_DIRECT.txHash);
     expect(json.blockNumber).toBe("12345");
     expect(json.amount).toBe("500000000000000000");
@@ -1041,7 +1049,9 @@ describe("renderWithdrawSuccess parity", () => {
     );
 
     const json = parseCapturedJson(stdout);
-    expect(json.mode).toBe("relayed");
+    expect(json.mode).toBe("withdraw");
+    expect(json.operation).toBe("withdraw");
+    expect(json.withdrawMode).toBe("relayed");
     expect(json.feeBPS).toBe("50");
     expect(json.fee).toBeUndefined();
     expect(json.remainingBalance).toBe("500000000000000000");
@@ -1266,7 +1276,9 @@ describe("renderWithdrawQuote parity", () => {
     const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("relayed-quote");
+    expect(json.mode).toBe("withdraw");
+    expect(json.action).toBe("quote");
+    expect(json.operation).toBe("withdraw.quote");
     expect(json.chain).toBe("sepolia");
     expect(json.asset).toBe("ETH");
     expect(json.amount).toBe("500000000000000000");

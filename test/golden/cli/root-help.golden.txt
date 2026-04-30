@@ -56,7 +56,7 @@ Options:
                           submitting
   deposit                 Deposit ETH or ERC-20 tokens into a pool
   withdraw                Withdraw privately from a pool
-  recipients|recents      Manage remembered withdrawal recipients
+  recipients              Manage remembered withdrawal recipients
   ragequit                Recover funds publicly to your deposit address
   broadcast               Broadcast a signed envelope or relayer request built
                           elsewhere

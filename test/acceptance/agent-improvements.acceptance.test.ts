@@ -249,8 +249,9 @@ defineScenarioSuite("agent improvements acceptance", [
       runCliStep(["guide", "--agent", "--chain", "mainnet"]),
       assertExit(0),
       assertStderrEmpty(),
-      assertJson<{ mode: string; help: string }>((json) => {
-        expect(json.mode).toBe("help");
+      assertJson<{ mode: string; operation: string; help: string }>((json) => {
+        expect(json.mode).toBe("guide");
+        expect(json.operation).toBe("guide");
         expect(json.help).toContain("Privacy Pools: Quick Guide");
       }),
     ],

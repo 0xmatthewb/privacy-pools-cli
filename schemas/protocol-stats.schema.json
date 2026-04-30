@@ -165,26 +165,6 @@
                 "invokedAs": {
                   "$ref": "#/definitions/protocol-stats envelope/anyOf/0/allOf/1/properties/mode"
                 },
-                "deprecationWarning": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "replacementCommand": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "message",
-                    "replacementCommand"
-                  ],
-                  "additionalProperties": false
-                },
                 "chain": {
                   "type": "string"
                 },

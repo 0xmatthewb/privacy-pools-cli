@@ -25,7 +25,6 @@ import {
   formatStackedKeyValueRows,
   getOutputWidthClass,
 } from "./layout.js";
-import { formatDeprecationWarningCallout } from "./deprecation.js";
 
 export interface ChainStatsEntry {
   chain: string;
@@ -34,17 +33,10 @@ export interface ChainStatsEntry {
   last24h: TimeBasedStatistics | null;
 }
 
-interface StatsDeprecationWarning {
-  code: string;
-  message: string;
-  replacementCommand: string;
-}
-
 export interface GlobalStatsRenderData {
   mode: "global-stats";
   command: "protocol-stats";
   invokedAs?: "stats" | "stats global";
-  deprecationWarning?: StatsDeprecationWarning;
   chain: string;
   chains?: string[];
   cacheTimestamp: string | null;
@@ -57,7 +49,6 @@ export interface PoolStatsRenderData {
   mode: "pool-stats";
   command: "pool-stats";
   invokedAs?: "stats pool";
-  deprecationWarning?: StatsDeprecationWarning;
   chain: string;
   asset: string;
   pool: string;
@@ -138,17 +129,6 @@ function renderStatsBlocks(
   );
 }
 
-function maybeRenderDeprecationNotice(
-  warning: StatsDeprecationWarning | undefined,
-  silent: boolean,
-  out: NodeJS.WriteStream = process.stderr,
-): void {
-  if (!warning || silent) {
-    return;
-  }
-  out.write(formatDeprecationWarningCallout(warning));
-}
-
 function normalizeCrossAssetStats(
   stats: TimeBasedStatistics | null,
 ): (Omit<TimeBasedStatistics, "tvl"> & { tvl?: string | null }) | null {
@@ -173,9 +153,6 @@ export function renderGlobalStats(
       allTime: normalizeCrossAssetStats(data.allTime),
       last24h: normalizeCrossAssetStats(data.last24h),
       ...(data.invokedAs ? { invokedAs: data.invokedAs } : {}),
-      ...(data.deprecationWarning
-        ? { deprecationWarning: data.deprecationWarning }
-        : {}),
     };
     if (data.perChain) {
       payload.perChain = data.perChain;
@@ -224,7 +201,6 @@ export function renderGlobalStats(
   }
 
   const out = ctx.mode.isWide ? process.stdout : process.stderr;
-  maybeRenderDeprecationNotice(data.deprecationWarning, silent, out);
   const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
 
   if (data.perChain && data.perChain.length > 0) {
@@ -305,9 +281,6 @@ export function renderPoolStats(
           allTime: data.allTime,
           last24h: data.last24h,
           ...(data.invokedAs ? { invokedAs: data.invokedAs } : {}),
-          ...(data.deprecationWarning
-            ? { deprecationWarning: data.deprecationWarning }
-            : {}),
         },
         agentNextActions,
       ),
@@ -332,7 +305,6 @@ export function renderPoolStats(
   }
 
   const out = ctx.mode.isWide ? process.stdout : process.stderr;
-  maybeRenderDeprecationNotice(data.deprecationWarning, silent, out);
   const renderTable = getOutputWidthClass() === "wide" || ctx.mode.isWide;
   out.write(
     `\n${accentBold(`Pool statistics for ${data.asset} on ${data.chain}:`)}\n\n`,

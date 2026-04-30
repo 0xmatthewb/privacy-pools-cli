@@ -54,7 +54,9 @@ describe("bootstrap runtime direct coverage", () => {
 
     expect(exitCode).toBe(0);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("describe");
+    expect(json.action).toBe("help");
+    expect(json.operation).toBe("describe.help");
     expect(typeof json.help).toBe("string");
     expect(stderr).toBe("");
   });

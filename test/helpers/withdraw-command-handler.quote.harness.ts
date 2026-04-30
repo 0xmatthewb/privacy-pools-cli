@@ -51,7 +51,9 @@ export function registerWithdrawQuoteTests(): void {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("relayed-quote");
+    expect(json.mode).toBe("withdraw");
+    expect(json.action).toBe("quote");
+    expect(json.operation).toBe("withdraw.quote");
     expect(json.asset).toBe("ETH");
     expect(json.quoteFeeBPS).toBe("250");
     expect(json.nextActions).toEqual(

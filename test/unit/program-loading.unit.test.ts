@@ -11,10 +11,10 @@ describe("root program lazy loading", () => {
     expect(program.commands.map((command) => command.name())).toEqual(["flow"]);
   });
 
-  test("resolves root command aliases when loading on demand", async () => {
+  test("loads recipients on demand", async () => {
     const program = await createRootProgram("0.0.0", {
       loadAllCommands: false,
-      argv: ["recents"],
+      argv: ["recipients"],
     });
 
     expect(program.commands.map((command) => command.name())).toEqual([

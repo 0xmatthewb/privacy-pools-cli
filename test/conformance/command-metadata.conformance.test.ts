@@ -53,17 +53,11 @@ describe("command metadata conformance", () => {
 
     expect(runtimeCommands.map((entry) => entry.path)).toEqual([
       ...COMMAND_PATHS,
-      "pools list",
-      "pools ls",
       "stats global",
       "stats pool",
     ].sort());
 
     for (const entry of runtimeCommands) {
-      if (entry.path === "pools list" || entry.path === "pools ls") {
-        expect(entry.aliases).toEqual([]);
-        continue;
-      }
       if (
         entry.path === "protocol-stats"
         || entry.path === "pool-stats"

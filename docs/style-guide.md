@@ -48,7 +48,6 @@ Closed sets include:
 - workflow phases
 - status/recommended modes
 - warning codes
-- deprecation states
 
 Never introduce an undocumented string state in a JSON envelope.
 
@@ -213,17 +212,6 @@ Put `--yes`, `--agent`, `--json`, `--quiet`, `--no-progress`, `--no-banner`, and
 `--no-color` under `Output & Defaults` unless a command has a stronger local
 reason to duplicate the flag under `Safety`.
 
-### 5.6 Deprecation Copy
-
-Deprecation copy must include:
-
-- the replacement command or flag
-- whether the old command still runs
-- the earliest removal window, if known
-
-Use `deprecated: true` in command discovery for deprecated commands. Do not add
-top-level `meta.deprecated` to JSON envelopes.
-
 ## 6. Errors And Hints
 
 ### 6.1 Error Shape
@@ -316,19 +304,6 @@ change:
 - generated capabilities/describe schemas
 - native manifest, if the phase appears in generated metadata
 - conformance tests
-
-### 7.4 Deprecated Metadata
-
-Do not emit `meta.deprecated` in success or error envelopes. It is not the
-canonical soft-deprecation channel.
-
-Use these channels instead:
-
-- `deprecated: true` in command discovery for deprecated commands
-- command help and reference docs for migration wording
-- a human deprecation callout when the user invokes a deprecated command
-- `deprecationWarning` only for command-specific payloads that already own that
-  field
 
 ## 8. Known Legacy Contracts
 
@@ -445,7 +420,6 @@ Before shipping copy or contract changes, check:
 - Does every agent-branchable string come from an `as const` set?
 - Are human help, generated docs, native manifest, and capabilities aligned?
 - Does JSON expose `docUrl` only, not `docsSlug`?
-- Is `meta.deprecated` absent from public envelopes?
 - Are CSV headers separate from human table headers?
 - Are sensitive values kept out of hints and placed in `details`?
 - Does any legacy spelling remain intentionally stable?

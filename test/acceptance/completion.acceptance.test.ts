@@ -74,12 +74,16 @@ defineScenarioSuite("completion acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      action: string;
+      operation: string;
       shell: string;
       completionScript: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("completion-script");
+      expect(json.mode).toBe("completion");
+      expect(json.action).toBe("script");
+      expect(json.operation).toBe("completion.script");
       expect(json.shell).toBe("powershell");
       expect(json.completionScript).toContain("Register-ArgumentCompleter");
       expect(json.completionScript).toContain("-CommandName privacy-pools");
@@ -90,12 +94,16 @@ defineScenarioSuite("completion acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      action: string;
+      operation: string;
       shell: string;
       completionScript: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("completion-script");
+      expect(json.mode).toBe("completion");
+      expect(json.action).toBe("script");
+      expect(json.operation).toBe("completion.script");
       expect(json.shell).toBe("zsh");
       expect(json.completionScript).toContain(
         "compdef _privacy_pools_completion privacy-pools",
@@ -162,11 +170,15 @@ defineScenarioSuite("completion acceptance", [
     assertExit(0),
     assertJson<{
       mode: string;
+      action: string;
+      operation: string;
       shell: string;
       cword: number;
       candidates: string[];
     }>((json) => {
-      expect(json.mode).toBe("completion-query");
+      expect(json.mode).toBe("completion");
+      expect(json.action).toBe("query");
+      expect(json.operation).toBe("completion.query");
       expect(json.shell).toBe("bash");
       expect(json.cword).toBe(1);
       expect(json.candidates).toContain("completion");

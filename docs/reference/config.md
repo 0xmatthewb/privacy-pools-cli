@@ -91,7 +91,7 @@ Clears a stored configuration key without editing config.json by hand. default-c
 privacy-pools config unset rpc-override.mainnet
 privacy-pools config unset default-chain
 privacy-pools config unset recovery-phrase
-privacy-pools config remove signer-key
+privacy-pools config unset signer-key
 ```
 
 **Safety:** config unset signer-key only removes the local fallback file. If PRIVACY_POOLS_PRIVATE_KEY is set in the environment, unset it there too.

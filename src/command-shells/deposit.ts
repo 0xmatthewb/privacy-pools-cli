@@ -34,12 +34,6 @@ export function createDepositCommand(): Command {
       "--allow-non-round-amounts",
       "Allow non-round deposit amounts (non-interactive modes reject them by default; pass this to override)",
     )
-    .addOption(
-      new Option(
-        "--ignore-unique-amount",
-        "Deprecated alias for --allow-non-round-amounts",
-      ).hideHelp(),
-    )
     .addHelpText(
       "after",
       groupedFlagGuideText([

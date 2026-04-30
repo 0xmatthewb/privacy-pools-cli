@@ -3,12 +3,14 @@
   "acceptedDepositsCount": 35,
   "acceptedDepositsValue": "<WEI>",
   "acceptedDepositsValueUsd": null,
+  "action": "show",
   "asset": "ETH",
   "chain": "sepolia",
   "decimals": 18,
   "growth24h": 0.05,
   "maxRelayFeeBPS": "250",
   "minimumDeposit": "<WEI>",
+  "mode": "pools",
   "myFunds": null,
   "myFundsWarning": "Could not load your wallet state right now. Pool stats and recent activity are still available. Try again, or run 'privacy-pools status --check --chain sepolia'.",
   "nextActions": [
@@ -41,6 +43,7 @@
       "when": "after_pool_detail"
     }
   ],
+  "operation": "pools.show",
   "pendingDepositsCount": 7,
   "pendingDepositsValue": "<WEI>",
   "pendingDepositsValueUsd": null,

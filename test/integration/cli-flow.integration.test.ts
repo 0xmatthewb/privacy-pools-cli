@@ -69,6 +69,7 @@ function expectFlowStatusAgentContract(
     success: boolean;
     mode: string;
     action: string;
+    operation: string;
     workflowId: string;
     phase: string;
     nextActions?: Array<{
@@ -81,8 +82,9 @@ function expectFlowStatusAgentContract(
   }>(result.stdout);
 
   expect(json.success).toBe(true);
-  expect(json.mode).toBe("flow");
+  expect(json.mode).toBe("transfer");
   expect(json.action).toBe("status");
+  expect(json.operation).toBe("transfer.status");
   expect(json.workflowId).toBe(workflowId);
   expect(json.phase).toBe(phase);
 
@@ -548,6 +550,7 @@ describe("flow command", () => {
       success: boolean;
       mode: string;
       action: string;
+      operation: string;
       workflowId: string;
       phase: string;
       nextActions: Array<{
@@ -560,8 +563,9 @@ describe("flow command", () => {
     }>(result.stdout);
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("flow");
+    expect(json.mode).toBe("transfer");
     expect(json.action).toBe("status");
+    expect(json.operation).toBe("transfer.status");
     expect(json.workflowId).toBe("wf-123");
     expect(json.phase).toBe("paused_declined");
     expect(json.nextActions).toHaveLength(1);

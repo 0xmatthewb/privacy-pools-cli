@@ -34,7 +34,6 @@ List remembered withdrawal recipients
 ```bash
 privacy-pools recipients list
 privacy-pools recipients list --limit 10
-privacy-pools recents
 ```
 
 | Flag | Description |
@@ -68,7 +67,7 @@ Remove a recipient from the local withdrawal address book
 
 ```bash
 privacy-pools recipients remove 0xRecipient...
-privacy-pools recipients rm treasury.eth
+privacy-pools recipients remove treasury.eth
 ```
 
 **JSON output:** `{ mode: "recipient-history", operation: "remove", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }`

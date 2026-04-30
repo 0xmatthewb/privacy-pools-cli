@@ -417,7 +417,9 @@ describe("launcher runtime coverage", () => {
     expect(completionResult.exitCode).toBe(0);
     expect(completionResult.json).toMatchObject({
       success: true,
-      mode: "completion-query",
+      mode: "completion",
+      action: "query",
+      operation: "completion.query",
       shell: "bash",
     });
     expect(completionResult.stderr).toBe("");
@@ -751,7 +753,7 @@ describe("launcher runtime coverage", () => {
       ).toBeNull();
 
       writeNativePackageJson(packageJsonPath, sha256, {
-        bridgeVersion: "2",
+        bridgeVersion: "1",
       });
       expect(
         launcherTestInternals.resolveInstalledNativeBinary(PKG, {
@@ -1070,7 +1072,7 @@ describe("launcher runtime coverage", () => {
       ).toBe(binPath);
 
       writeNativePackageJson(packageJsonPath, sha256, {
-        bridgeVersion: "2",
+        bridgeVersion: "1",
       });
 
       expect(

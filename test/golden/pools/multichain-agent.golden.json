@@ -18,6 +18,7 @@
       "pools": 1
     }
   ],
+  "mode": "pools",
   "nextActions": [
     {
       "command": "deposit",
@@ -38,6 +39,7 @@
       "when": "after_pools"
     }
   ],
+  "operation": "pools",
   "pools": [
     {
       "acceptedDepositsCount": 35,

@@ -59,7 +59,6 @@ export function createConfigCommand(): Command {
 
   command
     .command("unset")
-    .alias("remove")
     .description(unsetMetadata.description)
     .argument("<key>", "Configuration key to unset")
     .addHelpText("after", commandHelpText(unsetMetadata.help ?? {}))

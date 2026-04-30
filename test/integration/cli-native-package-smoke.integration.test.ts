@@ -468,9 +468,11 @@ describe("native package smoke", () => {
       env,
     });
     expect(statsResult.status).toBe(0);
-    expect(parseJsonOutput<{ success: boolean; mode: string }>(statsResult.stdout)).toMatchObject({
+    expect(parseJsonOutput<{ success: boolean; mode: string; action?: string; operation: string }>(statsResult.stdout)).toMatchObject({
       success: true,
-      mode: "global-stats",
+      mode: "pools",
+      action: "stats",
+      operation: "pools.stats",
     });
 
     const statsPoolResult = runBuiltCli(
@@ -482,12 +484,14 @@ describe("native package smoke", () => {
     );
     expect(statsPoolResult.status).toBe(0);
     expect(
-      parseJsonOutput<{ success: boolean; mode: string; asset: string }>(
+      parseJsonOutput<{ success: boolean; mode: string; action?: string; operation: string; asset: string }>(
         statsPoolResult.stdout,
       ),
     ).toMatchObject({
       success: true,
-      mode: "pool-stats",
+      mode: "pools",
+      action: "stats",
+      operation: "pools.stats",
       asset: "ETH",
     });
 
@@ -497,12 +501,14 @@ describe("native package smoke", () => {
     });
     expect(activityResult.status).toBe(0);
     expect(
-      parseJsonOutput<{ success: boolean; mode: string; events: unknown[] }>(
+      parseJsonOutput<{ success: boolean; mode: string; action?: string; operation: string; events: unknown[] }>(
         activityResult.stdout,
       ),
     ).toMatchObject({
       success: true,
-      mode: "global-activity",
+      mode: "pools",
+      action: "activity",
+      operation: "pools.activity",
     });
 
     const poolsResult = runBuiltCli(["--agent", "--chain", "sepolia", "pools"], {

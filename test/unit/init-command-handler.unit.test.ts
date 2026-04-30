@@ -162,7 +162,9 @@ describe("init command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("init-pending");
+    expect(json.mode).toBe("init");
+    expect(json.action).toBe("handoff");
+    expect(json.operation).toBe("init.handoff");
     expect(json.status).toBe("pending_human_action");
     expect(json.effectiveChain).toBe("mainnet");
     expect(json.secretTransferRequired).toBe(false);

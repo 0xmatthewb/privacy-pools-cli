@@ -51,10 +51,6 @@ export {
   RECOVERY_PHRASE_ONLY_RESTORE_PATH,
 } from "./copy.js";
 export {
-  formatDeprecationWarningCallout,
-  type DeprecationWarningPayload,
-} from "./deprecation.js";
-export {
   createNarrativeSteps,
   createNarrativeProgressWriter,
   renderNarrativeSteps,

@@ -37,18 +37,5 @@ export function createPoolsCommand(): Command {
       ),
     );
 
-  for (const name of ["list", "ls"]) {
-    addPoolsListOptions(
-      command
-        .command(name)
-        .description(metadata.description),
-    ).action(
-      createLazyAction(
-        () => import("../commands/pools.js"),
-        "handlePoolsListAliasCommand",
-      ),
-    );
-  }
-
   return command;
 }

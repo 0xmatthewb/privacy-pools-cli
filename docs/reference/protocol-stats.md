@@ -19,4 +19,4 @@ privacy-pools protocol-stats --agent --limit 10
 |------|-------------|
 | `-n, --limit <n>` | Limit repeated rows in tabular stats output |
 
-**JSON output:** `{ mode: "global-stats", command: "protocol-stats", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }`
+**JSON output:** `{ mode: "global-stats", command: "protocol-stats", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }`

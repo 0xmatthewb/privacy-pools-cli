@@ -133,7 +133,9 @@ describe("broadcast command handler", () => {
         noWait: false,
       });
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("broadcast");
+      expect(json.mode).toBe("tx");
+      expect(json.action).toBe("broadcast");
+      expect(json.operation).toBe("tx.broadcast");
     } finally {
       cleanupTrackedTempDir(dir);
     }

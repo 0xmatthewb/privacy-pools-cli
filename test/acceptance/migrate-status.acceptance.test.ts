@@ -107,6 +107,8 @@ defineScenarioSuite("migrate status acceptance", [
       assertJson<{
         success: boolean;
         mode: string;
+        action: string;
+        operation: string;
         status: string;
         requiresMigration: boolean;
         requiresWebsiteRecovery: boolean;
@@ -124,9 +126,11 @@ defineScenarioSuite("migrate status acceptance", [
           legacySpendableCommitments: number;
           reviewStatusComplete: boolean;
         }>;
-      }>((json) => {
+        }>((json) => {
         expect(json.success).toBe(true);
-        expect(json.mode).toBe("migration-status");
+        expect(json.mode).toBe("migrate");
+        expect(json.action).toBe("status");
+        expect(json.operation).toBe("migrate.status");
         expect(json.status).toBe("migration_required");
         expect(json.requiresMigration).toBe(true);
         expect(json.requiresWebsiteRecovery).toBe(false);

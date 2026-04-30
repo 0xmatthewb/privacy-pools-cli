@@ -501,7 +501,7 @@ function renderPendingInitHandoff(params: {
   });
   renderInitPending(ctx, {
     mode: "init-pending",
-    operation: "init",
+    operation: "init.handoff",
     status: "pending_human_action",
     effectiveChain,
     configExists: configExists(),

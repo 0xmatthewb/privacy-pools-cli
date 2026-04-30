@@ -122,8 +122,9 @@ describe("renderFlowResult", () => {
     const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("flow");
+    expect(json.mode).toBe("transfer");
     expect(json.action).toBe("status");
+    expect(json.operation).toBe("transfer.status");
     expect(json.workflowId).toBe("wf-123");
     expect(json.phase).toBe("awaiting_asp");
     expect(json.privacyDelayProfile).toBe("off");
@@ -165,8 +166,9 @@ describe("renderFlowResult", () => {
 
     const json = parseCapturedJson(stdout);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("flow");
+    expect(json.mode).toBe("transfer");
     expect(json.action).toBe("start");
+    expect(json.operation).toBe("transfer.start");
     expect(json.dryRun).toBe(true);
     expect(json.privacyDelayRandom).toBe(true);
     expect(json.privacyDelayRangeSeconds).toEqual([900, 5400]);

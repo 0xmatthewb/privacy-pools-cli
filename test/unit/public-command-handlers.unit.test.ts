@@ -353,7 +353,9 @@ describe("public read-only command handlers", () => {
       );
 
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("global-activity");
+      expect(json.mode).toBe("pools");
+      expect(json.action).toBe("activity");
+      expect(json.operation).toBe("pools.activity");
       expect(json.chain).toBe("all-mainnets");
       expect(json.events).toHaveLength(2);
       expect(json.chains).toEqual(["mainnet", "arbitrum", "optimism"]);
@@ -379,7 +381,9 @@ describe("public read-only command handlers", () => {
       );
 
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("pool-activity");
+      expect(json.mode).toBe("pools");
+      expect(json.action).toBe("activity");
+      expect(json.operation).toBe("pools.activity");
       expect(json.asset).toBe("ETHX");
       expect(json.scope).toBe(SCOPE.toString());
       expect(json.events).toHaveLength(1);
@@ -400,7 +404,9 @@ describe("public read-only command handlers", () => {
       );
 
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("global-stats");
+      expect(json.mode).toBe("pools");
+      expect(json.action).toBe("stats");
+      expect(json.operation).toBe("pools.stats");
       expect(json.chain).toBe("all-mainnets");
       expect(json.chains).toEqual(["mainnet", "arbitrum", "optimism"]);
       expect(json.allTime.totalDepositsCount).toBe(500);
@@ -426,7 +432,9 @@ describe("public read-only command handlers", () => {
       );
 
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("pool-stats");
+      expect(json.mode).toBe("pools");
+      expect(json.action).toBe("stats");
+      expect(json.operation).toBe("pools.stats");
       expect(json.asset).toBe("ETHX");
       expect(json.scope).toBe(SCOPE.toString());
       expect(json.last24h.totalDepositsCount).toBe(2);

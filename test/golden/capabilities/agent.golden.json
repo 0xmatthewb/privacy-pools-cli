@@ -1401,9 +1401,7 @@
       ],
       "agentSupported": true,
       "agentWorkflowNotes": [],
-      "aliases": [
-        "remove"
-      ],
+      "aliases": [],
       "command": "config unset",
       "commandType": "concrete",
       "csvSupported": false,
@@ -1412,7 +1410,7 @@
         "privacy-pools config unset rpc-override.mainnet",
         "privacy-pools config unset default-chain",
         "privacy-pools config unset recovery-phrase",
-        "privacy-pools config remove signer-key"
+        "privacy-pools config unset signer-key"
       ],
       "execution": {
         "nativeModes": [
@@ -1475,7 +1473,7 @@
           "description": "Example 3"
         },
         {
-          "command": "privacy-pools config remove signer-key",
+          "command": "privacy-pools config unset signer-key",
           "description": "Example 4"
         }
       ],
@@ -3262,7 +3260,7 @@
       ],
       "group": "monitoring",
       "humanInteractive": false,
-      "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
+      "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
       "jsonVariants": [],
       "mutatesFunds": false,
       "mutatesLocalState": false,
@@ -3489,7 +3487,7 @@
       ],
       "group": "monitoring",
       "humanInteractive": false,
-      "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+      "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
       "jsonVariants": [],
       "mutatesFunds": false,
       "mutatesLocalState": false,
@@ -3658,9 +3656,7 @@
       "agentWorkflowNotes": [
         "Use this read-only list to offer previously used recipients before prompting for a new address."
       ],
-      "aliases": [
-        "recents"
-      ],
+      "aliases": [],
       "command": "recipients",
       "commandType": "concrete",
       "csvSupported": false,
@@ -3910,17 +3906,14 @@
       "agentWorkflowNotes": [
         "Use this read-only list to offer previously used recipients before prompting for a new address."
       ],
-      "aliases": [
-        "ls"
-      ],
+      "aliases": [],
       "command": "recipients list",
       "commandType": "concrete",
       "csvSupported": true,
       "description": "List remembered withdrawal recipients",
       "examples": [
         "privacy-pools recipients list",
-        "privacy-pools recipients list --limit 10",
-        "privacy-pools recents"
+        "privacy-pools recipients list --limit 10"
       ],
       "execution": {
         "nativeModes": [
@@ -3980,10 +3973,6 @@
         {
           "command": "privacy-pools recipients list --limit 10",
           "description": "Example 2"
-        },
-        {
-          "command": "privacy-pools recents",
-          "description": "Example 3"
         }
       ],
       "supportsDryRun": false,
@@ -3997,16 +3986,14 @@
       ],
       "agentSupported": true,
       "agentWorkflowNotes": [],
-      "aliases": [
-        "rm"
-      ],
+      "aliases": [],
       "command": "recipients remove",
       "commandType": "concrete",
       "csvSupported": false,
       "description": "Remove a recipient from the local withdrawal address book",
       "examples": [
         "privacy-pools recipients remove 0xRecipient...",
-        "privacy-pools recipients rm treasury.eth"
+        "privacy-pools recipients remove treasury.eth"
       ],
       "execution": {
         "nativeModes": [
@@ -4060,7 +4047,7 @@
           "description": "Example 1"
         },
         {
-          "command": "privacy-pools recipients rm treasury.eth",
+          "command": "privacy-pools recipients remove treasury.eth",
           "description": "Example 2"
         }
       ],
@@ -5285,9 +5272,6 @@
       ],
       "agentFlags": "--agent",
       "agentSupported": true,
-      "aliases": [
-        "remove"
-      ],
       "commandType": "concrete",
       "csvSupported": false,
       "description": "Clear a single configuration key",
@@ -5922,9 +5906,6 @@
       ],
       "agentFlags": "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       "agentSupported": true,
-      "aliases": [
-        "recents"
-      ],
       "commandType": "concrete",
       "csvSupported": false,
       "description": "Manage remembered withdrawal recipients",
@@ -5952,9 +5933,6 @@
       ],
       "agentFlags": "--agent [--limit <n>] [--all-chains] [--include-metadata]",
       "agentSupported": true,
-      "aliases": [
-        "ls"
-      ],
       "commandType": "concrete",
       "csvSupported": true,
       "description": "List remembered withdrawal recipients",
@@ -5999,9 +5977,6 @@
       ],
       "agentFlags": "--agent",
       "agentSupported": true,
-      "aliases": [
-        "rm"
-      ],
       "commandType": "concrete",
       "csvSupported": false,
       "description": "Remove a recipient from the local withdrawal address book",

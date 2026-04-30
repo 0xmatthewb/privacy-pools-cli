@@ -170,7 +170,8 @@ export function registerWithdrawRelayedPreludeTests(): void {
     expect(exitCode).toBe(0);
     expect(json.success).toBe(true);
     expect(json.operation).toBe("withdraw");
-    expect(json.mode).toBe("relayed");
+    expect(json.mode).toBe("withdraw");
+    expect(json.withdrawMode).toBe("relayed");
     expect(json.dryRun).toBe(true);
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.feeBPS).toBe("250");
@@ -202,7 +203,8 @@ export function registerWithdrawRelayedPreludeTests(): void {
 
     expect(exitCode).toBe(0);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("relayed");
+    expect(json.mode).toBe("withdraw");
+    expect(json.withdrawMode).toBe("relayed");
     expect(json.anonymitySet).toBeUndefined();
   });
 
@@ -307,7 +309,8 @@ export function registerWithdrawRelayedUnsignedAndSubmitTests(): void {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("unsigned");
+    expect(json.mode).toBe("withdraw");
+    expect(json.unsigned).toBe(true);
     expect(json.withdrawMode).toBe("relayed");
     expect(json.poolAccountId).toBe("PA-1");
     expect(json.feeBPS).toBe("250");
@@ -414,7 +417,8 @@ export function registerWithdrawRelayedUnsignedAndSubmitTests(): void {
 
     expect(json.success).toBe(true);
     expect(json.operation).toBe("withdraw");
-    expect(json.mode).toBe("relayed");
+    expect(json.mode).toBe("withdraw");
+    expect(json.withdrawMode).toBe("relayed");
     expect(json.txHash).toBe("0x" + "34".repeat(32));
     expect(addWithdrawalCommitmentMock).toHaveBeenCalledTimes(1);
     expect(saveAccountMock).toHaveBeenCalledTimes(1);
@@ -439,7 +443,8 @@ export function registerWithdrawRelayedUnsignedAndSubmitTests(): void {
     expect(stderr).toBe("");
     expect(json.success).toBe(true);
     expect(json.operation).toBe("withdraw");
-    expect(json.mode).toBe("relayed");
+    expect(json.mode).toBe("withdraw");
+    expect(json.withdrawMode).toBe("relayed");
     expect(json.status).toBe("submitted");
     expect(typeof json.submissionId).toBe("string");
     expect(json.localStateSynced).toBe(false);
@@ -476,7 +481,8 @@ export function registerWithdrawRelayedUnsignedAndSubmitTests(): void {
     expect(payloads.at(-1)).toMatchObject({
       success: true,
       operation: "withdraw",
-      mode: "relayed",
+      mode: "withdraw",
+      withdrawMode: "relayed",
       status: "submitted",
     });
   });

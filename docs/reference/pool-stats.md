@@ -21,4 +21,4 @@ privacy-pools pool-stats USDC --agent --chain mainnet --limit 10
 |------|-------------|
 | `-n, --limit <n>` | Limit repeated rows in tabular stats output |
 
-**JSON output:** `{ mode: "pool-stats", command: "pool-stats", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }`
+**JSON output:** `{ mode: "pool-stats", command: "pool-stats", invokedAs?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }`

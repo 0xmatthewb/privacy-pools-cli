@@ -44,6 +44,8 @@ defineScenarioSuite("read-only success acceptance", [
       success: boolean;
       schemaVersion: string;
       mode: string;
+      action?: string;
+      operation: string;
       chain: string;
       events: Array<{ type: string; txHash: string | null }>;
       page: number;
@@ -54,7 +56,9 @@ defineScenarioSuite("read-only success acceptance", [
     }>((json) => {
       expect(json.success).toBe(true);
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-      expect(json.mode).toBe("global-activity");
+      expect(json.mode).toBe("pools");
+      expect(json.action).toBe("activity");
+      expect(json.operation).toBe("pools.activity");
       expect(json.chain).toBe("sepolia");
       expect(json.events.length).toBeGreaterThan(0);
       expect(json.events[0]).toHaveProperty("type");
@@ -119,6 +123,8 @@ defineScenarioSuite("read-only success acceptance", [
       success: boolean;
       schemaVersion: string;
       mode: string;
+      action?: string;
+      operation: string;
       cacheTimestamp: string | null;
       allTime: {
         tvl?: string;
@@ -128,7 +134,9 @@ defineScenarioSuite("read-only success acceptance", [
     }>((json) => {
       expect(json.success).toBe(true);
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
-      expect(json.mode).toBe("global-stats");
+      expect(json.mode).toBe("pools");
+      expect(json.action).toBe("stats");
+      expect(json.operation).toBe("pools.stats");
       expect(json.cacheTimestamp).not.toBeNull();
       expect(json.allTime).not.toBeNull();
       expect(typeof json.allTime?.totalDepositsCount).toBe("number");

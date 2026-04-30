@@ -19,11 +19,6 @@
     "optimism"
   ],
   "command": "protocol-stats",
-  "deprecationWarning": {
-    "code": "COMMAND_ALIAS_DEPRECATED",
-    "message": "Command 'stats global' is deprecated and will be removed in the next minor release. Use 'privacy-pools protocol-stats' instead.",
-    "replacementCommand": "privacy-pools protocol-stats"
-  },
   "invokedAs": "stats global",
   "last24h": {
     "totalDepositsCount": 5,

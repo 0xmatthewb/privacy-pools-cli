@@ -466,6 +466,13 @@ function canonicalOperationFromLegacy(
   }
 
   if (rawMode) {
+    if (
+      rawMode === "recipient-history" &&
+      rawOperation &&
+      ["add", "clear", "list", "remove"].includes(rawOperation)
+    ) {
+      return `recipients.${rawOperation}`;
+    }
     const mapped = LEGACY_OPERATION_MAP[rawMode];
     if (mapped) {
       if (mapped === "transfer" && rawAction) return `transfer.${rawAction}`;

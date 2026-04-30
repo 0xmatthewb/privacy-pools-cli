@@ -40,7 +40,8 @@ export function registerWithdrawDirectPreludeTests(): void {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("unsigned");
+    expect(json.mode).toBe("withdraw");
+    expect(json.unsigned).toBe(true);
     expect(json.withdrawMode).toBe("direct");
     expect(json.poolAccountId).toBe("PA-1");
     expectUnsignedTransactions(json.transactions, [
@@ -227,7 +228,8 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
 
     expect(json.success).toBe(true);
     expect(json.operation).toBe("withdraw");
-    expect(json.mode).toBe("direct");
+    expect(json.mode).toBe("withdraw");
+    expect(json.withdrawMode).toBe("direct");
     expect(json.txHash).toBe("0x" + "56".repeat(32));
     expect(addWithdrawalCommitmentMock).toHaveBeenCalledTimes(1);
     expect(statusEvents).toEqual(["simulating", "broadcasting"]);
@@ -253,7 +255,8 @@ export function registerWithdrawDirectUnsignedAndSubmitTests(): void {
     expect(stderr).toBe("");
     expect(json.success).toBe(true);
     expect(json.operation).toBe("withdraw");
-    expect(json.mode).toBe("direct");
+    expect(json.mode).toBe("withdraw");
+    expect(json.withdrawMode).toBe("direct");
     expect(json.status).toBe("submitted");
     expect(typeof json.submissionId).toBe("string");
     expect(json.localStateSynced).toBe(false);
@@ -370,7 +373,8 @@ export function registerWithdrawDirectCompletionTests(): void {
 
     expect(json.success).toBe(true);
     expect(json.operation).toBe("withdraw");
-    expect(json.mode).toBe("direct");
+    expect(json.mode).toBe("withdraw");
+    expect(json.withdrawMode).toBe("direct");
     expect(json.dryRun).toBe(true);
     expect(json.proofPublicSignals).toBe(3);
   });
@@ -620,7 +624,8 @@ export function registerWithdrawDirectPostSaveTests(): void {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("direct");
+    expect(json.mode).toBe("withdraw");
+    expect(json.withdrawMode).toBe("direct");
   });
 
 }

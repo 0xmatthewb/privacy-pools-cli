@@ -3,9 +3,9 @@ use crate::config::{load_config, resolve_chain};
 use crate::contract::Manifest;
 use crate::error::CliError;
 use crate::output::{
-    build_next_action, format_callout, format_command_heading, format_count_number,
-    format_key_value_rows, format_section_heading, print_csv, print_json_success, print_table,
-    render_next_steps, should_render_wide_tables, start_spinner, write_stderr_text, CalloutKind,
+    build_next_action, format_command_heading, format_count_number, format_key_value_rows,
+    format_section_heading, print_csv, print_json_success, print_table, render_next_steps,
+    should_render_wide_tables, start_spinner, write_stderr_text,
 };
 use crate::parse_timeout_ms;
 use crate::read_only_api::{fetch_global_statistics, fetch_pool_statistics};
@@ -13,35 +13,10 @@ use crate::root_argv::{has_short_flag, ParsedRootArgv};
 use crate::routing::{resolve_mode, NativeMode};
 use serde_json::{json, Map, Value};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StatsInvocation {
-    Protocol,
-    ProtocolAliasDefault,
-    ProtocolAliasGlobal,
-    Pool,
-    PoolAlias,
-}
-
-impl StatsInvocation {
-    fn is_pool(self) -> bool {
-        matches!(self, Self::Pool | Self::PoolAlias)
-    }
-
-    fn invoked_as(self) -> Option<&'static str> {
-        match self {
-            Self::ProtocolAliasDefault => Some("stats global"),
-            Self::ProtocolAliasGlobal => Some("stats global"),
-            Self::PoolAlias => Some("stats pool"),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 struct GlobalStatsRenderData {
     command: String,
     invoked_as: Option<String>,
-    deprecation_warning: Option<Value>,
     chain: String,
     chains: Vec<String>,
     cache_timestamp: Value,
@@ -53,7 +28,6 @@ struct GlobalStatsRenderData {
 struct PoolStatsRenderData {
     command: String,
     invoked_as: Option<String>,
-    deprecation_warning: Option<Value>,
     chain: String,
     asset: String,
     pool: String,
@@ -78,10 +52,27 @@ pub fn handle_stats_native(
 
         let mode = resolve_mode(parsed);
         let stats_tokens = stats_non_option_tokens(argv);
-        let stats_invocation = resolve_stats_invocation(&stats_tokens);
+        let root_token = stats_tokens.first().map(String::as_str);
+        let is_pool = matches!(root_token, Some("pool-stats"))
+            || (matches!(root_token, Some("stats"))
+                && matches!(stats_tokens.get(1).map(String::as_str), Some("pool")));
+        let invoked_as = match root_token {
+            Some("stats") if is_pool => Some("stats pool"),
+            Some("stats") if matches!(stats_tokens.get(1).map(String::as_str), Some("global")) => {
+                Some("stats global")
+            }
+            Some("stats") => Some("stats global"),
+            _ => None,
+        };
 
-        if stats_invocation.is_pool() {
-            let asset = stats_asset_token(&stats_tokens).cloned().ok_or_else(|| {
+        if is_pool {
+            let asset = match root_token {
+                Some("pool-stats") => stats_tokens.get(1),
+                Some("stats") => stats_tokens.get(2),
+                _ => None,
+            }
+            .cloned()
+            .ok_or_else(|| {
                 CliError::input_with_code(
                     "Missing asset argument.",
                     Some("Example: privacy-pools pool-stats ETH".to_string()),
@@ -114,13 +105,7 @@ pub fn handle_stats_native(
                 &mode,
                 PoolStatsRenderData {
                     command: "pool-stats".to_string(),
-                    invoked_as: stats_invocation.invoked_as().map(str::to_string),
-                    deprecation_warning: stats_invocation.invoked_as().map(|invoked_as| {
-                        deprecated_stats_warning(
-                            invoked_as,
-                            &format!("privacy-pools pool-stats {}", pool.symbol),
-                        )
-                    }),
+                    invoked_as: invoked_as.map(str::to_string),
                     chain: chain.name,
                     asset: pool.symbol,
                     pool: pool.pool_address,
@@ -172,10 +157,7 @@ pub fn handle_stats_native(
             &mode,
             GlobalStatsRenderData {
                 command: "protocol-stats".to_string(),
-                invoked_as: stats_invocation.invoked_as().map(str::to_string),
-                deprecation_warning: stats_invocation.invoked_as().map(|invoked_as| {
-                    deprecated_stats_warning(invoked_as, "privacy-pools protocol-stats")
-                }),
+                invoked_as: invoked_as.map(str::to_string),
                 chain: "all-mainnets".to_string(),
                 chains: chains
                     .iter()
@@ -227,53 +209,6 @@ fn stats_non_option_tokens(argv: &[String]) -> Vec<String> {
     tokens
 }
 
-fn resolve_stats_invocation(tokens: &[String]) -> StatsInvocation {
-    match tokens.first().map(String::as_str) {
-        Some("pool-stats") => StatsInvocation::Pool,
-        Some("protocol-stats") => StatsInvocation::Protocol,
-        Some("stats") => match tokens.get(1).map(String::as_str) {
-            Some("pool") => StatsInvocation::PoolAlias,
-            Some("global") => StatsInvocation::ProtocolAliasGlobal,
-            _ => StatsInvocation::ProtocolAliasDefault,
-        },
-        _ => StatsInvocation::Protocol,
-    }
-}
-
-fn stats_asset_token(tokens: &[String]) -> Option<&String> {
-    match tokens.first().map(String::as_str) {
-        Some("pool-stats") => tokens.get(1),
-        Some("stats") => tokens.get(2),
-        _ => None,
-    }
-}
-
-fn deprecated_stats_warning(invoked_as: &str, replacement_command: &str) -> Value {
-    json!({
-        "code": "COMMAND_ALIAS_DEPRECATED",
-        "message": format!(
-            "Command '{}' is deprecated and will be removed in the next minor release. Use '{}' instead.",
-            invoked_as,
-            replacement_command,
-        ),
-        "replacementCommand": replacement_command,
-    })
-}
-
-fn render_deprecation_warning(deprecation_warning: &Value) {
-    let Some(message) = deprecation_warning.get("message").and_then(Value::as_str) else {
-        return;
-    };
-    let mut lines = vec![message.to_string()];
-    if let Some(replacement) = deprecation_warning
-        .get("replacementCommand")
-        .and_then(Value::as_str)
-    {
-        lines.push(format!("Replacement: {replacement}"));
-    }
-    write_stderr_text(&format_callout(CalloutKind::Warning, &lines));
-}
-
 fn normalize_cross_asset_stats(mut stats: Value) -> Value {
     let should_null_tvl = stats
         .as_object()
@@ -313,9 +248,6 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
         if let Some(invoked_as) = data.invoked_as {
             payload["invokedAs"] = Value::String(invoked_as);
         }
-        if let Some(deprecation_warning) = data.deprecation_warning {
-            payload["deprecationWarning"] = deprecation_warning;
-        }
         print_json_success(payload);
         return;
     }
@@ -328,10 +260,6 @@ fn render_global_stats_output(mode: &NativeMode, data: GlobalStatsRenderData) {
 
     if mode.is_quiet {
         return;
-    }
-
-    if let Some(deprecation_warning) = &data.deprecation_warning {
-        render_deprecation_warning(deprecation_warning);
     }
 
     write_stderr_text(&format_command_heading(&format!(
@@ -385,9 +313,6 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
         if let Some(invoked_as) = data.invoked_as {
             payload["invokedAs"] = Value::String(invoked_as);
         }
-        if let Some(deprecation_warning) = data.deprecation_warning {
-            payload["deprecationWarning"] = deprecation_warning;
-        }
         print_json_success(payload);
         return;
     }
@@ -400,10 +325,6 @@ fn render_pool_stats_output(mode: &NativeMode, data: PoolStatsRenderData) {
 
     if mode.is_quiet {
         return;
-    }
-
-    if let Some(deprecation_warning) = &data.deprecation_warning {
-        render_deprecation_warning(deprecation_warning);
     }
 
     write_stderr_text(&format_command_heading(&format!(

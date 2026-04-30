@@ -19,11 +19,9 @@ import {
   getDefaultReadOnlyChains,
   MULTI_CHAIN_SCOPE_ALL_MAINNETS,
 } from "../config/chains.js";
-import { deprecatedStatsAliasWarning } from "../utils/deprecations.js";
 
 interface PoolStatsCommandOptions {}
 
-type DeprecatedStatsAlias = "stats" | "stats global" | "stats pool";
 type GlobalStatsInvocationMetadata = {
   command: "protocol-stats";
   invokedAs?: "stats" | "stats global";
@@ -52,17 +50,6 @@ function getRootGlobalOptions(cmd: Command): GlobalOptions {
   return (cmd.parent?.parent?.opts() ??
     cmd.parent?.opts?.() ??
     {}) as GlobalOptions;
-}
-
-function buildDeprecatedAliasPayload(
-  invokedAs: DeprecatedStatsAlias,
-  replacementCommand: string,
-): {
-  code: string;
-  message: string;
-  replacementCommand: string;
-} {
-  return deprecatedStatsAliasWarning(invokedAs, replacementCommand);
 }
 
 async function renderGlobalStatsForInvocation(
@@ -110,10 +97,6 @@ async function renderGlobalStatsForInvocation(
       ...(invocation.invokedAs
         ? {
             invokedAs: invocation.invokedAs,
-            deprecationWarning: buildDeprecatedAliasPayload(
-              invocation.invokedAs,
-              "privacy-pools protocol-stats",
-            ),
           }
         : {}),
       chain: MULTI_CHAIN_SCOPE_ALL_MAINNETS,
@@ -174,10 +157,6 @@ async function renderPoolStatsForInvocation(
       ...(invocation.invokedAs
         ? {
             invokedAs: invocation.invokedAs,
-            deprecationWarning: buildDeprecatedAliasPayload(
-              invocation.invokedAs,
-              `privacy-pools pool-stats ${pool.symbol}`,
-            ),
           }
         : {}),
       chain: chainConfig.name,

@@ -334,7 +334,6 @@ Command Names:
   Detail views use positionals instead of singular aliases:
   privacy-pools pools ETH      Pool detail
   privacy-pools accounts --pool-account PA-1  Pool Account detail/filter
-  For discoverability, pools list and pools ls are accepted aliases for pools.
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Short Flag Conventions:

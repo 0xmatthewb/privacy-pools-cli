@@ -37,11 +37,15 @@ defineScenarioSuite("machine-mode acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      action: string;
+      operation: string;
       help: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("help");
+      expect(json.mode).toBe("describe");
+      expect(json.action).toBe("help");
+      expect(json.operation).toBe("describe.help");
       expect(json.help).toContain("Usage: privacy-pools deposit");
       expect(json.help).not.toContain("(outputHelp)");
     }),
@@ -54,11 +58,15 @@ defineScenarioSuite("machine-mode acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      action: string;
+      operation: string;
       help: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("help");
+      expect(json.mode).toBe("describe");
+      expect(json.action).toBe("help");
+      expect(json.operation).toBe("describe.help");
       expect(json.help).toContain("Usage: privacy-pools deposit");
     }),
   ]),
@@ -70,11 +78,13 @@ defineScenarioSuite("machine-mode acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      operation: string;
       help: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("help");
+      expect(json.mode).toBe("guide");
+      expect(json.operation).toBe("guide");
       expect(typeof json.help).toBe("string");
     }),
   ]),
@@ -86,11 +96,13 @@ defineScenarioSuite("machine-mode acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      operation: string;
       help: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("help");
+      expect(json.mode).toBe("guide");
+      expect(json.operation).toBe("guide");
       expect(json.help).toContain("Privacy Pools: Quick Guide");
     }),
   ]),
@@ -117,7 +129,7 @@ defineScenarioSuite("machine-mode acceptance", [
       const stdout = ctx.lastResult?.stdout ?? "";
       expect(stdout).toContain(`schemaVersion: ${JSON_SCHEMA_VERSION}`);
       expect(stdout).toContain("success: true");
-      expect(stdout).toContain("mode: help");
+      expect(stdout).toContain("mode: guide");
       expect(stdout).toContain("Privacy Pools: Quick Guide");
     },
   ]),
@@ -129,11 +141,15 @@ defineScenarioSuite("machine-mode acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      action: string;
+      operation: string;
       help: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("help");
+      expect(json.mode).toBe("describe");
+      expect(json.action).toBe("help");
+      expect(json.operation).toBe("describe.help");
       expect(json.help).toContain("Usage: privacy-pools");
     }),
   ]),
@@ -145,11 +161,15 @@ defineScenarioSuite("machine-mode acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      action: string;
+      operation: string;
       help: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("help");
+      expect(json.mode).toBe("describe");
+      expect(json.action).toBe("help");
+      expect(json.operation).toBe("describe.help");
       expect(json.help).toContain("Usage: privacy-pools");
     }),
   ]),
@@ -161,11 +181,15 @@ defineScenarioSuite("machine-mode acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      action: string;
+      operation: string;
       version: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("version");
+      expect(json.mode).toBe("status");
+      expect(json.action).toBe("version");
+      expect(json.operation).toBe("status.version");
       expect(json.version).toMatch(/^\d+\.\d+\.\d+$/);
     }),
   ]),

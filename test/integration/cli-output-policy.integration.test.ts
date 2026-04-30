@@ -64,17 +64,6 @@ describe("cli output policy regressions", () => {
     expect(json.error.hint).toContain("--output csv");
   });
 
-  test("pools list aliases route to list mode instead of asset detail", () => {
-    for (const alias of ["list", "ls"]) {
-      const result = runCli(["pools", alias, "--agent", "--chain", "fake-chain"]);
-      const json = parseJsonOutput<{ errorCode: string }>(result.stdout);
-
-      expect(result.status).toBe(2);
-      expect(result.stderr).toBe("");
-      expect(json.errorCode).toBe("INPUT_UNKNOWN_CHAIN");
-    }
-  });
-
   test("missing positionals use command-specific error codes and hints", () => {
     const deposit = runCli(["deposit", "--agent"]);
     const flow = runCli(["flow", "start", "--agent"]);
@@ -111,52 +100,6 @@ describe("cli output policy regressions", () => {
     expect(parseJsonOutput<{ errorCode: string }>(
       poolStats.stdout,
     ).errorCode).toBe("INPUT_MISSING_ASSET");
-  });
-
-  test("confirmation flags stay non-deprecated on early failures", () => {
-    const withdraw = runCli([
-      "withdraw",
-      "0.01",
-      "ETH",
-      "--to",
-      "0x1111111111111111111111111111111111111111",
-      "--direct",
-      "--confirm-direct-withdraw",
-      "--agent",
-    ]);
-    const ragequit = runCli([
-      "ragequit",
-      "ETH",
-      "--pool-account",
-      "PA-1",
-      "--confirm-ragequit",
-      "--agent",
-    ]);
-
-    expect(parseJsonOutput<{
-      deprecationWarning?: { code: string; replacementCommand: string };
-    }>(withdraw.stdout).deprecationWarning).toBeUndefined();
-    expect(parseJsonOutput<{
-      deprecationWarning?: { code: string; replacementCommand: string };
-    }>(ragequit.stdout).deprecationWarning).toBeUndefined();
-  });
-
-  test("confirmation flags do not render deprecation warnings on errors", () => {
-    const withdraw = runCli([
-      "withdraw",
-      "0.01",
-      "ETH",
-      "--to",
-      "0x1111111111111111111111111111111111111111",
-      "--direct",
-      "--confirm-direct-withdraw",
-      "--yes",
-    ]);
-
-    expect(withdraw.status).not.toBe(0);
-    expect(withdraw.stdout).toBe("");
-    expect(withdraw.stderr).not.toContain("--confirm-direct-withdraw is deprecated");
-    expect(withdraw.stderr).not.toContain("Replacement:");
   });
 
   test("remaining long-running recovery commands expose stream-json", () => {

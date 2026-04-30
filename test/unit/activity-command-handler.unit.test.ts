@@ -262,7 +262,9 @@ describe("activity command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("pool-activity");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("activity");
+    expect(json.operation).toBe("pools.activity");
     expect(json.chain).toBe("mainnet");
     expect(json.asset).toBe("ETH");
     expect(json.pool).toBe("0x1111111111111111111111111111111111111111");
@@ -294,7 +296,9 @@ describe("activity command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("global-activity");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("activity");
+    expect(json.operation).toBe("pools.activity");
     expect(json.chain).toBe("all-mainnets");
     expect(json.chains).toEqual(["mainnet", "arbitrum", "optimism"]);
     expect(json.total).toBe(20);
@@ -336,7 +340,9 @@ describe("activity command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("global-activity");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("activity");
+    expect(json.operation).toBe("pools.activity");
     expect(json.chain).toBe("optimism");
     expect(json.page).toBe(1);
     expect(json.perPage).toBe(5);
@@ -387,7 +393,9 @@ describe("activity command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("global-activity");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("activity");
+    expect(json.operation).toBe("pools.activity");
     expect(json.chain).toBe("all-chains");
     expect(json.total).toBeNull();
     expect(json.totalPages).toBeNull();

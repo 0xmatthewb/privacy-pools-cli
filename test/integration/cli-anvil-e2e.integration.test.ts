@@ -424,8 +424,9 @@ describe("Anvil E2E", () => {
       300_000,
     );
     expect(flowJson.success).toBe(true);
-    expect(flowJson.mode).toBe("flow");
+    expect(flowJson.mode).toBe("transfer");
     expect(flowJson.action).toBe("start");
+    expect(flowJson.operation).toBe("transfer.start");
 
     const depositEvent = await decodeDepositEvent({
       publicClient: requireAnvilClient(),
@@ -632,8 +633,9 @@ describe("Anvil E2E", () => {
       300_000,
     );
     expect(flowJson.success).toBe(true);
-    expect(flowJson.mode).toBe("flow");
+    expect(flowJson.mode).toBe("transfer");
     expect(flowJson.action).toBe("start");
+    expect(flowJson.operation).toBe("transfer.start");
 
     const depositEvent = await decodeDepositEvent({
       publicClient: requireAnvilClient(),

@@ -308,7 +308,9 @@ describe("submitted transactional renderers", () => {
       );
 
       const json = parseCapturedJson(stdout);
-      expect(json.mode).toBe("broadcast");
+      expect(json.mode).toBe("tx");
+      expect(json.action).toBe("broadcast");
+      expect(json.operation).toBe("tx.broadcast");
       expect(json.sourceOperation).toBe(sourceOperation);
       expect(json.submissionId).toBe("sub-broadcast-1");
       expect(json.transactions[0]?.status).toBe("submitted");
@@ -336,7 +338,9 @@ describe("tx-status renderer", () => {
     const json = parseCapturedJson(stdout);
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(json.operation).toBe("tx-status");
+    expect(json.mode).toBe("tx");
+    expect(json.action).toBe("status");
+    expect(json.operation).toBe("tx.status");
     expect(json.submissionId).toBe("sub-status-1");
     expect(json.sourceOperation).toBe("withdraw");
     expect(json.status).toBe("submitted");

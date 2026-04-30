@@ -59,7 +59,9 @@ describe("renderActivity pool-activity parity", () => {
     const { stdout, stderr } = captureOutput(() => renderActivity(ctx, STUB_POOL_ACTIVITY));
 
     const json = JSON.parse(stdout.trim());
-    expect(json.mode).toBe("pool-activity");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("activity");
+    expect(json.operation).toBe("pools.activity");
     expect(json.chain).toBe("sepolia");
     expect(json.asset).toBe("ETH");
     expect(json.pool).toBe("0x1111111111111111111111111111111111111111");
@@ -222,7 +224,9 @@ describe("renderActivity global-activity parity", () => {
     const { stdout, stderr } = captureOutput(() => renderActivity(ctx, STUB_GLOBAL_ACTIVITY));
 
     const json = JSON.parse(stdout.trim());
-    expect(json.mode).toBe("global-activity");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("activity");
+    expect(json.operation).toBe("pools.activity");
     expect(json.chains).toEqual(["sepolia", "mainnet"]);
     expect(stderr).toBe("");
   });

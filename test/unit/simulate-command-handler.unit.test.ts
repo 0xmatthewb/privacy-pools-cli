@@ -106,7 +106,9 @@ describe("simulate command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("describe");
+    expect(json.action).toBe("help");
+    expect(json.operation).toBe("describe.help");
     expect(json.command).toBe("simulate");
     expect(json.subcommands).toEqual(["deposit", "withdraw", "ragequit"]);
     expect(json.help).toBe("simulate help");

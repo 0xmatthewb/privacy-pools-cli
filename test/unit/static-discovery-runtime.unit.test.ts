@@ -401,7 +401,8 @@ describe("static discovery runtime", () => {
       runStaticDiscoveryCommand(["--json", "guide"]),
     );
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("guide");
+    expect(json.operation).toBe("guide");
     expect(json.help).toContain("Privacy Pools: Quick Guide");
     expect(stderr).toBe("");
 
@@ -419,7 +420,8 @@ describe("static discovery runtime", () => {
       runStaticDiscoveryCommand(["--json", "help", "agent"], parsed),
     );
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("guide");
+    expect(json.operation).toBe("guide");
     expect(json.topic).toBe("agents");
     expect(json.help).toContain("Privacy Pools: agents");
     expect(stderr).toBe("");
@@ -568,7 +570,9 @@ describe("static discovery runtime", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("describe-index");
+    expect(json.mode).toBe("describe");
+    expect(json.action).toBe("index");
+    expect(json.operation).toBe("describe.index");
     expect(json.commands).toEqual(expect.any(Array));
     expect(
       json.commands.some((entry: { command: string }) => entry.command === "status"),
@@ -596,7 +600,8 @@ describe("static discovery runtime", () => {
       runStaticDiscoveryCommand(["--agent", "--output", "csv", "guide"]),
     );
     expect(guide.json.success).toBe(true);
-    expect(guide.json.mode).toBe("help");
+    expect(guide.json.mode).toBe("guide");
+    expect(guide.json.operation).toBe("guide");
     expect(guide.stderr).toBe("");
 
     const capabilities = await captureAsyncJsonOutput(() =>
@@ -750,7 +755,9 @@ describe("static discovery runtime", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("completion-query");
+    expect(json.mode).toBe("completion");
+    expect(json.action).toBe("query");
+    expect(json.operation).toBe("completion.query");
     expect(json.candidates).toContain("flow");
     expect(stderr).toBe("");
   });
@@ -1058,7 +1065,9 @@ describe("static discovery runtime", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("describe");
+    expect(json.action).toBe("help");
+    expect(json.operation).toBe("describe.help");
     expect(json.help).toContain("Usage: privacy-pools");
     expect(stderr).toBe("");
   });

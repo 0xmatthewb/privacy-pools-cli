@@ -230,9 +230,9 @@ afterEach(() => {
 });
 
 describe("bootstrap runtime coverage", () => {
-  test("createRootProgram resolves root command aliases for partial command loading", async () => {
+  test("createRootProgram loads requested root commands on demand", async () => {
     const program = await realProgram.createRootProgram("1.2.3", {
-      argv: ["recents"],
+      argv: ["recipients"],
       loadAllCommands: false,
       styledHelp: false,
     });
@@ -303,7 +303,9 @@ describe("bootstrap runtime coverage", () => {
 
     expect(exitCode).toBe(0);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("describe");
+    expect(json.action).toBe("help");
+    expect(json.operation).toBe("describe.help");
     expect(json.help).toBe("stub help");
     expect(stderr).toBe("");
   });
@@ -342,7 +344,9 @@ describe("bootstrap runtime coverage", () => {
 
     expect(exitCode).toBe(0);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("version");
+    expect(json.mode).toBe("status");
+    expect(json.action).toBe("version");
+    expect(json.operation).toBe("status.version");
     expect(json.version).toBe("9.9.9");
     expect(stderr).toBe("");
   });
@@ -403,7 +407,9 @@ describe("bootstrap runtime coverage", () => {
       });
       expect(versionExitCode).toBe(0);
       expect(versionResult.json.success).toBe(true);
-      expect(versionResult.json.mode).toBe("version");
+      expect(versionResult.json.mode).toBe("status");
+      expect(versionResult.json.action).toBe("version");
+      expect(versionResult.json.operation).toBe("status.version");
       expect(versionResult.stderr).toBe("");
     } finally {
       process.exit = originalExit;
@@ -956,7 +962,9 @@ describe("bootstrap runtime coverage", () => {
     );
     expect(inline.exitCode).toBe(0);
     expect(inline.json.success).toBe(true);
-    expect(inline.json.mode).toBe("help");
+    expect(inline.json.mode).toBe("describe");
+    expect(inline.json.action).toBe("help");
+    expect(inline.json.operation).toBe("describe.help");
     expect(inline.stderr).toBe("");
 
     const splitCli = await import("../../src/cli-main.ts?format-split-json-help");
@@ -965,7 +973,9 @@ describe("bootstrap runtime coverage", () => {
     );
     expect(split.exitCode).toBe(0);
     expect(split.json.success).toBe(true);
-    expect(split.json.mode).toBe("help");
+    expect(split.json.mode).toBe("describe");
+    expect(split.json.action).toBe("help");
+    expect(split.json.operation).toBe("describe.help");
     expect(split.stderr).toBe("");
   });
 
@@ -985,7 +995,9 @@ describe("bootstrap runtime coverage", () => {
 
     expect(exitCode).toBe(0);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("describe");
+    expect(json.action).toBe("help");
+    expect(json.operation).toBe("describe.help");
     expect(json.help).toBe("unsigned help");
     expect(stderr).toBe("");
   });
@@ -1183,10 +1195,11 @@ describe("bootstrap runtime coverage", () => {
 
   test("cliMain internals classify known help targets and fallback unknown commands", async () => {
     const { cliMainTestInternals } = realCliMain;
+    const removedRecipientsAlias = ["recent", "s"].join("");
 
     expect(cliMainTestInternals.isKnownCommanderHelpTarget(undefined)).toBe(false);
     expect(cliMainTestInternals.isKnownCommanderHelpTarget("withdraw")).toBe(true);
-    expect(cliMainTestInternals.isKnownCommanderHelpTarget("recents")).toBe(true);
+    expect(cliMainTestInternals.isKnownCommanderHelpTarget(removedRecipientsAlias)).toBe(false);
 
     const unknown = cliMainTestInternals.buildUnknownCommandError("withraw");
     expect(unknown.code).toBe("INPUT_UNKNOWN_COMMAND");
@@ -1212,7 +1225,9 @@ describe("bootstrap runtime coverage", () => {
       });
     });
     expect(rootHelp.json.success).toBe(true);
-    expect(rootHelp.json.mode).toBe("help");
+    expect(rootHelp.json.mode).toBe("describe");
+    expect(rootHelp.json.action).toBe("help");
+    expect(rootHelp.json.operation).toBe("describe.help");
     expect(rootHelp.json.help).toBe("root help body");
 
     const machineVersion = captureJsonOutput(() => {
@@ -1228,7 +1243,9 @@ describe("bootstrap runtime coverage", () => {
       );
     });
     expect(machineVersion.json.success).toBe(true);
-    expect(machineVersion.json.mode).toBe("version");
+    expect(machineVersion.json.mode).toBe("status");
+    expect(machineVersion.json.action).toBe("version");
+    expect(machineVersion.json.operation).toBe("status.version");
     expect(machineVersion.json.version).toBe("9.9.9");
 
     const structuredHelp = captureJsonOutput(() => {
@@ -1240,7 +1257,9 @@ describe("bootstrap runtime coverage", () => {
       });
     });
     expect(structuredHelp.json.success).toBe(true);
-    expect(structuredHelp.json.mode).toBe("help");
+    expect(structuredHelp.json.mode).toBe("describe");
+    expect(structuredHelp.json.action).toBe("help");
+    expect(structuredHelp.json.operation).toBe("describe.help");
     expect(structuredHelp.json.help).toBe("root help body");
 
     const capturedHelp = captureJsonOutput(() => {
@@ -1851,7 +1870,9 @@ describe("bootstrap runtime coverage", () => {
 
     expect(structured.exitCode).toBe(0);
     expect(structured.json.success).toBe(true);
-    expect(structured.json.mode).toBe("version");
+    expect(structured.json.mode).toBe("status");
+    expect(structured.json.action).toBe("version");
+    expect(structured.json.operation).toBe("status.version");
     expect(structured.json.version).toMatch(/^\d+\.\d+\.\d+/);
     expect(structured.stderr).toBe("");
   });
@@ -1918,7 +1939,9 @@ describe("bootstrap runtime coverage", () => {
 
     expect(exitCode).toBe(0);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("version");
+    expect(json.mode).toBe("status");
+    expect(json.action).toBe("version");
+    expect(json.operation).toBe("status.version");
     expect(String(json.version)).toMatch(/^\d+\.\d+\.\d+/);
     expect(stderr).toBe("");
   });

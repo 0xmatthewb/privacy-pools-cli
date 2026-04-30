@@ -1,11 +1,6 @@
 // normalized: TS
 Fetching pool statistics...
 
-  │ Warning:
-  │ Command 'stats pool' is deprecated and will be removed in the next minor release. Use 'privacy-pools pool-stats
-  │ ETH' instead.
-  │ Replacement: privacy-pools pool-stats ETH
-
 Pool statistics for ETH on sepolia:
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────

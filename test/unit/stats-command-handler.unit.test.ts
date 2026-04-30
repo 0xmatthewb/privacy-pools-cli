@@ -161,7 +161,7 @@ describe("stats command handler", () => {
     restoreModuleImplementations(STATS_HANDLER_MODULE_RESTORES);
   });
 
-  test("renders deprecated global stats aliases with machine-readable replacement guidance", async () => {
+  test("renders global stats compatibility routes without deprecation metadata", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       handleDeprecatedStatsDefaultAliasCommand(
         {},
@@ -170,13 +170,11 @@ describe("stats command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("global-stats");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("stats");
+    expect(json.operation).toBe("pools.stats");
     expect(json.command).toBe("protocol-stats");
     expect(json.invokedAs).toBe("stats");
-    expect(json.deprecationWarning).toMatchObject({
-      code: "COMMAND_ALIAS_DEPRECATED",
-      replacementCommand: "privacy-pools protocol-stats",
-    });
     expect(fetchGlobalStatisticsMock).toHaveBeenCalledTimes(1);
     expect(stderr).toBe("");
 
@@ -189,10 +187,6 @@ describe("stats command handler", () => {
     );
     expect(globalAlias.json.success).toBe(true);
     expect(globalAlias.json.invokedAs).toBe("stats global");
-    expect(globalAlias.json.deprecationWarning).toMatchObject({
-      code: "COMMAND_ALIAS_DEPRECATED",
-      replacementCommand: "privacy-pools protocol-stats",
-    });
     expect(fetchGlobalStatisticsMock).toHaveBeenCalledTimes(1);
   });
 
@@ -214,7 +208,7 @@ describe("stats command handler", () => {
     expect(exitCode).toBe(2);
   });
 
-  test("renders deprecated pool stats aliases and supports optsWithGlobals", async () => {
+  test("renders pool stats compatibility routes and supports optsWithGlobals", async () => {
     const { json, stderr } = await captureAsyncJsonOutput(() =>
       handleDeprecatedStatsPoolAliasCommand(
         "ETH",
@@ -224,15 +218,13 @@ describe("stats command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("pool-stats");
+    expect(json.mode).toBe("pools");
+    expect(json.action).toBe("stats");
+    expect(json.operation).toBe("pools.stats");
     expect(json.command).toBe("pool-stats");
     expect(json.invokedAs).toBe("stats pool");
     expect(json.chain).toBe("mainnet");
     expect(json.asset).toBe("ETH");
-    expect(json.deprecationWarning).toMatchObject({
-      code: "COMMAND_ALIAS_DEPRECATED",
-      replacementCommand: "privacy-pools pool-stats ETH",
-    });
     expect(resolvePoolMock).toHaveBeenCalledWith(
       expect.objectContaining({ name: "mainnet" }),
       "ETH",

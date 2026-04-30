@@ -1,6 +1,7 @@
 // normalized: NONE
 {
   "chain": "sepolia",
+  "mode": "pools",
   "nextActions": [
     {
       "cliCommand": "privacy-pools status --agent --chain sepolia",
@@ -21,6 +22,7 @@
       "when": "no_pools_found"
     }
   ],
+  "operation": "pools",
   "pools": [],
   "schemaVersion": "3.0.0",
   "search": null,

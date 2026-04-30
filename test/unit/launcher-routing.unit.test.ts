@@ -278,7 +278,9 @@ describe("launcher routing", () => {
     );
     expect(structured.json).toMatchObject({
       success: true,
-      mode: "version",
+      mode: "status",
+      action: "version",
+      operation: "status.version",
       version: "2.0.0",
     });
     expect(structured.stderr).toBe("");
@@ -298,7 +300,9 @@ describe("launcher routing", () => {
     expect(structured.exitCode).toBe(0);
     expect(structured.json).toMatchObject({
       success: true,
-      mode: "version",
+      mode: "status",
+      action: "version",
+      operation: "status.version",
       version: "2.0.0",
     });
     expect(structured.stderr).toBe("");
@@ -890,7 +894,7 @@ describe("launcher routing", () => {
       .update("#!/usr/bin/env node\n", "utf8")
       .digest("hex");
     writeNativePackageJson(packageJsonPath, sha256, {
-      bridgeVersion: "2",
+      bridgeVersion: "1",
     });
 
     try {

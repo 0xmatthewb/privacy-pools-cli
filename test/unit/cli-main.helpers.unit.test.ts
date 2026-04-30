@@ -298,7 +298,9 @@ describe("cli main internal helpers", () => {
       });
     });
     expect(rootHelp.json.success).toBe(true);
-    expect(rootHelp.json.mode).toBe("help");
+    expect(rootHelp.json.mode).toBe("describe");
+    expect(rootHelp.json.action).toBe("help");
+    expect(rootHelp.json.operation).toBe("describe.help");
     expect(rootHelp.json.help).toBe("stub help");
 
     const versionPayload = await captureAsyncJsonOutput(async () => {
@@ -314,7 +316,9 @@ describe("cli main internal helpers", () => {
       );
     });
     expect(versionPayload.json.success).toBe(true);
-    expect(versionPayload.json.mode).toBe("version");
+    expect(versionPayload.json.mode).toBe("status");
+    expect(versionPayload.json.action).toBe("version");
+    expect(versionPayload.json.operation).toBe("status.version");
     expect(versionPayload.json.version).toBe("9.9.9");
 
     const structuredHelp = await captureAsyncJsonOutput(async () => {
@@ -330,7 +334,9 @@ describe("cli main internal helpers", () => {
       );
     });
     expect(structuredHelp.json.success).toBe(true);
-    expect(structuredHelp.json.mode).toBe("help");
+    expect(structuredHelp.json.mode).toBe("describe");
+    expect(structuredHelp.json.action).toBe("help");
+    expect(structuredHelp.json.operation).toBe("describe.help");
     expect(structuredHelp.json.help).toBe("stub help");
   });
 

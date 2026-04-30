@@ -11,7 +11,6 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 | [`ACCOUNT_WEBSITE_RECOVERY_REQUIRED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#account-website-recovery-required) | INPUT | no |
 | [`ASP_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#asp-error) | ASP | no |
 | [`ASP_HOST`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#asp-host) | ASP | no |
-| [`COMMAND_ALIAS_DEPRECATED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#command-alias-deprecated) | UNKNOWN | no |
 | [`CONTRACT_BROADCAST_REVERTED`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-broadcast-reverted) | CONTRACT | no |
 | [`CONTRACT_CONTEXT_MISMATCH`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-context-mismatch) | CONTRACT | no |
 | [`CONTRACT_ERROR`](https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#contract-error) | CONTRACT | no |
@@ -184,12 +183,6 @@ This file is generated from `src/utils/error-code-registry.ts` plus error-code l
 - Category: `ASP`
 - Retryable: `false`
 - Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#asp-host
-
-## COMMAND_ALIAS_DEPRECATED
-
-- Category: `UNKNOWN`
-- Retryable: `false`
-- Stable URL: https://github.com/0xmatthewb/privacy-pools-cli/blob/main/docs/errors.md#command-alias-deprecated
 
 ## CONTRACT_BROADCAST_REVERTED
 

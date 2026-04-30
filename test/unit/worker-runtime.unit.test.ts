@@ -80,7 +80,8 @@ describe("worker runtime", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("guide");
+    expect(json.operation).toBe("guide");
     expect(json.help).toContain("Privacy Pools: Quick Guide");
     expect(filterSpinnerLeaks(stderr)).toBe("");
   });

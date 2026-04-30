@@ -154,26 +154,6 @@
       "schema": "schemas/recipients.clear.schema.json"
     },
     {
-      "command": "withdraw recipients",
-      "schema": "schemas/withdraw.recipients.schema.json"
-    },
-    {
-      "command": "withdraw recipients list",
-      "schema": "schemas/withdraw.recipients.list.schema.json"
-    },
-    {
-      "command": "withdraw recipients add",
-      "schema": "schemas/withdraw.recipients.add.schema.json"
-    },
-    {
-      "command": "withdraw recipients remove",
-      "schema": "schemas/withdraw.recipients.remove.schema.json"
-    },
-    {
-      "command": "withdraw recipients clear",
-      "schema": "schemas/withdraw.recipients.clear.schema.json"
-    },
-    {
       "command": "ragequit",
       "schema": "schemas/ragequit.schema.json"
     },

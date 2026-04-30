@@ -29,12 +29,6 @@ const statusIssueSchema = z.object({
   reasonCode: z.string().optional(),
 });
 
-const deprecationWarningSchema = z.object({
-  code: z.string(),
-  message: z.string(),
-  replacementCommand: z.string(),
-});
-
 const externalGuidanceSchema = z.object({
   kind: z.string(),
   message: z.string(),
@@ -107,7 +101,6 @@ const transactionResultBaseSchema = z.object({
   localStateSynced: optionalBoolean,
   warningCode: z.string().nullable().optional(),
   warnings: z.array(warningSchema).optional(),
-  deprecationWarning: deprecationWarningSchema.optional(),
   nextActions: optionalNextActions,
 });
 
@@ -274,7 +267,6 @@ const statsSchema = z.object({
   mode: optionalString,
   command: optionalString,
   invokedAs: optionalString,
-  deprecationWarning: deprecationWarningSchema.optional(),
   chain: z.string(),
   chains: z.array(z.string()).optional(),
   asset: optionalString,
@@ -313,7 +305,6 @@ const recipientsSchema = z.object({
   cleared: optionalBoolean,
   count: optionalNumber,
   warnings: z.array(warningSchema).optional(),
-  deprecationWarning: deprecationWarningSchema.optional(),
   nextActions: optionalNextActions,
 });
 
@@ -702,11 +693,6 @@ const commandPayloadSchemas: Record<CommandPath, z.ZodTypeAny> = {
   "recipients add": recipientsSchema,
   "recipients remove": recipientsSchema,
   "recipients clear": recipientsSchema,
-  "withdraw recipients": recipientsSchema,
-  "withdraw recipients list": recipientsSchema,
-  "withdraw recipients add": recipientsSchema,
-  "withdraw recipients remove": recipientsSchema,
-  "withdraw recipients clear": recipientsSchema,
   ragequit: transactionResultBaseSchema.extend({
     operation: z.literal("ragequit"),
     destinationAddress: optionalString,

@@ -41,7 +41,7 @@ export function assertGuideAgentContract(result: CliRunResult): void {
     help: string;
   }>(result, { status: 0, success: true });
 
-  expect(json.mode).toBe("help");
+  expect(json.mode).toBe("guide");
   expect(json.help).toContain("Privacy Pools: Quick Guide");
 }
 

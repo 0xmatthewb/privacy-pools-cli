@@ -630,8 +630,9 @@ describe("deposit command handler", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("unsigned");
+    expect(json.mode).toBe("deposit");
     expect(json.operation).toBe("deposit");
+    expect(json.unsigned).toBe(true);
     expect(json.asset).toBe("USDC");
     expect(json.precommitment).toBe("777");
     expectUnsignedTransactions(json.transactions, [

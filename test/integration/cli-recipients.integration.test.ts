@@ -3,8 +3,9 @@ import { createTempHome, parseJsonOutput, runBuiltCli } from "../helpers/cli.ts"
 
 interface RecipientEnvelope {
   success: boolean;
-  mode: "recipient-history";
-  operation: "add" | "list" | "remove" | "clear";
+  mode: "recipients";
+  action?: "add" | "list" | "remove" | "clear";
+  operation: "recipients.add" | "recipients.list" | "recipients.remove" | "recipients.clear";
   address?: string;
   count?: number;
   removed?: boolean;
@@ -32,7 +33,8 @@ describe("recipients command integration", () => {
     expect(addFirst.stderr).toBe("");
     expect(parseJsonOutput<RecipientEnvelope>(addFirst.stdout)).toMatchObject({
       success: true,
-      operation: "add",
+      action: "add",
+      operation: "recipients.add",
       recipient: { address: first, label: "treasury" },
     });
 
@@ -40,7 +42,8 @@ describe("recipients command integration", () => {
     expect(listOne.status).toBe(0);
     expect(parseJsonOutput<RecipientEnvelope>(listOne.stdout)).toMatchObject({
       success: true,
-      operation: "list",
+      action: "list",
+      operation: "recipients.list",
       chain: "mainnet",
       count: 1,
       recipients: [{ address: first, label: "treasury" }],
@@ -54,7 +57,8 @@ describe("recipients command integration", () => {
     expect(removeByLabel.status).toBe(0);
     expect(parseJsonOutput<RecipientEnvelope>(removeByLabel.stdout)).toMatchObject({
       success: true,
-      operation: "remove",
+      action: "remove",
+      operation: "recipients.remove",
       address: first,
       removed: true,
     });
@@ -66,13 +70,14 @@ describe("recipients command integration", () => {
     expect(addSecond.status).toBe(0);
 
     const removeByStoredName = runBuiltCli(
-      ["--agent", "recipients", "rm", "vitalik.eth"],
+      ["--agent", "recipients", "remove", "vitalik.eth"],
       { home },
     );
     expect(removeByStoredName.status).toBe(0);
     expect(parseJsonOutput<RecipientEnvelope>(removeByStoredName.stdout)).toMatchObject({
       success: true,
-      operation: "remove",
+      action: "remove",
+      operation: "recipients.remove",
       address: second,
       removed: true,
     });
@@ -87,7 +92,8 @@ describe("recipients command integration", () => {
     expect(clear.status).toBe(0);
     expect(parseJsonOutput<RecipientEnvelope>(clear.stdout)).toMatchObject({
       success: true,
-      operation: "clear",
+      action: "clear",
+      operation: "recipients.clear",
       removedCount: 1,
     });
 
@@ -95,7 +101,8 @@ describe("recipients command integration", () => {
     expect(listEmpty.status).toBe(0);
     expect(parseJsonOutput<RecipientEnvelope>(listEmpty.stdout)).toMatchObject({
       success: true,
-      operation: "list",
+      action: "list",
+      operation: "recipients.list",
       count: 0,
       recipients: [],
     });

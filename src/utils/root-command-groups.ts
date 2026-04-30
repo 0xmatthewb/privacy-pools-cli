@@ -70,7 +70,7 @@ export const ROOT_COMMAND_HELP_LABELS: Record<RootCommandName, string> = {
   simulate: "simulate",
   deposit: "deposit",
   withdraw: "withdraw",
-  recipients: "recipients|recents",
+  recipients: "recipients",
   ragequit: "ragequit",
   broadcast: "broadcast",
   accounts: "accounts",

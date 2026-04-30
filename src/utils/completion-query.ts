@@ -149,9 +149,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionOption("--stdin"),
             ],
           }),
-          completionCommand("unset", {
-            aliases: ["remove"],
-          }),
+          completionCommand("unset"),
           completionCommand("path"),
           completionCommand("profile", {
             subcommands: [
@@ -202,7 +200,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionOption("--unsigned [format]", UNSIGNED_FORMAT_VALUES),
               completionOption("--dry-run"),
               completionOption("--allow-non-round-amounts"),
-              completionOption("--ignore-unique-amount"),
             ],
           }),
           completionCommand("withdraw", {
@@ -236,24 +233,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("-n, --limit <n>"),
           completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
         ],
-        subcommands: [
-          completionCommand("list", {
-            options: [
-              completionOption("--include-testnets"),
-              completionOption("--search <query>"),
-              completionOption("-n, --limit <n>"),
-              completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
-            ],
-          }),
-          completionCommand("ls", {
-            options: [
-              completionOption("--include-testnets"),
-              completionOption("--search <query>"),
-              completionOption("-n, --limit <n>"),
-              completionOption("--sort <mode>", SUPPORTED_SORT_MODES),
-            ],
-          }),
-        ],
+        subcommands: [],
       }),
       completionCommand("deposit", {
         options: [
@@ -265,7 +245,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
           completionOption("--gas-price <gwei>"),
           completionOption("--max-fee-per-gas <gwei>"),
           completionOption("--max-priority-fee-per-gas <gwei>"),
-          completionOption("--ignore-unique-amount"),
         ],
       }),
       completionCommand("accounts", {
@@ -319,31 +298,9 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
               completionOption("-t, --to <address>"),
             ],
           }),
-          completionCommand("recipients", {
-            aliases: ["recents"],
-            options: [
-              completionOption("--all-chains"),
-              completionOption("--include-metadata"),
-              completionOption("-n, --limit <n>"),
-            ],
-            subcommands: [
-              completionCommand("list", {
-                aliases: ["ls"],
-                options: [
-                  completionOption("--all-chains"),
-                  completionOption("--include-metadata"),
-                  completionOption("-n, --limit <n>"),
-                ],
-              }),
-              completionCommand("add"),
-              completionCommand("remove", { aliases: ["rm"] }),
-              completionCommand("clear"),
-            ],
-          }),
         ],
       }),
       completionCommand("recipients", {
-        aliases: ["recents"],
         options: [
           completionOption("--all-chains"),
           completionOption("--include-metadata"),
@@ -351,7 +308,6 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
         ],
         subcommands: [
           completionCommand("list", {
-            aliases: ["ls"],
             options: [
               completionOption("--all-chains"),
               completionOption("--include-metadata"),
@@ -359,7 +315,7 @@ export const STATIC_COMPLETION_SPEC: CompletionCommandSpec = completionCommand(
             ],
           }),
           completionCommand("add"),
-          completionCommand("remove", { aliases: ["rm"] }),
+          completionCommand("remove"),
           completionCommand("clear"),
         ],
       }),

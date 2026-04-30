@@ -21,7 +21,6 @@ import {
   spinner,
   warnSpinner,
   info,
-  warn,
   verbose,
   formatAmount,
   deriveTokenPrice,
@@ -103,14 +102,12 @@ import {
 } from "../services/workflow.js";
 import { createSubmissionRecord } from "../services/submissions.js";
 import { parseGasFeeOverrides } from "../utils/gas-fees.js";
-import { deprecationWarningFor } from "../utils/deprecations.js";
 
 interface DepositCommandOptions {
   unsigned?: boolean | string;
   dryRun?: boolean | string;
   wait?: boolean;
   noWait?: boolean;
-  ignoreUniqueAmount?: boolean;
   allowNonRoundAmounts?: boolean;
   streamJson?: boolean;
   gasPrice?: string;
@@ -119,10 +116,6 @@ interface DepositCommandOptions {
 }
 
 export { createDepositCommand } from "../command-shells/deposit.js";
-
-const IGNORE_UNIQUE_AMOUNT_DEPRECATION_WARNING = deprecationWarningFor(
-  "deposit-ignore-unique-amount",
-);
 
 const DEPOSIT_GAS_ESTIMATE_NATIVE = 250_000n;
 const DEPOSIT_GAS_ESTIMATE_ERC20 = 375_000n;
@@ -208,10 +201,6 @@ export async function handleDepositCommand(
   const silent = isQuiet || isJson || isUnsigned || isDryRun;
   const skipPrompts = mode.skipPrompts || isUnsigned || isDryRun;
   const isVerbose = globalOpts?.verbose ?? false;
-  const ignoreUniqueAmountDeprecationWarning =
-    opts.ignoreUniqueAmount === true
-      ? IGNORE_UNIQUE_AMOUNT_DEPRECATION_WARNING
-      : undefined;
   let errorRecoveryContext: Record<string, unknown> = {};
   try {
     emitStreamJsonEvent(streamJson, {
@@ -258,9 +247,6 @@ export async function handleDepositCommand(
     if (!isQuiet && !isJson) {
       if (isDryRun) {
         info("Dry-run mode: previewing only; no transaction will be signed or submitted.", false);
-      }
-      if (ignoreUniqueAmountDeprecationWarning) {
-        warn(ignoreUniqueAmountDeprecationWarning.message, false);
       }
     }
 
@@ -379,7 +365,6 @@ export async function handleDepositCommand(
     if (
       !isDryRun &&
       !opts.allowNonRoundAmounts &&
-      !opts.ignoreUniqueAmount &&
       !isRoundAmount(amount, pool.decimals, pool.symbol)
     ) {
       const humanAmount = formatAmountDecimal(amount, pool.decimals);
@@ -672,7 +657,6 @@ export async function handleDepositCommand(
           precommitment: precommitment as unknown as bigint,
           balanceSufficient,
           dryRunMode,
-          deprecationWarning: ignoreUniqueAmountDeprecationWarning,
           warnings: depositWarnings,
         });
         return;
@@ -899,7 +883,6 @@ export async function handleDepositCommand(
           localStateSynced: false,
           warningCode: null,
           chainOverridden: !!globalOpts?.chain,
-          deprecationWarning: ignoreUniqueAmountDeprecationWarning,
         });
         maybeLaunchBrowser({
           globalOpts,
@@ -1091,7 +1074,6 @@ export async function handleDepositCommand(
         localStateSynced,
         warningCode,
         chainOverridden: !!globalOpts?.chain,
-        deprecationWarning: ignoreUniqueAmountDeprecationWarning,
       });
       maybeLaunchBrowser({
         globalOpts,

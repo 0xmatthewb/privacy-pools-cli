@@ -22,9 +22,10 @@ describe("CLI envelope schemas", () => {
   test("accepts a success envelope with nextActions", () => {
     expect(() =>
       successEnvelopeSchema.parse({
-        schemaVersion: "2.0.0",
+        schemaVersion: "3.0.0",
         success: true,
         mode: "status",
+        operation: "status",
         nextActions: [
           {
             command: "status",
@@ -39,7 +40,7 @@ describe("CLI envelope schemas", () => {
 
   test("accepts an error envelope with canonical aliases", () => {
     const parsed = errorEnvelopeSchema.parse({
-      schemaVersion: "2.0.0",
+      schemaVersion: "3.0.0",
       success: false,
       errorCode: "INPUT_FLAG_CONFLICT",
       errorMessage: "Choose either JSON or CSV output, not both.",
@@ -58,7 +59,7 @@ describe("CLI envelope schemas", () => {
   test("rejects envelopes without a success discriminator", () => {
     expect(() =>
       cliEnvelopeSchema.parse({
-        schemaVersion: "2.0.0",
+        schemaVersion: "3.0.0",
         mode: "status",
       }),
     ).toThrow();
@@ -67,8 +68,10 @@ describe("CLI envelope schemas", () => {
   test("per-command schemas validate high-traffic success payloads", () => {
     const samples: Record<string, unknown> = {
       accounts: {
-        schemaVersion: "2.0.0",
+        schemaVersion: "3.0.0",
         success: true,
+        mode: "accounts",
+        operation: "accounts",
         chain: "mainnet",
         accounts: [],
         balances: [],
@@ -76,8 +79,9 @@ describe("CLI envelope schemas", () => {
       },
       capabilities: readGoldenJson("capabilities/agent.golden.json"),
       deposit: {
-        schemaVersion: "2.0.0",
+        schemaVersion: "3.0.0",
         success: true,
+        mode: "deposit",
         operation: "deposit",
         status: "confirmed",
         txHash: "0xabc",
@@ -95,8 +99,10 @@ describe("CLI envelope schemas", () => {
       "pool-stats": readGoldenJson("stats/pool-sepolia-agent.golden.json"),
       "protocol-stats": readGoldenJson("stats/global-agent.golden.json"),
       status: {
-        schemaVersion: "2.0.0",
+        schemaVersion: "3.0.0",
         success: true,
+        mode: "status",
+        operation: "status",
         configExists: false,
         configDir: null,
         defaultChain: null,
@@ -123,11 +129,12 @@ describe("CLI envelope schemas", () => {
         warnings: [],
       },
       withdraw: {
-        schemaVersion: "2.0.0",
+        schemaVersion: "3.0.0",
         success: true,
         operation: "withdraw",
         status: "confirmed",
-        mode: "relayed",
+        mode: "withdraw",
+        withdrawMode: "relayed",
         txHash: "0xabc",
         amount: "99500000000000000",
         recipient: "0x2222222222222222222222222222222222222222",
@@ -154,14 +161,14 @@ describe("CLI envelope schemas", () => {
   test("per-command schemas reject payloads missing command-specific fields", () => {
     expect(() =>
       commandEnvelopeSchemas.status.parse({
-        schemaVersion: "2.0.0",
+        schemaVersion: "3.0.0",
         success: true,
       }),
     ).toThrow();
 
     expect(() =>
       commandEnvelopeSchemas.pools.parse({
-        schemaVersion: "2.0.0",
+        schemaVersion: "3.0.0",
         success: true,
         pools: [],
       }),

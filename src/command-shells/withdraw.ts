@@ -6,11 +6,6 @@ import { createLazyAction } from "../utils/lazy-command.js";
 export function createWithdrawCommand(): Command {
   const metadata = getCommandMetadata("withdraw");
   const quoteMetadata = getCommandMetadata("withdraw quote");
-  const recipientsMetadata = getCommandMetadata("withdraw recipients");
-  const recipientsListMetadata = getCommandMetadata("withdraw recipients list");
-  const recipientsAddMetadata = getCommandMetadata("withdraw recipients add");
-  const recipientsRemoveMetadata = getCommandMetadata("withdraw recipients remove");
-  const recipientsClearMetadata = getCommandMetadata("withdraw recipients clear");
   const command = new Command("withdraw")
     .description(metadata.description)
     .usage("[options] [amount] [asset]")
@@ -116,72 +111,6 @@ export function createWithdrawCommand(): Command {
       createLazyAction(
         () => import("../commands/withdraw.js"),
         "handleWithdrawCommand",
-      ),
-    );
-
-  const recipients = command
-    .command("recipients")
-    .alias("recents")
-    .description(recipientsMetadata.description)
-    .option("-n, --limit <n>", "Limit recipients returned")
-    .option("--all-chains", "List remembered recipients across all chains")
-    .option("--include-metadata", "Include recipient timestamps in JSON output")
-    .addHelpText(
-      "after",
-      "\nSuccessful withdrawals are remembered by chain unless --no-remember is set. Use add/remove to manage the local address book manually.\n",
-    )
-    .action(
-      createLazyAction(
-        () => import("../commands/withdraw/recipients.js"),
-        "handleWithdrawRecipientsListCommand",
-      ),
-    );
-
-  recipients
-    .command("list")
-    .alias("ls")
-    .description(recipientsListMetadata.description)
-    .option("-n, --limit <n>", "Limit recipients returned")
-    .option("--all-chains", "List remembered recipients across all chains")
-    .option("--include-metadata", "Include recipient timestamps in JSON output")
-    .action(
-      createLazyAction(
-        () => import("../commands/withdraw/recipients.js"),
-        "handleWithdrawRecipientsListCommand",
-      ),
-    );
-
-  recipients
-    .command("add")
-    .description(recipientsAddMetadata.description)
-    .argument("<address-or-ens>", "Recipient address or ENS name")
-    .argument("[label]", "Optional display label")
-    .action(
-      createLazyAction(
-        () => import("../commands/withdraw/recipients.js"),
-        "handleWithdrawRecipientsAddCommand",
-      ),
-    );
-
-  recipients
-    .command("remove")
-    .alias("rm")
-    .description(recipientsRemoveMetadata.description)
-    .argument("<address-or-ens>", "Recipient address or ENS name")
-    .action(
-      createLazyAction(
-        () => import("../commands/withdraw/recipients.js"),
-        "handleWithdrawRecipientsRemoveCommand",
-      ),
-    );
-
-  recipients
-    .command("clear")
-    .description(recipientsClearMetadata.description)
-    .action(
-      createLazyAction(
-        () => import("../commands/withdraw/recipients.js"),
-        "handleWithdrawRecipientsClearCommand",
       ),
     );
 

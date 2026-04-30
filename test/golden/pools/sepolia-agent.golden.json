@@ -1,6 +1,7 @@
 // normalized: ADDR, WEI
 {
   "chain": "sepolia",
+  "mode": "pools",
   "nextActions": [
     {
       "command": "deposit",
@@ -24,6 +25,7 @@
       "when": "after_pools"
     }
   ],
+  "operation": "pools",
   "pools": [
     {
       "acceptedDepositsCount": 35,

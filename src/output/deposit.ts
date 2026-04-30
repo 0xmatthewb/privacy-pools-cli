@@ -43,7 +43,6 @@ import {
   warningFromCode,
 } from "./warnings.js";
 import { FIRST_DEPOSIT_WELCOME } from "./copy.js";
-import type { DeprecationWarningPayload } from "./deprecation.js";
 
 export interface DepositReviewData {
   amount: bigint;
@@ -181,7 +180,6 @@ export interface DepositDryRunData {
   precommitment: bigint;
   balanceSufficient: boolean | "unknown";
   dryRunMode?: DryRunMode | null;
-  deprecationWarning?: DeprecationWarningPayload;
   warnings?: TransactionJsonWarning[];
 }
 
@@ -212,7 +210,6 @@ export interface DepositSuccessData {
   localStateSynced?: boolean;
   warningCode?: string | null;
   warnings?: TransactionJsonWarning[];
-  deprecationWarning?: DeprecationWarningPayload;
   /** True when the user explicitly passed --chain (overriding the default). */
   chainOverridden?: boolean;
 }
@@ -265,7 +262,6 @@ export function renderDepositDryRun(ctx: OutputContext, data: DepositDryRunData)
         poolAccountId: data.poolAccountId,
         precommitment: data.precommitment.toString(),
         balanceSufficient: data.balanceSufficient,
-        ...(data.deprecationWarning ? { deprecationWarning: data.deprecationWarning } : {}),
         warnings: [
           {
             code: "PREVIEW_VALIDATION_APPROXIMATE",
@@ -503,7 +499,6 @@ export function renderDepositSuccess(ctx: OutputContext, data: DepositSuccessDat
         reconciliationRequired: data.reconciliationRequired ?? false,
         localStateSynced: data.localStateSynced ?? true,
         warningCode: data.warningCode ?? null,
-        ...(data.deprecationWarning ? { deprecationWarning: data.deprecationWarning } : {}),
         ...(warnings ? { warnings } : {}),
       }, agentNextActions),
       false,

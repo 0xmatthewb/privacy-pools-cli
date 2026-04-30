@@ -70,7 +70,7 @@ export interface InitDryRunResult {
 
 export interface InitPendingResult {
   mode: "init-pending";
-  operation: "init";
+  operation: "init.handoff";
   status: "pending_human_action";
   effectiveChain: string;
   configExists: boolean;
@@ -90,7 +90,7 @@ export function renderInitStage(
 ): void {
   printJsonSuccess({
     mode: "init-staged",
-    operation: "init",
+    operation: "init.create",
     stage,
     ...payload,
   });

@@ -94,7 +94,8 @@ describe("utility command handlers", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("guide");
+    expect(json.operation).toBe("guide");
     expect(json.help).toContain("flow ragequit");
     expect(json.help).toContain("--new-wallet");
     expect(stderr).toBe("");
@@ -217,7 +218,9 @@ describe("utility command handlers", () => {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("describe-index");
+    expect(json.mode).toBe("describe");
+    expect(json.action).toBe("index");
+    expect(json.operation).toBe("describe.index");
     expect(json.commands).toEqual(expect.any(Array));
     expect(json.envelopeRoots).toEqual(expect.arrayContaining(["commands", "nextActions"]));
     expect(
@@ -276,7 +279,9 @@ Basic:
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("completion-query");
+    expect(json.mode).toBe("completion");
+    expect(json.action).toBe("query");
+    expect(json.operation).toBe("completion.query");
     expect(json.shell).toBe("bash");
     expect(json.candidates).toContain("flow");
     expect(stderr).toBe("");
@@ -308,7 +313,9 @@ Basic:
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("completion-install");
+    expect(json.mode).toBe("completion");
+    expect(json.action).toBe("install");
+    expect(json.operation).toBe("completion.install");
     expect(json.shell).toBe("bash");
     expect(json.scriptPath).toContain(".privacy-pools-base");
     expect(json.profilePath).toBe(join(home, ".bashrc"));

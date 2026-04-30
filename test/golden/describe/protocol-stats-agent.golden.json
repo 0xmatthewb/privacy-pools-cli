@@ -16,7 +16,6 @@
     "chain",
     "chains",
     "command",
-    "deprecationWarning",
     "invokedAs",
     "last24h",
     "mode"
@@ -66,7 +65,7 @@
   ],
   "group": "monitoring",
   "humanInteractive": false,
-  "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+  "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
   "jsonVariants": [],
   "mode": "describe",
   "mutatesFunds": false,

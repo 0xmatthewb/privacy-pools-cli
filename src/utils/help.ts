@@ -491,7 +491,6 @@ const guideSections: Record<string, () => string[]> = {
     "  Detail views use positionals instead of singular aliases:",
     `  ${accent("privacy-pools pools ETH")}      Pool detail`,
     `  ${accent("privacy-pools accounts --pool-account PA-1")}  Pool Account detail/filter`,
-    "  For discoverability, pools list and pools ls are accepted aliases for pools.",
     "",
     chalk.bold("Short Flag Conventions"),
     `  ${notice("-c")} chain, ${notice("-r")} RPC URL, ${notice("-j")} JSON, ${notice("-o")} output format.`,

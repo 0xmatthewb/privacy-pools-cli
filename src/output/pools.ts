@@ -217,6 +217,8 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
       printJsonSuccess(
         appendNextActions(
           {
+            mode: "pools",
+            operation: "pools",
             chain: data.multiChainLabel ?? "all-mainnets",
             ...(data.requestedChain ? { requestedChain: data.requestedChain } : {}),
             search: data.search,
@@ -229,6 +231,8 @@ export function renderPoolsEmpty(ctx: OutputContext, data: PoolsRenderData): voi
       );
     } else {
       printJsonSuccess(appendNextActions({
+        mode: "pools",
+        operation: "pools",
         chain: data.chainName,
         ...(data.requestedChain ? { requestedChain: data.requestedChain } : {}),
         search: data.search,
@@ -359,6 +363,8 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
   if (ctx.mode.isJson) {
     if (allChains) {
       printJsonSuccess(appendNextActions({
+        mode: "pools",
+        operation: "pools",
         chain: data.multiChainLabel ?? "all-mainnets",
         ...(data.requestedChain ? { requestedChain: data.requestedChain } : {}),
         search,
@@ -371,6 +377,8 @@ export function renderPools(ctx: OutputContext, data: PoolsRenderData): void {
       }, agentNextActions));
     } else {
       printJsonSuccess(appendNextActions({
+        mode: "pools",
+        operation: "pools",
         chain: chainName,
         ...(data.requestedChain ? { requestedChain: data.requestedChain } : {}),
         search,
@@ -712,6 +720,9 @@ export function renderPoolDetail(ctx: OutputContext, data: PoolDetailRenderData)
 
   if (ctx.mode.isJson) {
     const payload: Record<string, unknown> = {
+      mode: "pools",
+      action: "show",
+      operation: "pools.show",
       chain,
       ...(requestedChain ? { requestedChain } : {}),
       ...poolToJson(pool),

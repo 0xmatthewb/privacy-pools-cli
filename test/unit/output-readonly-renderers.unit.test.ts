@@ -367,7 +367,9 @@ describe("read-only output renderers", () => {
     expect(parseCapturedJson(jsonOutput.stdout)).toEqual(
       expect.objectContaining({
         success: true,
-        mode: "migration-status",
+        mode: "migrate",
+        action: "status",
+        operation: "migrate.status",
         status: "review_incomplete",
         requiresMigration: true,
         requiresWebsiteRecovery: true,

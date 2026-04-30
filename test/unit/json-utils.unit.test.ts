@@ -18,7 +18,7 @@ afterEach(() => {
 describe("json utilities", () => {
   test("builds contract-doc paths and stringifies bigint success envelopes", () => {
     expect(jsonContractDocRelativePath()).toBe(
-      "docs/contracts/cli-json-contract.v2.0.0.json",
+      "docs/contracts/cli-json-contract.v3.0.0.json",
     );
     expect(jsonContractDocRelativePath("9.9.9")).toBe(
       "docs/contracts/cli-json-contract.v9.9.9.json",
@@ -34,7 +34,7 @@ describe("json utilities", () => {
 
     expect(stderr).toBe("");
     expect(parseCapturedJson(stdout)).toEqual({
-      schemaVersion: "2.0.0",
+      schemaVersion: "3.0.0",
       success: true,
       operation: "demo",
       amount: "123",
@@ -52,7 +52,7 @@ describe("json utilities", () => {
       }),
     );
     expect(parseCapturedJson(stdout)).toEqual({
-      schemaVersion: "2.0.0",
+      schemaVersion: "3.0.0",
       success: true,
       amount: "1000",
     });
@@ -138,7 +138,7 @@ describe("json utilities", () => {
       }),
     );
 
-    expect(stdout).toContain("schemaVersion: 2.0.0");
+    expect(stdout).toContain("schemaVersion: 3.0.0");
     expect(stdout).toContain("success: true");
     expect(stdout).toContain("command: broadcast");
     expect(stdout).toContain("submitted: true");
@@ -221,7 +221,7 @@ describe("json utilities", () => {
         }),
       );
       expect(parseCapturedJson(fullStdout)).toEqual({
-        schemaVersion: "2.0.0",
+        schemaVersion: "3.0.0",
         success: false,
         errorCode: "UNKNOWN_ERROR",
         errorMessage: "Cannot reach ASP",
@@ -242,7 +242,7 @@ describe("json utilities", () => {
       printJsonSuccess({ command: "status" }),
     );
     expect(parseCapturedJson(resetStdout)).toEqual({
-      schemaVersion: "2.0.0",
+      schemaVersion: "3.0.0",
       success: true,
       command: "status",
     });

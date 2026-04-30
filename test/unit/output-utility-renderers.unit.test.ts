@@ -66,7 +66,8 @@ describe("renderGuide parity", () => {
     const { json, stderr } = captureJsonOutput(() => renderGuide(ctx));
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("help");
+    expect(json.mode).toBe("guide");
+    expect(json.operation).toBe("guide");
     expect(typeof json.help).toBe("string");
     expect(stderr).toBe("");
   });
@@ -204,7 +205,9 @@ describe("renderCompletionScript parity", () => {
     );
     expect(json.schemaVersion).toBe(JSON_SCHEMA_VERSION);
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("completion-script");
+    expect(json.mode).toBe("completion");
+    expect(json.action).toBe("script");
+    expect(json.operation).toBe("completion.script");
     expect(json.shell).toBe("bash");
     expect(json.completionScript).toBe("# test script\n");
     expect(stderr).toBe("");
@@ -238,7 +241,9 @@ describe("renderCompletionQuery parity", () => {
     const { json, stderr } = captureJsonOutput(() =>
       renderCompletionQuery(ctx, "zsh", 2, ["deposit", "withdraw"]),
     );
-    expect(json.mode).toBe("completion-query");
+    expect(json.mode).toBe("completion");
+    expect(json.action).toBe("query");
+    expect(json.operation).toBe("completion.query");
     expect(json.shell).toBe("zsh");
     expect(json.cword).toBe(2);
     expect(json.candidates).toEqual(["deposit", "withdraw"]);

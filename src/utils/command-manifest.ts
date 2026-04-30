@@ -100,11 +100,6 @@ export const GENERATED_ROUTE_COMMAND_PATHS = [
   "recipients add",
   "recipients remove",
   "recipients clear",
-  "withdraw recipients",
-  "withdraw recipients list",
-  "withdraw recipients add",
-  "withdraw recipients remove",
-  "withdraw recipients clear",
   "ragequit",
   "simulate deposit",
   "simulate withdraw",
@@ -208,9 +203,7 @@ export const GENERATED_ROOT_COMMANDS = [
   },
   {
     "name": "recipients",
-    "aliases": [
-      "recents"
-    ],
+    "aliases": [],
     "description": "Manage remembered withdrawal recipients"
   },
   {
@@ -258,13 +251,9 @@ export const GENERATED_STATIC_LOCAL_COMMANDS = [
 ] as const;
 
 export const GENERATED_COMMAND_ALIAS_MAP: Record<string, GeneratedCommandPath> = {
-  "remove": "config unset",
   "stats": "protocol-stats",
   "stats global": "protocol-stats",
-  "stats pool": "pool-stats",
-  "recents": "recipients",
-  "ls": "recipients list",
-  "rm": "recipients remove"
+  "stats pool": "pool-stats"
 };
 
 export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, GeneratedCommandRoute> = {
@@ -501,36 +490,6 @@ export const GENERATED_COMMAND_ROUTES: Record<GeneratedRouteCommandPath, Generat
     ]
   },
   "recipients clear": {
-    "owner": "js-runtime",
-    "nativeModes": [
-      "help"
-    ]
-  },
-  "withdraw recipients": {
-    "owner": "js-runtime",
-    "nativeModes": [
-      "help"
-    ]
-  },
-  "withdraw recipients list": {
-    "owner": "js-runtime",
-    "nativeModes": [
-      "help"
-    ]
-  },
-  "withdraw recipients add": {
-    "owner": "js-runtime",
-    "nativeModes": [
-      "help"
-    ]
-  },
-  "withdraw recipients remove": {
-    "owner": "js-runtime",
-    "nativeModes": [
-      "help"
-    ]
-  },
-  "withdraw recipients clear": {
     "owner": "js-runtime",
     "nativeModes": [
       "help"
@@ -773,9 +732,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "name": "config unset",
       "description": "Clear a single configuration key",
       "group": "advanced",
-      "aliases": [
-        "remove"
-      ],
       "usage": "config unset <key>",
       "flags": [],
       "agentFlags": "--agent",
@@ -1407,9 +1363,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "name": "recipients",
       "description": "Manage remembered withdrawal recipients",
       "group": "transaction",
-      "aliases": [
-        "recents"
-      ],
       "usage": "recipients",
       "flags": [
         "--limit <n>",
@@ -1437,9 +1390,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "name": "recipients list",
       "description": "List remembered withdrawal recipients",
       "group": "transaction",
-      "aliases": [
-        "ls"
-      ],
       "usage": "recipients list",
       "flags": [
         "--limit <n>",
@@ -1487,9 +1437,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "name": "recipients remove",
       "description": "Remove a recipient from the local withdrawal address book",
       "group": "transaction",
-      "aliases": [
-        "rm"
-      ],
       "usage": "recipients remove <address-or-ens>",
       "flags": [],
       "agentFlags": "--agent",
@@ -2470,9 +2417,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "config unset",
       "description": "Clear a single configuration key",
       "group": "advanced",
-      "aliases": [
-        "remove"
-      ],
+      "aliases": [],
       "execution": {
         "owner": "js-runtime",
         "nativeModes": [
@@ -2515,7 +2460,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         "privacy-pools config unset rpc-override.mainnet",
         "privacy-pools config unset default-chain",
         "privacy-pools config unset recovery-phrase",
-        "privacy-pools config remove signer-key"
+        "privacy-pools config unset signer-key"
       ],
       "structuredExamples": [
         {
@@ -2532,7 +2477,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 4",
-          "command": "privacy-pools config remove signer-key"
+          "command": "privacy-pools config unset signer-key"
         }
       ],
       "jsonFields": null,
@@ -4328,7 +4273,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "privacy-pools protocol-stats --agent --limit 10"
         }
       ],
-      "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, deprecationWarning?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
+      "jsonFields": "{ mode: \"global-stats\", command: \"protocol-stats\", invokedAs?, chain, chains?, cacheTimestamp?, allTime?, last24h?, perChain?: [{ chain, cacheTimestamp, allTime, last24h }] }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -4413,7 +4358,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
           "command": "privacy-pools pool-stats USDC --agent --chain mainnet --limit 10"
         }
       ],
-      "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
+      "jsonFields": "{ mode: \"pool-stats\", command: \"pool-stats\", invokedAs?, chain, asset, pool, scope, cacheTimestamp?, allTime?, last24h? }",
       "jsonVariants": [],
       "safetyNotes": [
         "Exit code categories are documented in 'privacy-pools guide exit-codes'."
@@ -5327,9 +5272,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "recipients",
       "description": "Manage remembered withdrawal recipients",
       "group": "transaction",
-      "aliases": [
-        "recents"
-      ],
+      "aliases": [],
       "execution": {
         "owner": "js-runtime",
         "nativeModes": [
@@ -5425,9 +5368,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "recipients list",
       "description": "List remembered withdrawal recipients",
       "group": "transaction",
-      "aliases": [
-        "ls"
-      ],
+      "aliases": [],
       "execution": {
         "owner": "js-runtime",
         "nativeModes": [
@@ -5472,8 +5413,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools recipients list",
-        "privacy-pools recipients list --limit 10",
-        "privacy-pools recents"
+        "privacy-pools recipients list --limit 10"
       ],
       "structuredExamples": [
         {
@@ -5483,10 +5423,6 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         {
           "description": "Example 2",
           "command": "privacy-pools recipients list --limit 10"
-        },
-        {
-          "description": "Example 3",
-          "command": "privacy-pools recents"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"list\", chain, count, recipients: [{ address, label, ensName, chain, source, useCount, firstUsedAt?, lastUsedAt?, updatedAt? }] }",
@@ -5594,9 +5530,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "command": "recipients remove",
       "description": "Remove a recipient from the local withdrawal address book",
       "group": "transaction",
-      "aliases": [
-        "rm"
-      ],
+      "aliases": [],
       "execution": {
         "owner": "js-runtime",
         "nativeModes": [
@@ -5637,7 +5571,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
       "prerequisites": [],
       "examples": [
         "privacy-pools recipients remove 0xRecipient...",
-        "privacy-pools recipients rm treasury.eth"
+        "privacy-pools recipients remove treasury.eth"
       ],
       "structuredExamples": [
         {
@@ -5646,7 +5580,7 @@ export const GENERATED_CAPABILITIES_PAYLOAD: CapabilitiesPayload = {
         },
         {
           "description": "Example 2",
-          "command": "privacy-pools recipients rm treasury.eth"
+          "command": "privacy-pools recipients remove treasury.eth"
         }
       ],
       "jsonFields": "{ mode: \"recipient-history\", operation: \"remove\", recipient: { address, label, ensName, chain, source, useCount, firstUsedAt, lastUsedAt, updatedAt } | null, removed: boolean }",

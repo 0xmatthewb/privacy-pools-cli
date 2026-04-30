@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -52,7 +52,9 @@ function discoverSourceCodes() {
     "UNKNOWN_",
   ];
   for (const file of files) {
-    const text = readFileSync(join(repoRoot, file), "utf8");
+    const sourcePath = join(repoRoot, file);
+    if (!existsSync(sourcePath)) continue;
+    const text = readFileSync(sourcePath, "utf8");
     for (const match of text.matchAll(codePattern)) {
       const code = match[1];
       if (errorPrefixes.some((prefix) => code.startsWith(prefix))) {

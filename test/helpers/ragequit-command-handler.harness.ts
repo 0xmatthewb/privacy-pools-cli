@@ -892,7 +892,8 @@ export function registerRagequitUnsignedTests(): void {
     );
 
     expect(json.success).toBe(true);
-    expect(json.mode).toBe("unsigned");
+    expect(json.mode).toBe("ragequit");
+    expect(json.unsigned).toBe(true);
     expect(json.operation).toBe("ragequit");
     expect(json.poolAccountId).toBe("PA-1");
     expectUnsignedTransactions(json.transactions, [

@@ -31,8 +31,8 @@ describe("JSON output helpers", () => {
     resetJsonOutputConfig();
   });
 
-  test("JSON_SCHEMA_VERSION is 2.0.0", () => {
-    expect(JSON_SCHEMA_VERSION).toBe("2.0.0");
+  test("JSON_SCHEMA_VERSION is 3.0.0", () => {
+    expect(JSON_SCHEMA_VERSION).toBe("3.0.0");
   });
 
   describe("printJsonSuccess", () => {

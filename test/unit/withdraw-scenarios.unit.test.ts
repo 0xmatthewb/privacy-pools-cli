@@ -23,7 +23,8 @@ describe("withdraw scenarios", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.json.success).toBe(true);
-    expect(result.json.mode).toBe("relayed");
+    expect(result.json.mode).toBe("withdraw");
+    expect(result.json.withdrawMode).toBe("relayed");
     expect(result.json.txHash).toBe("0x" + "34".repeat(32));
   });
 
@@ -39,7 +40,8 @@ describe("withdraw scenarios", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.json.success).toBe(true);
-    expect(result.json.mode).toBe("direct");
+    expect(result.json.mode).toBe("withdraw");
+    expect(result.json.withdrawMode).toBe("direct");
     expect(result.json.txHash).toBe("0x" + "56".repeat(32));
   });
 

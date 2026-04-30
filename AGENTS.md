@@ -627,7 +627,7 @@ Protocol-wide statistics. Always shows aggregate cross-chain data. The `--chain`
 privacy-pools protocol-stats --agent
 ```
 
-JSON payload: `{ mode: "global-stats", command: "protocol-stats", invokedAs?, deprecationWarning?, chain: "all-mainnets", chains, cacheTimestamp, allTime, last24h, perChain? }`
+JSON payload: `{ mode: "global-stats", command: "protocol-stats", invokedAs?, chain: "all-mainnets", chains, cacheTimestamp, allTime, last24h, perChain? }`
 
 `chains` lists the chain names queried and `perChain` contains per-chain `{ chain, cacheTimestamp, allTime, last24h }` entries.
 
@@ -641,7 +641,7 @@ Per-pool statistics.
 privacy-pools pool-stats ETH --agent
 ```
 
-JSON payload: `{ mode: "pool-stats", command: "pool-stats", invokedAs?, deprecationWarning?, chain, asset, pool, scope, cacheTimestamp, allTime, last24h }`
+JSON payload: `{ mode: "pool-stats", command: "pool-stats", invokedAs?, chain, asset, pool, scope, cacheTimestamp, allTime, last24h }`
 
 #### `status`
 

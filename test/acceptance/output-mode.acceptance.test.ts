@@ -176,11 +176,13 @@ defineScenarioSuite("output-mode acceptance", [
       schemaVersion: string;
       success: boolean;
       mode: string;
+      operation: string;
       help: string;
     }>((json) => {
       expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
       expect(json.success).toBe(true);
-      expect(json.mode).toBe("help");
+      expect(json.mode).toBe("guide");
+      expect(json.operation).toBe("guide");
       expect(json.help).toContain("privacy-pools capabilities --agent");
     }),
   ]),
@@ -263,11 +265,13 @@ defineScenarioSuite("output-mode acceptance", [
     runCliStep(["--agent", "completion", "bash"]),
     assertExit(0),
     assertStderrEmpty(),
-    assertJson<{ schemaVersion: string; success: boolean; mode: string }>(
+    assertJson<{ schemaVersion: string; success: boolean; mode: string; action: string; operation: string }>(
       (json) => {
         expect(json.schemaVersion).toMatch(/^\d+\.\d+\.\d+$/);
         expect(json.success).toBe(true);
-        expect(json.mode).toBe("completion-script");
+        expect(json.mode).toBe("completion");
+        expect(json.action).toBe("script");
+        expect(json.operation).toBe("completion.script");
       },
     ),
   ]),
