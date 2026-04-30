@@ -77,17 +77,6 @@ describe("ci job selection", () => {
     expect(decision.reason).toContain("test/helpers/shared-anvil.ts");
   });
 
-  test("npm-test follows the core changed-path filtering on pull requests", () => {
-    const decision = evaluateJobSelection({
-      job: "npm-test",
-      eventName: "pull_request",
-      changedFiles: ["src/commands/withdraw.ts"],
-    });
-
-    expect(decision.shouldRun).toBe(true);
-    expect(decision.reason).toContain("src/commands/withdraw.ts");
-  });
-
   test("cross-platform runs for native packaging changes", () => {
     const decision = evaluateJobSelection({
       job: "cross-platform",
@@ -561,14 +550,41 @@ describe("ci job selection", () => {
     expect(nativeDecision.reason).toContain(JSON_CONTRACT_DOC_RELATIVE_PATH);
   });
 
-  test("conformance-core runs when verification scripts change", () => {
-    const decision = evaluateJobSelection({
+  test("conformance-core uses narrow docs and script selectors", () => {
+    const profileDecision = evaluateJobSelection({
+      job: "conformance-core",
+      eventName: "pull_request",
+      changedFiles: ["scripts/run-test-profile.mjs"],
+    });
+
+    expect(profileDecision.shouldRun).toBe(true);
+    expect(profileDecision.reason).toContain("scripts/run-test-profile.mjs");
+
+    const contractDecision = evaluateJobSelection({
+      job: "conformance-core",
+      eventName: "pull_request",
+      changedFiles: [JSON_CONTRACT_DOC_RELATIVE_PATH],
+    });
+
+    expect(contractDecision.shouldRun).toBe(true);
+    expect(contractDecision.reason).toContain(JSON_CONTRACT_DOC_RELATIVE_PATH);
+
+    const scriptDecision = evaluateJobSelection({
       job: "conformance-core",
       eventName: "pull_request",
       changedFiles: ["scripts/verify-registry-install.mjs"],
     });
 
-    expect(decision.shouldRun).toBe(true);
-    expect(decision.reason).toContain("scripts/verify-registry-install.mjs");
+    expect(scriptDecision.shouldRun).toBe(false);
+    expect(scriptDecision.reason).toContain("No changes matched");
+
+    const docsDecision = evaluateJobSelection({
+      job: "conformance-core",
+      eventName: "pull_request",
+      changedFiles: ["docs/runtime-upgrades.md"],
+    });
+
+    expect(docsDecision.shouldRun).toBe(false);
+    expect(docsDecision.reason).toContain("No changes matched");
   });
 });

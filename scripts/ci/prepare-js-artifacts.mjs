@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import {
   parseArgs,
   npmCommand,
@@ -60,6 +60,8 @@ mkdirSync(artifactRoot, { recursive: true });
 mkdirSync(tarballRoot, { recursive: true });
 mkdirSync(npmStateRoot, { recursive: true });
 
+rmSync(join(ROOT, "dist"), { recursive: true, force: true });
+rmSync(join(ROOT, ".tsbuildinfo"), { recursive: true, force: true });
 run(npmCommand, ["run", "build"]);
 
 if (!existsSync(join(distDir, "index.js"))) {

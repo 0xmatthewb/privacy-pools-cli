@@ -9,6 +9,8 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "rootDir": "src",
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo/build.tsbuildinfo",
     "declaration": true,
     "resolveJsonModule": true,
     "isolatedModules": true,

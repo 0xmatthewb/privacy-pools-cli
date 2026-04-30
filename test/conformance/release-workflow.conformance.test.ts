@@ -119,8 +119,8 @@ describe("release workflow conformance", () => {
   test("blocking CI keeps the expected test and verification lanes", () => {
     for (const requiredJob of [
       "linux-core:",
-      "npm-test:",
       "prepare-js-artifacts:",
+      "prepare-native-binary:",
       "packaged-smoke:",
       "root-install-smoke:",
       "native-smoke:",
@@ -134,7 +134,9 @@ describe("release workflow conformance", () => {
       expect(ciWorkflow).toContain(requiredJob);
     }
 
-    expect(ciWorkflow).toContain("npm test");
+    expect(ciWorkflow).not.toContain("npm-test:");
+    expect(ciWorkflow).not.toContain("npm test");
+    expect(ciWorkflow).toContain("ci-native-binary-linux-x64-gnu");
     expect(ciWorkflow).toContain("npm run test:coverage");
     expect(ciWorkflow).toContain("npm run test:native");
     expect(ciWorkflow).toContain("npm run test:smoke:native:package");
@@ -261,14 +263,24 @@ describe("release workflow conformance", () => {
     ]);
   });
 
-  test("blocking CI smoke lanes cover the full supported packaged-install range", () => {
-    const expectedNodeVersions = ["22.x", "23.x", "24.x", "25.x"];
+  test("blocking CI smoke lanes keep the reduced PR node range", () => {
+    const expectedNodeVersions = ["22.x", "25.x"];
     expect(extractWorkflowJobNodeVersions(ciWorkflow, "packaged-smoke")).toEqual(
       expectedNodeVersions,
     );
     expect(extractWorkflowJobNodeVersions(ciWorkflow, "native-smoke")).toEqual(
       expectedNodeVersions,
     );
+  });
+
+  test("cross-platform workflow keeps full Linux node range off the default PR gate", () => {
+    expect(extractWorkflowJobNodeVersions(crossPlatformWorkflow, "full-node-matrix")).toEqual([
+      "22.x",
+      "23.x",
+      "24.x",
+      "25.x",
+    ]);
+    expect(crossPlatformWorkflow).toContain("full-matrix");
   });
 
   test("native triplets stay aligned while root installs avoid unpublished optional dependencies", () => {

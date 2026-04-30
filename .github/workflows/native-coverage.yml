@@ -20,6 +20,14 @@ name: Native Coverage
 
 on:
   pull_request:
+    paths:
+      - "native/**"
+      - "src/native-distribution.ts"
+      - "scripts/generate-command-discovery-static.mjs"
+      - "scripts/check-native-coverage.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/native-coverage.yml"
   push:
     branches:
       - main
@@ -49,6 +57,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select native-coverage
         id: select
@@ -68,6 +78,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: native/shell
+          shared-key: native-shell-debug-linux
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Install cargo-llvm-cov
         if: steps.select.outputs.should_run == 'true'

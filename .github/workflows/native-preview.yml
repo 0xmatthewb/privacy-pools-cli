@@ -29,6 +29,14 @@ on:
       - native-preview/**
       - native-release
       - native-release/**
+    paths:
+      - "native/**"
+      - "scripts/bench-cli.mjs"
+      - "scripts/bench/**"
+      - "src/native-distribution.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/native-preview.yml"
   workflow_dispatch:
 
 permissions:

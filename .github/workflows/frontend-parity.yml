@@ -19,6 +19,17 @@ name: Frontend Parity
 
 on:
   pull_request:
+    paths:
+      - "src/services/**"
+      - "src/config/**"
+      - "docs/contracts/**"
+      - "docs/reference.md"
+      - "skills/**"
+      - "test/conformance/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".bun-version"
+      - ".github/workflows/frontend-parity.yml"
   schedule:
     - cron: "47 3 * * *"
   workflow_dispatch:
@@ -45,6 +56,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "25.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Select frontend-parity
         id: select
@@ -58,8 +71,6 @@ jobs:
       - name: Setup Bun
         if: steps.select.outputs.should_run == 'true'
         uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3.11"
 
       - name: Install dependencies
         if: steps.select.outputs.should_run == 'true'
