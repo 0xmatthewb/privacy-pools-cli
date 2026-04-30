@@ -140,6 +140,10 @@ async function loadHistoryCommand(): Promise<void> {
     assertAccountStateFreshForNoSync: assertAccountStateFreshForNoSyncMock,
     initializeAccountServiceWithState: initializeAccountServiceWithStateMock,
     syncAccountEvents: syncAccountEventsMock,
+    // Mock loadSyncMeta so the test is hermetic: in CI no sync.json exists
+    // (returns null), but locally a stale sync.json from prior runs may
+    // return a real timestamp. Force null so the assertion is stable.
+    loadSyncMeta: () => null,
   }));
   mock.module("../../src/services/pools.ts", () => ({
     ...realPools,
@@ -309,7 +313,10 @@ describe("history command handler", () => {
       expect.objectContaining({
         chain: "mainnet",
         syncSkipped: false,
-        lastSyncTime: expect.any(Number),
+        // loadSyncMeta returns null when no sync.json exists in the test
+        // home (the natural state for this test). The test exercises the
+        // no-pools render path; lastSyncTime presence isn't load-bearing.
+        lastSyncTime: null,
       }),
     );
     expect(initializeAccountServiceWithStateMock).not.toHaveBeenCalled();
