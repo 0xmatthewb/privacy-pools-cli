@@ -52,8 +52,11 @@ let sharedBuiltWorkspaceSnapshotRoot = null;
 let cleanedUp = false;
 let keptCoverageRootNotified = false;
 // Keep coverage-owned isolated suites serial until Bun's lcov writer is
-// reliable across concurrent coverage processes. The default test runner still
-// uses fixtureClass-aware concurrency for non-coverage execution.
+// reliable across concurrent coverage processes. The Bun 1.3.13 audit via
+// scripts/bench-coverage-concurrency.mjs still found non-equivalent lcov maps
+// at concurrency >= 2 and nondeterministic hashes at concurrency 3/4.
+// The default test runner still uses fixtureClass-aware concurrency for
+// non-coverage execution.
 const COVERAGE_ISOLATED_CONCURRENCY = 1;
 
 class CoverageSuiteExitError extends Error {
