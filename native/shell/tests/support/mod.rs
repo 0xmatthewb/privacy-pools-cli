@@ -12,9 +12,8 @@ use std::sync::{
     Arc, Mutex, OnceLock,
 };
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tiny_keccak::{Hasher, Keccak};
-use wait_timeout::ChildExt;
 
 const FIXTURE_CHAIN_ID: u64 = 11_155_111;
 const FIXTURE_MAINNET_CHAIN_ID: u64 = 1;
@@ -98,40 +97,48 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
         })
     });
 
-    // 15s ceiling. cli_dispatch tests are sub-second locally; if a subprocess
-    // hangs past this we surface it via eprintln + panic with the offending
-    // argv. Lower than the original 60s so multiple panic markers can reach
-    // the log before any runner-side cancellation, AND so cumulative hung
-    // tests don't burn the entire job budget waiting for libtest to flush.
+    // 15s ceiling via try_wait polling. The wait-timeout crate's SIGCHLD
+    // self-pipe machinery has been observed to hang indefinitely on
+    // GitHub Actions Linux runners (CI runs 25146413002-25158967812 all
+    // showed [native-test] starting markers with no completion and no
+    // panic). Manual polling with try_wait() bypasses the SIGCHLD layer
+    // entirely and works reliably on every Unix.
     let timeout = Duration::from_secs(15);
-    let status = match child
-        .wait_timeout(timeout)
-        .expect("wait_timeout should not fail")
-    {
-        Some(status) => status,
-        None => {
-            // Direct stderr write BEFORE panic! — libtest's panic hook
-            // buffers panic messages into the end-of-run failures summary,
-            // which doesn't print if cargo-test is killed externally
-            // before completion. Direct eprintln surfaces immediately
-            // under --nocapture / RUST_TEST_NOCAPTURE.
-            eprintln!(
-                "[native-test] HUNG argv={:?} after {timeout:?} - killing subprocess",
-                args
-            );
-            let _ = child.kill();
-            let _ = child.wait();
-            // Join drainer threads with the kernel having released pipe FDs
-            // (via kill() above), so read_to_end sees EOF and threads exit.
-            // Without joining, dangling drainers hold pipe FDs into the next
-            // test, which on Linux can wedge subsequent spawns.
-            if let Some(h) = stdout_handle {
-                let _ = h.join();
+    let poll_interval = Duration::from_millis(100);
+    let started_at = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {
+                if started_at.elapsed() >= timeout {
+                    // Direct stderr write BEFORE panic! — libtest's panic
+                    // hook buffers panic messages into the end-of-run
+                    // failures summary, which doesn't print if cargo-test
+                    // is killed externally before completion.
+                    eprintln!(
+                        "[native-test] HUNG argv={:?} after {timeout:?} - killing subprocess",
+                        args
+                    );
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    if let Some(h) = stdout_handle {
+                        let _ = h.join();
+                    }
+                    if let Some(h) = stderr_handle {
+                        let _ = h.join();
+                    }
+                    panic!(
+                        "native shell test subprocess hung beyond {timeout:?}; argv={args:?}"
+                    );
+                }
+                thread::sleep(poll_interval);
             }
-            if let Some(h) = stderr_handle {
-                let _ = h.join();
+            Err(error) => {
+                eprintln!("[native-test] try_wait error argv={:?}: {error}", args);
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("try_wait failed for argv={args:?}: {error}");
             }
-            panic!("native shell test subprocess hung beyond {timeout:?}; argv={args:?}");
         }
     };
 
