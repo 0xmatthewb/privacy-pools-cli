@@ -107,14 +107,16 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
             let _ = child.wait();
             // Joining the drainer threads here is best-effort; closing the
             // pipes via kill() should let read_to_end return EOF.
-            panic!(
-                "native shell test subprocess hung beyond {timeout:?}; argv={args:?}"
-            );
+            panic!("native shell test subprocess hung beyond {timeout:?}; argv={args:?}");
         }
     };
 
-    let stdout = stdout_handle.and_then(|h| h.join().ok()).unwrap_or_default();
-    let stderr = stderr_handle.and_then(|h| h.join().ok()).unwrap_or_default();
+    let stdout = stdout_handle
+        .and_then(|h| h.join().ok())
+        .unwrap_or_default();
+    let stderr = stderr_handle
+        .and_then(|h| h.join().ok())
+        .unwrap_or_default();
 
     Output {
         status,
