@@ -1,5 +1,9 @@
 # Agent Integration Guide
 
+## Contributing to this CLI
+
+If you are a coding agent or developer modifying this repo (rather than consuming the CLI), see [CLAUDE.md](CLAUDE.md) for build/test commands and the test-runner contract. Never invoke `bun test` directly — use `node scripts/run-bun-tests.mjs <files...>` for targeted runs. The wrapper handles isolated-suite orchestration, temp-dir cleanup, and `PP_TEST_RUN_ID` injection that direct invocations bypass.
+
 Three documents serve agents at different depths:
 - [`skills/privacy-pools/SKILL.md`](skills/privacy-pools/SKILL.md) — compact quick-start, lookup tables, common workflows
 - [`AGENTS.md`](AGENTS.md) (this document) — comprehensive reference with full JSON payload schemas, integration patterns, error taxonomy
