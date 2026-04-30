@@ -428,6 +428,7 @@ dependencies = [
  "terminal_size",
  "tiny-keccak",
  "ureq",
+ "wait-timeout",
 ]
 
 [[package]]

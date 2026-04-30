@@ -6,7 +6,7 @@ use std::ffi::OsString;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex, OnceLock,
@@ -14,6 +14,7 @@ use std::sync::{
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use tiny_keccak::{Hasher, Keccak};
+use wait_timeout::ChildExt;
 
 const FIXTURE_CHAIN_ID: u64 = 11_155_111;
 const FIXTURE_MAINNET_CHAIN_ID: u64 = 1;
@@ -41,9 +42,12 @@ pub fn run_native(args: &[&str]) -> Output {
 }
 
 pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
+    // Use unwrap_or_else(into_inner) instead of expect() so a single panicking
+    // test (e.g. wait_timeout panic) doesn't cascade-poison every subsequent
+    // test that takes this lock. Each test still runs in isolation.
     let _guard = native_subprocess_lock()
         .lock()
-        .expect("native subprocess test lock should not be poisoned");
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut command = Command::new(native_shell_bin_path());
     command.current_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."));
     command.env_clear();
@@ -62,10 +66,61 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
     // Force stdin to /dev/null so the subprocess sees EOF immediately if it
     // ever reads stdin. Without this, on CI runners where the parent's stdin
     // is connected to cargo-test's pipe, a subprocess that reads stdin can
-    // block indefinitely (observed cli_dispatch hang in CI runs 25146413002
-    // and 25147410567).
-    command.stdin(std::process::Stdio::null());
-    command.output().expect("native shell should execute")
+    // block indefinitely.
+    command.stdin(Stdio::null());
+    command.stdout(Stdio::piped());
+    command.stderr(Stdio::piped());
+    let mut child = command.spawn().expect("native shell should spawn");
+
+    // Drain stdout/stderr concurrently with wait_timeout. Large outputs
+    // (e.g. `capabilities --output csv` at ~190KB) fill the OS pipe buffer
+    // (~16-64KB on Darwin); without concurrent draining, the child blocks
+    // on write while the parent sleeps in wait_timeout — classic deadlock.
+    // This mirrors what std's Command::output() does internally.
+    let stdout_handle = child.stdout.take().map(|mut out| {
+        thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = out.read_to_end(&mut buf);
+            buf
+        })
+    });
+    let stderr_handle = child.stderr.take().map(|mut err| {
+        thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = err.read_to_end(&mut buf);
+            buf
+        })
+    });
+
+    // 60s ceiling. cli_dispatch tests are sub-second locally; if a subprocess
+    // hangs past this we surface it as a panic with the offending argv so the
+    // root cause is debuggable instead of disappearing into a runner-side
+    // timeout.
+    let timeout = Duration::from_secs(60);
+    let status = match child
+        .wait_timeout(timeout)
+        .expect("wait_timeout should not fail")
+    {
+        Some(status) => status,
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            // Joining the drainer threads here is best-effort; closing the
+            // pipes via kill() should let read_to_end return EOF.
+            panic!(
+                "native shell test subprocess hung beyond {timeout:?}; argv={args:?}"
+            );
+        }
+    };
+
+    let stdout = stdout_handle.and_then(|h| h.join().ok()).unwrap_or_default();
+    let stderr = stderr_handle.and_then(|h| h.join().ok()).unwrap_or_default();
+
+    Output {
+        status,
+        stdout,
+        stderr,
+    }
 }
 
 fn native_subprocess_lock() -> &'static Mutex<()> {
