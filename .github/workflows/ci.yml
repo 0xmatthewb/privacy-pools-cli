@@ -437,6 +437,17 @@ jobs:
 
       - name: Run native Rust unit tests
         if: steps.select.outputs.should_run == 'true'
+        env:
+          # Cargo's libtest captures stdout/stderr by default; since the
+          # native-unit job has historically produced silent failures
+          # (no panic, no test summary), surface the binary's stderr by
+          # disabling capture. Equivalent to passing -- --nocapture
+          # without modifying the test:native script (which the
+          # package-scripts conformance test pins to its canonical
+          # form). RUST_BACKTRACE=1 ensures any panic prints a usable
+          # stack frame.
+          RUST_TEST_NOCAPTURE: "1"
+          RUST_BACKTRACE: "1"
         run: npm run test:native
 
   # -----------------------------------------------------------
