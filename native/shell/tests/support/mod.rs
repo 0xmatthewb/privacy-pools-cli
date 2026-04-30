@@ -98,21 +98,39 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
         })
     });
 
-    // 60s ceiling. cli_dispatch tests are sub-second locally; if a subprocess
-    // hangs past this we surface it as a panic with the offending argv so the
-    // root cause is debuggable instead of disappearing into a runner-side
-    // timeout.
-    let timeout = Duration::from_secs(60);
+    // 15s ceiling. cli_dispatch tests are sub-second locally; if a subprocess
+    // hangs past this we surface it via eprintln + panic with the offending
+    // argv. Lower than the original 60s so multiple panic markers can reach
+    // the log before any runner-side cancellation, AND so cumulative hung
+    // tests don't burn the entire job budget waiting for libtest to flush.
+    let timeout = Duration::from_secs(15);
     let status = match child
         .wait_timeout(timeout)
         .expect("wait_timeout should not fail")
     {
         Some(status) => status,
         None => {
+            // Direct stderr write BEFORE panic! — libtest's panic hook
+            // buffers panic messages into the end-of-run failures summary,
+            // which doesn't print if cargo-test is killed externally
+            // before completion. Direct eprintln surfaces immediately
+            // under --nocapture / RUST_TEST_NOCAPTURE.
+            eprintln!(
+                "[native-test] HUNG argv={:?} after {timeout:?} - killing subprocess",
+                args
+            );
             let _ = child.kill();
             let _ = child.wait();
-            // Joining the drainer threads here is best-effort; closing the
-            // pipes via kill() should let read_to_end return EOF.
+            // Join drainer threads with the kernel having released pipe FDs
+            // (via kill() above), so read_to_end sees EOF and threads exit.
+            // Without joining, dangling drainers hold pipe FDs into the next
+            // test, which on Linux can wedge subsequent spawns.
+            if let Some(h) = stdout_handle {
+                let _ = h.join();
+            }
+            if let Some(h) = stderr_handle {
+                let _ = h.join();
+            }
             panic!("native shell test subprocess hung beyond {timeout:?}; argv={args:?}");
         }
     };
