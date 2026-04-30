@@ -12,7 +12,7 @@ use std::sync::{
     Arc, Mutex, OnceLock,
 };
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tiny_keccak::{Hasher, Keccak};
 
 const FIXTURE_CHAIN_ID: u64 = 11_155_111;
@@ -62,104 +62,13 @@ pub fn run_native_with_env(args: &[&str], env: &[(&str, &str)]) -> Output {
         command.env(key, value);
     }
     command.args(args);
-    // Diagnostic: emit start/end markers to stderr so CI logs surface which
-    // test was running when a job is killed externally (no panic, no test
-    // summary — just job termination). This has surfaced silent native-unit
-    // failures across multiple CI runs where neither cargo's test summary
-    // nor wait_timeout panics appear in the log.
-    eprintln!("[native-test] starting argv={:?}", args);
     // Force stdin to /dev/null so the subprocess sees EOF immediately if it
-    // ever reads stdin. Without this, on CI runners where the parent's stdin
-    // is connected to cargo-test's pipe, a subprocess that reads stdin can
-    // block indefinitely.
+    // ever reads stdin. The hard timeouts that previously protected against
+    // hangs (wait-timeout SIGCHLD-based, then try_wait polling) introduced
+    // their own CI flakes; rely on the per-test #[ignore] gates above plus
+    // the GHA job-level timeout-minutes ceiling for runaway protection.
     command.stdin(Stdio::null());
-    command.stdout(Stdio::piped());
-    command.stderr(Stdio::piped());
-    let mut child = command.spawn().expect("native shell should spawn");
-
-    // Drain stdout/stderr concurrently with wait_timeout. Large outputs
-    // (e.g. `capabilities --output csv` at ~190KB) fill the OS pipe buffer
-    // (~16-64KB on Darwin); without concurrent draining, the child blocks
-    // on write while the parent sleeps in wait_timeout — classic deadlock.
-    // This mirrors what std's Command::output() does internally.
-    let stdout_handle = child.stdout.take().map(|mut out| {
-        thread::spawn(move || {
-            let mut buf = Vec::new();
-            let _ = out.read_to_end(&mut buf);
-            buf
-        })
-    });
-    let stderr_handle = child.stderr.take().map(|mut err| {
-        thread::spawn(move || {
-            let mut buf = Vec::new();
-            let _ = err.read_to_end(&mut buf);
-            buf
-        })
-    });
-
-    // 15s ceiling via try_wait polling. The wait-timeout crate's SIGCHLD
-    // self-pipe machinery has been observed to hang indefinitely on
-    // GitHub Actions Linux runners (CI runs 25146413002-25158967812 all
-    // showed [native-test] starting markers with no completion and no
-    // panic). Manual polling with try_wait() bypasses the SIGCHLD layer
-    // entirely and works reliably on every Unix.
-    let timeout = Duration::from_secs(15);
-    let poll_interval = Duration::from_millis(100);
-    let started_at = Instant::now();
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) => {
-                if started_at.elapsed() >= timeout {
-                    // Direct stderr write BEFORE panic! — libtest's panic
-                    // hook buffers panic messages into the end-of-run
-                    // failures summary, which doesn't print if cargo-test
-                    // is killed externally before completion.
-                    eprintln!(
-                        "[native-test] HUNG argv={:?} after {timeout:?} - killing subprocess",
-                        args
-                    );
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    if let Some(h) = stdout_handle {
-                        let _ = h.join();
-                    }
-                    if let Some(h) = stderr_handle {
-                        let _ = h.join();
-                    }
-                    panic!("native shell test subprocess hung beyond {timeout:?}; argv={args:?}");
-                }
-                thread::sleep(poll_interval);
-            }
-            Err(error) => {
-                eprintln!("[native-test] try_wait error argv={:?}: {error}", args);
-                let _ = child.kill();
-                let _ = child.wait();
-                panic!("try_wait failed for argv={args:?}: {error}");
-            }
-        }
-    };
-
-    let stdout = stdout_handle
-        .and_then(|h| h.join().ok())
-        .unwrap_or_default();
-    let stderr = stderr_handle
-        .and_then(|h| h.join().ok())
-        .unwrap_or_default();
-
-    eprintln!(
-        "[native-test] completed argv={:?} status={:?} stdout_bytes={} stderr_bytes={}",
-        args,
-        status.code(),
-        stdout.len(),
-        stderr.len()
-    );
-
-    Output {
-        status,
-        stdout,
-        stderr,
-    }
+    command.output().expect("native shell should execute")
 }
 
 fn native_subprocess_lock() -> &'static Mutex<()> {
